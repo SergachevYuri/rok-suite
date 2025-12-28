@@ -68,6 +68,7 @@ export default function AooStrategyPage() {
     const [editorPassword, setEditorPassword] = useState('');
     const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
     const [strategyId, setStrategyId] = useState<number | null>(null);
+    const strategyIdRef = useRef<number | null>(null);
     // Vision UI theme is always dark - no toggle needed
     const [strategyExpanded, setStrategyExpanded] = useState(false);
     const [eventMode, setEventMode] = useState<EventMode>('main');
@@ -129,6 +130,7 @@ export default function AooStrategyPage() {
 
     const loadData = async (mode: EventMode = eventMode, team: AooTeam = aooTeam) => {
         setIsLoading(true);
+        console.log('loadData called', { mode, team });
         try {
             // Query for the specific event mode and team
             const { data, error } = await supabase
@@ -139,14 +141,19 @@ export default function AooStrategyPage() {
                 .limit(1)
                 .maybeSingle();
 
+            console.log('Supabase query result', { data, error, hasData: !!data, dataId: data?.id });
+
             if (error && error.code !== 'PGRST116') {
                 // PGRST116 = column doesn't exist (migration not run yet)
                 console.error('Error loading data:', error);
             }
 
             if (data) {
+                console.log('Loading from Supabase, setting strategyId to:', data.id);
                 setStrategyId(data.id);
+                strategyIdRef.current = data.id;
                 const strategyData = data.data as StrategyData;
+                console.log('Strategy data mapAssignments:', strategyData?.mapAssignments);
                 setPlayers(strategyData?.players || []);
                 setSubstitutes(strategyData?.substitutes || []);
                 setTeams(strategyData?.teams || DEFAULT_TEAMS);
@@ -155,12 +162,15 @@ export default function AooStrategyPage() {
                 setMapAssignments(strategyData?.mapAssignments || undefined);
             } else {
                 // No data in Supabase - try to load from JSON files
+                console.log('No Supabase data, trying JSON fallback');
                 setStrategyId(null);
+                strategyIdRef.current = null;
                 try {
                     const jsonFile = team === 'team1' ? '/data/aoo-team1.json' : '/data/aoo-team2.json';
                     const response = await fetch(jsonFile);
                     if (response.ok) {
                         const jsonData = await response.json() as StrategyData;
+                        console.log('Loaded from JSON:', jsonFile);
                         setPlayers(jsonData?.players || []);
                         setSubstitutes(jsonData?.substitutes || []);
                         setTeams(jsonData?.teams || DEFAULT_TEAMS);
@@ -169,6 +179,7 @@ export default function AooStrategyPage() {
                         setMapAssignments(jsonData?.mapAssignments || undefined);
                     } else {
                         // JSON file not found - use empty defaults
+                        console.log('JSON file not found, using defaults');
                         setPlayers([]);
                         setSubstitutes([]);
                         setTeams(DEFAULT_TEAMS);
@@ -178,6 +189,7 @@ export default function AooStrategyPage() {
                     }
                 } catch {
                     // Error loading JSON - use empty defaults
+                    console.log('Error loading JSON, using defaults');
                     setPlayers([]);
                     setSubstitutes([]);
                     setTeams(DEFAULT_TEAMS);
@@ -201,11 +213,13 @@ export default function AooStrategyPage() {
             mapAssignments: updatedData.mapAssignments ?? mapAssignments ?? {},
             substitutes: updatedData.substitutes ?? substitutes,
         };
+        // Use ref to get the latest strategyId (avoids stale closure issues)
+        const currentStrategyId = strategyIdRef.current;
         try {
-            console.log('saveData called', { strategyId, eventMode, aooTeam, dataKeys: Object.keys(data) });
-            if (strategyId) {
-                console.log('Updating existing row:', strategyId);
-                const { error } = await supabase.from('aoo_strategy').update({ data }).eq('id', strategyId);
+            console.log('saveData called', { currentStrategyId, strategyId, eventMode, aooTeam, dataKeys: Object.keys(data) });
+            if (currentStrategyId) {
+                console.log('Updating existing row:', currentStrategyId);
+                const { error } = await supabase.from('aoo_strategy').update({ data }).eq('id', currentStrategyId);
                 if (error) throw error;
                 console.log('Update successful');
             } else {
@@ -219,6 +233,7 @@ export default function AooStrategyPage() {
                 if (newData) {
                     console.log('Insert successful, new id:', newData.id);
                     setStrategyId(newData.id);
+                    strategyIdRef.current = newData.id;
                 }
             }
         } catch (error) {
