@@ -73,28 +73,34 @@ const teamColors: Record<number, { bg: string; text: string; name: string }> = {
 // Keeping empty for now - admin assigns buildings to zones via UI
 const CONQUER_ORDER: Record<number, Record<string, number>> = {};
 
-// Building pairs that are mirrored across the map diagonal
-// When swapping corners, these buildings swap their strategic roles
+// Building pairs that swap within the SAME ZONE when changing start corner
+// Zone 1 (Blue shaded): buildings swap with their zone partner closest to new START
+// Zone 3 (Purple shaded): buildings swap with their zone partner closest to new START
 const MIRROR_PAIRS: Record<string, string> = {
-  'obelisk-1': 'obelisk-4',  // Upper <-> Lower
-  'obelisk-4': 'obelisk-1',
-  'obelisk-2': 'obelisk-3',  // Left <-> Right
-  'obelisk-3': 'obelisk-2',
-  'iset-1': 'seth-3',        // Iset outposts <-> Seth outposts (mirrored)
-  'iset-2': 'seth-2',
-  'iset-3': 'seth-1',
-  'seth-1': 'iset-3',
-  'seth-2': 'iset-2',
+  // Zone 1 (Blue) - Ob-UL swaps with Ob-Lower (both in blue zone)
+  'obelisk-2': 'obelisk-4',  // Ob-UL <-> Ob-Lower
+  'obelisk-4': 'obelisk-2',
+  // Zone 3 (Purple) - Ob-Upper swaps with Ob-LR (both in purple zone)
+  'obelisk-1': 'obelisk-3',  // Ob-Upper <-> Ob-LR
+  'obelisk-3': 'obelisk-1',
+  // Zone 1 (Blue) buildings
+  'iset-2': 'life-2',        // Iset-2 (near top-left) <-> Life-Lo (near bottom-right of blue zone)
+  'life-2': 'iset-2',
+  'sky-2': 'des-lo',         // Sky-Lo <-> Des-Lo - actually these may not need swapping
+  'war-1': 'war-1',          // War-Up stays (center of blue zone)
+  // Zone 3 (Purple) buildings
+  'iset-1': 'seth-3',        // Iset-1 <-> Seth-3
   'seth-3': 'iset-1',
-  'war-1': 'war-2',          // Left <-> Right shrines
-  'war-2': 'war-1',
-  'life-1': 'life-2',        // Right <-> Left shrines
-  'life-2': 'life-1',
-  'desert-1': 'desert-2',    // Right <-> Left altars
-  'desert-2': 'desert-1',
-  'sky-1': 'sky-2',          // Right <-> Left sky altars
-  'sky-2': 'sky-1',
+  'iset-3': 'seth-1',        // Iset-3 <-> Seth-1
+  'seth-1': 'iset-3',
+  'life-1': 'seth-2',        // Life-Up <-> Seth-2
+  'seth-2': 'life-1',
+  'desert-1': 'war-2',       // Des-Up <-> War-Lo
+  'war-2': 'desert-1',
+  'sky-1': 'sky-1',          // Sky-Up stays
   'ark': 'ark',              // Ark stays the same (center)
+  // Defaults for any unmapped
+  'desert-2': 'desert-2',
 };
 
 const getDefaultAssignments = (): MapAssignments => {
@@ -380,10 +386,13 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                 {/* Building Markers */}
                 {buildings.map(building => {
-                  // Zone assignments stay fixed to physical map positions
-                  // Zone 1 (Blue) always in blue shaded area, Zone 3 (Purple) always in purple shaded area
-                  // Only START/ENEMY markers swap when changing corners
-                  const assignment = assignments[building.id];
+                  // When swapCorners is true, show the mirrored building's assignment
+                  // Buildings swap with their partner WITHIN THE SAME ZONE
+                  // E.g., Ob-UL (blue zone) swaps with Ob-Lower (blue zone)
+                  // E.g., Ob-Upper (purple zone) swaps with Ob-LR (purple zone)
+                  const mirrorId = MIRROR_PAIRS[building.id] || building.id;
+                  const assignmentSourceId = swapCorners ? mirrorId : building.id;
+                  const assignment = assignments[assignmentSourceId];
                   const isSelected = selectedBuilding?.id === building.id;
                   const isHovered = hoveredBuilding?.id === building.id;
                   const isFiltered = filterTeam !== 'all' && assignment?.team !== filterTeam;
@@ -439,11 +448,13 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 {/* Conquer Order Indicators - shown directly on/around the building marker */}
                       {(() => {
                         // Collect all zones that have conquer orders for this building
+                        const mirrorId = MIRROR_PAIRS[building.id] || building.id;
+                        const checkBuildingId = swapCorners ? mirrorId : building.id;
                         const zonesWithOrders: { zone: number; order: number }[] = [];
 
                         Object.entries(CONQUER_ORDER).forEach(([zoneStr, buildingOrders]) => {
                           const zone = parseInt(zoneStr);
-                          const order = buildingOrders[building.id];
+                          const order = buildingOrders[checkBuildingId];
                           if (order && (filterTeam === 'all' || filterTeam === zone)) {
                             zonesWithOrders.push({ zone, order });
                           }
