@@ -380,11 +380,10 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                 {/* Building Markers */}
                 {buildings.map(building => {
-                  // When swapCorners is true, show the mirrored building's assignment at this position
-                  // This way Zone 1 attacks the building closest to their start corner
-                  // E.g., Zone 1 attacks Ob-UL when starting top-left, or Ob-LR when starting bottom-right
-                  const displayBuildingId = swapCorners ? MIRROR_PAIRS[building.id] : building.id;
-                  const assignment = assignments[displayBuildingId];
+                  // Zone assignments stay fixed to physical map positions
+                  // Zone 1 (Blue) always in blue shaded area, Zone 3 (Purple) always in purple shaded area
+                  // Only START/ENEMY markers swap when changing corners
+                  const assignment = assignments[building.id];
                   const isSelected = selectedBuilding?.id === building.id;
                   const isHovered = hoveredBuilding?.id === building.id;
                   const isFiltered = filterTeam !== 'all' && assignment?.team !== filterTeam;
@@ -440,12 +439,11 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 {/* Conquer Order Indicators - shown directly on/around the building marker */}
                       {(() => {
                         // Collect all zones that have conquer orders for this building
-                        const checkBuildingId = swapCorners ? MIRROR_PAIRS[building.id] : building.id;
                         const zonesWithOrders: { zone: number; order: number }[] = [];
 
                         Object.entries(CONQUER_ORDER).forEach(([zoneStr, buildingOrders]) => {
                           const zone = parseInt(zoneStr);
-                          const order = buildingOrders[checkBuildingId];
+                          const order = buildingOrders[building.id];
                           if (order && (filterTeam === 'all' || filterTeam === zone)) {
                             zonesWithOrders.push({ zone, order });
                           }
