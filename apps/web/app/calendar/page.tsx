@@ -67,16 +67,16 @@ export default function CalendarPage() {
                     </a>
                 </div>
 
-                {/* Calendar embed */}
+                {/* Calendar embed - dark mode */}
                 <div className={`${theme.card} border rounded-xl overflow-hidden`}>
                     <iframe
-                        src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(GOOGLE_CALENDAR_ID)}&ctz=America%2FNew_York&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=AGENDA`}
+                        src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(GOOGLE_CALENDAR_ID)}&ctz=America%2FNew_York&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=AGENDA&bgcolor=%230f1535&color=%2301b574`}
                         style={{ border: 0 }}
                         width="100%"
                         height="600"
                         frameBorder="0"
                         scrolling="no"
-                        className="bg-white rounded-lg"
+                        className="rounded-lg"
                     />
                 </div>
 
