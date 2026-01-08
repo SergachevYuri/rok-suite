@@ -17,8 +17,30 @@ const TIMEZONE_OPTIONS = [
     { value: 'Australia/Sydney', label: 'Australia' },
 ];
 
+const ICAL_URL = `https://calendar.google.com/calendar/ical/${GOOGLE_CALENDAR_ID}/public/basic.ics`;
+
 export default function CalendarPage() {
     const [timezone, setTimezone] = useState('UTC');
+    const [copied, setCopied] = useState(false);
+    const [showSubscribe, setShowSubscribe] = useState(false);
+
+    const copyToClipboard = async () => {
+        try {
+            await navigator.clipboard.writeText(ICAL_URL);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = ICAL_URL;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
 
     const theme = {
         bg: 'bg-[#0f1535]',
@@ -61,29 +83,75 @@ export default function CalendarPage() {
             </header>
 
             <div className="max-w-5xl mx-auto p-4 md:p-6">
-                {/* Subscribe buttons and timezone toggle */}
-                <div className="flex flex-wrap justify-center items-center gap-3 mb-6">
-                    <a
-                        href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(GOOGLE_CALENDAR_ID)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                {/* Subscribe button */}
+                <div className="flex justify-center mb-6">
+                    <button
+                        onClick={() => setShowSubscribe(!showSubscribe)}
                         className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.buttonPrimary} flex items-center gap-2`}
                     >
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm-8 4H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
                         </svg>
-                        Add to Google Calendar
-                    </a>
-                    <a
-                        href={`https://calendar.google.com/calendar/ical/${encodeURIComponent(GOOGLE_CALENDAR_ID)}/public/basic.ics`}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2`}
-                    >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                        </svg>
-                        Download iCal
-                    </a>
+                        {showSubscribe ? 'Hide Subscribe Options' : 'Subscribe to Calendar'}
+                    </button>
                 </div>
+
+                {/* Subscribe panel */}
+                {showSubscribe && (
+                    <div className={`${theme.card} border rounded-xl p-4 mb-6`}>
+                        <h3 className="text-lg font-semibold mb-4 text-center">Subscribe to this Calendar</h3>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {/* Google Calendar */}
+                            <div className={`p-4 rounded-lg border ${theme.border}`}>
+                                <h4 className="font-medium mb-2">Google Calendar</h4>
+                                <p className={`text-xs ${theme.textMuted} mb-3`}>Click to add directly to your Google Calendar</p>
+                                <a
+                                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(GOOGLE_CALENDAR_ID)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`inline-block px-3 py-2 rounded-lg text-sm font-medium ${theme.button}`}
+                                >
+                                    Add to Google Calendar
+                                </a>
+                            </div>
+
+                            {/* Apple Calendar / Other */}
+                            <div className={`p-4 rounded-lg border ${theme.border}`}>
+                                <h4 className="font-medium mb-2">Apple Calendar / Outlook / Other</h4>
+                                <p className={`text-xs ${theme.textMuted} mb-3`}>
+                                    Copy the URL below and paste it in:<br/>
+                                    <span className="text-white">File → New Calendar Subscription</span>
+                                </p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={ICAL_URL}
+                                        readOnly
+                                        className={`flex-1 px-3 py-2 rounded-lg text-xs ${theme.button} bg-[#0f1535] font-mono truncate`}
+                                    />
+                                    <button
+                                        onClick={copyToClipboard}
+                                        className={`px-3 py-2 rounded-lg text-sm font-medium ${copied ? 'bg-green-600 text-white' : theme.button}`}
+                                    >
+                                        {copied ? 'Copied!' : 'Copy'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Download option */}
+                        <div className="mt-4 pt-4 border-t border-white/10 text-center">
+                            <p className={`text-xs ${theme.textMuted} mb-2`}>Or download as a one-time import (won't auto-update):</p>
+                            <a
+                                href={ICAL_URL}
+                                className={`inline-block px-3 py-2 rounded-lg text-sm font-medium ${theme.button}`}
+                            >
+                                Download .ics file
+                            </a>
+                        </div>
+                    </div>
+                )}
 
                 {/* Timezone selector */}
                 <div className="flex justify-center items-center gap-2 mb-4">
