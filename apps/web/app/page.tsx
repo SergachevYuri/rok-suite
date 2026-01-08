@@ -18,6 +18,16 @@ import {
 export default function Home() {
   const tools = [
     {
+      href: '/calendar',
+      title: 'Alliance Calendar',
+      description: 'Upcoming events, KvK schedule, and alliance activities',
+      icon: Calendar,
+      gradient: 'from-[#f56565] to-[#ed8936]',
+      shadowColor: 'shadow-[#f56565]/25',
+      hoverBorder: 'hover:border-[#f56565]/50',
+      badge: { text: 'Events', color: 'bg-[#f56565]/20 text-[#ed8936]' },
+    },
+    {
       href: '/aoo-strategy',
       title: 'AoO Battle Planner',
       description: 'Interactive 30v30 team assignments, drag-drop battle maps, and match planning',
@@ -56,16 +66,6 @@ export default function Home() {
       shadowColor: 'shadow-[#0075ff]/25',
       hoverBorder: 'hover:border-[#0075ff]/50',
       badge: { text: 'Tool', color: 'bg-[#0075ff]/20 text-[#21d4fd]' },
-    },
-    {
-      href: '/calendar',
-      title: 'Alliance Calendar',
-      description: 'Upcoming events, KvK schedule, and alliance activities',
-      icon: Calendar,
-      gradient: 'from-[#f56565] to-[#ed8936]',
-      shadowColor: 'shadow-[#f56565]/25',
-      hoverBorder: 'hover:border-[#f56565]/50',
-      badge: { text: 'Events', color: 'bg-[#f56565]/20 text-[#ed8936]' },
     },
   ];
 
