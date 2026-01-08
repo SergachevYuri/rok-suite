@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
-import { TrainingPolls } from '@/components/aoo-strategy/TrainingPolls';
+// Google Calendar configuration
+const GOOGLE_CALENDAR_ID = 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com';
 import { useAllianceRoster, formatPower } from '@/lib/supabase/use-alliance-roster';
 
 // Dynamic import to avoid SSR issues with the map
@@ -56,7 +57,7 @@ const ZONE_COLORS: Record<number, { bg: string; border: string; text: string }> 
 export default function AooStrategyPage() {
     // Fetch roster from Supabase
     const { rosterNames, powerByName, loading: rosterLoading } = useAllianceRoster();
-    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup' | 'schedule'>('lookup');
+    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup' | 'calendar'>('lookup');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
@@ -713,12 +714,12 @@ export default function AooStrategyPage() {
                             👥 Zone Roster
                         </button>
                         <button
-                            onClick={() => setActiveTab('schedule')}
+                            onClick={() => setActiveTab('calendar')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                                activeTab === 'schedule' ? theme.tabActive : theme.tabInactive
+                                activeTab === 'calendar' ? theme.tabActive : theme.tabInactive
                             }`}
                         >
-                            📅 Schedule
+                            📅 Calendar
                         </button>
                     </div>
                 </div>
@@ -1508,17 +1509,56 @@ export default function AooStrategyPage() {
                 </div>
             )}
 
-            {/* Schedule Tab - Training Time Polls */}
-            {activeTab === 'schedule' && (
-                <div className="max-w-3xl mx-auto p-4 md:p-6">
-                    <h1 className="text-3xl font-bold text-center mb-2">📅 Training Schedule</h1>
-                    <p className={`text-center ${theme.textMuted} mb-8`}>Vote for training times that work for you</p>
+            {/* Calendar Tab - Google Calendar */}
+            {activeTab === 'calendar' && (
+                <div className="max-w-5xl mx-auto p-4 md:p-6">
+                    <h1 className="text-3xl font-bold text-center mb-2">📅 Alliance Calendar</h1>
+                    <p className={`text-center ${theme.textMuted} mb-6`}>Upcoming events for Angmar alliance</p>
 
-                    <TrainingPolls />
+                    {/* Subscribe buttons */}
+                    <div className="flex flex-wrap justify-center gap-3 mb-6">
+                        <a
+                            href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(GOOGLE_CALENDAR_ID)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.buttonPrimary} flex items-center gap-2`}
+                        >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm-8 4H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
+                            </svg>
+                            Add to Google Calendar
+                        </a>
+                        <a
+                            href={`https://calendar.google.com/calendar/ical/${encodeURIComponent(GOOGLE_CALENDAR_ID)}/public/basic.ics`}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2`}
+                        >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                            </svg>
+                            Download iCal (Apple/Outlook)
+                        </a>
+                    </div>
+
+                    {/* Calendar embed */}
+                    <div className={`${theme.card} border rounded-xl overflow-hidden`}>
+                        <iframe
+                            src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(GOOGLE_CALENDAR_ID)}&ctz=America%2FNew_York&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=AGENDA`}
+                            style={{ border: 0 }}
+                            width="100%"
+                            height="600"
+                            frameBorder="0"
+                            scrolling="no"
+                            className="bg-white rounded-lg"
+                        />
+                    </div>
+
+                    <p className={`text-center text-xs ${theme.textMuted} mt-4`}>
+                        Times shown in your local timezone (America/New_York default)
+                    </p>
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
-                        <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>All times are in UTC</p>
+                        <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>Subscribe to get event reminders</p>
                     </footer>
                 </div>
             )}
