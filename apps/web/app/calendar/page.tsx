@@ -1,11 +1,25 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 
 // Google Calendar configuration
 const GOOGLE_CALENDAR_ID = 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com';
 
+const TIMEZONE_OPTIONS = [
+    { value: 'UTC', label: 'UTC (Game Time)' },
+    { value: 'America/New_York', label: 'US Eastern' },
+    { value: 'America/Los_Angeles', label: 'US Pacific' },
+    { value: 'Europe/London', label: 'UK' },
+    { value: 'Europe/Paris', label: 'Central Europe' },
+    { value: 'Asia/Tokyo', label: 'Japan' },
+    { value: 'Asia/Singapore', label: 'Singapore' },
+    { value: 'Australia/Sydney', label: 'Australia' },
+];
+
 export default function CalendarPage() {
+    const [timezone, setTimezone] = useState('UTC');
+
     const theme = {
         bg: 'bg-[#0f1535]',
         card: 'bg-[rgba(6,11,40,0.94)] border-white/10 backdrop-blur-xl',
@@ -14,7 +28,11 @@ export default function CalendarPage() {
         border: 'border-white/10',
         button: 'bg-white/5 hover:bg-white/10 text-white border border-white/10',
         buttonPrimary: 'bg-gradient-to-r from-[#f56565] to-[#ed8936] hover:opacity-90 text-white',
+        tabActive: 'bg-white/10 text-white',
+        tabInactive: 'bg-transparent text-[#a0aec0] hover:bg-white/5',
     };
+
+    const calendarUrl = `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(GOOGLE_CALENDAR_ID)}&ctz=${encodeURIComponent(timezone)}&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=MONTH`;
 
     return (
         <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
@@ -43,8 +61,8 @@ export default function CalendarPage() {
             </header>
 
             <div className="max-w-5xl mx-auto p-4 md:p-6">
-                {/* Subscribe buttons */}
-                <div className="flex flex-wrap justify-center gap-3 mb-6">
+                {/* Subscribe buttons and timezone toggle */}
+                <div className="flex flex-wrap justify-center items-center gap-3 mb-6">
                     <a
                         href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(GOOGLE_CALENDAR_ID)}`}
                         target="_blank"
@@ -63,14 +81,31 @@ export default function CalendarPage() {
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
                         </svg>
-                        Download iCal (Apple/Outlook)
+                        Download iCal
                     </a>
+                </div>
+
+                {/* Timezone selector */}
+                <div className="flex justify-center items-center gap-2 mb-4">
+                    <span className={`text-sm ${theme.textMuted}`}>Timezone:</span>
+                    <select
+                        value={timezone}
+                        onChange={(e) => setTimezone(e.target.value)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} bg-[#0f1535] cursor-pointer`}
+                    >
+                        {TIMEZONE_OPTIONS.map((tz) => (
+                            <option key={tz.value} value={tz.value}>
+                                {tz.label}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 {/* Calendar embed - inverted for dark mode */}
                 <div className={`${theme.card} border rounded-xl overflow-hidden`}>
                     <iframe
-                        src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(GOOGLE_CALENDAR_ID)}&ctz=America%2FNew_York&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=MONTH`}
+                        key={timezone}
+                        src={calendarUrl}
                         style={{ border: 0, filter: 'invert(0.9) hue-rotate(180deg)' }}
                         width="100%"
                         height="600"
@@ -81,7 +116,7 @@ export default function CalendarPage() {
                 </div>
 
                 <p className={`text-center text-xs ${theme.textMuted} mt-4`}>
-                    Times shown in Eastern Time (America/New_York)
+                    Times shown in {TIMEZONE_OPTIONS.find(tz => tz.value === timezone)?.label || timezone}
                 </p>
 
                 <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
