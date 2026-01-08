@@ -70,7 +70,7 @@ export default function CalendarPage() {
                 {/* Calendar embed - inverted for dark mode */}
                 <div className={`${theme.card} border rounded-xl overflow-hidden`}>
                     <iframe
-                        src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(GOOGLE_CALENDAR_ID)}&ctz=America%2FNew_York&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=AGENDA`}
+                        src={`https://calendar.google.com/calendar/embed?src=${encodeURIComponent(GOOGLE_CALENDAR_ID)}&ctz=America%2FNew_York&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=MONTH`}
                         style={{ border: 0, filter: 'invert(0.9) hue-rotate(180deg)' }}
                         width="100%"
                         height="600"
