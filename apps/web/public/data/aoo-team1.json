@@ -39,7 +39,8 @@
   "substitutes": [
     {"id": 101, "name": "BBQSGE", "team": 0, "tags": [], "power": 20402031, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 102, "name": "Cain", "team": 0, "tags": [], "power": 13460222, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 103, "name": "Rajah", "team": 0, "tags": [], "power": 0, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}}
+    {"id": 103, "name": "Rajah", "team": 0, "tags": [], "power": 0, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
+    {"id": 104, "name": "Shroud", "team": 0, "tags": [], "power": 6718399, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}}
   ],
   "notes": "",
   "mapImage": null,
