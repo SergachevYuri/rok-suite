@@ -29,7 +29,7 @@
     {"id": 27, "name": "Gouverneur", "team": 3, "tags": ["Confirmed"], "power": 15403387, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 28, "name": "CAPITAN", "team": 1, "tags": ["Confirmed"], "power": 10183190, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
     {"id": 29, "name": "gladiador 28", "team": 1, "tags": ["Confirmed"], "power": 11911694, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 30, "name": "Rajah", "team": 1, "tags": ["Confirmed"], "power": 0, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}}
+    {"id": 30, "name": "Fluffy Jester", "team": 1, "tags": ["Confirmed"], "power": 15978792, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}}
   ],
   "teams": [
     {"name": "Zone 1", "description": "Lower (Left Side)"},
@@ -38,7 +38,8 @@
   ],
   "substitutes": [
     {"id": 101, "name": "BBQSGE", "team": 0, "tags": [], "power": 20402031, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
-    {"id": 102, "name": "Cain", "team": 0, "tags": [], "power": 13460222, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}}
+    {"id": 102, "name": "Cain", "team": 0, "tags": [], "power": 13460222, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}},
+    {"id": 103, "name": "Rajah", "team": 0, "tags": [], "power": 0, "assignments": {"phase1": "", "phase2": "", "phase3": "", "phase4": ""}}
   ],
   "notes": "",
   "mapImage": null,
