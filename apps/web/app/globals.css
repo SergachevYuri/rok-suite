@@ -5,7 +5,7 @@
  * Dark glassmorphism design with gradient accents
  */
 
-:root {
+:root, .dark {
   /* Background colors */
   --background: #0f1535;
   --background-secondary: #1a1f37;
@@ -36,6 +36,39 @@
 
   /* Border */
   --border: rgba(255, 255, 255, 0.1);
+}
+
+.light {
+  /* Background colors */
+  --background: #f7fafc;
+  --background-secondary: #edf2f7;
+  --background-card: rgba(255, 255, 255, 0.94);
+
+  /* Primary gradient colors */
+  --primary: #4318ff;
+  --primary-light: #9f7aea;
+
+  /* Info/accent */
+  --info: #0075ff;
+  --info-light: #21d4fd;
+
+  /* Success */
+  --success: #01b574;
+  --success-light: #c9fbd5;
+
+  /* Warning */
+  --warning: #ffb547;
+
+  /* Error */
+  --error: #e31a1a;
+
+  /* Text colors */
+  --foreground: #1a202c;
+  --text-secondary: #4a5568;
+  --text-muted: #718096;
+
+  /* Border */
+  --border: rgba(0, 0, 0, 0.1);
 }
 
 @theme inline {
@@ -89,14 +122,32 @@ html {
 
 /* Glassmorphism utility classes */
 .glass {
-  background: rgba(6, 11, 40, 0.94);
+  background: var(--background-card);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
 }
 
 .glass-hover:hover {
   background: rgba(10, 14, 35, 0.98);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+.light .glass-hover:hover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+/* Light mode scrollbar */
+.light ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
 }
 
 /* Gradient text utility */

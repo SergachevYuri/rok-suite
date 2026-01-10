@@ -2,17 +2,16 @@
 
 import Link from 'next/link';
 import { UserMenu } from '@/components/auth/UserMenu';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import {
   Swords,
-  Sun,
-  Calculator,
-  Scan,
   BookOpen,
   ArrowRight,
   Github,
   ExternalLink,
   Sparkles,
   Calendar,
+  FlaskConical,
 } from 'lucide-react';
 
 export default function Home() {
@@ -36,36 +35,6 @@ export default function Home() {
       shadowColor: 'shadow-[#01b574]/25',
       hoverBorder: 'hover:border-[#01b574]/50',
       badge: { text: 'Tool', color: 'bg-[#01b574]/20 text-[#01b574]' },
-    },
-    {
-      href: '/scanners',
-      title: 'Scanners',
-      description: 'Scan screenshots to inventory commanders, equipment, and bag items',
-      icon: Scan,
-      gradient: 'from-[#4318ff] to-[#9f7aea]',
-      shadowColor: 'shadow-[#4318ff]/25',
-      hoverBorder: 'hover:border-[#4318ff]/50',
-      badge: { text: 'Tool', color: 'bg-[#4318ff]/20 text-[#9f7aea]' },
-    },
-    {
-      href: '/sunset-canyon',
-      title: 'Sunset Canyon Simulator',
-      description: 'Commander scanner, formation optimizer, and battle simulation',
-      icon: Sun,
-      gradient: 'from-[#ffb547] to-[#ffd97a]',
-      shadowColor: 'shadow-[#ffb547]/25',
-      hoverBorder: 'hover:border-[#ffb547]/50',
-      badge: { text: 'Tool', color: 'bg-[#ffb547]/20 text-[#ffb547]' },
-    },
-    {
-      href: '/upgrade-calculator',
-      title: 'Upgrade Calculator',
-      description: 'Building dependency graph and resource planning for City Hall upgrades',
-      icon: Calculator,
-      gradient: 'from-[#0075ff] to-[#21d4fd]',
-      shadowColor: 'shadow-[#0075ff]/25',
-      hoverBorder: 'hover:border-[#0075ff]/50',
-      badge: { text: 'Tool', color: 'bg-[#0075ff]/20 text-[#21d4fd]' },
     },
   ];
 
@@ -91,6 +60,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <a
               href="https://github.com/avweigel/rok-suite"
               target="_blank"
@@ -170,7 +140,7 @@ export default function Home() {
         </section>
 
         {/* Guides & Documentation */}
-        <section className="mb-20">
+        <section className="mb-16">
           <div className="flex items-center gap-2 mb-6">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             <h3 className="text-xs font-semibold uppercase tracking-wider text-[#718096] px-4">
@@ -200,6 +170,47 @@ export default function Home() {
                     </div>
                     <p className="text-sm text-[#a0aec0]">
                       Event strategies, alliance protocols, commander guides, and checklists
+                    </p>
+                  </div>
+
+                  <ArrowRight className="w-5 h-5 text-[#718096] group-hover:text-white group-hover:translate-x-1 transition-all" />
+                </div>
+              </div>
+            </Link>
+          </div>
+        </section>
+
+        {/* Beta Tools */}
+        <section className="mb-20">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#718096] px-4">
+              Experimental
+            </h3>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          </div>
+
+          <div className="grid gap-4">
+            <Link href="/beta-tools">
+              <div className="group relative p-5 rounded-xl bg-[rgba(6,11,40,0.94)] border border-white/10 hover:border-[#ffb547]/50 backdrop-blur-xl transition-all duration-300 cursor-pointer overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                <div className="relative flex items-center gap-5">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-[#ffb547] to-[#ffd97a] shadow-lg shadow-[#ffb547]/25">
+                    <FlaskConical className="w-6 h-6 text-white" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h4 className="text-base font-semibold text-white">
+                        Beta Tools
+                      </h4>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider bg-[#ffb547]/20 text-[#ffb547]">
+                        WIP
+                      </span>
+                    </div>
+                    <p className="text-sm text-[#a0aec0]">
+                      Scanners, Sunset Canyon simulator, Upgrade Calculator - experimental features in development
                     </p>
                   </div>
 
