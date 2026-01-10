@@ -38,9 +38,9 @@ export default function RosterPage() {
     const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
     const [editorPassword, setEditorPassword] = useState('');
 
-    // Editing state
+    // Editing state - kills stored as string for decimal input (millions)
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editValues, setEditValues] = useState<{ kills: number; notes: string }>({ kills: 0, notes: '' });
+    const [editValues, setEditValues] = useState<{ killsM: string; notes: string }>({ killsM: '', notes: '' });
 
     // CSV Import
     const [showImport, setShowImport] = useState(false);
@@ -93,28 +93,33 @@ export default function RosterPage() {
 
     const startEditing = (member: RosterMember) => {
         setEditingId(member.id);
-        setEditValues({ kills: member.kills || 0, notes: member.notes || '' });
+        // Convert kills to millions for display (e.g., 18543993 -> "18.5")
+        const killsM = member.kills ? (member.kills / 1000000).toFixed(1) : '';
+        setEditValues({ killsM, notes: member.notes || '' });
     };
 
     const cancelEditing = () => {
         setEditingId(null);
-        setEditValues({ kills: 0, notes: '' });
+        setEditValues({ killsM: '', notes: '' });
     };
 
     const saveEditing = async () => {
         if (!editingId) return;
 
         try {
+            // Convert millions input back to raw number (e.g., "18.5" -> 18500000)
+            const killsRaw = editValues.killsM ? Math.round(parseFloat(editValues.killsM) * 1000000) : 0;
+
             const { error } = await supabase
                 .from('alliance_roster')
-                .update({ kills: editValues.kills, notes: editValues.notes || null })
+                .update({ kills: killsRaw, notes: editValues.notes || null })
                 .eq('id', editingId);
 
             if (error) throw error;
 
             setRoster(roster.map(m =>
                 m.id === editingId
-                    ? { ...m, kills: editValues.kills, notes: editValues.notes || null }
+                    ? { ...m, kills: killsRaw, notes: editValues.notes || null }
                     : m
             ));
             setEditingId(null);
@@ -466,12 +471,17 @@ export default function RosterPage() {
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             {editingId === member.id ? (
-                                                <input
-                                                    type="number"
-                                                    value={editValues.kills}
-                                                    onChange={(e) => setEditValues({ ...editValues, kills: parseInt(e.target.value) || 0 })}
-                                                    className={`w-24 px-2 py-1 rounded border ${theme.input} text-right`}
-                                                />
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        value={editValues.killsM}
+                                                        onChange={(e) => setEditValues({ ...editValues, killsM: e.target.value })}
+                                                        className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
+                                                        placeholder="0.0"
+                                                    />
+                                                    <span className={`text-xs ${theme.textMuted}`}>M</span>
+                                                </div>
                                             ) : (
                                                 <span className={member.kills ? 'text-[#f56565]' : theme.textMuted}>
                                                     {member.kills ? formatPower(member.kills) : '-'}
