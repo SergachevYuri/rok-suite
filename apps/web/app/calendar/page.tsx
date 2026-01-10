@@ -4,7 +4,18 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 // Google Calendar configuration
-const GOOGLE_CALENDAR_ID = 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com';
+const CALENDARS = [
+    {
+        id: 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com',
+        name: 'Angmar Alliance Events',
+        color: '#F56565', // red
+    },
+    {
+        id: '998f5eb195b2ac2ef4e4e65d9ccc3255c6bfcec5a65634f0c08b1ee8017d8523@group.calendar.google.com',
+        name: 'RoK Events',
+        color: '#ED8936', // orange
+    },
+];
 
 const TIMEZONE_OPTIONS = [
     { value: 'UTC', label: 'UTC (Game Time)' },
@@ -17,28 +28,38 @@ const TIMEZONE_OPTIONS = [
     { value: 'Australia/Sydney', label: 'Australia' },
 ];
 
-const ICAL_URL = `https://calendar.google.com/calendar/ical/${GOOGLE_CALENDAR_ID}/public/basic.ics`;
-
 export default function CalendarPage() {
     const [timezone, setTimezone] = useState('UTC');
-    const [copied, setCopied] = useState(false);
+    const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showSubscribe, setShowSubscribe] = useState(false);
+    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1]));
 
-    const copyToClipboard = async () => {
+    const toggleCalendar = (index: number) => {
+        const newEnabled = new Set(enabledCalendars);
+        if (newEnabled.has(index)) {
+            if (newEnabled.size > 1) {
+                newEnabled.delete(index);
+            }
+        } else {
+            newEnabled.add(index);
+        }
+        setEnabledCalendars(newEnabled);
+    };
+
+    const copyToClipboard = async (url: string, index: number) => {
         try {
-            await navigator.clipboard.writeText(ICAL_URL);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            await navigator.clipboard.writeText(url);
+            setCopiedIndex(index);
+            setTimeout(() => setCopiedIndex(null), 2000);
         } catch {
-            // Fallback for older browsers
             const textArea = document.createElement('textarea');
-            textArea.value = ICAL_URL;
+            textArea.value = url;
             document.body.appendChild(textArea);
             textArea.select();
             document.execCommand('copy');
             document.body.removeChild(textArea);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            setCopiedIndex(index);
+            setTimeout(() => setCopiedIndex(null), 2000);
         }
     };
 
@@ -50,11 +71,14 @@ export default function CalendarPage() {
         border: 'border-white/10',
         button: 'bg-white/5 hover:bg-white/10 text-white border border-white/10',
         buttonPrimary: 'bg-gradient-to-r from-[#f56565] to-[#ed8936] hover:opacity-90 text-white',
-        tabActive: 'bg-white/10 text-white',
-        tabInactive: 'bg-transparent text-[#a0aec0] hover:bg-white/5',
     };
 
-    const calendarUrl = `https://calendar.google.com/calendar/embed?src=${encodeURIComponent(GOOGLE_CALENDAR_ID)}&ctz=${encodeURIComponent(timezone)}&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=MONTH`;
+    // Build calendar URL with multiple sources
+    const enabledCalendarsList = CALENDARS.filter((_, i) => enabledCalendars.has(i));
+    const calendarSources = enabledCalendarsList
+        .map(cal => `src=${encodeURIComponent(cal.id)}&color=${encodeURIComponent(cal.color)}`)
+        .join('&');
+    const calendarUrl = `https://calendar.google.com/calendar/embed?${calendarSources}&ctz=${encodeURIComponent(timezone)}&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=MONTH`;
 
     return (
         <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
@@ -83,6 +107,32 @@ export default function CalendarPage() {
             </header>
 
             <div className="max-w-5xl mx-auto p-4 md:p-6">
+                {/* Calendar toggles */}
+                <div className="flex flex-wrap justify-center gap-3 mb-4">
+                    {CALENDARS.map((cal, index) => (
+                        <button
+                            key={cal.id}
+                            onClick={() => toggleCalendar(index)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+                                enabledCalendars.has(index)
+                                    ? 'bg-white/10 text-white border border-white/20'
+                                    : 'bg-white/5 text-[#a0aec0] border border-white/10 opacity-60'
+                            }`}
+                        >
+                            <span
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: cal.color }}
+                            />
+                            {cal.name}
+                            {enabledCalendars.has(index) && (
+                                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                            )}
+                        </button>
+                    ))}
+                </div>
+
                 {/* Subscribe button */}
                 <div className="flex justify-center mb-6">
                     <button
@@ -92,63 +142,71 @@ export default function CalendarPage() {
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm-8 4H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
                         </svg>
-                        {showSubscribe ? 'Hide Subscribe Options' : 'Subscribe to Calendar'}
+                        {showSubscribe ? 'Hide Subscribe Options' : 'Subscribe to Calendars'}
                     </button>
                 </div>
 
                 {/* Subscribe panel */}
                 {showSubscribe && (
                     <div className={`${theme.card} border rounded-xl p-4 mb-6`}>
-                        <h3 className="text-lg font-semibold mb-4 text-center">Subscribe to this Calendar</h3>
+                        <h3 className="text-lg font-semibold mb-4 text-center">Subscribe to Calendars</h3>
+                        <p className={`text-xs ${theme.textMuted} text-center mb-4`}>Choose which calendars to add to your calendar app</p>
 
-                        <div className="grid gap-4 md:grid-cols-2">
-                            {/* Google Calendar */}
-                            <div className={`p-4 rounded-lg border ${theme.border}`}>
-                                <h4 className="font-medium mb-2">Google Calendar</h4>
-                                <p className={`text-xs ${theme.textMuted} mb-3`}>Click to add directly to your Google Calendar</p>
-                                <a
-                                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(GOOGLE_CALENDAR_ID)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`inline-block px-3 py-2 rounded-lg text-sm font-medium ${theme.button}`}
-                                >
-                                    Add to Google Calendar
-                                </a>
-                            </div>
+                        <div className="space-y-4">
+                            {CALENDARS.map((cal, index) => {
+                                const icalUrl = `https://calendar.google.com/calendar/ical/${cal.id}/public/basic.ics`;
+                                return (
+                                    <div key={cal.id} className={`p-4 rounded-lg border ${theme.border}`}>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <span
+                                                className="w-3 h-3 rounded-full"
+                                                style={{ backgroundColor: cal.color }}
+                                            />
+                                            <h4 className="font-medium">{cal.name}</h4>
+                                        </div>
 
-                            {/* Apple Calendar / Other */}
-                            <div className={`p-4 rounded-lg border ${theme.border}`}>
-                                <h4 className="font-medium mb-2">Apple Calendar / Outlook / Other</h4>
-                                <p className={`text-xs ${theme.textMuted} mb-3`}>
-                                    Copy the URL below and paste it in:<br/>
-                                    <span className="text-white">File → New Calendar Subscription</span>
-                                </p>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={ICAL_URL}
-                                        readOnly
-                                        className={`flex-1 px-3 py-2 rounded-lg text-xs ${theme.button} bg-[#0f1535] font-mono truncate`}
-                                    />
-                                    <button
-                                        onClick={copyToClipboard}
-                                        className={`px-3 py-2 rounded-lg text-sm font-medium ${copied ? 'bg-green-600 text-white' : theme.button}`}
-                                    >
-                                        {copied ? 'Copied!' : 'Copy'}
-                                    </button>
-                                </div>
-                            </div>
+                                        <div className="grid gap-3 md:grid-cols-2">
+                                            {/* Google Calendar */}
+                                            <div>
+                                                <p className={`text-xs ${theme.textMuted} mb-2`}>Google Calendar</p>
+                                                <a
+                                                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(cal.id)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className={`inline-block px-3 py-2 rounded-lg text-xs font-medium ${theme.button}`}
+                                                >
+                                                    Add to Google Calendar
+                                                </a>
+                                            </div>
+
+                                            {/* iCal URL */}
+                                            <div>
+                                                <p className={`text-xs ${theme.textMuted} mb-2`}>Apple / Outlook / Other</p>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={icalUrl}
+                                                        readOnly
+                                                        className={`flex-1 px-2 py-2 rounded-lg text-xs ${theme.button} bg-[#0f1535] font-mono truncate min-w-0`}
+                                                    />
+                                                    <button
+                                                        onClick={() => copyToClipboard(icalUrl, index)}
+                                                        className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${copiedIndex === index ? 'bg-green-600 text-white' : theme.button}`}
+                                                    >
+                                                        {copiedIndex === index ? 'Copied!' : 'Copy'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
 
-                        {/* Download option */}
                         <div className="mt-4 pt-4 border-t border-white/10 text-center">
-                            <p className={`text-xs ${theme.textMuted} mb-2`}>Or download as a one-time import (won't auto-update):</p>
-                            <a
-                                href={ICAL_URL}
-                                className={`inline-block px-3 py-2 rounded-lg text-sm font-medium ${theme.button}`}
-                            >
-                                Download .ics file
-                            </a>
+                            <p className={`text-xs ${theme.textMuted}`}>
+                                For Apple Calendar / Outlook: Use <span className="text-white">File → New Calendar Subscription</span> and paste the URL
+                            </p>
                         </div>
                     </div>
                 )}
@@ -172,13 +230,11 @@ export default function CalendarPage() {
                 {/* Calendar embed - inverted for dark mode */}
                 <div className={`${theme.card} border rounded-xl overflow-hidden`}>
                     <iframe
-                        key={timezone}
+                        key={`${timezone}-${Array.from(enabledCalendars).join('-')}`}
                         src={calendarUrl}
                         style={{ border: 0, filter: 'invert(0.9) hue-rotate(180deg)' }}
                         width="100%"
                         height="600"
-                        frameBorder="0"
-                        scrolling="no"
                         className="rounded-lg"
                     />
                 </div>

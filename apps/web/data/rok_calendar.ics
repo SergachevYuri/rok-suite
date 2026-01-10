@@ -1,0 +1,345 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//ANG Rise of Kingdoms//Event Calendar//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:RoK Events (ANG)
+X-WR-TIMEZONE:UTC
+
+BEGIN:VEVENT
+DTSTART:20260113
+DTEND:20260114
+SUMMARY:🏆 MGE Day 1 - Troop Training
+DESCRIPTION:Mightiest Governor - Stage 1: Train troops for points.\n\nTips:\n- Use troop reserves before event starts\n- Join alliance with training speed shrines
+UID:mge1-stage1-20260113@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260114
+DTEND:20260115
+SUMMARY:🏆 MGE Day 2 - Barbarians
+DESCRIPTION:Mightiest Governor - Stage 2: Defeat barbarians for points.
+UID:mge1-stage2-20260114@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260115
+DTEND:20260116
+SUMMARY:🏆 MGE Day 3 - Gather Resources
+DESCRIPTION:Mightiest Governor - Stage 3: Gather resources on the map.
+UID:mge1-stage3-20260115@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260116
+DTEND:20260117
+SUMMARY:🏆 MGE Day 4 - Increase Power
+DESCRIPTION:Mightiest Governor - Stage 4: Building and research power.
+UID:mge1-stage4-20260116@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260117
+DTEND:20260118
+SUMMARY:🏆 MGE Day 5 - Kill Event ⚔️
+DESCRIPTION:Mightiest Governor - Stage 5: PvP kills.\n\n⚠️ Check kingdom rules for safe zones!
+UID:mge1-stage5-20260117@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260118
+DTEND:20260120
+SUMMARY:🏆 MGE Day 6-7 - Final Sprint
+DESCRIPTION:Mightiest Governor - Final Stage (48h): All activities count.\n\n💎 MTG may appear this weekend!
+UID:mge1-stage6-20260118@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260124
+DTEND:20260125
+SUMMARY:⚔️ Ark of Osiris
+DESCRIPTION:Alliance vs Alliance battle.\n\nRequirements:\n- CH16+\n- Top 20 alliance\n\nPrep:\n- Clear hospital\n- Set up marches\n- Join Discord
+UID:aoo2-20260124@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260127
+DTEND:20260128
+SUMMARY:🏆 MGE Day 1 - Troop Training
+DESCRIPTION:Mightiest Governor - Stage 1: Train troops for points.
+UID:mge2-stage1-20260127@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260128
+DTEND:20260129
+SUMMARY:🏆 MGE Day 2 - Barbarians
+DESCRIPTION:Mightiest Governor - Stage 2: Defeat barbarians for points.
+UID:mge2-stage2-20260128@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260129
+DTEND:20260130
+SUMMARY:🏆 MGE Day 3 - Gather Resources
+DESCRIPTION:Mightiest Governor - Stage 3: Gather resources on the map.
+UID:mge2-stage3-20260129@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260130
+DTEND:20260131
+SUMMARY:🏆 MGE Day 4 - Increase Power
+DESCRIPTION:Mightiest Governor - Stage 4: Building and research power.
+UID:mge2-stage4-20260130@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260131
+DTEND:20260201
+SUMMARY:🏆 MGE Day 5 - Kill Event ⚔️
+DESCRIPTION:Mightiest Governor - Stage 5: PvP kills.\n\n⚠️ Check kingdom rules for safe zones!
+UID:mge2-stage5-20260131@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260201
+DTEND:20260203
+SUMMARY:🏆 MGE Day 6-7 - Final Sprint
+DESCRIPTION:Mightiest Governor - Final Stage (48h): All activities count.\n\n💎 MTG may appear this weekend!
+UID:mge2-stage6-20260201@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260207
+DTEND:20260208
+SUMMARY:⚔️ Ark of Osiris
+DESCRIPTION:Alliance vs Alliance battle.
+UID:aoo3-20260207@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260210
+DTEND:20260211
+SUMMARY:🏆 MGE Day 1 - Troop Training
+DESCRIPTION:Mightiest Governor - Stage 1: Train troops for points.
+UID:mge3-stage1-20260210@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260211
+DTEND:20260212
+SUMMARY:🏆 MGE Day 2 - Barbarians
+DESCRIPTION:Mightiest Governor - Stage 2: Defeat barbarians for points.
+UID:mge3-stage2-20260211@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260212
+DTEND:20260213
+SUMMARY:🏆 MGE Day 3 - Gather Resources
+DESCRIPTION:Mightiest Governor - Stage 3: Gather resources on the map.
+UID:mge3-stage3-20260212@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260213
+DTEND:20260214
+SUMMARY:🏆 MGE Day 4 - Increase Power
+DESCRIPTION:Mightiest Governor - Stage 4: Building and research power.
+UID:mge3-stage4-20260213@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260214
+DTEND:20260215
+SUMMARY:🏆 MGE Day 5 - Kill Event ⚔️
+DESCRIPTION:Mightiest Governor - Stage 5: PvP kills.\n\n⚠️ Check kingdom rules for safe zones!
+UID:mge3-stage5-20260214@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260215
+DTEND:20260217
+SUMMARY:🏆 MGE Day 6-7 - Final Sprint
+DESCRIPTION:Mightiest Governor - Final Stage (48h): All activities count.\n\n💎 MTG may appear this weekend!
+UID:mge3-stage6-20260215@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260221
+DTEND:20260222
+SUMMARY:⚔️ Ark of Osiris
+DESCRIPTION:Alliance vs Alliance battle.
+UID:aoo4-20260221@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260224
+DTEND:20260225
+SUMMARY:🏆 MGE Day 1 - Troop Training
+DESCRIPTION:Mightiest Governor - Stage 1: Train troops for points.
+UID:mge4-stage1-20260224@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260225
+DTEND:20260226
+SUMMARY:🏆 MGE Day 2 - Barbarians
+DESCRIPTION:Mightiest Governor - Stage 2: Defeat barbarians for points.
+UID:mge4-stage2-20260225@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260226
+DTEND:20260227
+SUMMARY:🏆 MGE Day 3 - Gather Resources
+DESCRIPTION:Mightiest Governor - Stage 3: Gather resources on the map.
+UID:mge4-stage3-20260226@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260227
+DTEND:20260228
+SUMMARY:🏆 MGE Day 4 - Increase Power
+DESCRIPTION:Mightiest Governor - Stage 4: Building and research power.
+UID:mge4-stage4-20260227@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260228
+DTEND:20260301
+SUMMARY:🏆 MGE Day 5 - Kill Event ⚔️
+DESCRIPTION:Mightiest Governor - Stage 5: PvP kills.\n\n⚠️ Check kingdom rules for safe zones!
+UID:mge4-stage5-20260228@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260301
+DTEND:20260303
+SUMMARY:🏆 MGE Day 6-7 - Final Sprint
+DESCRIPTION:Mightiest Governor - Final Stage (48h): All activities count.\n\n💎 MTG may appear this weekend!
+UID:mge4-stage6-20260301@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260307
+DTEND:20260308
+SUMMARY:⚔️ Ark of Osiris
+DESCRIPTION:Alliance vs Alliance battle.
+UID:aoo5-20260307@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260310
+DTEND:20260311
+SUMMARY:🏆 MGE Day 1 - Troop Training
+DESCRIPTION:Mightiest Governor - Stage 1: Train troops for points.
+UID:mge5-stage1-20260310@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260311
+DTEND:20260312
+SUMMARY:🏆 MGE Day 2 - Barbarians
+DESCRIPTION:Mightiest Governor - Stage 2: Defeat barbarians for points.
+UID:mge5-stage2-20260311@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260312
+DTEND:20260313
+SUMMARY:🏆 MGE Day 3 - Gather Resources
+DESCRIPTION:Mightiest Governor - Stage 3: Gather resources on the map.
+UID:mge5-stage3-20260312@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260313
+DTEND:20260314
+SUMMARY:🏆 MGE Day 4 - Increase Power
+DESCRIPTION:Mightiest Governor - Stage 4: Building and research power.
+UID:mge5-stage4-20260313@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260314
+DTEND:20260315
+SUMMARY:🏆 MGE Day 5 - Kill Event ⚔️
+DESCRIPTION:Mightiest Governor - Stage 5: PvP kills.\n\n⚠️ Check kingdom rules for safe zones!
+UID:mge5-stage5-20260314@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260315
+DTEND:20260317
+SUMMARY:🏆 MGE Day 6-7 - Final Sprint
+DESCRIPTION:Mightiest Governor - Final Stage (48h): All activities count.\n\n💎 MTG may appear this weekend!
+UID:mge5-stage6-20260315@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260321
+DTEND:20260322
+SUMMARY:⚔️ Ark of Osiris
+DESCRIPTION:Alliance vs Alliance battle.
+UID:aoo6-20260321@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260324
+DTEND:20260325
+SUMMARY:🏆 MGE Day 1 - Troop Training
+DESCRIPTION:Mightiest Governor - Stage 1: Train troops for points.
+UID:mge6-stage1-20260324@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260325
+DTEND:20260326
+SUMMARY:🏆 MGE Day 2 - Barbarians
+DESCRIPTION:Mightiest Governor - Stage 2: Defeat barbarians for points.
+UID:mge6-stage2-20260325@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260326
+DTEND:20260327
+SUMMARY:🏆 MGE Day 3 - Gather Resources
+DESCRIPTION:Mightiest Governor - Stage 3: Gather resources on the map.
+UID:mge6-stage3-20260326@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260327
+DTEND:20260328
+SUMMARY:🏆 MGE Day 4 - Increase Power
+DESCRIPTION:Mightiest Governor - Stage 4: Building and research power.
+UID:mge6-stage4-20260327@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260328
+DTEND:20260329
+SUMMARY:🏆 MGE Day 5 - Kill Event ⚔️
+DESCRIPTION:Mightiest Governor - Stage 5: PvP kills.\n\n⚠️ Check kingdom rules for safe zones!
+UID:mge6-stage5-20260328@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260329
+DTEND:20260331
+SUMMARY:🏆 MGE Day 6-7 - Final Sprint
+DESCRIPTION:Mightiest Governor - Final Stage (48h): All activities count.\n\n💎 MTG may appear this weekend!
+UID:mge6-stage6-20260329@ang-rok
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTART:20260110
+DTEND:20260111
+SUMMARY:⚔️ Ark of Osiris
+DESCRIPTION:Alliance vs Alliance battle.\n\nThis Saturday - be ready!
+UID:aoo1-20260110@ang-rok
+END:VEVENT
+
+END:VCALENDAR
