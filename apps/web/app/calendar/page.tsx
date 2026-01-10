@@ -8,12 +8,14 @@ const CALENDARS = [
     {
         id: 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com',
         name: 'Angmar Alliance Events',
-        color: '#F56565', // red
+        color: '#0B8043', // green (inverts to a nice coral/red)
+        displayColor: '#F56565', // what we show in UI
     },
     {
         id: '998f5eb195b2ac2ef4e4e65d9ccc3255c6bfcec5a65634f0c08b1ee8017d8523@group.calendar.google.com',
         name: 'RoK Events',
-        color: '#ED8936', // orange
+        color: '#039BE5', // blue (inverts to a warm orange)
+        displayColor: '#ED8936', // what we show in UI
     },
 ];
 
@@ -121,7 +123,7 @@ export default function CalendarPage() {
                         >
                             <span
                                 className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: cal.color }}
+                                style={{ backgroundColor: cal.displayColor }}
                             />
                             {cal.name}
                             {enabledCalendars.has(index) && (
@@ -160,7 +162,7 @@ export default function CalendarPage() {
                                         <div className="flex items-center gap-2 mb-3">
                                             <span
                                                 className="w-3 h-3 rounded-full"
-                                                style={{ backgroundColor: cal.color }}
+                                                style={{ backgroundColor: cal.displayColor }}
                                             />
                                             <h4 className="font-medium">{cal.name}</h4>
                                         </div>
