@@ -12,6 +12,7 @@ import {
   Sparkles,
   Calendar,
   FlaskConical,
+  Users,
 } from 'lucide-react';
 
 export default function Home() {
@@ -25,6 +26,16 @@ export default function Home() {
       shadowColor: 'shadow-[#f56565]/25',
       hoverBorder: 'hover:border-[#f56565]/50',
       badge: { text: 'Events', color: 'bg-[#f56565]/20 text-[#ed8936]' },
+    },
+    {
+      href: '/roster',
+      title: 'Alliance Roster',
+      description: 'Member stats, power rankings, and kill points tracking',
+      icon: Users,
+      gradient: 'from-[#4318ff] to-[#9f7aea]',
+      shadowColor: 'shadow-[#4318ff]/25',
+      hoverBorder: 'hover:border-[#4318ff]/50',
+      badge: { text: 'Members', color: 'bg-[#4318ff]/20 text-[#9f7aea]' },
     },
     {
       href: '/aoo-strategy',
