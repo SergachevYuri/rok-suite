@@ -30,8 +30,8 @@ export default function RosterPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [sortField, setSortField] = useState<SortField>('power');
-    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+    const [sortField, setSortField] = useState<SortField>('role'); // Default: rank first
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc'); // R1 < R2 < R3 < R4
 
     // Editor mode
     const [isEditor, setIsEditor] = useState(false);
@@ -192,10 +192,33 @@ export default function RosterPage() {
         }
     };
 
+    // Helper to get rank order (R5=1, R4=2, R3=3, R2=4, R1=5, null=6)
+    const getRankOrder = (role: string | null): number => {
+        if (!role) return 6;
+        const match = role.match(/R(\d)/);
+        if (match) return 6 - parseInt(match[1]); // R5=1, R4=2, R3=3, R2=4, R1=5
+        return 6;
+    };
+
     // Filter and sort roster
     const filteredRoster = roster
         .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
         .sort((a, b) => {
+            // When sorting by rank, use multi-level: rank → power (desc) → name (asc)
+            if (sortField === 'role') {
+                const rankA = getRankOrder(a.role);
+                const rankB = getRankOrder(b.role);
+                const rankCompare = sortDirection === 'asc' ? rankA - rankB : rankB - rankA;
+                if (rankCompare !== 0) return rankCompare;
+
+                // Secondary: power descending
+                if (a.power !== b.power) return b.power - a.power;
+
+                // Tertiary: name ascending
+                return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+            }
+
+            // Single-field sorting for other columns
             let aVal: string | number = 0;
             let bVal: string | number = 0;
 
@@ -211,10 +234,6 @@ export default function RosterPage() {
                 case 'kills':
                     aVal = a.kills || 0;
                     bVal = b.kills || 0;
-                    break;
-                case 'role':
-                    aVal = a.role || 'ZZZ';
-                    bVal = b.role || 'ZZZ';
                     break;
             }
 
