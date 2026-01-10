@@ -87,7 +87,8 @@ export default function RosterPage() {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
         } else {
             setSortField(field);
-            setSortDirection(field === 'name' ? 'asc' : 'desc');
+            // Default direction: name=asc, role=asc (R5 first), power/kills=desc (highest first)
+            setSortDirection(field === 'name' || field === 'role' ? 'asc' : 'desc');
         }
     };
 
@@ -320,9 +321,12 @@ export default function RosterPage() {
                                     Edit Mode
                                 </button>
                             ) : (
-                                <span className="px-3 py-1 rounded-full text-xs font-medium bg-[#4318ff] text-white">
-                                    Editing
-                                </span>
+                                <button
+                                    onClick={() => { setIsEditor(false); setEditingId(null); }}
+                                    className="px-3 py-2 rounded-lg text-sm font-medium bg-[#4318ff] text-white hover:bg-[#4318ff]/80 transition-colors"
+                                >
+                                    Exit Edit Mode
+                                </button>
                             )}
                         </div>
                     </div>

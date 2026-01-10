@@ -680,7 +680,12 @@ export default function AooStrategyPage() {
                                     Edit Mode
                                 </button>
                             ) : (
-                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${theme.tagActive}`}>Editing</span>
+                                <button
+                                    onClick={() => setIsEditor(false)}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.tagActive} hover:opacity-80 transition-opacity`}
+                                >
+                                    Exit Edit Mode
+                                </button>
                             )}
                         </div>
                     </div>
