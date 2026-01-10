@@ -8,14 +8,14 @@ const CALENDARS = [
     {
         id: 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com',
         name: 'Angmar Alliance Events',
-        color: '#0B8043', // green (inverts to a nice coral/red)
-        displayColor: '#F56565', // what we show in UI
+        color: '#B3446C', // magenta-ish (inverts to teal)
+        displayColor: '#38B2AC', // teal in UI
     },
     {
         id: '998f5eb195b2ac2ef4e4e65d9ccc3255c6bfcec5a65634f0c08b1ee8017d8523@group.calendar.google.com',
         name: 'RoK Events',
-        color: '#039BE5', // blue (inverts to a warm orange)
-        displayColor: '#ED8936', // what we show in UI
+        color: '#8FBC8F', // light green (inverts to purple)
+        displayColor: '#9F7AEA', // purple in UI
     },
 ];
 
