@@ -1445,6 +1445,39 @@ export default function RosterPage() {
                                         </div>
                                     </div>
 
+                                    {/* Score Calculation Explanation */}
+                                    <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <h3 className="font-semibold mb-3 flex items-center gap-2">
+                                            <BarChart3 className="w-4 h-4 text-[#9f7aea]" />
+                                            How Activity Score is Calculated
+                                        </h3>
+                                        <p className={`text-sm ${theme.textMuted} mb-3`}>
+                                            The activity score (0-100) combines multiple metrics to measure overall engagement:
+                                        </p>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                                <div className="text-lg font-bold text-[#01b574]">40%</div>
+                                                <div className={`text-xs ${theme.textMuted}`}>AoO Participation</div>
+                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>% of assigned events attended</div>
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                                <div className="text-lg font-bold text-[#9f7aea]">30%</div>
+                                                <div className={`text-xs ${theme.textMuted}`}>Mobilization Score</div>
+                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                                <div className="text-lg font-bold text-[#f56565]">20%</div>
+                                                <div className={`text-xs ${theme.textMuted}`}>Kill Points</div>
+                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                                <div className="text-lg font-bold text-[#4318ff]">10%</div>
+                                                <div className={`text-xs ${theme.textMuted}`}>Power Level</div>
+                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     {/* Activity Leaderboard */}
                                     <div className={`${theme.card} border rounded-xl p-4`}>
                                         <h3 className="font-semibold mb-4 flex items-center gap-2">
