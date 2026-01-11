@@ -6,7 +6,7 @@ import Link from 'next/link';
 // Google Calendar configuration
 const CALENDARS = [
     {
-        id: 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com',
+        id: '47a3f5d35fb3b69612a0fd2f654550af1ad0ac4b029629afcf655ca0a695cc8c@group.calendar.google.com',
         name: 'Angmar Alliance Events',
         color: '#039BE5', // blue (inverts to orange)
         displayColor: '#ED8936', // orange in UI
