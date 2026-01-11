@@ -736,6 +736,25 @@ export default function AooStrategyPage() {
                 </div>
             )}
 
+            {/* Edit Mode Banner */}
+            {isEditor && (
+                <div className="bg-emerald-500/10 border-b border-emerald-500/30">
+                    <div className="max-w-6xl mx-auto px-4 md:px-6 py-3">
+                        <div className="flex items-start gap-3">
+                            <span className="text-emerald-400 text-lg flex-shrink-0">✏️</span>
+                            <div>
+                                <h3 className="font-medium text-emerald-400 text-sm">Edit Mode Active</h3>
+                                <p className={`text-xs ${theme.textMuted} mt-1`}>
+                                    <strong>Strategy Map:</strong> Click structures to assign zones •
+                                    <strong> Zone Roster:</strong> Add/remove players, assign zones, toggle tags •
+                                    <strong> Substitutes:</strong> Add backup players
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Tab Content */}
             {activeTab === 'map' && (
                 <AOOInteractiveMap 

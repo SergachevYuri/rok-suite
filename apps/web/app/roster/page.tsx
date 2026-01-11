@@ -715,6 +715,25 @@ export default function RosterPage() {
                 </div>
             )}
 
+            {/* Edit Mode Banner */}
+            {isEditor && (
+                <div className="bg-[#4318ff]/10 border-b border-[#4318ff]/30">
+                    <div className="max-w-6xl mx-auto px-4 md:px-6 py-3">
+                        <div className="flex items-start gap-3">
+                            <Edit2 className="w-5 h-5 text-[#9f7aea] flex-shrink-0 mt-0.5" />
+                            <div>
+                                <h3 className="font-medium text-[#9f7aea] text-sm">Edit Mode Active</h3>
+                                <p className={`text-xs ${theme.textMuted} mt-1`}>
+                                    <strong>Roster tab:</strong> Click any row to edit KP and notes •
+                                    <strong> Analytics tab:</strong> Adjust activity score weights •
+                                    <strong> Events tab:</strong> Record AoO teams and Mobilization scores
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Import Panel */}
             {showImport && isEditor && (
                 <div className="max-w-6xl mx-auto px-4 md:px-6 pt-4">
