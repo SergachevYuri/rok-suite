@@ -385,7 +385,28 @@ export default function RosterPage() {
                                 </button>
                             ) : (
                                 <button
-                                    onClick={() => { setIsEditor(false); setEditingId(null); }}
+                                    onClick={async () => {
+                                        setIsEditor(false);
+                                        setEditingId(null);
+                                        // Auto-save snapshot on exit
+                                        if (roster.length > 0) {
+                                            try {
+                                                const snapshotData = roster.map(m => ({
+                                                    name: m.name,
+                                                    power: m.power,
+                                                    kills: m.kills || 0,
+                                                    role: m.role,
+                                                    is_active: m.is_active,
+                                                }));
+                                                await createSnapshot(snapshotData);
+                                                setSnapshotStatus('Snapshot auto-saved');
+                                                refetchHistory();
+                                                setTimeout(() => setSnapshotStatus(null), 2000);
+                                            } catch {
+                                                // Silent fail for auto-save
+                                            }
+                                        }
+                                    }}
                                     className="px-3 py-2 rounded-lg text-sm font-medium bg-[#4318ff] text-white hover:bg-[#4318ff]/80 transition-colors"
                                 >
                                     Exit Edit Mode
