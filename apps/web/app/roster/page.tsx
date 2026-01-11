@@ -24,7 +24,18 @@ interface RosterMember {
     updated_at: string;
 }
 
-type SortField = 'name' | 'power' | 'kills' | 'role';
+type SortField = 'default' | 'name' | 'power' | 'kills' | 'role';
+
+// Column descriptions for tooltips
+const COLUMN_TOOLTIPS: Record<string, string> = {
+    name: 'In-game governor name',
+    power: 'Total account power',
+    kp: 'Kill points (total kills)',
+    t4t5: 'T4 and T5 troop kill points',
+    aoo: 'Ark of Osiris: Last team assignment and participation rate',
+    mob: 'Mobilization: Individual points and resources turned in/accepted',
+    rank: 'Alliance rank (R1-R5)',
+};
 type SortDirection = 'asc' | 'desc';
 
 const EDITOR_PASSWORD = 'carn-dum';
@@ -34,8 +45,8 @@ export default function RosterPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [sortField, setSortField] = useState<SortField>('role'); // Default: rank first
-    const [sortDirection, setSortDirection] = useState<SortDirection>('asc'); // R1 < R2 < R3 < R4
+    const [sortField, setSortField] = useState<SortField>('default'); // Default: rank → power → name
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
     // Editor mode
     const [isEditor, setIsEditor] = useState(false);
@@ -180,9 +191,14 @@ export default function RosterPage() {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
         } else {
             setSortField(field);
-            // Default direction: name=asc, role=asc (R5 first), power/kills=desc (highest first)
-            setSortDirection(field === 'name' || field === 'role' ? 'asc' : 'desc');
+            // Default direction: name=asc, role/default=asc (R5 first), power/kills=desc (highest first)
+            setSortDirection(field === 'name' || field === 'role' || field === 'default' ? 'asc' : 'desc');
         }
+    };
+
+    const resetToDefaultSort = () => {
+        setSortField('default');
+        setSortDirection('asc');
     };
 
     const startEditing = (member: RosterMember) => {
@@ -356,8 +372,8 @@ export default function RosterPage() {
     const filteredRoster = roster
         .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
         .sort((a, b) => {
-            // When sorting by rank, use multi-level: rank → power (desc) → name (asc)
-            if (sortField === 'role') {
+            // When sorting by default or rank, use multi-level: rank → power (desc) → name (asc)
+            if (sortField === 'default' || sortField === 'role') {
                 const rankA = getRankOrder(a.role);
                 const rankB = getRankOrder(b.role);
                 const rankCompare = sortDirection === 'asc' ? rankA - rankB : rankB - rankA;
@@ -643,17 +659,28 @@ export default function RosterPage() {
                     </div>
                 </div>
 
-                {/* Search */}
+                {/* Search and Sort Controls */}
                 <div className={`${theme.card} border rounded-xl p-4 mb-6`}>
-                    <div className="relative">
-                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme.textMuted}`} />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search by name..."
-                            className={`w-full pl-10 pr-4 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
-                        />
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
+                            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme.textMuted}`} />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search by name..."
+                                className={`w-full pl-10 pr-4 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
+                            />
+                        </div>
+                        {sortField !== 'default' && (
+                            <button
+                                onClick={resetToDefaultSort}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} whitespace-nowrap`}
+                                title="Reset to default sort (Rank → Power → Name)"
+                            >
+                                Reset Sort
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -673,7 +700,8 @@ export default function RosterPage() {
                                     <th className="text-left px-4 py-3">
                                         <button
                                             onClick={() => handleSort('name')}
-                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white`}
+                                            title={COLUMN_TOOLTIPS.name}
+                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white cursor-help`}
                                         >
                                             Name <SortIcon field="name" />
                                         </button>
@@ -681,7 +709,8 @@ export default function RosterPage() {
                                     <th className="text-right px-4 py-3">
                                         <button
                                             onClick={() => handleSort('power')}
-                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
+                                            title={COLUMN_TOOLTIPS.power}
+                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto cursor-help`}
                                         >
                                             Power <SortIcon field="power" />
                                         </button>
@@ -689,30 +718,41 @@ export default function RosterPage() {
                                     <th className="text-right px-4 py-3">
                                         <button
                                             onClick={() => handleSort('kills')}
-                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
+                                            title={COLUMN_TOOLTIPS.kp}
+                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto cursor-help`}
                                         >
                                             KP <SortIcon field="kills" />
                                         </button>
                                     </th>
                                     <th className="text-right px-4 py-3">
-                                        <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                        <span
+                                            title={COLUMN_TOOLTIPS.t4t5}
+                                            className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} cursor-help`}
+                                        >
                                             T4/T5 KP
                                         </span>
                                     </th>
                                     <th className="text-center px-4 py-3">
-                                        <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                        <span
+                                            title={COLUMN_TOOLTIPS.aoo}
+                                            className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} cursor-help`}
+                                        >
                                             AoO
                                         </span>
                                     </th>
                                     <th className="text-center px-4 py-3">
-                                        <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                        <span
+                                            title={COLUMN_TOOLTIPS.mob}
+                                            className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} cursor-help`}
+                                        >
                                             Mob
                                         </span>
                                     </th>
                                     <th className="text-center px-4 py-3">
                                         <button
                                             onClick={() => handleSort('role')}
-                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto`}
+                                            title={COLUMN_TOOLTIPS.rank}
+                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto cursor-help`}
                                         >
                                             Rank <SortIcon field="role" />
                                         </button>
@@ -804,9 +844,16 @@ export default function RosterPage() {
                                                 if (!stats || stats.mobilization.lastScore === null) {
                                                     return <span className={theme.textMuted}>-</span>;
                                                 }
+                                                const turnedIn = stats.mobilization.lastTurnedIn;
+                                                const accepted = stats.mobilization.lastAccepted;
                                                 return (
                                                     <span className="text-[#01b574]">
                                                         {formatPower(stats.mobilization.lastScore)}
+                                                        {turnedIn !== null && accepted !== null && (
+                                                            <span className="text-[var(--text-muted)] text-xs ml-1">
+                                                                ({turnedIn}/{accepted})
+                                                            </span>
+                                                        )}
                                                     </span>
                                                 );
                                             })()}
