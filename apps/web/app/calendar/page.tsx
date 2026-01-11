@@ -65,13 +65,14 @@ export default function CalendarPage() {
         }
     };
 
+    // Theme with CSS variables for dark/light mode support
     const theme = {
-        bg: 'bg-[#0f1535]',
-        card: 'bg-[rgba(6,11,40,0.94)] border-white/10 backdrop-blur-xl',
-        text: 'text-white',
-        textMuted: 'text-[#a0aec0]',
-        border: 'border-white/10',
-        button: 'bg-white/5 hover:bg-white/10 text-white border border-white/10',
+        bg: 'bg-[var(--background)]',
+        card: 'bg-[var(--background-card)] border-[var(--border)] backdrop-blur-xl',
+        text: 'text-[var(--foreground)]',
+        textMuted: 'text-[var(--text-secondary)]',
+        border: 'border-[var(--border)]',
+        button: 'bg-[var(--background-card)] hover:opacity-80 text-[var(--foreground)] border border-[var(--border)]',
         buttonPrimary: 'bg-gradient-to-r from-[#f56565] to-[#ed8936] hover:opacity-90 text-white',
     };
 
@@ -85,10 +86,10 @@ export default function CalendarPage() {
     return (
         <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
             {/* Grid background */}
-            <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
+            <div className="fixed inset-0 bg-[linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
 
             {/* Header */}
-            <header className="bg-[#0f1535]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-40">
+            <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-0 z-40">
                 <div className="max-w-5xl mx-auto px-4 md:px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -117,8 +118,8 @@ export default function CalendarPage() {
                             onClick={() => toggleCalendar(index)}
                             className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
                                 enabledCalendars.has(index)
-                                    ? 'bg-white/10 text-white border border-white/20'
-                                    : 'bg-white/5 text-[#a0aec0] border border-white/10 opacity-60'
+                                    ? 'bg-[var(--background-secondary)] text-[var(--foreground)] border border-[var(--border)]'
+                                    : 'bg-[var(--background-card)] text-[var(--text-secondary)] border border-[var(--border)] opacity-60'
                             }`}
                         >
                             <span
@@ -189,7 +190,7 @@ export default function CalendarPage() {
                                                         type="text"
                                                         value={icalUrl}
                                                         readOnly
-                                                        className={`flex-1 px-2 py-2 rounded-lg text-xs ${theme.button} bg-[#0f1535] font-mono truncate min-w-0`}
+                                                        className={`flex-1 px-2 py-2 rounded-lg text-xs ${theme.button} bg-[var(--background)] font-mono truncate min-w-0`}
                                                     />
                                                     <button
                                                         onClick={() => copyToClipboard(icalUrl, index)}
@@ -205,9 +206,9 @@ export default function CalendarPage() {
                             })}
                         </div>
 
-                        <div className="mt-4 pt-4 border-t border-white/10 text-center">
+                        <div className="mt-4 pt-4 border-t border-[var(--border)] text-center">
                             <p className={`text-xs ${theme.textMuted}`}>
-                                For Apple Calendar / Outlook: Use <span className="text-white">File → New Calendar Subscription</span> and paste the URL
+                                For Apple Calendar / Outlook: Use <span className="text-[var(--foreground)]">File → New Calendar Subscription</span> and paste the URL
                             </p>
                         </div>
                     </div>
@@ -219,7 +220,7 @@ export default function CalendarPage() {
                     <select
                         value={timezone}
                         onChange={(e) => setTimezone(e.target.value)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} bg-[#0f1535] cursor-pointer`}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} bg-[var(--background)] cursor-pointer`}
                     >
                         {TIMEZONE_OPTIONS.map((tz) => (
                             <option key={tz.value} value={tz.value}>

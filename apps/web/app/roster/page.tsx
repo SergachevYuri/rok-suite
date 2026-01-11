@@ -13,6 +13,7 @@ interface RosterMember {
     power: number;
     kills: number;
     t4_kills: number;
+    t5_kills: number;
     deads: number;
     tier: string | null;
     role: string | null;
@@ -42,7 +43,7 @@ export default function RosterPage() {
 
     // Editing state - kills stored as string for decimal input (millions)
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editValues, setEditValues] = useState<{ killsM: string; t4KillsM: string; notes: string }>({ killsM: '', t4KillsM: '', notes: '' });
+    const [editValues, setEditValues] = useState<{ killsM: string; t4t5KillsM: string; notes: string }>({ killsM: '', t4t5KillsM: '', notes: '' });
 
     // CSV Import
     const [showImport, setShowImport] = useState(false);
@@ -105,13 +106,16 @@ export default function RosterPage() {
         setEditingId(member.id);
         // Convert kills to millions for display (e.g., 18543993 -> "18.5")
         const killsM = member.kills ? (member.kills / 1000000).toFixed(1) : '';
-        const t4KillsM = member.t4_kills ? (member.t4_kills / 1000000).toFixed(1) : '';
-        setEditValues({ killsM, t4KillsM, notes: member.notes || '' });
+        // Format T4/T5 as "X/Y" (e.g., "5.2/3.1")
+        const t4M = member.t4_kills ? (member.t4_kills / 1000000).toFixed(1) : '0';
+        const t5M = member.t5_kills ? (member.t5_kills / 1000000).toFixed(1) : '0';
+        const t4t5KillsM = (member.t4_kills || member.t5_kills) ? `${t4M}/${t5M}` : '';
+        setEditValues({ killsM, t4t5KillsM, notes: member.notes || '' });
     };
 
     const cancelEditing = () => {
         setEditingId(null);
-        setEditValues({ killsM: '', t4KillsM: '', notes: '' });
+        setEditValues({ killsM: '', t4t5KillsM: '', notes: '' });
     };
 
     const saveEditing = async () => {
@@ -120,18 +124,26 @@ export default function RosterPage() {
         try {
             // Convert millions input back to raw number (e.g., "18.5" -> 18500000)
             const killsRaw = editValues.killsM ? Math.round(parseFloat(editValues.killsM) * 1000000) : 0;
-            const t4KillsRaw = editValues.t4KillsM ? Math.round(parseFloat(editValues.t4KillsM) * 1000000) : 0;
+
+            // Parse T4/T5 from "X/Y" format (e.g., "5.2/3.1" -> t4=5200000, t5=3100000)
+            let t4KillsRaw = 0;
+            let t5KillsRaw = 0;
+            if (editValues.t4t5KillsM) {
+                const parts = editValues.t4t5KillsM.split('/');
+                t4KillsRaw = parts[0] ? Math.round(parseFloat(parts[0]) * 1000000) : 0;
+                t5KillsRaw = parts[1] ? Math.round(parseFloat(parts[1]) * 1000000) : 0;
+            }
 
             const { error } = await supabase
                 .from('alliance_roster')
-                .update({ kills: killsRaw, t4_kills: t4KillsRaw, notes: editValues.notes || null })
+                .update({ kills: killsRaw, t4_kills: t4KillsRaw, t5_kills: t5KillsRaw, notes: editValues.notes || null })
                 .eq('id', editingId);
 
             if (error) throw error;
 
             setRoster(roster.map(m =>
                 m.id === editingId
-                    ? { ...m, kills: killsRaw, t4_kills: t4KillsRaw, notes: editValues.notes || null }
+                    ? { ...m, kills: killsRaw, t4_kills: t4KillsRaw, t5_kills: t5KillsRaw, notes: editValues.notes || null }
                     : m
             ));
             setEditingId(null);
@@ -304,15 +316,15 @@ export default function RosterPage() {
     const totalPower = roster.reduce((sum, m) => sum + m.power, 0);
     const totalKills = roster.reduce((sum, m) => sum + (m.kills || 0), 0);
 
-    // Vision UI theme
+    // Vision UI theme - using CSS variables for dark/light mode support
     const theme = {
-        bg: 'bg-[#0f1535]',
-        card: 'bg-[rgba(6,11,40,0.94)] border-white/10 backdrop-blur-xl',
-        text: 'text-white',
-        textMuted: 'text-[#a0aec0]',
-        border: 'border-white/10',
-        input: 'bg-[rgba(6,11,40,0.94)] border-white/10 text-white placeholder-[#718096]',
-        button: 'bg-white/5 hover:bg-white/10 text-white border border-white/10',
+        bg: 'bg-[var(--background)]',
+        card: 'bg-[var(--background-card)] border-[var(--border)] backdrop-blur-xl',
+        text: 'text-[var(--foreground)]',
+        textMuted: 'text-[var(--text-secondary)]',
+        border: 'border-[var(--border)]',
+        input: 'bg-[var(--background-card)] border-[var(--border)] text-[var(--foreground)] placeholder-[var(--text-muted)]',
+        button: 'bg-[var(--background-card)] hover:opacity-80 text-[var(--foreground)] border border-[var(--border)]',
         buttonPrimary: 'bg-gradient-to-r from-[#4318ff] to-[#9f7aea] hover:opacity-90 text-white',
     };
 
@@ -335,10 +347,10 @@ export default function RosterPage() {
     return (
         <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
             {/* Grid background */}
-            <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
+            <div className="fixed inset-0 bg-[linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
 
             {/* Header */}
-            <header className="bg-[#0f1535]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-40">
+            <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-0 z-40">
                 <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -561,7 +573,7 @@ export default function RosterPage() {
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
-                                <tr className="border-b border-white/10">
+                                <tr className="border-b border-[var(--border)]">
                                     <th className="text-left px-4 py-3">
                                         <button
                                             onClick={() => handleSort('name')}
@@ -619,7 +631,7 @@ export default function RosterPage() {
                                 {filteredRoster.map((member, idx) => (
                                     <tr
                                         key={member.id}
-                                        className={`border-b border-white/5 ${idx % 2 === 0 ? 'bg-white/[0.02]' : ''} hover:bg-white/5`}
+                                        className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''} hover:bg-[var(--background-secondary)]/50`}
                                     >
                                         <td className="px-4 py-3">
                                             <span className="font-medium">{member.name}</span>
@@ -650,18 +662,19 @@ export default function RosterPage() {
                                             {editingId === member.id ? (
                                                 <div className="flex items-center justify-end gap-1">
                                                     <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        value={editValues.t4KillsM}
-                                                        onChange={(e) => setEditValues({ ...editValues, t4KillsM: e.target.value })}
-                                                        className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
-                                                        placeholder="0.0"
+                                                        type="text"
+                                                        value={editValues.t4t5KillsM}
+                                                        onChange={(e) => setEditValues({ ...editValues, t4t5KillsM: e.target.value })}
+                                                        className={`w-24 px-2 py-1 rounded border ${theme.input} text-right`}
+                                                        placeholder="T4/T5"
                                                     />
                                                     <span className={`text-xs ${theme.textMuted}`}>M</span>
                                                 </div>
                                             ) : (
-                                                <span className={member.t4_kills ? 'text-[#ed8936]' : theme.textMuted}>
-                                                    {member.t4_kills ? formatPower(member.t4_kills) : '-'}
+                                                <span className={(member.t4_kills || member.t5_kills) ? 'text-[#ed8936]' : theme.textMuted}>
+                                                    {(member.t4_kills || member.t5_kills)
+                                                        ? `${formatPower(member.t4_kills || 0)} / ${formatPower(member.t5_kills || 0)}`
+                                                        : '-'}
                                                 </span>
                                             )}
                                         </td>
@@ -672,7 +685,7 @@ export default function RosterPage() {
                                                     member.role === 'R4' ? 'bg-purple-500/20 text-purple-500' :
                                                     member.role === 'R3' ? 'bg-blue-500/20 text-blue-500' :
                                                     member.role === 'R2' ? 'bg-green-500/20 text-green-500' :
-                                                    'bg-white/10 text-white/60'
+                                                    'bg-[var(--background-secondary)] text-[var(--text-muted)]'
                                                 }`}>
                                                     {member.role}
                                                 </span>
@@ -717,7 +730,7 @@ export default function RosterPage() {
                                                 ) : (
                                                     <button
                                                         onClick={() => startEditing(member)}
-                                                        className={`p-1.5 rounded hover:bg-white/10 ${theme.textMuted}`}
+                                                        className={`p-1.5 rounded hover:bg-[var(--background-secondary)] ${theme.textMuted}`}
                                                         title="Edit"
                                                     >
                                                         <Edit2 className="w-4 h-4" />
@@ -773,7 +786,7 @@ export default function RosterPage() {
                                                 return (
                                                     <div key={day.snapshot_date} className="flex items-center gap-2">
                                                         <span className={`text-xs ${theme.textMuted} w-16`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-6 bg-white/5 rounded overflow-hidden">
+                                                        <div className="flex-1 h-6 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#01b574] to-[#01b574]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
@@ -799,7 +812,7 @@ export default function RosterPage() {
                                                 return (
                                                     <div key={day.snapshot_date} className="flex items-center gap-2">
                                                         <span className={`text-xs ${theme.textMuted} w-16`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-6 bg-white/5 rounded overflow-hidden">
+                                                        <div className="flex-1 h-6 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#f56565] to-[#f56565]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
@@ -835,7 +848,7 @@ export default function RosterPage() {
                                         <h3 className="font-semibold mb-4">Member Changes</h3>
                                         <div className="space-y-2">
                                             {memberChanges.map((change, idx) => (
-                                                <div key={idx} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
+                                                <div key={idx} className="flex items-center gap-3 py-2 border-b border-[var(--border)] last:border-0">
                                                     {change.type === 'joined' ? (
                                                         <UserPlus className="w-4 h-4 text-[#01b574]" />
                                                     ) : (
