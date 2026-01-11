@@ -264,12 +264,16 @@ function calculateStats(events: EventParticipation[]): MemberEventStats {
   const aooEvents = events.filter(e => e.event_type === 'aoo');
   const mobEvents = events.filter(e => e.event_type === 'mobilization');
 
-  // AoO stats
+  // AoO stats - count unique event dates
   if (aooEvents.length > 0) {
     // Events are already sorted by date desc, so first is most recent
     stats.aoo.lastTeam = aooEvents[0].team;
-    stats.aoo.totalAssigned = aooEvents.length;
-    stats.aoo.participatedCount = aooEvents.filter(e => e.participated).length;
+    // Count unique event dates (in case of duplicate entries)
+    const uniqueEventDates = new Set(aooEvents.map(e => e.event_date));
+    stats.aoo.totalAssigned = uniqueEventDates.size;
+    // For participated count, count dates where they participated
+    const participatedDates = new Set(aooEvents.filter(e => e.participated).map(e => e.event_date));
+    stats.aoo.participatedCount = participatedDates.size;
     stats.aoo.team1Count = aooEvents.filter(e => e.team === 'Team 1').length;
     stats.aoo.team2Count = aooEvents.filter(e => e.team === 'Team 2').length;
   }

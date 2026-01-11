@@ -529,11 +529,11 @@ export default function RosterPage() {
         return <Icon className={`w-4 h-4 transition-opacity ${isActive ? 'opacity-100' : 'opacity-30'}`} />;
     };
 
-    // Tooltip component for column headers
+    // Tooltip component for column headers (shows below to avoid being clipped by overflow)
     const ColumnTooltip = ({ text, children }: { text: string; children: React.ReactNode }) => (
         <div className="group relative inline-flex">
             {children}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-[var(--background-card)] border border-[var(--border)] rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 text-xs bg-[var(--background-card)] border border-[var(--border)] rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                 {text}
             </div>
         </div>
