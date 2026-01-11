@@ -16,7 +16,9 @@ create table public.event_participation (
   participated boolean default true,      -- Did they participate? (false = assigned but no-show)
 
   -- Mobilization specific fields
-  score bigint,                           -- Their score in the event (null for AoO)
+  score bigint,                           -- Individual points in the event (null for AoO)
+  turned_in integer,                      -- Resources turned in (mobilization only)
+  accepted integer,                       -- Resources accepted (mobilization only)
 
   -- Metadata
   notes text,                             -- Optional notes

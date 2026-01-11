@@ -9,6 +9,8 @@ export interface EventParticipation {
   team: 'Team 1' | 'Team 2' | null;
   participated: boolean;
   score: number | null;
+  turned_in: number | null;
+  accepted: number | null;
   notes: string | null;
   created_at: string;
 }
@@ -23,6 +25,8 @@ export interface MemberEventStats {
   };
   mobilization: {
     lastScore: number | null;
+    lastTurnedIn: number | null;
+    lastAccepted: number | null;
     lastDate: string | null;
     totalEvents: number;
   };
@@ -189,6 +193,8 @@ export async function bulkRecordMobilization(
   entries: Array<{
     memberName: string;
     score: number;
+    turnedIn?: number;
+    accepted?: number;
   }>
 ): Promise<void> {
   const supabase = createClient();
@@ -200,6 +206,8 @@ export async function bulkRecordMobilization(
     team: null,
     participated: true,
     score: entry.score,
+    turned_in: entry.turnedIn ?? null,
+    accepted: entry.accepted ?? null,
   }));
 
   const { error } = await supabase
@@ -241,6 +249,8 @@ function getEmptyStats(): MemberEventStats {
     },
     mobilization: {
       lastScore: null,
+      lastTurnedIn: null,
+      lastAccepted: null,
       lastDate: null,
       totalEvents: 0,
     },
@@ -267,6 +277,8 @@ function calculateStats(events: EventParticipation[]): MemberEventStats {
   // Mobilization stats
   if (mobEvents.length > 0) {
     stats.mobilization.lastScore = mobEvents[0].score;
+    stats.mobilization.lastTurnedIn = mobEvents[0].turned_in;
+    stats.mobilization.lastAccepted = mobEvents[0].accepted;
     stats.mobilization.lastDate = mobEvents[0].event_date;
     stats.mobilization.totalEvents = mobEvents.length;
   }
