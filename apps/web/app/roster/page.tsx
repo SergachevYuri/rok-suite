@@ -53,10 +53,19 @@ interface MemberActivityScore {
     breakdown: ActivityBreakdown;
 }
 
+// Activity weights interface
+interface ActivityWeights {
+    kp: number;
+    power: number;
+    aoo: number;
+    mob: number;
+}
+
 // Calculate activity scores for all members
 function calculateActivityScores(
     roster: RosterMember[],
-    eventStats: Map<string, MemberEventStats>
+    eventStats: Map<string, MemberEventStats>,
+    weights: ActivityWeights = { kp: 50, power: 30, aoo: 10, mob: 10 }
 ): Map<string, MemberActivityScore> {
     const scores = new Map<string, MemberActivityScore>();
 
@@ -75,31 +84,39 @@ function calculateActivityScores(
         return (idx / sortedArray.length) * 100;
     };
 
+    // Convert weights from percentages to decimals
+    const w = {
+        kp: weights.kp / 100,
+        power: weights.power / 100,
+        aoo: weights.aoo / 100,
+        mob: weights.mob / 100,
+    };
+
     for (const member of roster) {
         const stats = eventStats.get(member.name);
 
-        // AoO participation rate (10% weight)
+        // AoO participation rate
         let aooRate = 0;
         if (stats?.aoo.totalAssigned && stats.aoo.totalAssigned > 0) {
             aooRate = (stats.aoo.participatedCount / stats.aoo.totalAssigned) * 100;
         }
 
-        // Mobilization percentile (10% weight)
+        // Mobilization percentile
         const mobScore = stats?.mobilization.lastScore ?? 0;
         const mobPercentile = getPercentile(mobScore, mobScores);
 
-        // KP percentile (50% weight)
+        // KP percentile
         const kpPercentile = getPercentile(member.kills || 0, kpValues);
 
-        // Power percentile (30% weight)
+        // Power percentile
         const powerPercentile = getPercentile(member.power, powerValues);
 
         // Calculate weighted score
         const score = Math.round(
-            0.1 * aooRate +
-            0.1 * mobPercentile +
-            0.5 * kpPercentile +
-            0.3 * powerPercentile
+            w.aoo * aooRate +
+            w.mob * mobPercentile +
+            w.kp * kpPercentile +
+            w.power * powerPercentile
         );
 
         scores.set(member.name, {
@@ -149,6 +166,9 @@ export default function RosterPage() {
     const [eventDate, setEventDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [eventEntries, setEventEntries] = useState<Map<string, { team: 'Team 1' | 'Team 2' | null; participated: boolean; score: string }>>(new Map());
     const [eventSaving, setEventSaving] = useState(false);
+
+    // Activity score weights (must sum to 100)
+    const [activityWeights, setActivityWeights] = useState({ kp: 50, power: 30, aoo: 10, mob: 10 });
 
     // History data from hook
     const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
@@ -1340,7 +1360,7 @@ export default function RosterPage() {
                     <div className="space-y-6">
                         {(() => {
                             // Calculate activity scores
-                            const activityScores = calculateActivityScores(roster, eventStats);
+                            const activityScores = calculateActivityScores(roster, eventStats, activityWeights);
                             const scoresArray = Array.from(activityScores.entries())
                                 .map(([name, data]) => ({ name, ...data }))
                                 .sort((a, b) => b.score - a.score);
@@ -1450,28 +1470,109 @@ export default function RosterPage() {
                                         <h3 className="font-semibold mb-3 flex items-center gap-2">
                                             <BarChart3 className="w-4 h-4 text-[#9f7aea]" />
                                             How Activity Score is Calculated
+                                            {isEditor && (
+                                                <span className="text-xs font-normal text-[#9f7aea] ml-2">(Editing weights)</span>
+                                            )}
                                         </h3>
                                         <p className={`text-sm ${theme.textMuted} mb-3`}>
                                             The activity score (0-100) combines multiple metrics to measure overall engagement:
+                                            {isEditor && (
+                                                <span className={`block mt-1 text-xs ${
+                                                    (activityWeights.kp + activityWeights.power + activityWeights.aoo + activityWeights.mob) === 100
+                                                        ? 'text-[#01b574]'
+                                                        : 'text-[#f56565]'
+                                                }`}>
+                                                    Total: {activityWeights.kp + activityWeights.power + activityWeights.aoo + activityWeights.mob}%
+                                                    {(activityWeights.kp + activityWeights.power + activityWeights.aoo + activityWeights.mob) !== 100 && ' (must equal 100%)'}
+                                                </span>
+                                            )}
                                         </p>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                             <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
-                                                <div className="text-lg font-bold text-[#f56565]">50%</div>
+                                                {isEditor ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            value={activityWeights.kp}
+                                                            onChange={(e) => setActivityWeights(prev => ({
+                                                                ...prev,
+                                                                kp: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                                                            }))}
+                                                            className="w-14 text-lg font-bold text-[#f56565] bg-transparent border border-[#f56565]/30 rounded px-1 text-center"
+                                                        />
+                                                        <span className="text-lg font-bold text-[#f56565]">%</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-lg font-bold text-[#f56565]">{activityWeights.kp}%</div>
+                                                )}
                                                 <div className={`text-xs ${theme.textMuted}`}>Kill Points</div>
                                                 <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
                                             </div>
                                             <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
-                                                <div className="text-lg font-bold text-[#4318ff]">30%</div>
+                                                {isEditor ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            value={activityWeights.power}
+                                                            onChange={(e) => setActivityWeights(prev => ({
+                                                                ...prev,
+                                                                power: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                                                            }))}
+                                                            className="w-14 text-lg font-bold text-[#4318ff] bg-transparent border border-[#4318ff]/30 rounded px-1 text-center"
+                                                        />
+                                                        <span className="text-lg font-bold text-[#4318ff]">%</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-lg font-bold text-[#4318ff]">{activityWeights.power}%</div>
+                                                )}
                                                 <div className={`text-xs ${theme.textMuted}`}>Power Level</div>
                                                 <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
                                             </div>
                                             <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
-                                                <div className="text-lg font-bold text-[#01b574]">10%</div>
+                                                {isEditor ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            value={activityWeights.aoo}
+                                                            onChange={(e) => setActivityWeights(prev => ({
+                                                                ...prev,
+                                                                aoo: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                                                            }))}
+                                                            className="w-14 text-lg font-bold text-[#01b574] bg-transparent border border-[#01b574]/30 rounded px-1 text-center"
+                                                        />
+                                                        <span className="text-lg font-bold text-[#01b574]">%</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-lg font-bold text-[#01b574]">{activityWeights.aoo}%</div>
+                                                )}
                                                 <div className={`text-xs ${theme.textMuted}`}>AoO Participation</div>
                                                 <div className={`text-[10px] ${theme.textMuted} mt-1`}>% of assigned events attended</div>
                                             </div>
                                             <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
-                                                <div className="text-lg font-bold text-[#9f7aea]">10%</div>
+                                                {isEditor ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            value={activityWeights.mob}
+                                                            onChange={(e) => setActivityWeights(prev => ({
+                                                                ...prev,
+                                                                mob: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                                                            }))}
+                                                            className="w-14 text-lg font-bold text-[#9f7aea] bg-transparent border border-[#9f7aea]/30 rounded px-1 text-center"
+                                                        />
+                                                        <span className="text-lg font-bold text-[#9f7aea]">%</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-lg font-bold text-[#9f7aea]">{activityWeights.mob}%</div>
+                                                )}
                                                 <div className={`text-xs ${theme.textMuted}`}>Mobilization Score</div>
                                                 <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
                                             </div>
