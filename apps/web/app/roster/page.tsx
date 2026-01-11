@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { createSnapshot, useRosterSnapshots, formatDate, type DailyTotals, type MemberChange } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
-import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy } from 'lucide-react';
+import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle } from 'lucide-react';
 
 interface RosterMember {
     id: string;
@@ -40,6 +40,82 @@ type SortDirection = 'asc' | 'desc';
 
 const EDITOR_PASSWORD = 'carn-dum';
 
+// Activity score breakdown interface
+interface ActivityBreakdown {
+    aooRate: number;      // 0-100 percentage
+    mobPercentile: number; // 0-100 percentile
+    kpPercentile: number;  // 0-100 percentile
+    powerPercentile: number; // 0-100 percentile
+}
+
+interface MemberActivityScore {
+    score: number;
+    breakdown: ActivityBreakdown;
+}
+
+// Calculate activity scores for all members
+function calculateActivityScores(
+    roster: RosterMember[],
+    eventStats: Map<string, MemberEventStats>
+): Map<string, MemberActivityScore> {
+    const scores = new Map<string, MemberActivityScore>();
+
+    // Get sorted arrays for percentile calculations
+    const mobScores = roster
+        .map(m => eventStats.get(m.name)?.mobilization.lastScore ?? 0)
+        .sort((a, b) => a - b);
+    const kpValues = roster.map(m => m.kills || 0).sort((a, b) => a - b);
+    const powerValues = roster.map(m => m.power).sort((a, b) => a - b);
+
+    // Helper to calculate percentile rank
+    const getPercentile = (value: number, sortedArray: number[]): number => {
+        if (sortedArray.length === 0) return 0;
+        const idx = sortedArray.findIndex(v => v >= value);
+        if (idx === -1) return 100;
+        return (idx / sortedArray.length) * 100;
+    };
+
+    for (const member of roster) {
+        const stats = eventStats.get(member.name);
+
+        // AoO participation rate (40% weight)
+        let aooRate = 0;
+        if (stats?.aoo.totalAssigned && stats.aoo.totalAssigned > 0) {
+            aooRate = (stats.aoo.participatedCount / stats.aoo.totalAssigned) * 100;
+        }
+
+        // Mobilization percentile (30% weight)
+        const mobScore = stats?.mobilization.lastScore ?? 0;
+        const mobPercentile = getPercentile(mobScore, mobScores);
+
+        // KP percentile (20% weight)
+        const kpPercentile = getPercentile(member.kills || 0, kpValues);
+
+        // Power percentile (10% weight)
+        const powerPercentile = getPercentile(member.power, powerValues);
+
+        // Calculate weighted score
+        const score = Math.round(
+            0.4 * aooRate +
+            0.3 * mobPercentile +
+            0.2 * kpPercentile +
+            0.1 * powerPercentile
+        );
+
+        scores.set(member.name, {
+            score,
+            breakdown: {
+                aooRate,
+                mobPercentile,
+                kpPercentile,
+                powerPercentile,
+            },
+        });
+    }
+
+    return scores;
+}
+
 export default function RosterPage() {
     const [roster, setRoster] = useState<RosterMember[]>([]);
     const [loading, setLoading] = useState(true);
@@ -62,7 +138,7 @@ export default function RosterPage() {
     const [importStatus, setImportStatus] = useState<string | null>(null);
 
     // Tabs and History
-    const [activeTab, setActiveTab] = useState<'roster' | 'history' | 'events'>('roster');
+    const [activeTab, setActiveTab] = useState<'roster' | 'history' | 'events' | 'analytics'>('roster');
     const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
 
     // Event participation stats
@@ -552,6 +628,17 @@ export default function RosterPage() {
                         >
                             <History className="w-4 h-4" />
                             History
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('analytics')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                                activeTab === 'analytics'
+                                    ? 'bg-[#4318ff] text-white'
+                                    : `${theme.button}`
+                            }`}
+                        >
+                            <BarChart3 className="w-4 h-4" />
+                            Analytics
                         </button>
                         {isEditor && (
                             <button
@@ -1245,6 +1332,263 @@ export default function RosterPage() {
                                 </table>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* Analytics Tab */}
+                {activeTab === 'analytics' && (
+                    <div className="space-y-6">
+                        {(() => {
+                            // Calculate activity scores
+                            const activityScores = calculateActivityScores(roster, eventStats);
+                            const scoresArray = Array.from(activityScores.entries())
+                                .map(([name, data]) => ({ name, ...data }))
+                                .sort((a, b) => b.score - a.score);
+
+                            // Summary statistics
+                            const membersWithAoO = roster.filter(m => {
+                                const stats = eventStats.get(m.name);
+                                return stats?.aoo.totalAssigned && stats.aoo.totalAssigned > 0;
+                            });
+                            const avgAoORate = membersWithAoO.length > 0
+                                ? membersWithAoO.reduce((sum, m) => {
+                                    const stats = eventStats.get(m.name);
+                                    return sum + (stats?.aoo.participatedCount || 0) / (stats?.aoo.totalAssigned || 1) * 100;
+                                }, 0) / membersWithAoO.length
+                                : 0;
+
+                            const membersWithMob = roster.filter(m => {
+                                const stats = eventStats.get(m.name);
+                                return stats?.mobilization.lastScore && stats.mobilization.lastScore > 0;
+                            });
+                            const avgMobScore = membersWithMob.length > 0
+                                ? membersWithMob.reduce((sum, m) => {
+                                    const stats = eventStats.get(m.name);
+                                    return sum + (stats?.mobilization.lastScore || 0);
+                                }, 0) / membersWithMob.length
+                                : 0;
+
+                            const activeMembers = scoresArray.filter(s => s.score >= 30).length;
+
+                            // Participation distribution
+                            const aooDistribution = [
+                                { label: '100%', count: 0, color: '#01b574' },
+                                { label: '80-99%', count: 0, color: '#4ade80' },
+                                { label: '60-79%', count: 0, color: '#fbbf24' },
+                                { label: '40-59%', count: 0, color: '#fb923c' },
+                                { label: '<40%', count: 0, color: '#f56565' },
+                            ];
+                            membersWithAoO.forEach(m => {
+                                const stats = eventStats.get(m.name);
+                                const rate = (stats?.aoo.participatedCount || 0) / (stats?.aoo.totalAssigned || 1) * 100;
+                                if (rate === 100) aooDistribution[0].count++;
+                                else if (rate >= 80) aooDistribution[1].count++;
+                                else if (rate >= 60) aooDistribution[2].count++;
+                                else if (rate >= 40) aooDistribution[3].count++;
+                                else aooDistribution[4].count++;
+                            });
+                            const maxAoOCount = Math.max(...aooDistribution.map(d => d.count), 1);
+
+                            // Mobilization score distribution
+                            const mobDistribution = [
+                                { label: '5K+', count: 0, color: '#01b574' },
+                                { label: '2-5K', count: 0, color: '#4ade80' },
+                                { label: '1-2K', count: 0, color: '#fbbf24' },
+                                { label: '<1K', count: 0, color: '#fb923c' },
+                            ];
+                            membersWithMob.forEach(m => {
+                                const stats = eventStats.get(m.name);
+                                const score = stats?.mobilization.lastScore || 0;
+                                if (score >= 5000) mobDistribution[0].count++;
+                                else if (score >= 2000) mobDistribution[1].count++;
+                                else if (score >= 1000) mobDistribution[2].count++;
+                                else mobDistribution[3].count++;
+                            });
+                            const maxMobCount = Math.max(...mobDistribution.map(d => d.count), 1);
+
+                            // Low activity members (score < 30)
+                            const lowActivityMembers = scoresArray.filter(s => s.score < 30).slice(0, 15);
+
+                            return (
+                                <>
+                                    {/* Summary Cards */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className={`${theme.card} border rounded-xl p-4`}>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Users className="w-5 h-5 text-[#4318ff]" />
+                                                <span className={`text-sm ${theme.textMuted}`}>Active Members</span>
+                                            </div>
+                                            <div className="text-2xl font-bold">{activeMembers}/{roster.length}</div>
+                                            <div className={`text-xs ${theme.textMuted}`}>
+                                                {((activeMembers / roster.length) * 100).toFixed(1)}% of roster (score ≥30)
+                                            </div>
+                                        </div>
+                                        <div className={`${theme.card} border rounded-xl p-4`}>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Trophy className="w-5 h-5 text-[#01b574]" />
+                                                <span className={`text-sm ${theme.textMuted}`}>Avg AoO Rate</span>
+                                            </div>
+                                            <div className="text-2xl font-bold text-[#01b574]">{avgAoORate.toFixed(0)}%</div>
+                                            <div className={`text-xs ${theme.textMuted}`}>
+                                                across {membersWithAoO.length} assigned members
+                                            </div>
+                                        </div>
+                                        <div className={`${theme.card} border rounded-xl p-4`}>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <TrendingUp className="w-5 h-5 text-[#9f7aea]" />
+                                                <span className={`text-sm ${theme.textMuted}`}>Avg Mob Score</span>
+                                            </div>
+                                            <div className="text-2xl font-bold text-[#9f7aea]">{formatPower(avgMobScore)}</div>
+                                            <div className={`text-xs ${theme.textMuted}`}>
+                                                per participating member
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Activity Leaderboard */}
+                                    <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                            <BarChart3 className="w-4 h-4 text-[#4318ff]" />
+                                            Activity Leaderboard (Top 20)
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {scoresArray.slice(0, 20).map((member, idx) => (
+                                                <div key={member.name} className="flex items-center gap-2">
+                                                    <span className={`text-xs ${theme.textMuted} w-6 text-right`}>{idx + 1}.</span>
+                                                    <span className="w-28 truncate text-sm font-medium">{member.name}</span>
+                                                    <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                        <div
+                                                            className="h-full rounded transition-all"
+                                                            style={{
+                                                                width: `${member.score}%`,
+                                                                background: member.score >= 70
+                                                                    ? 'linear-gradient(90deg, #01b574, #4ade80)'
+                                                                    : member.score >= 40
+                                                                        ? 'linear-gradient(90deg, #fbbf24, #fb923c)'
+                                                                        : 'linear-gradient(90deg, #f56565, #ef4444)'
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <span className={`text-sm font-medium w-8 text-right ${
+                                                        member.score >= 70 ? 'text-[#01b574]' :
+                                                            member.score >= 40 ? 'text-[#fbbf24]' : 'text-[#f56565]'
+                                                    }`}>{member.score}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Participation Breakdown */}
+                                    <div className="grid md:grid-cols-2 gap-6">
+                                        {/* AoO Participation Distribution */}
+                                        <div className={`${theme.card} border rounded-xl p-4`}>
+                                            <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                                <Trophy className="w-4 h-4 text-[#01b574]" />
+                                                AoO Participation Rates
+                                            </h3>
+                                            {membersWithAoO.length === 0 ? (
+                                                <p className={`text-sm ${theme.textMuted}`}>No AoO data yet</p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {aooDistribution.map(bucket => (
+                                                        <div key={bucket.label} className="flex items-center gap-2">
+                                                            <span className={`text-xs ${theme.textMuted} w-16`}>{bucket.label}</span>
+                                                            <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                <div
+                                                                    className="h-full rounded"
+                                                                    style={{
+                                                                        width: `${(bucket.count / maxAoOCount) * 100}%`,
+                                                                        backgroundColor: bucket.color,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-sm font-medium w-16 text-right">{bucket.count} members</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Mobilization Score Distribution */}
+                                        <div className={`${theme.card} border rounded-xl p-4`}>
+                                            <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                                <TrendingUp className="w-4 h-4 text-[#9f7aea]" />
+                                                Mobilization Rankings
+                                            </h3>
+                                            {membersWithMob.length === 0 ? (
+                                                <p className={`text-sm ${theme.textMuted}`}>No mobilization data yet</p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {mobDistribution.map(bucket => (
+                                                        <div key={bucket.label} className="flex items-center gap-2">
+                                                            <span className={`text-xs ${theme.textMuted} w-16`}>{bucket.label}</span>
+                                                            <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                <div
+                                                                    className="h-full rounded"
+                                                                    style={{
+                                                                        width: `${(bucket.count / maxMobCount) * 100}%`,
+                                                                        backgroundColor: bucket.color,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-sm font-medium w-16 text-right">{bucket.count} members</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Low Activity Warning */}
+                                    {lowActivityMembers.length > 0 && (
+                                        <div className={`${theme.card} border border-[#f56565]/30 rounded-xl p-4`}>
+                                            <h3 className="font-semibold mb-4 flex items-center gap-2 text-[#f56565]">
+                                                <AlertTriangle className="w-4 h-4" />
+                                                Low Activity Warning (Score &lt; 30)
+                                            </h3>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full">
+                                                    <thead>
+                                                        <tr className="border-b border-[var(--border)]">
+                                                            <th className={`text-left px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Name</th>
+                                                            <th className={`text-center px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>AoO Rate</th>
+                                                            <th className={`text-center px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Last Mob</th>
+                                                            <th className={`text-center px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Score</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {lowActivityMembers.map((member, idx) => {
+                                                            const stats = eventStats.get(member.name);
+                                                            const aooRate = stats?.aoo.totalAssigned
+                                                                ? Math.round((stats.aoo.participatedCount / stats.aoo.totalAssigned) * 100)
+                                                                : null;
+                                                            const mobScore = stats?.mobilization.lastScore;
+                                                            return (
+                                                                <tr key={member.name} className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
+                                                                    <td className="px-3 py-2 font-medium">{member.name}</td>
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        {aooRate !== null ? `${aooRate}%` : <span className={theme.textMuted}>--</span>}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        {mobScore ? formatPower(mobScore) : <span className={theme.textMuted}>Never</span>}
+                                                                    </td>
+                                                                    <td className="px-3 py-2 text-center text-[#f56565] font-medium">{member.score}</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {scoresArray.filter(s => s.score < 30).length > 15 && (
+                                                <p className={`text-xs ${theme.textMuted} mt-2 text-center`}>
+                                                    Showing 15 of {scoresArray.filter(s => s.score < 30).length} low activity members
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 )}
 
