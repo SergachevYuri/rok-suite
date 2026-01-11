@@ -524,9 +524,20 @@ export default function RosterPage() {
     };
 
     const SortIcon = ({ field }: { field: SortField }) => {
-        if (sortField !== field) return null;
-        return sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />;
+        const isActive = sortField === field;
+        const Icon = isActive && sortDirection === 'desc' ? ChevronDown : ChevronUp;
+        return <Icon className={`w-4 h-4 transition-opacity ${isActive ? 'opacity-100' : 'opacity-30'}`} />;
     };
+
+    // Tooltip component for column headers
+    const ColumnTooltip = ({ text, children }: { text: string; children: React.ReactNode }) => (
+        <div className="group relative inline-flex">
+            {children}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-[var(--background-card)] border border-[var(--border)] rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                {text}
+            </div>
+        </div>
+    );
 
     if (loading) {
         return (
@@ -819,69 +830,85 @@ export default function RosterPage() {
 
                 {/* Roster Table */}
                 <div className={`${theme.card} border rounded-xl overflow-hidden`}>
+                    {/* Table hint for non-editors */}
+                    {!isEditor && (
+                        <div className="px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
+                            <span className={`text-xs ${theme.textMuted}`}>
+                                Click column headers to sort
+                            </span>
+                            <button
+                                onClick={() => setShowPasswordPrompt(true)}
+                                className={`text-xs ${theme.textMuted} hover:text-[#9f7aea] transition-colors flex items-center gap-1`}
+                            >
+                                <Edit2 className="w-3 h-3" />
+                                Edit KP & notes
+                            </button>
+                        </div>
+                    )}
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-[var(--border)]">
                                     <th className="text-left px-4 py-3">
-                                        <button
-                                            onClick={() => handleSort('name')}
-                                            title={COLUMN_TOOLTIPS.name}
-                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white cursor-help`}
-                                        >
-                                            Name <SortIcon field="name" />
-                                        </button>
+                                        <ColumnTooltip text={COLUMN_TOOLTIPS.name}>
+                                            <button
+                                                onClick={() => handleSort('name')}
+                                                className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white`}
+                                            >
+                                                Name <SortIcon field="name" />
+                                            </button>
+                                        </ColumnTooltip>
                                     </th>
                                     <th className="text-right px-4 py-3">
-                                        <button
-                                            onClick={() => handleSort('power')}
-                                            title={COLUMN_TOOLTIPS.power}
-                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto cursor-help`}
-                                        >
-                                            Power <SortIcon field="power" />
-                                        </button>
+                                        <ColumnTooltip text={COLUMN_TOOLTIPS.power}>
+                                            <button
+                                                onClick={() => handleSort('power')}
+                                                className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
+                                            >
+                                                Power <SortIcon field="power" />
+                                            </button>
+                                        </ColumnTooltip>
                                     </th>
                                     <th className="text-right px-4 py-3">
-                                        <button
-                                            onClick={() => handleSort('kills')}
-                                            title={COLUMN_TOOLTIPS.kp}
-                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto cursor-help`}
-                                        >
-                                            KP <SortIcon field="kills" />
-                                        </button>
+                                        <ColumnTooltip text={COLUMN_TOOLTIPS.kp}>
+                                            <button
+                                                onClick={() => handleSort('kills')}
+                                                className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
+                                            >
+                                                KP <SortIcon field="kills" />
+                                            </button>
+                                        </ColumnTooltip>
                                     </th>
                                     <th className="text-right px-4 py-3">
-                                        <span
-                                            title={COLUMN_TOOLTIPS.t4t5}
-                                            className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} cursor-help`}
-                                        >
-                                            T4/T5 KP
-                                        </span>
+                                        <ColumnTooltip text={COLUMN_TOOLTIPS.t4t5}>
+                                            <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                T4/T5 KP
+                                            </span>
+                                        </ColumnTooltip>
                                     </th>
                                     <th className="text-center px-4 py-3">
-                                        <span
-                                            title={COLUMN_TOOLTIPS.aoo}
-                                            className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} cursor-help`}
-                                        >
-                                            AoO
-                                        </span>
+                                        <ColumnTooltip text={COLUMN_TOOLTIPS.aoo}>
+                                            <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                AoO
+                                            </span>
+                                        </ColumnTooltip>
                                     </th>
                                     <th className="text-center px-4 py-3">
-                                        <span
-                                            title={COLUMN_TOOLTIPS.mob}
-                                            className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} cursor-help`}
-                                        >
-                                            Mob
-                                        </span>
+                                        <ColumnTooltip text={COLUMN_TOOLTIPS.mob}>
+                                            <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                Mob
+                                            </span>
+                                        </ColumnTooltip>
                                     </th>
                                     <th className="text-center px-4 py-3">
-                                        <button
-                                            onClick={() => handleSort('role')}
-                                            title={COLUMN_TOOLTIPS.rank}
-                                            className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto cursor-help`}
-                                        >
-                                            Rank <SortIcon field="role" />
-                                        </button>
+                                        <ColumnTooltip text={COLUMN_TOOLTIPS.rank}>
+                                            <button
+                                                onClick={() => handleSort('role')}
+                                                className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto`}
+                                            >
+                                                Rank <SortIcon field="role" />
+                                            </button>
+                                        </ColumnTooltip>
                                     </th>
                                     {isEditor && (
                                         <th className="text-left px-4 py-3">
