@@ -1486,11 +1486,22 @@ export default function RosterPage() {
 
                                     {/* Score Calculation Explanation */}
                                     <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-3 flex items-center gap-2">
-                                            <BarChart3 className="w-4 h-4 text-[#9f7aea]" />
-                                            How Activity Score is Calculated
-                                            {isEditor && (
-                                                <span className="text-xs font-normal text-[#9f7aea] ml-2">(Editing weights)</span>
+                                        <h3 className="font-semibold mb-3 flex items-center justify-between">
+                                            <span className="flex items-center gap-2">
+                                                <BarChart3 className="w-4 h-4 text-[#9f7aea]" />
+                                                How Activity Score is Calculated
+                                                {isEditor && (
+                                                    <span className="text-xs font-normal text-[#9f7aea] ml-2">(Editing weights)</span>
+                                                )}
+                                            </span>
+                                            {!isEditor && (
+                                                <button
+                                                    onClick={() => setShowPasswordPrompt(true)}
+                                                    className={`text-xs font-normal ${theme.textMuted} hover:text-[#9f7aea] transition-colors flex items-center gap-1`}
+                                                >
+                                                    <Edit2 className="w-3 h-3" />
+                                                    Adjust weights
+                                                </button>
                                             )}
                                         </h3>
                                         <p className={`text-sm ${theme.textMuted} mb-3`}>
