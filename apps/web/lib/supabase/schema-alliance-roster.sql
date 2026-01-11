@@ -17,7 +17,8 @@ create table public.alliance_roster (
   power bigint default 0,                 -- Current power level
 
   -- Optional metadata
-  kills bigint default 0,                 -- Kill count
+  kills bigint default 0,                 -- Kill count (total)
+  t4_kills bigint default 0,              -- T4/T5 kill points
   deads bigint default 0,                 -- Death count
   tier text,                              -- e.g., 'T5', 'T4'
   role text,                              -- e.g., 'R4', 'R5', 'member'

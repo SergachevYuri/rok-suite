@@ -12,6 +12,7 @@ interface RosterMember {
     name: string;
     power: number;
     kills: number;
+    t4_kills: number;
     deads: number;
     tier: string | null;
     role: string | null;
@@ -41,7 +42,7 @@ export default function RosterPage() {
 
     // Editing state - kills stored as string for decimal input (millions)
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editValues, setEditValues] = useState<{ killsM: string; notes: string }>({ killsM: '', notes: '' });
+    const [editValues, setEditValues] = useState<{ killsM: string; t4KillsM: string; notes: string }>({ killsM: '', t4KillsM: '', notes: '' });
 
     // CSV Import
     const [showImport, setShowImport] = useState(false);
@@ -104,12 +105,13 @@ export default function RosterPage() {
         setEditingId(member.id);
         // Convert kills to millions for display (e.g., 18543993 -> "18.5")
         const killsM = member.kills ? (member.kills / 1000000).toFixed(1) : '';
-        setEditValues({ killsM, notes: member.notes || '' });
+        const t4KillsM = member.t4_kills ? (member.t4_kills / 1000000).toFixed(1) : '';
+        setEditValues({ killsM, t4KillsM, notes: member.notes || '' });
     };
 
     const cancelEditing = () => {
         setEditingId(null);
-        setEditValues({ killsM: '', notes: '' });
+        setEditValues({ killsM: '', t4KillsM: '', notes: '' });
     };
 
     const saveEditing = async () => {
@@ -118,17 +120,18 @@ export default function RosterPage() {
         try {
             // Convert millions input back to raw number (e.g., "18.5" -> 18500000)
             const killsRaw = editValues.killsM ? Math.round(parseFloat(editValues.killsM) * 1000000) : 0;
+            const t4KillsRaw = editValues.t4KillsM ? Math.round(parseFloat(editValues.t4KillsM) * 1000000) : 0;
 
             const { error } = await supabase
                 .from('alliance_roster')
-                .update({ kills: killsRaw, notes: editValues.notes || null })
+                .update({ kills: killsRaw, t4_kills: t4KillsRaw, notes: editValues.notes || null })
                 .eq('id', editingId);
 
             if (error) throw error;
 
             setRoster(roster.map(m =>
                 m.id === editingId
-                    ? { ...m, kills: killsRaw, notes: editValues.notes || null }
+                    ? { ...m, kills: killsRaw, t4_kills: t4KillsRaw, notes: editValues.notes || null }
                     : m
             ));
             setEditingId(null);
@@ -583,6 +586,11 @@ export default function RosterPage() {
                                             KP <SortIcon field="kills" />
                                         </button>
                                     </th>
+                                    <th className="text-right px-4 py-3">
+                                        <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                            T4/T5 KP
+                                        </span>
+                                    </th>
                                     <th className="text-center px-4 py-3">
                                         <button
                                             onClick={() => handleSort('role')}
@@ -591,11 +599,13 @@ export default function RosterPage() {
                                             Rank <SortIcon field="role" />
                                         </button>
                                     </th>
-                                    <th className="text-left px-4 py-3">
-                                        <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
-                                            Notes
-                                        </span>
-                                    </th>
+                                    {isEditor && (
+                                        <th className="text-left px-4 py-3">
+                                            <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                Notes
+                                            </span>
+                                        </th>
+                                    )}
                                     {isEditor && (
                                         <th className="text-center px-4 py-3">
                                             <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
@@ -636,6 +646,25 @@ export default function RosterPage() {
                                                 </span>
                                             )}
                                         </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {editingId === member.id ? (
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        value={editValues.t4KillsM}
+                                                        onChange={(e) => setEditValues({ ...editValues, t4KillsM: e.target.value })}
+                                                        className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
+                                                        placeholder="0.0"
+                                                    />
+                                                    <span className={`text-xs ${theme.textMuted}`}>M</span>
+                                                </div>
+                                            ) : (
+                                                <span className={member.t4_kills ? 'text-[#ed8936]' : theme.textMuted}>
+                                                    {member.t4_kills ? formatPower(member.t4_kills) : '-'}
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3 text-center">
                                             {member.role && (
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -649,21 +678,23 @@ export default function RosterPage() {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3">
-                                            {editingId === member.id ? (
-                                                <input
-                                                    type="text"
-                                                    value={editValues.notes}
-                                                    onChange={(e) => setEditValues({ ...editValues, notes: e.target.value })}
-                                                    className={`w-full px-2 py-1 rounded border ${theme.input}`}
-                                                    placeholder="Add notes..."
-                                                />
-                                            ) : (
-                                                <span className={`text-sm ${member.notes ? theme.text : theme.textMuted}`}>
-                                                    {member.notes || '-'}
-                                                </span>
-                                            )}
-                                        </td>
+                                        {isEditor && (
+                                            <td className="px-4 py-3">
+                                                {editingId === member.id ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editValues.notes}
+                                                        onChange={(e) => setEditValues({ ...editValues, notes: e.target.value })}
+                                                        className={`w-full px-2 py-1 rounded border ${theme.input}`}
+                                                        placeholder="Add notes..."
+                                                    />
+                                                ) : (
+                                                    <span className={`text-sm ${member.notes ? theme.text : theme.textMuted}`}>
+                                                        {member.notes || '-'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
                                         {isEditor && (
                                             <td className="px-4 py-3 text-center">
                                                 {editingId === member.id ? (
