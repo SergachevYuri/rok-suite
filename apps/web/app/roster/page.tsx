@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
-import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users } from 'lucide-react';
+import { createSnapshot, useRosterSnapshots, formatDate, type DailyTotals, type MemberChange } from '@/lib/supabase/use-roster-snapshots';
+import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus } from 'lucide-react';
 
 interface RosterMember {
     id: string;
@@ -45,6 +46,13 @@ export default function RosterPage() {
     // CSV Import
     const [showImport, setShowImport] = useState(false);
     const [importStatus, setImportStatus] = useState<string | null>(null);
+
+    // Tabs and History
+    const [activeTab, setActiveTab] = useState<'roster' | 'history'>('roster');
+    const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
+
+    // History data from hook
+    const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
 
     const fetchRoster = useCallback(async () => {
         setLoading(true);
@@ -180,7 +188,24 @@ export default function RosterPage() {
 
             if (error) throw error;
 
-            setImportStatus(`Successfully imported ${rows.length} members!`);
+            setImportStatus(`Imported ${rows.length} members. Creating snapshot...`);
+
+            // Auto-create snapshot after import
+            try {
+                const snapshotData = rows.map(r => ({
+                    name: r.name!,
+                    power: r.power || 0,
+                    kills: r.kills || 0,
+                    role: r.role || null,
+                    is_active: true,
+                }));
+                await createSnapshot(snapshotData);
+                setImportStatus(`Successfully imported ${rows.length} members and saved snapshot!`);
+                refetchHistory();
+            } catch {
+                setImportStatus(`Imported ${rows.length} members (snapshot failed)`);
+            }
+
             setTimeout(() => {
                 setImportStatus(null);
                 setShowImport(false);
@@ -190,6 +215,34 @@ export default function RosterPage() {
         } catch (err) {
             console.error('Import error:', err);
             setImportStatus(`Error: ${err instanceof Error ? err.message : 'Import failed'}`);
+        }
+    };
+
+    // Manual snapshot handler
+    const handleCreateSnapshot = async () => {
+        if (roster.length === 0) {
+            setSnapshotStatus('No roster data to snapshot');
+            setTimeout(() => setSnapshotStatus(null), 2000);
+            return;
+        }
+
+        setSnapshotStatus('Creating snapshot...');
+        try {
+            const snapshotData = roster.map(m => ({
+                name: m.name,
+                power: m.power,
+                kills: m.kills || 0,
+                role: m.role,
+                is_active: m.is_active,
+            }));
+            const result = await createSnapshot(snapshotData);
+            setSnapshotStatus(`Snapshot saved for ${result.date} (${result.count} members)`);
+            refetchHistory();
+            setTimeout(() => setSnapshotStatus(null), 3000);
+        } catch (err) {
+            console.error('Snapshot error:', err);
+            setSnapshotStatus('Failed to create snapshot');
+            setTimeout(() => setSnapshotStatus(null), 3000);
         }
     };
 
@@ -305,13 +358,23 @@ export default function RosterPage() {
                         </div>
                         <div className="flex items-center gap-2">
                             {isEditor && (
-                                <button
-                                    onClick={() => setShowImport(!showImport)}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2`}
-                                >
-                                    <Upload className="w-4 h-4" />
-                                    Import CSV
-                                </button>
+                                <>
+                                    <button
+                                        onClick={() => setShowImport(!showImport)}
+                                        className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2`}
+                                    >
+                                        <Upload className="w-4 h-4" />
+                                        Import CSV
+                                    </button>
+                                    <button
+                                        onClick={handleCreateSnapshot}
+                                        className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2`}
+                                        title="Save today's roster data for historical tracking"
+                                    >
+                                        <Lock className="w-4 h-4" />
+                                        Lock Today
+                                    </button>
+                                </>
                             )}
                             {!isEditor ? (
                                 <button
@@ -330,6 +393,44 @@ export default function RosterPage() {
                             )}
                         </div>
                     </div>
+
+                    {/* Tabs */}
+                    <div className="flex flex-wrap gap-2 mt-4">
+                        <button
+                            onClick={() => setActiveTab('roster')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                                activeTab === 'roster'
+                                    ? 'bg-[#4318ff] text-white'
+                                    : `${theme.button}`
+                            }`}
+                        >
+                            <Users className="w-4 h-4" />
+                            Roster
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('history')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                                activeTab === 'history'
+                                    ? 'bg-[#4318ff] text-white'
+                                    : `${theme.button}`
+                            }`}
+                        >
+                            <History className="w-4 h-4" />
+                            History
+                        </button>
+                        {lastSnapshotDate && (
+                            <span className={`px-3 py-2 text-xs ${theme.textMuted} flex items-center gap-1`}>
+                                Last snapshot: {formatDate(lastSnapshotDate)}
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Snapshot Status */}
+                    {snapshotStatus && (
+                        <div className="mt-2 px-3 py-2 rounded-lg bg-[#4318ff]/20 text-[#9f7aea] text-sm">
+                            {snapshotStatus}
+                        </div>
+                    )}
                 </div>
             </header>
 
@@ -386,6 +487,9 @@ export default function RosterPage() {
             )}
 
             <div className="max-w-6xl mx-auto p-4 md:p-6">
+                {/* Roster Tab */}
+                {activeTab === 'roster' && (
+                    <>
                 {/* Stats Summary */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className={`${theme.card} border rounded-xl p-4 text-center`}>
@@ -581,6 +685,144 @@ export default function RosterPage() {
                         </div>
                     )}
                 </div>
+                    </>
+                )}
+
+                {/* History Tab */}
+                {activeTab === 'history' && (
+                    <div className="space-y-6">
+                        {historyLoading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="w-5 h-5 border-2 border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
+                                <span className={`ml-3 ${theme.textMuted}`}>Loading history...</span>
+                            </div>
+                        ) : dailyTotals.length === 0 ? (
+                            <div className={`${theme.card} border rounded-xl p-8 text-center`}>
+                                <History className="w-12 h-12 mx-auto mb-4 text-[#4318ff]/50" />
+                                <h3 className="text-lg font-semibold mb-2">No Historical Data Yet</h3>
+                                <p className={`text-sm ${theme.textMuted} mb-4`}>
+                                    Start tracking by importing roster data or clicking "Lock Today" to create your first snapshot.
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Power & KP Charts - Simple Bar Visualization */}
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    {/* Total Power Over Time */}
+                                    <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                            <TrendingUp className="w-4 h-4 text-[#01b574]" />
+                                            Total Power Over Time
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {dailyTotals.slice(-10).map((day, idx) => {
+                                                const maxPower = Math.max(...dailyTotals.map(d => d.total_power));
+                                                const pct = (day.total_power / maxPower) * 100;
+                                                return (
+                                                    <div key={day.snapshot_date} className="flex items-center gap-2">
+                                                        <span className={`text-xs ${theme.textMuted} w-16`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-6 bg-white/5 rounded overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-gradient-to-r from-[#01b574] to-[#01b574]/50 rounded"
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-sm font-medium w-16 text-right">{formatPower(day.total_power)}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Total KP Over Time */}
+                                    <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                            <TrendingUp className="w-4 h-4 text-[#f56565]" />
+                                            Total Kill Points Over Time
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {dailyTotals.slice(-10).map((day, idx) => {
+                                                const maxKills = Math.max(...dailyTotals.map(d => d.total_kills || 1));
+                                                const pct = ((day.total_kills || 0) / maxKills) * 100;
+                                                return (
+                                                    <div key={day.snapshot_date} className="flex items-center gap-2">
+                                                        <span className={`text-xs ${theme.textMuted} w-16`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-6 bg-white/5 rounded overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-gradient-to-r from-[#f56565] to-[#f56565]/50 rounded"
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-sm font-medium w-16 text-right">{formatPower(day.total_kills || 0)}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Member Count Over Time */}
+                                <div className={`${theme.card} border rounded-xl p-4`}>
+                                    <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                        <Users className="w-4 h-4 text-[#9f7aea]" />
+                                        Member Count Over Time
+                                    </h3>
+                                    <div className="flex flex-wrap gap-3">
+                                        {dailyTotals.slice(-15).map((day) => (
+                                            <div key={day.snapshot_date} className="text-center">
+                                                <div className="text-2xl font-bold text-[#9f7aea]">{day.member_count}</div>
+                                                <div className={`text-xs ${theme.textMuted}`}>{formatDate(day.snapshot_date)}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Member Changes */}
+                                {memberChanges.length > 0 && (
+                                    <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <h3 className="font-semibold mb-4">Member Changes</h3>
+                                        <div className="space-y-2">
+                                            {memberChanges.map((change, idx) => (
+                                                <div key={idx} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
+                                                    {change.type === 'joined' ? (
+                                                        <UserPlus className="w-4 h-4 text-[#01b574]" />
+                                                    ) : (
+                                                        <UserMinus className="w-4 h-4 text-[#f56565]" />
+                                                    )}
+                                                    <span className="font-medium">{change.name}</span>
+                                                    <span className={`text-xs px-2 py-0.5 rounded ${
+                                                        change.type === 'joined' ? 'bg-[#01b574]/20 text-[#01b574]' : 'bg-[#f56565]/20 text-[#f56565]'
+                                                    }`}>
+                                                        {change.type}
+                                                    </span>
+                                                    {change.power && (
+                                                        <span className={`text-sm ${theme.textMuted}`}>{formatPower(change.power)}</span>
+                                                    )}
+                                                    <span className={`text-xs ${theme.textMuted} ml-auto`}>{formatDate(change.date)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Snapshot Dates */}
+                                <div className={`${theme.card} border rounded-xl p-4`}>
+                                    <h3 className="font-semibold mb-4">Available Snapshots</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {dailyTotals.map((day) => (
+                                            <span
+                                                key={day.snapshot_date}
+                                                className={`px-3 py-1 rounded-full text-xs ${theme.button}`}
+                                            >
+                                                {formatDate(day.snapshot_date)} ({day.member_count} members)
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
 
                 <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                     <p className={`text-xs ${theme.textMuted}`}>Angmar Nazgul Guards - Rise of Kingdoms</p>
