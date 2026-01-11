@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTheme } from '@/lib/theme-context';
 
 // Google Calendar configuration
 const CALENDARS = [
@@ -31,6 +32,7 @@ const TIMEZONE_OPTIONS = [
 ];
 
 export default function CalendarPage() {
+    const { theme: currentTheme } = useTheme();
     const [timezone, setTimezone] = useState('UTC');
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showSubscribe, setShowSubscribe] = useState(false);
@@ -233,9 +235,9 @@ export default function CalendarPage() {
                 {/* Calendar embed - inverted for dark mode */}
                 <div className={`${theme.card} border rounded-xl overflow-hidden`}>
                     <iframe
-                        key={`${timezone}-${Array.from(enabledCalendars).join('-')}`}
+                        key={`${timezone}-${Array.from(enabledCalendars).join('-')}-${currentTheme}`}
                         src={calendarUrl}
-                        style={{ border: 0, filter: 'invert(0.9) hue-rotate(180deg)' }}
+                        style={{ border: 0, filter: currentTheme === 'dark' ? 'invert(0.9) hue-rotate(180deg)' : 'none' }}
                         width="100%"
                         height="600"
                         className="rounded-lg"
