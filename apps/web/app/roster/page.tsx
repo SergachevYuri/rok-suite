@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { createSnapshot, useRosterSnapshots, formatDate, type DailyTotals, type MemberChange } from '@/lib/supabase/use-roster-snapshots';
-import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus } from 'lucide-react';
+import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
+import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy } from 'lucide-react';
 
 interface RosterMember {
     id: string;
@@ -50,8 +51,17 @@ export default function RosterPage() {
     const [importStatus, setImportStatus] = useState<string | null>(null);
 
     // Tabs and History
-    const [activeTab, setActiveTab] = useState<'roster' | 'history'>('roster');
+    const [activeTab, setActiveTab] = useState<'roster' | 'history' | 'events'>('roster');
     const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
+
+    // Event participation stats
+    const [eventStats, setEventStats] = useState<Map<string, MemberEventStats>>(new Map());
+
+    // Events tab state
+    const [eventType, setEventType] = useState<'aoo' | 'mobilization'>('aoo');
+    const [eventDate, setEventDate] = useState(() => new Date().toISOString().split('T')[0]);
+    const [eventEntries, setEventEntries] = useState<Map<string, { team: 'Team 1' | 'Team 2' | null; participated: boolean; score: string }>>(new Map());
+    const [eventSaving, setEventSaving] = useState(false);
 
     // History data from hook
     const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
@@ -80,6 +90,79 @@ export default function RosterPage() {
     useEffect(() => {
         fetchRoster();
     }, [fetchRoster]);
+
+    // Fetch event participation stats
+    const fetchEventStats = useCallback(async () => {
+        try {
+            const stats = await getAllMemberStats();
+            setEventStats(stats);
+        } catch (err) {
+            console.error('Error fetching event stats:', err);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchEventStats();
+    }, [fetchEventStats]);
+
+    // Initialize event entries when roster or event type changes
+    useEffect(() => {
+        const entries = new Map<string, { team: 'Team 1' | 'Team 2' | null; participated: boolean; score: string }>();
+        roster.forEach(member => {
+            entries.set(member.name, { team: null, participated: false, score: '' });
+        });
+        setEventEntries(entries);
+    }, [roster, eventType]);
+
+    // Save bulk event data
+    const handleSaveEventData = async () => {
+        setEventSaving(true);
+        try {
+            if (eventType === 'aoo') {
+                // Filter entries with team assigned
+                const aooEntries: { memberName: string; team: 'Team 1' | 'Team 2'; participated: boolean }[] = [];
+                eventEntries.forEach((entry, memberName) => {
+                    if (entry.team) {
+                        aooEntries.push({
+                            memberName,
+                            team: entry.team,
+                            participated: entry.participated,
+                        });
+                    }
+                });
+                if (aooEntries.length > 0) {
+                    await bulkRecordAoO(eventDate, aooEntries);
+                }
+            } else {
+                // Filter entries with score
+                const mobEntries: { memberName: string; score: number }[] = [];
+                eventEntries.forEach((entry, memberName) => {
+                    if (entry.score) {
+                        const scoreNum = parseFloat(entry.score) * 1000; // Input is in thousands
+                        if (!isNaN(scoreNum) && scoreNum > 0) {
+                            mobEntries.push({
+                                memberName,
+                                score: Math.round(scoreNum),
+                            });
+                        }
+                    }
+                });
+                if (mobEntries.length > 0) {
+                    await bulkRecordMobilization(eventDate, mobEntries);
+                }
+            }
+            // Refresh stats
+            await fetchEventStats();
+            setSnapshotStatus(`${eventType === 'aoo' ? 'AoO' : 'Mobilization'} event saved!`);
+            setTimeout(() => setSnapshotStatus(null), 2000);
+        } catch (err) {
+            console.error('Error saving event data:', err);
+            setSnapshotStatus('Failed to save event data');
+            setTimeout(() => setSnapshotStatus(null), 2000);
+        } finally {
+            setEventSaving(false);
+        }
+    };
 
     const handlePasswordSubmit = () => {
         if (editorPassword === EDITOR_PASSWORD) {
@@ -454,6 +537,19 @@ export default function RosterPage() {
                             <History className="w-4 h-4" />
                             History
                         </button>
+                        {isEditor && (
+                            <button
+                                onClick={() => setActiveTab('events')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                                    activeTab === 'events'
+                                        ? 'bg-[#4318ff] text-white'
+                                        : `${theme.button}`
+                                }`}
+                            >
+                                <Calendar className="w-4 h-4" />
+                                Events
+                            </button>
+                        )}
                         {lastSnapshotDate && (
                             <span className={`px-3 py-2 text-xs ${theme.textMuted} flex items-center gap-1`}>
                                 Last snapshot: {formatDate(lastSnapshotDate)}
@@ -604,6 +700,16 @@ export default function RosterPage() {
                                         </span>
                                     </th>
                                     <th className="text-center px-4 py-3">
+                                        <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                            AoO
+                                        </span>
+                                    </th>
+                                    <th className="text-center px-4 py-3">
+                                        <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                            Mob
+                                        </span>
+                                    </th>
+                                    <th className="text-center px-4 py-3">
                                         <button
                                             onClick={() => handleSort('role')}
                                             className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto`}
@@ -677,6 +783,33 @@ export default function RosterPage() {
                                                         : '-'}
                                                 </span>
                                             )}
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            {(() => {
+                                                const stats = eventStats.get(member.name);
+                                                if (!stats || stats.aoo.totalAssigned === 0) {
+                                                    return <span className={theme.textMuted}>-</span>;
+                                                }
+                                                const teamLabel = stats.aoo.lastTeam === 'Team 1' ? 'T1' : stats.aoo.lastTeam === 'Team 2' ? 'T2' : '-';
+                                                return (
+                                                    <span className="text-[#4318ff]">
+                                                        {teamLabel} ({stats.aoo.participatedCount}/{stats.aoo.totalAssigned})
+                                                    </span>
+                                                );
+                                            })()}
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            {(() => {
+                                                const stats = eventStats.get(member.name);
+                                                if (!stats || stats.mobilization.lastScore === null) {
+                                                    return <span className={theme.textMuted}>-</span>;
+                                                }
+                                                return (
+                                                    <span className="text-[#01b574]">
+                                                        {formatPower(stats.mobilization.lastScore)}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             {member.role && (
@@ -886,6 +1019,185 @@ export default function RosterPage() {
                                 </div>
                             </>
                         )}
+                    </div>
+                )}
+
+                {/* Events Tab */}
+                {activeTab === 'events' && isEditor && (
+                    <div className="space-y-6">
+                        <div className={`${theme.card} border rounded-xl p-4`}>
+                            <div className="flex flex-wrap items-center gap-4 mb-6">
+                                <div>
+                                    <label className={`text-xs ${theme.textMuted} block mb-1`}>Event Type</label>
+                                    <select
+                                        value={eventType}
+                                        onChange={(e) => setEventType(e.target.value as 'aoo' | 'mobilization')}
+                                        className={`px-3 py-2 rounded-lg border ${theme.input} cursor-pointer`}
+                                    >
+                                        <option value="aoo">Ark of Osiris (AoO)</option>
+                                        <option value="mobilization">Mobilization</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={`text-xs ${theme.textMuted} block mb-1`}>Event Date</label>
+                                    <input
+                                        type="date"
+                                        value={eventDate}
+                                        onChange={(e) => setEventDate(e.target.value)}
+                                        className={`px-3 py-2 rounded-lg border ${theme.input}`}
+                                    />
+                                </div>
+                                <div className="ml-auto">
+                                    <button
+                                        onClick={handleSaveEventData}
+                                        disabled={eventSaving}
+                                        className={`px-4 py-2 rounded-lg font-medium ${theme.buttonPrimary} disabled:opacity-50 flex items-center gap-2`}
+                                    >
+                                        {eventSaving ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="w-4 h-4" />
+                                                Save Event Data
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* AoO Bulk Assign */}
+                            {eventType === 'aoo' && (
+                                <div className="mb-4 flex flex-wrap gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const updated = new Map(eventEntries);
+                                            roster.forEach(m => {
+                                                const entry = updated.get(m.name);
+                                                if (entry) {
+                                                    updated.set(m.name, { ...entry, team: 'Team 1', participated: true });
+                                                }
+                                            });
+                                            setEventEntries(updated);
+                                        }}
+                                        className={`px-3 py-1.5 rounded text-xs font-medium ${theme.button}`}
+                                    >
+                                        All Team 1
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const updated = new Map(eventEntries);
+                                            roster.forEach(m => {
+                                                const entry = updated.get(m.name);
+                                                if (entry) {
+                                                    updated.set(m.name, { ...entry, team: 'Team 2', participated: true });
+                                                }
+                                            });
+                                            setEventEntries(updated);
+                                        }}
+                                        className={`px-3 py-1.5 rounded text-xs font-medium ${theme.button}`}
+                                    >
+                                        All Team 2
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const updated = new Map(eventEntries);
+                                            roster.forEach(m => {
+                                                updated.set(m.name, { team: null, participated: false, score: '' });
+                                            });
+                                            setEventEntries(updated);
+                                        }}
+                                        className={`px-3 py-1.5 rounded text-xs font-medium ${theme.button}`}
+                                    >
+                                        Clear All
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Table */}
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-[var(--border)]">
+                                            <th className={`text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>Name</th>
+                                            <th className={`text-center px-4 py-2 text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>Power</th>
+                                            {eventType === 'aoo' ? (
+                                                <>
+                                                    <th className={`text-center px-4 py-2 text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>Team</th>
+                                                    <th className={`text-center px-4 py-2 text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>Participated</th>
+                                                </>
+                                            ) : (
+                                                <th className={`text-center px-4 py-2 text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>Score (K)</th>
+                                            )}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {roster.map((member, idx) => {
+                                            const entry = eventEntries.get(member.name) || { team: null, participated: false, score: '' };
+                                            return (
+                                                <tr key={member.id} className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
+                                                    <td className="px-4 py-2 font-medium">{member.name}</td>
+                                                    <td className="px-4 py-2 text-center text-[#01b574]">{formatPower(member.power)}</td>
+                                                    {eventType === 'aoo' ? (
+                                                        <>
+                                                            <td className="px-4 py-2 text-center">
+                                                                <select
+                                                                    value={entry.team || ''}
+                                                                    onChange={(e) => {
+                                                                        const updated = new Map(eventEntries);
+                                                                        const teamVal = e.target.value as 'Team 1' | 'Team 2' | '';
+                                                                        updated.set(member.name, {
+                                                                            ...entry,
+                                                                            team: teamVal === '' ? null : teamVal,
+                                                                            participated: teamVal !== '' ? true : false,
+                                                                        });
+                                                                        setEventEntries(updated);
+                                                                    }}
+                                                                    className={`px-2 py-1 rounded border ${theme.input} text-sm cursor-pointer`}
+                                                                >
+                                                                    <option value="">--</option>
+                                                                    <option value="Team 1">Team 1</option>
+                                                                    <option value="Team 2">Team 2</option>
+                                                                </select>
+                                                            </td>
+                                                            <td className="px-4 py-2 text-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={entry.participated}
+                                                                    disabled={!entry.team}
+                                                                    onChange={(e) => {
+                                                                        const updated = new Map(eventEntries);
+                                                                        updated.set(member.name, { ...entry, participated: e.target.checked });
+                                                                        setEventEntries(updated);
+                                                                    }}
+                                                                    className="w-4 h-4 rounded border-[var(--border)] cursor-pointer"
+                                                                />
+                                                            </td>
+                                                        </>
+                                                    ) : (
+                                                        <td className="px-4 py-2 text-center">
+                                                            <input
+                                                                type="number"
+                                                                value={entry.score}
+                                                                onChange={(e) => {
+                                                                    const updated = new Map(eventEntries);
+                                                                    updated.set(member.name, { ...entry, score: e.target.value });
+                                                                    setEventEntries(updated);
+                                                                }}
+                                                                className={`w-24 px-2 py-1 rounded border ${theme.input} text-center`}
+                                                                placeholder="0"
+                                                            />
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 )}
 
