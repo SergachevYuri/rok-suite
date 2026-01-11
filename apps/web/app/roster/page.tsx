@@ -78,28 +78,28 @@ function calculateActivityScores(
     for (const member of roster) {
         const stats = eventStats.get(member.name);
 
-        // AoO participation rate (40% weight)
+        // AoO participation rate (10% weight)
         let aooRate = 0;
         if (stats?.aoo.totalAssigned && stats.aoo.totalAssigned > 0) {
             aooRate = (stats.aoo.participatedCount / stats.aoo.totalAssigned) * 100;
         }
 
-        // Mobilization percentile (30% weight)
+        // Mobilization percentile (10% weight)
         const mobScore = stats?.mobilization.lastScore ?? 0;
         const mobPercentile = getPercentile(mobScore, mobScores);
 
-        // KP percentile (20% weight)
+        // KP percentile (50% weight)
         const kpPercentile = getPercentile(member.kills || 0, kpValues);
 
-        // Power percentile (10% weight)
+        // Power percentile (30% weight)
         const powerPercentile = getPercentile(member.power, powerValues);
 
         // Calculate weighted score
         const score = Math.round(
-            0.4 * aooRate +
-            0.3 * mobPercentile +
-            0.2 * kpPercentile +
-            0.1 * powerPercentile
+            0.1 * aooRate +
+            0.1 * mobPercentile +
+            0.5 * kpPercentile +
+            0.3 * powerPercentile
         );
 
         scores.set(member.name, {
@@ -1456,23 +1456,23 @@ export default function RosterPage() {
                                         </p>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                             <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
-                                                <div className="text-lg font-bold text-[#01b574]">40%</div>
-                                                <div className={`text-xs ${theme.textMuted}`}>AoO Participation</div>
-                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>% of assigned events attended</div>
-                                            </div>
-                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
-                                                <div className="text-lg font-bold text-[#9f7aea]">30%</div>
-                                                <div className={`text-xs ${theme.textMuted}`}>Mobilization Score</div>
-                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
-                                            </div>
-                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
-                                                <div className="text-lg font-bold text-[#f56565]">20%</div>
+                                                <div className="text-lg font-bold text-[#f56565]">50%</div>
                                                 <div className={`text-xs ${theme.textMuted}`}>Kill Points</div>
                                                 <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
                                             </div>
                                             <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
-                                                <div className="text-lg font-bold text-[#4318ff]">10%</div>
+                                                <div className="text-lg font-bold text-[#4318ff]">30%</div>
                                                 <div className={`text-xs ${theme.textMuted}`}>Power Level</div>
+                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                                <div className="text-lg font-bold text-[#01b574]">10%</div>
+                                                <div className={`text-xs ${theme.textMuted}`}>AoO Participation</div>
+                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>% of assigned events attended</div>
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                                <div className="text-lg font-bold text-[#9f7aea]">10%</div>
+                                                <div className={`text-xs ${theme.textMuted}`}>Mobilization Score</div>
                                                 <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
                                             </div>
                                         </div>
