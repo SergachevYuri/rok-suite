@@ -12,7 +12,7 @@ const CALENDARS = [
         displayColor: '#ED8936', // orange in UI
     },
     {
-        id: 'd1a7e099e15dd38ed60bd613799220e2fc083f6edaa59d48d9abb723aad2114a@group.calendar.google.com',
+        id: '4fee3b72af12b7cd4b5741024cecfdb3e8c20e5851269ec50facf7f66cf6258e@group.calendar.google.com',
         name: 'RoK Events',
         color: '#7986CB', // indigo (inverts to purple-ish)
         displayColor: '#9F7AEA', // purple in UI
