@@ -727,17 +727,19 @@ export default function RosterPage() {
                                 </button>
                                 {availableTags.map(tag => {
                                     const count = roster.filter(m => m.tags?.includes(tag)).length;
+                                    const tagConfig = {
+                                        'angmar-og': { label: 'Angmar Core', activeClass: 'bg-amber-500 text-black', inactiveClass: 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' },
+                                        'inactive': { label: 'Inactive', activeClass: 'bg-gray-500 text-white', inactiveClass: 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30' },
+                                    }[tag] || { label: tag, activeClass: 'bg-blue-500 text-white', inactiveClass: 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' };
                                     return (
                                         <button
                                             key={tag}
                                             onClick={() => setTagFilter(tag)}
                                             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
-                                                tagFilter === tag
-                                                    ? 'bg-amber-500 text-black'
-                                                    : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                                                tagFilter === tag ? tagConfig.activeClass : tagConfig.inactiveClass
                                             }`}
                                         >
-                                            {tag === 'angmar-og' ? 'Angmar Core' : tag} ({count})
+                                            {tagConfig.label} ({count})
                                         </button>
                                     );
                                 })}
@@ -990,6 +992,9 @@ export default function RosterPage() {
                                             <span className="font-medium">{member.name}</span>
                                             {member.tags?.includes('angmar-og') && (
                                                 <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-500/20 text-amber-400" title="Angmar Core">ANG</span>
+                                            )}
+                                            {member.tags?.includes('inactive') && (
+                                                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-500/20 text-gray-400" title="Inactive">AFK</span>
                                             )}
                                         </td>
                                         <td className="px-4 py-3 text-right">
@@ -1343,6 +1348,9 @@ export default function RosterPage() {
                                                                     {member.name}
                                                                     {member.tags?.includes('angmar-og') && (
                                                                         <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                                    )}
+                                                                    {member.tags?.includes('inactive') && (
+                                                                        <span className="ml-1 px-1 py-0.5 text-[9px] font-semibold rounded bg-gray-500/20 text-gray-400">AFK</span>
                                                                     )}
                                                                 </td>
                                                                 <td className="px-2 py-2 text-right text-[#9f7aea]">
@@ -1845,10 +1853,13 @@ export default function RosterPage() {
                                             {scoresArray.slice(0, 20).map((member, idx) => (
                                                 <div key={member.name} className="flex items-center gap-2">
                                                     <span className={`text-xs ${theme.textMuted} w-6 text-right`}>{idx + 1}.</span>
-                                                    <span className="w-32 truncate text-sm font-medium">
+                                                    <span className="w-36 truncate text-sm font-medium">
                                                         {member.name}
                                                         {member.tags?.includes('angmar-og') && (
                                                             <span className="ml-1 px-1 py-0.5 text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                        )}
+                                                        {member.tags?.includes('inactive') && (
+                                                            <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-gray-500/20 text-gray-400">AFK</span>
                                                         )}
                                                     </span>
                                                     <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
@@ -1964,6 +1975,9 @@ export default function RosterPage() {
                                                                         {member.name}
                                                                         {member.tags?.includes('angmar-og') && (
                                                                             <span className="ml-1 px-1 py-0.5 text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                                        )}
+                                                                        {member.tags?.includes('inactive') && (
+                                                                            <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-gray-500/20 text-gray-400">AFK</span>
                                                                         )}
                                                                     </td>
                                                                     <td className="px-3 py-2 text-center">

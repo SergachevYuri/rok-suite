@@ -105,8 +105,18 @@ WHERE name IN (
 )
 AND NOT ('angmar-og' = ANY(COALESCE(tags, '{}')));
 
+-- Tag inactive members (stepped away, on break, or known inactive)
+UPDATE alliance_roster SET tags = array_append(COALESCE(tags, '{}'), 'inactive')
+WHERE name IN (
+  'Sysstem',
+  'Soutz'
+)
+AND NOT ('inactive' = ANY(COALESCE(tags, '{}')));
+
 -- Verification: Check tagged members
 -- SELECT name, tags FROM alliance_roster WHERE 'angmar-og' = ANY(tags) ORDER BY name;
+-- SELECT name, tags FROM alliance_roster WHERE 'inactive' = ANY(tags) ORDER BY name;
 
 -- Count: How many were tagged
 -- SELECT COUNT(*) as angmar_og_count FROM alliance_roster WHERE 'angmar-og' = ANY(tags);
+-- SELECT COUNT(*) as inactive_count FROM alliance_roster WHERE 'inactive' = ANY(tags);
