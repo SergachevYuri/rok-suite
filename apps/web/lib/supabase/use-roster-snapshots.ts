@@ -275,6 +275,60 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
   return growth;
 }
 
+export interface PowerGrowth {
+  name: string;
+  previousPower: number;
+  currentPower: number;
+  powerGrowth: number;
+  previousDate: string | null;
+  currentDate: string | null;
+}
+
+/**
+ * Get Power growth between the two most recent snapshots
+ */
+export async function getPowerGrowth(currentRoster: Array<{ name: string; power: number }>): Promise<PowerGrowth[]> {
+  const supabase = createClient();
+
+  // Get the two most recent snapshot dates
+  const dates = await getSnapshotDates();
+  if (dates.length < 2) return [];
+
+  const previousDate = dates[1]; // Second most recent
+  const currentDate = dates[0];  // Most recent
+
+  // Get previous snapshot data
+  const { data: previousData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, power')
+    .eq('snapshot_date', previousDate)
+    .eq('is_active', true);
+
+  if (!previousData) return [];
+
+  const previousMap = new Map(previousData.map(d => [d.member_name, d.power || 0]));
+
+  const growth: PowerGrowth[] = currentRoster
+    .filter(m => {
+      const prev = previousMap.get(m.name);
+      // Only include if they existed in previous snapshot AND had non-zero power
+      return prev !== undefined && prev > 0;
+    })
+    .map(m => {
+      const prev = previousMap.get(m.name) || 0;
+      return {
+        name: m.name,
+        previousPower: prev,
+        currentPower: m.power || 0,
+        powerGrowth: (m.power || 0) - prev,
+        previousDate,
+        currentDate,
+      };
+    });
+
+  return growth;
+}
+
 /**
  * Detect membership changes (joins/leaves) between snapshots
  */

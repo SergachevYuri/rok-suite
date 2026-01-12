@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
-import { createSnapshot, useRosterSnapshots, formatDate, getKpGrowth, type DailyTotals, type MemberChange, type KpGrowth } from '@/lib/supabase/use-roster-snapshots';
+import { createSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle } from 'lucide-react';
 
@@ -191,10 +191,15 @@ export default function RosterPage() {
     const [showAllKpGrowth, setShowAllKpGrowth] = useState(false);
     const [kpGrowthSort, setKpGrowthSort] = useState<{ field: 'name' | 'kpGrowth' | 't4Growth' | 't5Growth'; direction: 'asc' | 'desc' }>({ field: 'kpGrowth', direction: 'desc' });
     const [kpGrowthData, setKpGrowthData] = useState<KpGrowth[]>([]);
+    const [powerGrowthData, setPowerGrowthData] = useState<PowerGrowth[]>([]);
 
     // Hover card state
     const [hoveredMember, setHoveredMember] = useState<string | null>(null);
     const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+    // Analytics chart hover state
+    const [hoveredBucket, setHoveredBucket] = useState<{ type: 'aoo' | 'mob'; label: string } | null>(null);
+    const [bucketHoverPosition, setBucketHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
     // History data from hook
     const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
@@ -242,6 +247,7 @@ export default function RosterPage() {
     useEffect(() => {
         if (roster.length > 0) {
             getKpGrowth(roster).then(setKpGrowthData).catch(console.error);
+            getPowerGrowth(roster).then(setPowerGrowthData).catch(console.error);
         }
     }, [roster]);
 
@@ -539,6 +545,8 @@ export default function RosterPage() {
             kpGrowthValue: number | null;
             t4GrowthValue: number | null;
             t5GrowthValue: number | null;
+            powerGrowthRank: number | null;
+            powerGrowthValue: number | null;
         }>();
 
         // Sort by each metric to get rankings
@@ -552,8 +560,13 @@ export default function RosterPage() {
         const sortedKpGrowth = [...kpGrowthData].sort((a, b) => b.kpGrowth - a.kpGrowth);
         const kpGrowthMap = new Map(sortedKpGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.kpGrowth, t4Growth: g.t4Growth, t5Growth: g.t5Growth }]));
 
+        // Sort Power growth data
+        const sortedPowerGrowth = [...powerGrowthData].sort((a, b) => b.powerGrowth - a.powerGrowth);
+        const powerGrowthMap = new Map(sortedPowerGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.powerGrowth }]));
+
         roster.forEach(member => {
             const kpGrowthInfo = kpGrowthMap.get(member.name);
+            const powerGrowthInfo = powerGrowthMap.get(member.name);
             rankings.set(member.name, {
                 powerRank: byPower.findIndex(m => m.name === member.name) + 1,
                 kpRank: byKp.findIndex(m => m.name === member.name) + 1,
@@ -564,11 +577,13 @@ export default function RosterPage() {
                 kpGrowthValue: kpGrowthInfo?.growth ?? null,
                 t4GrowthValue: kpGrowthInfo?.t4Growth ?? null,
                 t5GrowthValue: kpGrowthInfo?.t5Growth ?? null,
+                powerGrowthRank: powerGrowthInfo?.rank ?? null,
+                powerGrowthValue: powerGrowthInfo?.growth ?? null,
             });
         });
 
         return rankings;
-    }, [roster, kpGrowthData]);
+    }, [roster, kpGrowthData, powerGrowthData]);
 
     // Filter and sort roster
     const filteredRoster = roster
@@ -1976,40 +1991,46 @@ export default function RosterPage() {
 
                             const activeMembers = scoresArray.filter(s => s.score >= 30).length;
 
-                            // Participation distribution
-                            const aooDistribution = [
-                                { label: '100%', count: 0, color: '#01b574' },
-                                { label: '80-99%', count: 0, color: '#4ade80' },
-                                { label: '60-79%', count: 0, color: '#fbbf24' },
-                                { label: '40-59%', count: 0, color: '#fb923c' },
-                                { label: '<40%', count: 0, color: '#f56565' },
+                            // Participation distribution with member names
+                            const aooDistribution: { label: string; count: number; color: string; members: { name: string; rate: number }[] }[] = [
+                                { label: '100%', count: 0, color: '#01b574', members: [] },
+                                { label: '80-99%', count: 0, color: '#4ade80', members: [] },
+                                { label: '60-79%', count: 0, color: '#fbbf24', members: [] },
+                                { label: '40-59%', count: 0, color: '#fb923c', members: [] },
+                                { label: '<40%', count: 0, color: '#f56565', members: [] },
                             ];
                             membersWithAoO.forEach(m => {
                                 const stats = eventStats.get(m.name);
                                 const rate = (stats?.aoo.participatedCount || 0) / (stats?.aoo.totalAssigned || 1) * 100;
-                                if (rate === 100) aooDistribution[0].count++;
-                                else if (rate >= 80) aooDistribution[1].count++;
-                                else if (rate >= 60) aooDistribution[2].count++;
-                                else if (rate >= 40) aooDistribution[3].count++;
-                                else aooDistribution[4].count++;
+                                const memberInfo = { name: m.name, rate: Math.round(rate) };
+                                if (rate === 100) { aooDistribution[0].count++; aooDistribution[0].members.push(memberInfo); }
+                                else if (rate >= 80) { aooDistribution[1].count++; aooDistribution[1].members.push(memberInfo); }
+                                else if (rate >= 60) { aooDistribution[2].count++; aooDistribution[2].members.push(memberInfo); }
+                                else if (rate >= 40) { aooDistribution[3].count++; aooDistribution[3].members.push(memberInfo); }
+                                else { aooDistribution[4].count++; aooDistribution[4].members.push(memberInfo); }
                             });
+                            // Sort members by rate descending within each bucket
+                            aooDistribution.forEach(bucket => bucket.members.sort((a, b) => b.rate - a.rate));
                             const maxAoOCount = Math.max(...aooDistribution.map(d => d.count), 1);
 
-                            // Mobilization score distribution
-                            const mobDistribution = [
-                                { label: '5K+', count: 0, color: '#01b574' },
-                                { label: '2-5K', count: 0, color: '#4ade80' },
-                                { label: '1-2K', count: 0, color: '#fbbf24' },
-                                { label: '<1K', count: 0, color: '#fb923c' },
+                            // Mobilization score distribution with member names
+                            const mobDistribution: { label: string; count: number; color: string; members: { name: string; score: number }[] }[] = [
+                                { label: '5K+', count: 0, color: '#01b574', members: [] },
+                                { label: '2-5K', count: 0, color: '#4ade80', members: [] },
+                                { label: '1-2K', count: 0, color: '#fbbf24', members: [] },
+                                { label: '<1K', count: 0, color: '#fb923c', members: [] },
                             ];
                             membersWithMob.forEach(m => {
                                 const stats = eventStats.get(m.name);
                                 const score = stats?.mobilization.lastScore || 0;
-                                if (score >= 5000) mobDistribution[0].count++;
-                                else if (score >= 2000) mobDistribution[1].count++;
-                                else if (score >= 1000) mobDistribution[2].count++;
-                                else mobDistribution[3].count++;
+                                const memberInfo = { name: m.name, score };
+                                if (score >= 5000) { mobDistribution[0].count++; mobDistribution[0].members.push(memberInfo); }
+                                else if (score >= 2000) { mobDistribution[1].count++; mobDistribution[1].members.push(memberInfo); }
+                                else if (score >= 1000) { mobDistribution[2].count++; mobDistribution[2].members.push(memberInfo); }
+                                else { mobDistribution[3].count++; mobDistribution[3].members.push(memberInfo); }
                             });
+                            // Sort members by score descending within each bucket
+                            mobDistribution.forEach(bucket => bucket.members.sort((a, b) => b.score - a.score));
                             const maxMobCount = Math.max(...mobDistribution.map(d => d.count), 1);
 
                             // Low activity members (score < 30)
@@ -2198,54 +2219,132 @@ export default function RosterPage() {
                                         </div>
                                     </div>
 
-                                    {/* Activity Leaderboard */}
+                                    {/* Activity Leaderboard with Stacked Bars */}
                                     <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                        <h3 className="font-semibold mb-2 flex items-center gap-2">
                                             <BarChart3 className="w-4 h-4 text-[#4318ff]" />
                                             Activity Leaderboard (Top 20)
                                         </h3>
+                                        <div className={`text-xs ${theme.textMuted} mb-4 flex items-center gap-4 flex-wrap`}>
+                                            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{backgroundColor: '#f56565'}}></span> KP</span>
+                                            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{backgroundColor: '#4318ff'}}></span> Power</span>
+                                            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{backgroundColor: '#f6ad55'}}></span> Honor</span>
+                                            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{backgroundColor: '#01b574'}}></span> AoO</span>
+                                            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{backgroundColor: '#9f7aea'}}></span> Mob</span>
+                                        </div>
                                         <div className="space-y-2">
-                                            {scoresArray.slice(0, 20).map((member, idx) => (
-                                                <div key={member.name} className="flex items-center gap-2">
-                                                    <span className={`text-xs ${theme.textMuted} w-6 text-right`}>{idx + 1}.</span>
-                                                    <span className="w-40 truncate text-sm font-medium">
-                                                        {member.name}
-                                                        {member.tags?.includes('angmar-og') && (
-                                                            <span className="ml-1 px-1 py-0.5 text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
-                                                        )}
-                                                        {member.tags?.includes('inactive') && (
-                                                            <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-gray-500/20 text-gray-400">AFK</span>
-                                                        )}
-                                                        {member.tags?.includes('quit') && (
-                                                            <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-red-500/20 text-red-400">QUIT</span>
-                                                        )}
-                                                    </span>
-                                                    <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
-                                                        <div
-                                                            className="h-full rounded transition-all"
-                                                            style={{
-                                                                width: `${member.score}%`,
-                                                                background: member.score >= 70
-                                                                    ? 'linear-gradient(90deg, #01b574, #4ade80)'
-                                                                    : member.score >= 40
-                                                                        ? 'linear-gradient(90deg, #fbbf24, #fb923c)'
-                                                                        : 'linear-gradient(90deg, #f56565, #ef4444)'
-                                                            }}
-                                                        />
+                                            {scoresArray.slice(0, 20).map((member, idx) => {
+                                                // Calculate each segment width based on weighted contribution
+                                                const b = member.breakdown;
+                                                const kpContrib = (b.kpPercentile * activityWeights.kp) / 100;
+                                                const powerContrib = (b.powerPercentile * activityWeights.power) / 100;
+                                                const honorContrib = (b.honorPercentile * activityWeights.honor) / 100;
+                                                const aooContrib = (b.aooRate * activityWeights.aoo) / 100;
+                                                const mobContrib = (b.mobPercentile * activityWeights.mob) / 100;
+
+                                                return (
+                                                    <div
+                                                        key={member.name}
+                                                        className="flex items-center gap-2 group relative"
+                                                    >
+                                                        <span className={`text-xs ${theme.textMuted} w-6 text-right`}>{idx + 1}.</span>
+                                                        <span className="w-40 truncate text-sm font-medium">
+                                                            {member.name}
+                                                            {member.tags?.includes('angmar-og') && (
+                                                                <span className="ml-1 px-1 py-0.5 text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                            )}
+                                                            {member.tags?.includes('inactive') && (
+                                                                <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-gray-500/20 text-gray-400">AFK</span>
+                                                            )}
+                                                            {member.tags?.includes('quit') && (
+                                                                <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-red-500/20 text-red-400">QUIT</span>
+                                                            )}
+                                                        </span>
+                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden flex">
+                                                            {/* Stacked bar segments */}
+                                                            <div
+                                                                className="h-full transition-all"
+                                                                style={{ width: `${kpContrib}%`, backgroundColor: '#f56565' }}
+                                                                title={`KP: ${b.kpPercentile.toFixed(0)}%`}
+                                                            />
+                                                            <div
+                                                                className="h-full transition-all"
+                                                                style={{ width: `${powerContrib}%`, backgroundColor: '#4318ff' }}
+                                                                title={`Power: ${b.powerPercentile.toFixed(0)}%`}
+                                                            />
+                                                            <div
+                                                                className="h-full transition-all"
+                                                                style={{ width: `${honorContrib}%`, backgroundColor: '#f6ad55' }}
+                                                                title={`Honor: ${b.honorPercentile.toFixed(0)}%`}
+                                                            />
+                                                            <div
+                                                                className="h-full transition-all"
+                                                                style={{ width: `${aooContrib}%`, backgroundColor: '#01b574' }}
+                                                                title={`AoO: ${b.aooRate.toFixed(0)}%`}
+                                                            />
+                                                            <div
+                                                                className="h-full transition-all"
+                                                                style={{ width: `${mobContrib}%`, backgroundColor: '#9f7aea' }}
+                                                                title={`Mob: ${b.mobPercentile.toFixed(0)}%`}
+                                                            />
+                                                        </div>
+                                                        <span className={`text-sm font-medium w-8 text-right ${
+                                                            member.score >= 70 ? 'text-[#01b574]' :
+                                                                member.score >= 40 ? 'text-[#fbbf24]' : 'text-[#f56565]'
+                                                        }`}>{member.score}</span>
+
+                                                        {/* Hover tooltip */}
+                                                        <div className="absolute left-48 top-full mt-1 opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-opacity">
+                                                            <div className={`${theme.card} border border-[#4318ff]/30 rounded-lg p-3 shadow-xl w-48`}>
+                                                                <div className="font-semibold text-sm mb-2">{member.name}</div>
+                                                                <div className="space-y-1 text-xs">
+                                                                    <div className="flex justify-between">
+                                                                        <span className="flex items-center gap-1">
+                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#f56565'}}></span> KP
+                                                                        </span>
+                                                                        <span className="font-medium">{b.kpPercentile.toFixed(0)}% <span className={theme.textMuted}>({kpContrib.toFixed(1)}pts)</span></span>
+                                                                    </div>
+                                                                    <div className="flex justify-between">
+                                                                        <span className="flex items-center gap-1">
+                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#4318ff'}}></span> Power
+                                                                        </span>
+                                                                        <span className="font-medium">{b.powerPercentile.toFixed(0)}% <span className={theme.textMuted}>({powerContrib.toFixed(1)}pts)</span></span>
+                                                                    </div>
+                                                                    <div className="flex justify-between">
+                                                                        <span className="flex items-center gap-1">
+                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#f6ad55'}}></span> Honor
+                                                                        </span>
+                                                                        <span className="font-medium">{b.honorPercentile.toFixed(0)}% <span className={theme.textMuted}>({honorContrib.toFixed(1)}pts)</span></span>
+                                                                    </div>
+                                                                    <div className="flex justify-between">
+                                                                        <span className="flex items-center gap-1">
+                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#01b574'}}></span> AoO
+                                                                        </span>
+                                                                        <span className="font-medium">{b.aooRate.toFixed(0)}% <span className={theme.textMuted}>({aooContrib.toFixed(1)}pts)</span></span>
+                                                                    </div>
+                                                                    <div className="flex justify-between">
+                                                                        <span className="flex items-center gap-1">
+                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#9f7aea'}}></span> Mob
+                                                                        </span>
+                                                                        <span className="font-medium">{b.mobPercentile.toFixed(0)}% <span className={theme.textMuted}>({mobContrib.toFixed(1)}pts)</span></span>
+                                                                    </div>
+                                                                    <div className="border-t border-[var(--border)] pt-1 mt-1 flex justify-between font-semibold">
+                                                                        <span>Total</span>
+                                                                        <span>{member.score} pts</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <span className={`text-sm font-medium w-8 text-right ${
-                                                        member.score >= 70 ? 'text-[#01b574]' :
-                                                            member.score >= 40 ? 'text-[#fbbf24]' : 'text-[#f56565]'
-                                                    }`}>{member.score}</span>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
                                     {/* Participation Breakdown */}
                                     <div className="grid md:grid-cols-2 gap-6">
                                         {/* AoO Participation Distribution */}
-                                        <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <div className={`${theme.card} border rounded-xl p-4 relative`}>
                                             <h3 className="font-semibold mb-4 flex items-center gap-2">
                                                 <Trophy className="w-4 h-4 text-[#01b574]" />
                                                 AoO Participation Rates
@@ -2255,11 +2354,22 @@ export default function RosterPage() {
                                             ) : (
                                                 <div className="space-y-2">
                                                     {aooDistribution.map(bucket => (
-                                                        <div key={bucket.label} className="flex items-center gap-2">
+                                                        <div
+                                                            key={bucket.label}
+                                                            className="flex items-center gap-2 cursor-pointer group"
+                                                            onMouseEnter={(e) => {
+                                                                if (bucket.count > 0) {
+                                                                    setHoveredBucket({ type: 'aoo', label: bucket.label });
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setBucketHoverPosition({ x: rect.right + 10, y: rect.top });
+                                                                }
+                                                            }}
+                                                            onMouseLeave={() => setHoveredBucket(null)}
+                                                        >
                                                             <span className={`text-xs ${theme.textMuted} w-16`}>{bucket.label}</span>
                                                             <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                                 <div
-                                                                    className="h-full rounded"
+                                                                    className={`h-full rounded transition-all ${bucket.count > 0 ? 'group-hover:opacity-80' : ''}`}
                                                                     style={{
                                                                         width: `${(bucket.count / maxAoOCount) * 100}%`,
                                                                         backgroundColor: bucket.color,
@@ -2271,10 +2381,37 @@ export default function RosterPage() {
                                                     ))}
                                                 </div>
                                             )}
+
+                                            {/* AoO Hover Card */}
+                                            {hoveredBucket?.type === 'aoo' && (() => {
+                                                const bucket = aooDistribution.find(b => b.label === hoveredBucket.label);
+                                                if (!bucket || bucket.members.length === 0) return null;
+                                                return (
+                                                    <div
+                                                        className="fixed z-50 pointer-events-none"
+                                                        style={{ left: bucketHoverPosition.x, top: bucketHoverPosition.y }}
+                                                    >
+                                                        <div className={`${theme.card} border border-[#01b574]/30 rounded-xl p-3 shadow-2xl shadow-[#01b574]/10 w-56 max-h-64 overflow-y-auto`}>
+                                                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
+                                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bucket.color }} />
+                                                                <span className="font-semibold text-sm">{bucket.label} Participation</span>
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                {bucket.members.map(m => (
+                                                                    <div key={m.name} className="flex justify-between text-xs">
+                                                                        <span className="truncate flex-1">{m.name}</span>
+                                                                        <span className={`ml-2 font-medium`} style={{ color: bucket.color }}>{m.rate}%</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
 
                                         {/* Mobilization Score Distribution */}
-                                        <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <div className={`${theme.card} border rounded-xl p-4 relative`}>
                                             <h3 className="font-semibold mb-4 flex items-center gap-2">
                                                 <TrendingUp className="w-4 h-4 text-[#9f7aea]" />
                                                 Mobilization Rankings
@@ -2284,11 +2421,22 @@ export default function RosterPage() {
                                             ) : (
                                                 <div className="space-y-2">
                                                     {mobDistribution.map(bucket => (
-                                                        <div key={bucket.label} className="flex items-center gap-2">
+                                                        <div
+                                                            key={bucket.label}
+                                                            className="flex items-center gap-2 cursor-pointer group"
+                                                            onMouseEnter={(e) => {
+                                                                if (bucket.count > 0) {
+                                                                    setHoveredBucket({ type: 'mob', label: bucket.label });
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setBucketHoverPosition({ x: rect.right + 10, y: rect.top });
+                                                                }
+                                                            }}
+                                                            onMouseLeave={() => setHoveredBucket(null)}
+                                                        >
                                                             <span className={`text-xs ${theme.textMuted} w-16`}>{bucket.label}</span>
                                                             <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                                 <div
-                                                                    className="h-full rounded"
+                                                                    className={`h-full rounded transition-all ${bucket.count > 0 ? 'group-hover:opacity-80' : ''}`}
                                                                     style={{
                                                                         width: `${(bucket.count / maxMobCount) * 100}%`,
                                                                         backgroundColor: bucket.color,
@@ -2300,6 +2448,33 @@ export default function RosterPage() {
                                                     ))}
                                                 </div>
                                             )}
+
+                                            {/* Mobilization Hover Card */}
+                                            {hoveredBucket?.type === 'mob' && (() => {
+                                                const bucket = mobDistribution.find(b => b.label === hoveredBucket.label);
+                                                if (!bucket || bucket.members.length === 0) return null;
+                                                return (
+                                                    <div
+                                                        className="fixed z-50 pointer-events-none"
+                                                        style={{ left: bucketHoverPosition.x, top: bucketHoverPosition.y }}
+                                                    >
+                                                        <div className={`${theme.card} border border-[#9f7aea]/30 rounded-xl p-3 shadow-2xl shadow-[#9f7aea]/10 w-56 max-h-64 overflow-y-auto`}>
+                                                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
+                                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bucket.color }} />
+                                                                <span className="font-semibold text-sm">{bucket.label} Score</span>
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                {bucket.members.map(m => (
+                                                                    <div key={m.name} className="flex justify-between text-xs">
+                                                                        <span className="truncate flex-1">{m.name}</span>
+                                                                        <span className={`ml-2 font-medium`} style={{ color: bucket.color }}>{formatPower(m.score)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
 
@@ -2450,29 +2625,43 @@ export default function RosterPage() {
                             </div>
 
                             {/* Growth Stats */}
-                            {rankings.kpGrowthValue !== null && (
+                            {(rankings.kpGrowthValue !== null || rankings.powerGrowthValue !== null) && (
                                 <div className="border-t border-[var(--border)] pt-3">
                                     <div className={`text-xs ${theme.textMuted} mb-2`}>Recent Growth</div>
-                                    <div className="grid grid-cols-3 gap-2 text-center">
-                                        <div>
-                                            <div className={`text-sm font-medium ${rankings.kpGrowthValue > 0 ? 'text-green-400' : 'text-gray-400'}`}>
-                                                {rankings.kpGrowthValue > 0 ? '+' : ''}{formatPower(rankings.kpGrowthValue)}
+                                    <div className="grid grid-cols-2 gap-2 text-center mb-2">
+                                        {rankings.powerGrowthValue !== null && (
+                                            <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
+                                                <div className={`text-sm font-medium ${rankings.powerGrowthValue > 0 ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                    {rankings.powerGrowthValue > 0 ? '+' : ''}{formatPower(rankings.powerGrowthValue)}
+                                                </div>
+                                                <div className={`text-[10px] ${theme.textMuted}`}>Power #{rankings.powerGrowthRank}</div>
                                             </div>
-                                            <div className={`text-[10px] ${theme.textMuted}`}>KP #{rankings.kpGrowthRank}</div>
-                                        </div>
-                                        <div>
-                                            <div className={`text-sm font-medium ${(rankings.t4GrowthValue || 0) > 0 ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
-                                                {(rankings.t4GrowthValue || 0) > 0 ? '+' : ''}{formatPower(rankings.t4GrowthValue || 0)}
+                                        )}
+                                        {rankings.kpGrowthValue !== null && (
+                                            <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
+                                                <div className={`text-sm font-medium ${rankings.kpGrowthValue > 0 ? 'text-green-400' : 'text-gray-400'}`}>
+                                                    {rankings.kpGrowthValue > 0 ? '+' : ''}{formatPower(rankings.kpGrowthValue)}
+                                                </div>
+                                                <div className={`text-[10px] ${theme.textMuted}`}>KP #{rankings.kpGrowthRank}</div>
                                             </div>
-                                            <div className={`text-[10px] ${theme.textMuted}`}>T4 Growth</div>
-                                        </div>
-                                        <div>
-                                            <div className={`text-sm font-medium ${(rankings.t5GrowthValue || 0) > 0 ? 'text-[#f97316]' : 'text-gray-400'}`}>
-                                                {(rankings.t5GrowthValue || 0) > 0 ? '+' : ''}{formatPower(rankings.t5GrowthValue || 0)}
-                                            </div>
-                                            <div className={`text-[10px] ${theme.textMuted}`}>T5 Growth</div>
-                                        </div>
+                                        )}
                                     </div>
+                                    {rankings.kpGrowthValue !== null && (
+                                        <div className="grid grid-cols-2 gap-2 text-center">
+                                            <div>
+                                                <div className={`text-sm font-medium ${(rankings.t4GrowthValue || 0) > 0 ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
+                                                    {(rankings.t4GrowthValue || 0) > 0 ? '+' : ''}{formatPower(rankings.t4GrowthValue || 0)}
+                                                </div>
+                                                <div className={`text-[10px] ${theme.textMuted}`}>T4 Growth</div>
+                                            </div>
+                                            <div>
+                                                <div className={`text-sm font-medium ${(rankings.t5GrowthValue || 0) > 0 ? 'text-[#f97316]' : 'text-gray-400'}`}>
+                                                    {(rankings.t5GrowthValue || 0) > 0 ? '+' : ''}{formatPower(rankings.t5GrowthValue || 0)}
+                                                </div>
+                                                <div className={`text-[10px] ${theme.textMuted}`}>T5 Growth</div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
