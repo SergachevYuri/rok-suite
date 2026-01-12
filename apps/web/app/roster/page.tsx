@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
@@ -200,6 +200,8 @@ export default function RosterPage() {
     // Analytics chart hover state
     const [hoveredBucket, setHoveredBucket] = useState<{ type: 'aoo' | 'mob'; label: string } | null>(null);
     const [bucketHoverPosition, setBucketHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const bucketHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isOverHoverCardRef = useRef(false);
 
     // History data from hook
     const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
@@ -2358,13 +2360,23 @@ export default function RosterPage() {
                                                             key={bucket.label}
                                                             className="flex items-center gap-2 cursor-pointer group"
                                                             onMouseEnter={(e) => {
+                                                                if (bucketHoverTimeoutRef.current) {
+                                                                    clearTimeout(bucketHoverTimeoutRef.current);
+                                                                    bucketHoverTimeoutRef.current = null;
+                                                                }
                                                                 if (bucket.count > 0) {
                                                                     setHoveredBucket({ type: 'aoo', label: bucket.label });
                                                                     const rect = e.currentTarget.getBoundingClientRect();
                                                                     setBucketHoverPosition({ x: rect.right + 10, y: rect.top });
                                                                 }
                                                             }}
-                                                            onMouseLeave={() => setHoveredBucket(null)}
+                                                            onMouseLeave={() => {
+                                                                bucketHoverTimeoutRef.current = setTimeout(() => {
+                                                                    if (!isOverHoverCardRef.current) {
+                                                                        setHoveredBucket(null);
+                                                                    }
+                                                                }, 100);
+                                                            }}
                                                         >
                                                             <span className={`text-xs ${theme.textMuted} w-16`}>{bucket.label}</span>
                                                             <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
@@ -2399,13 +2411,23 @@ export default function RosterPage() {
                                                             key={bucket.label}
                                                             className="flex items-center gap-2 cursor-pointer group"
                                                             onMouseEnter={(e) => {
+                                                                if (bucketHoverTimeoutRef.current) {
+                                                                    clearTimeout(bucketHoverTimeoutRef.current);
+                                                                    bucketHoverTimeoutRef.current = null;
+                                                                }
                                                                 if (bucket.count > 0) {
                                                                     setHoveredBucket({ type: 'mob', label: bucket.label });
                                                                     const rect = e.currentTarget.getBoundingClientRect();
                                                                     setBucketHoverPosition({ x: rect.right + 10, y: rect.top });
                                                                 }
                                                             }}
-                                                            onMouseLeave={() => setHoveredBucket(null)}
+                                                            onMouseLeave={() => {
+                                                                bucketHoverTimeoutRef.current = setTimeout(() => {
+                                                                    if (!isOverHoverCardRef.current) {
+                                                                        setHoveredBucket(null);
+                                                                    }
+                                                                }, 100);
+                                                            }}
                                                         >
                                                             <span className={`text-xs ${theme.textMuted} w-16`}>{bucket.label}</span>
                                                             <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
@@ -2442,9 +2464,16 @@ export default function RosterPage() {
                                                     top: bucketHoverPosition.y,
                                                 }}
                                                 onMouseEnter={() => {
-                                                    // Keep the hover card visible when mouse enters it
+                                                    isOverHoverCardRef.current = true;
+                                                    if (bucketHoverTimeoutRef.current) {
+                                                        clearTimeout(bucketHoverTimeoutRef.current);
+                                                        bucketHoverTimeoutRef.current = null;
+                                                    }
                                                 }}
-                                                onMouseLeave={() => setHoveredBucket(null)}
+                                                onMouseLeave={() => {
+                                                    isOverHoverCardRef.current = false;
+                                                    setHoveredBucket(null);
+                                                }}
                                             >
                                                 <div className={`${theme.card} border rounded-xl p-3 shadow-2xl max-h-64 overflow-y-auto min-w-[280px]`} style={{ borderColor: `${borderColor}50`, boxShadow: `0 25px 50px -12px ${borderColor}30` }}>
                                                     <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
