@@ -212,6 +212,15 @@ export default function RosterPage() {
     const bucketHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isOverHoverCardRef = useRef(false);
 
+    // Activity leaderboard hover state
+    const [hoveredActivityMember, setHoveredActivityMember] = useState<string | null>(null);
+    const [activityHoverPosition, setActivityHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const [pinnedActivityMember, setPinnedActivityMember] = useState<string | null>(null);
+    const [pinnedActivityPosition, setPinnedActivityPosition] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
+    const [isDraggingActivity, setIsDraggingActivity] = useState(false);
+    const [activityDragOffset, setActivityDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const activityHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     // History data from hook
     const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
 
@@ -2286,7 +2295,37 @@ export default function RosterPage() {
                                                 return (
                                                     <div
                                                         key={member.name}
-                                                        className="flex items-center gap-2 group relative"
+                                                        className="flex items-center gap-2 cursor-pointer"
+                                                        onMouseEnter={(e) => {
+                                                            if (activityHoverTimeoutRef.current) {
+                                                                clearTimeout(activityHoverTimeoutRef.current);
+                                                                activityHoverTimeoutRef.current = null;
+                                                            }
+                                                            if (!pinnedActivityMember) {
+                                                                setActivityHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
+                                                                setHoveredActivityMember(member.name);
+                                                            }
+                                                        }}
+                                                        onMouseMove={(e) => {
+                                                            if (hoveredActivityMember === member.name && !pinnedActivityMember) {
+                                                                setActivityHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
+                                                            }
+                                                        }}
+                                                        onMouseLeave={() => {
+                                                            activityHoverTimeoutRef.current = setTimeout(() => {
+                                                                if (!pinnedActivityMember) {
+                                                                    setHoveredActivityMember(null);
+                                                                }
+                                                            }, 100);
+                                                        }}
+                                                        onClick={() => {
+                                                            if (pinnedActivityMember === member.name) {
+                                                                setPinnedActivityMember(null);
+                                                            } else {
+                                                                setPinnedActivityMember(member.name);
+                                                                setPinnedActivityPosition({ x: activityHoverPosition.x, y: activityHoverPosition.y });
+                                                            }
+                                                        }}
                                                     >
                                                         <span className={`text-xs ${theme.textMuted} w-6 text-right`}>{idx + 1}.</span>
                                                         <span className="w-40 truncate text-sm font-medium">
@@ -2306,80 +2345,143 @@ export default function RosterPage() {
                                                             <div
                                                                 className="h-full transition-all"
                                                                 style={{ width: `${kpContrib}%`, backgroundColor: '#f56565' }}
-                                                                title={`KP: ${b.kpPercentile.toFixed(0)}%`}
                                                             />
                                                             <div
                                                                 className="h-full transition-all"
                                                                 style={{ width: `${powerContrib}%`, backgroundColor: '#4318ff' }}
-                                                                title={`Power: ${b.powerPercentile.toFixed(0)}%`}
                                                             />
                                                             <div
                                                                 className="h-full transition-all"
                                                                 style={{ width: `${honorContrib}%`, backgroundColor: '#f6ad55' }}
-                                                                title={`Honor: ${b.honorPercentile.toFixed(0)}%`}
                                                             />
                                                             <div
                                                                 className="h-full transition-all"
                                                                 style={{ width: `${aooContrib}%`, backgroundColor: '#01b574' }}
-                                                                title={`AoO: ${b.aooRate.toFixed(0)}%`}
                                                             />
                                                             <div
                                                                 className="h-full transition-all"
                                                                 style={{ width: `${mobContrib}%`, backgroundColor: '#9f7aea' }}
-                                                                title={`Mob: ${b.mobPercentile.toFixed(0)}%`}
                                                             />
                                                         </div>
                                                         <span className={`text-sm font-medium w-8 text-right ${
                                                             member.score >= 70 ? 'text-[#01b574]' :
                                                                 member.score >= 40 ? 'text-[#fbbf24]' : 'text-[#f56565]'
                                                         }`}>{member.score}</span>
-
-                                                        {/* Hover tooltip */}
-                                                        <div className="absolute left-48 top-full mt-1 opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-opacity">
-                                                            <div className={`${theme.card} border border-[#4318ff]/30 rounded-lg p-3 shadow-xl w-48`}>
-                                                                <div className="font-semibold text-sm mb-2">{member.name}</div>
-                                                                <div className="space-y-1 text-xs">
-                                                                    <div className="flex justify-between">
-                                                                        <span className="flex items-center gap-1">
-                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#f56565'}}></span> KP
-                                                                        </span>
-                                                                        <span className="font-medium">{b.kpPercentile.toFixed(0)}% <span className={theme.textMuted}>({kpContrib.toFixed(1)}pts)</span></span>
-                                                                    </div>
-                                                                    <div className="flex justify-between">
-                                                                        <span className="flex items-center gap-1">
-                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#4318ff'}}></span> Power
-                                                                        </span>
-                                                                        <span className="font-medium">{b.powerPercentile.toFixed(0)}% <span className={theme.textMuted}>({powerContrib.toFixed(1)}pts)</span></span>
-                                                                    </div>
-                                                                    <div className="flex justify-between">
-                                                                        <span className="flex items-center gap-1">
-                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#f6ad55'}}></span> Honor
-                                                                        </span>
-                                                                        <span className="font-medium">{b.honorPercentile.toFixed(0)}% <span className={theme.textMuted}>({honorContrib.toFixed(1)}pts)</span></span>
-                                                                    </div>
-                                                                    <div className="flex justify-between">
-                                                                        <span className="flex items-center gap-1">
-                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#01b574'}}></span> AoO
-                                                                        </span>
-                                                                        <span className="font-medium">{b.aooRate.toFixed(0)}% <span className={theme.textMuted}>({aooContrib.toFixed(1)}pts)</span></span>
-                                                                    </div>
-                                                                    <div className="flex justify-between">
-                                                                        <span className="flex items-center gap-1">
-                                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#9f7aea'}}></span> Mob
-                                                                        </span>
-                                                                        <span className="font-medium">{b.mobPercentile.toFixed(0)}% <span className={theme.textMuted}>({mobContrib.toFixed(1)}pts)</span></span>
-                                                                    </div>
-                                                                    <div className="border-t border-[var(--border)] pt-1 mt-1 flex justify-between font-semibold">
-                                                                        <span>Total</span>
-                                                                        <span>{member.score} pts</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
+
+                                        {/* Activity Hover Card - Fixed position */}
+                                        {(hoveredActivityMember || pinnedActivityMember) && (() => {
+                                            const memberName = pinnedActivityMember || hoveredActivityMember;
+                                            const member = scoresArray.find(m => m.name === memberName);
+                                            if (!member) return null;
+
+                                            const b = member.breakdown;
+                                            const kpContrib = (b.kpPercentile * activityWeights.kp) / 100;
+                                            const powerContrib = (b.powerPercentile * activityWeights.power) / 100;
+                                            const honorContrib = (b.honorPercentile * activityWeights.honor) / 100;
+                                            const aooContrib = (b.aooRate * activityWeights.aoo) / 100;
+                                            const mobContrib = (b.mobPercentile * activityWeights.mob) / 100;
+
+                                            const pos = pinnedActivityMember ? pinnedActivityPosition : activityHoverPosition;
+                                            const cardWidth = 200;
+                                            const cardHeight = 220;
+                                            let x = pos.x;
+                                            let y = pos.y;
+                                            if (typeof window !== 'undefined') {
+                                                if (x + cardWidth > window.innerWidth - 20) x = window.innerWidth - cardWidth - 20;
+                                                if (y + cardHeight > window.innerHeight - 20) y = window.innerHeight - cardHeight - 20;
+                                                if (x < 20) x = 20;
+                                                if (y < 20) y = 20;
+                                            }
+
+                                            return (
+                                                <div
+                                                    className={`fixed z-[99999] ${theme.card} border rounded-lg p-3 shadow-xl w-[200px] ${pinnedActivityMember ? 'border-[#4318ff] border-2' : 'border-[#4318ff]/30'}`}
+                                                    style={{ left: x, top: y, cursor: pinnedActivityMember ? 'move' : 'default' }}
+                                                    onMouseEnter={() => {
+                                                        if (activityHoverTimeoutRef.current) {
+                                                            clearTimeout(activityHoverTimeoutRef.current);
+                                                            activityHoverTimeoutRef.current = null;
+                                                        }
+                                                    }}
+                                                    onMouseLeave={() => {
+                                                        if (!pinnedActivityMember) {
+                                                            activityHoverTimeoutRef.current = setTimeout(() => {
+                                                                setHoveredActivityMember(null);
+                                                            }, 100);
+                                                        }
+                                                    }}
+                                                    onMouseDown={(e) => {
+                                                        if (pinnedActivityMember) {
+                                                            e.preventDefault();
+                                                            setIsDraggingActivity(true);
+                                                            setActivityDragOffset({ x: e.clientX - x, y: e.clientY - y });
+                                                        }
+                                                    }}
+                                                    onMouseMove={(e) => {
+                                                        if (isDraggingActivity && pinnedActivityMember) {
+                                                            setPinnedActivityPosition({
+                                                                x: e.clientX - activityDragOffset.x,
+                                                                y: e.clientY - activityDragOffset.y,
+                                                            });
+                                                        }
+                                                    }}
+                                                    onMouseUp={() => setIsDraggingActivity(false)}
+                                                >
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="font-semibold text-sm">{member.name}</div>
+                                                        {pinnedActivityMember && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setPinnedActivityMember(null); }}
+                                                                className="text-gray-400 hover:text-white text-xs"
+                                                            >✕</button>
+                                                        )}
+                                                    </div>
+                                                    {pinnedActivityMember && (
+                                                        <div className={`text-[10px] ${theme.textMuted} mb-2`}>Pinned - drag to move</div>
+                                                    )}
+                                                    <div className="space-y-1 text-xs">
+                                                        <div className="flex justify-between">
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#f56565'}}></span> KP
+                                                            </span>
+                                                            <span className="font-medium">{b.kpPercentile.toFixed(0)}% <span className={theme.textMuted}>({kpContrib.toFixed(1)}pts)</span></span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#4318ff'}}></span> Power
+                                                            </span>
+                                                            <span className="font-medium">{b.powerPercentile.toFixed(0)}% <span className={theme.textMuted}>({powerContrib.toFixed(1)}pts)</span></span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#f6ad55'}}></span> Honor
+                                                            </span>
+                                                            <span className="font-medium">{b.honorPercentile.toFixed(0)}% <span className={theme.textMuted}>({honorContrib.toFixed(1)}pts)</span></span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#01b574'}}></span> AoO
+                                                            </span>
+                                                            <span className="font-medium">{b.aooRate.toFixed(0)}% <span className={theme.textMuted}>({aooContrib.toFixed(1)}pts)</span></span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#9f7aea'}}></span> Mob
+                                                            </span>
+                                                            <span className="font-medium">{b.mobPercentile.toFixed(0)}% <span className={theme.textMuted}>({mobContrib.toFixed(1)}pts)</span></span>
+                                                        </div>
+                                                        <div className="border-t border-[var(--border)] pt-1 mt-1 flex justify-between font-semibold">
+                                                            <span>Total</span>
+                                                            <span>{member.score} pts</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* Participation Breakdown */}
