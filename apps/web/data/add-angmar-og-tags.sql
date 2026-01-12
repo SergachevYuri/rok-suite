@@ -7,6 +7,15 @@
 
 UPDATE alliance_roster SET tags = array_append(COALESCE(tags, '{}'), 'angmar-og')
 WHERE name IN (
+  -- R4 Officers (all are core)
+  'Suntzu',
+  'Funny',
+  'BBQSGE',
+  'Fluffy Queen',
+  'Vael',
+  'Cain',
+  'Sysstem',
+  'Fluffy',
   -- Core members (from CSV columns 1-4)
   'thegoathimself',
   'unlimit',
