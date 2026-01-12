@@ -98,6 +98,7 @@ WHERE name IN (
   'KomVD2',
   'EF SàuVôLệ',
   'Furiaaa',
+  'LOLI',
   -- People in question (might be core)
   'Gund',
   'ShadowLunar',
