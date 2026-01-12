@@ -730,6 +730,7 @@ export default function RosterPage() {
                                     const tagConfig = {
                                         'angmar-og': { label: 'Angmar Core', activeClass: 'bg-amber-500 text-black', inactiveClass: 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' },
                                         'inactive': { label: 'Inactive', activeClass: 'bg-gray-500 text-white', inactiveClass: 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30' },
+                                        'quit': { label: 'Quit', activeClass: 'bg-red-500 text-white', inactiveClass: 'bg-red-500/20 text-red-400 hover:bg-red-500/30' },
                                     }[tag] || { label: tag, activeClass: 'bg-blue-500 text-white', inactiveClass: 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' };
                                     return (
                                         <button
@@ -995,6 +996,9 @@ export default function RosterPage() {
                                             )}
                                             {member.tags?.includes('inactive') && (
                                                 <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-500/20 text-gray-400" title="Inactive">AFK</span>
+                                            )}
+                                            {member.tags?.includes('quit') && (
+                                                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-500/20 text-red-400" title="Quit">QUIT</span>
                                             )}
                                         </td>
                                         <td className="px-4 py-3 text-right">
@@ -1351,6 +1355,9 @@ export default function RosterPage() {
                                                                     )}
                                                                     {member.tags?.includes('inactive') && (
                                                                         <span className="ml-1 px-1 py-0.5 text-[9px] font-semibold rounded bg-gray-500/20 text-gray-400">AFK</span>
+                                                                    )}
+                                                                    {member.tags?.includes('quit') && (
+                                                                        <span className="ml-1 px-1 py-0.5 text-[9px] font-semibold rounded bg-red-500/20 text-red-400">QUIT</span>
                                                                     )}
                                                                 </td>
                                                                 <td className="px-2 py-2 text-right text-[#9f7aea]">
@@ -1853,13 +1860,16 @@ export default function RosterPage() {
                                             {scoresArray.slice(0, 20).map((member, idx) => (
                                                 <div key={member.name} className="flex items-center gap-2">
                                                     <span className={`text-xs ${theme.textMuted} w-6 text-right`}>{idx + 1}.</span>
-                                                    <span className="w-36 truncate text-sm font-medium">
+                                                    <span className="w-40 truncate text-sm font-medium">
                                                         {member.name}
                                                         {member.tags?.includes('angmar-og') && (
                                                             <span className="ml-1 px-1 py-0.5 text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
                                                         )}
                                                         {member.tags?.includes('inactive') && (
                                                             <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-gray-500/20 text-gray-400">AFK</span>
+                                                        )}
+                                                        {member.tags?.includes('quit') && (
+                                                            <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-red-500/20 text-red-400">QUIT</span>
                                                         )}
                                                     </span>
                                                     <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
@@ -1978,6 +1988,9 @@ export default function RosterPage() {
                                                                         )}
                                                                         {member.tags?.includes('inactive') && (
                                                                             <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-gray-500/20 text-gray-400">AFK</span>
+                                                                        )}
+                                                                        {member.tags?.includes('quit') && (
+                                                                            <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-red-500/20 text-red-400">QUIT</span>
                                                                         )}
                                                                     </td>
                                                                     <td className="px-3 py-2 text-center">

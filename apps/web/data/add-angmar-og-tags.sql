@@ -101,7 +101,16 @@ WHERE name IN (
   -- People in question (might be core)
   'Gund',
   'ShadowLunar',
-  'モニタリング'
+  'モニタリング',
+  -- Inactive/quit core members (added to roster for tracking)
+  'DonV4',
+  'MayorEric',
+  'Divid3',
+  'WOLF',
+  'Ceje',
+  'SSRB',
+  'ZETMA',
+  'Black Ruler'
 )
 AND NOT ('angmar-og' = ANY(COALESCE(tags, '{}')));
 
@@ -109,9 +118,23 @@ AND NOT ('angmar-og' = ANY(COALESCE(tags, '{}')));
 UPDATE alliance_roster SET tags = array_append(COALESCE(tags, '{}'), 'inactive')
 WHERE name IN (
   'Sysstem',
-  'Soutz'
+  'Soutz',
+  'DonV4',
+  'MayorEric',
+  'Divid3',
+  'WOLF',
+  'Ceje',
+  'SSRB'
 )
 AND NOT ('inactive' = ANY(COALESCE(tags, '{}')));
+
+-- Tag quit members (left the alliance)
+UPDATE alliance_roster SET tags = array_append(COALESCE(tags, '{}'), 'quit')
+WHERE name IN (
+  'ZETMA',
+  'Black Ruler'
+)
+AND NOT ('quit' = ANY(COALESCE(tags, '{}')));
 
 -- Verification: Check tagged members
 -- SELECT name, tags FROM alliance_roster WHERE 'angmar-og' = ANY(tags) ORDER BY name;
