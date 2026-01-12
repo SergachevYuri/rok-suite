@@ -7,6 +7,7 @@ export interface RosterSnapshot {
   member_name: string;
   power: number;
   kills: number;
+  honor_points: number;
   role: string | null;
   is_active: boolean;
   created_at: string;
@@ -17,6 +18,7 @@ export interface DailyTotals {
   member_count: number;
   total_power: number;
   total_kills: number;
+  total_honor: number;
   avg_power: number;
 }
 
@@ -31,17 +33,20 @@ export interface TopGainer {
   name: string;
   powerGain: number;
   killsGain: number;
+  honorGain: number;
   startPower: number;
   endPower: number;
   startKills: number;
   endKills: number;
+  startHonor: number;
+  endHonor: number;
 }
 
 /**
  * Create a snapshot of the current roster for today
  * Uses upsert to allow updating today's snapshot if called multiple times
  */
-export async function createSnapshot(roster: Array<{ name: string; power: number; kills: number; role: string | null; is_active?: boolean }>) {
+export async function createSnapshot(roster: Array<{ name: string; power: number; kills: number; honor_points?: number; role: string | null; is_active?: boolean }>) {
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -50,6 +55,7 @@ export async function createSnapshot(roster: Array<{ name: string; power: number
     member_name: member.name,
     power: member.power,
     kills: member.kills || 0,
+    honor_points: member.honor_points || 0,
     role: member.role,
     is_active: member.is_active ?? true,
   }));
@@ -144,7 +150,7 @@ export async function getMemberHistory(memberName: string, limit = 30): Promise<
 }
 
 /**
- * Get top power/KP gainers between two dates
+ * Get top power/KP/Honor gainers between two dates
  */
 export async function getTopGainers(startDate: string, endDate: string, limit = 10): Promise<TopGainer[]> {
   const supabase = createClient();
@@ -152,14 +158,14 @@ export async function getTopGainers(startDate: string, endDate: string, limit = 
   // Get snapshots for start date
   const { data: startData } = await supabase
     .from('roster_snapshots')
-    .select('member_name, power, kills')
+    .select('member_name, power, kills, honor_points')
     .eq('snapshot_date', startDate)
     .eq('is_active', true);
 
   // Get snapshots for end date
   const { data: endData } = await supabase
     .from('roster_snapshots')
-    .select('member_name, power, kills')
+    .select('member_name, power, kills, honor_points')
     .eq('snapshot_date', endDate)
     .eq('is_active', true);
 
@@ -174,11 +180,14 @@ export async function getTopGainers(startDate: string, endDate: string, limit = 
       gainers.push({
         name: end.member_name,
         powerGain: end.power - start.power,
-        killsGain: end.kills - start.kills,
+        killsGain: (end.kills || 0) - (start.kills || 0),
+        honorGain: (end.honor_points || 0) - (start.honor_points || 0),
         startPower: start.power,
         endPower: end.power,
-        startKills: start.kills,
-        endKills: end.kills,
+        startKills: start.kills || 0,
+        endKills: end.kills || 0,
+        startHonor: start.honor_points || 0,
+        endHonor: end.honor_points || 0,
       });
     }
   }

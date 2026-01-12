@@ -96,6 +96,7 @@ SELECT
   COUNT(*) FILTER (WHERE is_active) as member_count,
   SUM(power) FILTER (WHERE is_active) as total_power,
   SUM(kills) FILTER (WHERE is_active) as total_kills,
+  SUM(honor_points) FILTER (WHERE is_active) as total_honor,
   AVG(power) FILTER (WHERE is_active) as avg_power
 FROM public.roster_snapshots
 GROUP BY snapshot_date

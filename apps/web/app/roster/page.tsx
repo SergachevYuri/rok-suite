@@ -439,6 +439,7 @@ export default function RosterPage() {
                     name: r.name!,
                     power: r.power || 0,
                     kills: r.kills || 0,
+                    honor_points: (r as { honor_points?: number }).honor_points || 0,
                     role: r.role || null,
                     is_active: true,
                 }));
@@ -475,6 +476,7 @@ export default function RosterPage() {
                 name: m.name,
                 power: m.power,
                 kills: m.kills || 0,
+                honor_points: m.honor_points || 0,
                 role: m.role,
                 is_active: m.is_active,
             }));
@@ -661,6 +663,7 @@ export default function RosterPage() {
                                                     name: m.name,
                                                     power: m.power,
                                                     kills: m.kills || 0,
+                                                    honor_points: m.honor_points || 0,
                                                     role: m.role,
                                                     is_active: m.is_active,
                                                 }));
@@ -1284,6 +1287,32 @@ export default function RosterPage() {
                                                             />
                                                         </div>
                                                         <span className="text-sm font-medium w-16 text-right">{formatPower(day.total_kills || 0)}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Total Honor Over Time */}
+                                    <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                            <Trophy className="w-4 h-4 text-[#fbbf24]" />
+                                            Total Honor Points Over Time
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {dailyTotals.slice(-10).map((day) => {
+                                                const maxHonor = Math.max(...dailyTotals.map(d => d.total_honor || 1));
+                                                const pct = ((day.total_honor || 0) / maxHonor) * 100;
+                                                return (
+                                                    <div key={day.snapshot_date} className="flex items-center gap-2">
+                                                        <span className={`text-xs ${theme.textMuted} w-16`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-6 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-gradient-to-r from-[#fbbf24] to-[#fbbf24]/50 rounded"
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-sm font-medium w-20 text-right">{(day.total_honor || 0).toLocaleString()}</span>
                                                     </div>
                                                 );
                                             })}
