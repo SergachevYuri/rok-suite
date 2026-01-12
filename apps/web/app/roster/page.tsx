@@ -2366,8 +2366,12 @@ export default function RosterPage() {
                                                                 }
                                                                 if (bucket.count > 0) {
                                                                     setHoveredBucket({ type: 'aoo', label: bucket.label });
-                                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                                    setBucketHoverPosition({ x: rect.right + 10, y: rect.top });
+                                                                    setBucketHoverPosition({ x: e.clientX + 10, y: e.clientY + 10 });
+                                                                }
+                                                            }}
+                                                            onMouseMove={(e) => {
+                                                                if (bucket.count > 0 && hoveredBucket?.label === bucket.label) {
+                                                                    setBucketHoverPosition({ x: e.clientX + 10, y: e.clientY + 10 });
                                                                 }
                                                             }}
                                                             onMouseLeave={() => {
@@ -2417,8 +2421,12 @@ export default function RosterPage() {
                                                                 }
                                                                 if (bucket.count > 0) {
                                                                     setHoveredBucket({ type: 'mob', label: bucket.label });
-                                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                                    setBucketHoverPosition({ x: rect.right + 10, y: rect.top });
+                                                                    setBucketHoverPosition({ x: e.clientX + 10, y: e.clientY + 10 });
+                                                                }
+                                                            }}
+                                                            onMouseMove={(e) => {
+                                                                if (bucket.count > 0 && hoveredBucket?.label === bucket.label) {
+                                                                    setBucketHoverPosition({ x: e.clientX + 10, y: e.clientY + 10 });
                                                                 }
                                                             }}
                                                             onMouseLeave={() => {
