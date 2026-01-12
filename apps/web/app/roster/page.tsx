@@ -2382,29 +2382,6 @@ export default function RosterPage() {
                                                 </div>
                                             )}
 
-                                            {/* AoO Hover Card - rendered inline with tooltip style */}
-                                            {hoveredBucket?.type === 'aoo' && (() => {
-                                                const bucket = aooDistribution.find(b => b.label === hoveredBucket.label);
-                                                if (!bucket || bucket.members.length === 0) return null;
-                                                return (
-                                                    <div className="absolute left-0 right-0 mt-2 z-[9999]">
-                                                        <div className={`${theme.card} border border-[#01b574]/30 rounded-xl p-3 shadow-2xl shadow-[#01b574]/20 max-h-64 overflow-y-auto`}>
-                                                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
-                                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bucket.color }} />
-                                                                <span className="font-semibold text-sm">{bucket.label} Participation ({bucket.members.length})</span>
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                                                {bucket.members.map(m => (
-                                                                    <div key={m.name} className="flex justify-between text-xs">
-                                                                        <span className="truncate flex-1">{m.name}</span>
-                                                                        <span className="ml-2 font-medium" style={{ color: bucket.color }}>{m.rate}%</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
                                         </div>
 
                                         {/* Mobilization Score Distribution */}
@@ -2446,31 +2423,46 @@ export default function RosterPage() {
                                                 </div>
                                             )}
 
-                                            {/* Mobilization Hover Card - rendered inline with tooltip style */}
-                                            {hoveredBucket?.type === 'mob' && (() => {
-                                                const bucket = mobDistribution.find(b => b.label === hoveredBucket.label);
-                                                if (!bucket || bucket.members.length === 0) return null;
-                                                return (
-                                                    <div className="absolute left-0 right-0 mt-2 z-[9999]">
-                                                        <div className={`${theme.card} border border-[#9f7aea]/30 rounded-xl p-3 shadow-2xl shadow-[#9f7aea]/20 max-h-64 overflow-y-auto`}>
-                                                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
-                                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bucket.color }} />
-                                                                <span className="font-semibold text-sm">{bucket.label} Score ({bucket.members.length})</span>
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                                                {bucket.members.map(m => (
-                                                                    <div key={m.name} className="flex justify-between text-xs">
-                                                                        <span className="truncate flex-1">{m.name}</span>
-                                                                        <span className="ml-2 font-medium" style={{ color: bucket.color }}>{formatPower(m.score)}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
                                         </div>
                                     </div>
+
+                                    {/* Fixed position hover cards for AoO and Mob - rendered at root level to avoid z-index issues */}
+                                    {hoveredBucket && bucketHoverPosition && (() => {
+                                        const isAoo = hoveredBucket.type === 'aoo';
+                                        const bucket = isAoo
+                                            ? aooDistribution.find(b => b.label === hoveredBucket.label)
+                                            : mobDistribution.find(b => b.label === hoveredBucket.label);
+                                        if (!bucket || bucket.members.length === 0) return null;
+                                        const borderColor = isAoo ? '#01b574' : '#9f7aea';
+                                        return (
+                                            <div
+                                                className="fixed z-[99999] pointer-events-none"
+                                                style={{
+                                                    left: bucketHoverPosition.x,
+                                                    top: bucketHoverPosition.y,
+                                                }}
+                                            >
+                                                <div className={`${theme.card} border rounded-xl p-3 shadow-2xl max-h-64 overflow-y-auto min-w-[280px]`} style={{ borderColor: `${borderColor}50`, boxShadow: `0 25px 50px -12px ${borderColor}30` }}>
+                                                    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
+                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bucket.color }} />
+                                                        <span className="font-semibold text-sm">
+                                                            {bucket.label} {isAoo ? 'Participation' : 'Score'} ({bucket.members.length})
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                                        {bucket.members.map(m => (
+                                                            <div key={m.name} className="flex justify-between text-xs">
+                                                                <span className="truncate flex-1">{m.name}</span>
+                                                                <span className="ml-2 font-medium" style={{ color: bucket.color }}>
+                                                                    {isAoo ? `${(m as { name: string; rate: number }).rate}%` : formatPower((m as { name: string; score: number }).score)}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Low Activity Warning */}
                                     {lowActivityMembers.length > 0 && (

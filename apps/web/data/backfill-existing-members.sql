@@ -23,7 +23,7 @@ DECLARE
     snap_date DATE;
     curr_date DATE;
     members_to_backfill TEXT[] := ARRAY['WOLF', 'Ceje', 'ZETMA', 'Black Ruler', 'DonV4', 'MayorEric', 'Divid3', 'vn kenji', 'MadFluffy'];
-    member_name TEXT;
+    m_name TEXT;
 BEGIN
     -- Get the most recent snapshot date (current)
     SELECT snapshot_date INTO curr_date FROM roster_snapshots ORDER BY snapshot_date DESC LIMIT 1;
@@ -39,19 +39,19 @@ BEGIN
         RAISE NOTICE 'Backfilling members into snapshot date: %', snap_date;
 
         -- Insert each member into this snapshot date
-        FOREACH member_name IN ARRAY members_to_backfill
+        FOREACH m_name IN ARRAY members_to_backfill
         LOOP
             INSERT INTO roster_snapshots (snapshot_date, member_name, power, kills, t4_kills, t5_kills, honor_points, role, is_active)
             VALUES (
                 snap_date,
-                member_name,
-                CASE member_name
+                m_name,
+                CASE m_name
                     WHEN 'vn kenji' THEN 14052895
                     WHEN 'MadFluffy' THEN 45542
                     ELSE 0
                 END,
                 0, 0, 0, 0,
-                CASE member_name WHEN 'MadFluffy' THEN 'R5' ELSE 'R1' END,
+                CASE m_name WHEN 'MadFluffy' THEN 'R5' ELSE 'R1' END,
                 true
             )
             ON CONFLICT (snapshot_date, member_name) DO NOTHING;
