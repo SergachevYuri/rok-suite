@@ -205,6 +205,10 @@ export default function RosterPage() {
     // Analytics chart hover state
     const [hoveredBucket, setHoveredBucket] = useState<{ type: 'aoo' | 'mob'; label: string } | null>(null);
     const [bucketHoverPosition, setBucketHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const [pinnedBucket, setPinnedBucket] = useState<{ type: 'aoo' | 'mob'; label: string } | null>(null);
+    const [pinnedBucketPosition, setPinnedBucketPosition] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
+    const [isDraggingBucket, setIsDraggingBucket] = useState(false);
+    const [bucketDragOffset, setBucketDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const bucketHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const isOverHoverCardRef = useRef(false);
 
@@ -2389,22 +2393,34 @@ export default function RosterPage() {
                                                                     clearTimeout(bucketHoverTimeoutRef.current);
                                                                     bucketHoverTimeoutRef.current = null;
                                                                 }
-                                                                if (bucket.count > 0) {
+                                                                if (bucket.count > 0 && !pinnedBucket) {
                                                                     setHoveredBucket({ type: 'aoo', label: bucket.label });
-                                                                    setBucketHoverPosition({ x: e.clientX + 10, y: e.clientY + 10 });
+                                                                    setBucketHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
                                                                 }
                                                             }}
                                                             onMouseMove={(e) => {
-                                                                if (bucket.count > 0 && hoveredBucket?.label === bucket.label) {
-                                                                    setBucketHoverPosition({ x: e.clientX + 10, y: e.clientY + 10 });
+                                                                if (bucket.count > 0 && hoveredBucket?.label === bucket.label && !pinnedBucket) {
+                                                                    setBucketHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
                                                                 }
                                                             }}
                                                             onMouseLeave={() => {
-                                                                bucketHoverTimeoutRef.current = setTimeout(() => {
-                                                                    if (!isOverHoverCardRef.current) {
-                                                                        setHoveredBucket(null);
+                                                                if (!pinnedBucket) {
+                                                                    bucketHoverTimeoutRef.current = setTimeout(() => {
+                                                                        if (!isOverHoverCardRef.current) {
+                                                                            setHoveredBucket(null);
+                                                                        }
+                                                                    }, 100);
+                                                                }
+                                                            }}
+                                                            onClick={() => {
+                                                                if (bucket.count > 0) {
+                                                                    if (pinnedBucket?.type === 'aoo' && pinnedBucket?.label === bucket.label) {
+                                                                        setPinnedBucket(null);
+                                                                    } else {
+                                                                        setPinnedBucket({ type: 'aoo', label: bucket.label });
+                                                                        setPinnedBucketPosition({ x: bucketHoverPosition.x, y: bucketHoverPosition.y });
                                                                     }
-                                                                }, 100);
+                                                                }
                                                             }}
                                                         >
                                                             <span className={`text-xs ${theme.textMuted} w-16`}>{bucket.label}</span>
@@ -2444,22 +2460,34 @@ export default function RosterPage() {
                                                                     clearTimeout(bucketHoverTimeoutRef.current);
                                                                     bucketHoverTimeoutRef.current = null;
                                                                 }
-                                                                if (bucket.count > 0) {
+                                                                if (bucket.count > 0 && !pinnedBucket) {
                                                                     setHoveredBucket({ type: 'mob', label: bucket.label });
-                                                                    setBucketHoverPosition({ x: e.clientX + 10, y: e.clientY + 10 });
+                                                                    setBucketHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
                                                                 }
                                                             }}
                                                             onMouseMove={(e) => {
-                                                                if (bucket.count > 0 && hoveredBucket?.label === bucket.label) {
-                                                                    setBucketHoverPosition({ x: e.clientX + 10, y: e.clientY + 10 });
+                                                                if (bucket.count > 0 && hoveredBucket?.label === bucket.label && !pinnedBucket) {
+                                                                    setBucketHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
                                                                 }
                                                             }}
                                                             onMouseLeave={() => {
-                                                                bucketHoverTimeoutRef.current = setTimeout(() => {
-                                                                    if (!isOverHoverCardRef.current) {
-                                                                        setHoveredBucket(null);
+                                                                if (!pinnedBucket) {
+                                                                    bucketHoverTimeoutRef.current = setTimeout(() => {
+                                                                        if (!isOverHoverCardRef.current) {
+                                                                            setHoveredBucket(null);
+                                                                        }
+                                                                    }, 100);
+                                                                }
+                                                            }}
+                                                            onClick={() => {
+                                                                if (bucket.count > 0) {
+                                                                    if (pinnedBucket?.type === 'mob' && pinnedBucket?.label === bucket.label) {
+                                                                        setPinnedBucket(null);
+                                                                    } else {
+                                                                        setPinnedBucket({ type: 'mob', label: bucket.label });
+                                                                        setPinnedBucketPosition({ x: bucketHoverPosition.x, y: bucketHoverPosition.y });
                                                                     }
-                                                                }, 100);
+                                                                }
                                                             }}
                                                         >
                                                             <span className={`text-xs ${theme.textMuted} w-16`}>{bucket.label}</span>
@@ -2482,39 +2510,95 @@ export default function RosterPage() {
                                     </div>
 
                                     {/* Fixed position hover cards for AoO and Mob - rendered at root level to avoid z-index issues */}
-                                    {hoveredBucket && bucketHoverPosition && (() => {
-                                        const isAoo = hoveredBucket.type === 'aoo';
+                                    {(hoveredBucket || pinnedBucket) && (() => {
+                                        const activeBucket = pinnedBucket || hoveredBucket;
+                                        if (!activeBucket) return null;
+                                        const isAoo = activeBucket.type === 'aoo';
                                         const bucket = isAoo
-                                            ? aooDistribution.find(b => b.label === hoveredBucket.label)
-                                            : mobDistribution.find(b => b.label === hoveredBucket.label);
+                                            ? aooDistribution.find(b => b.label === activeBucket.label)
+                                            : mobDistribution.find(b => b.label === activeBucket.label);
                                         if (!bucket || bucket.members.length === 0) return null;
+
+                                        const isPinned = pinnedBucket?.type === activeBucket.type && pinnedBucket?.label === activeBucket.label;
                                         const borderColor = isAoo ? '#01b574' : '#9f7aea';
+
+                                        // Calculate position with viewport bounds
+                                        const cardWidth = 300;
+                                        const cardHeight = 280;
+                                        let x = isPinned ? pinnedBucketPosition.x : bucketHoverPosition.x;
+                                        let y = isPinned ? pinnedBucketPosition.y : bucketHoverPosition.y;
+
+                                        if (!isPinned) {
+                                            if (x + cardWidth > window.innerWidth) {
+                                                x = Math.max(10, window.innerWidth - cardWidth - 10);
+                                            }
+                                            if (y + cardHeight > window.innerHeight) {
+                                                y = Math.max(10, window.innerHeight - cardHeight - 10);
+                                            }
+                                            if (x < 10) x = 10;
+                                            if (y < 10) y = 10;
+                                        }
+
                                         return (
                                             <div
-                                                className="fixed z-[99999]"
-                                                style={{
-                                                    left: bucketHoverPosition.x,
-                                                    top: bucketHoverPosition.y,
-                                                }}
-                                                onMouseEnter={() => {
-                                                    isOverHoverCardRef.current = true;
-                                                    if (bucketHoverTimeoutRef.current) {
-                                                        clearTimeout(bucketHoverTimeoutRef.current);
-                                                        bucketHoverTimeoutRef.current = null;
+                                                className={`fixed z-[99999] ${isPinned ? 'cursor-move' : 'pointer-events-none'}`}
+                                                style={{ left: x, top: y }}
+                                                onMouseDown={(e) => {
+                                                    if (isPinned) {
+                                                        setIsDraggingBucket(true);
+                                                        setBucketDragOffset({ x: e.clientX - x, y: e.clientY - y });
                                                     }
                                                 }}
+                                                onMouseMove={(e) => {
+                                                    if (isDraggingBucket && isPinned) {
+                                                        setPinnedBucketPosition({
+                                                            x: e.clientX - bucketDragOffset.x,
+                                                            y: e.clientY - bucketDragOffset.y
+                                                        });
+                                                    }
+                                                }}
+                                                onMouseUp={() => setIsDraggingBucket(false)}
                                                 onMouseLeave={() => {
-                                                    isOverHoverCardRef.current = false;
-                                                    setHoveredBucket(null);
+                                                    setIsDraggingBucket(false);
+                                                    if (!isPinned) {
+                                                        isOverHoverCardRef.current = false;
+                                                        setHoveredBucket(null);
+                                                    }
+                                                }}
+                                                onMouseEnter={() => {
+                                                    if (!isPinned) {
+                                                        isOverHoverCardRef.current = true;
+                                                        if (bucketHoverTimeoutRef.current) {
+                                                            clearTimeout(bucketHoverTimeoutRef.current);
+                                                            bucketHoverTimeoutRef.current = null;
+                                                        }
+                                                    }
                                                 }}
                                             >
-                                                <div className={`${theme.card} border rounded-xl p-3 shadow-2xl max-h-64 overflow-y-auto min-w-[280px]`} style={{ borderColor: `${borderColor}50`, boxShadow: `0 25px 50px -12px ${borderColor}30` }}>
+                                                <div className={`${theme.card} border rounded-xl p-3 shadow-2xl max-h-64 overflow-y-auto min-w-[280px]`} style={{ borderColor: isPinned ? borderColor : `${borderColor}50`, boxShadow: `0 25px 50px -12px ${borderColor}30` }}>
                                                     <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
                                                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: bucket.color }} />
-                                                        <span className="font-semibold text-sm">
+                                                        <span className="font-semibold text-sm flex-1">
                                                             {bucket.label} {isAoo ? 'Participation' : 'Score'} ({bucket.members.length})
                                                         </span>
+                                                        {isPinned && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setPinnedBucket(null);
+                                                                }}
+                                                                className="p-1 rounded hover:bg-[var(--background-secondary)] transition-colors"
+                                                                title="Close"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        )}
                                                     </div>
+                                                    {isPinned && (
+                                                        <div className={`text-[10px] ${theme.textMuted} mb-2 flex items-center gap-1`}>
+                                                            <Lock className="w-3 h-3" /> Pinned - drag to move
+                                                        </div>
+                                                    )}
                                                     <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                                                         {bucket.members.map(m => (
                                                             <div key={m.name} className="flex justify-between text-xs">
