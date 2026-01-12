@@ -159,9 +159,9 @@ export default function RosterPage() {
     const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
     const [editorPassword, setEditorPassword] = useState('');
 
-    // Editing state - kills stored as string for decimal input (millions)
+    // Editing state - kills/power stored as string for decimal input (millions)
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editValues, setEditValues] = useState<{ killsM: string; t4t5KillsM: string; notes: string }>({ killsM: '', t4t5KillsM: '', notes: '' });
+    const [editValues, setEditValues] = useState<{ powerM: string; killsM: string; t4t5KillsM: string; honor: string; notes: string }>({ powerM: '', killsM: '', t4t5KillsM: '', honor: '', notes: '' });
 
     // CSV Import
     const [showImport, setShowImport] = useState(false);
@@ -317,18 +317,22 @@ export default function RosterPage() {
 
     const startEditing = (member: RosterMember) => {
         setEditingId(member.id);
+        // Convert power to millions for display (e.g., 18543993 -> "18.5")
+        const powerM = member.power ? (member.power / 1000000).toFixed(1) : '';
         // Convert kills to millions for display (e.g., 18543993 -> "18.5")
         const killsM = member.kills ? (member.kills / 1000000).toFixed(1) : '';
         // Format T4/T5 as "X/Y" (e.g., "5.2/3.1")
         const t4M = member.t4_kills ? (member.t4_kills / 1000000).toFixed(1) : '0';
         const t5M = member.t5_kills ? (member.t5_kills / 1000000).toFixed(1) : '0';
         const t4t5KillsM = (member.t4_kills || member.t5_kills) ? `${t4M}/${t5M}` : '';
-        setEditValues({ killsM, t4t5KillsM, notes: member.notes || '' });
+        // Honor points as raw number
+        const honor = member.honor_points ? member.honor_points.toString() : '';
+        setEditValues({ powerM, killsM, t4t5KillsM, honor, notes: member.notes || '' });
     };
 
     const cancelEditing = () => {
         setEditingId(null);
-        setEditValues({ killsM: '', t4t5KillsM: '', notes: '' });
+        setEditValues({ powerM: '', killsM: '', t4t5KillsM: '', honor: '', notes: '' });
     };
 
     const saveEditing = async () => {
@@ -336,6 +340,7 @@ export default function RosterPage() {
 
         try {
             // Convert millions input back to raw number (e.g., "18.5" -> 18500000)
+            const powerRaw = editValues.powerM ? Math.round(parseFloat(editValues.powerM) * 1000000) : 0;
             const killsRaw = editValues.killsM ? Math.round(parseFloat(editValues.killsM) * 1000000) : 0;
 
             // Parse T4/T5 from "X/Y" format (e.g., "5.2/3.1" -> t4=5200000, t5=3100000)
@@ -347,16 +352,26 @@ export default function RosterPage() {
                 t5KillsRaw = parts[1] ? Math.round(parseFloat(parts[1]) * 1000000) : 0;
             }
 
+            // Honor points as raw number
+            const honorRaw = editValues.honor ? parseInt(editValues.honor, 10) || 0 : 0;
+
             const { error } = await supabase
                 .from('alliance_roster')
-                .update({ kills: killsRaw, t4_kills: t4KillsRaw, t5_kills: t5KillsRaw, notes: editValues.notes || null })
+                .update({
+                    power: powerRaw,
+                    kills: killsRaw,
+                    t4_kills: t4KillsRaw,
+                    t5_kills: t5KillsRaw,
+                    honor_points: honorRaw,
+                    notes: editValues.notes || null
+                })
                 .eq('id', editingId);
 
             if (error) throw error;
 
             setRoster(roster.map(m =>
                 m.id === editingId
-                    ? { ...m, kills: killsRaw, t4_kills: t4KillsRaw, t5_kills: t5KillsRaw, notes: editValues.notes || null }
+                    ? { ...m, power: powerRaw, kills: killsRaw, t4_kills: t4KillsRaw, t5_kills: t5KillsRaw, honor_points: honorRaw, notes: editValues.notes || null }
                     : m
             ));
             setEditingId(null);
@@ -1020,7 +1035,21 @@ export default function RosterPage() {
                                             )}
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            <span className="text-[#01b574]">{formatPower(member.power)}</span>
+                                            {editingId === member.id ? (
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <input
+                                                        type="number"
+                                                        step="0.1"
+                                                        value={editValues.powerM}
+                                                        onChange={(e) => setEditValues({ ...editValues, powerM: e.target.value })}
+                                                        className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
+                                                        placeholder="0.0"
+                                                    />
+                                                    <span className={`text-xs ${theme.textMuted}`}>M</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[#01b574]">{formatPower(member.power)}</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             {editingId === member.id ? (
@@ -1062,9 +1091,19 @@ export default function RosterPage() {
                                             )}
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            <span className={member.honor_points ? 'text-[#f6ad55]' : theme.textMuted}>
-                                                {member.honor_points ? member.honor_points.toLocaleString() : '-'}
-                                            </span>
+                                            {editingId === member.id ? (
+                                                <input
+                                                    type="number"
+                                                    value={editValues.honor}
+                                                    onChange={(e) => setEditValues({ ...editValues, honor: e.target.value })}
+                                                    className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
+                                                    placeholder="0"
+                                                />
+                                            ) : (
+                                                <span className={member.honor_points ? 'text-[#f6ad55]' : theme.textMuted}>
+                                                    {member.honor_points ? member.honor_points.toLocaleString() : '-'}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             {(() => {
