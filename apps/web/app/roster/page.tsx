@@ -192,6 +192,10 @@ export default function RosterPage() {
     const [kpGrowthSort, setKpGrowthSort] = useState<{ field: 'name' | 'kpGrowth' | 't4Growth' | 't5Growth'; direction: 'asc' | 'desc' }>({ field: 'kpGrowth', direction: 'desc' });
     const [kpGrowthData, setKpGrowthData] = useState<KpGrowth[]>([]);
 
+    // Hover card state
+    const [hoveredMember, setHoveredMember] = useState<string | null>(null);
+    const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
     // History data from hook
     const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
 
@@ -522,6 +526,49 @@ export default function RosterPage() {
         });
         return Array.from(tags).sort();
     }, [roster]);
+
+    // Calculate rankings for hover card
+    const memberRankings = useMemo(() => {
+        const rankings = new Map<string, {
+            powerRank: number;
+            kpRank: number;
+            t4Rank: number;
+            t5Rank: number;
+            honorRank: number;
+            kpGrowthRank: number | null;
+            kpGrowthValue: number | null;
+            t4GrowthValue: number | null;
+            t5GrowthValue: number | null;
+        }>();
+
+        // Sort by each metric to get rankings
+        const byPower = [...roster].sort((a, b) => b.power - a.power);
+        const byKp = [...roster].sort((a, b) => (b.kills || 0) - (a.kills || 0));
+        const byT4 = [...roster].sort((a, b) => (b.t4_kills || 0) - (a.t4_kills || 0));
+        const byT5 = [...roster].sort((a, b) => (b.t5_kills || 0) - (a.t5_kills || 0));
+        const byHonor = [...roster].sort((a, b) => (b.honor_points || 0) - (a.honor_points || 0));
+
+        // Sort KP growth data
+        const sortedKpGrowth = [...kpGrowthData].sort((a, b) => b.kpGrowth - a.kpGrowth);
+        const kpGrowthMap = new Map(sortedKpGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.kpGrowth, t4Growth: g.t4Growth, t5Growth: g.t5Growth }]));
+
+        roster.forEach(member => {
+            const kpGrowthInfo = kpGrowthMap.get(member.name);
+            rankings.set(member.name, {
+                powerRank: byPower.findIndex(m => m.name === member.name) + 1,
+                kpRank: byKp.findIndex(m => m.name === member.name) + 1,
+                t4Rank: byT4.findIndex(m => m.name === member.name) + 1,
+                t5Rank: byT5.findIndex(m => m.name === member.name) + 1,
+                honorRank: byHonor.findIndex(m => m.name === member.name) + 1,
+                kpGrowthRank: kpGrowthInfo?.rank ?? null,
+                kpGrowthValue: kpGrowthInfo?.growth ?? null,
+                t4GrowthValue: kpGrowthInfo?.t4Growth ?? null,
+                t5GrowthValue: kpGrowthInfo?.t5Growth ?? null,
+            });
+        });
+
+        return rankings;
+    }, [roster, kpGrowthData]);
 
     // Filter and sort roster
     const filteredRoster = roster
@@ -1044,8 +1091,18 @@ export default function RosterPage() {
                                         className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''} hover:bg-[var(--background-secondary)]/50`}
                                     >
                                         <td className={`text-center px-2 py-3 text-sm ${theme.textMuted}`}>{idx + 1}</td>
-                                        <td className="px-4 py-3">
-                                            <span className="font-medium">{member.name}</span>
+                                        <td className="px-4 py-3 relative">
+                                            <span
+                                                className="font-medium cursor-pointer hover:text-[#9f7aea] transition-colors"
+                                                onMouseEnter={(e) => {
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setHoverPosition({ x: rect.right + 10, y: rect.top });
+                                                    setHoveredMember(member.name);
+                                                }}
+                                                onMouseLeave={() => setHoveredMember(null)}
+                                            >
+                                                {member.name}
+                                            </span>
                                             {member.tags?.includes('angmar-og') && (
                                                 <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-500/20 text-amber-400" title="Angmar Core">ANG</span>
                                             )}
@@ -2317,6 +2374,123 @@ export default function RosterPage() {
                     </p>
                 </footer>
             </div>
+
+            {/* Member Hover Card */}
+            {hoveredMember && (() => {
+                const member = roster.find(m => m.name === hoveredMember);
+                const rankings = memberRankings.get(hoveredMember);
+                const stats = eventStats.get(hoveredMember);
+                if (!member || !rankings) return null;
+
+                // Adjust position to stay on screen
+                const cardWidth = 320;
+                const cardHeight = 350;
+                let x = hoverPosition.x;
+                let y = hoverPosition.y;
+
+                // Keep card within viewport
+                if (x + cardWidth > window.innerWidth) {
+                    x = hoverPosition.x - cardWidth - 20;
+                }
+                if (y + cardHeight > window.innerHeight) {
+                    y = window.innerHeight - cardHeight - 20;
+                }
+                if (y < 10) y = 10;
+
+                return (
+                    <div
+                        className="fixed z-50 pointer-events-none"
+                        style={{ left: x, top: y }}
+                    >
+                        <div className={`${theme.card} border border-[#9f7aea]/30 rounded-xl p-4 shadow-2xl shadow-[#9f7aea]/10 w-80`}>
+                            {/* Header */}
+                            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--border)]">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#9f7aea] to-[#4318ff] flex items-center justify-center text-white font-bold">
+                                    {member.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-lg">{member.name}</h3>
+                                    <p className={`text-xs ${theme.textMuted}`}>{member.role || 'Member'}</p>
+                                </div>
+                            </div>
+
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
+                                    <div className={`text-xs ${theme.textMuted} mb-1`}>Power</div>
+                                    <div className="text-[#01b574] font-semibold">{formatPower(member.power)}</div>
+                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.powerRank} of {roster.length}</div>
+                                </div>
+                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
+                                    <div className={`text-xs ${theme.textMuted} mb-1`}>Kill Points</div>
+                                    <div className="text-[#f56565] font-semibold">{formatPower(member.kills || 0)}</div>
+                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.kpRank} of {roster.length}</div>
+                                </div>
+                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
+                                    <div className={`text-xs ${theme.textMuted} mb-1`}>T4 KP</div>
+                                    <div className="text-[#fbbf24] font-semibold">{formatPower(member.t4_kills || 0)}</div>
+                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.t4Rank}</div>
+                                </div>
+                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
+                                    <div className={`text-xs ${theme.textMuted} mb-1`}>T5 KP</div>
+                                    <div className="text-[#f97316] font-semibold">{formatPower(member.t5_kills || 0)}</div>
+                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.t5Rank}</div>
+                                </div>
+                            </div>
+
+                            {/* Honor */}
+                            <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2 mb-4">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <div className={`text-xs ${theme.textMuted} mb-1`}>Honor Points</div>
+                                        <div className="text-[#fbbf24] font-semibold">{(member.honor_points || 0).toLocaleString()}</div>
+                                    </div>
+                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.honorRank}</div>
+                                </div>
+                            </div>
+
+                            {/* Growth Stats */}
+                            {rankings.kpGrowthValue !== null && (
+                                <div className="border-t border-[var(--border)] pt-3">
+                                    <div className={`text-xs ${theme.textMuted} mb-2`}>Recent Growth</div>
+                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                        <div>
+                                            <div className={`text-sm font-medium ${rankings.kpGrowthValue > 0 ? 'text-green-400' : 'text-gray-400'}`}>
+                                                {rankings.kpGrowthValue > 0 ? '+' : ''}{formatPower(rankings.kpGrowthValue)}
+                                            </div>
+                                            <div className={`text-[10px] ${theme.textMuted}`}>KP #{rankings.kpGrowthRank}</div>
+                                        </div>
+                                        <div>
+                                            <div className={`text-sm font-medium ${(rankings.t4GrowthValue || 0) > 0 ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
+                                                {(rankings.t4GrowthValue || 0) > 0 ? '+' : ''}{formatPower(rankings.t4GrowthValue || 0)}
+                                            </div>
+                                            <div className={`text-[10px] ${theme.textMuted}`}>T4 Growth</div>
+                                        </div>
+                                        <div>
+                                            <div className={`text-sm font-medium ${(rankings.t5GrowthValue || 0) > 0 ? 'text-[#f97316]' : 'text-gray-400'}`}>
+                                                {(rankings.t5GrowthValue || 0) > 0 ? '+' : ''}{formatPower(rankings.t5GrowthValue || 0)}
+                                            </div>
+                                            <div className={`text-[10px] ${theme.textMuted}`}>T5 Growth</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* AoO Stats */}
+                            {stats && stats.aoo.totalEvents > 0 && (
+                                <div className="border-t border-[var(--border)] pt-3 mt-3">
+                                    <div className="flex justify-between items-center">
+                                        <div className={`text-xs ${theme.textMuted}`}>AoO Participation</div>
+                                        <div className={`text-sm font-medium ${stats.aoo.participationRate >= 80 ? 'text-green-400' : stats.aoo.participationRate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                            {stats.aoo.participationRate}% ({stats.aoo.participated}/{stats.aoo.totalEvents})
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }
