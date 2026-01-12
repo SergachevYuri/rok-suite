@@ -21,6 +21,7 @@ create table public.alliance_roster (
   t4_kills bigint default 0,              -- T4 kill points
   t5_kills bigint default 0,              -- T5 kill points
   deads bigint default 0,                 -- Death count
+  honor_points bigint default 0,          -- Honor points (from Ark of Osiris)
   tier text,                              -- e.g., 'T5', 'T4'
   role text,                              -- e.g., 'R4', 'R5', 'member'
   notes text,                             -- Any additional notes
