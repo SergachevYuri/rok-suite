@@ -1454,6 +1454,148 @@ export default function RosterPage() {
                                     </div>
                                 </div>
 
+                                {/* KP Growth Table */}
+                                {(() => {
+                                    if (kpGrowthData.length === 0) return null;
+
+                                    const sortedKpGrowth = [...kpGrowthData]
+                                        .filter(m => !tagFilter || roster.find(r => r.name === m.name)?.tags?.includes(tagFilter))
+                                        .sort((a, b) => {
+                                            const { field, direction } = kpGrowthSort;
+                                            const multiplier = direction === 'asc' ? 1 : -1;
+                                            if (field === 'name') {
+                                                return multiplier * a.name.localeCompare(b.name);
+                                            }
+                                            return multiplier * ((a[field] ?? 0) - (b[field] ?? 0));
+                                        });
+
+                                    const displayKpMembers = showAllKpGrowth ? sortedKpGrowth : sortedKpGrowth.slice(0, 10);
+                                    const date1 = kpGrowthData[0]?.previousDate ? formatDate(kpGrowthData[0].previousDate) : 'Previous';
+                                    const date2 = kpGrowthData[0]?.currentDate ? formatDate(kpGrowthData[0].currentDate) : 'Current';
+
+                                    const handleKpSort = (field: typeof kpGrowthSort.field) => {
+                                        setKpGrowthSort(prev => ({
+                                            field,
+                                            direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
+                                        }));
+                                    };
+
+                                    const KpSortIcon = ({ field }: { field: typeof kpGrowthSort.field }) => {
+                                        if (kpGrowthSort.field !== field) return <span className="opacity-30">↕</span>;
+                                        return kpGrowthSort.direction === 'asc' ? <span>↑</span> : <span>↓</span>;
+                                    };
+
+                                    return (
+                                        <div className={`${theme.card} border rounded-xl p-4`}>
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="font-semibold flex items-center gap-2">
+                                                    <TrendingUp className="w-4 h-4 text-[#f56565]" />
+                                                    Kill Points Growth
+                                                </h3>
+                                                <button
+                                                    onClick={() => setShowAllKpGrowth(!showAllKpGrowth)}
+                                                    className={`text-xs ${theme.textMuted} hover:text-white transition-colors`}
+                                                >
+                                                    {showAllKpGrowth ? 'Show Top 10' : `Show All (${sortedKpGrowth.length})`}
+                                                </button>
+                                            </div>
+                                            <div className={`overflow-x-auto ${showAllKpGrowth ? 'max-h-[500px] overflow-y-auto' : ''}`}>
+                                                <table className="w-full text-sm">
+                                                    <thead className="sticky top-0 bg-[var(--background-card)]">
+                                                        <tr className="border-b border-[var(--border)]">
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleKpSort('name')} className="flex items-center gap-1 hover:text-white">
+                                                                    Name <KpSortIcon field="name" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                {date1} KP
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                {date2} KP
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleKpSort('kpGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    KP Growth <KpSortIcon field="kpGrowth" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleKpSort('t4Growth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    T4 Growth <KpSortIcon field="t4Growth" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleKpSort('t5Growth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    T5 Growth <KpSortIcon field="t5Growth" />
+                                                                </button>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {displayKpMembers.map((member, idx) => {
+                                                            const rosterMember = roster.find(r => r.name === member.name);
+                                                            return (
+                                                                <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
+                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{idx + 1}</td>
+                                                                    <td className="px-2 py-2 font-medium">
+                                                                        {member.name}
+                                                                        {rosterMember?.tags?.includes('angmar-og') && (
+                                                                            <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right text-[#9f7aea]">
+                                                                        {formatPower(member.previousKp)}
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right text-[#01b574]">
+                                                                        {formatPower(member.currentKp)}
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                {(() => {
+                                                                                    const maxGrowth = Math.max(...sortedKpGrowth.map(m => Math.abs(m.kpGrowth)));
+                                                                                    const pct = maxGrowth > 0 ? (Math.abs(member.kpGrowth) / maxGrowth) * 100 : 0;
+                                                                                    const isPositive = member.kpGrowth >= 0;
+                                                                                    return (
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#f56565] to-[#f56565]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
+                                                                                    );
+                                                                                })()}
+                                                                            </div>
+                                                                            <span className={`text-right font-medium min-w-[50px] ${member.kpGrowth >= 0 ? 'text-[#f56565]' : 'text-gray-400'}`}>
+                                                                                {member.kpGrowth >= 0 ? '+' : ''}{formatPower(member.kpGrowth)}
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right">
+                                                                        <span className={member.t4Growth > 0 ? 'text-[#fbbf24]' : 'text-gray-400'}>
+                                                                            {member.t4Growth > 0 ? '+' : ''}{formatPower(member.t4Growth)}
+                                                                        </span>
+                                                                        <span className={`text-xs ${theme.textMuted} ml-1`}>
+                                                                            ({formatPower(member.currentT4)})
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right">
+                                                                        <span className={member.t5Growth > 0 ? 'text-[#f97316]' : 'text-gray-400'}>
+                                                                            {member.t5Growth > 0 ? '+' : ''}{formatPower(member.t5Growth)}
+                                                                        </span>
+                                                                        <span className={`text-xs ${theme.textMuted} ml-1`}>
+                                                                            ({formatPower(member.currentT5)})
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
                                 {/* Alliance Mobilization Event Growth */}
                                 {(() => {
                                     const membersWithGrowth = roster
@@ -1609,148 +1751,6 @@ export default function RosterPage() {
                                                                 </td>
                                                             </tr>
                                                         ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-
-                                {/* KP Growth Table */}
-                                {(() => {
-                                    if (kpGrowthData.length === 0) return null;
-
-                                    const sortedKpGrowth = [...kpGrowthData]
-                                        .filter(m => !tagFilter || roster.find(r => r.name === m.name)?.tags?.includes(tagFilter))
-                                        .sort((a, b) => {
-                                            const { field, direction } = kpGrowthSort;
-                                            const multiplier = direction === 'asc' ? 1 : -1;
-                                            if (field === 'name') {
-                                                return multiplier * a.name.localeCompare(b.name);
-                                            }
-                                            return multiplier * ((a[field] ?? 0) - (b[field] ?? 0));
-                                        });
-
-                                    const displayKpMembers = showAllKpGrowth ? sortedKpGrowth : sortedKpGrowth.slice(0, 10);
-                                    const date1 = kpGrowthData[0]?.previousDate ? formatDate(kpGrowthData[0].previousDate) : 'Previous';
-                                    const date2 = kpGrowthData[0]?.currentDate ? formatDate(kpGrowthData[0].currentDate) : 'Current';
-
-                                    const handleKpSort = (field: typeof kpGrowthSort.field) => {
-                                        setKpGrowthSort(prev => ({
-                                            field,
-                                            direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
-                                        }));
-                                    };
-
-                                    const KpSortIcon = ({ field }: { field: typeof kpGrowthSort.field }) => {
-                                        if (kpGrowthSort.field !== field) return <span className="opacity-30">↕</span>;
-                                        return kpGrowthSort.direction === 'asc' ? <span>↑</span> : <span>↓</span>;
-                                    };
-
-                                    return (
-                                        <div className={`${theme.card} border rounded-xl p-4`}>
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="font-semibold flex items-center gap-2">
-                                                    <TrendingUp className="w-4 h-4 text-[#f56565]" />
-                                                    Kill Points Growth
-                                                </h3>
-                                                <button
-                                                    onClick={() => setShowAllKpGrowth(!showAllKpGrowth)}
-                                                    className={`text-xs ${theme.textMuted} hover:text-white transition-colors`}
-                                                >
-                                                    {showAllKpGrowth ? 'Show Top 10' : `Show All (${sortedKpGrowth.length})`}
-                                                </button>
-                                            </div>
-                                            <div className={`overflow-x-auto ${showAllKpGrowth ? 'max-h-[500px] overflow-y-auto' : ''}`}>
-                                                <table className="w-full text-sm">
-                                                    <thead className="sticky top-0 bg-[var(--background-card)]">
-                                                        <tr className="border-b border-[var(--border)]">
-                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
-                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleKpSort('name')} className="flex items-center gap-1 hover:text-white">
-                                                                    Name <KpSortIcon field="name" />
-                                                                </button>
-                                                            </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                {date1} KP
-                                                            </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                {date2} KP
-                                                            </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleKpSort('kpGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                                                    KP Growth <KpSortIcon field="kpGrowth" />
-                                                                </button>
-                                                            </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleKpSort('t4Growth')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                                                    T4 Growth <KpSortIcon field="t4Growth" />
-                                                                </button>
-                                                            </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleKpSort('t5Growth')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                                                    T5 Growth <KpSortIcon field="t5Growth" />
-                                                                </button>
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {displayKpMembers.map((member, idx) => {
-                                                            const rosterMember = roster.find(r => r.name === member.name);
-                                                            return (
-                                                                <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
-                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{idx + 1}</td>
-                                                                    <td className="px-2 py-2 font-medium">
-                                                                        {member.name}
-                                                                        {rosterMember?.tags?.includes('angmar-og') && (
-                                                                            <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="px-2 py-2 text-right text-[#9f7aea]">
-                                                                        {formatPower(member.previousKp)}
-                                                                    </td>
-                                                                    <td className="px-2 py-2 text-right text-[#01b574]">
-                                                                        {formatPower(member.currentKp)}
-                                                                    </td>
-                                                                    <td className="px-2 py-2">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
-                                                                                {(() => {
-                                                                                    const maxGrowth = Math.max(...sortedKpGrowth.map(m => Math.abs(m.kpGrowth)));
-                                                                                    const pct = maxGrowth > 0 ? (Math.abs(member.kpGrowth) / maxGrowth) * 100 : 0;
-                                                                                    const isPositive = member.kpGrowth >= 0;
-                                                                                    return (
-                                                                                        <div
-                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#f56565] to-[#f56565]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
-                                                                                            style={{ width: `${pct}%` }}
-                                                                                        />
-                                                                                    );
-                                                                                })()}
-                                                                            </div>
-                                                                            <span className={`text-right font-medium min-w-[50px] ${member.kpGrowth >= 0 ? 'text-[#f56565]' : 'text-gray-400'}`}>
-                                                                                {member.kpGrowth >= 0 ? '+' : ''}{formatPower(member.kpGrowth)}
-                                                                            </span>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-2 py-2 text-right">
-                                                                        <span className={member.t4Growth > 0 ? 'text-[#fbbf24]' : 'text-gray-400'}>
-                                                                            {member.t4Growth > 0 ? '+' : ''}{formatPower(member.t4Growth)}
-                                                                        </span>
-                                                                        <span className={`text-xs ${theme.textMuted} ml-1`}>
-                                                                            ({formatPower(member.currentT4)})
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-2 py-2 text-right">
-                                                                        <span className={member.t5Growth > 0 ? 'text-[#f97316]' : 'text-gray-400'}>
-                                                                            {member.t5Growth > 0 ? '+' : ''}{formatPower(member.t5Growth)}
-                                                                        </span>
-                                                                        <span className={`text-xs ${theme.textMuted} ml-1`}>
-                                                                            ({formatPower(member.currentT5)})
-                                                                        </span>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
                                                     </tbody>
                                                 </table>
                                             </div>
