@@ -2477,13 +2477,18 @@ export default function RosterPage() {
                             )}
 
                             {/* AoO Stats */}
-                            {stats && stats.aoo.totalEvents > 0 && (
+                            {stats && stats.aoo.totalAssigned > 0 && (
                                 <div className="border-t border-[var(--border)] pt-3 mt-3">
                                     <div className="flex justify-between items-center">
                                         <div className={`text-xs ${theme.textMuted}`}>AoO Participation</div>
-                                        <div className={`text-sm font-medium ${stats.aoo.participationRate >= 80 ? 'text-green-400' : stats.aoo.participationRate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                            {stats.aoo.participationRate}% ({stats.aoo.participated}/{stats.aoo.totalEvents})
-                                        </div>
+                                        {(() => {
+                                            const rate = Math.round((stats.aoo.participatedCount / stats.aoo.totalAssigned) * 100);
+                                            return (
+                                                <div className={`text-sm font-medium ${rate >= 80 ? 'text-green-400' : rate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                    {rate}% ({stats.aoo.participatedCount}/{stats.aoo.totalAssigned})
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             )}
