@@ -172,6 +172,8 @@ export default function RosterPage() {
 
     // Mobilization growth expanded state
     const [showAllGrowth, setShowAllGrowth] = useState(false);
+    // Growth table sorting
+    const [growthSort, setGrowthSort] = useState<{ field: 'name' | 'previousScore' | 'lastScore' | 'growth' | 'growthPercent'; direction: 'asc' | 'desc' }>({ field: 'growth', direction: 'desc' });
 
     // History data from hook
     const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
@@ -1196,13 +1198,34 @@ export default function RosterPage() {
                                             };
                                         })
                                         .filter(m => m.growth !== null)
-                                        .sort((a, b) => (b.growth ?? 0) - (a.growth ?? 0));
+                                        .sort((a, b) => {
+                                            const { field, direction } = growthSort;
+                                            const multiplier = direction === 'asc' ? 1 : -1;
+                                            if (field === 'name') {
+                                                return multiplier * a.name.localeCompare(b.name);
+                                            }
+                                            const aVal = a[field] ?? 0;
+                                            const bVal = b[field] ?? 0;
+                                            return multiplier * (aVal - bVal);
+                                        });
 
                                     if (membersWithGrowth.length === 0) return null;
 
                                     const displayMembers = showAllGrowth ? membersWithGrowth : membersWithGrowth.slice(0, 10);
                                     const date1 = membersWithGrowth[0]?.previousDate ? formatDate(membersWithGrowth[0].previousDate) : 'T1';
                                     const date2 = membersWithGrowth[0]?.lastDate ? formatDate(membersWithGrowth[0].lastDate) : 'T2';
+
+                                    const handleGrowthSort = (field: typeof growthSort.field) => {
+                                        setGrowthSort(prev => ({
+                                            field,
+                                            direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
+                                        }));
+                                    };
+
+                                    const GrowthSortIcon = ({ field }: { field: typeof growthSort.field }) => {
+                                        if (growthSort.field !== field) return <span className="opacity-30">↕</span>;
+                                        return growthSort.direction === 'asc' ? <span>↑</span> : <span>↓</span>;
+                                    };
 
                                     return (
                                         <div className={`${theme.card} border rounded-xl p-4`}>
@@ -1223,17 +1246,39 @@ export default function RosterPage() {
                                                     <thead className="sticky top-0 bg-[var(--background-card)]">
                                                         <tr className="border-b border-[var(--border)]">
                                                             <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
-                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Name</th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <div>{date1}</div>
-                                                                <div className="text-[10px] font-normal">Score</div>
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleGrowthSort('name')} className="flex items-center gap-1 hover:text-white">
+                                                                    Name <GrowthSortIcon field="name" />
+                                                                </button>
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <div>{date2}</div>
-                                                                <div className="text-[10px] font-normal">Score (Tasks)</div>
+                                                                <button onClick={() => handleGrowthSort('previousScore')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    <div className="text-right">
+                                                                        <div>{date1}</div>
+                                                                        <div className="text-[10px] font-normal">Score</div>
+                                                                    </div>
+                                                                    <GrowthSortIcon field="previousScore" />
+                                                                </button>
                                                             </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Growth</th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>%</th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleGrowthSort('lastScore')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    <div className="text-right">
+                                                                        <div>{date2}</div>
+                                                                        <div className="text-[10px] font-normal">Score (Tasks)</div>
+                                                                    </div>
+                                                                    <GrowthSortIcon field="lastScore" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleGrowthSort('growth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    Growth <GrowthSortIcon field="growth" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleGrowthSort('growthPercent')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    % <GrowthSortIcon field="growthPercent" />
+                                                                </button>
+                                                            </th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
