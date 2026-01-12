@@ -999,27 +999,15 @@ export default function RosterPage() {
                                                 }
                                                 const turnedIn = stats.mobilization.lastTurnedIn;
                                                 const accepted = stats.mobilization.lastAccepted;
-                                                const growth = stats.mobilization.growth;
-                                                const growthPercent = stats.mobilization.growthPercent;
                                                 return (
-                                                    <div className="flex flex-col items-center">
-                                                        <span className="text-[#01b574]">
-                                                            {formatPower(stats.mobilization.lastScore)}
-                                                            {turnedIn !== null && accepted !== null && (
-                                                                <span className="text-[var(--text-muted)] text-xs ml-1">
-                                                                    ({turnedIn}/{accepted})
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                        {growth !== null && (
-                                                            <span className={`text-xs ${growth >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                {growth >= 0 ? '+' : ''}{formatPower(growth)}
-                                                                {growthPercent !== null && (
-                                                                    <span className="ml-1">({growth >= 0 ? '+' : ''}{growthPercent}%)</span>
-                                                                )}
+                                                    <span className="text-[#01b574]">
+                                                        {formatPower(stats.mobilization.lastScore)}
+                                                        {turnedIn !== null && accepted !== null && (
+                                                            <span className="text-[var(--text-muted)] text-xs ml-1">
+                                                                ({turnedIn}/{accepted})
                                                             </span>
                                                         )}
-                                                    </div>
+                                                    </span>
                                                 );
                                             })()}
                                         </td>
@@ -1186,6 +1174,104 @@ export default function RosterPage() {
                                         ))}
                                     </div>
                                 </div>
+
+                                {/* Mobilization Growth */}
+                                {(() => {
+                                    const membersWithGrowth = roster
+                                        .map(m => {
+                                            const stats = eventStats.get(m.name);
+                                            return {
+                                                name: m.name,
+                                                growth: stats?.mobilization.growth ?? null,
+                                                growthPercent: stats?.mobilization.growthPercent ?? null,
+                                                lastScore: stats?.mobilization.lastScore ?? null,
+                                                previousScore: stats?.mobilization.previousScore ?? null,
+                                                lastDate: stats?.mobilization.lastDate ?? null,
+                                                previousDate: stats?.mobilization.previousDate ?? null,
+                                            };
+                                        })
+                                        .filter(m => m.growth !== null)
+                                        .sort((a, b) => (b.growth ?? 0) - (a.growth ?? 0));
+
+                                    if (membersWithGrowth.length === 0) return null;
+
+                                    const maxGrowth = Math.max(...membersWithGrowth.map(m => Math.abs(m.growth ?? 0)), 1);
+                                    const topGrowers = membersWithGrowth.slice(0, 10);
+                                    const bottomGrowers = membersWithGrowth.slice(-5).reverse();
+                                    const dateRange = membersWithGrowth[0]?.previousDate && membersWithGrowth[0]?.lastDate
+                                        ? `${formatDate(membersWithGrowth[0].previousDate)} → ${formatDate(membersWithGrowth[0].lastDate)}`
+                                        : '';
+
+                                    return (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {/* Top Growers */}
+                                            <div className={`${theme.card} border rounded-xl p-4`}>
+                                                <h3 className="font-semibold mb-1 flex items-center gap-2">
+                                                    <TrendingUp className="w-4 h-4 text-green-400" />
+                                                    Top Mobilization Growth
+                                                </h3>
+                                                {dateRange && (
+                                                    <p className={`text-xs ${theme.textMuted} mb-4`}>{dateRange}</p>
+                                                )}
+                                                <div className="space-y-2">
+                                                    {topGrowers.map((member, idx) => (
+                                                        <div key={member.name} className="flex items-center gap-2">
+                                                            <span className={`text-xs ${theme.textMuted} w-5`}>{idx + 1}.</span>
+                                                            <span className="text-sm font-medium flex-1 truncate">{member.name}</span>
+                                                            <div className="w-20 h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                <div
+                                                                    className="h-full rounded bg-green-400"
+                                                                    style={{
+                                                                        width: `${(Math.abs(member.growth ?? 0) / maxGrowth) * 100}%`,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-sm font-medium text-green-400 w-16 text-right">
+                                                                +{formatPower(member.growth ?? 0)}
+                                                            </span>
+                                                            <span className="text-xs text-green-400 w-12 text-right">
+                                                                +{member.growthPercent}%
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Lowest Growth */}
+                                            <div className={`${theme.card} border rounded-xl p-4`}>
+                                                <h3 className="font-semibold mb-1 flex items-center gap-2">
+                                                    <TrendingUp className="w-4 h-4 text-orange-400 rotate-180" />
+                                                    Lowest Mobilization Growth
+                                                </h3>
+                                                {dateRange && (
+                                                    <p className={`text-xs ${theme.textMuted} mb-4`}>{dateRange}</p>
+                                                )}
+                                                <div className="space-y-2">
+                                                    {bottomGrowers.map((member, idx) => (
+                                                        <div key={member.name} className="flex items-center gap-2">
+                                                            <span className={`text-xs ${theme.textMuted} w-5`}>{membersWithGrowth.length - 4 + idx}.</span>
+                                                            <span className="text-sm font-medium flex-1 truncate">{member.name}</span>
+                                                            <div className="w-20 h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                <div
+                                                                    className={`h-full rounded ${(member.growth ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'}`}
+                                                                    style={{
+                                                                        width: `${(Math.abs(member.growth ?? 0) / maxGrowth) * 100}%`,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <span className={`text-sm font-medium w-16 text-right ${(member.growth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                {(member.growth ?? 0) >= 0 ? '+' : ''}{formatPower(member.growth ?? 0)}
+                                                            </span>
+                                                            <span className={`text-xs w-12 text-right ${(member.growthPercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                {(member.growthPercent ?? 0) >= 0 ? '+' : ''}{member.growthPercent}%
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Member Changes */}
                                 {memberChanges.length > 0 && (
@@ -1741,93 +1827,6 @@ export default function RosterPage() {
                                             )}
                                         </div>
                                     </div>
-
-                                    {/* Mobilization Growth Leaderboard */}
-                                    {(() => {
-                                        const membersWithGrowth = roster
-                                            .map(m => {
-                                                const stats = eventStats.get(m.name);
-                                                return {
-                                                    name: m.name,
-                                                    growth: stats?.mobilization.growth ?? null,
-                                                    growthPercent: stats?.mobilization.growthPercent ?? null,
-                                                    lastScore: stats?.mobilization.lastScore ?? null,
-                                                    previousScore: stats?.mobilization.previousScore ?? null,
-                                                };
-                                            })
-                                            .filter(m => m.growth !== null)
-                                            .sort((a, b) => (b.growth ?? 0) - (a.growth ?? 0));
-
-                                        if (membersWithGrowth.length === 0) return null;
-
-                                        const maxGrowth = Math.max(...membersWithGrowth.map(m => Math.abs(m.growth ?? 0)), 1);
-                                        const topGrowers = membersWithGrowth.slice(0, 10);
-                                        const bottomGrowers = membersWithGrowth.slice(-5).reverse();
-
-                                        return (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {/* Top Growers */}
-                                                <div className={`${theme.card} border rounded-xl p-4`}>
-                                                    <h3 className="font-semibold mb-4 flex items-center gap-2">
-                                                        <TrendingUp className="w-4 h-4 text-green-400" />
-                                                        Top Mob Growth
-                                                    </h3>
-                                                    <div className="space-y-2">
-                                                        {topGrowers.map((member, idx) => (
-                                                            <div key={member.name} className="flex items-center gap-2">
-                                                                <span className={`text-xs ${theme.textMuted} w-5`}>{idx + 1}.</span>
-                                                                <span className="text-sm font-medium flex-1 truncate">{member.name}</span>
-                                                                <div className="w-24 h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
-                                                                    <div
-                                                                        className="h-full rounded bg-green-400"
-                                                                        style={{
-                                                                            width: `${(Math.abs(member.growth ?? 0) / maxGrowth) * 100}%`,
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                                <span className="text-sm font-medium text-green-400 w-20 text-right">
-                                                                    +{formatPower(member.growth ?? 0)}
-                                                                </span>
-                                                                <span className="text-xs text-green-400 w-12 text-right">
-                                                                    +{member.growthPercent}%
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {/* Declining / Lowest Growth */}
-                                                <div className={`${theme.card} border rounded-xl p-4`}>
-                                                    <h3 className="font-semibold mb-4 flex items-center gap-2">
-                                                        <TrendingUp className="w-4 h-4 text-red-400 rotate-180" />
-                                                        Lowest Mob Growth
-                                                    </h3>
-                                                    <div className="space-y-2">
-                                                        {bottomGrowers.map((member, idx) => (
-                                                            <div key={member.name} className="flex items-center gap-2">
-                                                                <span className={`text-xs ${theme.textMuted} w-5`}>{membersWithGrowth.length - 4 + idx}.</span>
-                                                                <span className="text-sm font-medium flex-1 truncate">{member.name}</span>
-                                                                <div className="w-24 h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
-                                                                    <div
-                                                                        className={`h-full rounded ${(member.growth ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'}`}
-                                                                        style={{
-                                                                            width: `${(Math.abs(member.growth ?? 0) / maxGrowth) * 100}%`,
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                                <span className={`text-sm font-medium w-20 text-right ${(member.growth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                    {(member.growth ?? 0) >= 0 ? '+' : ''}{formatPower(member.growth ?? 0)}
-                                                                </span>
-                                                                <span className={`text-xs w-12 text-right ${(member.growth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                    {(member.growthPercent ?? 0) >= 0 ? '+' : ''}{member.growthPercent}%
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
 
                                     {/* Low Activity Warning */}
                                     {lowActivityMembers.length > 0 && (
