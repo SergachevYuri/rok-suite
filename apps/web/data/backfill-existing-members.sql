@@ -15,44 +15,58 @@
 -- Replace 'YYYY-MM-DD' with the actual second most recent snapshot date
 -- You can find this by running: SELECT DISTINCT snapshot_date FROM roster_snapshots ORDER BY snapshot_date DESC LIMIT 2;
 
+-- This script backfills members into ALL previous snapshots
+-- so they don't appear as "joined" in the member changes
+
 DO $$
 DECLARE
-    prev_date DATE;
+    snap_date DATE;
     curr_date DATE;
+    members_to_backfill TEXT[] := ARRAY['WOLF', 'Ceje', 'ZETMA', 'Black Ruler', 'DonV4', 'MayorEric', 'Divid3', 'vn kenji', 'MadFluffy'];
+    member_name TEXT;
 BEGIN
-    -- Get the two most recent snapshot dates
+    -- Get the most recent snapshot date (current)
     SELECT snapshot_date INTO curr_date FROM roster_snapshots ORDER BY snapshot_date DESC LIMIT 1;
-    SELECT snapshot_date INTO prev_date FROM roster_snapshots ORDER BY snapshot_date DESC LIMIT 1 OFFSET 1;
+    RAISE NOTICE 'Current (most recent) snapshot date: %', curr_date;
 
-    RAISE NOTICE 'Current snapshot date: %, Previous snapshot date: %', curr_date, prev_date;
+    -- Loop through ALL snapshot dates EXCEPT the current one
+    FOR snap_date IN
+        SELECT DISTINCT snapshot_date
+        FROM roster_snapshots
+        WHERE snapshot_date < curr_date
+        ORDER BY snapshot_date
+    LOOP
+        RAISE NOTICE 'Backfilling members into snapshot date: %', snap_date;
 
-    -- Backfill members into the previous snapshot
-    -- These members existed before but were missed
-    INSERT INTO roster_snapshots (snapshot_date, member_name, power, kills, t4_kills, t5_kills, honor_points, role, is_active)
-    VALUES
-        -- WOLF (existed, power unknown - using 0)
-        (prev_date, 'WOLF', 0, 0, 0, 0, 0, 'R1', true),
-        -- Ceje (existed, power unknown - using 0)
-        (prev_date, 'Ceje', 0, 0, 0, 0, 0, 'R1', true),
-        -- ZETMA (existed, power unknown - using 0)
-        (prev_date, 'ZETMA', 0, 0, 0, 0, 0, 'R1', true),
-        -- Black Ruler (existed, power unknown - using 0)
-        (prev_date, 'Black Ruler', 0, 0, 0, 0, 0, 'R1', true),
-        -- DonV4 (existed, power unknown - using 0)
-        (prev_date, 'DonV4', 0, 0, 0, 0, 0, 'R1', true),
-        -- MayorEric (existed, power unknown - using 0)
-        (prev_date, 'MayorEric', 0, 0, 0, 0, 0, 'R1', true),
-        -- Divid3 (existed, power unknown - using 0)
-        (prev_date, 'Divid3', 0, 0, 0, 0, 0, 'R1', true),
-        -- vn kenji (existed, has power in roster: 14052895)
-        (prev_date, 'vn kenji', 14052895, 0, 0, 0, 0, 'R1', true),
-        -- MadFluffy (existed, alliance leader, power: 45542)
-        (prev_date, 'MadFluffy', 45542, 0, 0, 0, 0, 'R5', true)
-    ON CONFLICT (snapshot_date, member_name)
-    DO NOTHING;
+        -- Insert each member into this snapshot date
+        FOREACH member_name IN ARRAY members_to_backfill
+        LOOP
+            INSERT INTO roster_snapshots (snapshot_date, member_name, power, kills, t4_kills, t5_kills, honor_points, role, is_active)
+            VALUES (
+                snap_date,
+                member_name,
+                CASE member_name
+                    WHEN 'vn kenji' THEN 14052895
+                    WHEN 'MadFluffy' THEN 45542
+                    ELSE 0
+                END,
+                0, 0, 0, 0,
+                CASE member_name WHEN 'MadFluffy' THEN 'R5' ELSE 'R1' END,
+                true
+            )
+            ON CONFLICT (snapshot_date, member_name) DO NOTHING;
+        END LOOP;
+    END LOOP;
 
-    RAISE NOTICE 'Backfilled existing members into previous snapshot';
+    RAISE NOTICE 'Backfill complete for all previous snapshot dates';
 END $$;
+
+-- Verify the backfill worked:
+-- SELECT member_name, COUNT(*) as snapshot_count, MIN(snapshot_date) as first_seen, MAX(snapshot_date) as last_seen
+-- FROM roster_snapshots
+-- WHERE member_name IN ('WOLF', 'Ceje', 'ZETMA', 'Black Ruler', 'DonV4', 'MayorEric', 'Divid3', 'vn kenji', 'MadFluffy')
+-- GROUP BY member_name
+-- ORDER BY member_name;
 
 -- Verify the changes:
 -- SELECT member_name, snapshot_date, power, role
