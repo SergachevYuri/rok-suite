@@ -699,52 +699,55 @@ export default function RosterPage() {
 
             {/* Header */}
             <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-0 z-40">
-                <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                             <Link
                                 href="/"
-                                className={`p-2 rounded-lg ${theme.button} hover:opacity-80 transition-opacity`}
+                                className={`p-2 rounded-lg ${theme.button} hover:opacity-80 transition-opacity flex-shrink-0`}
                                 title="Back to Home"
                             >
                                 <ArrowLeft className="w-5 h-5" />
                             </Link>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Alliance Roster</h1>
-                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#4318ff]/20 text-[#9f7aea]">
-                                        {roster.length} members
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight truncate">Roster</h1>
+                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#4318ff]/20 text-[#9f7aea] flex-shrink-0">
+                                        {roster.length}
                                     </span>
                                 </div>
-                                <p className={`text-sm ${theme.textMuted}`}>Member stats and kill points</p>
+                                <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>Member stats and kill points</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                             {isEditor && (
                                 <>
                                     <button
                                         onClick={() => setShowImport(!showImport)}
-                                        className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2`}
+                                        className={`p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2`}
+                                        title="Import CSV"
                                     >
                                         <Upload className="w-4 h-4" />
-                                        Import CSV
+                                        <span className="hidden sm:inline">Import</span>
                                     </button>
                                     <button
                                         onClick={handleCreateSnapshot}
-                                        className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2`}
+                                        className={`p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2`}
                                         title="Save today's roster data for historical tracking"
                                     >
                                         <Lock className="w-4 h-4" />
-                                        Lock Today
+                                        <span className="hidden sm:inline">Lock</span>
                                     </button>
                                 </>
                             )}
                             {!isEditor ? (
                                 <button
                                     onClick={() => setShowPasswordPrompt(true)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button}`}
+                                    className={`p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-1`}
+                                    title="Edit Mode"
                                 >
-                                    Edit Mode
+                                    <Edit2 className="w-4 h-4 sm:hidden" />
+                                    <span className="hidden sm:inline">Edit Mode</span>
                                 </button>
                             ) : (
                                 <button
@@ -773,77 +776,78 @@ export default function RosterPage() {
                                             }
                                         }
                                     }}
-                                    className="px-3 py-2 rounded-lg text-sm font-medium bg-[#4318ff] text-white hover:bg-[#4318ff]/80 transition-colors"
+                                    className="p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-medium bg-[#4318ff] text-white hover:bg-[#4318ff]/80 transition-colors flex items-center gap-1"
                                 >
-                                    Exit Edit Mode
+                                    <X className="w-4 h-4 sm:hidden" />
+                                    <span className="hidden sm:inline">Exit Edit</span>
                                 </button>
                             )}
                         </div>
                     </div>
 
-                    {/* Tabs */}
-                    <div className="flex flex-wrap gap-2 mt-4">
+                    {/* Tabs - Horizontal scroll on mobile */}
+                    <div className="flex gap-1 sm:gap-2 mt-3 sm:mt-4 overflow-x-auto hide-scrollbar pb-1">
                         <button
                             onClick={() => setActiveTab('roster')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0 ${
                                 activeTab === 'roster'
                                     ? 'bg-[#4318ff] text-white'
                                     : `${theme.button}`
                             }`}
                         >
                             <Users className="w-4 h-4" />
-                            Roster
+                            <span className="hidden xs:inline">Roster</span>
                         </button>
                         <button
                             onClick={() => setActiveTab('history')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0 ${
                                 activeTab === 'history'
                                     ? 'bg-[#4318ff] text-white'
                                     : `${theme.button}`
                             }`}
                         >
                             <History className="w-4 h-4" />
-                            History
+                            <span className="hidden xs:inline">History</span>
                         </button>
                         <button
                             onClick={() => setActiveTab('analytics')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0 ${
                                 activeTab === 'analytics'
                                     ? 'bg-[#4318ff] text-white'
                                     : `${theme.button}`
                             }`}
                         >
                             <BarChart3 className="w-4 h-4" />
-                            Analytics
+                            <span className="hidden xs:inline">Stats</span>
                         </button>
                         {isEditor && (
                             <button
                                 onClick={() => setActiveTab('events')}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0 ${
                                     activeTab === 'events'
                                         ? 'bg-[#4318ff] text-white'
                                         : `${theme.button}`
                                 }`}
                             >
                                 <Calendar className="w-4 h-4" />
-                                Events
+                                <span className="hidden xs:inline">Events</span>
                             </button>
                         )}
                         {lastSnapshotDate && (
-                            <span className={`px-3 py-2 text-xs ${theme.textMuted} flex items-center gap-1`}>
-                                Last snapshot: {formatDate(lastSnapshotDate)}
+                            <span className={`px-2 sm:px-3 py-2 text-[10px] sm:text-xs ${theme.textMuted} flex items-center gap-1 whitespace-nowrap flex-shrink-0`}>
+                                <span className="hidden sm:inline">Last:</span> {formatDate(lastSnapshotDate)}
                             </span>
                         )}
                     </div>
 
-                    {/* Tag Filter - Global */}
+                    {/* Tag Filter - Global - Scrollable on mobile */}
                     {availableTags.length > 0 && (
-                        <div className="flex items-center gap-3 mt-4">
-                            <span className={`text-xs ${theme.textMuted}`}>Filter:</span>
-                            <div className="flex flex-wrap gap-2">
+                        <div className="flex items-center gap-2 sm:gap-3 mt-3 sm:mt-4">
+                            <span className={`text-[10px] sm:text-xs ${theme.textMuted} flex-shrink-0`}>Filter:</span>
+                            <div className="flex gap-1.5 sm:gap-2 overflow-x-auto hide-scrollbar pb-1">
                                 <button
                                     onClick={() => setTagFilter(null)}
-                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                    className={`px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                                         !tagFilter
                                             ? 'bg-[#4318ff] text-white'
                                             : `${theme.button}`
@@ -1015,91 +1019,100 @@ export default function RosterPage() {
                 <div className={`${theme.card} border rounded-xl overflow-hidden`}>
                     {/* Table hint for non-editors */}
                     {!isEditor && (
-                        <div className="px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
-                            <span className={`text-xs ${theme.textMuted}`}>
-                                Click column headers to sort
+                        <div className="px-3 sm:px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
+                            <span className={`text-[10px] sm:text-xs ${theme.textMuted}`}>
+                                <span className="hidden sm:inline">Click column headers to sort •</span> Tap name for details
                             </span>
                             <button
                                 onClick={() => setShowPasswordPrompt(true)}
-                                className={`text-xs ${theme.textMuted} hover:text-[#9f7aea] transition-colors flex items-center gap-1`}
+                                className={`text-[10px] sm:text-xs ${theme.textMuted} hover:text-[#9f7aea] transition-colors flex items-center gap-1`}
                             >
                                 <Edit2 className="w-3 h-3" />
-                                Edit KP & notes
+                                <span className="hidden sm:inline">Edit KP & notes</span>
+                                <span className="sm:hidden">Edit</span>
                             </button>
                         </div>
                     )}
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
+                    <div className="overflow-x-auto mobile-scroll">
+                        <table className="w-full min-w-[320px]">
                             <thead>
                                 <tr className="border-b border-[var(--border)]">
-                                    <th className="text-center px-2 py-3 w-10">
-                                        <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>#</span>
+                                    <th className="text-center px-1 sm:px-2 py-2 sm:py-3 w-8 sm:w-10">
+                                        <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>#</span>
                                     </th>
-                                    <th className="text-left px-4 py-3">
+                                    <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.name}>
                                             <button
                                                 onClick={() => handleSort('name')}
-                                                className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white`}
+                                                className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white`}
                                             >
                                                 Name <SortIcon field="name" />
                                             </button>
                                         </ColumnTooltip>
                                     </th>
-                                    <th className="text-right px-4 py-3">
+                                    <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.power}>
                                             <button
                                                 onClick={() => handleSort('power')}
-                                                className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
+                                                className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
                                             >
-                                                Power <SortIcon field="power" />
+                                                <span className="hidden sm:inline">Power</span>
+                                                <span className="sm:hidden">Pwr</span>
+                                                <SortIcon field="power" />
                                             </button>
                                         </ColumnTooltip>
                                     </th>
-                                    <th className="text-right px-4 py-3">
+                                    <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.kp}>
                                             <button
                                                 onClick={() => handleSort('kills')}
-                                                className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
+                                                className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
                                             >
                                                 KP <SortIcon field="kills" />
                                             </button>
                                         </ColumnTooltip>
                                     </th>
-                                    <th className="text-right px-4 py-3">
+                                    {/* Hide T4/T5 on mobile - visible in hover card */}
+                                    <th className="text-right px-4 py-3 hidden md:table-cell">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.t4t5}>
                                             <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
                                                 T4/T5 KP
                                             </span>
                                         </ColumnTooltip>
                                     </th>
-                                    <th className="text-right px-4 py-3">
+                                    {/* Hide Honor on mobile - visible in hover card */}
+                                    <th className="text-right px-4 py-3 hidden lg:table-cell">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.honor}>
                                             <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
                                                 Honor
                                             </span>
                                         </ColumnTooltip>
                                     </th>
-                                    <th className="text-center px-4 py-3">
+                                    {/* Hide AoO on mobile - visible in hover card */}
+                                    <th className="text-center px-4 py-3 hidden lg:table-cell">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.aoo}>
                                             <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
                                                 AoO
                                             </span>
                                         </ColumnTooltip>
                                     </th>
-                                    <th className="text-center px-4 py-3">
+                                    {/* Hide Mob on mobile - visible in hover card */}
+                                    <th className="text-center px-4 py-3 hidden lg:table-cell">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.mob}>
                                             <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
                                                 Mob
                                             </span>
                                         </ColumnTooltip>
                                     </th>
-                                    <th className="text-center px-4 py-3">
+                                    <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.rank}>
                                             <button
                                                 onClick={() => handleSort('role')}
-                                                className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto`}
+                                                className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto`}
                                             >
-                                                Rank <SortIcon field="role" />
+                                                <span className="hidden sm:inline">Rank</span>
+                                                <span className="sm:hidden">R</span>
+                                                <SortIcon field="role" />
                                             </button>
                                         </ColumnTooltip>
                                     </th>
@@ -1123,12 +1136,12 @@ export default function RosterPage() {
                                 {filteredRoster.map((member, idx) => (
                                     <tr
                                         key={member.id}
-                                        className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''} hover:bg-[var(--background-secondary)]/50`}
+                                        className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''} hover:bg-[var(--background-secondary)]/50 active:bg-[var(--background-secondary)]/70`}
                                     >
-                                        <td className={`text-center px-2 py-3 text-sm ${theme.textMuted}`}>{idx + 1}</td>
-                                        <td className="px-4 py-3 relative">
+                                        <td className={`text-center px-1 sm:px-2 py-2 sm:py-3 text-xs sm:text-sm ${theme.textMuted}`}>{idx + 1}</td>
+                                        <td className="px-2 sm:px-4 py-2 sm:py-3 relative">
                                             <span
-                                                className="font-medium cursor-pointer hover:text-[#9f7aea] transition-colors"
+                                                className="font-medium cursor-pointer hover:text-[#9f7aea] active:text-[#9f7aea] transition-colors text-sm sm:text-base"
                                                 onMouseEnter={(e) => {
                                                     if (memberHoverTimeoutRef.current) {
                                                         clearTimeout(memberHoverTimeoutRef.current);
@@ -1147,28 +1160,35 @@ export default function RosterPage() {
                                                         setHoveredMember(null);
                                                     }, 100);
                                                 }}
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    // On mobile, center the card on screen
+                                                    const isMobile = window.innerWidth < 640;
                                                     if (pinnedMember === member.name) {
                                                         setPinnedMember(null);
                                                     } else {
                                                         setPinnedMember(member.name);
-                                                        setPinnedPosition({ x: hoverPosition.x, y: hoverPosition.y });
+                                                        if (isMobile) {
+                                                            // Center on mobile
+                                                            setPinnedPosition({ x: window.innerWidth / 2 - 150, y: 100 });
+                                                        } else {
+                                                            setPinnedPosition({ x: hoverPosition.x, y: hoverPosition.y });
+                                                        }
                                                     }
                                                 }}
                                             >
                                                 {member.name}
                                             </span>
                                             {member.tags?.includes('angmar-og') && (
-                                                <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-500/20 text-amber-400" title="Angmar Core">ANG</span>
+                                                <span className="ml-1 sm:ml-2 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-semibold rounded bg-amber-500/20 text-amber-400" title="Angmar Core">ANG</span>
                                             )}
                                             {member.tags?.includes('inactive') && (
-                                                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-500/20 text-gray-400" title="Inactive">AFK</span>
+                                                <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-semibold rounded bg-gray-500/20 text-gray-400" title="Inactive">AFK</span>
                                             )}
                                             {member.tags?.includes('quit') && (
-                                                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-red-500/20 text-red-400" title="Quit">QUIT</span>
+                                                <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-semibold rounded bg-red-500/20 text-red-400" title="Quit">QUIT</span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3 text-right">
+                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
                                             {editingId === member.id ? (
                                                 <div className="flex items-center justify-end gap-1">
                                                     <input
@@ -1176,16 +1196,16 @@ export default function RosterPage() {
                                                         step="0.1"
                                                         value={editValues.powerM}
                                                         onChange={(e) => setEditValues({ ...editValues, powerM: e.target.value })}
-                                                        className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
+                                                        className={`w-16 sm:w-20 px-2 py-1 rounded border ${theme.input} text-right text-sm`}
                                                         placeholder="0.0"
                                                     />
                                                     <span className={`text-xs ${theme.textMuted}`}>M</span>
                                                 </div>
                                             ) : (
-                                                <span className="text-[#01b574]">{formatPower(member.power)}</span>
+                                                <span className="text-[#01b574] text-sm sm:text-base">{formatPower(member.power)}</span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3 text-right">
+                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
                                             {editingId === member.id ? (
                                                 <div className="flex items-center justify-end gap-1">
                                                     <input
@@ -1193,18 +1213,19 @@ export default function RosterPage() {
                                                         step="0.1"
                                                         value={editValues.killsM}
                                                         onChange={(e) => setEditValues({ ...editValues, killsM: e.target.value })}
-                                                        className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
+                                                        className={`w-16 sm:w-20 px-2 py-1 rounded border ${theme.input} text-right text-sm`}
                                                         placeholder="0.0"
                                                     />
                                                     <span className={`text-xs ${theme.textMuted}`}>M</span>
                                                 </div>
                                             ) : (
-                                                <span className={member.kills ? 'text-[#f56565]' : theme.textMuted}>
+                                                <span className={`text-sm sm:text-base ${member.kills ? 'text-[#f56565]' : theme.textMuted}`}>
                                                     {member.kills ? formatPower(member.kills) : '-'}
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3 text-right">
+                                        {/* T4/T5 - Hidden on mobile */}
+                                        <td className="px-4 py-3 text-right hidden md:table-cell">
                                             {editingId === member.id ? (
                                                 <div className="flex items-center justify-end gap-1">
                                                     <input
@@ -1224,7 +1245,8 @@ export default function RosterPage() {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3 text-right">
+                                        {/* Honor - Hidden on mobile */}
+                                        <td className="px-4 py-3 text-right hidden lg:table-cell">
                                             {editingId === member.id ? (
                                                 <input
                                                     type="number"
@@ -1239,7 +1261,8 @@ export default function RosterPage() {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3 text-center">
+                                        {/* AoO - Hidden on mobile */}
+                                        <td className="px-4 py-3 text-center hidden lg:table-cell">
                                             {(() => {
                                                 const stats = eventStats.get(member.name);
                                                 if (!stats || stats.aoo.totalAssigned === 0) {
@@ -1253,7 +1276,8 @@ export default function RosterPage() {
                                                 );
                                             })()}
                                         </td>
-                                        <td className="px-4 py-3 text-center">
+                                        {/* Mob - Hidden on mobile */}
+                                        <td className="px-4 py-3 text-center hidden lg:table-cell">
                                             {(() => {
                                                 const stats = eventStats.get(member.name);
                                                 if (!stats || stats.mobilization.lastScore === null) {
@@ -1273,7 +1297,7 @@ export default function RosterPage() {
                                                 );
                                             })()}
                                         </td>
-                                        <td className="px-4 py-3 text-center">
+                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
                                             {member.role && (
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                                     member.role === 'R5' ? 'bg-amber-500/20 text-amber-500' :
@@ -1367,27 +1391,27 @@ export default function RosterPage() {
                         ) : (
                             <>
                                 {/* Alliance Stats Overview - 2x2 Grid */}
-                                <div className="grid md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                     {/* Total Power Over Time */}
-                                    <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
-                                            <TrendingUp className="w-4 h-4 text-[#01b574]" />
-                                            Total Power
+                                    <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                        <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                            <TrendingUp className="w-3 sm:w-4 h-3 sm:h-4 text-[#01b574]" />
+                                            <span className="hidden sm:inline">Total</span> Power
                                         </h3>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1 sm:space-y-1.5">
                                             {dailyTotals.slice(-5).map((day) => {
                                                 const maxPower = Math.max(...dailyTotals.map(d => d.total_power));
                                                 const pct = (day.total_power / maxPower) * 100;
                                                 return (
-                                                    <div key={day.snapshot_date} className="flex items-center gap-2">
-                                                        <span className={`text-xs ${theme.textMuted} w-12`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                    <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#01b574] to-[#01b574]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-xs font-medium w-14 text-right">{formatPower(day.total_power)}</span>
+                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.total_power)}</span>
                                                     </div>
                                                 );
                                             })}
@@ -1395,25 +1419,25 @@ export default function RosterPage() {
                                     </div>
 
                                     {/* Total KP Over Time */}
-                                    <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
-                                            <TrendingUp className="w-4 h-4 text-[#f56565]" />
-                                            Total Kill Points
+                                    <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                        <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                            <TrendingUp className="w-3 sm:w-4 h-3 sm:h-4 text-[#f56565]" />
+                                            <span className="hidden sm:inline">Total</span> KP
                                         </h3>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1 sm:space-y-1.5">
                                             {dailyTotals.slice(-5).map((day) => {
                                                 const maxKills = Math.max(...dailyTotals.map(d => d.total_kills || 1));
                                                 const pct = ((day.total_kills || 0) / maxKills) * 100;
                                                 return (
-                                                    <div key={day.snapshot_date} className="flex items-center gap-2">
-                                                        <span className={`text-xs ${theme.textMuted} w-12`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                    <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#f56565] to-[#f56565]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-xs font-medium w-14 text-right">{formatPower(day.total_kills || 0)}</span>
+                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.total_kills || 0)}</span>
                                                     </div>
                                                 );
                                             })}
@@ -1421,25 +1445,25 @@ export default function RosterPage() {
                                     </div>
 
                                     {/* Total Honor Over Time */}
-                                    <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
-                                            <Trophy className="w-4 h-4 text-[#fbbf24]" />
-                                            Total Honor Points
+                                    <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                        <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                            <Trophy className="w-3 sm:w-4 h-3 sm:h-4 text-[#fbbf24]" />
+                                            Honor
                                         </h3>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1 sm:space-y-1.5">
                                             {dailyTotals.slice(-5).map((day) => {
                                                 const maxHonor = Math.max(...dailyTotals.map(d => d.total_honor || 1));
                                                 const pct = ((day.total_honor || 0) / maxHonor) * 100;
                                                 return (
-                                                    <div key={day.snapshot_date} className="flex items-center gap-2">
-                                                        <span className={`text-xs ${theme.textMuted} w-12`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                    <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#fbbf24] to-[#fbbf24]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-xs font-medium w-14 text-right">{formatPower(day.total_honor || 0)}</span>
+                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.total_honor || 0)}</span>
                                                     </div>
                                                 );
                                             })}
@@ -1447,25 +1471,25 @@ export default function RosterPage() {
                                     </div>
 
                                     {/* Member Count Over Time */}
-                                    <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
-                                            <Users className="w-4 h-4 text-[#9f7aea]" />
-                                            Member Count
+                                    <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                        <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                            <Users className="w-3 sm:w-4 h-3 sm:h-4 text-[#9f7aea]" />
+                                            Members
                                         </h3>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1 sm:space-y-1.5">
                                             {dailyTotals.slice(-5).map((day) => {
                                                 const maxMembers = Math.max(...dailyTotals.map(d => d.member_count || 1));
                                                 const pct = ((day.member_count || 0) / maxMembers) * 100;
                                                 return (
-                                                    <div key={day.snapshot_date} className="flex items-center gap-2">
-                                                        <span className={`text-xs ${theme.textMuted} w-12`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                    <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#9f7aea] to-[#9f7aea]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-xs font-medium w-14 text-right">{day.member_count}</span>
+                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{day.member_count}</span>
                                                     </div>
                                                 );
                                             })}
@@ -1505,21 +1529,22 @@ export default function RosterPage() {
                                     };
 
                                     return (
-                                        <div className={`${theme.card} border rounded-xl p-4`}>
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="font-semibold flex items-center gap-2">
+                                        <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                            <div className="flex items-center justify-between mb-2 sm:mb-4">
+                                                <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
                                                     <TrendingUp className="w-4 h-4 text-[#f56565]" />
-                                                    Kill Points Growth
+                                                    <span className="hidden sm:inline">Kill Points Growth</span>
+                                                    <span className="sm:hidden">KP Growth</span>
                                                 </h3>
                                                 <button
                                                     onClick={() => setShowAllKpGrowth(!showAllKpGrowth)}
-                                                    className={`text-xs ${theme.textMuted} hover:text-white transition-colors`}
+                                                    className={`text-[10px] sm:text-xs ${theme.textMuted} hover:text-white transition-colors`}
                                                 >
-                                                    {showAllKpGrowth ? 'Show Top 10' : `Show All (${sortedKpGrowth.length})`}
+                                                    {showAllKpGrowth ? 'Top 10' : `All (${sortedKpGrowth.length})`}
                                                 </button>
                                             </div>
-                                            <div className={`overflow-x-auto ${showAllKpGrowth ? 'max-h-[500px] overflow-y-auto' : ''}`}>
-                                                <table className="w-full text-sm">
+                                            <div className={`overflow-x-auto mobile-scroll ${showAllKpGrowth ? 'max-h-[500px] overflow-y-auto' : ''}`}>
+                                                <table className="w-full text-xs sm:text-sm min-w-[400px]">
                                                     <thead className="sticky top-0 bg-[var(--background-card)]">
                                                         <tr className="border-b border-[var(--border)]">
                                                             <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
@@ -2089,60 +2114,62 @@ export default function RosterPage() {
                             return (
                                 <>
                                     {/* Summary Cards */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className={`${theme.card} border rounded-xl p-4`}>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Users className="w-5 h-5 text-[#4318ff]" />
-                                                <span className={`text-sm ${theme.textMuted}`}>Active Members</span>
+                                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                                        <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                            <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                                                <Users className="w-4 sm:w-5 h-4 sm:h-5 text-[#4318ff]" />
+                                                <span className={`text-[10px] sm:text-sm ${theme.textMuted}`}>Active</span>
                                             </div>
-                                            <div className="text-2xl font-bold">{activeMembers}/{analyticsRoster.length}</div>
-                                            <div className={`text-xs ${theme.textMuted}`}>
-                                                {((activeMembers / analyticsRoster.length) * 100).toFixed(1)}% of {tagFilter ? 'filtered' : 'roster'} (score ≥30)
-                                            </div>
-                                        </div>
-                                        <div className={`${theme.card} border rounded-xl p-4`}>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Trophy className="w-5 h-5 text-[#01b574]" />
-                                                <span className={`text-sm ${theme.textMuted}`}>Avg AoO Rate</span>
-                                            </div>
-                                            <div className="text-2xl font-bold text-[#01b574]">{avgAoORate.toFixed(0)}%</div>
-                                            <div className={`text-xs ${theme.textMuted}`}>
-                                                across {membersWithAoO.length} assigned members
+                                            <div className="text-lg sm:text-2xl font-bold">{activeMembers}<span className="text-sm sm:text-base">/{analyticsRoster.length}</span></div>
+                                            <div className={`text-[10px] sm:text-xs ${theme.textMuted} hidden sm:block`}>
+                                                {((activeMembers / analyticsRoster.length) * 100).toFixed(1)}% of {tagFilter ? 'filtered' : 'roster'}
                                             </div>
                                         </div>
-                                        <div className={`${theme.card} border rounded-xl p-4`}>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <TrendingUp className="w-5 h-5 text-[#9f7aea]" />
-                                                <span className={`text-sm ${theme.textMuted}`}>Avg Mob Score</span>
+                                        <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                            <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                                                <Trophy className="w-4 sm:w-5 h-4 sm:h-5 text-[#01b574]" />
+                                                <span className={`text-[10px] sm:text-sm ${theme.textMuted}`}>AoO</span>
                                             </div>
-                                            <div className="text-2xl font-bold text-[#9f7aea]">{formatPower(avgMobScore)}</div>
-                                            <div className={`text-xs ${theme.textMuted}`}>
-                                                per participating member
+                                            <div className="text-lg sm:text-2xl font-bold text-[#01b574]">{avgAoORate.toFixed(0)}%</div>
+                                            <div className={`text-[10px] sm:text-xs ${theme.textMuted} hidden sm:block`}>
+                                                {membersWithAoO.length} members
+                                            </div>
+                                        </div>
+                                        <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                            <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                                                <TrendingUp className="w-4 sm:w-5 h-4 sm:h-5 text-[#9f7aea]" />
+                                                <span className={`text-[10px] sm:text-sm ${theme.textMuted}`}>Mob</span>
+                                            </div>
+                                            <div className="text-lg sm:text-2xl font-bold text-[#9f7aea]">{formatPower(avgMobScore)}</div>
+                                            <div className={`text-[10px] sm:text-xs ${theme.textMuted} hidden sm:block`}>
+                                                avg score
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Score Calculation Explanation */}
-                                    <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-3 flex items-center justify-between">
+                                    <div className={`${theme.card} border rounded-xl p-3 sm:p-4`}>
+                                        <h3 className="font-semibold mb-2 sm:mb-3 flex items-center justify-between text-sm sm:text-base">
                                             <span className="flex items-center gap-2">
                                                 <BarChart3 className="w-4 h-4 text-[#9f7aea]" />
-                                                How Activity Score is Calculated
+                                                <span className="hidden sm:inline">How Activity Score is Calculated</span>
+                                                <span className="sm:hidden">Activity Score</span>
                                                 {isEditor && (
-                                                    <span className="text-xs font-normal text-[#9f7aea] ml-2">(Editing weights)</span>
+                                                    <span className="text-[10px] sm:text-xs font-normal text-[#9f7aea] ml-1 sm:ml-2">(Editing)</span>
                                                 )}
                                             </span>
                                             {!isEditor && (
                                                 <button
                                                     onClick={() => setShowPasswordPrompt(true)}
-                                                    className={`text-xs font-normal ${theme.textMuted} hover:text-[#9f7aea] transition-colors flex items-center gap-1`}
+                                                    className={`text-[10px] sm:text-xs font-normal ${theme.textMuted} hover:text-[#9f7aea] transition-colors flex items-center gap-1`}
                                                 >
                                                     <Edit2 className="w-3 h-3" />
-                                                    Adjust weights
+                                                    <span className="hidden sm:inline">Adjust weights</span>
+                                                    <span className="sm:hidden">Edit</span>
                                                 </button>
                                             )}
                                         </h3>
-                                        <p className={`text-sm ${theme.textMuted} mb-3`}>
+                                        <p className={`text-xs sm:text-sm ${theme.textMuted} mb-2 sm:mb-3 hidden sm:block`}>
                                             The activity score (0-100) combines multiple metrics to measure overall engagement:
                                             {isEditor && (
                                                 <span className={`block mt-1 text-xs ${
@@ -2155,10 +2182,10 @@ export default function RosterPage() {
                                                 </span>
                                             )}
                                         </p>
-                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                        <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
+                                            <div className="p-1.5 sm:p-3 rounded-lg bg-[var(--background-secondary)]">
                                                 {isEditor ? (
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center justify-center gap-0.5">
                                                         <input
                                                             type="number"
                                                             min="0"
@@ -2168,19 +2195,18 @@ export default function RosterPage() {
                                                                 ...prev,
                                                                 kp: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
                                                             }))}
-                                                            className="w-14 text-lg font-bold text-[#f56565] bg-transparent border border-[#f56565]/30 rounded px-1 text-center"
+                                                            className="w-8 sm:w-14 text-sm sm:text-lg font-bold text-[#f56565] bg-transparent border border-[#f56565]/30 rounded px-0.5 sm:px-1 text-center"
                                                         />
-                                                        <span className="text-lg font-bold text-[#f56565]">%</span>
+                                                        <span className="text-sm sm:text-lg font-bold text-[#f56565]">%</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="text-lg font-bold text-[#f56565]">{activityWeights.kp}%</div>
+                                                    <div className="text-sm sm:text-lg font-bold text-[#f56565] text-center">{activityWeights.kp}%</div>
                                                 )}
-                                                <div className={`text-xs ${theme.textMuted}`}>Kill Points</div>
-                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
+                                                <div className={`text-[9px] sm:text-xs ${theme.textMuted} text-center`}>KP</div>
                                             </div>
-                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                            <div className="p-1.5 sm:p-3 rounded-lg bg-[var(--background-secondary)]">
                                                 {isEditor ? (
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center justify-center gap-0.5">
                                                         <input
                                                             type="number"
                                                             min="0"
@@ -2190,19 +2216,18 @@ export default function RosterPage() {
                                                                 ...prev,
                                                                 power: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
                                                             }))}
-                                                            className="w-14 text-lg font-bold text-[#4318ff] bg-transparent border border-[#4318ff]/30 rounded px-1 text-center"
+                                                            className="w-8 sm:w-14 text-sm sm:text-lg font-bold text-[#4318ff] bg-transparent border border-[#4318ff]/30 rounded px-0.5 sm:px-1 text-center"
                                                         />
-                                                        <span className="text-lg font-bold text-[#4318ff]">%</span>
+                                                        <span className="text-sm sm:text-lg font-bold text-[#4318ff]">%</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="text-lg font-bold text-[#4318ff]">{activityWeights.power}%</div>
+                                                    <div className="text-sm sm:text-lg font-bold text-[#4318ff] text-center">{activityWeights.power}%</div>
                                                 )}
-                                                <div className={`text-xs ${theme.textMuted}`}>Power Level</div>
-                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
+                                                <div className={`text-[9px] sm:text-xs ${theme.textMuted} text-center`}>Power</div>
                                             </div>
-                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                            <div className="p-1.5 sm:p-3 rounded-lg bg-[var(--background-secondary)]">
                                                 {isEditor ? (
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center justify-center gap-0.5">
                                                         <input
                                                             type="number"
                                                             min="0"
@@ -2212,19 +2237,18 @@ export default function RosterPage() {
                                                                 ...prev,
                                                                 honor: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
                                                             }))}
-                                                            className="w-14 text-lg font-bold text-[#f6ad55] bg-transparent border border-[#f6ad55]/30 rounded px-1 text-center"
+                                                            className="w-8 sm:w-14 text-sm sm:text-lg font-bold text-[#f6ad55] bg-transparent border border-[#f6ad55]/30 rounded px-0.5 sm:px-1 text-center"
                                                         />
-                                                        <span className="text-lg font-bold text-[#f6ad55]">%</span>
+                                                        <span className="text-sm sm:text-lg font-bold text-[#f6ad55]">%</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="text-lg font-bold text-[#f6ad55]">{activityWeights.honor}%</div>
+                                                    <div className="text-sm sm:text-lg font-bold text-[#f6ad55] text-center">{activityWeights.honor}%</div>
                                                 )}
-                                                <div className={`text-xs ${theme.textMuted}`}>Honor Points</div>
-                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
+                                                <div className={`text-[9px] sm:text-xs ${theme.textMuted} text-center`}>Honor</div>
                                             </div>
-                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                            <div className="p-1.5 sm:p-3 rounded-lg bg-[var(--background-secondary)]">
                                                 {isEditor ? (
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center justify-center gap-0.5">
                                                         <input
                                                             type="number"
                                                             min="0"
@@ -2234,19 +2258,18 @@ export default function RosterPage() {
                                                                 ...prev,
                                                                 aoo: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
                                                             }))}
-                                                            className="w-14 text-lg font-bold text-[#01b574] bg-transparent border border-[#01b574]/30 rounded px-1 text-center"
+                                                            className="w-8 sm:w-14 text-sm sm:text-lg font-bold text-[#01b574] bg-transparent border border-[#01b574]/30 rounded px-0.5 sm:px-1 text-center"
                                                         />
-                                                        <span className="text-lg font-bold text-[#01b574]">%</span>
+                                                        <span className="text-sm sm:text-lg font-bold text-[#01b574]">%</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="text-lg font-bold text-[#01b574]">{activityWeights.aoo}%</div>
+                                                    <div className="text-sm sm:text-lg font-bold text-[#01b574] text-center">{activityWeights.aoo}%</div>
                                                 )}
-                                                <div className={`text-xs ${theme.textMuted}`}>AoO Participation</div>
-                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>% of assigned events attended</div>
+                                                <div className={`text-[9px] sm:text-xs ${theme.textMuted} text-center`}>AoO</div>
                                             </div>
-                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                            <div className="p-1.5 sm:p-3 rounded-lg bg-[var(--background-secondary)]">
                                                 {isEditor ? (
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center justify-center gap-0.5">
                                                         <input
                                                             type="number"
                                                             min="0"
@@ -2256,26 +2279,26 @@ export default function RosterPage() {
                                                                 ...prev,
                                                                 mob: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
                                                             }))}
-                                                            className="w-14 text-lg font-bold text-[#9f7aea] bg-transparent border border-[#9f7aea]/30 rounded px-1 text-center"
+                                                            className="w-8 sm:w-14 text-sm sm:text-lg font-bold text-[#9f7aea] bg-transparent border border-[#9f7aea]/30 rounded px-0.5 sm:px-1 text-center"
                                                         />
-                                                        <span className="text-lg font-bold text-[#9f7aea]">%</span>
+                                                        <span className="text-sm sm:text-lg font-bold text-[#9f7aea]">%</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="text-lg font-bold text-[#9f7aea]">{activityWeights.mob}%</div>
+                                                    <div className="text-sm sm:text-lg font-bold text-[#9f7aea] text-center">{activityWeights.mob}%</div>
                                                 )}
-                                                <div className={`text-xs ${theme.textMuted}`}>Mobilization Score</div>
-                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
+                                                <div className={`text-[9px] sm:text-xs ${theme.textMuted} text-center`}>Mob</div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Activity Leaderboard with Stacked Bars */}
-                                    <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-2 flex items-center gap-2">
+                                    <div className={`${theme.card} border rounded-xl p-3 sm:p-4`}>
+                                        <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm sm:text-base">
                                             <BarChart3 className="w-4 h-4 text-[#4318ff]" />
-                                            Activity Leaderboard (Top 20)
+                                            <span className="hidden sm:inline">Activity Leaderboard (Top 20)</span>
+                                            <span className="sm:hidden">Top 20</span>
                                         </h3>
-                                        <div className={`text-xs ${theme.textMuted} mb-4 flex items-center gap-4 flex-wrap`}>
+                                        <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-3 sm:mb-4 flex items-center gap-2 sm:gap-4 flex-wrap`}>
                                             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{backgroundColor: '#f56565'}}></span> KP</span>
                                             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{backgroundColor: '#4318ff'}}></span> Power</span>
                                             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{backgroundColor: '#f6ad55'}}></span> Honor</span>
@@ -2327,20 +2350,20 @@ export default function RosterPage() {
                                                             }
                                                         }}
                                                     >
-                                                        <span className={`text-xs ${theme.textMuted} w-6 text-right`}>{idx + 1}.</span>
-                                                        <span className="w-40 truncate text-sm font-medium">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-5 sm:w-6 text-right`}>{idx + 1}.</span>
+                                                        <span className="w-20 sm:w-40 truncate text-xs sm:text-sm font-medium">
                                                             {member.name}
                                                             {member.tags?.includes('angmar-og') && (
-                                                                <span className="ml-1 px-1 py-0.5 text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                                <span className="ml-0.5 sm:ml-1 px-0.5 sm:px-1 py-0.5 text-[6px] sm:text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400 hidden sm:inline">ANG</span>
                                                             )}
                                                             {member.tags?.includes('inactive') && (
-                                                                <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-gray-500/20 text-gray-400">AFK</span>
+                                                                <span className="ml-0.5 px-0.5 sm:px-1 py-0.5 text-[6px] sm:text-[8px] font-semibold rounded bg-gray-500/20 text-gray-400 hidden sm:inline">AFK</span>
                                                             )}
                                                             {member.tags?.includes('quit') && (
-                                                                <span className="ml-0.5 px-1 py-0.5 text-[8px] font-semibold rounded bg-red-500/20 text-red-400">QUIT</span>
+                                                                <span className="ml-0.5 px-0.5 sm:px-1 py-0.5 text-[6px] sm:text-[8px] font-semibold rounded bg-red-500/20 text-red-400 hidden sm:inline">QUIT</span>
                                                             )}
                                                         </span>
-                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden flex">
+                                                        <div className="flex-1 h-4 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden flex">
                                                             {/* Stacked bar segments */}
                                                             <div
                                                                 className="h-full transition-all"
@@ -2363,7 +2386,7 @@ export default function RosterPage() {
                                                                 style={{ width: `${mobContrib}%`, backgroundColor: '#9f7aea' }}
                                                             />
                                                         </div>
-                                                        <span className={`text-sm font-medium w-8 text-right ${
+                                                        <span className={`text-xs sm:text-sm font-medium w-6 sm:w-8 text-right ${
                                                             member.score >= 70 ? 'text-[#01b574]' :
                                                                 member.score >= 40 ? 'text-[#fbbf24]' : 'text-[#f56565]'
                                                         }`}>{member.score}</span>
@@ -2808,9 +2831,10 @@ export default function RosterPage() {
                 if (!member || !rankings) return null;
 
                 const isPinned = pinnedMember === activeMember;
+                const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
-                // Adjust position to stay on screen
-                const cardWidth = 320;
+                // Adjust position to stay on screen - center on mobile
+                const cardWidth = isMobile ? 280 : 320;
                 const cardHeight = 350;
                 let x = isPinned ? pinnedPosition.x : hoverPosition.x;
                 let y = isPinned ? pinnedPosition.y : hoverPosition.y;
@@ -2847,16 +2871,33 @@ export default function RosterPage() {
                         }}
                         onMouseUp={() => setIsDragging(false)}
                         onMouseLeave={() => setIsDragging(false)}
+                        onTouchStart={(e) => {
+                            if (isPinned && e.touches.length === 1) {
+                                const touch = e.touches[0];
+                                setIsDragging(true);
+                                setDragOffset({ x: touch.clientX - x, y: touch.clientY - y });
+                            }
+                        }}
+                        onTouchMove={(e) => {
+                            if (isDragging && isPinned && e.touches.length === 1) {
+                                const touch = e.touches[0];
+                                setPinnedPosition({
+                                    x: touch.clientX - dragOffset.x,
+                                    y: touch.clientY - dragOffset.y
+                                });
+                            }
+                        }}
+                        onTouchEnd={() => setIsDragging(false)}
                     >
-                        <div className={`${theme.card} border ${isPinned ? 'border-[#9f7aea]' : 'border-[#9f7aea]/30'} rounded-xl p-4 shadow-2xl shadow-[#9f7aea]/10 w-80`}>
+                        <div className={`${theme.card} border ${isPinned ? 'border-[#9f7aea]' : 'border-[#9f7aea]/30'} rounded-xl p-3 sm:p-4 shadow-2xl shadow-[#9f7aea]/10 w-[280px] sm:w-80`}>
                             {/* Header */}
-                            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--border)]">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#9f7aea] to-[#4318ff] flex items-center justify-center text-white font-bold">
+                            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-[var(--border)]">
+                                <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-gradient-to-br from-[#9f7aea] to-[#4318ff] flex items-center justify-center text-white font-bold text-sm sm:text-base">
                                     {member.name.charAt(0).toUpperCase()}
                                 </div>
-                                <div className="flex-1">
-                                    <h3 className="font-semibold text-lg">{member.name}</h3>
-                                    <p className={`text-xs ${theme.textMuted}`}>{member.role || 'Member'}</p>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-semibold text-sm sm:text-lg truncate">{member.name}</h3>
+                                    <p className={`text-[10px] sm:text-xs ${theme.textMuted}`}>{member.role || 'Member'}</p>
                                 </div>
                                 {isPinned && (
                                     <button
@@ -2864,7 +2905,7 @@ export default function RosterPage() {
                                             e.stopPropagation();
                                             setPinnedMember(null);
                                         }}
-                                        className="p-1 rounded hover:bg-[var(--background-secondary)] transition-colors"
+                                        className="p-1.5 rounded hover:bg-[var(--background-secondary)] active:bg-[var(--background-secondary)] transition-colors"
                                         title="Close"
                                     >
                                         <X className="w-4 h-4" />
@@ -2872,32 +2913,32 @@ export default function RosterPage() {
                                 )}
                             </div>
                             {isPinned && (
-                                <div className={`text-[10px] ${theme.textMuted} mb-2 -mt-2 flex items-center gap-1`}>
-                                    <Lock className="w-3 h-3" /> Pinned - drag to move
+                                <div className={`text-[10px] ${theme.textMuted} mb-2 -mt-1 sm:-mt-2 flex items-center gap-1`}>
+                                    <Lock className="w-3 h-3" /> <span className="hidden sm:inline">Pinned - drag to move</span><span className="sm:hidden">Tap ✕ to close</span>
                                 </div>
                             )}
 
                             {/* Stats Grid */}
-                            <div className="grid grid-cols-2 gap-3 mb-4">
-                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
-                                    <div className={`text-xs ${theme.textMuted} mb-1`}>Power</div>
-                                    <div className="text-[#01b574] font-semibold">{formatPower(member.power)}</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.powerRank} of {roster.length}</div>
+                            <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
+                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
+                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>Power</div>
+                                    <div className="text-[#01b574] font-semibold text-sm sm:text-base">{formatPower(member.power)}</div>
+                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.powerRank}</div>
                                 </div>
-                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
-                                    <div className={`text-xs ${theme.textMuted} mb-1`}>Kill Points</div>
-                                    <div className="text-[#f56565] font-semibold">{formatPower(member.kills || 0)}</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.kpRank} of {roster.length}</div>
+                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
+                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>Kill Points</div>
+                                    <div className="text-[#f56565] font-semibold text-sm sm:text-base">{formatPower(member.kills || 0)}</div>
+                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.kpRank}</div>
                                 </div>
-                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
-                                    <div className={`text-xs ${theme.textMuted} mb-1`}>T4 KP</div>
-                                    <div className="text-[#fbbf24] font-semibold">{formatPower(member.t4_kills || 0)}</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.t4Rank}</div>
+                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
+                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>T4 KP</div>
+                                    <div className="text-[#fbbf24] font-semibold text-sm sm:text-base">{formatPower(member.t4_kills || 0)}</div>
+                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.t4Rank}</div>
                                 </div>
-                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
-                                    <div className={`text-xs ${theme.textMuted} mb-1`}>T5 KP</div>
-                                    <div className="text-[#f97316] font-semibold">{formatPower(member.t5_kills || 0)}</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.t5Rank}</div>
+                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
+                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>T5 KP</div>
+                                    <div className="text-[#f97316] font-semibold text-sm sm:text-base">{formatPower(member.t5_kills || 0)}</div>
+                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.t5Rank}</div>
                                 </div>
                             </div>
 
