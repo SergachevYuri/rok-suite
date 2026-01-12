@@ -170,6 +170,9 @@ export default function RosterPage() {
     // Activity score weights (must sum to 100)
     const [activityWeights, setActivityWeights] = useState({ kp: 50, power: 30, aoo: 10, mob: 10 });
 
+    // Mobilization growth expanded state
+    const [showAllGrowth, setShowAllGrowth] = useState(false);
+
     // History data from hook
     const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
 
@@ -1196,78 +1199,49 @@ export default function RosterPage() {
                                     if (membersWithGrowth.length === 0) return null;
 
                                     const maxGrowth = Math.max(...membersWithGrowth.map(m => Math.abs(m.growth ?? 0)), 1);
-                                    const topGrowers = membersWithGrowth.slice(0, 10);
-                                    const bottomGrowers = membersWithGrowth.slice(-5).reverse();
+                                    const displayMembers = showAllGrowth ? membersWithGrowth : membersWithGrowth.slice(0, 10);
                                     const dateRange = membersWithGrowth[0]?.previousDate && membersWithGrowth[0]?.lastDate
                                         ? `${formatDate(membersWithGrowth[0].previousDate)} → ${formatDate(membersWithGrowth[0].lastDate)}`
                                         : '';
 
                                     return (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            {/* Top Growers */}
-                                            <div className={`${theme.card} border rounded-xl p-4`}>
-                                                <h3 className="font-semibold mb-1 flex items-center gap-2">
+                                        <div className={`${theme.card} border rounded-xl p-4`}>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <h3 className="font-semibold flex items-center gap-2">
                                                     <TrendingUp className="w-4 h-4 text-green-400" />
-                                                    Top Mobilization Growth
+                                                    Mobilization Growth
                                                 </h3>
-                                                {dateRange && (
-                                                    <p className={`text-xs ${theme.textMuted} mb-4`}>{dateRange}</p>
-                                                )}
-                                                <div className="space-y-2">
-                                                    {topGrowers.map((member, idx) => (
-                                                        <div key={member.name} className="flex items-center gap-2">
-                                                            <span className={`text-xs ${theme.textMuted} w-5`}>{idx + 1}.</span>
-                                                            <span className="text-sm font-medium flex-1 truncate">{member.name}</span>
-                                                            <div className="w-20 h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
-                                                                <div
-                                                                    className="h-full rounded bg-green-400"
-                                                                    style={{
-                                                                        width: `${(Math.abs(member.growth ?? 0) / maxGrowth) * 100}%`,
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-sm font-medium text-green-400 w-16 text-right">
-                                                                +{formatPower(member.growth ?? 0)}
-                                                            </span>
-                                                            <span className="text-xs text-green-400 w-12 text-right">
-                                                                +{member.growthPercent}%
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                                <button
+                                                    onClick={() => setShowAllGrowth(!showAllGrowth)}
+                                                    className={`text-xs ${theme.textMuted} hover:text-white transition-colors`}
+                                                >
+                                                    {showAllGrowth ? 'Show Top 10' : `Show All (${membersWithGrowth.length})`}
+                                                </button>
                                             </div>
-
-                                            {/* Lowest Growth */}
-                                            <div className={`${theme.card} border rounded-xl p-4`}>
-                                                <h3 className="font-semibold mb-1 flex items-center gap-2">
-                                                    <TrendingUp className="w-4 h-4 text-orange-400 rotate-180" />
-                                                    Lowest Mobilization Growth
-                                                </h3>
-                                                {dateRange && (
-                                                    <p className={`text-xs ${theme.textMuted} mb-4`}>{dateRange}</p>
-                                                )}
-                                                <div className="space-y-2">
-                                                    {bottomGrowers.map((member, idx) => (
-                                                        <div key={member.name} className="flex items-center gap-2">
-                                                            <span className={`text-xs ${theme.textMuted} w-5`}>{membersWithGrowth.length - 4 + idx}.</span>
-                                                            <span className="text-sm font-medium flex-1 truncate">{member.name}</span>
-                                                            <div className="w-20 h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
-                                                                <div
-                                                                    className={`h-full rounded ${(member.growth ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'}`}
-                                                                    style={{
-                                                                        width: `${(Math.abs(member.growth ?? 0) / maxGrowth) * 100}%`,
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                            <span className={`text-sm font-medium w-16 text-right ${(member.growth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                {(member.growth ?? 0) >= 0 ? '+' : ''}{formatPower(member.growth ?? 0)}
-                                                            </span>
-                                                            <span className={`text-xs w-12 text-right ${(member.growthPercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                {(member.growthPercent ?? 0) >= 0 ? '+' : ''}{member.growthPercent}%
-                                                            </span>
+                                            {dateRange && (
+                                                <p className={`text-xs ${theme.textMuted} mb-4`}>{dateRange}</p>
+                                            )}
+                                            <div className={`space-y-2 ${showAllGrowth ? 'max-h-96 overflow-y-auto pr-2' : ''}`}>
+                                                {displayMembers.map((member, idx) => (
+                                                    <div key={member.name} className="flex items-center gap-2">
+                                                        <span className={`text-xs ${theme.textMuted} w-6`}>{idx + 1}.</span>
+                                                        <span className="text-sm font-medium flex-1 truncate">{member.name}</span>
+                                                        <div className="w-24 h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded ${(member.growth ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'}`}
+                                                                style={{
+                                                                    width: `${(Math.abs(member.growth ?? 0) / maxGrowth) * 100}%`,
+                                                                }}
+                                                            />
                                                         </div>
-                                                    ))}
-                                                </div>
+                                                        <span className={`text-sm font-medium w-16 text-right ${(member.growth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                            {(member.growth ?? 0) >= 0 ? '+' : ''}{formatPower(member.growth ?? 0)}
+                                                        </span>
+                                                        <span className={`text-xs w-12 text-right ${(member.growthPercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                            {(member.growthPercent ?? 0) >= 0 ? '+' : ''}{member.growthPercent}%
+                                                        </span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     );
