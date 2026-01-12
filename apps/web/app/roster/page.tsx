@@ -196,6 +196,11 @@ export default function RosterPage() {
     // Hover card state
     const [hoveredMember, setHoveredMember] = useState<string | null>(null);
     const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const [pinnedMember, setPinnedMember] = useState<string | null>(null);
+    const [pinnedPosition, setPinnedPosition] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const memberHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Analytics chart hover state
     const [hoveredBucket, setHoveredBucket] = useState<{ type: 'aoo' | 'mob'; label: string } | null>(null);
@@ -1112,11 +1117,31 @@ export default function RosterPage() {
                                             <span
                                                 className="font-medium cursor-pointer hover:text-[#9f7aea] transition-colors"
                                                 onMouseEnter={(e) => {
-                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                    setHoverPosition({ x: rect.right + 10, y: rect.top });
+                                                    if (memberHoverTimeoutRef.current) {
+                                                        clearTimeout(memberHoverTimeoutRef.current);
+                                                        memberHoverTimeoutRef.current = null;
+                                                    }
+                                                    setHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
                                                     setHoveredMember(member.name);
                                                 }}
-                                                onMouseLeave={() => setHoveredMember(null)}
+                                                onMouseMove={(e) => {
+                                                    if (hoveredMember === member.name && !pinnedMember) {
+                                                        setHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
+                                                    }
+                                                }}
+                                                onMouseLeave={() => {
+                                                    memberHoverTimeoutRef.current = setTimeout(() => {
+                                                        setHoveredMember(null);
+                                                    }, 100);
+                                                }}
+                                                onClick={() => {
+                                                    if (pinnedMember === member.name) {
+                                                        setPinnedMember(null);
+                                                    } else {
+                                                        setPinnedMember(member.name);
+                                                        setPinnedPosition({ x: hoverPosition.x, y: hoverPosition.y });
+                                                    }
+                                                }}
                                             >
                                                 {member.name}
                                             </span>
@@ -2578,43 +2603,82 @@ export default function RosterPage() {
             </div>
 
             {/* Member Hover Card */}
-            {hoveredMember && (() => {
-                const member = roster.find(m => m.name === hoveredMember);
-                const rankings = memberRankings.get(hoveredMember);
-                const stats = eventStats.get(hoveredMember);
+            {(hoveredMember || pinnedMember) && (() => {
+                const activeMember = pinnedMember || hoveredMember;
+                const member = roster.find(m => m.name === activeMember);
+                const rankings = memberRankings.get(activeMember!);
+                const stats = eventStats.get(activeMember!);
                 if (!member || !rankings) return null;
+
+                const isPinned = pinnedMember === activeMember;
 
                 // Adjust position to stay on screen
                 const cardWidth = 320;
                 const cardHeight = 350;
-                let x = hoverPosition.x;
-                let y = hoverPosition.y;
+                let x = isPinned ? pinnedPosition.x : hoverPosition.x;
+                let y = isPinned ? pinnedPosition.y : hoverPosition.y;
 
-                // Keep card within viewport
-                if (x + cardWidth > window.innerWidth) {
-                    x = hoverPosition.x - cardWidth - 20;
+                // Keep card within viewport (only for non-pinned)
+                if (!isPinned) {
+                    if (x + cardWidth > window.innerWidth) {
+                        x = Math.max(10, window.innerWidth - cardWidth - 10);
+                    }
+                    if (y + cardHeight > window.innerHeight) {
+                        y = Math.max(10, window.innerHeight - cardHeight - 10);
+                    }
+                    if (y < 10) y = 10;
+                    if (x < 10) x = 10;
                 }
-                if (y + cardHeight > window.innerHeight) {
-                    y = window.innerHeight - cardHeight - 20;
-                }
-                if (y < 10) y = 10;
 
                 return (
                     <div
-                        className="fixed z-50 pointer-events-none"
+                        className={`fixed z-[99999] ${isPinned ? 'cursor-move' : 'pointer-events-none'}`}
                         style={{ left: x, top: y }}
+                        onMouseDown={(e) => {
+                            if (isPinned) {
+                                setIsDragging(true);
+                                setDragOffset({ x: e.clientX - x, y: e.clientY - y });
+                            }
+                        }}
+                        onMouseMove={(e) => {
+                            if (isDragging && isPinned) {
+                                setPinnedPosition({
+                                    x: e.clientX - dragOffset.x,
+                                    y: e.clientY - dragOffset.y
+                                });
+                            }
+                        }}
+                        onMouseUp={() => setIsDragging(false)}
+                        onMouseLeave={() => setIsDragging(false)}
                     >
-                        <div className={`${theme.card} border border-[#9f7aea]/30 rounded-xl p-4 shadow-2xl shadow-[#9f7aea]/10 w-80`}>
+                        <div className={`${theme.card} border ${isPinned ? 'border-[#9f7aea]' : 'border-[#9f7aea]/30'} rounded-xl p-4 shadow-2xl shadow-[#9f7aea]/10 w-80`}>
                             {/* Header */}
                             <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--border)]">
                                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#9f7aea] to-[#4318ff] flex items-center justify-center text-white font-bold">
                                     {member.name.charAt(0).toUpperCase()}
                                 </div>
-                                <div>
+                                <div className="flex-1">
                                     <h3 className="font-semibold text-lg">{member.name}</h3>
                                     <p className={`text-xs ${theme.textMuted}`}>{member.role || 'Member'}</p>
                                 </div>
+                                {isPinned && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPinnedMember(null);
+                                        }}
+                                        className="p-1 rounded hover:bg-[var(--background-secondary)] transition-colors"
+                                        title="Close"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
                             </div>
+                            {isPinned && (
+                                <div className={`text-[10px] ${theme.textMuted} mb-2 -mt-2 flex items-center gap-1`}>
+                                    <Lock className="w-3 h-3" /> Pinned - drag to move
+                                </div>
+                            )}
 
                             {/* Stats Grid */}
                             <div className="grid grid-cols-2 gap-3 mb-4">
