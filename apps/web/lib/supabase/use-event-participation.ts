@@ -28,6 +28,10 @@ export interface MemberEventStats {
     lastTurnedIn: number | null;
     lastAccepted: number | null;
     lastDate: string | null;
+    previousScore: number | null;
+    previousDate: string | null;
+    growth: number | null;  // Absolute change from previous
+    growthPercent: number | null;  // Percentage change from previous
     totalEvents: number;
   };
 }
@@ -252,6 +256,10 @@ function getEmptyStats(): MemberEventStats {
       lastTurnedIn: null,
       lastAccepted: null,
       lastDate: null,
+      previousScore: null,
+      previousDate: null,
+      growth: null,
+      growthPercent: null,
       totalEvents: 0,
     },
   };
@@ -285,6 +293,20 @@ function calculateStats(events: EventParticipation[]): MemberEventStats {
     stats.mobilization.lastAccepted = mobEvents[0].accepted;
     stats.mobilization.lastDate = mobEvents[0].event_date;
     stats.mobilization.totalEvents = mobEvents.length;
+
+    // Calculate growth from previous event (if exists)
+    if (mobEvents.length > 1) {
+      stats.mobilization.previousScore = mobEvents[1].score;
+      stats.mobilization.previousDate = mobEvents[1].event_date;
+      if (mobEvents[0].score !== null && mobEvents[1].score !== null) {
+        stats.mobilization.growth = mobEvents[0].score - mobEvents[1].score;
+        if (mobEvents[1].score > 0) {
+          stats.mobilization.growthPercent = Math.round(
+            ((mobEvents[0].score - mobEvents[1].score) / mobEvents[1].score) * 100
+          );
+        }
+      }
+    }
   }
 
   return stats;
