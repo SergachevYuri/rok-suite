@@ -1178,7 +1178,7 @@ export default function RosterPage() {
                                     </div>
                                 </div>
 
-                                {/* Mobilization Growth */}
+                                {/* Alliance Mobilization Event Growth */}
                                 {(() => {
                                     const membersWithGrowth = roster
                                         .map(m => {
@@ -1189,6 +1189,8 @@ export default function RosterPage() {
                                                 growthPercent: stats?.mobilization.growthPercent ?? null,
                                                 lastScore: stats?.mobilization.lastScore ?? null,
                                                 previousScore: stats?.mobilization.previousScore ?? null,
+                                                lastTurnedIn: stats?.mobilization.lastTurnedIn ?? null,
+                                                lastAccepted: stats?.mobilization.lastAccepted ?? null,
                                                 lastDate: stats?.mobilization.lastDate ?? null,
                                                 previousDate: stats?.mobilization.previousDate ?? null,
                                             };
@@ -1198,18 +1200,16 @@ export default function RosterPage() {
 
                                     if (membersWithGrowth.length === 0) return null;
 
-                                    const maxGrowth = Math.max(...membersWithGrowth.map(m => Math.abs(m.growth ?? 0)), 1);
                                     const displayMembers = showAllGrowth ? membersWithGrowth : membersWithGrowth.slice(0, 10);
-                                    const dateRange = membersWithGrowth[0]?.previousDate && membersWithGrowth[0]?.lastDate
-                                        ? `${formatDate(membersWithGrowth[0].previousDate)} → ${formatDate(membersWithGrowth[0].lastDate)}`
-                                        : '';
+                                    const date1 = membersWithGrowth[0]?.previousDate ? formatDate(membersWithGrowth[0].previousDate) : 'T1';
+                                    const date2 = membersWithGrowth[0]?.lastDate ? formatDate(membersWithGrowth[0].lastDate) : 'T2';
 
                                     return (
                                         <div className={`${theme.card} border rounded-xl p-4`}>
-                                            <div className="flex items-center justify-between mb-1">
+                                            <div className="flex items-center justify-between mb-4">
                                                 <h3 className="font-semibold flex items-center gap-2">
                                                     <TrendingUp className="w-4 h-4 text-green-400" />
-                                                    Mobilization Growth
+                                                    Alliance Mobilization Event Growth
                                                 </h3>
                                                 <button
                                                     onClick={() => setShowAllGrowth(!showAllGrowth)}
@@ -1218,30 +1218,50 @@ export default function RosterPage() {
                                                     {showAllGrowth ? 'Show Top 10' : `Show All (${membersWithGrowth.length})`}
                                                 </button>
                                             </div>
-                                            {dateRange && (
-                                                <p className={`text-xs ${theme.textMuted} mb-4`}>{dateRange}</p>
-                                            )}
-                                            <div className={`space-y-2 ${showAllGrowth ? 'max-h-96 overflow-y-auto pr-2' : ''}`}>
-                                                {displayMembers.map((member, idx) => (
-                                                    <div key={member.name} className="flex items-center gap-2">
-                                                        <span className={`text-xs ${theme.textMuted} w-6`}>{idx + 1}.</span>
-                                                        <span className="text-sm font-medium flex-1 truncate">{member.name}</span>
-                                                        <div className="w-24 h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
-                                                            <div
-                                                                className={`h-full rounded ${(member.growth ?? 0) >= 0 ? 'bg-green-400' : 'bg-red-400'}`}
-                                                                style={{
-                                                                    width: `${(Math.abs(member.growth ?? 0) / maxGrowth) * 100}%`,
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <span className={`text-sm font-medium w-16 text-right ${(member.growth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                            {(member.growth ?? 0) >= 0 ? '+' : ''}{formatPower(member.growth ?? 0)}
-                                                        </span>
-                                                        <span className={`text-xs w-12 text-right ${(member.growthPercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                            {(member.growthPercent ?? 0) >= 0 ? '+' : ''}{member.growthPercent}%
-                                                        </span>
-                                                    </div>
-                                                ))}
+                                            <div className={`overflow-x-auto ${showAllGrowth ? 'max-h-[500px] overflow-y-auto' : ''}`}>
+                                                <table className="w-full text-sm">
+                                                    <thead className="sticky top-0 bg-[var(--background-card)]">
+                                                        <tr className="border-b border-[var(--border)]">
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Name</th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <div>{date1}</div>
+                                                                <div className="text-[10px] font-normal">Score</div>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <div>{date2}</div>
+                                                                <div className="text-[10px] font-normal">Score (Tasks)</div>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Growth</th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>%</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {displayMembers.map((member, idx) => (
+                                                            <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
+                                                                <td className={`px-2 py-2 ${theme.textMuted}`}>{idx + 1}</td>
+                                                                <td className="px-2 py-2 font-medium">{member.name}</td>
+                                                                <td className="px-2 py-2 text-right text-[#9f7aea]">
+                                                                    {member.previousScore !== null ? formatPower(member.previousScore) : '-'}
+                                                                </td>
+                                                                <td className="px-2 py-2 text-right text-[#01b574]">
+                                                                    {member.lastScore !== null ? formatPower(member.lastScore) : '-'}
+                                                                    {member.lastTurnedIn !== null && member.lastAccepted !== null && (
+                                                                        <span className={`text-xs ${theme.textMuted} ml-1`}>
+                                                                            ({member.lastTurnedIn}/{member.lastAccepted})
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td className={`px-2 py-2 text-right font-medium ${(member.growth ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                    {(member.growth ?? 0) >= 0 ? '+' : ''}{formatPower(member.growth ?? 0)}
+                                                                </td>
+                                                                <td className={`px-2 py-2 text-right ${(member.growthPercent ?? 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                    {(member.growthPercent ?? 0) >= 0 ? '+' : ''}{member.growthPercent}%
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         </div>
                                     );
