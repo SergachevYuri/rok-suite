@@ -710,6 +710,41 @@ export default function RosterPage() {
                         )}
                     </div>
 
+                    {/* Tag Filter - Global */}
+                    {availableTags.length > 0 && (
+                        <div className="flex items-center gap-3 mt-4">
+                            <span className={`text-xs ${theme.textMuted}`}>Filter:</span>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => setTagFilter(null)}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                        !tagFilter
+                                            ? 'bg-[#4318ff] text-white'
+                                            : `${theme.button}`
+                                    }`}
+                                >
+                                    All ({roster.length})
+                                </button>
+                                {availableTags.map(tag => {
+                                    const count = roster.filter(m => m.tags?.includes(tag)).length;
+                                    return (
+                                        <button
+                                            key={tag}
+                                            onClick={() => setTagFilter(tag)}
+                                            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                                                tagFilter === tag
+                                                    ? 'bg-amber-500 text-black'
+                                                    : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                                            }`}
+                                        >
+                                            {tag === 'angmar-og' ? 'Angmar Core' : tag} ({count})
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Snapshot Status */}
                     {snapshotStatus && (
                         <div className="mt-2 px-3 py-2 rounded-lg bg-[#4318ff]/20 text-[#9f7aea] text-sm">
@@ -815,7 +850,7 @@ export default function RosterPage() {
                     </div>
                 </div>
 
-                {/* Search and Filter Controls */}
+                {/* Search and Sort Controls */}
                 <div className={`${theme.card} border rounded-xl p-4 mb-6`}>
                     <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
@@ -828,30 +863,13 @@ export default function RosterPage() {
                                 className={`w-full pl-10 pr-4 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
                             />
                         </div>
-                        {availableTags.length > 0 && (
-                            <select
-                                value={tagFilter || ''}
-                                onChange={(e) => setTagFilter(e.target.value || null)}
-                                className={`px-4 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
-                            >
-                                <option value="">All Members</option>
-                                {availableTags.map(tag => (
-                                    <option key={tag} value={tag}>
-                                        {tag === 'angmar-og' ? 'Angmar Core' : tag}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
-                        {(sortField !== 'default' || tagFilter) && (
+                        {sortField !== 'default' && (
                             <button
-                                onClick={() => {
-                                    resetToDefaultSort();
-                                    setTagFilter(null);
-                                }}
+                                onClick={resetToDefaultSort}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} whitespace-nowrap`}
-                                title="Reset filters and sort"
+                                title="Reset to default sort (Rank → Power → Name)"
                             >
-                                Reset
+                                Reset Sort
                             </button>
                         )}
                     </div>
@@ -970,6 +988,9 @@ export default function RosterPage() {
                                     >
                                         <td className="px-4 py-3">
                                             <span className="font-medium">{member.name}</span>
+                                            {member.tags?.includes('angmar-og') && (
+                                                <span className="ml-2 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-500/20 text-amber-400" title="Angmar Core">ANG</span>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <span className="text-[#01b574]">{formatPower(member.power)}</span>
@@ -1214,10 +1235,12 @@ export default function RosterPage() {
                                 {/* Alliance Mobilization Event Growth */}
                                 {(() => {
                                     const membersWithGrowth = roster
+                                        .filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)))
                                         .map(m => {
                                             const stats = eventStats.get(m.name);
                                             return {
                                                 name: m.name,
+                                                tags: m.tags,
                                                 growth: stats?.mobilization.growth ?? null,
                                                 growthPercent: stats?.mobilization.growthPercent ?? null,
                                                 lastScore: stats?.mobilization.lastScore ?? null,
@@ -1316,7 +1339,12 @@ export default function RosterPage() {
                                                         {displayMembers.map((member, idx) => (
                                                             <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
                                                                 <td className={`px-2 py-2 ${theme.textMuted}`}>{idx + 1}</td>
-                                                                <td className="px-2 py-2 font-medium">{member.name}</td>
+                                                                <td className="px-2 py-2 font-medium">
+                                                                    {member.name}
+                                                                    {member.tags?.includes('angmar-og') && (
+                                                                        <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                                    )}
+                                                                </td>
                                                                 <td className="px-2 py-2 text-right text-[#9f7aea]">
                                                                     {member.previousScore !== null ? formatPower(member.previousScore) : '-'}
                                                                 </td>
@@ -1573,14 +1601,17 @@ export default function RosterPage() {
                 {activeTab === 'analytics' && (
                     <div className="space-y-6">
                         {(() => {
+                            // Apply tag filter to roster for analytics
+                            const analyticsRoster = roster.filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)));
+
                             // Calculate activity scores
-                            const activityScores = calculateActivityScores(roster, eventStats, activityWeights);
+                            const activityScores = calculateActivityScores(analyticsRoster, eventStats, activityWeights);
                             const scoresArray = Array.from(activityScores.entries())
-                                .map(([name, data]) => ({ name, ...data }))
+                                .map(([name, data]) => ({ name, tags: analyticsRoster.find(m => m.name === name)?.tags, ...data }))
                                 .sort((a, b) => b.score - a.score);
 
                             // Summary statistics
-                            const membersWithAoO = roster.filter(m => {
+                            const membersWithAoO = analyticsRoster.filter(m => {
                                 const stats = eventStats.get(m.name);
                                 return stats?.aoo.totalAssigned && stats.aoo.totalAssigned > 0;
                             });
@@ -1591,7 +1622,7 @@ export default function RosterPage() {
                                 }, 0) / membersWithAoO.length
                                 : 0;
 
-                            const membersWithMob = roster.filter(m => {
+                            const membersWithMob = analyticsRoster.filter(m => {
                                 const stats = eventStats.get(m.name);
                                 return stats?.mobilization.lastScore && stats.mobilization.lastScore > 0;
                             });
@@ -1652,9 +1683,9 @@ export default function RosterPage() {
                                                 <Users className="w-5 h-5 text-[#4318ff]" />
                                                 <span className={`text-sm ${theme.textMuted}`}>Active Members</span>
                                             </div>
-                                            <div className="text-2xl font-bold">{activeMembers}/{roster.length}</div>
+                                            <div className="text-2xl font-bold">{activeMembers}/{analyticsRoster.length}</div>
                                             <div className={`text-xs ${theme.textMuted}`}>
-                                                {((activeMembers / roster.length) * 100).toFixed(1)}% of roster (score ≥30)
+                                                {((activeMembers / analyticsRoster.length) * 100).toFixed(1)}% of {tagFilter ? 'filtered' : 'roster'} (score ≥30)
                                             </div>
                                         </div>
                                         <div className={`${theme.card} border rounded-xl p-4`}>
@@ -1814,7 +1845,12 @@ export default function RosterPage() {
                                             {scoresArray.slice(0, 20).map((member, idx) => (
                                                 <div key={member.name} className="flex items-center gap-2">
                                                     <span className={`text-xs ${theme.textMuted} w-6 text-right`}>{idx + 1}.</span>
-                                                    <span className="w-28 truncate text-sm font-medium">{member.name}</span>
+                                                    <span className="w-32 truncate text-sm font-medium">
+                                                        {member.name}
+                                                        {member.tags?.includes('angmar-og') && (
+                                                            <span className="ml-1 px-1 py-0.5 text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                        )}
+                                                    </span>
                                                     <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                         <div
                                                             className="h-full rounded transition-all"
@@ -1924,7 +1960,12 @@ export default function RosterPage() {
                                                             const mobScore = stats?.mobilization.lastScore;
                                                             return (
                                                                 <tr key={member.name} className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
-                                                                    <td className="px-3 py-2 font-medium">{member.name}</td>
+                                                                    <td className="px-3 py-2 font-medium">
+                                                                        {member.name}
+                                                                        {member.tags?.includes('angmar-og') && (
+                                                                            <span className="ml-1 px-1 py-0.5 text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                                        )}
+                                                                    </td>
                                                                     <td className="px-3 py-2 text-center">
                                                                         {aooRate !== null ? `${aooRate}%` : <span className={theme.textMuted}>--</span>}
                                                                     </td>
