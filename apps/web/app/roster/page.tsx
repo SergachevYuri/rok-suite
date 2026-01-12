@@ -2436,11 +2436,15 @@ export default function RosterPage() {
                                         const borderColor = isAoo ? '#01b574' : '#9f7aea';
                                         return (
                                             <div
-                                                className="fixed z-[99999] pointer-events-none"
+                                                className="fixed z-[99999]"
                                                 style={{
                                                     left: bucketHoverPosition.x,
                                                     top: bucketHoverPosition.y,
                                                 }}
+                                                onMouseEnter={() => {
+                                                    // Keep the hover card visible when mouse enters it
+                                                }}
+                                                onMouseLeave={() => setHoveredBucket(null)}
                                             >
                                                 <div className={`${theme.card} border rounded-xl p-3 shadow-2xl max-h-64 overflow-y-auto min-w-[280px]`} style={{ borderColor: `${borderColor}50`, boxShadow: `0 25px 50px -12px ${borderColor}30` }}>
                                                     <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
