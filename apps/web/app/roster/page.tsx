@@ -487,6 +487,8 @@ export default function RosterPage() {
                 name: m.name,
                 power: m.power,
                 kills: m.kills || 0,
+                t4_kills: m.t4_kills || 0,
+                t5_kills: m.t5_kills || 0,
                 honor_points: m.honor_points || 0,
                 role: m.role,
                 is_active: m.is_active,
@@ -674,6 +676,8 @@ export default function RosterPage() {
                                                     name: m.name,
                                                     power: m.power,
                                                     kills: m.kills || 0,
+                                                    t4_kills: m.t4_kills || 0,
+                                                    t5_kills: m.t5_kills || 0,
                                                     honor_points: m.honor_points || 0,
                                                     role: m.role,
                                                     is_active: m.is_active,
@@ -1576,10 +1580,14 @@ export default function RosterPage() {
                                                                 </button>
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                T4 KP
+                                                                <button onClick={() => handleKpSort('t4Growth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    T4 Growth <KpSortIcon field="t4Growth" />
+                                                                </button>
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                T5 KP
+                                                                <button onClick={() => handleKpSort('t5Growth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    T5 Growth <KpSortIcon field="t5Growth" />
+                                                                </button>
                                                             </th>
                                                         </tr>
                                                     </thead>
@@ -1621,11 +1629,21 @@ export default function RosterPage() {
                                                                             </span>
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-2 py-2 text-right text-[#fbbf24]">
-                                                                        {formatPower(member.currentT4)}
+                                                                    <td className="px-2 py-2 text-right">
+                                                                        <span className={member.t4Growth > 0 ? 'text-[#fbbf24]' : 'text-gray-400'}>
+                                                                            {member.t4Growth > 0 ? '+' : ''}{formatPower(member.t4Growth)}
+                                                                        </span>
+                                                                        <span className={`text-xs ${theme.textMuted} ml-1`}>
+                                                                            ({formatPower(member.currentT4)})
+                                                                        </span>
                                                                     </td>
-                                                                    <td className="px-2 py-2 text-right text-[#f97316]">
-                                                                        {formatPower(member.currentT5)}
+                                                                    <td className="px-2 py-2 text-right">
+                                                                        <span className={member.t5Growth > 0 ? 'text-[#f97316]' : 'text-gray-400'}>
+                                                                            {member.t5Growth > 0 ? '+' : ''}{formatPower(member.t5Growth)}
+                                                                        </span>
+                                                                        <span className={`text-xs ${theme.textMuted} ml-1`}>
+                                                                            ({formatPower(member.currentT5)})
+                                                                        </span>
                                                                     </td>
                                                                 </tr>
                                                             );

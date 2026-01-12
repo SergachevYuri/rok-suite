@@ -19,6 +19,8 @@ CREATE TABLE public.roster_snapshots (
   member_name TEXT NOT NULL,             -- Player name at time of snapshot
   power BIGINT NOT NULL DEFAULT 0,       -- Power at snapshot time
   kills BIGINT NOT NULL DEFAULT 0,       -- Kill points at snapshot time
+  t4_kills BIGINT NOT NULL DEFAULT 0,    -- T4 kill points at snapshot time
+  t5_kills BIGINT NOT NULL DEFAULT 0,    -- T5 kill points at snapshot time
   honor_points BIGINT NOT NULL DEFAULT 0, -- Honor points at snapshot time
   role TEXT,                             -- Rank (R1-R5) at snapshot time
   is_active BOOLEAN DEFAULT true,        -- Was member active at snapshot time

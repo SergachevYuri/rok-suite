@@ -7,6 +7,8 @@ export interface RosterSnapshot {
   member_name: string;
   power: number;
   kills: number;
+  t4_kills: number;
+  t5_kills: number;
   honor_points: number;
   role: string | null;
   is_active: boolean;
@@ -46,7 +48,7 @@ export interface TopGainer {
  * Create a snapshot of the current roster for today
  * Uses upsert to allow updating today's snapshot if called multiple times
  */
-export async function createSnapshot(roster: Array<{ name: string; power: number; kills: number; honor_points?: number; role: string | null; is_active?: boolean }>) {
+export async function createSnapshot(roster: Array<{ name: string; power: number; kills: number; t4_kills?: number; t5_kills?: number; honor_points?: number; role: string | null; is_active?: boolean }>) {
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -55,6 +57,8 @@ export async function createSnapshot(roster: Array<{ name: string; power: number
     member_name: member.name,
     power: member.power,
     kills: member.kills || 0,
+    t4_kills: member.t4_kills || 0,
+    t5_kills: member.t5_kills || 0,
     honor_points: member.honor_points || 0,
     role: member.role,
     is_active: member.is_active ?? true,
@@ -215,7 +219,7 @@ export interface KpGrowth {
 
 /**
  * Get KP growth between the two most recent snapshots
- * This compares current roster KP values against the previous snapshot
+ * Compares kills, T4 kills, and T5 kills between snapshots
  */
 export async function getKpGrowth(currentRoster: Array<{ name: string; kills: number; t4_kills: number; t5_kills: number }>): Promise<KpGrowth[]> {
   const supabase = createClient();
@@ -227,37 +231,40 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
   const previousDate = dates[1]; // Second most recent
   const currentDate = dates[0];  // Most recent
 
-  // Get previous snapshot data
+  // Get previous snapshot data including T4/T5
   const { data: previousData } = await supabase
     .from('roster_snapshots')
-    .select('member_name, kills')
+    .select('member_name, kills, t4_kills, t5_kills')
     .eq('snapshot_date', previousDate)
     .eq('is_active', true);
 
   if (!previousData) return [];
 
-  const previousMap = new Map(previousData.map(d => [d.member_name, d.kills || 0]));
-
-  // For T4/T5, we need to get from alliance_roster since snapshots don't store them
-  // We'll compare current roster T4/T5 against a baseline (this is a limitation)
-  // For now, just show current T4/T5 values without growth for those columns
+  const previousMap = new Map(previousData.map(d => [d.member_name, {
+    kills: d.kills || 0,
+    t4_kills: d.t4_kills || 0,
+    t5_kills: d.t5_kills || 0,
+  }]));
 
   const growth: KpGrowth[] = currentRoster
     .filter(m => previousMap.has(m.name))
-    .map(m => ({
-      name: m.name,
-      previousKp: previousMap.get(m.name) || 0,
-      currentKp: m.kills || 0,
-      kpGrowth: (m.kills || 0) - (previousMap.get(m.name) || 0),
-      previousT4: 0, // Not tracked in snapshots yet
-      currentT4: m.t4_kills || 0,
-      t4Growth: 0, // Will be 0 until we track T4/T5 in snapshots
-      previousT5: 0, // Not tracked in snapshots yet
-      currentT5: m.t5_kills || 0,
-      t5Growth: 0, // Will be 0 until we track T4/T5 in snapshots
-      previousDate,
-      currentDate,
-    }));
+    .map(m => {
+      const prev = previousMap.get(m.name) || { kills: 0, t4_kills: 0, t5_kills: 0 };
+      return {
+        name: m.name,
+        previousKp: prev.kills,
+        currentKp: m.kills || 0,
+        kpGrowth: (m.kills || 0) - prev.kills,
+        previousT4: prev.t4_kills,
+        currentT4: m.t4_kills || 0,
+        t4Growth: (m.t4_kills || 0) - prev.t4_kills,
+        previousT5: prev.t5_kills,
+        currentT5: m.t5_kills || 0,
+        t5Growth: (m.t5_kills || 0) - prev.t5_kills,
+        previousDate,
+        currentDate,
+      };
+    });
 
   return growth;
 }
