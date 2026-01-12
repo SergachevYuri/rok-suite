@@ -16,6 +16,7 @@ interface RosterMember {
     t4_kills: number;
     t5_kills: number;
     deads: number;
+    honor_points: number;
     tier: string | null;
     role: string | null;
     notes: string | null;
@@ -33,6 +34,7 @@ const COLUMN_TOOLTIPS: Record<string, string> = {
     power: 'Total account power',
     kp: 'Kill points (total kills)',
     t4t5: 'T4 and T5 troop kill points',
+    honor: 'Honor points earned in Ark of Osiris',
     aoo: 'Ark of Osiris: Last team assignment and participation rate',
     mob: 'Mobilization: Individual points and resources turned in/accepted',
     rank: 'Alliance rank (R1-R5)',
@@ -943,6 +945,13 @@ export default function RosterPage() {
                                             </span>
                                         </ColumnTooltip>
                                     </th>
+                                    <th className="text-right px-4 py-3">
+                                        <ColumnTooltip text={COLUMN_TOOLTIPS.honor}>
+                                            <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                Honor
+                                            </span>
+                                        </ColumnTooltip>
+                                    </th>
                                     <th className="text-center px-4 py-3">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.aoo}>
                                             <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
@@ -1042,6 +1051,11 @@ export default function RosterPage() {
                                                         : '-'}
                                                 </span>
                                             )}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <span className={member.honor_points ? 'text-[#f6ad55]' : theme.textMuted}>
+                                                {member.honor_points ? member.honor_points.toLocaleString() : '-'}
+                                            </span>
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             {(() => {
