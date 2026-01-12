@@ -1,0 +1,103 @@
+-- Add tags column to alliance_roster table
+-- Run this first if the column doesn't exist:
+-- ALTER TABLE alliance_roster ADD COLUMN IF NOT EXISTS tags text[] DEFAULT '{}';
+
+-- Tag Angmar OG (core) members
+-- Source: angmar-og.csv
+
+UPDATE alliance_roster SET tags = array_append(COALESCE(tags, '{}'), 'angmar-og')
+WHERE name IN (
+  -- Core members (from CSV columns 1-4)
+  'thegoathimself',
+  'unlimit',
+  'Nev✖',
+  'Wallerun I',
+  'Bun',
+  'FRODO',
+  'BryanV',
+  'ksa 511',
+  'Raijin',
+  'Gouverneur',
+  'Nolie',
+  'ALONE',
+  'Calca',
+  'Fluffy Lover',
+  'Jo',
+  'GLordMai',
+  'BiNganHoa',
+  'ANH TUAN 1',
+  'Dante',
+  'AV✖Sirelli',
+  'FnDuke',
+  'Zdrawe',
+  'Alak D',
+  'STEPHENлж',
+  'Fluffy Jester',
+  'Shroud',
+  'Lukes',
+  'ClayFM',
+  'lady',
+  'leander112',
+  'TGL',
+  'SkyLord',
+  'lml Keter lml',
+  'Đảo 93',
+  'GiuliaFC',
+  'KaiLey',
+  'Xtelli',
+  'Hoangg',
+  'Zaebali',
+  'CBC',
+  'Obi',
+  'suet',
+  'Notor',
+  'reeeldid',
+  'sir Yuckfou',
+  'Akka',
+  'Bryan',
+  'ADOLF SAMI',
+  'Sonk8',
+  'Batussai',
+  'sungod',
+  'winkvk',
+  'Armstrong jr XL',
+  'hungvv',
+  'Milos',
+  'Nhi',
+  'BbyVix',
+  'SsOren',
+  'CAPITAN',
+  'sóc',
+  'yigitl',
+  'Bakr',
+  'XMihawkX',
+  'cloud',
+  'NECO',
+  'orzrzi',
+  'Dooffy',
+  'Sadgame',
+  'TURAN80g',
+  'GiaHuy',
+  'Draken',
+  'Ронка',
+  'bear',
+  'Alcar',
+  'Cowl',
+  'TRAP',
+  'Queen of Chaos',
+  'STALINGGARD',
+  'KomVD2',
+  'EF SàuVôLệ',
+  'Furiaaa',
+  -- People in question (might be core)
+  'Gund',
+  'ShadowLunar',
+  'モニタリング'
+)
+AND NOT ('angmar-og' = ANY(COALESCE(tags, '{}')));
+
+-- Verification: Check tagged members
+-- SELECT name, tags FROM alliance_roster WHERE 'angmar-og' = ANY(tags) ORDER BY name;
+
+-- Count: How many were tagged
+-- SELECT COUNT(*) as angmar_og_count FROM alliance_roster WHERE 'angmar-og' = ANY(tags);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
@@ -19,6 +19,7 @@ interface RosterMember {
     tier: string | null;
     role: string | null;
     notes: string | null;
+    tags: string[] | null;
     is_active: boolean;
     created_at: string;
     updated_at: string;
@@ -138,6 +139,7 @@ export default function RosterPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [tagFilter, setTagFilter] = useState<string | null>(null);
     const [sortField, setSortField] = useState<SortField>('default'); // Default: rank → power → name
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -469,9 +471,21 @@ export default function RosterPage() {
         return 6;
     };
 
+    // Get unique tags from roster
+    const availableTags = useMemo(() => {
+        const tags = new Set<string>();
+        roster.forEach(m => {
+            if (m.tags) {
+                m.tags.forEach(t => tags.add(t));
+            }
+        });
+        return Array.from(tags).sort();
+    }, [roster]);
+
     // Filter and sort roster
     const filteredRoster = roster
         .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
+        .filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)))
         .sort((a, b) => {
             // When sorting by default or rank, use multi-level: rank → power (desc) → name (asc)
             if (sortField === 'default' || sortField === 'role') {
@@ -801,7 +815,7 @@ export default function RosterPage() {
                     </div>
                 </div>
 
-                {/* Search and Sort Controls */}
+                {/* Search and Filter Controls */}
                 <div className={`${theme.card} border rounded-xl p-4 mb-6`}>
                     <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
@@ -814,13 +828,30 @@ export default function RosterPage() {
                                 className={`w-full pl-10 pr-4 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
                             />
                         </div>
-                        {sortField !== 'default' && (
-                            <button
-                                onClick={resetToDefaultSort}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} whitespace-nowrap`}
-                                title="Reset to default sort (Rank → Power → Name)"
+                        {availableTags.length > 0 && (
+                            <select
+                                value={tagFilter || ''}
+                                onChange={(e) => setTagFilter(e.target.value || null)}
+                                className={`px-4 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
                             >
-                                Reset Sort
+                                <option value="">All Members</option>
+                                {availableTags.map(tag => (
+                                    <option key={tag} value={tag}>
+                                        {tag === 'angmar-og' ? 'Angmar Core' : tag}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                        {(sortField !== 'default' || tagFilter) && (
+                            <button
+                                onClick={() => {
+                                    resetToDefaultSort();
+                                    setTagFilter(null);
+                                }}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} whitespace-nowrap`}
+                                title="Reset filters and sort"
+                            >
+                                Reset
                             </button>
                         )}
                     </div>
