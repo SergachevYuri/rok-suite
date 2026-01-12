@@ -49,6 +49,7 @@ interface ActivityBreakdown {
     mobPercentile: number; // 0-100 percentile
     kpPercentile: number;  // 0-100 percentile
     powerPercentile: number; // 0-100 percentile
+    honorPercentile: number; // 0-100 percentile
 }
 
 interface MemberActivityScore {
@@ -60,6 +61,7 @@ interface MemberActivityScore {
 interface ActivityWeights {
     kp: number;
     power: number;
+    honor: number;
     aoo: number;
     mob: number;
 }
@@ -68,7 +70,7 @@ interface ActivityWeights {
 function calculateActivityScores(
     roster: RosterMember[],
     eventStats: Map<string, MemberEventStats>,
-    weights: ActivityWeights = { kp: 50, power: 30, aoo: 10, mob: 10 }
+    weights: ActivityWeights = { kp: 50, power: 20, honor: 10, aoo: 10, mob: 10 }
 ): Map<string, MemberActivityScore> {
     const scores = new Map<string, MemberActivityScore>();
 
@@ -78,6 +80,7 @@ function calculateActivityScores(
         .sort((a, b) => a - b);
     const kpValues = roster.map(m => m.kills || 0).sort((a, b) => a - b);
     const powerValues = roster.map(m => m.power).sort((a, b) => a - b);
+    const honorValues = roster.map(m => m.honor_points || 0).sort((a, b) => a - b);
 
     // Helper to calculate percentile rank
     const getPercentile = (value: number, sortedArray: number[]): number => {
@@ -91,6 +94,7 @@ function calculateActivityScores(
     const w = {
         kp: weights.kp / 100,
         power: weights.power / 100,
+        honor: weights.honor / 100,
         aoo: weights.aoo / 100,
         mob: weights.mob / 100,
     };
@@ -114,12 +118,16 @@ function calculateActivityScores(
         // Power percentile
         const powerPercentile = getPercentile(member.power, powerValues);
 
+        // Honor points percentile
+        const honorPercentile = getPercentile(member.honor_points || 0, honorValues);
+
         // Calculate weighted score
         const score = Math.round(
             w.aoo * aooRate +
             w.mob * mobPercentile +
             w.kp * kpPercentile +
-            w.power * powerPercentile
+            w.power * powerPercentile +
+            w.honor * honorPercentile
         );
 
         scores.set(member.name, {
@@ -129,6 +137,7 @@ function calculateActivityScores(
                 mobPercentile,
                 kpPercentile,
                 powerPercentile,
+                honorPercentile,
             },
         });
     }
@@ -172,7 +181,7 @@ export default function RosterPage() {
     const [eventSaving, setEventSaving] = useState(false);
 
     // Activity score weights (must sum to 100)
-    const [activityWeights, setActivityWeights] = useState({ kp: 50, power: 30, aoo: 10, mob: 10 });
+    const [activityWeights, setActivityWeights] = useState({ kp: 50, power: 20, honor: 10, aoo: 10, mob: 10 });
 
     // Mobilization growth expanded state
     const [showAllGrowth, setShowAllGrowth] = useState(false);
@@ -1763,16 +1772,16 @@ export default function RosterPage() {
                                             The activity score (0-100) combines multiple metrics to measure overall engagement:
                                             {isEditor && (
                                                 <span className={`block mt-1 text-xs ${
-                                                    (activityWeights.kp + activityWeights.power + activityWeights.aoo + activityWeights.mob) === 100
+                                                    (activityWeights.kp + activityWeights.power + activityWeights.honor + activityWeights.aoo + activityWeights.mob) === 100
                                                         ? 'text-[#01b574]'
                                                         : 'text-[#f56565]'
                                                 }`}>
-                                                    Total: {activityWeights.kp + activityWeights.power + activityWeights.aoo + activityWeights.mob}%
-                                                    {(activityWeights.kp + activityWeights.power + activityWeights.aoo + activityWeights.mob) !== 100 && ' (must equal 100%)'}
+                                                    Total: {activityWeights.kp + activityWeights.power + activityWeights.honor + activityWeights.aoo + activityWeights.mob}%
+                                                    {(activityWeights.kp + activityWeights.power + activityWeights.honor + activityWeights.aoo + activityWeights.mob) !== 100 && ' (must equal 100%)'}
                                                 </span>
                                             )}
                                         </p>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                                             <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
                                                 {isEditor ? (
                                                     <div className="flex items-center gap-1">
@@ -1815,6 +1824,28 @@ export default function RosterPage() {
                                                     <div className="text-lg font-bold text-[#4318ff]">{activityWeights.power}%</div>
                                                 )}
                                                 <div className={`text-xs ${theme.textMuted}`}>Power Level</div>
+                                                <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
+                                            </div>
+                                            <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
+                                                {isEditor ? (
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max="100"
+                                                            value={activityWeights.honor}
+                                                            onChange={(e) => setActivityWeights(prev => ({
+                                                                ...prev,
+                                                                honor: Math.max(0, Math.min(100, parseInt(e.target.value) || 0))
+                                                            }))}
+                                                            className="w-14 text-lg font-bold text-[#f6ad55] bg-transparent border border-[#f6ad55]/30 rounded px-1 text-center"
+                                                        />
+                                                        <span className="text-lg font-bold text-[#f6ad55]">%</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-lg font-bold text-[#f6ad55]">{activityWeights.honor}%</div>
+                                                )}
+                                                <div className={`text-xs ${theme.textMuted}`}>Honor Points</div>
                                                 <div className={`text-[10px] ${theme.textMuted} mt-1`}>Percentile vs other members</div>
                                             </div>
                                             <div className="p-3 rounded-lg bg-[var(--background-secondary)]">
