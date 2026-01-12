@@ -932,6 +932,9 @@ export default function RosterPage() {
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-[var(--border)]">
+                                    <th className="text-center px-2 py-3 w-10">
+                                        <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>#</span>
+                                    </th>
                                     <th className="text-left px-4 py-3">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.name}>
                                             <button
@@ -1022,6 +1025,7 @@ export default function RosterPage() {
                                         key={member.id}
                                         className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''} hover:bg-[var(--background-secondary)]/50`}
                                     >
+                                        <td className={`text-center px-2 py-3 text-sm ${theme.textMuted}`}>{idx + 1}</td>
                                         <td className="px-4 py-3">
                                             <span className="font-medium">{member.name}</span>
                                             {member.tags?.includes('angmar-og') && (
