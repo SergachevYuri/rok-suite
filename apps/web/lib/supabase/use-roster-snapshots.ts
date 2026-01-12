@@ -198,6 +198,70 @@ export async function getTopGainers(startDate: string, endDate: string, limit = 
     .slice(0, limit);
 }
 
+export interface KpGrowth {
+  name: string;
+  previousKp: number;
+  currentKp: number;
+  kpGrowth: number;
+  previousT4: number;
+  currentT4: number;
+  t4Growth: number;
+  previousT5: number;
+  currentT5: number;
+  t5Growth: number;
+  previousDate: string | null;
+  currentDate: string | null;
+}
+
+/**
+ * Get KP growth between the two most recent snapshots
+ * This compares current roster KP values against the previous snapshot
+ */
+export async function getKpGrowth(currentRoster: Array<{ name: string; kills: number; t4_kills: number; t5_kills: number }>): Promise<KpGrowth[]> {
+  const supabase = createClient();
+
+  // Get the two most recent snapshot dates
+  const dates = await getSnapshotDates();
+  if (dates.length < 2) return [];
+
+  const previousDate = dates[1]; // Second most recent
+  const currentDate = dates[0];  // Most recent
+
+  // Get previous snapshot data
+  const { data: previousData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, kills')
+    .eq('snapshot_date', previousDate)
+    .eq('is_active', true);
+
+  if (!previousData) return [];
+
+  const previousMap = new Map(previousData.map(d => [d.member_name, d.kills || 0]));
+
+  // For T4/T5, we need to get from alliance_roster since snapshots don't store them
+  // We'll compare current roster T4/T5 against a baseline (this is a limitation)
+  // For now, just show current T4/T5 values without growth for those columns
+
+  const growth: KpGrowth[] = currentRoster
+    .filter(m => previousMap.has(m.name))
+    .map(m => ({
+      name: m.name,
+      previousKp: previousMap.get(m.name) || 0,
+      currentKp: m.kills || 0,
+      kpGrowth: (m.kills || 0) - (previousMap.get(m.name) || 0),
+      previousT4: 0, // Not tracked in snapshots yet
+      currentT4: m.t4_kills || 0,
+      t4Growth: 0, // Will be 0 until we track T4/T5 in snapshots
+      previousT5: 0, // Not tracked in snapshots yet
+      currentT5: m.t5_kills || 0,
+      t5Growth: 0, // Will be 0 until we track T4/T5 in snapshots
+      previousDate,
+      currentDate,
+    }));
+
+  return growth;
+}
+
 /**
  * Detect membership changes (joins/leaves) between snapshots
  */
