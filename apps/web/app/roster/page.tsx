@@ -2386,10 +2386,23 @@ export default function RosterPage() {
                                             {hoveredBucket?.type === 'aoo' && (() => {
                                                 const bucket = aooDistribution.find(b => b.label === hoveredBucket.label);
                                                 if (!bucket || bucket.members.length === 0) return null;
+                                                // Adjust position to stay within viewport
+                                                const cardWidth = 224; // w-56 = 14rem = 224px
+                                                const cardHeight = Math.min(bucket.members.length * 24 + 60, 256);
+                                                let x = bucketHoverPosition.x;
+                                                let y = bucketHoverPosition.y;
+                                                if (typeof window !== 'undefined') {
+                                                    if (x + cardWidth > window.innerWidth - 20) {
+                                                        x = bucketHoverPosition.x - cardWidth - 20;
+                                                    }
+                                                    if (y + cardHeight > window.innerHeight - 20) {
+                                                        y = window.innerHeight - cardHeight - 20;
+                                                    }
+                                                }
                                                 return (
                                                     <div
                                                         className="fixed z-50 pointer-events-none"
-                                                        style={{ left: bucketHoverPosition.x, top: bucketHoverPosition.y }}
+                                                        style={{ left: x, top: y }}
                                                     >
                                                         <div className={`${theme.card} border border-[#01b574]/30 rounded-xl p-3 shadow-2xl shadow-[#01b574]/10 w-56 max-h-64 overflow-y-auto`}>
                                                             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
@@ -2453,10 +2466,23 @@ export default function RosterPage() {
                                             {hoveredBucket?.type === 'mob' && (() => {
                                                 const bucket = mobDistribution.find(b => b.label === hoveredBucket.label);
                                                 if (!bucket || bucket.members.length === 0) return null;
+                                                // Adjust position to stay within viewport
+                                                const cardWidth = 224;
+                                                const cardHeight = Math.min(bucket.members.length * 24 + 60, 256);
+                                                let x = bucketHoverPosition.x;
+                                                let y = bucketHoverPosition.y;
+                                                if (typeof window !== 'undefined') {
+                                                    if (x + cardWidth > window.innerWidth - 20) {
+                                                        x = bucketHoverPosition.x - cardWidth - 20;
+                                                    }
+                                                    if (y + cardHeight > window.innerHeight - 20) {
+                                                        y = window.innerHeight - cardHeight - 20;
+                                                    }
+                                                }
                                                 return (
                                                     <div
                                                         className="fixed z-50 pointer-events-none"
-                                                        style={{ left: bucketHoverPosition.x, top: bucketHoverPosition.y }}
+                                                        style={{ left: x, top: y }}
                                                     >
                                                         <div className={`${theme.card} border border-[#9f7aea]/30 rounded-xl p-3 shadow-2xl shadow-[#9f7aea]/10 w-56 max-h-64 overflow-y-auto`}>
                                                             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--border)]">
