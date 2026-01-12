@@ -1357,28 +1357,28 @@ export default function RosterPage() {
                             </div>
                         ) : (
                             <>
-                                {/* Power & KP Charts - Simple Bar Visualization */}
-                                <div className="grid md:grid-cols-2 gap-6">
+                                {/* Alliance Stats Overview - 2x2 Grid */}
+                                <div className="grid md:grid-cols-2 gap-4">
                                     {/* Total Power Over Time */}
                                     <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                        <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
                                             <TrendingUp className="w-4 h-4 text-[#01b574]" />
-                                            Total Power Over Time
+                                            Total Power
                                         </h3>
-                                        <div className="space-y-2">
-                                            {dailyTotals.slice(-10).map((day, idx) => {
+                                        <div className="space-y-1.5">
+                                            {dailyTotals.slice(-5).map((day) => {
                                                 const maxPower = Math.max(...dailyTotals.map(d => d.total_power));
                                                 const pct = (day.total_power / maxPower) * 100;
                                                 return (
                                                     <div key={day.snapshot_date} className="flex items-center gap-2">
-                                                        <span className={`text-xs ${theme.textMuted} w-16`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-6 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                        <span className={`text-xs ${theme.textMuted} w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#01b574] to-[#01b574]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-sm font-medium w-16 text-right">{formatPower(day.total_power)}</span>
+                                                        <span className="text-xs font-medium w-14 text-right">{formatPower(day.total_power)}</span>
                                                     </div>
                                                 );
                                             })}
@@ -1387,24 +1387,24 @@ export default function RosterPage() {
 
                                     {/* Total KP Over Time */}
                                     <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                        <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
                                             <TrendingUp className="w-4 h-4 text-[#f56565]" />
-                                            Total Kill Points Over Time
+                                            Total Kill Points
                                         </h3>
-                                        <div className="space-y-2">
-                                            {dailyTotals.slice(-10).map((day, idx) => {
+                                        <div className="space-y-1.5">
+                                            {dailyTotals.slice(-5).map((day) => {
                                                 const maxKills = Math.max(...dailyTotals.map(d => d.total_kills || 1));
                                                 const pct = ((day.total_kills || 0) / maxKills) * 100;
                                                 return (
                                                     <div key={day.snapshot_date} className="flex items-center gap-2">
-                                                        <span className={`text-xs ${theme.textMuted} w-16`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-6 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                        <span className={`text-xs ${theme.textMuted} w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#f56565] to-[#f56565]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-sm font-medium w-16 text-right">{formatPower(day.total_kills || 0)}</span>
+                                                        <span className="text-xs font-medium w-14 text-right">{formatPower(day.total_kills || 0)}</span>
                                                     </div>
                                                 );
                                             })}
@@ -1413,44 +1413,54 @@ export default function RosterPage() {
 
                                     {/* Total Honor Over Time */}
                                     <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                        <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
                                             <Trophy className="w-4 h-4 text-[#fbbf24]" />
-                                            Total Honor Points Over Time
+                                            Total Honor Points
                                         </h3>
-                                        <div className="space-y-2">
-                                            {dailyTotals.slice(-10).map((day) => {
+                                        <div className="space-y-1.5">
+                                            {dailyTotals.slice(-5).map((day) => {
                                                 const maxHonor = Math.max(...dailyTotals.map(d => d.total_honor || 1));
                                                 const pct = ((day.total_honor || 0) / maxHonor) * 100;
                                                 return (
                                                     <div key={day.snapshot_date} className="flex items-center gap-2">
-                                                        <span className={`text-xs ${theme.textMuted} w-16`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-6 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                        <span className={`text-xs ${theme.textMuted} w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#fbbf24] to-[#fbbf24]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-sm font-medium w-20 text-right">{(day.total_honor || 0).toLocaleString()}</span>
+                                                        <span className="text-xs font-medium w-14 text-right">{formatPower(day.total_honor || 0)}</span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Member Count Over Time */}
-                                <div className={`${theme.card} border rounded-xl p-4`}>
-                                    <h3 className="font-semibold mb-4 flex items-center gap-2">
-                                        <Users className="w-4 h-4 text-[#9f7aea]" />
-                                        Member Count Over Time
-                                    </h3>
-                                    <div className="flex flex-wrap gap-3">
-                                        {dailyTotals.slice(-15).map((day) => (
-                                            <div key={day.snapshot_date} className="text-center">
-                                                <div className="text-2xl font-bold text-[#9f7aea]">{day.member_count}</div>
-                                                <div className={`text-xs ${theme.textMuted}`}>{formatDate(day.snapshot_date)}</div>
-                                            </div>
-                                        ))}
+                                    {/* Member Count Over Time */}
+                                    <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
+                                            <Users className="w-4 h-4 text-[#9f7aea]" />
+                                            Member Count
+                                        </h3>
+                                        <div className="space-y-1.5">
+                                            {dailyTotals.slice(-5).map((day) => {
+                                                const maxMembers = Math.max(...dailyTotals.map(d => d.member_count || 1));
+                                                const pct = ((day.member_count || 0) / maxMembers) * 100;
+                                                return (
+                                                    <div key={day.snapshot_date} className="flex items-center gap-2">
+                                                        <span className={`text-xs ${theme.textMuted} w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                        <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-gradient-to-r from-[#9f7aea] to-[#9f7aea]/50 rounded"
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs font-medium w-14 text-right">{day.member_count}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
 
