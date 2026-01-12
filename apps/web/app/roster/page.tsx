@@ -2372,117 +2372,118 @@ export default function RosterPage() {
                                             })}
                                         </div>
 
-                                        {/* Activity Hover Card - Fixed position */}
-                                        {(hoveredActivityMember || pinnedActivityMember) && (() => {
-                                            const memberName = pinnedActivityMember || hoveredActivityMember;
-                                            const member = scoresArray.find(m => m.name === memberName);
-                                            if (!member) return null;
+                                    </div>
 
-                                            const b = member.breakdown;
-                                            const kpContrib = (b.kpPercentile * activityWeights.kp) / 100;
-                                            const powerContrib = (b.powerPercentile * activityWeights.power) / 100;
-                                            const honorContrib = (b.honorPercentile * activityWeights.honor) / 100;
-                                            const aooContrib = (b.aooRate * activityWeights.aoo) / 100;
-                                            const mobContrib = (b.mobPercentile * activityWeights.mob) / 100;
+                                    {/* Activity Hover Card - Fixed position (outside card container) */}
+                                    {(hoveredActivityMember || pinnedActivityMember) && (() => {
+                                        const memberName = pinnedActivityMember || hoveredActivityMember;
+                                        const member = scoresArray.find(m => m.name === memberName);
+                                        if (!member) return null;
 
-                                            const pos = pinnedActivityMember ? pinnedActivityPosition : activityHoverPosition;
-                                            const cardWidth = 200;
-                                            const cardHeight = 220;
-                                            let x = pos.x;
-                                            let y = pos.y;
-                                            if (typeof window !== 'undefined') {
-                                                if (x + cardWidth > window.innerWidth - 20) x = window.innerWidth - cardWidth - 20;
-                                                if (y + cardHeight > window.innerHeight - 20) y = window.innerHeight - cardHeight - 20;
-                                                if (x < 20) x = 20;
-                                                if (y < 20) y = 20;
-                                            }
+                                        const b = member.breakdown;
+                                        const kpContrib = (b.kpPercentile * activityWeights.kp) / 100;
+                                        const powerContrib = (b.powerPercentile * activityWeights.power) / 100;
+                                        const honorContrib = (b.honorPercentile * activityWeights.honor) / 100;
+                                        const aooContrib = (b.aooRate * activityWeights.aoo) / 100;
+                                        const mobContrib = (b.mobPercentile * activityWeights.mob) / 100;
 
-                                            return (
-                                                <div
-                                                    className={`fixed z-[99999] ${theme.card} border rounded-lg p-3 shadow-xl w-[200px] ${pinnedActivityMember ? 'border-[#4318ff] border-2' : 'border-[#4318ff]/30'}`}
-                                                    style={{ left: x, top: y, cursor: pinnedActivityMember ? 'move' : 'default' }}
-                                                    onMouseEnter={() => {
-                                                        if (activityHoverTimeoutRef.current) {
-                                                            clearTimeout(activityHoverTimeoutRef.current);
-                                                            activityHoverTimeoutRef.current = null;
-                                                        }
-                                                    }}
-                                                    onMouseLeave={() => {
-                                                        if (!pinnedActivityMember) {
-                                                            activityHoverTimeoutRef.current = setTimeout(() => {
-                                                                setHoveredActivityMember(null);
-                                                            }, 100);
-                                                        }
-                                                    }}
-                                                    onMouseDown={(e) => {
-                                                        if (pinnedActivityMember) {
-                                                            e.preventDefault();
-                                                            setIsDraggingActivity(true);
-                                                            setActivityDragOffset({ x: e.clientX - x, y: e.clientY - y });
-                                                        }
-                                                    }}
-                                                    onMouseMove={(e) => {
-                                                        if (isDraggingActivity && pinnedActivityMember) {
-                                                            setPinnedActivityPosition({
-                                                                x: e.clientX - activityDragOffset.x,
-                                                                y: e.clientY - activityDragOffset.y,
-                                                            });
-                                                        }
-                                                    }}
-                                                    onMouseUp={() => setIsDraggingActivity(false)}
-                                                >
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <div className="font-semibold text-sm">{member.name}</div>
-                                                        {pinnedActivityMember && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); setPinnedActivityMember(null); }}
-                                                                className="text-gray-400 hover:text-white text-xs"
-                                                            >✕</button>
-                                                        )}
-                                                    </div>
+                                        const pos = pinnedActivityMember ? pinnedActivityPosition : activityHoverPosition;
+                                        const cardWidth = 200;
+                                        const cardHeight = 220;
+                                        let x = pos.x;
+                                        let y = pos.y;
+                                        if (typeof window !== 'undefined') {
+                                            if (x + cardWidth > window.innerWidth - 20) x = window.innerWidth - cardWidth - 20;
+                                            if (y + cardHeight > window.innerHeight - 20) y = window.innerHeight - cardHeight - 20;
+                                            if (x < 20) x = 20;
+                                            if (y < 20) y = 20;
+                                        }
+
+                                        return (
+                                            <div
+                                                className={`fixed z-[99999] ${theme.card} border rounded-lg p-3 shadow-xl w-[200px] ${pinnedActivityMember ? 'border-[#4318ff] border-2' : 'border-[#4318ff]/30'}`}
+                                                style={{ left: x, top: y, cursor: pinnedActivityMember ? 'move' : 'default' }}
+                                                onMouseEnter={() => {
+                                                    if (activityHoverTimeoutRef.current) {
+                                                        clearTimeout(activityHoverTimeoutRef.current);
+                                                        activityHoverTimeoutRef.current = null;
+                                                    }
+                                                }}
+                                                onMouseLeave={() => {
+                                                    if (!pinnedActivityMember) {
+                                                        activityHoverTimeoutRef.current = setTimeout(() => {
+                                                            setHoveredActivityMember(null);
+                                                        }, 100);
+                                                    }
+                                                }}
+                                                onMouseDown={(e) => {
+                                                    if (pinnedActivityMember) {
+                                                        e.preventDefault();
+                                                        setIsDraggingActivity(true);
+                                                        setActivityDragOffset({ x: e.clientX - x, y: e.clientY - y });
+                                                    }
+                                                }}
+                                                onMouseMove={(e) => {
+                                                    if (isDraggingActivity && pinnedActivityMember) {
+                                                        setPinnedActivityPosition({
+                                                            x: e.clientX - activityDragOffset.x,
+                                                            y: e.clientY - activityDragOffset.y,
+                                                        });
+                                                    }
+                                                }}
+                                                onMouseUp={() => setIsDraggingActivity(false)}
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="font-semibold text-sm">{member.name}</div>
                                                     {pinnedActivityMember && (
-                                                        <div className={`text-[10px] ${theme.textMuted} mb-2`}>Pinned - drag to move</div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setPinnedActivityMember(null); }}
+                                                            className="text-gray-400 hover:text-white text-xs"
+                                                        >✕</button>
                                                     )}
-                                                    <div className="space-y-1 text-xs">
-                                                        <div className="flex justify-between">
-                                                            <span className="flex items-center gap-1">
-                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#f56565'}}></span> KP
-                                                            </span>
-                                                            <span className="font-medium">{b.kpPercentile.toFixed(0)}% <span className={theme.textMuted}>({kpContrib.toFixed(1)}pts)</span></span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="flex items-center gap-1">
-                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#4318ff'}}></span> Power
-                                                            </span>
-                                                            <span className="font-medium">{b.powerPercentile.toFixed(0)}% <span className={theme.textMuted}>({powerContrib.toFixed(1)}pts)</span></span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="flex items-center gap-1">
-                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#f6ad55'}}></span> Honor
-                                                            </span>
-                                                            <span className="font-medium">{b.honorPercentile.toFixed(0)}% <span className={theme.textMuted}>({honorContrib.toFixed(1)}pts)</span></span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="flex items-center gap-1">
-                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#01b574'}}></span> AoO
-                                                            </span>
-                                                            <span className="font-medium">{b.aooRate.toFixed(0)}% <span className={theme.textMuted}>({aooContrib.toFixed(1)}pts)</span></span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="flex items-center gap-1">
-                                                                <span className="w-2 h-2 rounded" style={{backgroundColor: '#9f7aea'}}></span> Mob
-                                                            </span>
-                                                            <span className="font-medium">{b.mobPercentile.toFixed(0)}% <span className={theme.textMuted}>({mobContrib.toFixed(1)}pts)</span></span>
-                                                        </div>
-                                                        <div className="border-t border-[var(--border)] pt-1 mt-1 flex justify-between font-semibold">
-                                                            <span>Total</span>
-                                                            <span>{member.score} pts</span>
-                                                        </div>
+                                                </div>
+                                                {pinnedActivityMember && (
+                                                    <div className={`text-[10px] ${theme.textMuted} mb-2`}>Pinned - drag to move</div>
+                                                )}
+                                                <div className="space-y-1 text-xs">
+                                                    <div className="flex justify-between">
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#f56565'}}></span> KP
+                                                        </span>
+                                                        <span className="font-medium">{b.kpPercentile.toFixed(0)}% <span className={theme.textMuted}>({kpContrib.toFixed(1)}pts)</span></span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#4318ff'}}></span> Power
+                                                        </span>
+                                                        <span className="font-medium">{b.powerPercentile.toFixed(0)}% <span className={theme.textMuted}>({powerContrib.toFixed(1)}pts)</span></span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#f6ad55'}}></span> Honor
+                                                        </span>
+                                                        <span className="font-medium">{b.honorPercentile.toFixed(0)}% <span className={theme.textMuted}>({honorContrib.toFixed(1)}pts)</span></span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#01b574'}}></span> AoO
+                                                        </span>
+                                                        <span className="font-medium">{b.aooRate.toFixed(0)}% <span className={theme.textMuted}>({aooContrib.toFixed(1)}pts)</span></span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded" style={{backgroundColor: '#9f7aea'}}></span> Mob
+                                                        </span>
+                                                        <span className="font-medium">{b.mobPercentile.toFixed(0)}% <span className={theme.textMuted}>({mobContrib.toFixed(1)}pts)</span></span>
+                                                    </div>
+                                                    <div className="border-t border-[var(--border)] pt-1 mt-1 flex justify-between font-semibold">
+                                                        <span>Total</span>
+                                                        <span>{member.score} pts</span>
                                                     </div>
                                                 </div>
-                                            );
-                                        })()}
-                                    </div>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Participation Breakdown */}
                                     <div className="grid md:grid-cols-2 gap-6">
