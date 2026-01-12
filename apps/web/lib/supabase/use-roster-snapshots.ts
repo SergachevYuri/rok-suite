@@ -247,7 +247,12 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
   }]));
 
   const growth: KpGrowth[] = currentRoster
-    .filter(m => previousMap.has(m.name))
+    .filter(m => {
+      const prev = previousMap.get(m.name);
+      // Only include if they existed in previous snapshot AND had non-zero KP
+      // (0 KP means they weren't entered yet, not that they grew from 0)
+      return prev && prev.kills > 0;
+    })
     .map(m => {
       const prev = previousMap.get(m.name) || { kills: 0, t4_kills: 0, t5_kills: 0 };
       return {
@@ -255,12 +260,13 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
         previousKp: prev.kills,
         currentKp: m.kills || 0,
         kpGrowth: (m.kills || 0) - prev.kills,
+        // Only show T4/T5 growth if previous value was non-zero
         previousT4: prev.t4_kills,
         currentT4: m.t4_kills || 0,
-        t4Growth: (m.t4_kills || 0) - prev.t4_kills,
+        t4Growth: prev.t4_kills > 0 ? (m.t4_kills || 0) - prev.t4_kills : 0,
         previousT5: prev.t5_kills,
         currentT5: m.t5_kills || 0,
-        t5Growth: (m.t5_kills || 0) - prev.t5_kills,
+        t5Growth: prev.t5_kills > 0 ? (m.t5_kills || 0) - prev.t5_kills : 0,
         previousDate,
         currentDate,
       };
