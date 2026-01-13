@@ -1161,15 +1161,18 @@ export default function RosterPage() {
                                                     }, 100);
                                                 }}
                                                 onClick={(e) => {
+                                                    e.stopPropagation();
                                                     // On mobile, center the card on screen
                                                     const isMobile = window.innerWidth < 640;
                                                     if (pinnedMember === member.name) {
                                                         setPinnedMember(null);
                                                     } else {
+                                                        // Clear any hover state first
+                                                        setHoveredMember(null);
                                                         setPinnedMember(member.name);
                                                         if (isMobile) {
-                                                            // Center on mobile
-                                                            setPinnedPosition({ x: window.innerWidth / 2 - 150, y: 100 });
+                                                            // Center on mobile - account for card width (280px on mobile)
+                                                            setPinnedPosition({ x: Math.max(10, (window.innerWidth - 280) / 2), y: 80 });
                                                         } else {
                                                             setPinnedPosition({ x: hoverPosition.x, y: hoverPosition.y });
                                                         }
@@ -2341,12 +2344,20 @@ export default function RosterPage() {
                                                                 }
                                                             }, 100);
                                                         }}
-                                                        onClick={() => {
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const isMobile = window.innerWidth < 640;
                                                             if (pinnedActivityMember === member.name) {
                                                                 setPinnedActivityMember(null);
                                                             } else {
+                                                                setHoveredActivityMember(null);
                                                                 setPinnedActivityMember(member.name);
-                                                                setPinnedActivityPosition({ x: activityHoverPosition.x, y: activityHoverPosition.y });
+                                                                if (isMobile) {
+                                                                    // Center on mobile
+                                                                    setPinnedActivityPosition({ x: Math.max(10, (window.innerWidth - 200) / 2), y: 80 });
+                                                                } else {
+                                                                    setPinnedActivityPosition({ x: activityHoverPosition.x, y: activityHoverPosition.y });
+                                                                }
                                                             }
                                                         }}
                                                     >
@@ -2396,6 +2407,14 @@ export default function RosterPage() {
                                         </div>
 
                                     </div>
+
+                                    {/* Mobile backdrop for activity hover card */}
+                                    {pinnedActivityMember && (
+                                        <div
+                                            className="fixed inset-0 z-[99998] bg-black/30 sm:hidden"
+                                            onClick={() => setPinnedActivityMember(null)}
+                                        />
+                                    )}
 
                                     {/* Activity Hover Card - Fixed position (outside card container) */}
                                     {(hoveredActivityMember || pinnedActivityMember) && (() => {
@@ -2821,6 +2840,14 @@ export default function RosterPage() {
                     </p>
                 </footer>
             </div>
+
+            {/* Mobile backdrop to close pinned cards */}
+            {pinnedMember && (
+                <div
+                    className="fixed inset-0 z-[99998] bg-black/30 sm:hidden"
+                    onClick={() => setPinnedMember(null)}
+                />
+            )}
 
             {/* Member Hover Card */}
             {(hoveredMember || pinnedMember) && (() => {
