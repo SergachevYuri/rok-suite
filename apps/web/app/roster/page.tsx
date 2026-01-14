@@ -549,7 +549,17 @@ export default function RosterPage() {
     };
 
     // Duplicate detection - normalize names to find potential matches
-    const CLAN_TAGS = ['ᵃⁿᵍ', 'ᵏᵏ', 'кк', 'К҉к҉', 'K҉k҉', '๛', 'ᴬᶜ', '҉', 'ккк', 'ᵏᵏᵏ', 'ᴷᴷ'];
+    // Includes all known clan/guild tag prefixes found in ROKstats exports
+    const CLAN_TAGS = [
+        // Angmar tags
+        'ᵃⁿᵍ', 'ang',
+        // KK variants
+        'ᵏᵏ', 'кк', 'К҉к҉', 'K҉k҉', 'ккк', 'ᵏᵏᵏ', 'ᴷᴷ',
+        // Other guild tags found in CSV
+        'ᴿᵁ', 'ᴵᴸ', 'ᶦˢ', 'ᴳᴸ', 'ᴬᶜ', 'ᴬ ',
+        // Special characters used as prefixes
+        '๛', '҉', '屮', 'ㆍ',
+    ];
 
     const stripTagsFromName = (name: string): string => {
         let clean = name;
@@ -558,6 +568,8 @@ export default function RosterPage() {
         }
         // Normalize unicode and strip diacritics
         clean = clean.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+        // Also remove common special characters that vary between names
+        clean = clean.replace(/[✖乄⚔ツ]/g, '');
         return clean.trim().toLowerCase();
     };
 
@@ -786,16 +798,20 @@ export default function RosterPage() {
             const govIdToId = new Map<number, string>();
             const nameToId = new Map<string, string>();
             const altNameToId = new Map<string, string>();
+            const normalizedNameToId = new Map<string, string>();
 
             for (const member of existingRoster || []) {
                 if (member.governor_id) {
                     govIdToId.set(member.governor_id, member.id);
                 }
                 nameToId.set(member.name.toLowerCase(), member.id);
+                // Also index by normalized name (stripped of clan tags)
+                normalizedNameToId.set(stripTagsFromName(member.name), member.id);
                 // Also index alternate names
                 if (member.alternate_names) {
                     for (const altName of member.alternate_names) {
                         altNameToId.set(altName.toLowerCase(), member.id);
+                        normalizedNameToId.set(stripTagsFromName(altName), member.id);
                     }
                 }
             }
@@ -861,7 +877,9 @@ export default function RosterPage() {
                 // 1. By governor_id (most reliable)
                 // 2. By exact name match
                 // 3. By alternate name match
+                // 4. By normalized name match (strips clan tags like ᵃⁿᵍ, ᵏᵏ, кк, etc.)
                 let existingId: string | undefined;
+                const normalizedCsvName = stripTagsFromName(name);
 
                 if (govId && govIdToId.has(govId)) {
                     existingId = govIdToId.get(govId);
@@ -869,6 +887,9 @@ export default function RosterPage() {
                     existingId = nameToId.get(name.toLowerCase());
                 } else if (altNameToId.has(name.toLowerCase())) {
                     existingId = altNameToId.get(name.toLowerCase());
+                } else if (normalizedCsvName.length >= 2 && normalizedNameToId.has(normalizedCsvName)) {
+                    // Match by normalized name (e.g., "ᵃⁿᵍNECO" matches "NECO")
+                    existingId = normalizedNameToId.get(normalizedCsvName);
                 }
 
                 if (existingId) {

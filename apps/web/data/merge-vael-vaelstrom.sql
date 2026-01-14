@@ -1,11 +1,11 @@
 -- Migration: Merge Vaelstrom into Vael and fix name tag
 -- Run this in your Supabase SQL Editor
 
--- Step 1: Find the records
+-- Step 1: Find the records (only Vael and Vaelstrom, not Vaelwyn)
 -- Check current state before making changes
 SELECT id, name, power, kills, is_active, alternate_names, merged_into
 FROM alliance_roster
-WHERE LOWER(name) LIKE '%vael%'
+WHERE name IN ('Vael', 'Vaelstrom')
 ORDER BY created_at;
 
 -- Step 2: Update Vael's name to include the ang tag
@@ -77,14 +77,14 @@ UPDATE roster_snapshots
 SET member_name = 'ᵃⁿᵍVael'
 WHERE member_name = 'Vael';
 
--- Step 5: Verify the merge
+-- Step 5: Verify the merge (only Vael and Vaelstrom, not Vaelwyn)
 SELECT id, name, power, kills, is_active, alternate_names, merged_into
 FROM alliance_roster
-WHERE LOWER(name) LIKE '%vael%'
+WHERE name IN ('ᵃⁿᵍVael', 'Vael', 'Vaelstrom')
 ORDER BY is_active DESC, created_at;
 
 -- Also check snapshots
 SELECT snapshot_date, member_name, power
 FROM roster_snapshots
-WHERE LOWER(member_name) LIKE '%vael%'
+WHERE member_name IN ('ᵃⁿᵍVael', 'Vael')
 ORDER BY snapshot_date DESC;
