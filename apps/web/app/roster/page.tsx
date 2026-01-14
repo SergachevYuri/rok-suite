@@ -357,7 +357,7 @@ export default function RosterPage() {
     const isColumnVisible = (columnId: ColumnId) => visibleColumns.includes(columnId);
 
     // History data from hook
-    const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
+    const { dailyTotals, allSnapshots, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
 
     const fetchRoster = useCallback(async () => {
         setLoading(true);
@@ -2387,29 +2387,58 @@ export default function RosterPage() {
                             </div>
                         ) : (
                             <>
-                                {/* Line Charts Section - Shows above overview when enabled */}
-                                {showCharts && (() => {
-                                    // Get core member names (those with angmar-og tag)
-                                    const coreMembers = new Set(
+                                {/* Compute filtered data based on tag filter - used by both charts and overview */}
+                                {(() => {
+                                    // Get filtered member names based on tag filter
+                                    const filteredMemberNames = new Set(
                                         roster
-                                            .filter(m => m.tags?.includes('angmar-og'))
+                                            .filter(m => !tagFilter || m.tags?.includes(tagFilter))
                                             .map(m => m.name)
                                     );
-                                    const coreMemberCount = coreMembers.size;
 
-                                    const chartData = dailyTotals.map(day => ({
-                                        date: formatDate(day.snapshot_date),
-                                        kp: day.total_kills || 0,
-                                        power: day.total_power || 0,
-                                        honor: day.total_honor || 0,
-                                        members: coreMemberCount, // Show current core member count
+                                    // Compute totals from allSnapshots filtered by tag
+                                    const snapshotsByDate = new Map<string, { kills: number; power: number; honor: number; count: number; date: string }>();
+
+                                    for (const snap of allSnapshots) {
+                                        // Only include members that match the current tag filter
+                                        if (!filteredMemberNames.has(snap.member_name)) continue;
+
+                                        const existing = snapshotsByDate.get(snap.snapshot_date) || { kills: 0, power: 0, honor: 0, count: 0, date: snap.snapshot_date };
+                                        snapshotsByDate.set(snap.snapshot_date, {
+                                            kills: existing.kills + (snap.kills || 0),
+                                            power: existing.power + (snap.power || 0),
+                                            honor: existing.honor + (snap.honor_points || 0),
+                                            count: existing.count + 1,
+                                            date: snap.snapshot_date,
+                                        });
+                                    }
+
+                                    // Convert to array sorted by date
+                                    const filteredDailyTotals = Array.from(snapshotsByDate.entries())
+                                        .sort((a, b) => a[0].localeCompare(b[0]))
+                                        .map(([, totals]) => totals);
+
+                                    const memberLabel = tagFilter
+                                        ? (tagFilter === 'angmar-og' ? 'Core Members' : tagFilter === 'inactive' ? 'Inactive' : tagFilter === 'quit' ? 'Quit' : 'Members')
+                                        : 'All Members';
+
+                                    return (
+                                        <>
+                                {/* Line Charts Section - Shows above overview when enabled */}
+                                {showCharts && (() => {
+                                    const chartData = filteredDailyTotals.map(day => ({
+                                        date: formatDate(day.date),
+                                        kp: day.kills,
+                                        power: day.power,
+                                        honor: day.honor,
+                                        members: day.count,
                                     }));
 
                                     const metrics = [
                                         { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false },
                                         { key: 'power', label: 'Power', color: '#01b574', isCount: false },
                                         { key: 'honor', label: 'Honor', color: '#fbbf24', isCount: false },
-                                        { key: 'members', label: 'Core Members', color: '#9f7aea', isCount: true },
+                                        { key: 'members', label: memberLabel, color: '#9f7aea', isCount: true },
                                     ];
 
                                     const renderChart = (metric: typeof metrics[0], height: number = 300) => (
@@ -2485,19 +2514,19 @@ export default function RosterPage() {
                                             <span className="hidden sm:inline">Total</span> Power
                                         </h3>
                                         <div className="space-y-1 sm:space-y-1.5">
-                                            {dailyTotals.slice(-5).map((day) => {
-                                                const maxPower = Math.max(...dailyTotals.map(d => d.total_power));
-                                                const pct = (day.total_power / maxPower) * 100;
+                                            {filteredDailyTotals.slice(-5).map((day) => {
+                                                const maxPower = Math.max(...filteredDailyTotals.map(d => d.power), 1);
+                                                const pct = (day.power / maxPower) * 100;
                                                 return (
-                                                    <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
-                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                    <div key={day.date} className="flex items-center gap-1 sm:gap-2">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.date)}</span>
                                                         <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#01b574] to-[#01b574]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.total_power)}</span>
+                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.power)}</span>
                                                     </div>
                                                 );
                                             })}
@@ -2511,19 +2540,19 @@ export default function RosterPage() {
                                             <span className="hidden sm:inline">Total</span> KP
                                         </h3>
                                         <div className="space-y-1 sm:space-y-1.5">
-                                            {dailyTotals.slice(-5).map((day) => {
-                                                const maxKills = Math.max(...dailyTotals.map(d => d.total_kills || 1));
-                                                const pct = ((day.total_kills || 0) / maxKills) * 100;
+                                            {filteredDailyTotals.slice(-5).map((day) => {
+                                                const maxKills = Math.max(...filteredDailyTotals.map(d => d.kills), 1);
+                                                const pct = (day.kills / maxKills) * 100;
                                                 return (
-                                                    <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
-                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                    <div key={day.date} className="flex items-center gap-1 sm:gap-2">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.date)}</span>
                                                         <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#f56565] to-[#f56565]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.total_kills || 0)}</span>
+                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.kills)}</span>
                                                     </div>
                                                 );
                                             })}
@@ -2537,50 +2566,49 @@ export default function RosterPage() {
                                             Honor
                                         </h3>
                                         <div className="space-y-1 sm:space-y-1.5">
-                                            {dailyTotals.slice(-5).map((day) => {
-                                                const maxHonor = Math.max(...dailyTotals.map(d => d.total_honor || 1));
-                                                const pct = ((day.total_honor || 0) / maxHonor) * 100;
+                                            {filteredDailyTotals.slice(-5).map((day) => {
+                                                const maxHonor = Math.max(...filteredDailyTotals.map(d => d.honor), 1);
+                                                const pct = (day.honor / maxHonor) * 100;
                                                 return (
-                                                    <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
-                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                    <div key={day.date} className="flex items-center gap-1 sm:gap-2">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.date)}</span>
                                                         <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                             <div
                                                                 className="h-full bg-gradient-to-r from-[#fbbf24] to-[#fbbf24]/50 rounded"
                                                                 style={{ width: `${pct}%` }}
                                                             />
                                                         </div>
-                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.total_honor || 0)}</span>
+                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.honor)}</span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
 
-                                    {/* Core Member Count */}
+                                    {/* Member Count */}
                                     <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
                                         <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                                             <Users className="w-3 sm:w-4 h-3 sm:h-4 text-[#9f7aea]" />
-                                            <span className="hidden sm:inline">Core</span> Members
+                                            {memberLabel}
                                         </h3>
-                                        {(() => {
-                                            const coreMemberCount = roster.filter(m => m.tags?.includes('angmar-og')).length;
-                                            return (
-                                                <div className="space-y-1 sm:space-y-1.5">
-                                                    {dailyTotals.slice(-5).map((day) => (
-                                                        <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
-                                                            <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
-                                                            <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
-                                                                <div
-                                                                    className="h-full bg-gradient-to-r from-[#9f7aea] to-[#9f7aea]/50 rounded"
-                                                                    style={{ width: '100%' }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{coreMemberCount}</span>
+                                        <div className="space-y-1 sm:space-y-1.5">
+                                            {filteredDailyTotals.slice(-5).map((day) => {
+                                                const maxCount = Math.max(...filteredDailyTotals.map(d => d.count), 1);
+                                                const pct = (day.count / maxCount) * 100;
+                                                return (
+                                                    <div key={day.date} className="flex items-center gap-1 sm:gap-2">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.date)}</span>
+                                                        <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-gradient-to-r from-[#9f7aea] to-[#9f7aea]/50 rounded"
+                                                                style={{ width: `${pct}%` }}
+                                                            />
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            );
-                                        })()}
+                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{day.count}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -2931,6 +2959,9 @@ export default function RosterPage() {
                                         ))}
                                     </div>
                                 </div>
+                                        </>
+                                    );
+                                })()}
                             </>
                         )}
                     </div>

@@ -395,10 +395,38 @@ export async function getMembershipChanges(limit = 20): Promise<MemberChange[]> 
 }
 
 /**
+ * Get all snapshots for computing filtered totals
+ */
+export async function getAllSnapshots(limit = 30): Promise<RosterSnapshot[]> {
+  const supabase = createClient();
+
+  // Get unique dates first
+  const dates = await getSnapshotDates();
+  const recentDates = dates.slice(0, limit);
+
+  if (recentDates.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('roster_snapshots')
+    .select('*')
+    .in('snapshot_date', recentDates)
+    .eq('is_active', true)
+    .order('snapshot_date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching all snapshots:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
  * Hook for using roster snapshots in React components
  */
 export function useRosterSnapshots() {
   const [dailyTotals, setDailyTotals] = useState<DailyTotals[]>([]);
+  const [allSnapshots, setAllSnapshots] = useState<RosterSnapshot[]>([]);
   const [memberChanges, setMemberChanges] = useState<MemberChange[]>([]);
   const [lastSnapshotDate, setLastSnapshotDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -409,13 +437,15 @@ export function useRosterSnapshots() {
     setError(null);
 
     try {
-      const [totals, changes, lastDate] = await Promise.all([
+      const [totals, snapshots, changes, lastDate] = await Promise.all([
         getDailyTotals(30),
+        getAllSnapshots(30),
         getMembershipChanges(20),
         getLastSnapshotDate(),
       ]);
 
       setDailyTotals(totals);
+      setAllSnapshots(snapshots);
       setMemberChanges(changes);
       setLastSnapshotDate(lastDate);
     } catch (err) {
@@ -432,6 +462,7 @@ export function useRosterSnapshots() {
 
   return {
     dailyTotals,
+    allSnapshots,
     memberChanges,
     lastSnapshotDate,
     loading,
