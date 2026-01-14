@@ -788,10 +788,11 @@ export default function RosterPage() {
             }
 
             // Fetch existing roster to match by governor_id or alternate_names
+            // Also fetch current kills to avoid overwriting manual entries with lower CSV values
             setImportStatus('Checking for existing members...');
             const { data: existingRoster } = await supabase
                 .from('alliance_roster')
-                .select('id, name, governor_id, alternate_names, is_active')
+                .select('id, name, governor_id, alternate_names, is_active, kills, t4_kills, t5_kills, deads')
                 .eq('is_active', true);
 
             // Build lookup maps for matching
@@ -799,6 +800,8 @@ export default function RosterPage() {
             const nameToId = new Map<string, string>();
             const altNameToId = new Map<string, string>();
             const normalizedNameToId = new Map<string, string>();
+            // Track current kills to only update if CSV has HIGHER value (manual entry is truth)
+            const idToCurrentKills = new Map<string, { kills: number; t4_kills: number; t5_kills: number; deads: number }>();
 
             for (const member of existingRoster || []) {
                 if (member.governor_id) {
@@ -814,6 +817,13 @@ export default function RosterPage() {
                         normalizedNameToId.set(stripTagsFromName(altName), member.id);
                     }
                 }
+                // Store current kill values
+                idToCurrentKills.set(member.id, {
+                    kills: member.kills || 0,
+                    t4_kills: member.t4_kills || 0,
+                    t5_kills: member.t5_kills || 0,
+                    deads: member.deads || 0,
+                });
             }
 
             const rowsToInsert: Partial<RosterMember>[] = [];
@@ -844,11 +854,9 @@ export default function RosterPage() {
                     is_active: true,
                 };
 
-                // Only set kills if CSV has non-zero value (preserve manually entered data)
+                // Parse CSV kill values (will compare against existing later)
                 const csvKills = getNumValue('kills');
-                if (csvKills > 0) {
-                    row.kills = csvKills;
-                }
+                let csvT4 = 0, csvT5 = 0, csvDeads = 0;
 
                 // Add ROKstats fields if available
                 let govId: number | null = null;
@@ -862,13 +870,9 @@ export default function RosterPage() {
                     const kingdom = getValue('kingdom');
                     if (kingdom) row.kingdom = kingdom;
 
-                    // Only set kill stats if CSV has non-zero values (preserve manually entered data)
-                    const csvT4 = getNumValue('t4_kills');
-                    const csvT5 = getNumValue('t5_kills');
-                    const csvDeads = getNumValue('deads');
-                    if (csvT4 > 0) row.t4_kills = csvT4;
-                    if (csvT5 > 0) row.t5_kills = csvT5;
-                    if (csvDeads > 0) row.deads = csvDeads;
+                    csvT4 = getNumValue('t4_kills');
+                    csvT5 = getNumValue('t5_kills');
+                    csvDeads = getNumValue('deads');
 
                     // These can always be updated (not manually entered)
                     row.acclaim = getNumValue('acclaim');
@@ -908,9 +912,38 @@ export default function RosterPage() {
                     const updateData = { ...row };
                     delete updateData.name; // Don't overwrite name
                     delete updateData.is_active; // Don't change active status
+
+                    // Only update kill stats if CSV value is HIGHER than existing
+                    // Manual entries are source of truth - CSV should never overwrite with lower values
+                    const currentKills = idToCurrentKills.get(existingId);
+                    if (currentKills) {
+                        if (csvKills > currentKills.kills) {
+                            updateData.kills = csvKills;
+                        }
+                        if (csvT4 > currentKills.t4_kills) {
+                            updateData.t4_kills = csvT4;
+                        }
+                        if (csvT5 > currentKills.t5_kills) {
+                            updateData.t5_kills = csvT5;
+                        }
+                        if (csvDeads > currentKills.deads) {
+                            updateData.deads = csvDeads;
+                        }
+                    } else {
+                        // No existing data - use CSV values if non-zero
+                        if (csvKills > 0) updateData.kills = csvKills;
+                        if (csvT4 > 0) updateData.t4_kills = csvT4;
+                        if (csvT5 > 0) updateData.t5_kills = csvT5;
+                        if (csvDeads > 0) updateData.deads = csvDeads;
+                    }
+
                     rowsToUpdate.push({ id: existingId, data: updateData });
                 } else {
-                    // New member
+                    // New member - use CSV values if non-zero
+                    if (csvKills > 0) row.kills = csvKills;
+                    if (csvT4 > 0) row.t4_kills = csvT4;
+                    if (csvT5 > 0) row.t5_kills = csvT5;
+                    if (csvDeads > 0) row.deads = csvDeads;
                     rowsToInsert.push(row);
                 }
             }
