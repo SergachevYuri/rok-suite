@@ -268,6 +268,10 @@ export default function RosterPage() {
     const [kpGrowthData, setKpGrowthData] = useState<KpGrowth[]>([]);
     const [powerGrowthData, setPowerGrowthData] = useState<PowerGrowth[]>([]);
 
+    // Pagination state
+    const [rowsPerPage, setRowsPerPage] = useState<number>(25);
+    const [currentPage, setCurrentPage] = useState(0);
+
     // Hover card state
     const [hoveredMember, setHoveredMember] = useState<string | null>(null);
     const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -396,6 +400,11 @@ export default function RosterPage() {
             getPowerGrowth(roster).then(setPowerGrowthData).catch(console.error);
         }
     }, [roster]);
+
+    // Reset to first page when filters/sort change
+    useEffect(() => {
+        setCurrentPage(0);
+    }, [search, tagFilter, allianceFilter, sortField, sortDirection]);
 
     // Initialize event entries when roster or event type changes
     useEffect(() => {
@@ -1165,6 +1174,12 @@ export default function RosterPage() {
             }
         });
 
+    // Pagination logic
+    const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(filteredRoster.length / rowsPerPage);
+    const paginatedRoster = rowsPerPage === -1
+        ? filteredRoster
+        : filteredRoster.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
+
     const totalPower = roster.reduce((sum, m) => sum + m.power, 0);
     const totalKills = roster.reduce((sum, m) => sum + (m.kills || 0), 0);
 
@@ -1746,9 +1761,9 @@ export default function RosterPage() {
                             </button>
                         </div>
                     )}
-                    <div className="overflow-x-auto mobile-scroll">
+                    <div className="overflow-auto mobile-scroll max-h-[70vh]">
                         <table className="w-full min-w-[320px]">
-                            <thead>
+                            <thead className="sticky top-0 z-10 bg-[var(--background-card)]">
                                 <tr className="border-b border-[var(--border)]">
                                     <th className="text-center px-1 sm:px-2 py-2 sm:py-3 w-8 sm:w-10">
                                         <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>#</span>
@@ -1937,12 +1952,14 @@ export default function RosterPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredRoster.map((member, idx) => (
+                                {paginatedRoster.map((member, idx) => {
+                                    const globalIdx = rowsPerPage === -1 ? idx : currentPage * rowsPerPage + idx;
+                                    return (
                                     <tr
                                         key={member.id}
                                         className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''} hover:bg-[var(--background-secondary)]/50 active:bg-[var(--background-secondary)]/70`}
                                     >
-                                        <td className={`text-center px-1 sm:px-2 py-2 sm:py-3 text-xs sm:text-sm ${theme.textMuted}`}>{idx + 1}</td>
+                                        <td className={`text-center px-1 sm:px-2 py-2 sm:py-3 text-xs sm:text-sm ${theme.textMuted}`}>{globalIdx + 1}</td>
                                         <td className="px-2 sm:px-4 py-2 sm:py-3 relative">
                                             <span
                                                 className="font-medium cursor-pointer hover:text-[#9f7aea] active:text-[#9f7aea] transition-colors text-sm sm:text-base"
@@ -2243,10 +2260,56 @@ export default function RosterPage() {
                                             </td>
                                         )}
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {filteredRoster.length > 0 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-[var(--border)] gap-2">
+                            <div className="flex items-center gap-2 text-sm">
+                                <span className={theme.textMuted}>Rows per page:</span>
+                                <select
+                                    value={rowsPerPage}
+                                    onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(0); }}
+                                    className={`${theme.input} px-2 py-1 rounded text-sm border`}
+                                >
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                    <option value={-1}>All</option>
+                                </select>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm">
+                                <span className={theme.textMuted}>
+                                    {rowsPerPage === -1
+                                        ? `Showing all ${filteredRoster.length} members`
+                                        : `Showing ${Math.min(currentPage * rowsPerPage + 1, filteredRoster.length)}-${Math.min((currentPage + 1) * rowsPerPage, filteredRoster.length)} of ${filteredRoster.length}`
+                                    }
+                                </span>
+                                {rowsPerPage !== -1 && totalPages > 1 && (
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                                            disabled={currentPage === 0}
+                                            className={`px-3 py-1 rounded ${theme.button} disabled:opacity-50`}
+                                        >
+                                            Prev
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                                            disabled={currentPage >= totalPages - 1}
+                                            className={`px-3 py-1 rounded ${theme.button} disabled:opacity-50`}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {filteredRoster.length === 0 && (
                         <div className="py-12 text-center">
