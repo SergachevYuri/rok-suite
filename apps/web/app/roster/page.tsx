@@ -1187,8 +1187,10 @@ export default function RosterPage() {
         ? filteredRoster
         : filteredRoster.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
 
-    const totalPower = roster.reduce((sum, m) => sum + m.power, 0);
-    const totalKills = roster.reduce((sum, m) => sum + (m.kills || 0), 0);
+    // Only count tagged members for stats (excludes CSV-imported members without tags)
+    const displayRoster = roster.filter(m => m.tags && m.tags.length > 0);
+    const totalPower = displayRoster.reduce((sum, m) => sum + m.power, 0);
+    const totalKills = displayRoster.reduce((sum, m) => sum + (m.kills || 0), 0);
 
     // Vision UI theme - using CSS variables for dark/light mode support
     const theme = {
@@ -1243,7 +1245,7 @@ export default function RosterPage() {
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight truncate">Alliance Roster</h1>
                                     <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#4318ff]/20 text-[#9f7aea] flex-shrink-0">
-                                        {roster.length} members
+                                        {displayRoster.length} members
                                     </span>
                                 </div>
                                 <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>Member stats, power rankings, and event tracking</p>
@@ -1640,7 +1642,7 @@ export default function RosterPage() {
                     <div className={`${theme.card} border rounded-xl p-4 text-center`}>
                         <Users className="w-6 h-6 mx-auto mb-2 text-[#9f7aea]" />
                         <p className={`text-xs ${theme.textMuted}`}>Members</p>
-                        <p className="text-2xl font-bold">{roster.length}</p>
+                        <p className="text-2xl font-bold">{displayRoster.length}</p>
                     </div>
                     <div className={`${theme.card} border rounded-xl p-4 text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Total Power</p>
@@ -1652,7 +1654,7 @@ export default function RosterPage() {
                     </div>
                     <div className={`${theme.card} border rounded-xl p-4 text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Avg Power</p>
-                        <p className="text-2xl font-bold text-[#4318ff]">{formatPower(Math.round(totalPower / roster.length))}</p>
+                        <p className="text-2xl font-bold text-[#4318ff]">{formatPower(Math.round(totalPower / (displayRoster.length || 1)))}</p>
                     </div>
                 </div>
 
