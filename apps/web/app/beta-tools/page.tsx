@@ -1,16 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import {
-  Swords,
   Sun,
   Calculator,
   Scan,
   ArrowRight,
-  ArrowLeft,
   FlaskConical,
 } from 'lucide-react';
+import { AppSidebar } from '@/components/AppSidebar';
 
 export default function BetaToolsPage() {
   const tools = [
@@ -44,34 +42,18 @@ export default function BetaToolsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0f1535]">
-      {/* Grid background */}
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
-
-      {/* Gradient orbs */}
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-[#ffb547]/10 rounded-full blur-[128px] pointer-events-none" />
-      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-[#4318ff]/10 rounded-full blur-[128px] pointer-events-none" />
-
+    <AppSidebar>
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <div className="relative max-w-5xl mx-auto px-6 py-8">
         {/* Header */}
-        <header className="flex items-center justify-between mb-12 pb-6 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="p-2.5 rounded-lg bg-white/5 border border-white/10 text-[#a0aec0] hover:text-white hover:bg-white/10 transition-all"
-              title="Back to Home"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ffb547] to-[#ffd97a] flex items-center justify-center shadow-lg shadow-[#ffb547]/25">
-              <FlaskConical className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-white">Beta Tools</h1>
-              <p className="text-xs text-[#718096]">Experimental features in development</p>
-            </div>
+        <header className="flex items-center gap-3 mb-8 pb-6 border-b border-[var(--border)]">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ffb547] to-[#ffd97a] flex items-center justify-center shadow-lg shadow-[#ffb547]/25">
+            <FlaskConical className="w-5 h-5 text-white" />
           </div>
-          <ThemeToggle />
+          <div>
+            <h1 className="text-xl font-semibold">Beta Tools</h1>
+            <p className="text-sm text-[var(--text-secondary)]">Experimental features in development</p>
+          </div>
         </header>
 
         {/* Warning Banner */}
@@ -80,9 +62,9 @@ export default function BetaToolsPage() {
             <FlaskConical className="w-5 h-5 text-[#ffb547] mt-0.5 flex-shrink-0" />
             <div>
               <h3 className="text-sm font-semibold text-[#ffb547] mb-1">Work in Progress</h3>
-              <p className="text-sm text-[#a0aec0]">
+              <p className="text-sm text-[var(--text-secondary)]">
                 These tools are experimental and may have bugs or incomplete features.
-                They're shared for testing and feedback purposes.
+                They&apos;re shared for testing and feedback purposes.
               </p>
             </div>
           </div>
@@ -95,10 +77,7 @@ export default function BetaToolsPage() {
               const Icon = tool.icon;
               return (
                 <Link key={tool.href} href={tool.href}>
-                  <div className={`group relative p-5 rounded-xl bg-[rgba(6,11,40,0.94)] border border-white/10 ${tool.hoverBorder} backdrop-blur-xl transition-all duration-300 cursor-pointer overflow-hidden`}>
-                    {/* Hover glow effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
+                  <div className={`group relative p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] ${tool.hoverBorder} backdrop-blur-xl transition-all duration-300 cursor-pointer overflow-hidden`}>
                     <div className="relative flex items-center gap-5">
                       {/* Icon */}
                       <div className={`p-3 rounded-xl bg-gradient-to-br ${tool.gradient} shadow-lg ${tool.shadowColor}`}>
@@ -108,18 +87,18 @@ export default function BetaToolsPage() {
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-1">
-                          <h4 className="text-base font-semibold text-white group-hover:text-white transition-colors">
+                          <h4 className="text-base font-semibold group-hover:text-[var(--primary)] transition-colors">
                             {tool.title}
                           </h4>
                           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider bg-[#ffb547]/20 text-[#ffb547]">
                             Beta
                           </span>
                         </div>
-                        <p className="text-sm text-[#a0aec0]">{tool.description}</p>
+                        <p className="text-sm text-[var(--text-secondary)]">{tool.description}</p>
                       </div>
 
                       {/* Arrow */}
-                      <ArrowRight className="w-5 h-5 text-[#718096] group-hover:text-white group-hover:translate-x-1 transition-all" />
+                      <ArrowRight className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--foreground)] group-hover:translate-x-1 transition-all" />
                     </div>
                   </div>
                 </Link>
@@ -129,15 +108,16 @@ export default function BetaToolsPage() {
         </section>
 
         {/* Footer */}
-        <footer className="mt-16 pt-8 border-t border-white/5 text-center">
-          <p className="text-xs text-[#718096]">
+        <footer className="mt-16 pt-8 border-t border-[var(--border)] text-center">
+          <p className="text-xs text-[var(--text-secondary)]">
             Angmar Nazgul Guards • Rise of Kingdoms
           </p>
-          <p className="text-[10px] text-[#718096]/50 mt-2">
+          <p className="text-[10px] text-[var(--text-muted)] mt-2">
             Have feedback? Let us know on Discord
           </p>
         </footer>
       </div>
     </div>
+    </AppSidebar>
   );
 }

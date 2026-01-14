@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { createSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
-import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check } from 'lucide-react';
+import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info } from 'lucide-react';
+import { AppSidebar } from '@/components/AppSidebar';
 
 interface RosterMember {
     id: string;
@@ -992,40 +993,33 @@ export default function RosterPage() {
 
     if (loading) {
         return (
-            <div className={`min-h-screen ${theme.bg} ${theme.text} flex items-center justify-center`}>
-                <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
-                    <span className={theme.textMuted}>Loading roster...</span>
+            <AppSidebar>
+                <div className={`min-h-screen ${theme.bg} ${theme.text} flex items-center justify-center`}>
+                    <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 border-2 border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
+                        <span className={theme.textMuted}>Loading roster...</span>
+                    </div>
                 </div>
-            </div>
+            </AppSidebar>
         );
     }
 
     return (
+        <AppSidebar>
         <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
-            {/* Grid background */}
-            <div className="fixed inset-0 bg-[linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
-
             {/* Header */}
             <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-0 z-40">
                 <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                            <Link
-                                href="/"
-                                className={`p-2 rounded-lg ${theme.button} hover:opacity-80 transition-opacity flex-shrink-0`}
-                                title="Back to Home"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </Link>
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight truncate">Roster</h1>
+                                    <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight truncate">Alliance Roster</h1>
                                     <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#4318ff]/20 text-[#9f7aea] flex-shrink-0">
-                                        {roster.length}
+                                        {roster.length} members
                                     </span>
                                 </div>
-                                <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>Member stats and kill points</p>
+                                <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>Member stats, power rankings, and event tracking</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
@@ -1094,57 +1088,59 @@ export default function RosterPage() {
                         </div>
                     </div>
 
-                    {/* Tabs - Horizontal scroll on mobile */}
-                    <div className="flex gap-1 sm:gap-2 mt-3 sm:mt-4 overflow-x-auto hide-scrollbar pb-1">
+                    {/* Tabs - More prominent design */}
+                    <div className="flex items-center gap-2 mt-4 sm:mt-5 border-b border-[var(--border)] pb-0 overflow-x-auto hide-scrollbar">
                         <button
                             onClick={() => setActiveTab('roster')}
-                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0 ${
+                            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
                                 activeTab === 'roster'
-                                    ? 'bg-[#4318ff] text-white'
-                                    : `${theme.button}`
+                                    ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
                             <Users className="w-4 h-4" />
-                            <span className="hidden xs:inline">Roster</span>
+                            Roster
                         </button>
                         <button
                             onClick={() => setActiveTab('history')}
-                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0 ${
+                            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
                                 activeTab === 'history'
-                                    ? 'bg-[#4318ff] text-white'
-                                    : `${theme.button}`
+                                    ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
                             <History className="w-4 h-4" />
-                            <span className="hidden xs:inline">History</span>
+                            History
                         </button>
                         <button
                             onClick={() => setActiveTab('analytics')}
-                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0 ${
+                            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
                                 activeTab === 'analytics'
-                                    ? 'bg-[#4318ff] text-white'
-                                    : `${theme.button}`
+                                    ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
                             <BarChart3 className="w-4 h-4" />
-                            <span className="hidden xs:inline">Stats</span>
+                            Analytics
                         </button>
                         {isEditor && (
                             <button
                                 onClick={() => setActiveTab('events')}
-                                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0 ${
+                                className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
                                     activeTab === 'events'
-                                        ? 'bg-[#4318ff] text-white'
-                                        : `${theme.button}`
+                                        ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                                        : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
                                 }`}
                             >
                                 <Calendar className="w-4 h-4" />
-                                <span className="hidden xs:inline">Events</span>
+                                Events
                             </button>
                         )}
+                        <div className="flex-1" />
                         {lastSnapshotDate && (
-                            <span className={`px-2 sm:px-3 py-2 text-[10px] sm:text-xs ${theme.textMuted} flex items-center gap-1 whitespace-nowrap flex-shrink-0`}>
-                                <span className="hidden sm:inline">Last:</span> {formatDate(lastSnapshotDate)}
+                            <span className={`px-3 py-2 text-xs ${theme.textMuted} flex items-center gap-1.5 whitespace-nowrap flex-shrink-0`}>
+                                <Lock className="w-3 h-3" />
+                                <span className="hidden sm:inline">Snapshot:</span> {formatDate(lastSnapshotDate)}
                             </span>
                         )}
                     </div>
@@ -1244,34 +1240,64 @@ export default function RosterPage() {
             {/* Import Panel */}
             {showImport && isEditor && (
                 <div className="max-w-6xl mx-auto px-4 md:px-6 pt-4">
-                    <div className={`${theme.card} border rounded-xl p-4`}>
-                        <h3 className="font-semibold mb-3 flex items-center gap-2">
-                            <Upload className="w-4 h-4" />
-                            Import Roster from CSV
+                    <div className={`${theme.card} border rounded-xl p-5`}>
+                        <h3 className="font-semibold mb-4 flex items-center gap-2 text-lg">
+                            <Upload className="w-5 h-5 text-[#4318ff]" />
+                            Import Roster from ROKstats
                         </h3>
-                        <div className={`text-sm ${theme.textMuted} mb-4 space-y-2`}>
-                            <p className="font-medium text-[#4318ff]">Supports ROKstats CSV exports:</p>
-                            <p className="text-xs">
-                                Export from <a href="https://app.rokstats.online" target="_blank" rel="noopener noreferrer" className="text-[#4318ff] underline">rokstats.online</a> →
-                                Columns: Governor ID, Governor Name, Camp, KD, Power, KP, T4, T5, Dead, Acclaim, Healed, PTS, Trades
-                            </p>
-                            <p className={`text-xs ${theme.textMuted}`}>
-                                Also accepts simple CSV with columns: name, power, kills, rank/role, notes
-                            </p>
-                            <p className="text-xs text-[#01b574]">
-                                A snapshot will be automatically created after import for historical tracking.
-                            </p>
+
+                        {/* Step by step instructions */}
+                        <div className={`${theme.bg} rounded-lg p-4 mb-4 border border-[var(--border)]`}>
+                            <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                                <Info className="w-4 h-4 text-[#4318ff]" />
+                                How to export from ROKstats:
+                            </h4>
+                            <ol className="space-y-2 text-sm">
+                                <li className="flex items-start gap-2">
+                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#4318ff] text-white text-xs flex items-center justify-center font-bold">1</span>
+                                    <span>Go to <a href="https://app.rokstats.online/kvk/dashboard/S11400" target="_blank" rel="noopener noreferrer" className="text-[#4318ff] hover:underline inline-flex items-center gap-1">app.rokstats.online/kvk/dashboard/S11400 <ExternalLink className="w-3 h-3" /></a></span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#4318ff] text-white text-xs flex items-center justify-center font-bold">2</span>
+                                    <span>Filter by kingdom <strong className="text-[var(--foreground)]">3923</strong> using the filter options</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#4318ff] text-white text-xs flex items-center justify-center font-bold">3</span>
+                                    <span>Click the <strong className="text-[var(--foreground)]">Export CSV</strong> button to download</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#4318ff] text-white text-xs flex items-center justify-center font-bold">4</span>
+                                    <span>Upload the downloaded CSV file below</span>
+                                </li>
+                            </ol>
                         </div>
-                        <input
-                            type="file"
-                            accept=".csv"
-                            onChange={(e) => e.target.files?.[0] && handleImportCSV(e.target.files[0])}
-                            className={`w-full px-3 py-2 rounded-lg border ${theme.input}`}
-                        />
+
+                        <div className={`text-xs ${theme.textMuted} mb-3 space-y-1`}>
+                            <p>✓ Supports ROKstats columns: Governor ID, Name, Power, KP, T4, T5, Deaths, Acclaim, Healed, PTS, Trades</p>
+                            <p>✓ Also accepts simple CSV format with: name, power, kills, rank/role, notes</p>
+                            <p className="text-[#01b574]">✓ A snapshot will be automatically created after import for historical tracking</p>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3 items-start">
+                            <label className="flex-1 relative">
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={(e) => e.target.files?.[0] && handleImportCSV(e.target.files[0])}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                                <div className={`w-full px-4 py-3 rounded-lg border-2 border-dashed border-[var(--border)] hover:border-[#4318ff] transition-colors ${theme.bg} text-center cursor-pointer`}>
+                                    <Upload className="w-5 h-5 mx-auto mb-1 text-[var(--text-muted)]" />
+                                    <p className="text-sm font-medium">Choose CSV file or drag & drop</p>
+                                    <p className={`text-xs ${theme.textMuted}`}>ROKstats export or custom CSV</p>
+                                </div>
+                            </label>
+                        </div>
+
                         {importStatus && (
-                            <p className={`mt-2 text-sm ${importStatus.includes('Error') ? 'text-red-500' : 'text-[#01b574]'}`}>
+                            <div className={`mt-3 p-3 rounded-lg text-sm ${importStatus.includes('Error') ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-[#01b574]/10 text-[#01b574] border border-[#01b574]/20'}`}>
                                 {importStatus}
-                            </p>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -3592,5 +3618,6 @@ export default function RosterPage() {
                 );
             })()}
         </div>
+        </AppSidebar>
     );
 }

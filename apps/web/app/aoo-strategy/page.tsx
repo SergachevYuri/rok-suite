@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 import { useAllianceRoster, formatPower } from '@/lib/supabase/use-alliance-roster';
+import { AppSidebar } from '@/components/AppSidebar';
 
 // Dynamic import to avoid SSR issues with the map
 const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInteractiveMap'), {
@@ -583,32 +584,25 @@ export default function AooStrategyPage() {
 
     if (isLoading) {
         return (
-            <div className={`min-h-screen ${theme.bg} ${theme.text} flex items-center justify-center`}>
-                <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-[#01b574] border-t-transparent rounded-full animate-spin"></div>
-                    <span className={theme.textMuted}>Loading...</span>
+            <AppSidebar>
+                <div className={`min-h-screen ${theme.bg} ${theme.text} flex items-center justify-center`}>
+                    <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 border-2 border-[#01b574] border-t-transparent rounded-full animate-spin"></div>
+                        <span className={theme.textMuted}>Loading...</span>
+                    </div>
                 </div>
-            </div>
+            </AppSidebar>
         );
     }
 
     return (
+        <AppSidebar>
         <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
-            {/* Grid background */}
-            <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
-
             {/* Header */}
-            <header className="bg-[#0f1535]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-40">
+            <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <a 
-                                href="/"
-                                className={`p-2 rounded-lg ${theme.button} hover:opacity-80 transition-opacity`}
-                                title="Back to Home"
-                            >
-                                ←
-                            </a>
                             <div>
                                 <div className="flex items-center gap-2">
                                     <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ark of Osiris</h1>
@@ -1518,11 +1512,12 @@ export default function AooStrategyPage() {
 
                     <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
-                        <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>🐰 Led by Fluffy • Suntzu is charming the enemy (again)</p>
+                        <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>Led by Fluffy • Suntzu is charming the enemy (again)</p>
                     </footer>
                 </div>
             )}
 
         </div>
+        </AppSidebar>
     );
 }

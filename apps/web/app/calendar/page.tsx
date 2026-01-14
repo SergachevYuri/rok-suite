@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useTheme } from '@/lib/theme-context';
+import { AppSidebar } from '@/components/AppSidebar';
 
 // Google Calendar configuration
 const CALENDARS = [
@@ -86,25 +86,16 @@ export default function CalendarPage() {
     const calendarUrl = `https://calendar.google.com/calendar/embed?${calendarSources}&ctz=${encodeURIComponent(timezone)}&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=MONTH`;
 
     return (
+        <AppSidebar>
         <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
-            {/* Grid background */}
-            <div className="fixed inset-0 bg-[linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
-
             {/* Header */}
             <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-0 z-40">
                 <div className="max-w-5xl mx-auto px-4 md:px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <Link
-                                href="/"
-                                className={`p-2 rounded-lg ${theme.button} hover:opacity-80 transition-opacity`}
-                                title="Back to Home"
-                            >
-                                ←
-                            </Link>
                             <div>
                                 <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Alliance Calendar</h1>
-                                <p className={`text-sm ${theme.textMuted}`}>Upcoming events for Angmar</p>
+                                <p className={`text-sm ${theme.textMuted}`}>Upcoming events, KvK schedule, and alliance activities</p>
                             </div>
                         </div>
                     </div>
@@ -254,5 +245,6 @@ export default function CalendarPage() {
                 </footer>
             </div>
         </div>
+        </AppSidebar>
     );
 }
