@@ -357,7 +357,7 @@ export default function RosterPage() {
     const isColumnVisible = (columnId: ColumnId) => visibleColumns.includes(columnId);
 
     // History data from hook
-    const { dailyTotals, allSnapshots, baselineMembers, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
+    const { dailyTotals, allSnapshots, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
 
     const fetchRoster = useCallback(async () => {
         setLoading(true);
@@ -1134,9 +1134,9 @@ export default function RosterPage() {
     }, [roster]);
 
     // Filter and sort roster
-    // Only show members that were in the Jan 12 baseline snapshot
+    // Only show members with tags (excludes CSV-imported members without tags)
     const filteredRoster = roster
-        .filter(m => baselineMembers.size === 0 || baselineMembers.has(m.name)) // Only show baseline members
+        .filter(m => m.tags && m.tags.length > 0) // Only show tagged members
         .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
         .filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)))
         .filter(m => !allianceFilter || m.alliance === allianceFilter)
@@ -1187,8 +1187,8 @@ export default function RosterPage() {
         ? filteredRoster
         : filteredRoster.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
 
-    // Only count baseline members for stats (members from Jan 12 snapshot)
-    const displayRoster = roster.filter(m => baselineMembers.size === 0 || baselineMembers.has(m.name));
+    // Only count tagged members for stats (excludes CSV-imported members without tags)
+    const displayRoster = roster.filter(m => m.tags && m.tags.length > 0);
     const totalPower = displayRoster.reduce((sum, m) => sum + m.power, 0);
     const totalKills = displayRoster.reduce((sum, m) => sum + (m.kills || 0), 0);
 
