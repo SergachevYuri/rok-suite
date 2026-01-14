@@ -1134,7 +1134,9 @@ export default function RosterPage() {
     }, [roster]);
 
     // Filter and sort roster
+    // Only show members with tags (excludes CSV-imported members without tags)
     const filteredRoster = roster
+        .filter(m => m.tags && m.tags.length > 0) // Only show tagged members
         .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
         .filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)))
         .filter(m => !allianceFilter || m.alliance === allianceFilter)
