@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { createSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
-import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check } from 'lucide-react';
 
 interface RosterMember {
     id: string;
@@ -24,6 +24,27 @@ interface RosterMember {
     is_active: boolean;
     created_at: string;
     updated_at: string;
+    // New ROKstats fields
+    governor_id: number | null;
+    kingdom: string | null;
+    camp: string | null;
+    alliance: string | null;
+    highest_power: number;
+    t1_kills: number;
+    t2_kills: number;
+    t3_kills: number;
+    victories: number;
+    defeats: number;
+    scout_times: number;
+    troops_healed: number;
+    gathered: number;
+    assistance: number;
+    helps: number;
+    acclaim: number;
+    kvk_points: number;
+    trades: number;
+    castle_hall: number | null;
+    civilization: string | null;
 }
 
 type SortField = 'default' | 'name' | 'power' | 'kills' | 'role';
@@ -34,11 +55,57 @@ const COLUMN_TOOLTIPS: Record<string, string> = {
     power: 'Total account power',
     kp: 'Kill points (total kills)',
     t4t5: 'T4 and T5 troop kill points',
+    t1t2t3: 'T1, T2 and T3 troop kill points',
     honor: 'Honor points earned in Ark of Osiris',
     aoo: 'Ark of Osiris: Last team assignment and participation rate',
     mob: 'Mobilization: Individual points and resources turned in/accepted',
     rank: 'Alliance rank (R1-R5)',
+    alliance: 'Player\'s home alliance',
+    deads: 'Total troop deaths',
+    healed: 'Troops healed',
+    acclaim: 'Acclaim points from KvK',
+    kvkPts: 'KvK contribution points',
+    highestPower: 'Highest recorded power',
+    ch: 'Castle Hall level',
+    civilization: 'In-game civilization',
 };
+
+// Column configuration for View Options
+type ColumnId = 'power' | 'kp' | 't4t5' | 't1t2t3' | 'deads' | 'healed' | 'honor' | 'aoo' | 'mob' | 'rank' | 'alliance' | 'acclaim' | 'kvkPts' | 'highestPower' | 'ch' | 'civilization';
+
+interface ColumnConfig {
+    id: ColumnId;
+    label: string;
+    tooltip: string;
+    defaultVisible: boolean;
+    category: 'core' | 'combat' | 'support' | 'events' | 'profile';
+}
+
+const COLUMN_CONFIG: ColumnConfig[] = [
+    // Core columns
+    { id: 'power', label: 'Power', tooltip: COLUMN_TOOLTIPS.power, defaultVisible: true, category: 'core' },
+    { id: 'kp', label: 'Kill Points', tooltip: COLUMN_TOOLTIPS.kp, defaultVisible: true, category: 'core' },
+    { id: 'rank', label: 'Rank', tooltip: COLUMN_TOOLTIPS.rank, defaultVisible: true, category: 'core' },
+    { id: 'alliance', label: 'Alliance', tooltip: COLUMN_TOOLTIPS.alliance, defaultVisible: true, category: 'core' },
+    // Combat columns
+    { id: 't4t5', label: 'T4/T5 KP', tooltip: COLUMN_TOOLTIPS.t4t5, defaultVisible: true, category: 'combat' },
+    { id: 't1t2t3', label: 'T1/T2/T3 KP', tooltip: COLUMN_TOOLTIPS.t1t2t3, defaultVisible: false, category: 'combat' },
+    { id: 'deads', label: 'Deaths', tooltip: COLUMN_TOOLTIPS.deads, defaultVisible: false, category: 'combat' },
+    { id: 'healed', label: 'Healed', tooltip: COLUMN_TOOLTIPS.healed, defaultVisible: false, category: 'combat' },
+    // Events columns
+    { id: 'honor', label: 'Honor', tooltip: COLUMN_TOOLTIPS.honor, defaultVisible: true, category: 'events' },
+    { id: 'aoo', label: 'AoO', tooltip: COLUMN_TOOLTIPS.aoo, defaultVisible: true, category: 'events' },
+    { id: 'mob', label: 'Mob', tooltip: COLUMN_TOOLTIPS.mob, defaultVisible: true, category: 'events' },
+    { id: 'acclaim', label: 'Acclaim', tooltip: COLUMN_TOOLTIPS.acclaim, defaultVisible: false, category: 'events' },
+    { id: 'kvkPts', label: 'KvK Pts', tooltip: COLUMN_TOOLTIPS.kvkPts, defaultVisible: false, category: 'events' },
+    // Profile columns
+    { id: 'highestPower', label: 'Peak Power', tooltip: COLUMN_TOOLTIPS.highestPower, defaultVisible: false, category: 'profile' },
+    { id: 'ch', label: 'CH', tooltip: COLUMN_TOOLTIPS.ch, defaultVisible: false, category: 'profile' },
+    { id: 'civilization', label: 'Civ', tooltip: COLUMN_TOOLTIPS.civilization, defaultVisible: false, category: 'profile' },
+];
+
+const DEFAULT_VISIBLE_COLUMNS = COLUMN_CONFIG.filter(c => c.defaultVisible).map(c => c.id);
+
 type SortDirection = 'asc' | 'desc';
 
 const EDITOR_PASSWORD = 'carn-dum';
@@ -151,6 +218,7 @@ export default function RosterPage() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [tagFilter, setTagFilter] = useState<string | null>(null);
+    const [allianceFilter, setAllianceFilter] = useState<string | null>(null);
     const [sortField, setSortField] = useState<SortField>('default'); // Default: rank → power → name
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -220,6 +288,57 @@ export default function RosterPage() {
     const [isDraggingActivity, setIsDraggingActivity] = useState(false);
     const [activityDragOffset, setActivityDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const activityHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Column visibility state
+    const [visibleColumns, setVisibleColumns] = useState<ColumnId[]>(() => {
+        // Try to load from localStorage
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('roster-visible-columns');
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch {
+                    return DEFAULT_VISIBLE_COLUMNS;
+                }
+            }
+        }
+        return DEFAULT_VISIBLE_COLUMNS;
+    });
+    const [showViewOptions, setShowViewOptions] = useState(false);
+
+    // Save column visibility to localStorage when it changes
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('roster-visible-columns', JSON.stringify(visibleColumns));
+        }
+    }, [visibleColumns]);
+
+    // Close View Options dropdown when clicking outside
+    useEffect(() => {
+        if (!showViewOptions) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('[data-view-options]')) {
+                setShowViewOptions(false);
+            }
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [showViewOptions]);
+
+    const toggleColumn = (columnId: ColumnId) => {
+        setVisibleColumns(prev =>
+            prev.includes(columnId)
+                ? prev.filter(id => id !== columnId)
+                : [...prev, columnId]
+        );
+    };
+
+    const resetColumns = () => {
+        setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+    };
+
+    const isColumnVisible = (columnId: ColumnId) => visibleColumns.includes(columnId);
 
     // History data from hook
     const { dailyTotals, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
@@ -422,6 +541,45 @@ export default function RosterPage() {
         }
     };
 
+    // Parse a single CSV line handling quoted fields
+    const parseCSVLine = (line: string): string[] => {
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (const char of line) {
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        values.push(current.trim());
+
+        return values;
+    };
+
+    // ROKstats CSV column mapping
+    const ROKSTATS_COLUMN_MAP: Record<string, string> = {
+        '#': 'rank',
+        'governor id': 'governor_id',
+        'governor name': 'name',
+        'camp': 'camp',
+        'kd': 'kingdom',
+        'power': 'power',
+        'kp': 'kills',
+        't4': 't4_kills',
+        't5': 't5_kills',
+        'dead': 'deads',
+        'acclaim': 'acclaim',
+        'healed': 'troops_healed',
+        'pts': 'kvk_points',
+        'trades': 'trades',
+    };
+
     const handleImportCSV = async (file: File) => {
         setImportStatus('Reading file...');
 
@@ -433,15 +591,47 @@ export default function RosterPage() {
                 throw new Error('CSV must have a header row and at least one data row');
             }
 
-            const header = lines[0].split(',').map(h => h.trim().toLowerCase());
-            const nameIdx = header.indexOf('name');
-            const powerIdx = header.indexOf('power');
-            const killsIdx = header.indexOf('kills');
-            const roleIdx = header.indexOf('role') !== -1 ? header.indexOf('role') : header.indexOf('rank');
-            const notesIdx = header.indexOf('notes');
+            // Parse header row
+            const headerLine = lines[0];
+            const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().trim());
 
-            if (nameIdx === -1) {
-                throw new Error('CSV must have a "name" column');
+            // Check if this is a ROKstats format CSV (has "governor name" or "governor id")
+            const isRokstatsFormat = headers.includes('governor name') || headers.includes('governor id');
+
+            // Build column index map
+            const columnIndices: Record<string, number> = {};
+
+            if (isRokstatsFormat) {
+                // ROKstats format - use the column mapping
+                for (const [csvHeader, field] of Object.entries(ROKSTATS_COLUMN_MAP)) {
+                    const idx = headers.indexOf(csvHeader);
+                    if (idx !== -1) {
+                        columnIndices[field] = idx;
+                    }
+                }
+                setImportStatus(`ROKstats format detected. Found columns: ${Object.keys(columnIndices).join(', ')}`);
+            } else {
+                // Simple format - look for standard column names
+                const simpleMap: Record<string, string[]> = {
+                    'name': ['name'],
+                    'power': ['power'],
+                    'kills': ['kills', 'kp'],
+                    'role': ['role', 'rank'],
+                    'notes': ['notes'],
+                };
+                for (const [field, possibleHeaders] of Object.entries(simpleMap)) {
+                    for (const h of possibleHeaders) {
+                        const idx = headers.indexOf(h);
+                        if (idx !== -1) {
+                            columnIndices[field] = idx;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (columnIndices['name'] === undefined) {
+                throw new Error('CSV must have a "name" or "governor name" column');
             }
 
             const rows: Partial<RosterMember>[] = [];
@@ -450,18 +640,56 @@ export default function RosterPage() {
                 const line = lines[i].trim();
                 if (!line) continue;
 
-                const values = line.split(',').map(v => v.trim());
-                const name = values[nameIdx];
+                const values = parseCSVLine(line);
+
+                const getValue = (field: string): string => {
+                    const idx = columnIndices[field];
+                    return idx !== undefined ? (values[idx] || '') : '';
+                };
+
+                const getNumValue = (field: string): number => {
+                    const val = getValue(field);
+                    return parseInt(val.replace(/,/g, ''), 10) || 0;
+                };
+
+                const name = getValue('name');
                 if (!name) continue;
 
-                rows.push({
+                const row: Partial<RosterMember> = {
                     name,
-                    power: powerIdx !== -1 ? parseInt(values[powerIdx], 10) || 0 : 0,
-                    kills: killsIdx !== -1 ? parseInt(values[killsIdx], 10) || 0 : 0,
-                    role: roleIdx !== -1 ? values[roleIdx] || null : null,
-                    notes: notesIdx !== -1 ? values[notesIdx] || null : null,
+                    power: getNumValue('power'),
+                    kills: getNumValue('kills'),
                     is_active: true,
-                });
+                };
+
+                // Add ROKstats fields if available
+                if (isRokstatsFormat) {
+                    const govId = getNumValue('governor_id');
+                    if (govId) row.governor_id = govId;
+
+                    const camp = getValue('camp');
+                    if (camp) row.camp = camp;
+
+                    const kingdom = getValue('kingdom');
+                    if (kingdom) row.kingdom = kingdom;
+
+                    row.t4_kills = getNumValue('t4_kills');
+                    row.t5_kills = getNumValue('t5_kills');
+                    row.deads = getNumValue('deads');
+                    row.acclaim = getNumValue('acclaim');
+                    row.troops_healed = getNumValue('troops_healed');
+                    row.kvk_points = getNumValue('kvk_points');
+                    row.trades = getNumValue('trades');
+                } else {
+                    // Simple format
+                    const role = getValue('role');
+                    if (role) row.role = role;
+
+                    const notes = getValue('notes');
+                    if (notes) row.notes = notes;
+                }
+
+                rows.push(row);
             }
 
             setImportStatus(`Importing ${rows.length} members...`);
@@ -480,6 +708,8 @@ export default function RosterPage() {
                     name: r.name!,
                     power: r.power || 0,
                     kills: r.kills || 0,
+                    t4_kills: r.t4_kills || 0,
+                    t5_kills: r.t5_kills || 0,
                     honor_points: (r as { honor_points?: number }).honor_points || 0,
                     role: r.role || null,
                     is_active: true,
@@ -494,7 +724,7 @@ export default function RosterPage() {
             setTimeout(() => {
                 setImportStatus(null);
                 setShowImport(false);
-            }, 2000);
+            }, 3000);
 
             fetchRoster();
         } catch (err) {
@@ -605,10 +835,20 @@ export default function RosterPage() {
         return rankings;
     }, [roster, kpGrowthData, powerGrowthData]);
 
+    // Get unique alliances for filter dropdown
+    const alliances = useMemo(() => {
+        const allianceSet = new Set<string>();
+        roster.forEach(m => {
+            if (m.alliance) allianceSet.add(m.alliance);
+        });
+        return Array.from(allianceSet).sort();
+    }, [roster]);
+
     // Filter and sort roster
     const filteredRoster = roster
         .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
         .filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)))
+        .filter(m => !allianceFilter || m.alliance === allianceFilter)
         .sort((a, b) => {
             // When sorting by default or rank, use multi-level: rank → power (desc) → name (asc)
             if (sortField === 'default' || sortField === 'role') {
@@ -940,9 +1180,19 @@ export default function RosterPage() {
                             <Upload className="w-4 h-4" />
                             Import Roster from CSV
                         </h3>
-                        <p className={`text-sm ${theme.textMuted} mb-3`}>
-                            CSV should have columns: name, power, kills (optional), rank/role (optional), notes (optional)
-                        </p>
+                        <div className={`text-sm ${theme.textMuted} mb-4 space-y-2`}>
+                            <p className="font-medium text-[#4318ff]">Supports ROKstats CSV exports:</p>
+                            <p className="text-xs">
+                                Export from <a href="https://app.rokstats.online" target="_blank" rel="noopener noreferrer" className="text-[#4318ff] underline">rokstats.online</a> →
+                                Columns: Governor ID, Governor Name, Camp, KD, Power, KP, T4, T5, Dead, Acclaim, Healed, PTS, Trades
+                            </p>
+                            <p className={`text-xs ${theme.textMuted}`}>
+                                Also accepts simple CSV with columns: name, power, kills, rank/role, notes
+                            </p>
+                            <p className="text-xs text-[#01b574]">
+                                A snapshot will be automatically created after import for historical tracking.
+                            </p>
+                        </div>
                         <input
                             type="file"
                             accept=".csv"
@@ -996,15 +1246,77 @@ export default function RosterPage() {
                                 className={`w-full pl-10 pr-4 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
                             />
                         </div>
-                        {sortField !== 'default' && (
-                            <button
-                                onClick={resetToDefaultSort}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} whitespace-nowrap`}
-                                title="Reset to default sort (Rank → Power → Name)"
-                            >
-                                Reset Sort
-                            </button>
-                        )}
+                        <div className="flex gap-2 flex-wrap">
+                            {/* Alliance Filter */}
+                            {alliances.length > 0 && (
+                                <select
+                                    value={allianceFilter || ''}
+                                    onChange={(e) => setAllianceFilter(e.target.value || null)}
+                                    className={`px-3 py-2 rounded-lg text-sm border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
+                                >
+                                    <option value="">All Alliances</option>
+                                    {alliances.map(a => (
+                                        <option key={a} value={a}>{a}</option>
+                                    ))}
+                                </select>
+                            )}
+                            {sortField !== 'default' && (
+                                <button
+                                    onClick={resetToDefaultSort}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} whitespace-nowrap`}
+                                    title="Reset to default sort (Rank → Power → Name)"
+                                >
+                                    Reset Sort
+                                </button>
+                            )}
+                            {/* View Options Button */}
+                            <div className="relative" data-view-options>
+                                <button
+                                    onClick={() => setShowViewOptions(!showViewOptions)}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2 ${showViewOptions ? 'ring-2 ring-[#4318ff]' : ''}`}
+                                    title="View Options"
+                                >
+                                    <Eye className="w-4 h-4" />
+                                    <span className="hidden sm:inline">View</span>
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${showViewOptions ? 'rotate-180' : ''}`} />
+                                </button>
+                                {/* View Options Dropdown */}
+                                {showViewOptions && (
+                                    <div className={`absolute right-0 top-full mt-2 w-72 ${theme.card} border rounded-xl shadow-xl z-50 overflow-hidden`}>
+                                        <div className="p-3 border-b border-[var(--border)] flex items-center justify-between">
+                                            <span className="text-sm font-semibold">Visible Columns</span>
+                                            <button
+                                                onClick={resetColumns}
+                                                className={`text-xs ${theme.textMuted} hover:text-white`}
+                                            >
+                                                Reset
+                                            </button>
+                                        </div>
+                                        <div className="max-h-80 overflow-y-auto p-2">
+                                            {(['core', 'combat', 'events', 'profile'] as const).map(category => (
+                                                <div key={category} className="mb-3">
+                                                    <div className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} px-2 py-1`}>
+                                                        {category}
+                                                    </div>
+                                                    {COLUMN_CONFIG.filter(c => c.category === category).map(col => (
+                                                        <button
+                                                            key={col.id}
+                                                            onClick={() => toggleColumn(col.id)}
+                                                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[var(--background-secondary)] transition-colors`}
+                                                        >
+                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${isColumnVisible(col.id) ? 'bg-[#4318ff] border-[#4318ff]' : 'border-[var(--border)]'}`}>
+                                                                {isColumnVisible(col.id) && <Check className="w-3 h-3 text-white" />}
+                                                            </div>
+                                                            <span className="text-sm">{col.label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1050,72 +1362,163 @@ export default function RosterPage() {
                                             </button>
                                         </ColumnTooltip>
                                     </th>
-                                    <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
-                                        <ColumnTooltip text={COLUMN_TOOLTIPS.power}>
-                                            <button
-                                                onClick={() => handleSort('power')}
-                                                className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
-                                            >
-                                                <span className="hidden sm:inline">Power</span>
-                                                <span className="sm:hidden">Pwr</span>
-                                                <SortIcon field="power" />
-                                            </button>
-                                        </ColumnTooltip>
-                                    </th>
-                                    <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
-                                        <ColumnTooltip text={COLUMN_TOOLTIPS.kp}>
-                                            <button
-                                                onClick={() => handleSort('kills')}
-                                                className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
-                                            >
-                                                KP <SortIcon field="kills" />
-                                            </button>
-                                        </ColumnTooltip>
-                                    </th>
-                                    {/* Hide T4/T5 on mobile - visible in hover card */}
-                                    <th className="text-right px-4 py-3 hidden md:table-cell">
-                                        <ColumnTooltip text={COLUMN_TOOLTIPS.t4t5}>
-                                            <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
-                                                T4/T5 KP
-                                            </span>
-                                        </ColumnTooltip>
-                                    </th>
-                                    {/* Hide Honor on mobile - visible in hover card */}
-                                    <th className="text-right px-4 py-3 hidden lg:table-cell">
-                                        <ColumnTooltip text={COLUMN_TOOLTIPS.honor}>
-                                            <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
-                                                Honor
-                                            </span>
-                                        </ColumnTooltip>
-                                    </th>
-                                    {/* Hide AoO on mobile - visible in hover card */}
-                                    <th className="text-center px-4 py-3 hidden lg:table-cell">
-                                        <ColumnTooltip text={COLUMN_TOOLTIPS.aoo}>
-                                            <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
-                                                AoO
-                                            </span>
-                                        </ColumnTooltip>
-                                    </th>
-                                    {/* Hide Mob on mobile - visible in hover card */}
-                                    <th className="text-center px-4 py-3 hidden lg:table-cell">
-                                        <ColumnTooltip text={COLUMN_TOOLTIPS.mob}>
-                                            <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
-                                                Mob
-                                            </span>
-                                        </ColumnTooltip>
-                                    </th>
-                                    <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
-                                        <ColumnTooltip text={COLUMN_TOOLTIPS.rank}>
-                                            <button
-                                                onClick={() => handleSort('role')}
-                                                className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto`}
-                                            >
-                                                <span className="hidden sm:inline">Rank</span>
-                                                <span className="sm:hidden">R</span>
-                                                <SortIcon field="role" />
-                                            </button>
-                                        </ColumnTooltip>
-                                    </th>
+                                    {isColumnVisible('power') && (
+                                        <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.power}>
+                                                <button
+                                                    onClick={() => handleSort('power')}
+                                                    className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
+                                                >
+                                                    <span className="hidden sm:inline">Power</span>
+                                                    <span className="sm:hidden">Pwr</span>
+                                                    <SortIcon field="power" />
+                                                </button>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('kp') && (
+                                        <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.kp}>
+                                                <button
+                                                    onClick={() => handleSort('kills')}
+                                                    className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
+                                                >
+                                                    KP <SortIcon field="kills" />
+                                                </button>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('t4t5') && (
+                                        <th className="text-right px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.t4t5}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    T4/T5 KP
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('t1t2t3') && (
+                                        <th className="text-right px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.t1t2t3}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    T1/T2/T3
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('deads') && (
+                                        <th className="text-right px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.deads}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Deaths
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('healed') && (
+                                        <th className="text-right px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.healed}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Healed
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('honor') && (
+                                        <th className="text-right px-4 py-3 hidden lg:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.honor}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Honor
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('aoo') && (
+                                        <th className="text-center px-4 py-3 hidden lg:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.aoo}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    AoO
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('mob') && (
+                                        <th className="text-center px-4 py-3 hidden lg:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.mob}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Mob
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('acclaim') && (
+                                        <th className="text-right px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.acclaim}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Acclaim
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('kvkPts') && (
+                                        <th className="text-right px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.kvkPts}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    KvK Pts
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('highestPower') && (
+                                        <th className="text-right px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.highestPower}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Peak Pwr
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('ch') && (
+                                        <th className="text-center px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.ch}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    CH
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('civilization') && (
+                                        <th className="text-center px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.civilization}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Civ
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('rank') && (
+                                        <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.rank}>
+                                                <button
+                                                    onClick={() => handleSort('role')}
+                                                    className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto`}
+                                                >
+                                                    <span className="hidden sm:inline">Rank</span>
+                                                    <span className="sm:hidden">R</span>
+                                                    <SortIcon field="role" />
+                                                </button>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
+                                    {isColumnVisible('alliance') && (
+                                        <th className="text-left px-4 py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.alliance}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Alliance
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
                                     {isEditor && (
                                         <th className="text-left px-4 py-3">
                                             <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
@@ -1191,128 +1594,206 @@ export default function RosterPage() {
                                                 <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-semibold rounded bg-red-500/20 text-red-400" title="Quit">QUIT</span>
                                             )}
                                         </td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
-                                            {editingId === member.id ? (
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        value={editValues.powerM}
-                                                        onChange={(e) => setEditValues({ ...editValues, powerM: e.target.value })}
-                                                        className={`w-16 sm:w-20 px-2 py-1 rounded border ${theme.input} text-right text-sm`}
-                                                        placeholder="0.0"
-                                                    />
-                                                    <span className={`text-xs ${theme.textMuted}`}>M</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-[#01b574] text-sm sm:text-base">{formatPower(member.power)}</span>
-                                            )}
-                                        </td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
-                                            {editingId === member.id ? (
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        value={editValues.killsM}
-                                                        onChange={(e) => setEditValues({ ...editValues, killsM: e.target.value })}
-                                                        className={`w-16 sm:w-20 px-2 py-1 rounded border ${theme.input} text-right text-sm`}
-                                                        placeholder="0.0"
-                                                    />
-                                                    <span className={`text-xs ${theme.textMuted}`}>M</span>
-                                                </div>
-                                            ) : (
-                                                <span className={`text-sm sm:text-base ${member.kills ? 'text-[#f56565]' : theme.textMuted}`}>
-                                                    {member.kills ? formatPower(member.kills) : '-'}
-                                                </span>
-                                            )}
-                                        </td>
-                                        {/* T4/T5 - Hidden on mobile */}
-                                        <td className="px-4 py-3 text-right hidden md:table-cell">
-                                            {editingId === member.id ? (
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <input
-                                                        type="text"
-                                                        value={editValues.t4t5KillsM}
-                                                        onChange={(e) => setEditValues({ ...editValues, t4t5KillsM: e.target.value })}
-                                                        className={`w-24 px-2 py-1 rounded border ${theme.input} text-right`}
-                                                        placeholder="T4/T5"
-                                                    />
-                                                    <span className={`text-xs ${theme.textMuted}`}>M</span>
-                                                </div>
-                                            ) : (
-                                                <span className={(member.t4_kills || member.t5_kills) ? 'text-[#ed8936]' : theme.textMuted}>
-                                                    {(member.t4_kills || member.t5_kills)
-                                                        ? `${formatPower(member.t4_kills || 0)} / ${formatPower(member.t5_kills || 0)}`
+                                        {isColumnVisible('power') && (
+                                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
+                                                {editingId === member.id ? (
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            value={editValues.powerM}
+                                                            onChange={(e) => setEditValues({ ...editValues, powerM: e.target.value })}
+                                                            className={`w-16 sm:w-20 px-2 py-1 rounded border ${theme.input} text-right text-sm`}
+                                                            placeholder="0.0"
+                                                        />
+                                                        <span className={`text-xs ${theme.textMuted}`}>M</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[#01b574] text-sm sm:text-base">{formatPower(member.power)}</span>
+                                                )}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('kp') && (
+                                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
+                                                {editingId === member.id ? (
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            value={editValues.killsM}
+                                                            onChange={(e) => setEditValues({ ...editValues, killsM: e.target.value })}
+                                                            className={`w-16 sm:w-20 px-2 py-1 rounded border ${theme.input} text-right text-sm`}
+                                                            placeholder="0.0"
+                                                        />
+                                                        <span className={`text-xs ${theme.textMuted}`}>M</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className={`text-sm sm:text-base ${member.kills ? 'text-[#f56565]' : theme.textMuted}`}>
+                                                        {member.kills ? formatPower(member.kills) : '-'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('t4t5') && (
+                                            <td className="px-4 py-3 text-right hidden md:table-cell">
+                                                {editingId === member.id ? (
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <input
+                                                            type="text"
+                                                            value={editValues.t4t5KillsM}
+                                                            onChange={(e) => setEditValues({ ...editValues, t4t5KillsM: e.target.value })}
+                                                            className={`w-24 px-2 py-1 rounded border ${theme.input} text-right`}
+                                                            placeholder="T4/T5"
+                                                        />
+                                                        <span className={`text-xs ${theme.textMuted}`}>M</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className={(member.t4_kills || member.t5_kills) ? 'text-[#ed8936]' : theme.textMuted}>
+                                                        {(member.t4_kills || member.t5_kills)
+                                                            ? `${formatPower(member.t4_kills || 0)} / ${formatPower(member.t5_kills || 0)}`
+                                                            : '-'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('t1t2t3') && (
+                                            <td className="px-4 py-3 text-right hidden md:table-cell">
+                                                <span className={(member.t1_kills || member.t2_kills || member.t3_kills) ? 'text-[#48bb78]' : theme.textMuted}>
+                                                    {(member.t1_kills || member.t2_kills || member.t3_kills)
+                                                        ? `${formatPower(member.t1_kills || 0)}/${formatPower(member.t2_kills || 0)}/${formatPower(member.t3_kills || 0)}`
                                                         : '-'}
                                                 </span>
-                                            )}
-                                        </td>
-                                        {/* Honor - Hidden on mobile */}
-                                        <td className="px-4 py-3 text-right hidden lg:table-cell">
-                                            {editingId === member.id ? (
-                                                <input
-                                                    type="number"
-                                                    value={editValues.honor}
-                                                    onChange={(e) => setEditValues({ ...editValues, honor: e.target.value })}
-                                                    className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
-                                                    placeholder="0"
-                                                />
-                                            ) : (
-                                                <span className={member.honor_points ? 'text-[#f6ad55]' : theme.textMuted}>
-                                                    {member.honor_points ? member.honor_points.toLocaleString() : '-'}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('deads') && (
+                                            <td className="px-4 py-3 text-right hidden md:table-cell">
+                                                <span className={member.deads ? 'text-[#fc8181]' : theme.textMuted}>
+                                                    {member.deads ? formatPower(member.deads) : '-'}
                                                 </span>
-                                            )}
-                                        </td>
-                                        {/* AoO - Hidden on mobile */}
-                                        <td className="px-4 py-3 text-center hidden lg:table-cell">
-                                            {(() => {
-                                                const stats = eventStats.get(member.name);
-                                                if (!stats || stats.aoo.totalAssigned === 0) {
-                                                    return <span className={theme.textMuted}>-</span>;
-                                                }
-                                                const teamLabel = stats.aoo.lastTeam === 'Team 1' ? 'T1' : stats.aoo.lastTeam === 'Team 2' ? 'T2' : '-';
-                                                return (
-                                                    <span className="text-[#4318ff]">
-                                                        {teamLabel} ({stats.aoo.participatedCount}/{stats.aoo.totalAssigned})
-                                                    </span>
-                                                );
-                                            })()}
-                                        </td>
-                                        {/* Mob - Hidden on mobile */}
-                                        <td className="px-4 py-3 text-center hidden lg:table-cell">
-                                            {(() => {
-                                                const stats = eventStats.get(member.name);
-                                                if (!stats || stats.mobilization.lastScore === null) {
-                                                    return <span className={theme.textMuted}>-</span>;
-                                                }
-                                                const turnedIn = stats.mobilization.lastTurnedIn;
-                                                const accepted = stats.mobilization.lastAccepted;
-                                                return (
-                                                    <span className="text-[#01b574]">
-                                                        {formatPower(stats.mobilization.lastScore)}
-                                                        {turnedIn !== null && accepted !== null && (
-                                                            <span className="text-[var(--text-muted)] text-xs ml-1">
-                                                                ({turnedIn}/{accepted})
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                );
-                                            })()}
-                                        </td>
-                                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                                            {member.role && (
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                                    member.role === 'R5' ? 'bg-amber-500/20 text-amber-500' :
-                                                    member.role === 'R4' ? 'bg-purple-500/20 text-purple-500' :
-                                                    member.role === 'R3' ? 'bg-blue-500/20 text-blue-500' :
-                                                    member.role === 'R2' ? 'bg-green-500/20 text-green-500' :
-                                                    'bg-[var(--background-secondary)] text-[var(--text-muted)]'
-                                                }`}>
-                                                    {member.role}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('healed') && (
+                                            <td className="px-4 py-3 text-right hidden md:table-cell">
+                                                <span className={member.troops_healed ? 'text-[#68d391]' : theme.textMuted}>
+                                                    {member.troops_healed ? formatPower(member.troops_healed) : '-'}
                                                 </span>
-                                            )}
-                                        </td>
+                                            </td>
+                                        )}
+                                        {isColumnVisible('honor') && (
+                                            <td className="px-4 py-3 text-right hidden lg:table-cell">
+                                                {editingId === member.id ? (
+                                                    <input
+                                                        type="number"
+                                                        value={editValues.honor}
+                                                        onChange={(e) => setEditValues({ ...editValues, honor: e.target.value })}
+                                                        className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
+                                                        placeholder="0"
+                                                    />
+                                                ) : (
+                                                    <span className={member.honor_points ? 'text-[#f6ad55]' : theme.textMuted}>
+                                                        {member.honor_points ? member.honor_points.toLocaleString() : '-'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('aoo') && (
+                                            <td className="px-4 py-3 text-center hidden lg:table-cell">
+                                                {(() => {
+                                                    const stats = eventStats.get(member.name);
+                                                    if (!stats || stats.aoo.totalAssigned === 0) {
+                                                        return <span className={theme.textMuted}>-</span>;
+                                                    }
+                                                    const teamLabel = stats.aoo.lastTeam === 'Team 1' ? 'T1' : stats.aoo.lastTeam === 'Team 2' ? 'T2' : '-';
+                                                    return (
+                                                        <span className="text-[#4318ff]">
+                                                            {teamLabel} ({stats.aoo.participatedCount}/{stats.aoo.totalAssigned})
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('mob') && (
+                                            <td className="px-4 py-3 text-center hidden lg:table-cell">
+                                                {(() => {
+                                                    const stats = eventStats.get(member.name);
+                                                    if (!stats || stats.mobilization.lastScore === null) {
+                                                        return <span className={theme.textMuted}>-</span>;
+                                                    }
+                                                    const turnedIn = stats.mobilization.lastTurnedIn;
+                                                    const accepted = stats.mobilization.lastAccepted;
+                                                    return (
+                                                        <span className="text-[#01b574]">
+                                                            {formatPower(stats.mobilization.lastScore)}
+                                                            {turnedIn !== null && accepted !== null && (
+                                                                <span className="text-[var(--text-muted)] text-xs ml-1">
+                                                                    ({turnedIn}/{accepted})
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('acclaim') && (
+                                            <td className="px-4 py-3 text-right hidden md:table-cell">
+                                                <span className={member.acclaim ? 'text-[#9f7aea]' : theme.textMuted}>
+                                                    {member.acclaim ? member.acclaim.toLocaleString() : '-'}
+                                                </span>
+                                            </td>
+                                        )}
+                                        {isColumnVisible('kvkPts') && (
+                                            <td className="px-4 py-3 text-right hidden md:table-cell">
+                                                <span className={member.kvk_points ? 'text-[#4fd1c5]' : theme.textMuted}>
+                                                    {member.kvk_points ? formatPower(member.kvk_points) : '-'}
+                                                </span>
+                                            </td>
+                                        )}
+                                        {isColumnVisible('highestPower') && (
+                                            <td className="px-4 py-3 text-right hidden md:table-cell">
+                                                <span className={member.highest_power ? 'text-[#01b574]' : theme.textMuted}>
+                                                    {member.highest_power ? formatPower(member.highest_power) : '-'}
+                                                </span>
+                                            </td>
+                                        )}
+                                        {isColumnVisible('ch') && (
+                                            <td className="px-4 py-3 text-center hidden md:table-cell">
+                                                <span className={member.castle_hall ? '' : theme.textMuted}>
+                                                    {member.castle_hall || '-'}
+                                                </span>
+                                            </td>
+                                        )}
+                                        {isColumnVisible('civilization') && (
+                                            <td className="px-4 py-3 text-center hidden md:table-cell">
+                                                <span className={member.civilization ? '' : theme.textMuted}>
+                                                    {member.civilization || '-'}
+                                                </span>
+                                            </td>
+                                        )}
+                                        {isColumnVisible('rank') && (
+                                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                                                {member.role && (
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                                        member.role === 'R5' ? 'bg-amber-500/20 text-amber-500' :
+                                                        member.role === 'R4' ? 'bg-purple-500/20 text-purple-500' :
+                                                        member.role === 'R3' ? 'bg-blue-500/20 text-blue-500' :
+                                                        member.role === 'R2' ? 'bg-green-500/20 text-green-500' :
+                                                        'bg-[var(--background-secondary)] text-[var(--text-muted)]'
+                                                    }`}>
+                                                        {member.role}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('alliance') && (
+                                            <td className="px-4 py-3 hidden md:table-cell">
+                                                <span
+                                                    className={`text-sm ${member.alliance ? 'text-[#9f7aea] cursor-pointer hover:underline' : theme.textMuted}`}
+                                                    onClick={() => member.alliance && setAllianceFilter(member.alliance)}
+                                                >
+                                                    {member.alliance || '-'}
+                                                </span>
+                                            </td>
+                                        )}
                                         {isEditor && (
                                             <td className="px-4 py-3">
                                                 {editingId === member.id ? (
