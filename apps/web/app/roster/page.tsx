@@ -1387,10 +1387,10 @@ export default function RosterPage() {
                                             : `${theme.button}`
                                     }`}
                                 >
-                                    All ({roster.length})
+                                    All ({displayRoster.length})
                                 </button>
                                 {availableTags.map(tag => {
-                                    const count = roster.filter(m => m.tags?.includes(tag)).length;
+                                    const count = displayRoster.filter(m => m.tags?.includes(tag)).length;
                                     const tagConfig = {
                                         'angmar-og': { label: 'Angmar Core', activeClass: 'bg-amber-500 text-black', inactiveClass: 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' },
                                         'inactive': { label: 'Inactive', activeClass: 'bg-gray-500 text-white', inactiveClass: 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30' },
