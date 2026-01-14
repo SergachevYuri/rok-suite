@@ -115,6 +115,30 @@ export async function getSnapshotDates(): Promise<string[]> {
 // Snapshot dates to exclude from charts/growth tracking (data not reliable for these dates)
 const EXCLUDED_SNAPSHOT_DATES = ['2026-01-12'];
 
+// The baseline snapshot date - members from this date are the "original" roster
+const BASELINE_SNAPSHOT_DATE = '2026-01-12';
+
+/**
+ * Get member names from the baseline snapshot (Jan 12)
+ * Used to filter the roster to only show originally tracked members
+ */
+export async function getBaselineMemberNames(): Promise<Set<string>> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('roster_snapshots')
+    .select('member_name')
+    .eq('snapshot_date', BASELINE_SNAPSHOT_DATE)
+    .eq('is_active', true);
+
+  if (error || !data) {
+    console.error('Error fetching baseline members:', error);
+    return new Set();
+  }
+
+  return new Set(data.map(d => d.member_name));
+}
+
 /**
  * Get daily totals for charts
  */
@@ -433,6 +457,7 @@ export async function getAllSnapshots(limit = 30): Promise<RosterSnapshot[]> {
 export function useRosterSnapshots() {
   const [dailyTotals, setDailyTotals] = useState<DailyTotals[]>([]);
   const [allSnapshots, setAllSnapshots] = useState<RosterSnapshot[]>([]);
+  const [baselineMembers, setBaselineMembers] = useState<Set<string>>(new Set());
   const [memberChanges, setMemberChanges] = useState<MemberChange[]>([]);
   const [lastSnapshotDate, setLastSnapshotDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -443,15 +468,17 @@ export function useRosterSnapshots() {
     setError(null);
 
     try {
-      const [totals, snapshots, changes, lastDate] = await Promise.all([
+      const [totals, snapshots, baseline, changes, lastDate] = await Promise.all([
         getDailyTotals(30),
         getAllSnapshots(30),
+        getBaselineMemberNames(),
         getMembershipChanges(20),
         getLastSnapshotDate(),
       ]);
 
       setDailyTotals(totals);
       setAllSnapshots(snapshots);
+      setBaselineMembers(baseline);
       setMemberChanges(changes);
       setLastSnapshotDate(lastDate);
     } catch (err) {
@@ -469,6 +496,7 @@ export function useRosterSnapshots() {
   return {
     dailyTotals,
     allSnapshots,
+    baselineMembers,
     memberChanges,
     lastSnapshotDate,
     loading,
