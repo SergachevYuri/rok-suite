@@ -2389,19 +2389,27 @@ export default function RosterPage() {
                             <>
                                 {/* Line Charts Section - Shows above overview when enabled */}
                                 {showCharts && (() => {
+                                    // Get core member names (those with angmar-og tag)
+                                    const coreMembers = new Set(
+                                        roster
+                                            .filter(m => m.tags?.includes('angmar-og'))
+                                            .map(m => m.name)
+                                    );
+                                    const coreMemberCount = coreMembers.size;
+
                                     const chartData = dailyTotals.map(day => ({
                                         date: formatDate(day.snapshot_date),
                                         kp: day.total_kills || 0,
                                         power: day.total_power || 0,
                                         honor: day.total_honor || 0,
-                                        members: day.member_count || 0,
+                                        members: coreMemberCount, // Show current core member count
                                     }));
 
                                     const metrics = [
                                         { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false },
                                         { key: 'power', label: 'Power', color: '#01b574', isCount: false },
                                         { key: 'honor', label: 'Honor', color: '#fbbf24', isCount: false },
-                                        { key: 'members', label: 'Members', color: '#9f7aea', isCount: true },
+                                        { key: 'members', label: 'Core Members', color: '#9f7aea', isCount: true },
                                     ];
 
                                     const renderChart = (metric: typeof metrics[0], height: number = 300) => (
@@ -2548,30 +2556,31 @@ export default function RosterPage() {
                                         </div>
                                     </div>
 
-                                    {/* Member Count Over Time */}
+                                    {/* Core Member Count */}
                                     <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
                                         <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                                             <Users className="w-3 sm:w-4 h-3 sm:h-4 text-[#9f7aea]" />
-                                            Members
+                                            <span className="hidden sm:inline">Core</span> Members
                                         </h3>
-                                        <div className="space-y-1 sm:space-y-1.5">
-                                            {dailyTotals.slice(-5).map((day) => {
-                                                const maxMembers = Math.max(...dailyTotals.map(d => d.member_count || 1));
-                                                const pct = ((day.member_count || 0) / maxMembers) * 100;
-                                                return (
-                                                    <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
-                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
-                                                        <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-gradient-to-r from-[#9f7aea] to-[#9f7aea]/50 rounded"
-                                                                style={{ width: `${pct}%` }}
-                                                            />
+                                        {(() => {
+                                            const coreMemberCount = roster.filter(m => m.tags?.includes('angmar-og')).length;
+                                            return (
+                                                <div className="space-y-1 sm:space-y-1.5">
+                                                    {dailyTotals.slice(-5).map((day) => (
+                                                        <div key={day.snapshot_date} className="flex items-center gap-1 sm:gap-2">
+                                                            <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.snapshot_date)}</span>
+                                                            <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-gradient-to-r from-[#9f7aea] to-[#9f7aea]/50 rounded"
+                                                                    style={{ width: '100%' }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{coreMemberCount}</span>
                                                         </div>
-                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{day.member_count}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
 
