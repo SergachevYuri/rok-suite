@@ -269,9 +269,9 @@ export default function RosterPage() {
     const [kpGrowthData, setKpGrowthData] = useState<KpGrowth[]>([]);
     const [powerGrowthData, setPowerGrowthData] = useState<PowerGrowth[]>([]);
 
-    // Growth tab view toggle (Overview vs Charts)
-    const [growthView, setGrowthView] = useState<'overview' | 'charts'>('overview');
-    const [chartMetric, setChartMetric] = useState<'kp' | 'power' | 'honor' | 'members'>('kp');
+    // Growth tab charts toggle
+    const [showCharts, setShowCharts] = useState(false);
+    const [chartMetric, setChartMetric] = useState<'all' | 'kp' | 'power' | 'honor' | 'members'>('all');
 
     // Pagination state
     const [rowsPerPage, setRowsPerPage] = useState<number>(25);
@@ -2328,39 +2328,27 @@ export default function RosterPage() {
                 {/* Growth Tab */}
                 {activeTab === 'history' && (
                     <div className="space-y-6">
-                        {/* View Toggle - Overview vs Charts */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center bg-[var(--background-secondary)] rounded-lg p-1">
-                                    <button
-                                        onClick={() => setGrowthView('overview')}
-                                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                                            growthView === 'overview'
-                                                ? 'bg-[#4318ff] text-white shadow-sm'
-                                                : `${theme.textMuted} hover:text-[var(--foreground)]`
-                                        }`}
-                                    >
-                                        Overview
-                                    </button>
-                                    <button
-                                        onClick={() => setGrowthView('charts')}
-                                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                                            growthView === 'charts'
-                                                ? 'bg-[#4318ff] text-white shadow-sm'
-                                                : `${theme.textMuted} hover:text-[var(--foreground)]`
-                                        }`}
-                                    >
-                                        Charts
-                                    </button>
-                                </div>
-                            </div>
+                        {/* Show Charts Toggle */}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <button
+                                onClick={() => setShowCharts(!showCharts)}
+                                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                                    showCharts
+                                        ? 'bg-[#4318ff] text-white'
+                                        : `${theme.button}`
+                                }`}
+                            >
+                                <TrendingUp className="w-3.5 h-3.5" />
+                                {showCharts ? 'Hide Charts' : 'Show Charts'}
+                            </button>
 
-                            {/* Metric Toggles - Only show in Charts view */}
-                            {growthView === 'charts' && (
+                            {/* Metric Toggles - Only show when charts visible */}
+                            {showCharts && (
                                 <div className="flex items-center gap-2">
-                                    <span className={`text-xs ${theme.textMuted}`}>Metric:</span>
+                                    <span className={`text-xs ${theme.textMuted}`}>View:</span>
                                     <div className="flex gap-1">
                                         {[
+                                            { key: 'all', label: 'All', color: '#4318ff' },
                                             { key: 'kp', label: 'KP', color: '#f56565' },
                                             { key: 'power', label: 'Power', color: '#01b574' },
                                             { key: 'honor', label: 'Honor', color: '#fbbf24' },
@@ -2368,7 +2356,7 @@ export default function RosterPage() {
                                         ].map(metric => (
                                             <button
                                                 key={metric.key}
-                                                onClick={() => setChartMetric(metric.key as 'kp' | 'power' | 'honor' | 'members')}
+                                                onClick={() => setChartMetric(metric.key as 'all' | 'kp' | 'power' | 'honor' | 'members')}
                                                 className={`px-2 py-1 text-xs font-medium rounded transition-all ${
                                                     chartMetric === metric.key
                                                         ? 'text-white'
@@ -2399,10 +2387,7 @@ export default function RosterPage() {
                             </div>
                         ) : (
                             <>
-                                {/* Overview Mode - Bar Charts */}
-                                {growthView === 'overview' && (
-                                    <>
-                                        {/* Alliance Stats Overview - 2x2 Grid */}
+                                {/* Alliance Stats Overview - 2x2 Grid */}
                                 <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                     {/* Total Power Over Time */}
                                     <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
@@ -2856,100 +2841,87 @@ export default function RosterPage() {
                                         ))}
                                     </div>
                                 </div>
-                                    </>
-                                )}
 
-                                {/* Charts Mode - Line Charts */}
-                                {growthView === 'charts' && (
-                                    <div className={`${theme.card} border rounded-xl p-4`}>
-                                        <div className="h-[400px]">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <LineChart
-                                                    data={dailyTotals.map(day => ({
-                                                        date: formatDate(day.snapshot_date),
-                                                        kp: day.total_kills || 0,
-                                                        power: day.total_power || 0,
-                                                        honor: day.total_honor || 0,
-                                                        members: day.member_count || 0,
-                                                    }))}
-                                                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                                                >
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                                    <XAxis
-                                                        dataKey="date"
-                                                        tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
-                                                        axisLine={{ stroke: 'var(--border)' }}
-                                                        tickLine={{ stroke: 'var(--border)' }}
-                                                    />
-                                                    <YAxis
-                                                        tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
-                                                        axisLine={{ stroke: 'var(--border)' }}
-                                                        tickLine={{ stroke: 'var(--border)' }}
-                                                        tickFormatter={(value) => chartMetric === 'members' ? String(value) : formatPower(value)}
-                                                    />
-                                                    <Tooltip
-                                                        contentStyle={{
-                                                            backgroundColor: 'var(--background-card)',
-                                                            border: '1px solid var(--border)',
-                                                            borderRadius: '8px',
-                                                            color: 'var(--foreground)',
-                                                        }}
-                                                        formatter={(value) => {
-                                                            const numVal = typeof value === 'number' ? value : 0;
-                                                            const formatted = chartMetric === 'members' ? String(numVal) : formatPower(numVal);
-                                                            const label = chartMetric === 'kp' ? 'Kill Points' : chartMetric === 'power' ? 'Power' : chartMetric === 'honor' ? 'Honor' : 'Members';
-                                                            return [formatted, label];
-                                                        }}
-                                                        labelStyle={{ color: 'var(--foreground)' }}
-                                                    />
-                                                    <Legend />
-                                                    <Line
-                                                        type="monotone"
-                                                        dataKey={chartMetric}
-                                                        name={chartMetric === 'kp' ? 'Kill Points' : chartMetric === 'power' ? 'Power' : chartMetric === 'honor' ? 'Honor' : 'Members'}
-                                                        stroke={
-                                                            chartMetric === 'kp' ? '#f56565' :
-                                                            chartMetric === 'power' ? '#01b574' :
-                                                            chartMetric === 'honor' ? '#fbbf24' :
-                                                            '#9f7aea'
-                                                        }
-                                                        strokeWidth={2}
-                                                        dot={{ fill: chartMetric === 'kp' ? '#f56565' : chartMetric === 'power' ? '#01b574' : chartMetric === 'honor' ? '#fbbf24' : '#9f7aea', strokeWidth: 2 }}
-                                                        activeDot={{ r: 6 }}
-                                                    />
-                                                </LineChart>
-                                            </ResponsiveContainer>
-                                        </div>
+                                {/* Line Charts Section - Shows below overview when enabled */}
+                                {showCharts && (() => {
+                                    const chartData = dailyTotals.map(day => ({
+                                        date: formatDate(day.snapshot_date),
+                                        kp: day.total_kills || 0,
+                                        power: day.total_power || 0,
+                                        honor: day.total_honor || 0,
+                                        members: day.member_count || 0,
+                                    }));
 
-                                        {/* Quick Stats Below Chart */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-[var(--border)]">
-                                            {dailyTotals.length >= 2 && (() => {
-                                                const latest = dailyTotals[dailyTotals.length - 1];
-                                                const previous = dailyTotals[dailyTotals.length - 2];
-                                                const stats = [
-                                                    { label: 'KP', current: latest.total_kills || 0, prev: previous.total_kills || 0, color: '#f56565' },
-                                                    { label: 'Power', current: latest.total_power || 0, prev: previous.total_power || 0, color: '#01b574' },
-                                                    { label: 'Honor', current: latest.total_honor || 0, prev: previous.total_honor || 0, color: '#fbbf24' },
-                                                    { label: 'Members', current: latest.member_count || 0, prev: previous.member_count || 0, color: '#9f7aea', isCount: true },
-                                                ];
-                                                return stats.map(stat => {
-                                                    const diff = stat.current - stat.prev;
-                                                    const pctChange = stat.prev > 0 ? (diff / stat.prev) * 100 : 0;
-                                                    const isCount = 'isCount' in stat && stat.isCount;
-                                                    return (
-                                                        <div key={stat.label} className="text-center">
-                                                            <div className={`text-xs ${theme.textMuted} mb-1`}>{stat.label}</div>
-                                                            <div className="text-sm font-semibold">{isCount ? stat.current : formatPower(stat.current)}</div>
-                                                            <div className={`text-xs ${diff >= 0 ? 'text-[#01b574]' : 'text-[#f56565]'}`}>
-                                                                {diff >= 0 ? '+' : ''}{isCount ? diff : formatPower(diff)} ({pctChange >= 0 ? '+' : ''}{pctChange.toFixed(1)}%)
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                });
-                                            })()}
+                                    const metrics = [
+                                        { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false },
+                                        { key: 'power', label: 'Power', color: '#01b574', isCount: false },
+                                        { key: 'honor', label: 'Honor', color: '#fbbf24', isCount: false },
+                                        { key: 'members', label: 'Members', color: '#9f7aea', isCount: true },
+                                    ];
+
+                                    const renderChart = (metric: typeof metrics[0], height: number = 300) => (
+                                        <div key={metric.key} className={`${theme.card} border rounded-xl p-4`}>
+                                            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: metric.color }} />
+                                                {metric.label}
+                                            </h4>
+                                            <div style={{ height }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                                                        <XAxis
+                                                            dataKey="date"
+                                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                                            axisLine={{ stroke: 'var(--border)' }}
+                                                            tickLine={{ stroke: 'var(--border)' }}
+                                                        />
+                                                        <YAxis
+                                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                                            axisLine={{ stroke: 'var(--border)' }}
+                                                            tickLine={{ stroke: 'var(--border)' }}
+                                                            tickFormatter={(value) => metric.isCount ? String(value) : formatPower(value)}
+                                                            width={50}
+                                                        />
+                                                        <Tooltip
+                                                            contentStyle={{
+                                                                backgroundColor: 'var(--background-card)',
+                                                                border: '1px solid var(--border)',
+                                                                borderRadius: '8px',
+                                                                color: 'var(--foreground)',
+                                                            }}
+                                                            formatter={(value) => {
+                                                                const numVal = typeof value === 'number' ? value : 0;
+                                                                return [metric.isCount ? String(numVal) : formatPower(numVal), metric.label];
+                                                            }}
+                                                            labelStyle={{ color: 'var(--foreground)' }}
+                                                        />
+                                                        <Line
+                                                            type="monotone"
+                                                            dataKey={metric.key}
+                                                            name={metric.label}
+                                                            stroke={metric.color}
+                                                            strokeWidth={2}
+                                                            dot={{ fill: metric.color, strokeWidth: 2, r: 3 }}
+                                                            activeDot={{ r: 5 }}
+                                                        />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+
+                                    // Show all charts in 2x2 grid or single chart
+                                    if (chartMetric === 'all') {
+                                        return (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {metrics.map(m => renderChart(m, 200))}
+                                            </div>
+                                        );
+                                    }
+
+                                    const selectedMetric = metrics.find(m => m.key === chartMetric)!;
+                                    return renderChart(selectedMetric, 350);
+                                })()}
                             </>
                         )}
                     </div>
