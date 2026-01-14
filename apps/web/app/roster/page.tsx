@@ -634,7 +634,33 @@ export default function RosterPage() {
                 throw new Error('CSV must have a "name" or "governor name" column');
             }
 
-            const rows: Partial<RosterMember>[] = [];
+            // Fetch existing roster to match by governor_id or alternate_names
+            setImportStatus('Checking for existing members...');
+            const { data: existingRoster } = await supabase
+                .from('alliance_roster')
+                .select('id, name, governor_id, alternate_names, is_active')
+                .eq('is_active', true);
+
+            // Build lookup maps for matching
+            const govIdToId = new Map<number, string>();
+            const nameToId = new Map<string, string>();
+            const altNameToId = new Map<string, string>();
+
+            for (const member of existingRoster || []) {
+                if (member.governor_id) {
+                    govIdToId.set(member.governor_id, member.id);
+                }
+                nameToId.set(member.name.toLowerCase(), member.id);
+                // Also index alternate names
+                if (member.alternate_names) {
+                    for (const altName of member.alternate_names) {
+                        altNameToId.set(altName.toLowerCase(), member.id);
+                    }
+                }
+            }
+
+            const rowsToInsert: Partial<RosterMember>[] = [];
+            const rowsToUpdate: { id: string; data: Partial<RosterMember> }[] = [];
 
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
@@ -663,8 +689,9 @@ export default function RosterPage() {
                 };
 
                 // Add ROKstats fields if available
+                let govId: number | null = null;
                 if (isRokstatsFormat) {
-                    const govId = getNumValue('governor_id');
+                    govId = getNumValue('governor_id') || null;
                     if (govId) row.governor_id = govId;
 
                     const camp = getValue('camp');
@@ -689,36 +716,78 @@ export default function RosterPage() {
                     if (notes) row.notes = notes;
                 }
 
-                rows.push(row);
+                // Try to match to existing member:
+                // 1. By governor_id (most reliable)
+                // 2. By exact name match
+                // 3. By alternate name match
+                let existingId: string | undefined;
+
+                if (govId && govIdToId.has(govId)) {
+                    existingId = govIdToId.get(govId);
+                } else if (nameToId.has(name.toLowerCase())) {
+                    existingId = nameToId.get(name.toLowerCase());
+                } else if (altNameToId.has(name.toLowerCase())) {
+                    existingId = altNameToId.get(name.toLowerCase());
+                }
+
+                if (existingId) {
+                    // Update existing member - don't change the name (keep our canonical name)
+                    const updateData = { ...row };
+                    delete updateData.name; // Don't overwrite name
+                    delete updateData.is_active; // Don't change active status
+                    rowsToUpdate.push({ id: existingId, data: updateData });
+                } else {
+                    // New member
+                    rowsToInsert.push(row);
+                }
             }
 
-            setImportStatus(`Importing ${rows.length} members...`);
+            setImportStatus(`Updating ${rowsToUpdate.length} existing, adding ${rowsToInsert.length} new...`);
 
-            const { error } = await supabase
-                .from('alliance_roster')
-                .upsert(rows, { onConflict: 'name' });
+            // Batch update existing members
+            for (const { id, data } of rowsToUpdate) {
+                const { error } = await supabase
+                    .from('alliance_roster')
+                    .update(data)
+                    .eq('id', id);
+                if (error) console.error('Update error for', id, error);
+            }
 
-            if (error) throw error;
+            // Insert new members
+            if (rowsToInsert.length > 0) {
+                const { error } = await supabase
+                    .from('alliance_roster')
+                    .upsert(rowsToInsert, { onConflict: 'name' });
+                if (error) throw error;
+            }
 
-            setImportStatus(`Imported ${rows.length} members. Creating snapshot...`);
+            const totalProcessed = rowsToUpdate.length + rowsToInsert.length;
+            setImportStatus(`Processed ${totalProcessed} members. Creating snapshot...`);
 
-            // Auto-create snapshot after import
+            // Auto-create snapshot after import - use current roster state
             try {
-                const snapshotData = rows.map(r => ({
-                    name: r.name!,
-                    power: r.power || 0,
-                    kills: r.kills || 0,
-                    t4_kills: r.t4_kills || 0,
-                    t5_kills: r.t5_kills || 0,
-                    honor_points: (r as { honor_points?: number }).honor_points || 0,
-                    role: r.role || null,
-                    is_active: true,
-                }));
-                await createSnapshot(snapshotData);
-                setImportStatus(`Successfully imported ${rows.length} members and saved snapshot!`);
-                refetchHistory();
+                const { data: updatedRoster } = await supabase
+                    .from('alliance_roster')
+                    .select('name, power, kills, t4_kills, t5_kills, honor_points, role, is_active')
+                    .eq('is_active', true);
+
+                if (updatedRoster) {
+                    const snapshotData = updatedRoster.map(r => ({
+                        name: r.name,
+                        power: r.power || 0,
+                        kills: r.kills || 0,
+                        t4_kills: r.t4_kills || 0,
+                        t5_kills: r.t5_kills || 0,
+                        honor_points: r.honor_points || 0,
+                        role: r.role || null,
+                        is_active: true,
+                    }));
+                    await createSnapshot(snapshotData);
+                    setImportStatus(`Updated ${rowsToUpdate.length}, added ${rowsToInsert.length} members. Snapshot saved!`);
+                    refetchHistory();
+                }
             } catch {
-                setImportStatus(`Imported ${rows.length} members (snapshot failed)`);
+                setImportStatus(`Updated ${rowsToUpdate.length}, added ${rowsToInsert.length} (snapshot failed)`);
             }
 
             setTimeout(() => {
