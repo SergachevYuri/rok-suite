@@ -841,9 +841,14 @@ export default function RosterPage() {
                 const row: Partial<RosterMember> = {
                     name,
                     power: getNumValue('power'),
-                    kills: getNumValue('kills'),
                     is_active: true,
                 };
+
+                // Only set kills if CSV has non-zero value (preserve manually entered data)
+                const csvKills = getNumValue('kills');
+                if (csvKills > 0) {
+                    row.kills = csvKills;
+                }
 
                 // Add ROKstats fields if available
                 let govId: number | null = null;
@@ -857,9 +862,15 @@ export default function RosterPage() {
                     const kingdom = getValue('kingdom');
                     if (kingdom) row.kingdom = kingdom;
 
-                    row.t4_kills = getNumValue('t4_kills');
-                    row.t5_kills = getNumValue('t5_kills');
-                    row.deads = getNumValue('deads');
+                    // Only set kill stats if CSV has non-zero values (preserve manually entered data)
+                    const csvT4 = getNumValue('t4_kills');
+                    const csvT5 = getNumValue('t5_kills');
+                    const csvDeads = getNumValue('deads');
+                    if (csvT4 > 0) row.t4_kills = csvT4;
+                    if (csvT5 > 0) row.t5_kills = csvT5;
+                    if (csvDeads > 0) row.deads = csvDeads;
+
+                    // These can always be updated (not manually entered)
                     row.acclaim = getNumValue('acclaim');
                     row.troops_healed = getNumValue('troops_healed');
                     row.kvk_points = getNumValue('kvk_points');
