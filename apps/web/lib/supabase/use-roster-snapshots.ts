@@ -112,6 +112,9 @@ export async function getSnapshotDates(): Promise<string[]> {
   return uniqueDates;
 }
 
+// Snapshot dates to exclude from charts/growth tracking (data not reliable for these dates)
+const EXCLUDED_SNAPSHOT_DATES = ['2026-01-12'];
+
 /**
  * Get daily totals for charts
  */
@@ -121,6 +124,7 @@ export async function getDailyTotals(limit = 30): Promise<DailyTotals[]> {
   const { data, error } = await supabase
     .from('roster_daily_totals')
     .select('*')
+    .not('snapshot_date', 'in', `(${EXCLUDED_SNAPSHOT_DATES.join(',')})`)
     .order('snapshot_date', { ascending: true })
     .limit(limit);
 
@@ -400,9 +404,11 @@ export async function getMembershipChanges(limit = 20): Promise<MemberChange[]> 
 export async function getAllSnapshots(limit = 30): Promise<RosterSnapshot[]> {
   const supabase = createClient();
 
-  // Get unique dates first
+  // Get unique dates first, excluding unreliable dates
   const dates = await getSnapshotDates();
-  const recentDates = dates.slice(0, limit);
+  const recentDates = dates
+    .filter(d => !EXCLUDED_SNAPSHOT_DATES.includes(d))
+    .slice(0, limit);
 
   if (recentDates.length === 0) return [];
 
