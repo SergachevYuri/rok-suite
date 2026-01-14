@@ -1308,8 +1308,8 @@ export default function RosterPage() {
                         </div>
                     </div>
 
-                    {/* Tabs - More prominent design */}
-                    <div className="flex items-center gap-2 mt-4 sm:mt-5 border-b border-[var(--border)] pb-0 overflow-x-auto hide-scrollbar">
+                    {/* Tabs - More prominent design - Sticky */}
+                    <div className="flex items-center gap-2 mt-4 sm:mt-5 border-b border-[var(--border)] pb-0 overflow-x-auto hide-scrollbar sticky top-0 z-20 bg-[var(--background)] pt-2 -mt-2">
                         <button
                             onClick={() => setActiveTab('roster')}
                             className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
@@ -1329,8 +1329,8 @@ export default function RosterPage() {
                                     : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
-                            <History className="w-4 h-4" />
-                            History
+                            <TrendingUp className="w-4 h-4" />
+                            Growth
                         </button>
                         <button
                             onClick={() => setActiveTab('analytics')}
@@ -2320,18 +2320,18 @@ export default function RosterPage() {
                     </>
                 )}
 
-                {/* History Tab */}
+                {/* Growth Tab */}
                 {activeTab === 'history' && (
                     <div className="space-y-6">
                         {historyLoading ? (
                             <div className="flex items-center justify-center py-12">
                                 <div className="w-5 h-5 border-2 border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
-                                <span className={`ml-3 ${theme.textMuted}`}>Loading history...</span>
+                                <span className={`ml-3 ${theme.textMuted}`}>Loading growth data...</span>
                             </div>
                         ) : dailyTotals.length === 0 ? (
                             <div className={`${theme.card} border rounded-xl p-8 text-center`}>
-                                <History className="w-12 h-12 mx-auto mb-4 text-[#4318ff]/50" />
-                                <h3 className="text-lg font-semibold mb-2">No Historical Data Yet</h3>
+                                <TrendingUp className="w-12 h-12 mx-auto mb-4 text-[#4318ff]/50" />
+                                <h3 className="text-lg font-semibold mb-2">No Growth Data Yet</h3>
                                 <p className={`text-sm ${theme.textMuted} mb-4`}>
                                     Start tracking by importing roster data or clicking "Lock Today" to create your first snapshot.
                                 </p>
