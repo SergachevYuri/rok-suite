@@ -2387,6 +2387,87 @@ export default function RosterPage() {
                             </div>
                         ) : (
                             <>
+                                {/* Line Charts Section - Shows above overview when enabled */}
+                                {showCharts && (() => {
+                                    const chartData = dailyTotals.map(day => ({
+                                        date: formatDate(day.snapshot_date),
+                                        kp: day.total_kills || 0,
+                                        power: day.total_power || 0,
+                                        honor: day.total_honor || 0,
+                                        members: day.member_count || 0,
+                                    }));
+
+                                    const metrics = [
+                                        { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false },
+                                        { key: 'power', label: 'Power', color: '#01b574', isCount: false },
+                                        { key: 'honor', label: 'Honor', color: '#fbbf24', isCount: false },
+                                        { key: 'members', label: 'Members', color: '#9f7aea', isCount: true },
+                                    ];
+
+                                    const renderChart = (metric: typeof metrics[0], height: number = 300) => (
+                                        <div key={metric.key} className={`${theme.card} border rounded-xl p-4`}>
+                                            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: metric.color }} />
+                                                {metric.label}
+                                            </h4>
+                                            <div style={{ height }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                                                        <XAxis
+                                                            dataKey="date"
+                                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                                            axisLine={{ stroke: 'var(--border)' }}
+                                                            tickLine={{ stroke: 'var(--border)' }}
+                                                        />
+                                                        <YAxis
+                                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                                            axisLine={{ stroke: 'var(--border)' }}
+                                                            tickLine={{ stroke: 'var(--border)' }}
+                                                            tickFormatter={(value) => metric.isCount ? String(value) : formatPower(value)}
+                                                            width={50}
+                                                        />
+                                                        <Tooltip
+                                                            contentStyle={{
+                                                                backgroundColor: 'var(--background-card)',
+                                                                border: '1px solid var(--border)',
+                                                                borderRadius: '8px',
+                                                                color: 'var(--foreground)',
+                                                            }}
+                                                            formatter={(value) => {
+                                                                const numVal = typeof value === 'number' ? value : 0;
+                                                                return [metric.isCount ? String(numVal) : formatPower(numVal), metric.label];
+                                                            }}
+                                                            labelStyle={{ color: 'var(--foreground)' }}
+                                                        />
+                                                        <Line
+                                                            type="monotone"
+                                                            dataKey={metric.key}
+                                                            name={metric.label}
+                                                            stroke={metric.color}
+                                                            strokeWidth={2}
+                                                            dot={{ fill: metric.color, strokeWidth: 2, r: 3 }}
+                                                            activeDot={{ r: 5 }}
+                                                        />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                    );
+
+                                    // Show all charts in 2x2 grid or single chart
+                                    if (chartMetric === 'all') {
+                                        return (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {metrics.map(m => renderChart(m, 200))}
+                                            </div>
+                                        );
+                                    }
+
+                                    const selectedMetric = metrics.find(m => m.key === chartMetric)!;
+                                    return renderChart(selectedMetric, 350);
+                                })()}
+
                                 {/* Alliance Stats Overview - 2x2 Grid */}
                                 <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                     {/* Total Power Over Time */}
@@ -2841,87 +2922,6 @@ export default function RosterPage() {
                                         ))}
                                     </div>
                                 </div>
-
-                                {/* Line Charts Section - Shows below overview when enabled */}
-                                {showCharts && (() => {
-                                    const chartData = dailyTotals.map(day => ({
-                                        date: formatDate(day.snapshot_date),
-                                        kp: day.total_kills || 0,
-                                        power: day.total_power || 0,
-                                        honor: day.total_honor || 0,
-                                        members: day.member_count || 0,
-                                    }));
-
-                                    const metrics = [
-                                        { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false },
-                                        { key: 'power', label: 'Power', color: '#01b574', isCount: false },
-                                        { key: 'honor', label: 'Honor', color: '#fbbf24', isCount: false },
-                                        { key: 'members', label: 'Members', color: '#9f7aea', isCount: true },
-                                    ];
-
-                                    const renderChart = (metric: typeof metrics[0], height: number = 300) => (
-                                        <div key={metric.key} className={`${theme.card} border rounded-xl p-4`}>
-                                            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: metric.color }} />
-                                                {metric.label}
-                                            </h4>
-                                            <div style={{ height }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                                        <XAxis
-                                                            dataKey="date"
-                                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
-                                                            axisLine={{ stroke: 'var(--border)' }}
-                                                            tickLine={{ stroke: 'var(--border)' }}
-                                                        />
-                                                        <YAxis
-                                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
-                                                            axisLine={{ stroke: 'var(--border)' }}
-                                                            tickLine={{ stroke: 'var(--border)' }}
-                                                            tickFormatter={(value) => metric.isCount ? String(value) : formatPower(value)}
-                                                            width={50}
-                                                        />
-                                                        <Tooltip
-                                                            contentStyle={{
-                                                                backgroundColor: 'var(--background-card)',
-                                                                border: '1px solid var(--border)',
-                                                                borderRadius: '8px',
-                                                                color: 'var(--foreground)',
-                                                            }}
-                                                            formatter={(value) => {
-                                                                const numVal = typeof value === 'number' ? value : 0;
-                                                                return [metric.isCount ? String(numVal) : formatPower(numVal), metric.label];
-                                                            }}
-                                                            labelStyle={{ color: 'var(--foreground)' }}
-                                                        />
-                                                        <Line
-                                                            type="monotone"
-                                                            dataKey={metric.key}
-                                                            name={metric.label}
-                                                            stroke={metric.color}
-                                                            strokeWidth={2}
-                                                            dot={{ fill: metric.color, strokeWidth: 2, r: 3 }}
-                                                            activeDot={{ r: 5 }}
-                                                        />
-                                                    </LineChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                        </div>
-                                    );
-
-                                    // Show all charts in 2x2 grid or single chart
-                                    if (chartMetric === 'all') {
-                                        return (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                {metrics.map(m => renderChart(m, 200))}
-                                            </div>
-                                        );
-                                    }
-
-                                    const selectedMetric = metrics.find(m => m.key === chartMetric)!;
-                                    return renderChart(selectedMetric, 350);
-                                })()}
                             </>
                         )}
                     </div>
