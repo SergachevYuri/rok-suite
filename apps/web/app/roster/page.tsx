@@ -8,6 +8,7 @@ import { createSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGr
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface RosterMember {
     id: string;
@@ -267,6 +268,10 @@ export default function RosterPage() {
     const [kpGrowthSort, setKpGrowthSort] = useState<{ field: 'name' | 'kpGrowth' | 't4Growth' | 't5Growth'; direction: 'asc' | 'desc' }>({ field: 'kpGrowth', direction: 'desc' });
     const [kpGrowthData, setKpGrowthData] = useState<KpGrowth[]>([]);
     const [powerGrowthData, setPowerGrowthData] = useState<PowerGrowth[]>([]);
+
+    // Growth tab view toggle (Overview vs Charts)
+    const [growthView, setGrowthView] = useState<'overview' | 'charts'>('overview');
+    const [chartMetric, setChartMetric] = useState<'kp' | 'power' | 'honor' | 'members'>('kp');
 
     // Pagination state
     const [rowsPerPage, setRowsPerPage] = useState<number>(25);
@@ -2323,6 +2328,62 @@ export default function RosterPage() {
                 {/* Growth Tab */}
                 {activeTab === 'history' && (
                     <div className="space-y-6">
+                        {/* View Toggle - Overview vs Charts */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center bg-[var(--background-secondary)] rounded-lg p-1">
+                                    <button
+                                        onClick={() => setGrowthView('overview')}
+                                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                                            growthView === 'overview'
+                                                ? 'bg-[#4318ff] text-white shadow-sm'
+                                                : `${theme.textMuted} hover:text-[var(--foreground)]`
+                                        }`}
+                                    >
+                                        Overview
+                                    </button>
+                                    <button
+                                        onClick={() => setGrowthView('charts')}
+                                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                                            growthView === 'charts'
+                                                ? 'bg-[#4318ff] text-white shadow-sm'
+                                                : `${theme.textMuted} hover:text-[var(--foreground)]`
+                                        }`}
+                                    >
+                                        Charts
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Metric Toggles - Only show in Charts view */}
+                            {growthView === 'charts' && (
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-xs ${theme.textMuted}`}>Metric:</span>
+                                    <div className="flex gap-1">
+                                        {[
+                                            { key: 'kp', label: 'KP', color: '#f56565' },
+                                            { key: 'power', label: 'Power', color: '#01b574' },
+                                            { key: 'honor', label: 'Honor', color: '#fbbf24' },
+                                            { key: 'members', label: 'Members', color: '#9f7aea' },
+                                        ].map(metric => (
+                                            <button
+                                                key={metric.key}
+                                                onClick={() => setChartMetric(metric.key as 'kp' | 'power' | 'honor' | 'members')}
+                                                className={`px-2 py-1 text-xs font-medium rounded transition-all ${
+                                                    chartMetric === metric.key
+                                                        ? 'text-white'
+                                                        : `${theme.textMuted} hover:text-[var(--foreground)] bg-[var(--background-secondary)]`
+                                                }`}
+                                                style={chartMetric === metric.key ? { backgroundColor: metric.color } : {}}
+                                            >
+                                                {metric.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {historyLoading ? (
                             <div className="flex items-center justify-center py-12">
                                 <div className="w-5 h-5 border-2 border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
@@ -2338,7 +2399,10 @@ export default function RosterPage() {
                             </div>
                         ) : (
                             <>
-                                {/* Alliance Stats Overview - 2x2 Grid */}
+                                {/* Overview Mode - Bar Charts */}
+                                {growthView === 'overview' && (
+                                    <>
+                                        {/* Alliance Stats Overview - 2x2 Grid */}
                                 <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                     {/* Total Power Over Time */}
                                     <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
@@ -2792,6 +2856,100 @@ export default function RosterPage() {
                                         ))}
                                     </div>
                                 </div>
+                                    </>
+                                )}
+
+                                {/* Charts Mode - Line Charts */}
+                                {growthView === 'charts' && (
+                                    <div className={`${theme.card} border rounded-xl p-4`}>
+                                        <div className="h-[400px]">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart
+                                                    data={dailyTotals.map(day => ({
+                                                        date: formatDate(day.snapshot_date),
+                                                        kp: day.total_kills || 0,
+                                                        power: day.total_power || 0,
+                                                        honor: day.total_honor || 0,
+                                                        members: day.member_count || 0,
+                                                    }))}
+                                                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                                                    <XAxis
+                                                        dataKey="date"
+                                                        tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                                                        axisLine={{ stroke: 'var(--border)' }}
+                                                        tickLine={{ stroke: 'var(--border)' }}
+                                                    />
+                                                    <YAxis
+                                                        tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                                                        axisLine={{ stroke: 'var(--border)' }}
+                                                        tickLine={{ stroke: 'var(--border)' }}
+                                                        tickFormatter={(value) => chartMetric === 'members' ? String(value) : formatPower(value)}
+                                                    />
+                                                    <Tooltip
+                                                        contentStyle={{
+                                                            backgroundColor: 'var(--background-card)',
+                                                            border: '1px solid var(--border)',
+                                                            borderRadius: '8px',
+                                                            color: 'var(--foreground)',
+                                                        }}
+                                                        formatter={(value) => {
+                                                            const numVal = typeof value === 'number' ? value : 0;
+                                                            const formatted = chartMetric === 'members' ? String(numVal) : formatPower(numVal);
+                                                            const label = chartMetric === 'kp' ? 'Kill Points' : chartMetric === 'power' ? 'Power' : chartMetric === 'honor' ? 'Honor' : 'Members';
+                                                            return [formatted, label];
+                                                        }}
+                                                        labelStyle={{ color: 'var(--foreground)' }}
+                                                    />
+                                                    <Legend />
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey={chartMetric}
+                                                        name={chartMetric === 'kp' ? 'Kill Points' : chartMetric === 'power' ? 'Power' : chartMetric === 'honor' ? 'Honor' : 'Members'}
+                                                        stroke={
+                                                            chartMetric === 'kp' ? '#f56565' :
+                                                            chartMetric === 'power' ? '#01b574' :
+                                                            chartMetric === 'honor' ? '#fbbf24' :
+                                                            '#9f7aea'
+                                                        }
+                                                        strokeWidth={2}
+                                                        dot={{ fill: chartMetric === 'kp' ? '#f56565' : chartMetric === 'power' ? '#01b574' : chartMetric === 'honor' ? '#fbbf24' : '#9f7aea', strokeWidth: 2 }}
+                                                        activeDot={{ r: 6 }}
+                                                    />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+
+                                        {/* Quick Stats Below Chart */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-[var(--border)]">
+                                            {dailyTotals.length >= 2 && (() => {
+                                                const latest = dailyTotals[dailyTotals.length - 1];
+                                                const previous = dailyTotals[dailyTotals.length - 2];
+                                                const stats = [
+                                                    { label: 'KP', current: latest.total_kills || 0, prev: previous.total_kills || 0, color: '#f56565' },
+                                                    { label: 'Power', current: latest.total_power || 0, prev: previous.total_power || 0, color: '#01b574' },
+                                                    { label: 'Honor', current: latest.total_honor || 0, prev: previous.total_honor || 0, color: '#fbbf24' },
+                                                    { label: 'Members', current: latest.member_count || 0, prev: previous.member_count || 0, color: '#9f7aea', isCount: true },
+                                                ];
+                                                return stats.map(stat => {
+                                                    const diff = stat.current - stat.prev;
+                                                    const pctChange = stat.prev > 0 ? (diff / stat.prev) * 100 : 0;
+                                                    const isCount = 'isCount' in stat && stat.isCount;
+                                                    return (
+                                                        <div key={stat.label} className="text-center">
+                                                            <div className={`text-xs ${theme.textMuted} mb-1`}>{stat.label}</div>
+                                                            <div className="text-sm font-semibold">{isCount ? stat.current : formatPower(stat.current)}</div>
+                                                            <div className={`text-xs ${diff >= 0 ? 'text-[#01b574]' : 'text-[#f56565]'}`}>
+                                                                {diff >= 0 ? '+' : ''}{isCount ? diff : formatPower(diff)} ({pctChange >= 0 ? '+' : ''}{pctChange.toFixed(1)}%)
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                });
+                                            })()}
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
