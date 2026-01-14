@@ -3,7 +3,6 @@
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft,
   Users,
   Shield,
   Package,
@@ -19,6 +18,7 @@ import { UserMenu } from '@/components/auth/UserMenu';
 import { CommanderScanner } from '@/components/scanners/CommanderScanner';
 import { EquipmentScanner } from '@/components/scanners/EquipmentScanner';
 import { BagScanner } from '@/components/scanners/BagScanner';
+import { AppSidebar } from '@/components/AppSidebar';
 
 type ScannerType = 'commander' | 'equipment' | 'bag' | null;
 
@@ -165,34 +165,20 @@ export default function ScannersPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0f1535]">
-      {/* Grid background */}
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
-
-      {/* Gradient orbs */}
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-[#4318ff]/10 rounded-full blur-[128px] pointer-events-none" />
-      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-[#01b574]/10 rounded-full blur-[128px] pointer-events-none" />
-
+    <AppSidebar>
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0f1535]/80 backdrop-blur-xl">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-6">
-              <Link
-                href="/"
-                className="flex items-center gap-2 text-[#718096] hover:text-white transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">Back</span>
-              </Link>
-              <div className="h-6 w-px bg-white/10" />
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#4318ff] to-[#9f7aea] flex items-center justify-center shadow-lg shadow-[#4318ff]/25">
+      <header className="sticky top-14 lg:top-0 z-30 border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-[#4318ff] to-[#9f7aea] flex items-center justify-center shadow-lg shadow-[#4318ff]/25">
                   <Scan className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-sm font-semibold text-white">Scanners</h1>
-                  <p className="text-xs text-[#718096]">Screenshot Analysis</p>
+                  <h1 className="text-sm font-semibold">Scanners</h1>
+                  <p className="text-xs text-[var(--text-muted)] hidden sm:block">Screenshot Analysis</p>
                 </div>
               </div>
             </div>
@@ -424,5 +410,6 @@ export default function ScannersPage() {
         />
       )}
     </div>
+    </AppSidebar>
   );
 }

@@ -44,15 +44,15 @@ export default function BetaToolsPage() {
   return (
     <AppSidebar>
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <div className="relative max-w-5xl mx-auto px-6 py-8">
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
-        <header className="flex items-center gap-3 mb-8 pb-6 border-b border-[var(--border)]">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ffb547] to-[#ffd97a] flex items-center justify-center shadow-lg shadow-[#ffb547]/25">
-            <FlaskConical className="w-5 h-5 text-white" />
+        <header className="flex items-center gap-3 mb-6 sm:mb-8 pb-4 sm:pb-6 border-b border-[var(--border)]">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#ffb547] to-[#ffd97a] flex items-center justify-center shadow-lg shadow-[#ffb547]/25 flex-shrink-0">
+            <FlaskConical className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold">Beta Tools</h1>
-            <p className="text-sm text-[var(--text-secondary)]">Experimental features in development</p>
+            <h1 className="text-lg sm:text-xl font-semibold">Beta Tools</h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">Experimental features</p>
           </div>
         </header>
 

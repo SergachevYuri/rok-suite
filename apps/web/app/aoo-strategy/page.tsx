@@ -599,61 +599,61 @@ export default function AooStrategyPage() {
         <AppSidebar>
         <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
             {/* Header */}
-            <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ark of Osiris</h1>
-                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+            <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-14 lg:top-0 z-30">
+                <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                    <h1 className="text-lg sm:text-2xl md:text-3xl font-semibold tracking-tight">AoO Planner</h1>
+                                    <span className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded-full ${
                                         aooTeam === 'team1' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
                                     }`}>
-                                        {aooTeam === 'team1' ? 'Team 1' : 'Team 2'}
+                                        {aooTeam === 'team1' ? 'T1' : 'T2'}
                                     </span>
                                     {eventMode === 'training' && (
-                                        <span className="px-2 py-0.5 text-xs font-medium bg-amber-600 text-white rounded-full">
-                                            Training
+                                        <span className="px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium bg-amber-600 text-white rounded-full">
+                                            Train
                                         </span>
                                     )}
                                 </div>
-                                <p className={`text-sm ${theme.textMuted}`}>
+                                <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>
                                     {eventMode === 'training' ? 'Training Match Roster' : '30v30 Strategy Planner'}
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 md:gap-3">
+                        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
                             {/* AoO Team Selector */}
                             <div className="flex rounded-lg p-0.5 bg-white/5 border border-white/10">
                                 <button
                                     onClick={() => handleAooTeamChange('team1')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-colors ${
                                         aooTeam === 'team1'
                                             ? 'bg-blue-600 text-white'
-                                            : 'text-[#718096] hover:text-white'
+                                            : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
                                     }`}
                                 >
-                                    Team 1
+                                    <span className="hidden sm:inline">Team </span>1
                                 </button>
                                 <button
                                     onClick={() => handleAooTeamChange('team2')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-colors ${
                                         aooTeam === 'team2'
                                             ? 'bg-purple-600 text-white'
-                                            : 'text-[#718096] hover:text-white'
+                                            : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
                                     }`}
                                 >
-                                    Team 2
+                                    <span className="hidden sm:inline">Team </span>2
                                 </button>
                             </div>
                             {/* Event Mode Toggle */}
-                            <div className="flex rounded-lg p-0.5 bg-white/5 border border-white/10">
+                            <div className="hidden sm:flex rounded-lg p-0.5 bg-white/5 border border-white/10">
                                 <button
                                     onClick={() => handleEventModeChange('main')}
                                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                                         eventMode === 'main'
                                             ? 'bg-[#01b574] text-white'
-                                            : 'text-[#718096] hover:text-white'
+                                            : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
                                     }`}
                                 >
                                     Main
@@ -663,22 +663,24 @@ export default function AooStrategyPage() {
                                     className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                                         eventMode === 'training'
                                             ? 'bg-amber-600 text-white'
-                                            : 'text-[#718096] hover:text-white'
+                                            : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
                                     }`}
                                 >
                                     Training
                                 </button>
                             </div>
                             {!isEditor ? (
-                                <button onClick={() => setShowPasswordPrompt(true)} className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button}`}>
-                                    Edit Mode
+                                <button onClick={() => setShowPasswordPrompt(true)} className={`p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-medium ${theme.button}`} title="Edit Mode">
+                                    <span className="hidden sm:inline">Edit Mode</span>
+                                    <span className="sm:hidden text-xs">Edit</span>
                                 </button>
                             ) : (
                                 <button
                                     onClick={() => setIsEditor(false)}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.tagActive} hover:opacity-80 transition-opacity`}
+                                    className={`p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-medium ${theme.tagActive} hover:opacity-80 transition-opacity`}
                                 >
-                                    Exit Edit Mode
+                                    <span className="hidden sm:inline">Exit Edit</span>
+                                    <span className="sm:hidden text-xs">Exit</span>
                                 </button>
                             )}
                         </div>

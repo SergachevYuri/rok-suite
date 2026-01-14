@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft,
   Castle,
   Clock,
   Package,
@@ -23,6 +22,7 @@ import {
 } from 'lucide-react';
 import { DependencyGraph } from '@/components/upgrade-calculator/DependencyGraph';
 import { UserMenu } from '@/components/auth/UserMenu';
+import { AppSidebar } from '@/components/AppSidebar';
 import {
   BUILDINGS_DATA,
   VIP_CONSTRUCTION_BONUS,
@@ -389,29 +389,18 @@ export default function UpgradeCalculator() {
   }, []);
 
   return (
+    <AppSidebar>
     <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
-      {/* Grid background */}
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
-
       <div className="relative max-w-4xl mx-auto p-4 md:p-6">
         {/* Header */}
         <header className={`flex items-center justify-between mb-6 pb-4 border-b ${theme.border}`}>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className={`p-2 rounded-lg ${theme.button} transition-colors`}
-              title="Back to home"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0075ff] to-[#21d4fd] flex items-center justify-center shadow-lg shadow-[#0075ff]/25">
-                <Castle className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg md:text-xl font-semibold tracking-tight">Upgrade Calculator</h1>
-                <p className={`text-xs md:text-sm ${theme.textMuted}`}>Plan your City Hall upgrades</p>
-              </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#0075ff] to-[#21d4fd] flex items-center justify-center shadow-lg shadow-[#0075ff]/25 flex-shrink-0">
+              <Castle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-base sm:text-lg md:text-xl font-semibold tracking-tight">Upgrade Calculator</h1>
+              <p className={`text-[10px] sm:text-xs md:text-sm ${theme.textMuted}`}>Plan your City Hall upgrades</p>
             </div>
           </div>
           <UserMenu />
@@ -730,10 +719,11 @@ export default function UpgradeCalculator() {
             Angmar • Rise of Kingdoms
           </p>
           <p className={`text-[10px] ${theme.textMuted} mt-2 opacity-50`}>
-            🍁 Wisdom from the North (Sysstm approved) • No royal mail necessary
+            Wisdom from the North (Sysstm approved) • No royal mail necessary
           </p>
         </footer>
       </div>
     </div>
+    </AppSidebar>
   );
 }

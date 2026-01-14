@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Shield, ArrowLeft, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target, Cloud, CloudOff, X, Upload, HelpCircle } from 'lucide-react';
+import { Shield, Settings, Castle, Users, Scan, Plus, Loader2, Trophy, Edit2, Download, Copy, Check, ChevronDown, ChevronUp, Target, Cloud, CloudOff, X, Upload, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
+import { AppSidebar } from '@/components/AppSidebar';
 import { AddCommanderModal } from '@/components/sunset-canyon/AddCommanderModal';
 import { EditCommanderModal } from '@/components/sunset-canyon/EditCommanderModal';
 import { ScreenshotScanner } from '@/components/sunset-canyon/ScreenshotScanner';
@@ -194,36 +195,25 @@ export default function SunsetCanyonPage() {
   const benchCommanders = userCommanders.filter(c => !usedCommanderIds.includes(c.uniqueId));
 
   return (
-    <div className="min-h-screen bg-[#0f1535] text-white">
-      {/* Grid background */}
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px] pointer-events-none" />
-
+    <AppSidebar>
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0f1535]/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="flex items-center gap-2 text-[#a0aec0] hover:text-[#ffb547] transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span className="text-sm">Back</span>
-              </Link>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ffb547] to-[#ffd97a] flex items-center justify-center shadow-lg shadow-[#ffb547]/25">
-                  <Shield className="w-5 h-5 text-[#0f1535]" />
-                </div>
-                <div>
-                  <h1 className="text-lg font-semibold text-[#ffb547]">Sunset Canyon</h1>
-                  <p className="text-xs text-[#718096]">Formation Optimizer</p>
-                </div>
+      <header className="sticky top-14 lg:top-0 z-30 border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#ffb547] to-[#ffd97a] flex items-center justify-center shadow-lg shadow-[#ffb547]/25 flex-shrink-0">
+                <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#0f1535]" />
+              </div>
+              <div>
+                <h1 className="text-sm sm:text-lg font-semibold text-[#ffb547]">Sunset Canyon</h1>
+                <p className="text-[10px] sm:text-xs text-[var(--text-muted)] hidden sm:block">Formation Optimizer</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
               {/* Sync status indicator */}
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10">
+              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--background-card)] border border-[var(--border)]">
                 {user ? (
                   <>
                     <Cloud className="w-3.5 h-3.5 text-[#01b574]" />
@@ -231,18 +221,18 @@ export default function SunsetCanyonPage() {
                   </>
                 ) : (
                   <>
-                    <CloudOff className="w-3.5 h-3.5 text-[#718096]" />
-                    <span className="text-xs text-[#718096]">Local</span>
+                    <CloudOff className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                    <span className="text-xs text-[var(--text-muted)]">Local</span>
                   </>
                 )}
               </div>
 
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-[#ffb547]/50 transition-colors"
+                className="flex items-center gap-2 p-2 sm:px-3 sm:py-2 rounded-lg border border-[var(--border)] hover:border-[#ffb547]/50 transition-colors"
               >
-                <Settings className="w-4 h-4 text-[#a0aec0]" />
-                <span className="text-sm text-[#a0aec0] hidden sm:inline">Settings</span>
+                <Settings className="w-4 h-4 text-[var(--text-secondary)]" />
+                <span className="text-sm text-[var(--text-secondary)] hidden sm:inline">Settings</span>
               </button>
 
               <UserMenu />
@@ -878,5 +868,6 @@ export default function SunsetCanyonPage() {
         </div>
       )}
     </div>
+    </AppSidebar>
   );
 }
