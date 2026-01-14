@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { createSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
-import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info } from 'lucide-react';
+import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 
 interface RosterMember {
@@ -235,6 +235,12 @@ export default function RosterPage() {
     // CSV Import
     const [showImport, setShowImport] = useState(false);
     const [importStatus, setImportStatus] = useState<string | null>(null);
+
+    // Duplicate Detection
+    const [showDuplicates, setShowDuplicates] = useState(false);
+    const [duplicateGroups, setDuplicateGroups] = useState<{ key: string; members: RosterMember[] }[]>([]);
+    const [mergingGroup, setMergingGroup] = useState<string | null>(null);
+    const [mergeStatus, setMergeStatus] = useState<string | null>(null);
 
     // Tabs and History
     const [activeTab, setActiveTab] = useState<'roster' | 'history' | 'events' | 'analytics'>('roster');
@@ -539,6 +545,140 @@ export default function RosterPage() {
         } catch (err) {
             console.error('Error saving:', err);
             alert('Failed to save changes');
+        }
+    };
+
+    // Duplicate detection - normalize names to find potential matches
+    const CLAN_TAGS = ['ᵃⁿᵍ', 'ᵏᵏ', 'кк', 'К҉к҉', 'K҉k҉', '๛', 'ᴬᶜ', '҉', 'ккк', 'ᵏᵏᵏ', 'ᴷᴷ'];
+
+    const stripTagsFromName = (name: string): string => {
+        let clean = name;
+        for (const tag of CLAN_TAGS) {
+            clean = clean.replaceAll(tag, '');
+        }
+        // Normalize unicode and strip diacritics
+        clean = clean.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+        return clean.trim().toLowerCase();
+    };
+
+    const findDuplicates = () => {
+        // Group by normalized name
+        const groups = new Map<string, RosterMember[]>();
+
+        for (const member of roster) {
+            // Skip already merged records
+            if (!member.is_active) continue;
+
+            const key = stripTagsFromName(member.name);
+            if (!key || key.length < 2) continue;
+
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key)!.push(member);
+        }
+
+        // Find groups with multiple entries
+        const duplicates = Array.from(groups.entries())
+            .filter(([_, members]) => members.length > 1)
+            .map(([key, members]) => ({
+                key,
+                members: members.sort((a, b) => b.power - a.power)
+            }));
+
+        setDuplicateGroups(duplicates);
+        setShowDuplicates(true);
+    };
+
+    const hasTag = (name: string): boolean => {
+        return CLAN_TAGS.some(tag => name.includes(tag));
+    };
+
+    const mergeDuplicateGroup = async (group: { key: string; members: RosterMember[] }) => {
+        if (group.members.length < 2) return;
+
+        setMergingGroup(group.key);
+        setMergeStatus('Merging...');
+
+        try {
+            // Prefer the entry with clan tag, otherwise the one with more power
+            const tagged = group.members.filter(m => hasTag(m.name));
+            const untagged = group.members.filter(m => !hasTag(m.name));
+
+            let primary: RosterMember;
+            let toMerge: RosterMember[];
+
+            if (tagged.length > 0) {
+                primary = tagged[0];
+                toMerge = [...tagged.slice(1), ...untagged];
+            } else {
+                primary = group.members[0]; // Already sorted by power
+                toMerge = group.members.slice(1);
+            }
+
+            // Collect all alternate names
+            const allAlternateNames = new Set<string>();
+            for (const m of toMerge) {
+                allAlternateNames.add(m.name);
+            }
+
+            // Merge stats: take max of numeric fields
+            const merged = {
+                power: Math.max(primary.power, ...toMerge.map(m => m.power || 0)),
+                kills: Math.max(primary.kills || 0, ...toMerge.map(m => m.kills || 0)),
+                t4_kills: Math.max(primary.t4_kills || 0, ...toMerge.map(m => m.t4_kills || 0)),
+                t5_kills: Math.max(primary.t5_kills || 0, ...toMerge.map(m => m.t5_kills || 0)),
+                deads: Math.max(primary.deads || 0, ...toMerge.map(m => m.deads || 0)),
+                honor_points: Math.max(primary.honor_points || 0, ...toMerge.map(m => m.honor_points || 0)),
+                troops_healed: Math.max(primary.troops_healed || 0, ...toMerge.map(m => m.troops_healed || 0)),
+                acclaim: Math.max(primary.acclaim || 0, ...toMerge.map(m => m.acclaim || 0)),
+                kvk_points: Math.max(primary.kvk_points || 0, ...toMerge.map(m => m.kvk_points || 0)),
+                highest_power: Math.max(primary.highest_power || 0, ...toMerge.map(m => m.highest_power || 0)),
+                alternate_names: Array.from(allAlternateNames),
+            };
+
+            // Update primary with merged data
+            const { error: updateError } = await supabase
+                .from('alliance_roster')
+                .update(merged)
+                .eq('id', primary.id);
+
+            if (updateError) throw updateError;
+
+            // Mark duplicates as inactive and link to primary
+            for (const m of toMerge) {
+                const { error: mergeError } = await supabase
+                    .from('alliance_roster')
+                    .update({
+                        is_active: false,
+                        merged_into: primary.id,
+                    })
+                    .eq('id', m.id);
+
+                if (mergeError) throw mergeError;
+            }
+
+            // Update local state
+            setRoster(roster.map(m => {
+                if (m.id === primary.id) {
+                    return { ...m, ...merged };
+                }
+                if (toMerge.some(tm => tm.id === m.id)) {
+                    return { ...m, is_active: false };
+                }
+                return m;
+            }));
+
+            // Remove this group from duplicates
+            setDuplicateGroups(duplicateGroups.filter(g => g.key !== group.key));
+            setMergeStatus(`Merged ${toMerge.length} record(s) into "${primary.name}"`);
+
+            setTimeout(() => setMergeStatus(null), 3000);
+        } catch (err) {
+            console.error('Error merging:', err);
+            setMergeStatus('Failed to merge records');
+        } finally {
+            setMergingGroup(null);
         }
     };
 
@@ -1222,16 +1362,25 @@ export default function RosterPage() {
             {isEditor && (
                 <div className="bg-[#4318ff]/10 border-b border-[#4318ff]/30">
                     <div className="max-w-6xl mx-auto px-4 md:px-6 py-3">
-                        <div className="flex items-start gap-3">
-                            <Edit2 className="w-5 h-5 text-[#9f7aea] flex-shrink-0 mt-0.5" />
-                            <div>
-                                <h3 className="font-medium text-[#9f7aea] text-sm">Edit Mode Active</h3>
-                                <p className={`text-xs ${theme.textMuted} mt-1`}>
-                                    <strong>Roster tab:</strong> Click any row to edit KP and notes •
-                                    <strong> Analytics tab:</strong> Adjust activity score weights •
-                                    <strong> Events tab:</strong> Record AoO teams and Mobilization scores
-                                </p>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                                <Edit2 className="w-5 h-5 text-[#9f7aea] flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <h3 className="font-medium text-[#9f7aea] text-sm">Edit Mode Active</h3>
+                                    <p className={`text-xs ${theme.textMuted} mt-1`}>
+                                        <strong>Roster tab:</strong> Click any row to edit KP and notes •
+                                        <strong> Analytics tab:</strong> Adjust activity score weights •
+                                        <strong> Events tab:</strong> Record AoO teams and Mobilization scores
+                                    </p>
+                                </div>
                             </div>
+                            <button
+                                onClick={findDuplicates}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${theme.button} hover:bg-[#4318ff]/20 transition-colors whitespace-nowrap`}
+                            >
+                                <Copy className="w-3.5 h-3.5" />
+                                Find Duplicates
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1298,6 +1447,98 @@ export default function RosterPage() {
                             <div className={`mt-3 p-3 rounded-lg text-sm ${importStatus.includes('Error') ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-[#01b574]/10 text-[#01b574] border border-[#01b574]/20'}`}>
                                 {importStatus}
                             </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Duplicates Panel */}
+            {showDuplicates && isEditor && (
+                <div className="max-w-6xl mx-auto px-4 md:px-6 pt-4">
+                    <div className={`${theme.card} border rounded-xl p-5`}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-semibold flex items-center gap-2 text-lg">
+                                <GitMerge className="w-5 h-5 text-[#f59e0b]" />
+                                Potential Duplicates
+                            </h3>
+                            <button
+                                onClick={() => setShowDuplicates(false)}
+                                className={`p-1.5 rounded-lg ${theme.button}`}
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {duplicateGroups.length === 0 ? (
+                            <div className={`text-center py-8 ${theme.textMuted}`}>
+                                <Check className="w-12 h-12 mx-auto mb-3 text-[#01b574]" />
+                                <p className="font-medium text-[#01b574]">No duplicates found!</p>
+                                <p className="text-sm mt-1">All roster entries appear to be unique.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className={`text-sm ${theme.textMuted} mb-4`}>
+                                    Found {duplicateGroups.length} potential duplicate group(s). Names are matched after removing clan tags (ᵃⁿᵍ, ᵏᵏ, etc.).
+                                </p>
+
+                                {mergeStatus && (
+                                    <div className={`mb-4 p-3 rounded-lg text-sm ${mergeStatus.includes('Failed') ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-[#01b574]/10 text-[#01b574] border border-[#01b574]/20'}`}>
+                                        {mergeStatus}
+                                    </div>
+                                )}
+
+                                <div className="space-y-3">
+                                    {duplicateGroups.map((group) => (
+                                        <div key={group.key} className={`${theme.bg} rounded-lg p-4 border border-[var(--border)]`}>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className={`text-xs font-mono ${theme.textMuted}`}>Normalized: &quot;{group.key}&quot;</span>
+                                                <button
+                                                    onClick={() => mergeDuplicateGroup(group)}
+                                                    disabled={mergingGroup === group.key}
+                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#f59e0b]/20 text-[#f59e0b] hover:bg-[#f59e0b]/30 transition-colors disabled:opacity-50`}
+                                                >
+                                                    {mergingGroup === group.key ? (
+                                                        <>Merging...</>
+                                                    ) : (
+                                                        <>
+                                                            <GitMerge className="w-3.5 h-3.5" />
+                                                            Merge Records
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {group.members.map((member, idx) => {
+                                                    const isTagged = hasTag(member.name);
+                                                    const isPrimary = idx === 0 || isTagged;
+                                                    return (
+                                                        <div
+                                                            key={member.id}
+                                                            className={`flex items-center justify-between p-2 rounded ${isPrimary ? 'bg-[#01b574]/10 border border-[#01b574]/30' : 'bg-[var(--background-hover)]'}`}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                {isPrimary && (
+                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#01b574]/20 text-[#01b574] uppercase">Primary</span>
+                                                                )}
+                                                                <span className="font-medium text-sm">{member.name}</span>
+                                                                {isTagged && (
+                                                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#4318ff]/20 text-[#9f7aea]">Tagged</span>
+                                                                )}
+                                                            </div>
+                                                            <div className={`text-xs ${theme.textMuted}`}>
+                                                                {formatPower(member.power)} power • {formatPower(member.kills)} KP
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <p className={`text-xs ${theme.textMuted} mt-2`}>
+                                                Merge will keep the Primary record and mark others as inactive with alternate_names reference.
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>
