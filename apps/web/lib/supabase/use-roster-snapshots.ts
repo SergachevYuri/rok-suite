@@ -135,19 +135,34 @@ export async function getLastSnapshotDate(): Promise<string | null> {
 
 /**
  * Get all available snapshot dates
+ * Uses range queries to avoid Supabase 1000 row default limit issue
  */
 export async function getSnapshotDates(): Promise<string[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from('roster_snapshots')
-    .select('snapshot_date')
-    .order('snapshot_date', { ascending: false });
+  // Use multiple range queries to ensure we get all dates
+  // The descending order + limit issue causes missing older dates
+  const ranges = [
+    { start: 0, end: 1999 },
+    { start: 2000, end: 3999 },
+    { start: 4000, end: 5999 },
+  ];
 
-  if (error || !data) return [];
+  const allDates: string[] = [];
 
-  // Get unique dates
-  const uniqueDates = [...new Set(data.map(d => d.snapshot_date))];
+  for (const { start, end } of ranges) {
+    const { data } = await supabase
+      .from('roster_snapshots')
+      .select('snapshot_date')
+      .range(start, end);
+
+    if (data) {
+      allDates.push(...data.map(d => d.snapshot_date));
+    }
+  }
+
+  // Get unique dates and sort descending
+  const uniqueDates = [...new Set(allDates)].sort().reverse();
   return uniqueDates;
 }
 
