@@ -162,6 +162,21 @@ export function getFilteredSnapshotDates(dates: string[]): string[] {
 }
 
 /**
+ * Normalize name for matching across snapshots
+ * Handles various alliance tag prefixes that may differ between data sources
+ */
+function normalizeName(name: string): string {
+  return name
+    .replace(/^\['ANG\]\s*/i, '')  // Remove ['ANG] prefix
+    .replace(/^\[ANG\]\s*/i, '')   // Remove [ANG] prefix
+    .replace(/^ang/i, '')          // Remove 'ang' prefix
+    .replace(/^ᵃⁿᵍ/i, '')          // Remove superscript 'ang' prefix
+    .replace(/^ᴬ\s*/i, '')         // Remove superscript 'A' prefix
+    .toLowerCase()
+    .trim();
+}
+
+/**
  * Get daily totals for charts
  */
 export async function getDailyTotals(limit = 30): Promise<DailyTotals[]> {
@@ -184,10 +199,12 @@ export async function getDailyTotals(limit = 30): Promise<DailyTotals[]> {
 
 /**
  * Get history for a specific member
+ * Handles name variations by searching with normalized names if exact match fails
  */
 export async function getMemberHistory(memberName: string, limit = 30): Promise<RosterSnapshot[]> {
   const supabase = createClient();
 
+  // First try exact match
   const { data, error } = await supabase
     .from('roster_snapshots')
     .select('*')
@@ -200,7 +217,45 @@ export async function getMemberHistory(memberName: string, limit = 30): Promise<
     return [];
   }
 
-  return data || [];
+  // If we got results, return them
+  if (data && data.length > 0) {
+    return data;
+  }
+
+  // Try to find matching members by normalized name
+  const normalizedTarget = normalizeName(memberName);
+
+  // Get all unique member names to find variations
+  const { data: allMembers } = await supabase
+    .from('roster_snapshots')
+    .select('member_name')
+    .limit(1000);
+
+  if (!allMembers) return [];
+
+  // Find all name variations that match the normalized name
+  const nameVariations = [...new Set(
+    allMembers
+      .map(m => m.member_name)
+      .filter(name => normalizeName(name) === normalizedTarget)
+  )];
+
+  if (nameVariations.length === 0) return [];
+
+  // Fetch history for all name variations
+  const { data: historyData, error: historyError } = await supabase
+    .from('roster_snapshots')
+    .select('*')
+    .in('member_name', nameVariations)
+    .order('snapshot_date', { ascending: true })
+    .limit(limit);
+
+  if (historyError) {
+    console.error('Error fetching member history with variations:', historyError);
+    return [];
+  }
+
+  return historyData || [];
 }
 
 /**
@@ -225,11 +280,12 @@ export async function getTopGainers(startDate: string, endDate: string, limit = 
 
   if (!startData || !endData) return [];
 
-  const startMap = new Map(startData.map(d => [d.member_name, d]));
+  // Use normalized names for matching (handles prefix variations between snapshots)
+  const startMap = new Map(startData.map(d => [normalizeName(d.member_name), d]));
   const gainers: TopGainer[] = [];
 
   for (const end of endData) {
-    const start = startMap.get(end.member_name);
+    const start = startMap.get(normalizeName(end.member_name));
     if (start) {
       gainers.push({
         name: end.member_name,
@@ -291,7 +347,8 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
 
   if (!previousData) return [];
 
-  const previousMap = new Map(previousData.map(d => [d.member_name, {
+  // Use normalized names for matching (handles prefix variations between snapshots)
+  const previousMap = new Map(previousData.map(d => [normalizeName(d.member_name), {
     kills: d.kills || 0,
     t4_kills: d.t4_kills || 0,
     t5_kills: d.t5_kills || 0,
@@ -299,13 +356,13 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
 
   const growth: KpGrowth[] = currentRoster
     .filter(m => {
-      const prev = previousMap.get(m.name);
+      const prev = previousMap.get(normalizeName(m.name));
       // Only include if they existed in previous snapshot AND had non-zero KP
       // (0 KP means they weren't entered yet, not that they grew from 0)
       return prev && prev.kills > 0;
     })
     .map(m => {
-      const prev = previousMap.get(m.name) || { kills: 0, t4_kills: 0, t5_kills: 0 };
+      const prev = previousMap.get(normalizeName(m.name)) || { kills: 0, t4_kills: 0, t5_kills: 0 };
       return {
         name: m.name,
         previousKp: prev.kills,
@@ -358,16 +415,17 @@ export async function getPowerGrowth(currentRoster: Array<{ name: string; power:
 
   if (!previousData) return [];
 
-  const previousMap = new Map(previousData.map(d => [d.member_name, d.power || 0]));
+  // Use normalized names for matching (handles prefix variations between snapshots)
+  const previousMap = new Map(previousData.map(d => [normalizeName(d.member_name), d.power || 0]));
 
   const growth: PowerGrowth[] = currentRoster
     .filter(m => {
-      const prev = previousMap.get(m.name);
+      const prev = previousMap.get(normalizeName(m.name));
       // Only include if they existed in previous snapshot AND had non-zero power
       return prev !== undefined && prev > 0;
     })
     .map(m => {
-      const prev = previousMap.get(m.name) || 0;
+      const prev = previousMap.get(normalizeName(m.name)) || 0;
       return {
         name: m.name,
         previousPower: prev,
@@ -413,16 +471,17 @@ export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_
 
   if (!previousData) return [];
 
-  const previousMap = new Map(previousData.map(d => [d.member_name, d.honor_points || 0]));
+  // Use normalized names for matching (handles prefix variations between snapshots)
+  const previousMap = new Map(previousData.map(d => [normalizeName(d.member_name), d.honor_points || 0]));
 
   const growth: HonorGrowth[] = currentRoster
     .filter(m => {
-      const prev = previousMap.get(m.name);
+      const prev = previousMap.get(normalizeName(m.name));
       // Only include if they existed in previous snapshot AND had non-zero honor
       return prev !== undefined && prev > 0;
     })
     .map(m => {
-      const prev = previousMap.get(m.name) || 0;
+      const prev = previousMap.get(normalizeName(m.name)) || 0;
       return {
         name: m.name,
         previousHonor: prev,
