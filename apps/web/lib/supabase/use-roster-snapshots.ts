@@ -152,7 +152,14 @@ export async function getSnapshotDates(): Promise<string[]> {
 }
 
 // Snapshot dates to exclude from charts/growth tracking (data not reliable for these dates)
-const EXCLUDED_SNAPSHOT_DATES = ['2026-01-12'];
+const EXCLUDED_SNAPSHOT_DATES = ['2026-01-14'];
+
+/**
+ * Get snapshot dates excluding unreliable ones
+ */
+export function getFilteredSnapshotDates(dates: string[]): string[] {
+  return dates.filter(d => !EXCLUDED_SNAPSHOT_DATES.includes(d));
+}
 
 /**
  * Get daily totals for charts
@@ -267,8 +274,9 @@ export interface KpGrowth {
 export async function getKpGrowth(currentRoster: Array<{ name: string; kills: number; t4_kills: number; t5_kills: number }>): Promise<KpGrowth[]> {
   const supabase = createClient();
 
-  // Get the two most recent snapshot dates
-  const dates = await getSnapshotDates();
+  // Get the two most recent snapshot dates (excluding unreliable ones)
+  const allDates = await getSnapshotDates();
+  const dates = getFilteredSnapshotDates(allDates);
   if (dates.length < 2) return [];
 
   const previousDate = dates[1]; // Second most recent
@@ -333,8 +341,9 @@ export interface PowerGrowth {
 export async function getPowerGrowth(currentRoster: Array<{ name: string; power: number }>): Promise<PowerGrowth[]> {
   const supabase = createClient();
 
-  // Get the two most recent snapshot dates
-  const dates = await getSnapshotDates();
+  // Get the two most recent snapshot dates (excluding unreliable ones)
+  const allDates = await getSnapshotDates();
+  const dates = getFilteredSnapshotDates(allDates);
   if (dates.length < 2) return [];
 
   const previousDate = dates[1]; // Second most recent
@@ -387,8 +396,9 @@ export interface HonorGrowth {
 export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_points: number }>): Promise<HonorGrowth[]> {
   const supabase = createClient();
 
-  // Get the two most recent snapshot dates
-  const dates = await getSnapshotDates();
+  // Get the two most recent snapshot dates (excluding unreliable ones)
+  const allDates = await getSnapshotDates();
+  const dates = getFilteredSnapshotDates(allDates);
   if (dates.length < 2) return [];
 
   const previousDate = dates[1]; // Second most recent
