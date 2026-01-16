@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
-import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getMemberHistory, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
+import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -269,6 +269,9 @@ export default function RosterPage() {
     const [kpGrowthSort, setKpGrowthSort] = useState<{ field: 'name' | 'kpGrowth' | 't4Growth' | 't5Growth'; direction: 'asc' | 'desc' }>({ field: 'kpGrowth', direction: 'desc' });
     const [kpGrowthData, setKpGrowthData] = useState<KpGrowth[]>([]);
     const [powerGrowthData, setPowerGrowthData] = useState<PowerGrowth[]>([]);
+    const [honorGrowthData, setHonorGrowthData] = useState<HonorGrowth[]>([]);
+    const [showAllHonorGrowth, setShowAllHonorGrowth] = useState(false);
+    const [honorGrowthSort, setHonorGrowthSort] = useState<{ field: 'name' | 'honorGrowth'; direction: 'asc' | 'desc' }>({ field: 'honorGrowth', direction: 'desc' });
 
     // Growth tab charts toggle
     const [showCharts, setShowCharts] = useState(false);
@@ -402,11 +405,12 @@ export default function RosterPage() {
         fetchEventStats();
     }, [fetchEventStats]);
 
-    // Fetch KP growth data when roster loads
+    // Fetch KP, Power, and Honor growth data when roster loads
     useEffect(() => {
         if (roster.length > 0) {
             getKpGrowth(roster).then(setKpGrowthData).catch(console.error);
             getPowerGrowth(roster).then(setPowerGrowthData).catch(console.error);
+            getHonorGrowth(roster).then(setHonorGrowthData).catch(console.error);
         }
     }, [roster]);
 
@@ -2992,6 +2996,123 @@ export default function RosterPage() {
                                                                         <span className={`text-xs ${theme.textMuted} ml-1`}>
                                                                             ({formatPower(member.currentT5)})
                                                                         </span>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Honor Growth Table */}
+                                {(() => {
+                                    if (honorGrowthData.length === 0) return null;
+
+                                    const sortedHonorGrowth = [...honorGrowthData]
+                                        .filter(m => !tagFilter || roster.find(r => r.name === m.name)?.tags?.includes(tagFilter))
+                                        .sort((a, b) => {
+                                            const { field, direction } = honorGrowthSort;
+                                            const multiplier = direction === 'asc' ? 1 : -1;
+                                            if (field === 'name') {
+                                                return multiplier * a.name.localeCompare(b.name);
+                                            }
+                                            return multiplier * ((a[field] ?? 0) - (b[field] ?? 0));
+                                        });
+
+                                    const displayHonorMembers = showAllHonorGrowth ? sortedHonorGrowth : sortedHonorGrowth.slice(0, 10);
+                                    const date1 = honorGrowthData[0]?.previousDate ? formatDate(honorGrowthData[0].previousDate) : 'Previous';
+                                    const date2 = honorGrowthData[0]?.currentDate ? formatDate(honorGrowthData[0].currentDate) : 'Current';
+
+                                    const handleHonorSort = (field: typeof honorGrowthSort.field) => {
+                                        setHonorGrowthSort(prev => ({
+                                            field,
+                                            direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
+                                        }));
+                                    };
+
+                                    const HonorSortIcon = ({ field }: { field: typeof honorGrowthSort.field }) => {
+                                        if (honorGrowthSort.field !== field) return <span className="opacity-30">↕</span>;
+                                        return honorGrowthSort.direction === 'asc' ? <span>↑</span> : <span>↓</span>;
+                                    };
+
+                                    return (
+                                        <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                            <div className="flex items-center justify-between mb-2 sm:mb-4">
+                                                <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
+                                                    <Trophy className="w-4 h-4 text-[#fbbf24]" />
+                                                    <span className="hidden sm:inline">Honor Points Growth</span>
+                                                    <span className="sm:hidden">Honor Growth</span>
+                                                </h3>
+                                                <button
+                                                    onClick={() => setShowAllHonorGrowth(!showAllHonorGrowth)}
+                                                    className={`text-[10px] sm:text-xs ${theme.textMuted} hover:text-white transition-colors`}
+                                                >
+                                                    {showAllHonorGrowth ? 'Top 10' : `All (${sortedHonorGrowth.length})`}
+                                                </button>
+                                            </div>
+                                            <div className={`overflow-x-auto mobile-scroll ${showAllHonorGrowth ? 'max-h-[500px] overflow-y-auto' : ''}`}>
+                                                <table className="w-full text-xs sm:text-sm min-w-[350px]">
+                                                    <thead className="sticky top-0 bg-[var(--background-card)]">
+                                                        <tr className="border-b border-[var(--border)]">
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleHonorSort('name')} className="flex items-center gap-1 hover:text-white">
+                                                                    Name <HonorSortIcon field="name" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                {date1}
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                {date2}
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleHonorSort('honorGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    Growth <HonorSortIcon field="honorGrowth" />
+                                                                </button>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {displayHonorMembers.map((member, idx) => {
+                                                            const rosterMember = roster.find(r => r.name === member.name);
+                                                            return (
+                                                                <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
+                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{idx + 1}</td>
+                                                                    <td className="px-2 py-2 font-medium">
+                                                                        {member.name}
+                                                                        {rosterMember?.tags?.includes('angmar-og') && (
+                                                                            <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right text-[#9f7aea]">
+                                                                        {member.previousHonor.toLocaleString()}
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right text-[#01b574]">
+                                                                        {member.currentHonor.toLocaleString()}
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                {(() => {
+                                                                                    const maxGrowth = Math.max(...sortedHonorGrowth.map(m => Math.abs(m.honorGrowth)));
+                                                                                    const pct = maxGrowth > 0 ? (Math.abs(member.honorGrowth) / maxGrowth) * 100 : 0;
+                                                                                    const isPositive = member.honorGrowth >= 0;
+                                                                                    return (
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#fbbf24] to-[#fbbf24]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
+                                                                                    );
+                                                                                })()}
+                                                                            </div>
+                                                                            <span className={`text-right font-medium min-w-[60px] ${member.honorGrowth >= 0 ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
+                                                                                {member.honorGrowth >= 0 ? '+' : ''}{member.honorGrowth.toLocaleString()}
+                                                                            </span>
+                                                                        </div>
                                                                     </td>
                                                                 </tr>
                                                             );

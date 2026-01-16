@@ -372,6 +372,60 @@ export async function getPowerGrowth(currentRoster: Array<{ name: string; power:
   return growth;
 }
 
+export interface HonorGrowth {
+  name: string;
+  previousHonor: number;
+  currentHonor: number;
+  honorGrowth: number;
+  previousDate: string | null;
+  currentDate: string | null;
+}
+
+/**
+ * Get Honor growth between the two most recent snapshots
+ */
+export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_points: number }>): Promise<HonorGrowth[]> {
+  const supabase = createClient();
+
+  // Get the two most recent snapshot dates
+  const dates = await getSnapshotDates();
+  if (dates.length < 2) return [];
+
+  const previousDate = dates[1]; // Second most recent
+  const currentDate = dates[0];  // Most recent
+
+  // Get previous snapshot data
+  const { data: previousData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, honor_points')
+    .eq('snapshot_date', previousDate)
+    .eq('is_active', true);
+
+  if (!previousData) return [];
+
+  const previousMap = new Map(previousData.map(d => [d.member_name, d.honor_points || 0]));
+
+  const growth: HonorGrowth[] = currentRoster
+    .filter(m => {
+      const prev = previousMap.get(m.name);
+      // Only include if they existed in previous snapshot AND had non-zero honor
+      return prev !== undefined && prev > 0;
+    })
+    .map(m => {
+      const prev = previousMap.get(m.name) || 0;
+      return {
+        name: m.name,
+        previousHonor: prev,
+        currentHonor: m.honor_points || 0,
+        honorGrowth: (m.honor_points || 0) - prev,
+        previousDate,
+        currentDate,
+      };
+    });
+
+  return growth;
+}
+
 /**
  * Detect membership changes (joins/leaves) between snapshots
  */
