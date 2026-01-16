@@ -2035,6 +2035,10 @@ export default function RosterPage() {
                                     >
                                         <td className={`text-center px-1 sm:px-2 py-2 sm:py-3 text-xs sm:text-sm ${theme.textMuted}`}>{globalIdx + 1}</td>
                                         <td className="px-2 sm:px-4 py-2 sm:py-3 relative">
+                                            {/* Recent update indicator - green dot for updates within 24h */}
+                                            {member.updated_at && (Date.now() - new Date(member.updated_at).getTime()) < 86400000 && (
+                                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 align-middle" title={`Updated ${new Date(member.updated_at).toLocaleString()}`} />
+                                            )}
                                             <span
                                                 className="font-medium cursor-pointer hover:text-[#9f7aea] active:text-[#9f7aea] transition-colors text-sm sm:text-base"
                                                 onMouseEnter={(e) => {
@@ -4414,7 +4418,27 @@ export default function RosterPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="font-semibold text-sm sm:text-lg truncate">{member.name}</h3>
-                                    <p className={`text-[10px] sm:text-xs ${theme.textMuted}`}>{member.role || 'Member'}</p>
+                                    <p className={`text-[10px] sm:text-xs ${theme.textMuted}`}>
+                                        {member.role || 'Member'}
+                                        {member.updated_at && (
+                                            <span className="ml-2 opacity-60">
+                                                · Updated {(() => {
+                                                    const updated = new Date(member.updated_at);
+                                                    const now = new Date();
+                                                    const diffMs = now.getTime() - updated.getTime();
+                                                    const diffMins = Math.floor(diffMs / 60000);
+                                                    const diffHours = Math.floor(diffMs / 3600000);
+                                                    const diffDays = Math.floor(diffMs / 86400000);
+                                                    if (diffMins < 1) return 'just now';
+                                                    if (diffMins < 60) return `${diffMins}m ago`;
+                                                    if (diffHours < 24) return `${diffHours}h ago`;
+                                                    if (diffDays === 1) return 'yesterday';
+                                                    if (diffDays < 7) return `${diffDays}d ago`;
+                                                    return updated.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                                })()}
+                                            </span>
+                                        )}
+                                    </p>
                                 </div>
                                 {isPinned && (
                                     <button
