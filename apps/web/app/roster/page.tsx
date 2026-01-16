@@ -4555,27 +4555,27 @@ export default function RosterPage() {
                                                         <tr key={snap.snapshot_date} className="border-b border-[var(--border)]/50">
                                                             <td className="py-1 pr-2">{formatDate(snap.snapshot_date)}</td>
                                                             <td className="py-1 px-1 text-right">
-                                                                <span className="text-[#01b574]">{formatPower(snap.power)}</span>
+                                                                <div className="text-[#01b574]">{formatPower(snap.power)}</div>
                                                                 {powerDelta !== 0 && (
-                                                                    <span className={`ml-1 ${powerDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                        {powerDelta > 0 ? '↑' : '↓'}
-                                                                    </span>
+                                                                    <div className={`text-[9px] ${powerDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                        {powerDelta > 0 ? '+' : ''}{formatPower(powerDelta)}
+                                                                    </div>
                                                                 )}
                                                             </td>
                                                             <td className="py-1 px-1 text-right">
-                                                                <span className="text-[#f56565]">{formatPower(snap.kills || 0)}</span>
+                                                                <div className="text-[#f56565]">{formatPower(snap.kills || 0)}</div>
                                                                 {kpDelta !== 0 && (
-                                                                    <span className={`ml-1 ${kpDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                        {kpDelta > 0 ? '↑' : '↓'}
-                                                                    </span>
+                                                                    <div className={`text-[9px] ${kpDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                        {kpDelta > 0 ? '+' : ''}{formatPower(kpDelta)}
+                                                                    </div>
                                                                 )}
                                                             </td>
                                                             <td className="py-1 pl-1 text-right">
-                                                                <span className="text-[#fbbf24]">{(snap.honor_points || 0).toLocaleString()}</span>
+                                                                <div className="text-[#fbbf24]">{(snap.honor_points || 0).toLocaleString()}</div>
                                                                 {honorDelta !== 0 && (
-                                                                    <span className={`ml-1 ${honorDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                        {honorDelta > 0 ? '↑' : '↓'}
-                                                                    </span>
+                                                                    <div className={`text-[9px] ${honorDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                        {honorDelta > 0 ? '+' : ''}{honorDelta.toLocaleString()}
+                                                                    </div>
                                                                 )}
                                                             </td>
                                                         </tr>
