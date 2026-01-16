@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
-import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth } from '@/lib/supabase/use-roster-snapshots';
+import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getMemberHistory, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -273,6 +273,9 @@ export default function RosterPage() {
     // Growth tab charts toggle
     const [showCharts, setShowCharts] = useState(false);
     const [chartMetric, setChartMetric] = useState<'all' | 'kp' | 'power' | 'honor' | 'members'>('all');
+    const [chartMode, setChartMode] = useState<'alliance' | 'individual'>('alliance');
+    const [selectedPlayer, setSelectedPlayer] = useState<string>('');
+    const [playerHistory, setPlayerHistory] = useState<RosterSnapshot[]>([]);
 
     // Pagination state
     const [rowsPerPage, setRowsPerPage] = useState<number>(25);
@@ -406,6 +409,15 @@ export default function RosterPage() {
             getPowerGrowth(roster).then(setPowerGrowthData).catch(console.error);
         }
     }, [roster]);
+
+    // Fetch individual player history when selected
+    useEffect(() => {
+        if (selectedPlayer && chartMode === 'individual') {
+            getMemberHistory(selectedPlayer, 30).then(setPlayerHistory).catch(console.error);
+        } else {
+            setPlayerHistory([]);
+        }
+    }, [selectedPlayer, chartMode]);
 
     // Reset to first page when filters/sort change
     useEffect(() => {
@@ -2401,32 +2413,78 @@ export default function RosterPage() {
                                 {showCharts ? 'Hide Charts' : 'Show Charts'}
                             </button>
 
-                            {/* Metric Toggles - Only show when charts visible */}
+                            {/* Chart Controls - Only show when charts visible */}
                             {showCharts && (
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-xs ${theme.textMuted}`}>View:</span>
-                                    <div className="flex gap-1">
-                                        {[
-                                            { key: 'all', label: 'All', color: '#4318ff' },
-                                            { key: 'kp', label: 'KP', color: '#f56565' },
-                                            { key: 'power', label: 'Power', color: '#01b574' },
-                                            { key: 'honor', label: 'Honor', color: '#fbbf24' },
-                                            { key: 'members', label: 'Members', color: '#9f7aea' },
-                                        ].map(metric => (
-                                            <button
-                                                key={metric.key}
-                                                onClick={() => setChartMetric(metric.key as 'all' | 'kp' | 'power' | 'honor' | 'members')}
-                                                className={`px-2 py-1 text-xs font-medium rounded transition-all ${
-                                                    chartMetric === metric.key
-                                                        ? 'text-white'
-                                                        : `${theme.textMuted} hover:text-[var(--foreground)] bg-[var(--background-secondary)]`
-                                                }`}
-                                                style={chartMetric === metric.key ? { backgroundColor: metric.color } : {}}
-                                            >
-                                                {metric.label}
-                                            </button>
-                                        ))}
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {/* Alliance/Individual Toggle */}
+                                    <div className="flex items-center gap-1 bg-[var(--background-secondary)] rounded-lg p-0.5">
+                                        <button
+                                            onClick={() => setChartMode('alliance')}
+                                            className={`px-2 py-1 text-xs font-medium rounded transition-all ${
+                                                chartMode === 'alliance'
+                                                    ? 'bg-[#4318ff] text-white'
+                                                    : `${theme.textMuted} hover:text-[var(--foreground)]`
+                                            }`}
+                                        >
+                                            Alliance
+                                        </button>
+                                        <button
+                                            onClick={() => setChartMode('individual')}
+                                            className={`px-2 py-1 text-xs font-medium rounded transition-all ${
+                                                chartMode === 'individual'
+                                                    ? 'bg-[#4318ff] text-white'
+                                                    : `${theme.textMuted} hover:text-[var(--foreground)]`
+                                            }`}
+                                        >
+                                            Individual
+                                        </button>
                                     </div>
+
+                                    {/* Player Selector - Only for individual mode */}
+                                    {chartMode === 'individual' && (
+                                        <select
+                                            value={selectedPlayer}
+                                            onChange={(e) => setSelectedPlayer(e.target.value)}
+                                            className={`${theme.input} px-2 py-1 rounded text-xs max-w-[180px]`}
+                                        >
+                                            <option value="">Select player...</option>
+                                            {displayRoster
+                                                .sort((a, b) => a.name.localeCompare(b.name))
+                                                .map(m => (
+                                                    <option key={m.id} value={m.name}>{m.name}</option>
+                                                ))
+                                            }
+                                        </select>
+                                    )}
+
+                                    {/* Metric Toggles - Only for alliance mode */}
+                                    {chartMode === 'alliance' && (
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs ${theme.textMuted}`}>View:</span>
+                                            <div className="flex gap-1">
+                                                {[
+                                                    { key: 'all', label: 'All', color: '#4318ff' },
+                                                    { key: 'kp', label: 'KP', color: '#f56565' },
+                                                    { key: 'power', label: 'Power', color: '#01b574' },
+                                                    { key: 'honor', label: 'Honor', color: '#fbbf24' },
+                                                    { key: 'members', label: 'Members', color: '#9f7aea' },
+                                                ].map(metric => (
+                                                    <button
+                                                        key={metric.key}
+                                                        onClick={() => setChartMetric(metric.key as 'all' | 'kp' | 'power' | 'honor' | 'members')}
+                                                        className={`px-2 py-1 text-xs font-medium rounded transition-all ${
+                                                            chartMetric === metric.key
+                                                                ? 'text-white'
+                                                                : `${theme.textMuted} hover:text-[var(--foreground)] bg-[var(--background-secondary)]`
+                                                        }`}
+                                                        style={chartMetric === metric.key ? { backgroundColor: metric.color } : {}}
+                                                    >
+                                                        {metric.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -2485,6 +2543,137 @@ export default function RosterPage() {
                                         <>
                                 {/* Line Charts Section - Shows above overview when enabled */}
                                 {showCharts && (() => {
+                                    // Individual player chart mode
+                                    if (chartMode === 'individual') {
+                                        if (!selectedPlayer) {
+                                            return (
+                                                <div className={`${theme.card} border rounded-xl p-8 text-center`}>
+                                                    <Users className="w-12 h-12 mx-auto mb-4 text-[#4318ff]/50" />
+                                                    <p className={`text-sm ${theme.textMuted}`}>Select a player to view their individual growth charts</p>
+                                                </div>
+                                            );
+                                        }
+
+                                        if (playerHistory.length === 0) {
+                                            return (
+                                                <div className={`${theme.card} border rounded-xl p-8 text-center`}>
+                                                    <TrendingUp className="w-12 h-12 mx-auto mb-4 text-[#4318ff]/50" />
+                                                    <p className={`text-sm ${theme.textMuted}`}>No historical data for {selectedPlayer}</p>
+                                                </div>
+                                            );
+                                        }
+
+                                        const playerChartData = playerHistory.map(snap => ({
+                                            date: formatDate(snap.snapshot_date),
+                                            kp: snap.kills || 0,
+                                            power: snap.power || 0,
+                                            honor: snap.honor_points || 0,
+                                            t4: snap.t4_kills || 0,
+                                            t5: snap.t5_kills || 0,
+                                        }));
+
+                                        const playerMetrics = [
+                                            { key: 'kp', label: 'Kill Points', color: '#f56565' },
+                                            { key: 'power', label: 'Power', color: '#01b574' },
+                                            { key: 'honor', label: 'Honor', color: '#fbbf24' },
+                                            { key: 't4', label: 'T4 Kills', color: '#f97316' },
+                                            { key: 't5', label: 'T5 Kills', color: '#9f7aea' },
+                                        ];
+
+                                        const renderPlayerChart = (metric: typeof playerMetrics[0], height: number = 200) => (
+                                            <div key={metric.key} className={`${theme.card} border rounded-xl p-4`}>
+                                                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: metric.color }} />
+                                                    {metric.label}
+                                                </h4>
+                                                <div style={{ height }}>
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <LineChart data={playerChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                                                            <XAxis
+                                                                dataKey="date"
+                                                                tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                                                axisLine={{ stroke: 'var(--border)' }}
+                                                                tickLine={{ stroke: 'var(--border)' }}
+                                                            />
+                                                            <YAxis
+                                                                tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                                                axisLine={{ stroke: 'var(--border)' }}
+                                                                tickLine={{ stroke: 'var(--border)' }}
+                                                                tickFormatter={(value) => formatPower(value)}
+                                                                width={50}
+                                                            />
+                                                            <Tooltip
+                                                                contentStyle={{
+                                                                    backgroundColor: 'var(--background-card)',
+                                                                    border: '1px solid var(--border)',
+                                                                    borderRadius: '8px',
+                                                                    color: 'var(--foreground)',
+                                                                }}
+                                                                formatter={(value) => [formatPower(typeof value === 'number' ? value : 0), metric.label]}
+                                                                labelStyle={{ color: 'var(--foreground)' }}
+                                                            />
+                                                            <Line
+                                                                type="monotone"
+                                                                dataKey={metric.key}
+                                                                name={metric.label}
+                                                                stroke={metric.color}
+                                                                strokeWidth={2}
+                                                                dot={{ fill: metric.color, strokeWidth: 2, r: 3 }}
+                                                                activeDot={{ r: 5 }}
+                                                            />
+                                                        </LineChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </div>
+                                        );
+
+                                        // Calculate growth stats
+                                        const firstSnap = playerHistory[0];
+                                        const lastSnap = playerHistory[playerHistory.length - 1];
+                                        const kpGrowth = (lastSnap?.kills || 0) - (firstSnap?.kills || 0);
+                                        const powerGrowth = (lastSnap?.power || 0) - (firstSnap?.power || 0);
+                                        const honorGrowth = (lastSnap?.honor_points || 0) - (firstSnap?.honor_points || 0);
+
+                                        return (
+                                            <div className="space-y-4">
+                                                {/* Player Header */}
+                                                <div className={`${theme.card} border rounded-xl p-4`}>
+                                                    <h3 className="text-lg font-semibold mb-2">{selectedPlayer}</h3>
+                                                    <div className="grid grid-cols-3 gap-4 text-center">
+                                                        <div>
+                                                            <div className={`text-xs ${theme.textMuted}`}>KP Growth</div>
+                                                            <div className={`text-sm font-semibold ${kpGrowth > 0 ? 'text-[#f56565]' : 'text-gray-400'}`}>
+                                                                {kpGrowth > 0 ? '+' : ''}{formatPower(kpGrowth)}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className={`text-xs ${theme.textMuted}`}>Power Growth</div>
+                                                            <div className={`text-sm font-semibold ${powerGrowth > 0 ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                                {powerGrowth > 0 ? '+' : ''}{formatPower(powerGrowth)}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <div className={`text-xs ${theme.textMuted}`}>Honor Growth</div>
+                                                            <div className={`text-sm font-semibold ${honorGrowth > 0 ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
+                                                                {honorGrowth > 0 ? '+' : ''}{honorGrowth.toLocaleString()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className={`text-xs ${theme.textMuted} mt-2 text-center`}>
+                                                        {formatDate(firstSnap?.snapshot_date || '')} → {formatDate(lastSnap?.snapshot_date || '')} ({playerHistory.length} snapshots)
+                                                    </div>
+                                                </div>
+
+                                                {/* Player Charts Grid */}
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {playerMetrics.map(m => renderPlayerChart(m, 180))}
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
+                                    // Alliance chart mode (existing code)
                                     const chartData = filteredDailyTotals.map(day => ({
                                         date: formatDate(day.date),
                                         kp: day.kills,
@@ -4031,6 +4220,12 @@ export default function RosterPage() {
                 const stats = eventStats.get(activeMember!);
                 if (!member || !rankings) return null;
 
+                // Get member's history from allSnapshots
+                const memberHistory = allSnapshots
+                    .filter(s => s.member_name === member.name)
+                    .sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date))
+                    .slice(-5); // Last 5 snapshots
+
                 const isPinned = pinnedMember === activeMember;
                 const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
@@ -4208,6 +4403,65 @@ export default function RosterPage() {
                                                 </div>
                                             );
                                         })()}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* History Table */}
+                            {memberHistory.length > 1 && (
+                                <div className="border-t border-[var(--border)] pt-3 mt-3">
+                                    <div className={`text-xs ${theme.textMuted} mb-2 flex items-center gap-1`}>
+                                        <History className="w-3 h-3" />
+                                        Snapshot History
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-[10px]">
+                                            <thead>
+                                                <tr className={`${theme.textMuted} border-b border-[var(--border)]`}>
+                                                    <th className="text-left py-1 pr-2">Date</th>
+                                                    <th className="text-right py-1 px-1">Power</th>
+                                                    <th className="text-right py-1 px-1">KP</th>
+                                                    <th className="text-right py-1 pl-1">Honor</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {memberHistory.map((snap, idx) => {
+                                                    const prevSnap = idx > 0 ? memberHistory[idx - 1] : null;
+                                                    const powerDelta = prevSnap ? snap.power - prevSnap.power : 0;
+                                                    const kpDelta = prevSnap ? (snap.kills || 0) - (prevSnap.kills || 0) : 0;
+                                                    const honorDelta = prevSnap ? (snap.honor_points || 0) - (prevSnap.honor_points || 0) : 0;
+                                                    return (
+                                                        <tr key={snap.snapshot_date} className="border-b border-[var(--border)]/50">
+                                                            <td className="py-1 pr-2">{formatDate(snap.snapshot_date)}</td>
+                                                            <td className="py-1 px-1 text-right">
+                                                                <span className="text-[#01b574]">{formatPower(snap.power)}</span>
+                                                                {powerDelta !== 0 && (
+                                                                    <span className={`ml-1 ${powerDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                        {powerDelta > 0 ? '↑' : '↓'}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-1 px-1 text-right">
+                                                                <span className="text-[#f56565]">{formatPower(snap.kills || 0)}</span>
+                                                                {kpDelta !== 0 && (
+                                                                    <span className={`ml-1 ${kpDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                        {kpDelta > 0 ? '↑' : '↓'}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-1 pl-1 text-right">
+                                                                <span className="text-[#fbbf24]">{(snap.honor_points || 0).toLocaleString()}</span>
+                                                                {honorDelta !== 0 && (
+                                                                    <span className={`ml-1 ${honorDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                        {honorDelta > 0 ? '↑' : '↓'}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             )}
