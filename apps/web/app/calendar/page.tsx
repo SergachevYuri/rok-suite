@@ -36,7 +36,7 @@ export default function CalendarPage() {
     const [timezone, setTimezone] = useState('UTC');
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showSubscribe, setShowSubscribe] = useState(false);
-    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1]));
+    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0])); // Default to Angmar only
 
     const toggleCalendar = (index: number) => {
         const newEnabled = new Set(enabledCalendars);
