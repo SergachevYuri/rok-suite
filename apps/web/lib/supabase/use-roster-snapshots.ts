@@ -45,6 +45,45 @@ export interface TopGainer {
 }
 
 /**
+ * Update a single member's snapshot for today
+ * Uses upsert to create or update today's snapshot entry for this member
+ */
+export async function updateMemberSnapshot(member: {
+  name: string;
+  power: number;
+  kills: number;
+  t4_kills?: number;
+  t5_kills?: number;
+  honor_points?: number;
+  role: string | null;
+  is_active?: boolean;
+}) {
+  const supabase = createClient();
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+  const { error } = await supabase
+    .from('roster_snapshots')
+    .upsert({
+      snapshot_date: today,
+      member_name: member.name,
+      power: member.power,
+      kills: member.kills || 0,
+      t4_kills: member.t4_kills || 0,
+      t5_kills: member.t5_kills || 0,
+      honor_points: member.honor_points || 0,
+      role: member.role,
+      is_active: member.is_active ?? true,
+    }, { onConflict: 'snapshot_date,member_name' });
+
+  if (error) {
+    console.error('Error updating member snapshot:', error);
+    throw error;
+  }
+
+  return { date: today, member: member.name };
+}
+
+/**
  * Create a snapshot of the current roster for today
  * Uses upsert to allow updating today's snapshot if called multiple times
  */

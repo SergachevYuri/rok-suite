@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
-import { createSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth } from '@/lib/supabase/use-roster-snapshots';
+import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -522,6 +522,10 @@ export default function RosterPage() {
     const saveEditing = async (): Promise<boolean> => {
         if (!editingId) return false;
 
+        // Find the member being edited to get their name and role
+        const member = roster.find(m => m.id === editingId);
+        if (!member) return false;
+
         try {
             // Convert millions input back to raw number (e.g., "18.5" -> 18500000)
             const powerRaw = editValues.powerM ? Math.round(parseFloat(editValues.powerM) * 1000000) : 0;
@@ -552,6 +556,18 @@ export default function RosterPage() {
                 .eq('id', editingId);
 
             if (error) throw error;
+
+            // Also update today's snapshot for this member
+            await updateMemberSnapshot({
+                name: member.name,
+                power: powerRaw,
+                kills: killsRaw,
+                t4_kills: t4KillsRaw,
+                t5_kills: t5KillsRaw,
+                honor_points: honorRaw,
+                role: member.role,
+                is_active: member.is_active,
+            });
 
             setRoster(roster.map(m =>
                 m.id === editingId
