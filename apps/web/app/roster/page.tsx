@@ -232,6 +232,7 @@ export default function RosterPage() {
     // Editing state - kills/power stored as string for decimal input (millions)
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValues, setEditValues] = useState<{ powerM: string; killsM: string; t4t5KillsM: string; honor: string; notes: string }>({ powerM: '', killsM: '', t4t5KillsM: '', honor: '', notes: '' });
+    const firstEditInputRef = useRef<HTMLInputElement>(null);
 
     // CSV Import
     const [showImport, setShowImport] = useState(false);
@@ -509,6 +510,8 @@ export default function RosterPage() {
         // Honor points as raw number
         const honor = member.honor_points ? member.honor_points.toString() : '';
         setEditValues({ powerM, killsM, t4t5KillsM, honor, notes: member.notes || '' });
+        // Focus the first input after state update
+        setTimeout(() => firstEditInputRef.current?.focus(), 50);
     };
 
     const cancelEditing = () => {
@@ -516,8 +519,8 @@ export default function RosterPage() {
         setEditValues({ powerM: '', killsM: '', t4t5KillsM: '', honor: '', notes: '' });
     };
 
-    const saveEditing = async () => {
-        if (!editingId) return;
+    const saveEditing = async (): Promise<boolean> => {
+        if (!editingId) return false;
 
         try {
             // Convert millions input back to raw number (e.g., "18.5" -> 18500000)
@@ -556,9 +559,39 @@ export default function RosterPage() {
                     : m
             ));
             setEditingId(null);
+            return true;
         } catch (err) {
             console.error('Error saving:', err);
             alert('Failed to save changes');
+            return false;
+        }
+    };
+
+    // Save current row and move to next row for editing
+    const saveAndEditNext = async () => {
+        if (!editingId) return;
+
+        // Find current member's index in filteredRoster
+        const currentIdx = filteredRoster.findIndex(m => m.id === editingId);
+        const saved = await saveEditing();
+
+        if (saved && currentIdx >= 0 && currentIdx < filteredRoster.length - 1) {
+            // Move to next row
+            const nextMember = filteredRoster[currentIdx + 1];
+            if (nextMember) {
+                startEditing(nextMember);
+            }
+        }
+    };
+
+    // Handle keyboard events for edit inputs
+    const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveAndEditNext();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEditing();
         }
     };
 
@@ -2026,10 +2059,12 @@ export default function RosterPage() {
                                                 {editingId === member.id ? (
                                                     <div className="flex items-center justify-end gap-1">
                                                         <input
+                                                            ref={firstEditInputRef}
                                                             type="number"
                                                             step="0.1"
                                                             value={editValues.powerM}
                                                             onChange={(e) => setEditValues({ ...editValues, powerM: e.target.value })}
+                                                            onKeyDown={handleEditKeyDown}
                                                             className={`w-16 sm:w-20 px-2 py-1 rounded border ${theme.input} text-right text-sm`}
                                                             placeholder="0.0"
                                                         />
@@ -2049,6 +2084,7 @@ export default function RosterPage() {
                                                             step="0.1"
                                                             value={editValues.killsM}
                                                             onChange={(e) => setEditValues({ ...editValues, killsM: e.target.value })}
+                                                            onKeyDown={handleEditKeyDown}
                                                             className={`w-16 sm:w-20 px-2 py-1 rounded border ${theme.input} text-right text-sm`}
                                                             placeholder="0.0"
                                                         />
@@ -2069,6 +2105,7 @@ export default function RosterPage() {
                                                             type="text"
                                                             value={editValues.t4t5KillsM}
                                                             onChange={(e) => setEditValues({ ...editValues, t4t5KillsM: e.target.value })}
+                                                            onKeyDown={handleEditKeyDown}
                                                             className={`w-24 px-2 py-1 rounded border ${theme.input} text-right`}
                                                             placeholder="T4/T5"
                                                         />
@@ -2113,6 +2150,7 @@ export default function RosterPage() {
                                                         type="number"
                                                         value={editValues.honor}
                                                         onChange={(e) => setEditValues({ ...editValues, honor: e.target.value })}
+                                                        onKeyDown={handleEditKeyDown}
                                                         className={`w-20 px-2 py-1 rounded border ${theme.input} text-right`}
                                                         placeholder="0"
                                                     />
@@ -2228,6 +2266,7 @@ export default function RosterPage() {
                                                         type="text"
                                                         value={editValues.notes}
                                                         onChange={(e) => setEditValues({ ...editValues, notes: e.target.value })}
+                                                        onKeyDown={handleEditKeyDown}
                                                         className={`w-full px-2 py-1 rounded border ${theme.input}`}
                                                         placeholder="Add notes..."
                                                     />
