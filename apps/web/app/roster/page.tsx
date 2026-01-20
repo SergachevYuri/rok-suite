@@ -1727,7 +1727,7 @@ export default function RosterPage() {
                 </div>
 
                 {/* Search and Sort Controls */}
-                <div className={`${theme.card} border rounded-xl p-4 mb-6 overflow-visible`}>
+                <div className={`${theme.card} border rounded-xl p-4 mb-6 ${showViewOptions ? 'relative z-[100]' : ''}`}>
                     <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
                             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme.textMuted}`} />
@@ -1773,9 +1773,9 @@ export default function RosterPage() {
                                     <span className="hidden sm:inline">View</span>
                                     <ChevronDown className={`w-4 h-4 transition-transform ${showViewOptions ? 'rotate-180' : ''}`} />
                                 </button>
-                                {/* View Options Dropdown */}
+                                {/* View Options Dropdown - using z-[9999] to ensure it's above everything */}
                                 {showViewOptions && (
-                                    <div className={`absolute right-0 top-full mt-2 w-72 ${theme.card} border rounded-xl shadow-xl z-50 overflow-hidden`}>
+                                    <div className={`absolute right-0 top-full mt-2 w-72 ${theme.card} border rounded-xl shadow-2xl z-[9999]`}>
                                         <div className="p-3 border-b border-[var(--border)] flex items-center justify-between">
                                             <span className="text-sm font-semibold">Visible Columns</span>
                                             <button
