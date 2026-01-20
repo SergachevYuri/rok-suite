@@ -3131,7 +3131,7 @@ export default function RosterPage() {
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
                                                                 {date2}
                                                             </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted} w-[200px]`}>
                                                                 <button onClick={() => handleHonorSort('honorGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
                                                                     Growth <HonorSortIcon field="honorGrowth" />
                                                                 </button>
@@ -3157,9 +3157,9 @@ export default function RosterPage() {
                                                                     <td className="px-2 py-2 text-right text-[#01b574]">
                                                                         {member.currentHonor.toLocaleString()}
                                                                     </td>
-                                                                    <td className="px-2 py-2">
+                                                                    <td className="px-2 py-2 w-[200px]">
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                            <div className="w-[100px] h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
                                                                                 {(() => {
                                                                                     const maxGrowth = Math.max(...sortedHonorGrowth.map(m => Math.abs(m.honorGrowth)));
                                                                                     const pct = maxGrowth > 0 ? (Math.abs(member.honorGrowth) / maxGrowth) * 100 : 0;
