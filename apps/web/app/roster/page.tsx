@@ -1727,7 +1727,7 @@ export default function RosterPage() {
                 </div>
 
                 {/* Search and Sort Controls */}
-                <div className={`${theme.card} border rounded-xl p-4 mb-6`}>
+                <div className={`${theme.card} border rounded-xl p-4 mb-6 overflow-visible`}>
                     <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
                             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme.textMuted}`} />
