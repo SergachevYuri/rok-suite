@@ -135,35 +135,21 @@ export async function getLastSnapshotDate(): Promise<string | null> {
 
 /**
  * Get all available snapshot dates
- * Uses range queries to avoid Supabase 1000 row default limit issue
+ * Uses the roster_daily_totals view which already has distinct dates
  */
 export async function getSnapshotDates(): Promise<string[]> {
   const supabase = createClient();
 
-  // Use multiple range queries to ensure we get all dates
-  // The descending order + limit issue causes missing older dates
-  const ranges = [
-    { start: 0, end: 1999 },
-    { start: 2000, end: 3999 },
-    { start: 4000, end: 5999 },
-  ];
+  // Use the daily_totals view which has pre-aggregated distinct dates
+  // This avoids pagination issues when querying the large roster_snapshots table
+  const { data, error } = await supabase
+    .from('roster_daily_totals')
+    .select('snapshot_date')
+    .order('snapshot_date', { ascending: false });
 
-  const allDates: string[] = [];
+  if (error || !data) return [];
 
-  for (const { start, end } of ranges) {
-    const { data } = await supabase
-      .from('roster_snapshots')
-      .select('snapshot_date')
-      .range(start, end);
-
-    if (data) {
-      allDates.push(...data.map(d => d.snapshot_date));
-    }
-  }
-
-  // Get unique dates and sort descending
-  const uniqueDates = [...new Set(allDates)].sort().reverse();
-  return uniqueDates;
+  return data.map(d => d.snapshot_date);
 }
 
 // Snapshot dates to exclude from charts/growth tracking (data not reliable for these dates)
