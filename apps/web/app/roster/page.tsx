@@ -264,13 +264,16 @@ export default function RosterPage() {
     const [showAllGrowth, setShowAllGrowth] = useState(false);
     // Growth table sorting
     const [growthSort, setGrowthSort] = useState<{ field: 'name' | 'previousScore' | 'lastScore' | 'growth' | 'growthPercent'; direction: 'asc' | 'desc' }>({ field: 'growth', direction: 'desc' });
-    // KP growth expanded state and sorting
-    const [showAllKpGrowth, setShowAllKpGrowth] = useState(false);
+    // KP growth pagination and sorting
+    const [kpGrowthPage, setKpGrowthPage] = useState(0);
+    const [kpGrowthRowsPerPage, setKpGrowthRowsPerPage] = useState(10);
     const [kpGrowthSort, setKpGrowthSort] = useState<{ field: 'name' | 'kpGrowth' | 't4Growth' | 't5Growth'; direction: 'asc' | 'desc' }>({ field: 'kpGrowth', direction: 'desc' });
     const [kpGrowthData, setKpGrowthData] = useState<KpGrowth[]>([]);
     const [powerGrowthData, setPowerGrowthData] = useState<PowerGrowth[]>([]);
     const [honorGrowthData, setHonorGrowthData] = useState<HonorGrowth[]>([]);
-    const [showAllHonorGrowth, setShowAllHonorGrowth] = useState(false);
+    // Honor growth pagination and sorting
+    const [honorGrowthPage, setHonorGrowthPage] = useState(0);
+    const [honorGrowthRowsPerPage, setHonorGrowthRowsPerPage] = useState(10);
     const [honorGrowthSort, setHonorGrowthSort] = useState<{ field: 'name' | 'honorGrowth'; direction: 'asc' | 'desc' }>({ field: 'honorGrowth', direction: 'desc' });
 
     // Growth tab charts toggle
@@ -2883,7 +2886,11 @@ export default function RosterPage() {
                                             return multiplier * ((a[field] ?? 0) - (b[field] ?? 0));
                                         });
 
-                                    const displayKpMembers = showAllKpGrowth ? sortedKpGrowth : sortedKpGrowth.slice(0, 10);
+                                    const kpTotalPages = Math.ceil(sortedKpGrowth.length / kpGrowthRowsPerPage);
+                                    const displayKpMembers = sortedKpGrowth.slice(
+                                        kpGrowthPage * kpGrowthRowsPerPage,
+                                        (kpGrowthPage + 1) * kpGrowthRowsPerPage
+                                    );
                                     const date1 = kpGrowthData[0]?.previousDate ? formatDate(kpGrowthData[0].previousDate) : 'Previous';
                                     const date2 = kpGrowthData[0]?.currentDate ? formatDate(kpGrowthData[0].currentDate) : 'Current';
 
@@ -2906,15 +2913,10 @@ export default function RosterPage() {
                                                     <TrendingUp className="w-4 h-4 text-[#f56565]" />
                                                     <span className="hidden sm:inline">Kill Points Growth</span>
                                                     <span className="sm:hidden">KP Growth</span>
+                                                    <span className={`text-xs font-normal ${theme.textMuted}`}>({sortedKpGrowth.length})</span>
                                                 </h3>
-                                                <button
-                                                    onClick={() => setShowAllKpGrowth(!showAllKpGrowth)}
-                                                    className={`text-[10px] sm:text-xs ${theme.textMuted} hover:text-white transition-colors`}
-                                                >
-                                                    {showAllKpGrowth ? 'Top 10' : `All (${sortedKpGrowth.length})`}
-                                                </button>
                                             </div>
-                                            <div className={`overflow-x-auto mobile-scroll ${showAllKpGrowth ? 'max-h-[500px] overflow-y-auto' : ''}`}>
+                                            <div className="overflow-x-auto mobile-scroll">
                                                 <table className="w-full text-xs sm:text-sm min-w-[400px]">
                                                     <thead className="sticky top-0 bg-[var(--background-card)]">
                                                         <tr className="border-b border-[var(--border)]">
@@ -2950,9 +2952,10 @@ export default function RosterPage() {
                                                     <tbody>
                                                         {displayKpMembers.map((member, idx) => {
                                                             const rosterMember = roster.find(r => r.name === member.name);
+                                                            const globalIdx = kpGrowthPage * kpGrowthRowsPerPage + idx;
                                                             return (
                                                                 <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
-                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{idx + 1}</td>
+                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
                                                                     <td className="px-2 py-2 font-medium">
                                                                         {member.name}
                                                                         {rosterMember?.tags?.includes('angmar-og') && (
@@ -3007,6 +3010,62 @@ export default function RosterPage() {
                                                     </tbody>
                                                 </table>
                                             </div>
+                                            {/* Pagination Controls */}
+                                            {kpTotalPages > 1 && (
+                                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--border)]">
+                                                    <div className={`text-xs ${theme.textMuted}`}>
+                                                        Showing {kpGrowthPage * kpGrowthRowsPerPage + 1}-{Math.min((kpGrowthPage + 1) * kpGrowthRowsPerPage, sortedKpGrowth.length)} of {sortedKpGrowth.length}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={kpGrowthRowsPerPage}
+                                                            onChange={(e) => {
+                                                                setKpGrowthRowsPerPage(Number(e.target.value));
+                                                                setKpGrowthPage(0);
+                                                            }}
+                                                            className={`text-xs ${theme.card} border rounded px-2 py-1`}
+                                                        >
+                                                            <option value={10}>10</option>
+                                                            <option value={25}>25</option>
+                                                            <option value={50}>50</option>
+                                                            <option value={100}>100</option>
+                                                        </select>
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                onClick={() => setKpGrowthPage(0)}
+                                                                disabled={kpGrowthPage === 0}
+                                                                className={`px-2 py-1 text-xs rounded ${kpGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}
+                                                            >
+                                                                ««
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setKpGrowthPage(p => Math.max(0, p - 1))}
+                                                                disabled={kpGrowthPage === 0}
+                                                                className={`px-2 py-1 text-xs rounded ${kpGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}
+                                                            >
+                                                                «
+                                                            </button>
+                                                            <span className={`px-2 py-1 text-xs ${theme.textMuted}`}>
+                                                                {kpGrowthPage + 1} / {kpTotalPages}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => setKpGrowthPage(p => Math.min(kpTotalPages - 1, p + 1))}
+                                                                disabled={kpGrowthPage >= kpTotalPages - 1}
+                                                                className={`px-2 py-1 text-xs rounded ${kpGrowthPage >= kpTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}
+                                                            >
+                                                                »
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setKpGrowthPage(kpTotalPages - 1)}
+                                                                disabled={kpGrowthPage >= kpTotalPages - 1}
+                                                                className={`px-2 py-1 text-xs rounded ${kpGrowthPage >= kpTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}
+                                                            >
+                                                                »»
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })()}
@@ -3026,7 +3085,11 @@ export default function RosterPage() {
                                             return multiplier * ((a[field] ?? 0) - (b[field] ?? 0));
                                         });
 
-                                    const displayHonorMembers = showAllHonorGrowth ? sortedHonorGrowth : sortedHonorGrowth.slice(0, 10);
+                                    const honorTotalPages = Math.ceil(sortedHonorGrowth.length / honorGrowthRowsPerPage);
+                                    const displayHonorMembers = sortedHonorGrowth.slice(
+                                        honorGrowthPage * honorGrowthRowsPerPage,
+                                        (honorGrowthPage + 1) * honorGrowthRowsPerPage
+                                    );
                                     const date1 = honorGrowthData[0]?.previousDate ? formatDate(honorGrowthData[0].previousDate) : 'Previous';
                                     const date2 = honorGrowthData[0]?.currentDate ? formatDate(honorGrowthData[0].currentDate) : 'Current';
 
@@ -3049,15 +3112,10 @@ export default function RosterPage() {
                                                     <Trophy className="w-4 h-4 text-[#fbbf24]" />
                                                     <span className="hidden sm:inline">Honor Points Growth</span>
                                                     <span className="sm:hidden">Honor Growth</span>
+                                                    <span className={`text-xs font-normal ${theme.textMuted}`}>({sortedHonorGrowth.length})</span>
                                                 </h3>
-                                                <button
-                                                    onClick={() => setShowAllHonorGrowth(!showAllHonorGrowth)}
-                                                    className={`text-[10px] sm:text-xs ${theme.textMuted} hover:text-white transition-colors`}
-                                                >
-                                                    {showAllHonorGrowth ? 'Top 10' : `All (${sortedHonorGrowth.length})`}
-                                                </button>
                                             </div>
-                                            <div className={`overflow-x-auto mobile-scroll ${showAllHonorGrowth ? 'max-h-[500px] overflow-y-auto' : ''}`}>
+                                            <div className="overflow-x-auto mobile-scroll">
                                                 <table className="w-full text-xs sm:text-sm min-w-[350px]">
                                                     <thead className="sticky top-0 bg-[var(--background-card)]">
                                                         <tr className="border-b border-[var(--border)]">
@@ -3083,9 +3141,10 @@ export default function RosterPage() {
                                                     <tbody>
                                                         {displayHonorMembers.map((member, idx) => {
                                                             const rosterMember = roster.find(r => r.name === member.name);
+                                                            const globalIdx = honorGrowthPage * honorGrowthRowsPerPage + idx;
                                                             return (
                                                                 <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
-                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{idx + 1}</td>
+                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
                                                                     <td className="px-2 py-2 font-medium">
                                                                         {member.name}
                                                                         {rosterMember?.tags?.includes('angmar-og') && (
@@ -3124,6 +3183,62 @@ export default function RosterPage() {
                                                     </tbody>
                                                 </table>
                                             </div>
+                                            {/* Pagination Controls */}
+                                            {honorTotalPages > 1 && (
+                                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--border)]">
+                                                    <div className={`text-xs ${theme.textMuted}`}>
+                                                        Showing {honorGrowthPage * honorGrowthRowsPerPage + 1}-{Math.min((honorGrowthPage + 1) * honorGrowthRowsPerPage, sortedHonorGrowth.length)} of {sortedHonorGrowth.length}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={honorGrowthRowsPerPage}
+                                                            onChange={(e) => {
+                                                                setHonorGrowthRowsPerPage(Number(e.target.value));
+                                                                setHonorGrowthPage(0);
+                                                            }}
+                                                            className={`text-xs ${theme.card} border rounded px-2 py-1`}
+                                                        >
+                                                            <option value={10}>10</option>
+                                                            <option value={25}>25</option>
+                                                            <option value={50}>50</option>
+                                                            <option value={100}>100</option>
+                                                        </select>
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                onClick={() => setHonorGrowthPage(0)}
+                                                                disabled={honorGrowthPage === 0}
+                                                                className={`px-2 py-1 text-xs rounded ${honorGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}
+                                                            >
+                                                                ««
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setHonorGrowthPage(p => Math.max(0, p - 1))}
+                                                                disabled={honorGrowthPage === 0}
+                                                                className={`px-2 py-1 text-xs rounded ${honorGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}
+                                                            >
+                                                                «
+                                                            </button>
+                                                            <span className={`px-2 py-1 text-xs ${theme.textMuted}`}>
+                                                                {honorGrowthPage + 1} / {honorTotalPages}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => setHonorGrowthPage(p => Math.min(honorTotalPages - 1, p + 1))}
+                                                                disabled={honorGrowthPage >= honorTotalPages - 1}
+                                                                className={`px-2 py-1 text-xs rounded ${honorGrowthPage >= honorTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}
+                                                            >
+                                                                »
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setHonorGrowthPage(honorTotalPages - 1)}
+                                                                disabled={honorGrowthPage >= honorTotalPages - 1}
+                                                                className={`px-2 py-1 text-xs rounded ${honorGrowthPage >= honorTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}
+                                                            >
+                                                                »»
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })()}
