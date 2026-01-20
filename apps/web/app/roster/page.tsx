@@ -3119,19 +3119,19 @@ export default function RosterPage() {
                                                 <table className="w-full text-xs sm:text-sm min-w-[500px]">
                                                     <thead className="sticky top-0 bg-[var(--background-card)]">
                                                         <tr className="border-b border-[var(--border)]">
-                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted} w-8`}>#</th>
                                                             <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
                                                                 <button onClick={() => handleHonorSort('name')} className="flex items-center gap-1 hover:text-white">
                                                                     Name <HonorSortIcon field="name" />
                                                                 </button>
                                                             </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted} w-24`}>
                                                                 {date1}
                                                             </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted} w-24`}>
                                                                 {date2}
                                                             </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted} w-[200px]`}>
+                                                            <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted} w-[180px]`}>
                                                                 <button onClick={() => handleHonorSort('honorGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
                                                                     Growth <HonorSortIcon field="honorGrowth" />
                                                                 </button>
@@ -3144,22 +3144,22 @@ export default function RosterPage() {
                                                             const globalIdx = honorGrowthPage * honorGrowthRowsPerPage + idx;
                                                             return (
                                                                 <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
-                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
+                                                                    <td className={`px-2 py-2 w-8 ${theme.textMuted}`}>{globalIdx + 1}</td>
                                                                     <td className="px-2 py-2 font-medium">
                                                                         {member.name}
                                                                         {rosterMember?.tags?.includes('angmar-og') && (
                                                                             <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
                                                                         )}
                                                                     </td>
-                                                                    <td className="px-2 py-2 text-right text-[#9f7aea]">
+                                                                    <td className="px-2 py-2 text-right text-[#9f7aea] w-24">
                                                                         {member.previousHonor.toLocaleString()}
                                                                     </td>
-                                                                    <td className="px-2 py-2 text-right text-[#01b574]">
+                                                                    <td className="px-2 py-2 text-right text-[#01b574] w-24">
                                                                         {member.currentHonor.toLocaleString()}
                                                                     </td>
-                                                                    <td className="px-2 py-2 w-[200px]">
+                                                                    <td className="px-2 py-2 w-[180px]">
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className="w-[100px] h-4 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                            <div className="w-[80px] h-4 bg-[var(--background-secondary)] rounded overflow-hidden flex-shrink-0">
                                                                                 {(() => {
                                                                                     const maxGrowth = Math.max(...sortedHonorGrowth.map(m => Math.abs(m.honorGrowth)));
                                                                                     const pct = maxGrowth > 0 ? (Math.abs(member.honorGrowth) / maxGrowth) * 100 : 0;
@@ -3172,7 +3172,7 @@ export default function RosterPage() {
                                                                                     );
                                                                                 })()}
                                                                             </div>
-                                                                            <span className={`text-right font-medium min-w-[60px] ${member.honorGrowth >= 0 ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
+                                                                            <span className={`text-right font-medium ${member.honorGrowth >= 0 ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
                                                                                 {member.honorGrowth >= 0 ? '+' : ''}{member.honorGrowth.toLocaleString()}
                                                                             </span>
                                                                         </div>
