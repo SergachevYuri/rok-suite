@@ -287,6 +287,11 @@ export default function RosterPage() {
     const [rowsPerPage, setRowsPerPage] = useState<number>(25);
     const [currentPage, setCurrentPage] = useState(0);
 
+    // Expanded row state for snapshot history
+    const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+    const [memberSnapshots, setMemberSnapshots] = useState<RosterSnapshot[]>([]);
+    const [loadingSnapshots, setLoadingSnapshots] = useState(false);
+
     // Hover card state
     const [hoveredMember, setHoveredMember] = useState<string | null>(null);
     const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -627,6 +632,29 @@ export default function RosterPage() {
         } else if (e.key === 'Escape') {
             e.preventDefault();
             cancelEditing();
+        }
+    };
+
+    // Handle expanding a row to show snapshot history
+    const handleExpandRow = async (memberId: string, memberName: string) => {
+        if (expandedMemberId === memberId) {
+            // Collapse if already expanded
+            setExpandedMemberId(null);
+            setMemberSnapshots([]);
+            return;
+        }
+
+        setExpandedMemberId(memberId);
+        setLoadingSnapshots(true);
+        setMemberSnapshots([]);
+
+        try {
+            const history = await getMemberHistory(memberName, 50);
+            setMemberSnapshots(history);
+        } catch (error) {
+            console.error('Error fetching member history:', error);
+        } finally {
+            setLoadingSnapshots(false);
         }
     };
 
@@ -1842,6 +1870,7 @@ export default function RosterPage() {
                         <table className="w-full min-w-[320px]">
                             <thead className="sticky top-0 z-10 bg-[var(--background-card)]">
                                 <tr className="border-b border-[var(--border)]">
+                                    <th className="w-6 sm:w-8"></th>
                                     <th className="text-center px-1 sm:px-2 py-2 sm:py-3 w-8 sm:w-10">
                                         <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>#</span>
                                     </th>
@@ -2031,11 +2060,21 @@ export default function RosterPage() {
                             <tbody>
                                 {paginatedRoster.map((member, idx) => {
                                     const globalIdx = rowsPerPage === -1 ? idx : currentPage * rowsPerPage + idx;
+                                    const isExpanded = expandedMemberId === member.id;
                                     return (
+                                    <React.Fragment key={member.id}>
                                     <tr
-                                        key={member.id}
                                         className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''} hover:bg-[var(--background-secondary)]/50 active:bg-[var(--background-secondary)]/70`}
                                     >
+                                        <td className="px-1 py-2 sm:py-3">
+                                            <button
+                                                onClick={() => handleExpandRow(member.id, member.name)}
+                                                className={`p-0.5 rounded hover:bg-[var(--background-secondary)] ${theme.textMuted} transition-transform`}
+                                                title={isExpanded ? 'Collapse' : 'Show snapshot history'}
+                                            >
+                                                <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                            </button>
+                                        </td>
                                         <td className={`text-center px-1 sm:px-2 py-2 sm:py-3 text-xs sm:text-sm ${theme.textMuted}`}>{globalIdx + 1}</td>
                                         <td className="px-2 sm:px-4 py-2 sm:py-3 relative">
                                             {/* Recent update indicator - green dot for updates within 24h */}
@@ -2347,6 +2386,63 @@ export default function RosterPage() {
                                             </td>
                                         )}
                                     </tr>
+                                    {/* Expandable snapshot history row */}
+                                    {isExpanded && (
+                                        <tr className="bg-[var(--background-secondary)]/50">
+                                            <td colSpan={100} className="px-4 py-3">
+                                                <div className="ml-6">
+                                                    <h4 className={`text-sm font-semibold mb-2 ${theme.textMuted}`}>
+                                                        Snapshot History for {member.name}
+                                                    </h4>
+                                                    {loadingSnapshots ? (
+                                                        <div className={`text-sm ${theme.textMuted}`}>Loading...</div>
+                                                    ) : memberSnapshots.length === 0 ? (
+                                                        <div className={`text-sm ${theme.textMuted}`}>No snapshot history found</div>
+                                                    ) : (
+                                                        <div className="overflow-x-auto">
+                                                            <table className="text-xs sm:text-sm">
+                                                                <thead>
+                                                                    <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
+                                                                        <th className="text-left px-2 py-1">Date</th>
+                                                                        <th className="text-right px-2 py-1">Power</th>
+                                                                        <th className="text-right px-2 py-1">KP</th>
+                                                                        <th className="text-right px-2 py-1">T4</th>
+                                                                        <th className="text-right px-2 py-1">T5</th>
+                                                                        <th className="text-right px-2 py-1">Honor</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {memberSnapshots.map((snap, snapIdx) => (
+                                                                        <tr key={snap.id || snapIdx} className="border-b border-[var(--border)]/30">
+                                                                            <td className="px-2 py-1 text-[#9f7aea]">
+                                                                                {formatDate(snap.snapshot_date)}
+                                                                            </td>
+                                                                            <td className="px-2 py-1 text-right text-[#01b574]">
+                                                                                {formatPower(snap.power)}
+                                                                            </td>
+                                                                            <td className="px-2 py-1 text-right text-[#f56565]">
+                                                                                {formatPower(snap.kills)}
+                                                                            </td>
+                                                                            <td className="px-2 py-1 text-right text-[#fbbf24]">
+                                                                                {formatPower(snap.t4_kills)}
+                                                                            </td>
+                                                                            <td className="px-2 py-1 text-right text-[#f97316]">
+                                                                                {formatPower(snap.t5_kills)}
+                                                                            </td>
+                                                                            <td className="px-2 py-1 text-right text-[#fbbf24]">
+                                                                                {snap.honor_points?.toLocaleString() || '-'}
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                    </React.Fragment>
                                     );
                                 })}
                             </tbody>
@@ -3157,25 +3253,41 @@ export default function RosterPage() {
                                                                     <td className="px-2 py-2 text-right text-[#01b574] w-24">
                                                                         {member.currentHonor.toLocaleString()}
                                                                     </td>
-                                                                    <td className="px-2 py-2 w-[180px]">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className="w-[80px] h-4 bg-[var(--background-secondary)] rounded overflow-hidden flex-shrink-0">
-                                                                                {(() => {
-                                                                                    const maxGrowth = Math.max(...sortedHonorGrowth.map(m => Math.abs(m.honorGrowth)));
-                                                                                    const pct = maxGrowth > 0 ? (Math.abs(member.honorGrowth) / maxGrowth) * 100 : 0;
-                                                                                    const isPositive = member.honorGrowth >= 0;
-                                                                                    return (
-                                                                                        <div
-                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#fbbf24] to-[#fbbf24]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
-                                                                                            style={{ width: `${pct}%` }}
-                                                                                        />
-                                                                                    );
-                                                                                })()}
-                                                                            </div>
-                                                                            <span className={`text-right font-medium ${member.honorGrowth >= 0 ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
-                                                                                {member.honorGrowth >= 0 ? '+' : ''}{member.honorGrowth.toLocaleString()}
-                                                                            </span>
-                                                                        </div>
+                                                                    <td className="px-2 py-2">
+                                                                        {(() => {
+                                                                            const maxGrowth = Math.max(...sortedHonorGrowth.map(m => Math.abs(m.honorGrowth)));
+                                                                            const pct = maxGrowth > 0 ? (Math.abs(member.honorGrowth) / maxGrowth) * 100 : 0;
+                                                                            const isPositive = member.honorGrowth >= 0;
+                                                                            return (
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                    <div style={{
+                                                                                        width: '80px',
+                                                                                        height: '16px',
+                                                                                        backgroundColor: 'var(--background-secondary)',
+                                                                                        borderRadius: '4px',
+                                                                                        overflow: 'hidden',
+                                                                                        flexShrink: 0
+                                                                                    }}>
+                                                                                        <div style={{
+                                                                                            width: `${pct}%`,
+                                                                                            height: '100%',
+                                                                                            background: isPositive
+                                                                                                ? 'linear-gradient(to right, #fbbf24, rgba(251, 191, 36, 0.5))'
+                                                                                                : 'linear-gradient(to right, #6b7280, #9ca3af)',
+                                                                                            borderRadius: '4px'
+                                                                                        }} />
+                                                                                    </div>
+                                                                                    <span style={{
+                                                                                        color: isPositive ? '#fbbf24' : '#9ca3af',
+                                                                                        fontWeight: 500,
+                                                                                        minWidth: '60px',
+                                                                                        textAlign: 'right'
+                                                                                    }}>
+                                                                                        {member.honorGrowth >= 0 ? '+' : ''}{member.honorGrowth.toLocaleString()}
+                                                                                    </span>
+                                                                                </div>
+                                                                            );
+                                                                        })()}
                                                                     </td>
                                                                 </tr>
                                                             );
