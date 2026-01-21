@@ -117,6 +117,51 @@ export async function createSnapshot(roster: Array<{ name: string; power: number
 }
 
 /**
+ * Update honor points for existing snapshots on a specific date
+ * This is used when honor points data comes from a separate import
+ */
+export async function updateHonorPointsForDate(
+  snapshotDate: string,
+  honorData: Array<{ name: string; honor_points: number }>
+): Promise<{ updated: number; notFound: string[] }> {
+  const supabase = createClient();
+
+  let updated = 0;
+  const notFound: string[] = [];
+
+  for (const entry of honorData) {
+    // Try to find matching snapshot by normalized name
+    const normalizedName = normalizeName(entry.name);
+
+    // Get all snapshots for this date
+    const { data: snapshots } = await supabase
+      .from('roster_snapshots')
+      .select('id, member_name')
+      .eq('snapshot_date', snapshotDate);
+
+    if (!snapshots) continue;
+
+    // Find matching member by normalized name
+    const match = snapshots.find(s => normalizeName(s.member_name) === normalizedName);
+
+    if (match) {
+      const { error } = await supabase
+        .from('roster_snapshots')
+        .update({ honor_points: entry.honor_points })
+        .eq('id', match.id);
+
+      if (!error) {
+        updated++;
+      }
+    } else {
+      notFound.push(entry.name);
+    }
+  }
+
+  return { updated, notFound };
+}
+
+/**
  * Get the most recent snapshot date
  */
 export async function getLastSnapshotDate(): Promise<string | null> {
@@ -451,6 +496,7 @@ export interface HonorGrowth {
 
 /**
  * Get Honor growth between the two most recent snapshots
+ * Compares snapshot data directly (not current roster) to show accurate growth
  */
 export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_points: number }>): Promise<HonorGrowth[]> {
   const supabase = createClient();
@@ -470,24 +516,32 @@ export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_
     .eq('snapshot_date', previousDate)
     .eq('is_active', true);
 
-  if (!previousData) return [];
+  // Get current snapshot data (use actual snapshot, not live roster)
+  const { data: currentData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, honor_points')
+    .eq('snapshot_date', currentDate)
+    .eq('is_active', true);
+
+  if (!previousData || !currentData) return [];
 
   // Use normalized names for matching (handles prefix variations between snapshots)
   const previousMap = new Map(previousData.map(d => [normalizeName(d.member_name), d.honor_points || 0]));
 
-  const growth: HonorGrowth[] = currentRoster
+  const growth: HonorGrowth[] = currentData
     .filter(m => {
-      const prev = previousMap.get(normalizeName(m.name));
-      // Only include if they existed in previous snapshot AND had non-zero honor
-      return prev !== undefined && prev > 0;
+      const prev = previousMap.get(normalizeName(m.member_name));
+      // Only include if they existed in previous snapshot AND had non-zero honor in both
+      return prev !== undefined && prev > 0 && (m.honor_points || 0) > 0;
     })
     .map(m => {
-      const prev = previousMap.get(normalizeName(m.name)) || 0;
+      const prev = previousMap.get(normalizeName(m.member_name)) || 0;
+      const current = m.honor_points || 0;
       return {
-        name: m.name,
+        name: m.member_name,
         previousHonor: prev,
-        currentHonor: m.honor_points || 0,
-        honorGrowth: (m.honor_points || 0) - prev,
+        currentHonor: current,
+        honorGrowth: current - prev,
         previousDate,
         currentDate,
       };
