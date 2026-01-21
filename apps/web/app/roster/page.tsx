@@ -3227,7 +3227,7 @@ export default function RosterPage() {
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted} w-24`}>
                                                                 {date2}
                                                             </th>
-                                                            <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted} w-[180px]`}>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted} w-[220px]`}>
                                                                 <button onClick={() => handleHonorSort('honorGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
                                                                     Growth <HonorSortIcon field="honorGrowth" />
                                                                 </button>
@@ -3253,36 +3253,20 @@ export default function RosterPage() {
                                                                     <td className="px-2 py-2 text-right text-[#01b574] w-24">
                                                                         {member.currentHonor.toLocaleString()}
                                                                     </td>
-                                                                    <td className="px-2 py-2">
+                                                                    <td className="px-2 py-2 w-[220px]">
                                                                         {(() => {
                                                                             const maxGrowth = Math.max(...sortedHonorGrowth.map(m => Math.abs(m.honorGrowth)));
                                                                             const pct = maxGrowth > 0 ? (Math.abs(member.honorGrowth) / maxGrowth) * 100 : 0;
                                                                             const isPositive = member.honorGrowth >= 0;
                                                                             return (
-                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                                    <div style={{
-                                                                                        width: '80px',
-                                                                                        height: '16px',
-                                                                                        backgroundColor: 'var(--background-secondary)',
-                                                                                        borderRadius: '4px',
-                                                                                        overflow: 'hidden',
-                                                                                        flexShrink: 0
-                                                                                    }}>
-                                                                                        <div style={{
-                                                                                            width: `${pct}%`,
-                                                                                            height: '100%',
-                                                                                            background: isPositive
-                                                                                                ? 'linear-gradient(to right, #fbbf24, rgba(251, 191, 36, 0.5))'
-                                                                                                : 'linear-gradient(to right, #6b7280, #9ca3af)',
-                                                                                            borderRadius: '4px'
-                                                                                        }} />
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[80px]">
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#fbbf24] to-[#fbbf24]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
                                                                                     </div>
-                                                                                    <span style={{
-                                                                                        color: isPositive ? '#fbbf24' : '#9ca3af',
-                                                                                        fontWeight: 500,
-                                                                                        minWidth: '60px',
-                                                                                        textAlign: 'right'
-                                                                                    }}>
+                                                                                    <span className={`text-right font-medium min-w-[70px] ${isPositive ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
                                                                                         {member.honorGrowth >= 0 ? '+' : ''}{member.honorGrowth.toLocaleString()}
                                                                                     </span>
                                                                                 </div>
