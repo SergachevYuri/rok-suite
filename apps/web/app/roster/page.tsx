@@ -528,8 +528,8 @@ export default function RosterPage() {
         // Convert kills to millions for display (e.g., 18543993 -> "18.5")
         const killsM = member.kills ? (member.kills / 1000000).toFixed(1) : '';
         // Format T4/T5 as "X/Y" (e.g., "5.2/3.1")
-        const t4M = member.t4_kills ? (member.t4_kills / 1000000).toFixed(1) : '0';
-        const t5M = member.t5_kills ? (member.t5_kills / 1000000).toFixed(1) : '0';
+        const t4M = member.t4_kills ? (member.t4_kills / 1000000).toFixed(1) : '';
+        const t5M = member.t5_kills ? (member.t5_kills / 1000000).toFixed(1) : '';
         const t4t5KillsM = (member.t4_kills || member.t5_kills) ? `${t4M}/${t5M}` : '';
         // Honor points as raw number
         const honor = member.honor_points ? member.honor_points.toString() : '';
@@ -4703,17 +4703,17 @@ export default function RosterPage() {
                                 </div>
                                 <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
                                     <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>Kill Points</div>
-                                    <div className="text-[#f56565] font-semibold text-sm sm:text-base">{formatPower(member.kills || 0)}</div>
+                                    <div className="text-[#f56565] font-semibold text-sm sm:text-base">{formatPower(member.kills)}</div>
                                     <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.kpRank}</div>
                                 </div>
                                 <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
                                     <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>T4 KP</div>
-                                    <div className="text-[#fbbf24] font-semibold text-sm sm:text-base">{formatPower(member.t4_kills || 0)}</div>
+                                    <div className="text-[#fbbf24] font-semibold text-sm sm:text-base">{formatPower(member.t4_kills)}</div>
                                     <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.t4Rank}</div>
                                 </div>
                                 <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
                                     <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>T5 KP</div>
-                                    <div className="text-[#f97316] font-semibold text-sm sm:text-base">{formatPower(member.t5_kills || 0)}</div>
+                                    <div className="text-[#f97316] font-semibold text-sm sm:text-base">{formatPower(member.t5_kills)}</div>
                                     <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.t5Rank}</div>
                                 </div>
                             </div>
@@ -4723,7 +4723,7 @@ export default function RosterPage() {
                                 <div className="flex justify-between items-center">
                                     <div>
                                         <div className={`text-xs ${theme.textMuted} mb-1`}>Honor Points</div>
-                                        <div className="text-[#fbbf24] font-semibold">{(member.honor_points || 0).toLocaleString()}</div>
+                                        <div className="text-[#fbbf24] font-semibold">{member.honor_points ? member.honor_points.toLocaleString() : '-'}</div>
                                     </div>
                                     <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.honorRank}</div>
                                 </div>
@@ -4822,7 +4822,7 @@ export default function RosterPage() {
                                                                 )}
                                                             </td>
                                                             <td className="py-1 px-1 text-right">
-                                                                <div className="text-[#f56565]">{formatPower(snap.kills || 0)}</div>
+                                                                <div className="text-[#f56565]">{formatPower(snap.kills)}</div>
                                                                 {kpDelta !== 0 && (
                                                                     <div className={`text-[9px] ${kpDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                                         {kpDelta > 0 ? '+' : ''}{formatPower(kpDelta)}
@@ -4830,7 +4830,7 @@ export default function RosterPage() {
                                                                 )}
                                                             </td>
                                                             <td className="py-1 pl-1 text-right">
-                                                                <div className="text-[#fbbf24]">{(snap.honor_points || 0).toLocaleString()}</div>
+                                                                <div className="text-[#fbbf24]">{snap.honor_points ? snap.honor_points.toLocaleString() : '-'}</div>
                                                                 {honorDelta !== 0 && (
                                                                     <div className={`text-[9px] ${honorDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                                         {honorDelta > 0 ? '+' : ''}{honorDelta.toLocaleString()}

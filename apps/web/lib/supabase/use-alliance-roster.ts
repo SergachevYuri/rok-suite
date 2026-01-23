@@ -82,7 +82,9 @@ export function useAllianceRoster(): UseAllianceRosterReturn {
 }
 
 // Utility to format power with M suffix
-export const formatPower = (power: number): string => {
+// Returns '-' for 0 or falsy values (no data entered)
+export const formatPower = (power: number | null | undefined): string => {
+  if (!power) return '-';
   if (power >= 1000000) {
     return (power / 1000000).toFixed(1) + 'M';
   }
