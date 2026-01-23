@@ -370,51 +370,80 @@ export interface KpGrowth {
 }
 
 /**
- * Get KP growth between the two most recent snapshots
+ * Get KP growth between the two most recent snapshots that have KP data changes
  * Compares kills, T4 kills, and T5 kills between snapshots
  */
 export async function getKpGrowth(currentRoster: Array<{ name: string; kills: number; t4_kills: number; t5_kills: number }>): Promise<KpGrowth[]> {
   const supabase = createClient();
 
-  // Get the two most recent snapshot dates (excluding unreliable ones)
+  // Get all recent snapshot dates (excluding unreliable ones)
   const allDates = await getSnapshotDates();
   const dates = getFilteredSnapshotDates(allDates);
   if (dates.length < 2) return [];
 
-  const previousDate = dates[1]; // Second most recent
-  const currentDate = dates[0];  // Most recent
+  // Find two dates where KP totals actually differ (indicating real updates)
+  let currentDate: string | null = null;
+  let previousDate: string | null = null;
+  let currentTotalKp = 0;
 
-  // Get previous snapshot data including T4/T5
+  for (const date of dates) {
+    const { data } = await supabase
+      .from('roster_snapshots')
+      .select('kills')
+      .eq('snapshot_date', date)
+      .eq('is_active', true)
+      .limit(2000);
+
+    const totalKp = data?.reduce((sum, d) => sum + (d.kills || 0), 0) || 0;
+
+    if (!currentDate) {
+      currentDate = date;
+      currentTotalKp = totalKp;
+    } else if (totalKp !== currentTotalKp) {
+      // Found a date with different KP total - this is actual data, not carryover
+      previousDate = date;
+      break;
+    }
+  }
+
+  if (!currentDate || !previousDate) return [];
+
+  // Get snapshot data for both dates
+  const { data: currentData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, kills, t4_kills, t5_kills')
+    .eq('snapshot_date', currentDate)
+    .eq('is_active', true)
+    .limit(2000);
+
   const { data: previousData } = await supabase
     .from('roster_snapshots')
     .select('member_name, kills, t4_kills, t5_kills')
     .eq('snapshot_date', previousDate)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .limit(2000);
 
-  if (!previousData) return [];
+  if (!previousData || !currentData) return [];
 
-  // Use normalized names for matching (handles prefix variations between snapshots)
+  // Use normalized names for matching
   const previousMap = new Map(previousData.map(d => [normalizeName(d.member_name), {
     kills: d.kills || 0,
     t4_kills: d.t4_kills || 0,
     t5_kills: d.t5_kills || 0,
   }]));
 
-  const growth: KpGrowth[] = currentRoster
+  const growth: KpGrowth[] = currentData
     .filter(m => {
-      const prev = previousMap.get(normalizeName(m.name));
-      // Only include if they existed in previous snapshot AND had non-zero KP
-      // (0 KP means they weren't entered yet, not that they grew from 0)
+      const prev = previousMap.get(normalizeName(m.member_name));
       return prev && prev.kills > 0;
     })
     .map(m => {
-      const prev = previousMap.get(normalizeName(m.name)) || { kills: 0, t4_kills: 0, t5_kills: 0 };
+      const prev = previousMap.get(normalizeName(m.member_name)) || { kills: 0, t4_kills: 0, t5_kills: 0 };
       return {
-        name: m.name,
+        name: m.member_name,
         previousKp: prev.kills,
         currentKp: m.kills || 0,
         kpGrowth: (m.kills || 0) - prev.kills,
-        // Only show T4/T5 growth if previous value was non-zero
         previousT4: prev.t4_kills,
         currentT4: m.t4_kills || 0,
         t4Growth: prev.t4_kills > 0 ? (m.t4_kills || 0) - prev.t4_kills : 0,
@@ -439,41 +468,72 @@ export interface PowerGrowth {
 }
 
 /**
- * Get Power growth between the two most recent snapshots
+ * Get Power growth between the two most recent snapshots that have Power data changes
  */
 export async function getPowerGrowth(currentRoster: Array<{ name: string; power: number }>): Promise<PowerGrowth[]> {
   const supabase = createClient();
 
-  // Get the two most recent snapshot dates (excluding unreliable ones)
+  // Get all recent snapshot dates (excluding unreliable ones)
   const allDates = await getSnapshotDates();
   const dates = getFilteredSnapshotDates(allDates);
   if (dates.length < 2) return [];
 
-  const previousDate = dates[1]; // Second most recent
-  const currentDate = dates[0];  // Most recent
+  // Find two dates where Power totals actually differ (indicating real updates)
+  let currentDate: string | null = null;
+  let previousDate: string | null = null;
+  let currentTotalPower = 0;
 
-  // Get previous snapshot data
+  for (const date of dates) {
+    const { data } = await supabase
+      .from('roster_snapshots')
+      .select('power')
+      .eq('snapshot_date', date)
+      .eq('is_active', true)
+      .limit(2000);
+
+    const totalPower = data?.reduce((sum, d) => sum + (d.power || 0), 0) || 0;
+
+    if (!currentDate) {
+      currentDate = date;
+      currentTotalPower = totalPower;
+    } else if (totalPower !== currentTotalPower) {
+      // Found a date with different Power total - this is actual data, not carryover
+      previousDate = date;
+      break;
+    }
+  }
+
+  if (!currentDate || !previousDate) return [];
+
+  // Get snapshot data for both dates
+  const { data: currentData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, power')
+    .eq('snapshot_date', currentDate)
+    .eq('is_active', true)
+    .limit(2000);
+
   const { data: previousData } = await supabase
     .from('roster_snapshots')
     .select('member_name, power')
     .eq('snapshot_date', previousDate)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .limit(2000);
 
-  if (!previousData) return [];
+  if (!previousData || !currentData) return [];
 
-  // Use normalized names for matching (handles prefix variations between snapshots)
+  // Use normalized names for matching
   const previousMap = new Map(previousData.map(d => [normalizeName(d.member_name), d.power || 0]));
 
-  const growth: PowerGrowth[] = currentRoster
+  const growth: PowerGrowth[] = currentData
     .filter(m => {
-      const prev = previousMap.get(normalizeName(m.name));
-      // Only include if they existed in previous snapshot AND had non-zero power
+      const prev = previousMap.get(normalizeName(m.member_name));
       return prev !== undefined && prev > 0;
     })
     .map(m => {
-      const prev = previousMap.get(normalizeName(m.name)) || 0;
+      const prev = previousMap.get(normalizeName(m.member_name)) || 0;
       return {
-        name: m.name,
+        name: m.member_name,
         previousPower: prev,
         currentPower: m.power || 0,
         powerGrowth: (m.power || 0) - prev,
