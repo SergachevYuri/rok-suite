@@ -764,6 +764,73 @@ export function useRosterSnapshots() {
   };
 }
 
+/**
+ * Get the latest non-null value for each field for all members
+ * This is used to fill in missing values when the current roster has nulls/zeros
+ */
+export async function getLatestValuesForAllMembers(): Promise<Map<string, {
+  kills: number | null;
+  t4_kills: number | null;
+  t5_kills: number | null;
+  honor_points: number | null;
+  power: number | null;
+}>> {
+  const supabase = createClient();
+
+  // Get all snapshots ordered by date descending (newest first)
+  const { data: snapshots, error } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, snapshot_date, kills, t4_kills, t5_kills, honor_points, power')
+    .order('snapshot_date', { ascending: false })
+    .limit(10000);
+
+  if (error || !snapshots) {
+    console.error('Error fetching snapshots for latest values:', error);
+    return new Map();
+  }
+
+  // For each member, find the latest non-null/non-zero value for each field
+  const latestValues = new Map<string, {
+    kills: number | null;
+    t4_kills: number | null;
+    t5_kills: number | null;
+    honor_points: number | null;
+    power: number | null;
+  }>();
+
+  for (const snapshot of snapshots) {
+    const name = snapshot.member_name;
+    const existing = latestValues.get(name) || {
+      kills: null,
+      t4_kills: null,
+      t5_kills: null,
+      honor_points: null,
+      power: null,
+    };
+
+    // Only set value if current is null and snapshot has a non-null/non-zero value
+    if (existing.kills === null && snapshot.kills && snapshot.kills > 0) {
+      existing.kills = snapshot.kills;
+    }
+    if (existing.t4_kills === null && snapshot.t4_kills && snapshot.t4_kills > 0) {
+      existing.t4_kills = snapshot.t4_kills;
+    }
+    if (existing.t5_kills === null && snapshot.t5_kills && snapshot.t5_kills > 0) {
+      existing.t5_kills = snapshot.t5_kills;
+    }
+    if (existing.honor_points === null && snapshot.honor_points && snapshot.honor_points > 0) {
+      existing.honor_points = snapshot.honor_points;
+    }
+    if (existing.power === null && snapshot.power && snapshot.power > 0) {
+      existing.power = snapshot.power;
+    }
+
+    latestValues.set(name, existing);
+  }
+
+  return latestValues;
+}
+
 // Utility to format power with M suffix
 export const formatPower = (power: number): string => {
   if (power >= 1000000) {

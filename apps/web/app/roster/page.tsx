@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
-import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
+import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, getLatestValuesForAllMembers, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -379,14 +379,34 @@ export default function RosterPage() {
         setError(null);
 
         try {
-            const { data, error: fetchError } = await supabase
-                .from('alliance_roster')
-                .select('*')
-                .eq('is_active', true)
-                .order('power', { ascending: false });
+            // Fetch current roster and latest snapshot values in parallel
+            const [rosterResult, latestValues] = await Promise.all([
+                supabase
+                    .from('alliance_roster')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('power', { ascending: false }),
+                getLatestValuesForAllMembers(),
+            ]);
 
-            if (fetchError) throw fetchError;
-            setRoster(data || []);
+            if (rosterResult.error) throw rosterResult.error;
+
+            // Merge roster with latest snapshot values for missing fields
+            const enhancedRoster = (rosterResult.data || []).map(member => {
+                const snapshotValues = latestValues.get(member.name);
+                if (!snapshotValues) return member;
+
+                return {
+                    ...member,
+                    // Use snapshot value if current is 0/null and snapshot has data
+                    kills: (member.kills || 0) > 0 ? member.kills : (snapshotValues.kills || member.kills),
+                    t4_kills: (member.t4_kills || 0) > 0 ? member.t4_kills : (snapshotValues.t4_kills || member.t4_kills),
+                    t5_kills: (member.t5_kills || 0) > 0 ? member.t5_kills : (snapshotValues.t5_kills || member.t5_kills),
+                    honor_points: (member.honor_points || 0) > 0 ? member.honor_points : (snapshotValues.honor_points || member.honor_points),
+                };
+            });
+
+            setRoster(enhancedRoster);
         } catch (err) {
             console.error('Error fetching roster:', err);
             setError(err instanceof Error ? err.message : 'Failed to fetch roster');
