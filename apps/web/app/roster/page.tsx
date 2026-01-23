@@ -222,7 +222,7 @@ export default function RosterPage() {
     const [tagFilter, setTagFilter] = useState<string | null>(null);
     const [allianceFilter, setAllianceFilter] = useState<string | null>(null);
     const [rankFilter, setRankFilter] = useState<string | null>(null);
-    const [aooFilter, setAooFilter] = useState<'all' | 'assigned' | 'unassigned' | 'participated' | 'missed'>('all');
+    const [aooFilter, setAooFilter] = useState<'all' | 'team1' | 'team2' | 'assigned' | 'unassigned'>('all');
     const [sortField, setSortField] = useState<SortField>('default'); // Default: rank → power → name
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -1272,14 +1272,13 @@ export default function RosterPage() {
             if (aooFilter === 'all') return true;
             const stats = eventStats.get(m.name);
             const hasAssignment = stats && stats.aoo.totalAssigned > 0;
-            const participated = stats && stats.aoo.participatedCount > 0;
-            const missedAny = stats && stats.aoo.totalAssigned > stats.aoo.participatedCount;
+            const lastTeam = stats?.aoo.lastTeam;
 
             switch (aooFilter) {
+                case 'team1': return lastTeam === 'Team 1';
+                case 'team2': return lastTeam === 'Team 2';
                 case 'assigned': return hasAssignment;
                 case 'unassigned': return !hasAssignment;
-                case 'participated': return participated;
-                case 'missed': return hasAssignment && missedAny;
                 default: return true;
             }
         })
@@ -1857,10 +1856,10 @@ export default function RosterPage() {
                                 className={`px-3 py-2 rounded-lg text-sm border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
                             >
                                 <option value="all">All AoO</option>
-                                <option value="assigned">AoO Assigned</option>
-                                <option value="unassigned">AoO Unassigned</option>
-                                <option value="participated">AoO Participated</option>
-                                <option value="missed">AoO Missed</option>
+                                <option value="team1">Team 1</option>
+                                <option value="team2">Team 2</option>
+                                <option value="assigned">Assigned</option>
+                                <option value="unassigned">Unassigned</option>
                             </select>
                             {(sortField !== 'default' || rankFilter || aooFilter !== 'all') && (
                                 <button
