@@ -49,7 +49,7 @@ interface RosterMember {
     civilization: string | null;
 }
 
-type SortField = 'default' | 'name' | 'power' | 'kills' | 'role';
+type SortField = 'default' | 'name' | 'power' | 'kills' | 'role' | 'aoo';
 
 // Column descriptions for tooltips
 const COLUMN_TOOLTIPS: Record<string, string> = {
@@ -221,6 +221,8 @@ export default function RosterPage() {
     const [search, setSearch] = useState('');
     const [tagFilter, setTagFilter] = useState<string | null>(null);
     const [allianceFilter, setAllianceFilter] = useState<string | null>(null);
+    const [rankFilter, setRankFilter] = useState<string | null>(null);
+    const [aooFilter, setAooFilter] = useState<'all' | 'assigned' | 'unassigned' | 'participated' | 'missed'>('all');
     const [sortField, setSortField] = useState<SortField>('default'); // Default: rank → power → name
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -454,7 +456,7 @@ export default function RosterPage() {
     // Reset to first page when filters/sort change
     useEffect(() => {
         setCurrentPage(0);
-    }, [search, tagFilter, allianceFilter, sortField, sortDirection]);
+    }, [search, tagFilter, allianceFilter, rankFilter, aooFilter, sortField, sortDirection]);
 
     // Initialize event entries when roster or event type changes
     useEffect(() => {
@@ -539,6 +541,8 @@ export default function RosterPage() {
     const resetToDefaultSort = () => {
         setSortField('default');
         setSortDirection('asc');
+        setRankFilter(null);
+        setAooFilter('all');
     };
 
     const startEditing = (member: RosterMember) => {
@@ -1249,6 +1253,13 @@ export default function RosterPage() {
         return Array.from(allianceSet).sort();
     }, [roster]);
 
+    // Helper to get AoO participation rate for a member
+    const getAooRate = (memberName: string): number => {
+        const stats = eventStats.get(memberName);
+        if (!stats || !stats.aoo.totalAssigned || stats.aoo.totalAssigned === 0) return -1; // -1 means no data
+        return (stats.aoo.participatedCount / stats.aoo.totalAssigned) * 100;
+    };
+
     // Filter and sort roster
     // Only show members with tags (excludes CSV-imported members without tags)
     const filteredRoster = roster
@@ -1256,6 +1267,22 @@ export default function RosterPage() {
         .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
         .filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)))
         .filter(m => !allianceFilter || m.alliance === allianceFilter)
+        .filter(m => !rankFilter || m.role === rankFilter)
+        .filter(m => {
+            if (aooFilter === 'all') return true;
+            const stats = eventStats.get(m.name);
+            const hasAssignment = stats && stats.aoo.totalAssigned > 0;
+            const participated = stats && stats.aoo.participatedCount > 0;
+            const missedAny = stats && stats.aoo.totalAssigned > stats.aoo.participatedCount;
+
+            switch (aooFilter) {
+                case 'assigned': return hasAssignment;
+                case 'unassigned': return !hasAssignment;
+                case 'participated': return participated;
+                case 'missed': return hasAssignment && missedAny;
+                default: return true;
+            }
+        })
         .sort((a, b) => {
             // When sorting by default or rank, use multi-level: rank → power (desc) → name (asc)
             if (sortField === 'default' || sortField === 'role') {
@@ -1287,6 +1314,15 @@ export default function RosterPage() {
                 case 'kills':
                     aVal = a.kills || 0;
                     bVal = b.kills || 0;
+                    break;
+                case 'aoo':
+                    // Sort by AoO participation rate; unassigned members go to the end
+                    aVal = getAooRate(a.name);
+                    bVal = getAooRate(b.name);
+                    // Put unassigned (-1) at the end regardless of sort direction
+                    if (aVal === -1 && bVal === -1) return 0;
+                    if (aVal === -1) return 1;
+                    if (bVal === -1) return -1;
                     break;
             }
 
@@ -1801,13 +1837,38 @@ export default function RosterPage() {
                                     ))}
                                 </select>
                             )}
-                            {sortField !== 'default' && (
+                            {/* Rank Filter */}
+                            <select
+                                value={rankFilter || ''}
+                                onChange={(e) => setRankFilter(e.target.value || null)}
+                                className={`px-3 py-2 rounded-lg text-sm border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
+                            >
+                                <option value="">All Ranks</option>
+                                <option value="R5">R5</option>
+                                <option value="R4">R4</option>
+                                <option value="R3">R3</option>
+                                <option value="R2">R2</option>
+                                <option value="R1">R1</option>
+                            </select>
+                            {/* AoO Filter */}
+                            <select
+                                value={aooFilter}
+                                onChange={(e) => setAooFilter(e.target.value as typeof aooFilter)}
+                                className={`px-3 py-2 rounded-lg text-sm border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
+                            >
+                                <option value="all">All AoO</option>
+                                <option value="assigned">AoO Assigned</option>
+                                <option value="unassigned">AoO Unassigned</option>
+                                <option value="participated">AoO Participated</option>
+                                <option value="missed">AoO Missed</option>
+                            </select>
+                            {(sortField !== 'default' || rankFilter || aooFilter !== 'all') && (
                                 <button
                                     onClick={resetToDefaultSort}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} whitespace-nowrap`}
-                                    title="Reset to default sort (Rank → Power → Name)"
+                                    title="Reset filters and sort to default"
                                 >
-                                    Reset Sort
+                                    Reset
                                 </button>
                             )}
                             {/* View Options Button */}
@@ -1978,9 +2039,13 @@ export default function RosterPage() {
                                     {isColumnVisible('aoo') && (
                                         <th className="text-center px-4 py-3 hidden lg:table-cell">
                                             <ColumnTooltip text={COLUMN_TOOLTIPS.aoo}>
-                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                <button
+                                                    onClick={() => handleSort('aoo')}
+                                                    className={`flex items-center gap-1 mx-auto text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}
+                                                >
                                                     AoO
-                                                </span>
+                                                    <SortIcon field="aoo" />
+                                                </button>
                                             </ColumnTooltip>
                                         </th>
                                     )}
