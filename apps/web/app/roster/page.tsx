@@ -2412,30 +2412,47 @@ export default function RosterPage() {
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {memberSnapshots.map((snap, snapIdx) => (
-                                                                        <tr key={snap.id || snapIdx} className="border-b border-[var(--border)]/30">
-                                                                            <td className="px-2 py-1 text-[#9f7aea]">
-                                                                                {formatDate(snap.snapshot_date)}
-                                                                            </td>
-                                                                            <td className="px-2 py-1 text-right text-[#01b574]">
-                                                                                {formatPower(snap.power)}
-                                                                            </td>
-                                                                            <td className="px-2 py-1 text-right text-[#f56565]">
-                                                                                {formatPower(snap.kills)}
-                                                                            </td>
-                                                                            <td className="px-2 py-1 text-right text-[#fbbf24]">
-                                                                                {formatPower(snap.t4_kills)}
-                                                                            </td>
-                                                                            <td className="px-2 py-1 text-right text-[#f97316]">
-                                                                                {formatPower(snap.t5_kills)}
-                                                                            </td>
-                                                                            <td className="px-2 py-1 text-right text-[#fbbf24]">
-                                                                                {snap.honor_points?.toLocaleString() || '-'}
-                                                                            </td>
-                                                                        </tr>
-                                                                    ))}
+                                                                    {memberSnapshots.map((snap, snapIdx) => {
+                                                                        // Compare with previous snapshot to detect carryovers
+                                                                        const prevSnap = snapIdx > 0 ? memberSnapshots[snapIdx - 1] : null;
+                                                                        const isCarryover = (current: number | undefined, prev: number | undefined) =>
+                                                                            prevSnap && current === prev;
+
+                                                                        const carryoverClass = "opacity-40 italic";
+                                                                        const powerCarry = isCarryover(snap.power, prevSnap?.power);
+                                                                        const killsCarry = isCarryover(snap.kills, prevSnap?.kills);
+                                                                        const t4Carry = isCarryover(snap.t4_kills, prevSnap?.t4_kills);
+                                                                        const t5Carry = isCarryover(snap.t5_kills, prevSnap?.t5_kills);
+                                                                        const honorCarry = isCarryover(snap.honor_points, prevSnap?.honor_points);
+
+                                                                        return (
+                                                                            <tr key={snap.id || snapIdx} className="border-b border-[var(--border)]/30">
+                                                                                <td className="px-2 py-1 text-[#9f7aea]">
+                                                                                    {formatDate(snap.snapshot_date)}
+                                                                                </td>
+                                                                                <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
+                                                                                    {formatPower(snap.power)}
+                                                                                </td>
+                                                                                <td className={`px-2 py-1 text-right text-[#f56565] ${killsCarry ? carryoverClass : ''}`}>
+                                                                                    {formatPower(snap.kills)}
+                                                                                </td>
+                                                                                <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
+                                                                                    {formatPower(snap.t4_kills)}
+                                                                                </td>
+                                                                                <td className={`px-2 py-1 text-right text-[#f97316] ${t5Carry ? carryoverClass : ''}`}>
+                                                                                    {formatPower(snap.t5_kills)}
+                                                                                </td>
+                                                                                <td className={`px-2 py-1 text-right text-[#fbbf24] ${honorCarry ? carryoverClass : ''}`}>
+                                                                                    {snap.honor_points?.toLocaleString() || '-'}
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
                                                                 </tbody>
                                                             </table>
+                                                            <div className={`text-[10px] ${theme.textMuted} mt-2 italic`}>
+                                                                Dimmed values are unchanged from previous snapshot
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
