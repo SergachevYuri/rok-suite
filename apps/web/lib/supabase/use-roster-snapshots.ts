@@ -777,17 +777,40 @@ export async function getLatestValuesForAllMembers(): Promise<Map<string, {
 }>> {
   const supabase = createClient();
 
-  // Get all snapshots ordered by date descending (newest first)
-  const { data: snapshots, error } = await supabase
-    .from('roster_snapshots')
-    .select('member_name, snapshot_date, kills, t4_kills, t5_kills, honor_points, power')
-    .order('snapshot_date', { ascending: false })
-    .limit(10000);
+  // Fetch all snapshots using pagination (Supabase default limit is 1000)
+  let allSnapshots: {
+    member_name: string;
+    snapshot_date: string;
+    kills: number | null;
+    t4_kills: number | null;
+    t5_kills: number | null;
+    honor_points: number | null;
+    power: number | null;
+  }[] = [];
 
-  if (error || !snapshots) {
-    console.error('Error fetching snapshots for latest values:', error);
-    return new Map();
+  let offset = 0;
+  const FETCH_SIZE = 1000;
+
+  while (true) {
+    const { data: batch, error } = await supabase
+      .from('roster_snapshots')
+      .select('member_name, snapshot_date, kills, t4_kills, t5_kills, honor_points, power')
+      .order('snapshot_date', { ascending: false })
+      .range(offset, offset + FETCH_SIZE - 1);
+
+    if (error) {
+      console.error('Error fetching snapshots for latest values:', error);
+      return new Map();
+    }
+
+    if (!batch || batch.length === 0) break;
+    allSnapshots = allSnapshots.concat(batch);
+    offset += FETCH_SIZE;
+
+    if (batch.length < FETCH_SIZE) break;
   }
+
+  const snapshots = allSnapshots;
 
   // For each member, find the latest non-null/non-zero value for each field
   const latestValues = new Map<string, {
