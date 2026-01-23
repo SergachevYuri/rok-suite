@@ -618,30 +618,40 @@ export async function getMembershipChanges(limit = 20): Promise<MemberChange[]> 
 /**
  * Get all snapshots for computing filtered totals
  */
-export async function getAllSnapshots(limit = 30): Promise<RosterSnapshot[]> {
+export async function getAllSnapshots(dateLimit = 10): Promise<RosterSnapshot[]> {
   const supabase = createClient();
 
   // Get unique dates first, excluding unreliable dates
   const dates = await getSnapshotDates();
   const recentDates = dates
     .filter(d => !EXCLUDED_SNAPSHOT_DATES.includes(d))
-    .slice(0, limit);
+    .slice(0, dateLimit);
 
   if (recentDates.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from('roster_snapshots')
-    .select('*')
-    .in('snapshot_date', recentDates)
-    .eq('is_active', true)
-    .order('snapshot_date', { ascending: true });
+  // Fetch snapshots for each date separately to avoid Supabase row limits
+  const allData: RosterSnapshot[] = [];
 
-  if (error) {
-    console.error('Error fetching all snapshots:', error);
-    return [];
+  for (const date of recentDates) {
+    const { data, error } = await supabase
+      .from('roster_snapshots')
+      .select('*')
+      .eq('snapshot_date', date)
+      .eq('is_active', true)
+      .limit(2000);
+
+    if (error) {
+      console.error(`Error fetching snapshots for ${date}:`, error);
+      continue;
+    }
+
+    if (data) {
+      allData.push(...data);
+    }
   }
 
-  return data || [];
+  // Sort by date ascending
+  return allData.sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
 }
 
 /**
