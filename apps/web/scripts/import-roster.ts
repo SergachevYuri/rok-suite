@@ -32,6 +32,22 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Normalize rank to R1-R5 format
+function normalizeRank(rank: string): string | null {
+  if (!rank) return null;
+  const trimmed = rank.trim();
+  // Already in R format
+  if (/^R[1-5]$/i.test(trimmed)) {
+    return trimmed.toUpperCase();
+  }
+  // Plain number 1-5
+  if (/^[1-5]$/.test(trimmed)) {
+    return `R${trimmed}`;
+  }
+  // Unknown format, return as-is
+  return trimmed;
+}
+
 interface RosterRow {
   name: string;
   power: number;
@@ -104,7 +120,7 @@ function parseCSV(content: string): RosterRow[] {
       row.tier = values[tierIdx];
     }
     if (roleIdx !== -1 && values[roleIdx]) {
-      row.role = values[roleIdx];
+      row.role = normalizeRank(values[roleIdx]) || undefined;
     }
     if (notesIdx !== -1 && values[notesIdx]) {
       row.notes = values[notesIdx];
