@@ -3231,11 +3231,11 @@ export default function RosterPage() {
                                             <div className="overflow-x-auto mobile-scroll">
                                                 <table className="w-full text-xs sm:text-sm min-w-[600px]" style={{ tableLayout: 'fixed' }}>
                                                     <colgroup>
-                                                        <col style={{ width: '40px' }} />
-                                                        <col style={{ width: 'auto' }} />
-                                                        <col style={{ width: '100px' }} />
-                                                        <col style={{ width: '100px' }} />
-                                                        <col style={{ width: '200px' }} />
+                                                        <col style={{ width: '6%' }} />
+                                                        <col style={{ width: '30%' }} />
+                                                        <col style={{ width: '16%' }} />
+                                                        <col style={{ width: '16%' }} />
+                                                        <col style={{ width: '32%' }} />
                                                     </colgroup>
                                                     <thead className="sticky top-0 bg-[var(--background-card)]">
                                                         <tr className="border-b border-[var(--border)]">
