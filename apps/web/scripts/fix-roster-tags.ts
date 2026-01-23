@@ -66,14 +66,14 @@ async function main() {
   }
 
   // Find duplicates (members with same normalized name)
-  const duplicates = [...byNormalized.entries()].filter(([_, members]) => members.length > 1);
+  const duplicates = [...byNormalized.entries()].filter(([_, members]) => members && members.length > 1);
   console.log(`\nDuplicates found: ${duplicates.length}`);
 
   if (duplicates.length > 0) {
     console.log('\nDuplicate groups (first 10):');
     duplicates.slice(0, 10).forEach(([norm, members]) => {
       console.log(`  "${norm}":`);
-      members.forEach(m => console.log(`    - ${m.name} (tags: ${m.tags?.join(', ') || 'none'}, power: ${m.power})`));
+      members?.forEach(m => console.log(`    - ${m.name} (tags: ${m.tags?.join(', ') || 'none'}, power: ${m.power})`));
     });
   }
 
