@@ -110,7 +110,7 @@ async function main() {
   // Get power data and actual names from alliance_roster
   const { data: roster } = await supabase
     .from('alliance_roster')
-    .select('name, power')
+    .select('name, power, alternate_names')
     .eq('is_active', true);
 
   const powerByName = new Map<string, number>();
@@ -118,7 +118,17 @@ async function main() {
   for (const m of roster || []) {
     const norm = normalizeName(m.name);
     powerByName.set(norm, m.power || 0);
-    actualNameByNorm.set(norm, m.name); // Store actual name with special chars
+
+    // Prefer name with 'ang' prefix - check both name and alternate_names
+    let displayName = m.name;
+    const allNames = [m.name, ...(m.alternate_names || [])];
+    for (const n of allNames) {
+      if (n.startsWith('ᵃⁿᵍ') || n.toLowerCase().startsWith('ang')) {
+        displayName = n;
+        break;
+      }
+    }
+    actualNameByNorm.set(norm, displayName);
   }
 
   // Zone leads - these players should be assigned to specific zones as rally leaders
