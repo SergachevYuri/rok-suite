@@ -362,10 +362,10 @@ export interface KpGrowth {
   currentKp: number;
   currentDate: string | null;
   allTimeKpGrowth: number;
-  // Weekly growth (past 7 days)
-  weekAgoKp: number | null;
-  weekAgoDate: string | null;
-  weeklyKpGrowth: number | null;
+  // Comparison growth (between selected dates)
+  compareKp: number | null;
+  compareDate: string | null;
+  compareKpGrowth: number | null;
   // T4/T5 details for current
   currentT4: number;
   currentT5: number;
@@ -374,18 +374,22 @@ export interface KpGrowth {
   firstT5: number;
   allTimeT4Growth: number;
   allTimeT5Growth: number;
-  // T4/T5 weekly growth
-  weekAgoT4: number | null;
-  weekAgoT5: number | null;
-  weeklyT4Growth: number | null;
-  weeklyT5Growth: number | null;
+  // T4/T5 comparison growth
+  compareT4: number | null;
+  compareT5: number | null;
+  compareT4Growth: number | null;
+  compareT5Growth: number | null;
 }
 
 /**
- * Get KP growth - both all-time (from first entry) and weekly (past 7 days)
+ * Get KP growth - both all-time (from first entry) and comparison between dates
  * "Entry" means when a non-zero value was first recorded for that field
+ * @param compareDate - Optional date to compare against (defaults to ~7 days ago)
  */
-export async function getKpGrowth(currentRoster: Array<{ name: string; kills: number; t4_kills: number; t5_kills: number }>): Promise<KpGrowth[]> {
+export async function getKpGrowth(
+  currentRoster: Array<{ name: string; kills: number; t4_kills: number; t5_kills: number }>,
+  compareDate?: string | null
+): Promise<KpGrowth[]> {
   const supabase = createClient();
 
   // Get all snapshot dates (excluding unreliable ones)
@@ -395,13 +399,14 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
 
   const currentDate = dates[0]; // Most recent
 
-  // Calculate date 7 days ago
-  const weekAgoTarget = new Date(currentDate);
-  weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
-  const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
-
-  // Find the closest date to 7 days ago (or earlier)
-  const weekAgoDate = dates.find(d => d <= weekAgoStr) || null;
+  // Use provided compareDate or default to ~7 days ago
+  let effectiveCompareDate: string | null = compareDate ?? null;
+  if (!effectiveCompareDate) {
+    const weekAgoTarget = new Date(currentDate);
+    weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
+    const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
+    effectiveCompareDate = dates.find(d => d <= weekAgoStr) || null;
+  }
 
   // Get all snapshots for all members to find first entry with kills > 0
   const { data: allSnapshots } = await supabase
@@ -438,18 +443,18 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
 
   if (!currentData) return [];
 
-  // Get week-ago snapshot data if available
-  let weekAgoMap = new Map<string, { kills: number; t4: number; t5: number }>();
-  if (weekAgoDate) {
-    const { data: weekAgoData } = await supabase
+  // Get comparison date snapshot data if available
+  let compareMap = new Map<string, { kills: number; t4: number; t5: number }>();
+  if (effectiveCompareDate) {
+    const { data: compareData } = await supabase
       .from('roster_snapshots')
       .select('member_name, kills, t4_kills, t5_kills')
-      .eq('snapshot_date', weekAgoDate)
+      .eq('snapshot_date', effectiveCompareDate)
       .gt('kills', 0)
       .limit(2000);
 
-    if (weekAgoData) {
-      weekAgoMap = new Map(weekAgoData.map(d => [normalizeName(d.member_name), {
+    if (compareData) {
+      compareMap = new Map(compareData.map(d => [normalizeName(d.member_name), {
         kills: d.kills || 0,
         t4: d.t4_kills || 0,
         t5: d.t5_kills || 0,
@@ -469,7 +474,7 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
       const currentKp = m.kills || 0;
       const currentT4 = m.t4_kills || 0;
       const currentT5 = m.t5_kills || 0;
-      const weekAgo = weekAgoMap.get(normName) ?? null;
+      const compare = compareMap.get(normName) ?? null;
 
       return {
         name: m.member_name,
@@ -478,19 +483,19 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
         currentKp,
         currentDate,
         allTimeKpGrowth: currentKp - firstEntry.kills,
-        weekAgoKp: weekAgo?.kills ?? null,
-        weekAgoDate,
-        weeklyKpGrowth: weekAgo !== null ? currentKp - weekAgo.kills : null,
+        compareKp: compare?.kills ?? null,
+        compareDate: effectiveCompareDate,
+        compareKpGrowth: compare !== null ? currentKp - compare.kills : null,
         currentT4,
         currentT5,
         firstT4: firstEntry.t4,
         firstT5: firstEntry.t5,
         allTimeT4Growth: currentT4 - firstEntry.t4,
         allTimeT5Growth: currentT5 - firstEntry.t5,
-        weekAgoT4: weekAgo?.t4 ?? null,
-        weekAgoT5: weekAgo?.t5 ?? null,
-        weeklyT4Growth: weekAgo !== null ? currentT4 - weekAgo.t4 : null,
-        weeklyT5Growth: weekAgo !== null ? currentT5 - weekAgo.t5 : null,
+        compareT4: compare?.t4 ?? null,
+        compareT5: compare?.t5 ?? null,
+        compareT4Growth: compare !== null ? currentT4 - compare.t4 : null,
+        compareT5Growth: compare !== null ? currentT5 - compare.t5 : null,
       };
     });
 
@@ -505,17 +510,21 @@ export interface PowerGrowth {
   currentPower: number;
   currentDate: string | null;
   allTimeGrowth: number;
-  // Weekly growth (past 7 days)
-  weekAgoPower: number | null;
-  weekAgoDate: string | null;
-  weeklyGrowth: number | null;
+  // Comparison growth (between selected dates)
+  comparePower: number | null;
+  compareDate: string | null;
+  compareGrowth: number | null;
 }
 
 /**
- * Get Power growth - both all-time (from first entry) and weekly (past 7 days)
+ * Get Power growth - both all-time (from first entry) and comparison between dates
  * "Entry" means when a non-zero value was first recorded for that field
+ * @param compareDate - Optional date to compare against (defaults to ~7 days ago)
  */
-export async function getPowerGrowth(currentRoster: Array<{ name: string; power: number }>): Promise<PowerGrowth[]> {
+export async function getPowerGrowth(
+  currentRoster: Array<{ name: string; power: number }>,
+  compareDate?: string | null
+): Promise<PowerGrowth[]> {
   const supabase = createClient();
 
   // Get all snapshot dates (excluding unreliable ones)
@@ -525,13 +534,14 @@ export async function getPowerGrowth(currentRoster: Array<{ name: string; power:
 
   const currentDate = dates[0]; // Most recent
 
-  // Calculate date 7 days ago
-  const weekAgoTarget = new Date(currentDate);
-  weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
-  const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
-
-  // Find the closest date to 7 days ago (or earlier)
-  const weekAgoDate = dates.find(d => d <= weekAgoStr) || null;
+  // Use provided compareDate or default to ~7 days ago
+  let effectiveCompareDate: string | null = compareDate ?? null;
+  if (!effectiveCompareDate) {
+    const weekAgoTarget = new Date(currentDate);
+    weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
+    const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
+    effectiveCompareDate = dates.find(d => d <= weekAgoStr) || null;
+  }
 
   // Get all snapshots for all members to find first entry with power > 0
   const { data: allSnapshots } = await supabase
@@ -563,18 +573,18 @@ export async function getPowerGrowth(currentRoster: Array<{ name: string; power:
 
   if (!currentData) return [];
 
-  // Get week-ago snapshot data if available
-  let weekAgoMap = new Map<string, number>();
-  if (weekAgoDate) {
-    const { data: weekAgoData } = await supabase
+  // Get comparison date snapshot data if available
+  let compareMap = new Map<string, number>();
+  if (effectiveCompareDate) {
+    const { data: compareData } = await supabase
       .from('roster_snapshots')
       .select('member_name, power')
-      .eq('snapshot_date', weekAgoDate)
+      .eq('snapshot_date', effectiveCompareDate)
       .gt('power', 0)
       .limit(2000);
 
-    if (weekAgoData) {
-      weekAgoMap = new Map(weekAgoData.map(d => [normalizeName(d.member_name), d.power || 0]));
+    if (compareData) {
+      compareMap = new Map(compareData.map(d => [normalizeName(d.member_name), d.power || 0]));
     }
   }
 
@@ -588,7 +598,7 @@ export async function getPowerGrowth(currentRoster: Array<{ name: string; power:
       const normName = normalizeName(m.member_name);
       const firstEntry = firstEntryMap.get(normName)!;
       const currentPower = m.power || 0;
-      const weekAgoPower = weekAgoMap.get(normName) ?? null;
+      const comparePower = compareMap.get(normName) ?? null;
 
       return {
         name: m.member_name,
@@ -597,9 +607,9 @@ export async function getPowerGrowth(currentRoster: Array<{ name: string; power:
         currentPower,
         currentDate,
         allTimeGrowth: currentPower - firstEntry.value,
-        weekAgoPower,
-        weekAgoDate,
-        weeklyGrowth: weekAgoPower !== null ? currentPower - weekAgoPower : null,
+        comparePower,
+        compareDate: effectiveCompareDate,
+        compareGrowth: comparePower !== null ? currentPower - comparePower : null,
       };
     });
 
@@ -614,17 +624,21 @@ export interface HonorGrowth {
   currentHonor: number;
   currentDate: string | null;
   allTimeGrowth: number;
-  // Weekly growth (past 7 days)
-  weekAgoHonor: number | null;
-  weekAgoDate: string | null;
-  weeklyGrowth: number | null;
+  // Comparison growth (between selected dates)
+  compareHonor: number | null;
+  compareDate: string | null;
+  compareGrowth: number | null;
 }
 
 /**
- * Get Honor growth - both all-time (from first entry) and weekly (past 7 days)
+ * Get Honor growth - both all-time (from first entry) and comparison between dates
  * "Entry" means when a non-zero value was first recorded for that field
+ * @param compareDate - Optional date to compare against (defaults to ~7 days ago)
  */
-export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_points: number }>): Promise<HonorGrowth[]> {
+export async function getHonorGrowth(
+  currentRoster: Array<{ name: string; honor_points: number }>,
+  compareDate?: string | null
+): Promise<HonorGrowth[]> {
   const supabase = createClient();
 
   // Get all snapshot dates (excluding unreliable ones)
@@ -634,13 +648,14 @@ export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_
 
   const currentDate = dates[0]; // Most recent
 
-  // Calculate date 7 days ago
-  const weekAgoTarget = new Date(currentDate);
-  weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
-  const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
-
-  // Find the closest date to 7 days ago (or earlier)
-  const weekAgoDate = dates.find(d => d <= weekAgoStr) || null;
+  // Use provided compareDate or default to ~7 days ago
+  let effectiveCompareDate: string | null = compareDate ?? null;
+  if (!effectiveCompareDate) {
+    const weekAgoTarget = new Date(currentDate);
+    weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
+    const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
+    effectiveCompareDate = dates.find(d => d <= weekAgoStr) || null;
+  }
 
   // Get all snapshots for all members to find first entry with honor > 0
   const { data: allSnapshots } = await supabase
@@ -672,18 +687,18 @@ export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_
 
   if (!currentData) return [];
 
-  // Get week-ago snapshot data if available
-  let weekAgoMap = new Map<string, number>();
-  if (weekAgoDate) {
-    const { data: weekAgoData } = await supabase
+  // Get comparison date snapshot data if available
+  let compareMap = new Map<string, number>();
+  if (effectiveCompareDate) {
+    const { data: compareData } = await supabase
       .from('roster_snapshots')
       .select('member_name, honor_points')
-      .eq('snapshot_date', weekAgoDate)
+      .eq('snapshot_date', effectiveCompareDate)
       .gt('honor_points', 0)
       .limit(2000);
 
-    if (weekAgoData) {
-      weekAgoMap = new Map(weekAgoData.map(d => [normalizeName(d.member_name), d.honor_points || 0]));
+    if (compareData) {
+      compareMap = new Map(compareData.map(d => [normalizeName(d.member_name), d.honor_points || 0]));
     }
   }
 
@@ -698,7 +713,7 @@ export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_
       const normName = normalizeName(m.member_name);
       const firstEntry = firstEntryMap.get(normName)!;
       const currentHonor = m.honor_points || 0;
-      const weekAgoHonor = weekAgoMap.get(normName) ?? null;
+      const compareHonor = compareMap.get(normName) ?? null;
 
       return {
         name: m.member_name,
@@ -707,9 +722,9 @@ export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_
         currentHonor,
         currentDate,
         allTimeGrowth: currentHonor - firstEntry.value,
-        weekAgoHonor,
-        weekAgoDate,
-        weeklyGrowth: weekAgoHonor !== null ? currentHonor - weekAgoHonor : null,
+        compareHonor,
+        compareDate: effectiveCompareDate,
+        compareGrowth: compareHonor !== null ? currentHonor - compareHonor : null,
       };
     });
 

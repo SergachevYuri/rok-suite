@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
-import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, getLatestValuesForAllMembers, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
+import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, getLatestValuesForAllMembers, getSnapshotDates, getFilteredSnapshotDates, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -269,14 +269,17 @@ export default function RosterPage() {
     // KP growth pagination and sorting
     const [kpGrowthPage, setKpGrowthPage] = useState(0);
     const [kpGrowthRowsPerPage, setKpGrowthRowsPerPage] = useState(10);
-    const [kpGrowthSort, setKpGrowthSort] = useState<{ field: 'name' | 'allTimeKpGrowth' | 'weeklyKpGrowth'; direction: 'asc' | 'desc' }>({ field: 'allTimeKpGrowth', direction: 'desc' });
+    const [kpGrowthSort, setKpGrowthSort] = useState<{ field: 'name' | 'allTimeKpGrowth' | 'compareKpGrowth'; direction: 'asc' | 'desc' }>({ field: 'compareKpGrowth', direction: 'desc' });
     const [kpGrowthData, setKpGrowthData] = useState<KpGrowth[]>([]);
     const [powerGrowthData, setPowerGrowthData] = useState<PowerGrowth[]>([]);
     const [honorGrowthData, setHonorGrowthData] = useState<HonorGrowth[]>([]);
     // Honor growth pagination and sorting
     const [honorGrowthPage, setHonorGrowthPage] = useState(0);
     const [honorGrowthRowsPerPage, setHonorGrowthRowsPerPage] = useState(10);
-    const [honorGrowthSort, setHonorGrowthSort] = useState<{ field: 'name' | 'allTimeGrowth' | 'weeklyGrowth'; direction: 'asc' | 'desc' }>({ field: 'allTimeGrowth', direction: 'desc' });
+    const [honorGrowthSort, setHonorGrowthSort] = useState<{ field: 'name' | 'allTimeGrowth' | 'compareGrowth'; direction: 'asc' | 'desc' }>({ field: 'allTimeGrowth', direction: 'desc' });
+    // Growth comparison date selection
+    const [availableSnapshotDates, setAvailableSnapshotDates] = useState<string[]>([]);
+    const [growthCompareDate, setGrowthCompareDate] = useState<string | null>(null); // null = default (past week)
 
     // Growth tab charts toggle
     const [showCharts, setShowCharts] = useState(false);
@@ -435,14 +438,21 @@ export default function RosterPage() {
         fetchEventStats();
     }, [fetchEventStats]);
 
-    // Fetch KP, Power, and Honor growth data when roster loads
+    // Fetch available snapshot dates on mount
+    useEffect(() => {
+        getSnapshotDates().then(dates => {
+            setAvailableSnapshotDates(dates);
+        }).catch(console.error);
+    }, []);
+
+    // Fetch KP, Power, and Honor growth data when roster loads or compare date changes
     useEffect(() => {
         if (roster.length > 0) {
-            getKpGrowth(roster).then(setKpGrowthData).catch(console.error);
-            getPowerGrowth(roster).then(setPowerGrowthData).catch(console.error);
-            getHonorGrowth(roster).then(setHonorGrowthData).catch(console.error);
+            getKpGrowth(roster, growthCompareDate).then(setKpGrowthData).catch(console.error);
+            getPowerGrowth(roster, growthCompareDate).then(setPowerGrowthData).catch(console.error);
+            getHonorGrowth(roster, growthCompareDate).then(setHonorGrowthData).catch(console.error);
         }
-    }, [roster]);
+    }, [roster, growthCompareDate]);
 
     // Fetch individual player history when selected
     useEffect(() => {
@@ -3089,7 +3099,6 @@ export default function RosterPage() {
                                         (kpGrowthPage + 1) * kpGrowthRowsPerPage
                                     );
                                     const kpCurrentDate = kpGrowthData[0]?.currentDate ? formatDate(kpGrowthData[0].currentDate) : 'Current';
-                                    const kpWeekAgoDate = kpGrowthData[0]?.weekAgoDate ? formatDate(kpGrowthData[0].weekAgoDate) : null;
 
                                     const handleKpSort = (field: typeof kpGrowthSort.field) => {
                                         setKpGrowthSort(prev => ({
@@ -3135,9 +3144,22 @@ export default function RosterPage() {
                                                                 </button>
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleKpSort('weeklyKpGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                                                    Weekly {kpWeekAgoDate && <span className="font-normal">({kpWeekAgoDate})</span>} <KpSortIcon field="weeklyKpGrowth" />
-                                                                </button>
+                                                                <div className="flex items-center gap-1 ml-auto">
+                                                                    <button onClick={() => handleKpSort('compareKpGrowth')} className="flex items-center gap-1 hover:text-white">
+                                                                        Growth <KpSortIcon field="compareKpGrowth" />
+                                                                    </button>
+                                                                    <select
+                                                                        value={growthCompareDate || ''}
+                                                                        onChange={(e) => setGrowthCompareDate(e.target.value || null)}
+                                                                        className={`text-[10px] ${theme.card} border rounded px-1 py-0.5 ml-1 font-normal normal-case`}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        <option value="">Past week</option>
+                                                                        {availableSnapshotDates.slice(1).map(date => (
+                                                                            <option key={date} value={date}>{formatDate(date)}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
                                                             </th>
                                                         </tr>
                                                     </thead>
@@ -3146,7 +3168,7 @@ export default function RosterPage() {
                                                             const rosterMember = roster.find(r => r.name === member.name);
                                                             const globalIdx = kpGrowthPage * kpGrowthRowsPerPage + idx;
                                                             const maxAllTime = Math.max(...sortedKpGrowth.map(m => Math.abs(m.allTimeKpGrowth)));
-                                                            const maxWeekly = Math.max(...sortedKpGrowth.filter(m => m.weeklyKpGrowth !== null).map(m => Math.abs(m.weeklyKpGrowth!)));
+                                                            const maxCompare = Math.max(...sortedKpGrowth.filter(m => m.compareKpGrowth !== null).map(m => Math.abs(m.compareKpGrowth!)));
                                                             return (
                                                                 <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
                                                                     <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
@@ -3182,12 +3204,12 @@ export default function RosterPage() {
                                                                         </div>
                                                                     </td>
                                                                     <td className="px-2 py-2">
-                                                                        {member.weeklyKpGrowth !== null ? (
+                                                                        {member.compareKpGrowth !== null ? (
                                                                             <div className="flex items-center gap-2">
                                                                                 <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
                                                                                     {(() => {
-                                                                                        const pct = maxWeekly > 0 ? (Math.abs(member.weeklyKpGrowth!) / maxWeekly) * 100 : 0;
-                                                                                        const isPositive = member.weeklyKpGrowth! >= 0;
+                                                                                        const pct = maxCompare > 0 ? (Math.abs(member.compareKpGrowth!) / maxCompare) * 100 : 0;
+                                                                                        const isPositive = member.compareKpGrowth! >= 0;
                                                                                         return (
                                                                                             <div
                                                                                                 className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#01b574] to-[#01b574]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
@@ -3196,8 +3218,8 @@ export default function RosterPage() {
                                                                                         );
                                                                                     })()}
                                                                                 </div>
-                                                                                <span className={`text-right font-medium min-w-[50px] ${member.weeklyKpGrowth! >= 0 ? 'text-[#01b574]' : 'text-gray-400'}`}>
-                                                                                    {member.weeklyKpGrowth! >= 0 ? '+' : ''}{formatPower(member.weeklyKpGrowth!)}
+                                                                                <span className={`text-right font-medium min-w-[50px] ${member.compareKpGrowth! >= 0 ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                                                    {member.compareKpGrowth! >= 0 ? '+' : ''}{formatPower(member.compareKpGrowth!)}
                                                                                 </span>
                                                                             </div>
                                                                         ) : <span className={theme.textMuted}>—</span>}
@@ -3289,7 +3311,6 @@ export default function RosterPage() {
                                         (honorGrowthPage + 1) * honorGrowthRowsPerPage
                                     );
                                     const currentDate = honorGrowthData[0]?.currentDate ? formatDate(honorGrowthData[0].currentDate) : 'Current';
-                                    const weekAgoDate = honorGrowthData[0]?.weekAgoDate ? formatDate(honorGrowthData[0].weekAgoDate) : null;
 
                                     const handleHonorSort = (field: typeof honorGrowthSort.field) => {
                                         setHonorGrowthSort(prev => ({
@@ -3343,9 +3364,22 @@ export default function RosterPage() {
                                                                 </button>
                                                             </th>
                                                             <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleHonorSort('weeklyGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                                                    Weekly {weekAgoDate && <span className="font-normal">({weekAgoDate})</span>} <HonorSortIcon field="weeklyGrowth" />
-                                                                </button>
+                                                                <div className="flex items-center gap-1 ml-auto">
+                                                                    <button onClick={() => handleHonorSort('compareGrowth')} className="flex items-center gap-1 hover:text-white">
+                                                                        Growth <HonorSortIcon field="compareGrowth" />
+                                                                    </button>
+                                                                    <select
+                                                                        value={growthCompareDate || ''}
+                                                                        onChange={(e) => setGrowthCompareDate(e.target.value || null)}
+                                                                        className={`text-[10px] ${theme.card} border rounded px-1 py-0.5 ml-1 font-normal normal-case`}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        <option value="">Past week</option>
+                                                                        {availableSnapshotDates.slice(1).map(date => (
+                                                                            <option key={date} value={date}>{formatDate(date)}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
                                                             </th>
                                                         </tr>
                                                     </thead>
@@ -3354,7 +3388,7 @@ export default function RosterPage() {
                                                             const rosterMember = roster.find(r => r.name === member.name);
                                                             const globalIdx = honorGrowthPage * honorGrowthRowsPerPage + idx;
                                                             const maxAllTime = Math.max(...sortedHonorGrowth.map(m => Math.abs(m.allTimeGrowth)));
-                                                            const maxWeekly = Math.max(...sortedHonorGrowth.filter(m => m.weeklyGrowth !== null).map(m => Math.abs(m.weeklyGrowth!)));
+                                                            const maxCompare = Math.max(...sortedHonorGrowth.filter(m => m.compareGrowth !== null).map(m => Math.abs(m.compareGrowth!)));
                                                             return (
                                                                 <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
                                                                     <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
@@ -3390,9 +3424,9 @@ export default function RosterPage() {
                                                                         })()}
                                                                     </td>
                                                                     <td className="px-2 py-2">
-                                                                        {member.weeklyGrowth !== null ? (() => {
-                                                                            const pct = maxWeekly > 0 ? (Math.abs(member.weeklyGrowth!) / maxWeekly) * 100 : 0;
-                                                                            const isPositive = member.weeklyGrowth! >= 0;
+                                                                        {member.compareGrowth !== null ? (() => {
+                                                                            const pct = maxCompare > 0 ? (Math.abs(member.compareGrowth!) / maxCompare) * 100 : 0;
+                                                                            const isPositive = member.compareGrowth! >= 0;
                                                                             return (
                                                                                 <div className="flex items-center gap-2">
                                                                                     <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
@@ -3402,7 +3436,7 @@ export default function RosterPage() {
                                                                                         />
                                                                                     </div>
                                                                                     <span className={`text-right font-medium min-w-[60px] ${isPositive ? 'text-[#01b574]' : 'text-gray-400'}`}>
-                                                                                        {member.weeklyGrowth! >= 0 ? '+' : ''}{member.weeklyGrowth!.toLocaleString()}
+                                                                                        {member.compareGrowth! >= 0 ? '+' : ''}{member.compareGrowth!.toLocaleString()}
                                                                                     </span>
                                                                                 </div>
                                                                             );
