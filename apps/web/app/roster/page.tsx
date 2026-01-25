@@ -269,14 +269,14 @@ export default function RosterPage() {
     // KP growth pagination and sorting
     const [kpGrowthPage, setKpGrowthPage] = useState(0);
     const [kpGrowthRowsPerPage, setKpGrowthRowsPerPage] = useState(10);
-    const [kpGrowthSort, setKpGrowthSort] = useState<{ field: 'name' | 'kpGrowth' | 't4Growth' | 't5Growth'; direction: 'asc' | 'desc' }>({ field: 'kpGrowth', direction: 'desc' });
+    const [kpGrowthSort, setKpGrowthSort] = useState<{ field: 'name' | 'allTimeKpGrowth' | 'weeklyKpGrowth'; direction: 'asc' | 'desc' }>({ field: 'allTimeKpGrowth', direction: 'desc' });
     const [kpGrowthData, setKpGrowthData] = useState<KpGrowth[]>([]);
     const [powerGrowthData, setPowerGrowthData] = useState<PowerGrowth[]>([]);
     const [honorGrowthData, setHonorGrowthData] = useState<HonorGrowth[]>([]);
     // Honor growth pagination and sorting
     const [honorGrowthPage, setHonorGrowthPage] = useState(0);
     const [honorGrowthRowsPerPage, setHonorGrowthRowsPerPage] = useState(10);
-    const [honorGrowthSort, setHonorGrowthSort] = useState<{ field: 'name' | 'honorGrowth'; direction: 'asc' | 'desc' }>({ field: 'honorGrowth', direction: 'desc' });
+    const [honorGrowthSort, setHonorGrowthSort] = useState<{ field: 'name' | 'allTimeGrowth' | 'weeklyGrowth'; direction: 'asc' | 'desc' }>({ field: 'allTimeGrowth', direction: 'desc' });
 
     // Growth tab charts toggle
     const [showCharts, setShowCharts] = useState(false);
@@ -1216,12 +1216,12 @@ export default function RosterPage() {
         const byHonor = [...roster].sort((a, b) => (b.honor_points || 0) - (a.honor_points || 0));
 
         // Sort KP growth data
-        const sortedKpGrowth = [...kpGrowthData].sort((a, b) => b.kpGrowth - a.kpGrowth);
-        const kpGrowthMap = new Map(sortedKpGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.kpGrowth, t4Growth: g.t4Growth, t5Growth: g.t5Growth }]));
+        const sortedKpGrowth = [...kpGrowthData].sort((a, b) => b.allTimeKpGrowth - a.allTimeKpGrowth);
+        const kpGrowthMap = new Map(sortedKpGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.allTimeKpGrowth, t4Growth: g.allTimeT4Growth, t5Growth: g.allTimeT5Growth }]));
 
         // Sort Power growth data
-        const sortedPowerGrowth = [...powerGrowthData].sort((a, b) => b.powerGrowth - a.powerGrowth);
-        const powerGrowthMap = new Map(sortedPowerGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.powerGrowth }]));
+        const sortedPowerGrowth = [...powerGrowthData].sort((a, b) => b.allTimeGrowth - a.allTimeGrowth);
+        const powerGrowthMap = new Map(sortedPowerGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.allTimeGrowth }]));
 
         roster.forEach(member => {
             const kpGrowthInfo = kpGrowthMap.get(member.name);
@@ -3088,8 +3088,8 @@ export default function RosterPage() {
                                         kpGrowthPage * kpGrowthRowsPerPage,
                                         (kpGrowthPage + 1) * kpGrowthRowsPerPage
                                     );
-                                    const date1 = kpGrowthData[0]?.previousDate ? formatDate(kpGrowthData[0].previousDate) : 'Previous';
-                                    const date2 = kpGrowthData[0]?.currentDate ? formatDate(kpGrowthData[0].currentDate) : 'Current';
+                                    const kpCurrentDate = kpGrowthData[0]?.currentDate ? formatDate(kpGrowthData[0].currentDate) : 'Current';
+                                    const kpWeekAgoDate = kpGrowthData[0]?.weekAgoDate ? formatDate(kpGrowthData[0].weekAgoDate) : null;
 
                                     const handleKpSort = (field: typeof kpGrowthSort.field) => {
                                         setKpGrowthSort(prev => ({
@@ -3114,7 +3114,7 @@ export default function RosterPage() {
                                                 </h3>
                                             </div>
                                             <div className="overflow-x-auto mobile-scroll">
-                                                <table className="w-full text-xs sm:text-sm min-w-[400px]">
+                                                <table className="w-full text-xs sm:text-sm min-w-[600px]">
                                                     <thead className="sticky top-0 bg-[var(--background-card)]">
                                                         <tr className="border-b border-[var(--border)]">
                                                             <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
@@ -3124,24 +3124,19 @@ export default function RosterPage() {
                                                                 </button>
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                {date1} KP
+                                                                First KP
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                {date2} KP
+                                                                {kpCurrentDate} KP
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleKpSort('kpGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                                                    KP Growth <KpSortIcon field="kpGrowth" />
+                                                                <button onClick={() => handleKpSort('allTimeKpGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    All-Time <KpSortIcon field="allTimeKpGrowth" />
                                                                 </button>
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleKpSort('t4Growth')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                                                    T4 Growth <KpSortIcon field="t4Growth" />
-                                                                </button>
-                                                            </th>
-                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleKpSort('t5Growth')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                                                    T5 Growth <KpSortIcon field="t5Growth" />
+                                                                <button onClick={() => handleKpSort('weeklyKpGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    Weekly {kpWeekAgoDate && <span className="font-normal">({kpWeekAgoDate})</span>} <KpSortIcon field="weeklyKpGrowth" />
                                                                 </button>
                                                             </th>
                                                         </tr>
@@ -3150,6 +3145,8 @@ export default function RosterPage() {
                                                         {displayKpMembers.map((member, idx) => {
                                                             const rosterMember = roster.find(r => r.name === member.name);
                                                             const globalIdx = kpGrowthPage * kpGrowthRowsPerPage + idx;
+                                                            const maxAllTime = Math.max(...sortedKpGrowth.map(m => Math.abs(m.allTimeKpGrowth)));
+                                                            const maxWeekly = Math.max(...sortedKpGrowth.filter(m => m.weeklyKpGrowth !== null).map(m => Math.abs(m.weeklyKpGrowth!)));
                                                             return (
                                                                 <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
                                                                     <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
@@ -3160,7 +3157,7 @@ export default function RosterPage() {
                                                                         )}
                                                                     </td>
                                                                     <td className="px-2 py-2 text-right text-[#9f7aea]">
-                                                                        {formatPower(member.previousKp)}
+                                                                        {formatPower(member.firstKp)}
                                                                     </td>
                                                                     <td className="px-2 py-2 text-right text-[#01b574]">
                                                                         {formatPower(member.currentKp)}
@@ -3169,9 +3166,8 @@ export default function RosterPage() {
                                                                         <div className="flex items-center gap-2">
                                                                             <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
                                                                                 {(() => {
-                                                                                    const maxGrowth = Math.max(...sortedKpGrowth.map(m => Math.abs(m.kpGrowth)));
-                                                                                    const pct = maxGrowth > 0 ? (Math.abs(member.kpGrowth) / maxGrowth) * 100 : 0;
-                                                                                    const isPositive = member.kpGrowth >= 0;
+                                                                                    const pct = maxAllTime > 0 ? (Math.abs(member.allTimeKpGrowth) / maxAllTime) * 100 : 0;
+                                                                                    const isPositive = member.allTimeKpGrowth >= 0;
                                                                                     return (
                                                                                         <div
                                                                                             className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#f56565] to-[#f56565]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
@@ -3180,26 +3176,31 @@ export default function RosterPage() {
                                                                                     );
                                                                                 })()}
                                                                             </div>
-                                                                            <span className={`text-right font-medium min-w-[50px] ${member.kpGrowth >= 0 ? 'text-[#f56565]' : 'text-gray-400'}`}>
-                                                                                {member.kpGrowth >= 0 ? '+' : ''}{formatPower(member.kpGrowth)}
+                                                                            <span className={`text-right font-medium min-w-[50px] ${member.allTimeKpGrowth >= 0 ? 'text-[#f56565]' : 'text-gray-400'}`}>
+                                                                                {member.allTimeKpGrowth >= 0 ? '+' : ''}{formatPower(member.allTimeKpGrowth)}
                                                                             </span>
                                                                         </div>
                                                                     </td>
-                                                                    <td className="px-2 py-2 text-right">
-                                                                        <span className={member.t4Growth > 0 ? 'text-[#fbbf24]' : 'text-gray-400'}>
-                                                                            {member.t4Growth > 0 ? '+' : ''}{formatPower(member.t4Growth)}
-                                                                        </span>
-                                                                        <span className={`text-xs ${theme.textMuted} ml-1`}>
-                                                                            ({formatPower(member.currentT4)})
-                                                                        </span>
-                                                                    </td>
-                                                                    <td className="px-2 py-2 text-right">
-                                                                        <span className={member.t5Growth > 0 ? 'text-[#f97316]' : 'text-gray-400'}>
-                                                                            {member.t5Growth > 0 ? '+' : ''}{formatPower(member.t5Growth)}
-                                                                        </span>
-                                                                        <span className={`text-xs ${theme.textMuted} ml-1`}>
-                                                                            ({formatPower(member.currentT5)})
-                                                                        </span>
+                                                                    <td className="px-2 py-2">
+                                                                        {member.weeklyKpGrowth !== null ? (
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                    {(() => {
+                                                                                        const pct = maxWeekly > 0 ? (Math.abs(member.weeklyKpGrowth!) / maxWeekly) * 100 : 0;
+                                                                                        const isPositive = member.weeklyKpGrowth! >= 0;
+                                                                                        return (
+                                                                                            <div
+                                                                                                className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#01b574] to-[#01b574]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                                style={{ width: `${pct}%` }}
+                                                                                            />
+                                                                                        );
+                                                                                    })()}
+                                                                                </div>
+                                                                                <span className={`text-right font-medium min-w-[50px] ${member.weeklyKpGrowth! >= 0 ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                                                    {member.weeklyKpGrowth! >= 0 ? '+' : ''}{formatPower(member.weeklyKpGrowth!)}
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : <span className={theme.textMuted}>—</span>}
                                                                     </td>
                                                                 </tr>
                                                             );
@@ -3287,8 +3288,8 @@ export default function RosterPage() {
                                         honorGrowthPage * honorGrowthRowsPerPage,
                                         (honorGrowthPage + 1) * honorGrowthRowsPerPage
                                     );
-                                    const date1 = honorGrowthData[0]?.previousDate ? formatDate(honorGrowthData[0].previousDate) : 'Previous';
-                                    const date2 = honorGrowthData[0]?.currentDate ? formatDate(honorGrowthData[0].currentDate) : 'Current';
+                                    const currentDate = honorGrowthData[0]?.currentDate ? formatDate(honorGrowthData[0].currentDate) : 'Current';
+                                    const weekAgoDate = honorGrowthData[0]?.weekAgoDate ? formatDate(honorGrowthData[0].weekAgoDate) : null;
 
                                     const handleHonorSort = (field: typeof honorGrowthSort.field) => {
                                         setHonorGrowthSort(prev => ({
@@ -3313,13 +3314,14 @@ export default function RosterPage() {
                                                 </h3>
                                             </div>
                                             <div className="overflow-x-auto mobile-scroll">
-                                                <table className="w-full text-xs sm:text-sm min-w-[600px]" style={{ tableLayout: 'fixed' }}>
+                                                <table className="w-full text-xs sm:text-sm min-w-[700px]" style={{ tableLayout: 'fixed' }}>
                                                     <colgroup>
-                                                        <col style={{ width: '5%' }} />
-                                                        <col style={{ width: '20%' }} />
-                                                        <col style={{ width: '15%' }} />
-                                                        <col style={{ width: '15%' }} />
-                                                        <col style={{ width: '45%' }} />
+                                                        <col style={{ width: '4%' }} />
+                                                        <col style={{ width: '18%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '27%' }} />
+                                                        <col style={{ width: '27%' }} />
                                                     </colgroup>
                                                     <thead className="sticky top-0 bg-[var(--background-card)]">
                                                         <tr className="border-b border-[var(--border)]">
@@ -3330,14 +3332,19 @@ export default function RosterPage() {
                                                                 </button>
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                {date1}
+                                                                First
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                {date2}
+                                                                {currentDate}
                                                             </th>
                                                             <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <button onClick={() => handleHonorSort('honorGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
-                                                                    Growth <HonorSortIcon field="honorGrowth" />
+                                                                <button onClick={() => handleHonorSort('allTimeGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    All-Time <HonorSortIcon field="allTimeGrowth" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleHonorSort('weeklyGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    Weekly {weekAgoDate && <span className="font-normal">({weekAgoDate})</span>} <HonorSortIcon field="weeklyGrowth" />
                                                                 </button>
                                                             </th>
                                                         </tr>
@@ -3346,6 +3353,8 @@ export default function RosterPage() {
                                                         {displayHonorMembers.map((member, idx) => {
                                                             const rosterMember = roster.find(r => r.name === member.name);
                                                             const globalIdx = honorGrowthPage * honorGrowthRowsPerPage + idx;
+                                                            const maxAllTime = Math.max(...sortedHonorGrowth.map(m => Math.abs(m.allTimeGrowth)));
+                                                            const maxWeekly = Math.max(...sortedHonorGrowth.filter(m => m.weeklyGrowth !== null).map(m => Math.abs(m.weeklyGrowth!)));
                                                             return (
                                                                 <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
                                                                     <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
@@ -3356,30 +3365,48 @@ export default function RosterPage() {
                                                                         )}
                                                                     </td>
                                                                     <td className="px-2 py-2 text-right text-[#9f7aea]">
-                                                                        {member.previousHonor.toLocaleString()}
+                                                                        {member.firstHonor.toLocaleString()}
                                                                     </td>
                                                                     <td className="px-2 py-2 text-right text-[#01b574]">
                                                                         {member.currentHonor.toLocaleString()}
                                                                     </td>
                                                                     <td className="px-2 py-2">
                                                                         {(() => {
-                                                                            const maxGrowth = Math.max(...sortedHonorGrowth.map(m => Math.abs(m.honorGrowth)));
-                                                                            const pct = maxGrowth > 0 ? (Math.abs(member.honorGrowth) / maxGrowth) * 100 : 0;
-                                                                            const isPositive = member.honorGrowth >= 0;
+                                                                            const pct = maxAllTime > 0 ? (Math.abs(member.allTimeGrowth) / maxAllTime) * 100 : 0;
+                                                                            const isPositive = member.allTimeGrowth >= 0;
                                                                             return (
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[80px]">
+                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
                                                                                         <div
                                                                                             className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#fbbf24] to-[#fbbf24]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
                                                                                             style={{ width: `${pct}%` }}
                                                                                         />
                                                                                     </div>
-                                                                                    <span className={`text-right font-medium min-w-[70px] ${isPositive ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
-                                                                                        {member.honorGrowth >= 0 ? '+' : ''}{member.honorGrowth.toLocaleString()}
+                                                                                    <span className={`text-right font-medium min-w-[60px] ${isPositive ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
+                                                                                        {member.allTimeGrowth >= 0 ? '+' : ''}{member.allTimeGrowth.toLocaleString()}
                                                                                     </span>
                                                                                 </div>
                                                                             );
                                                                         })()}
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        {member.weeklyGrowth !== null ? (() => {
+                                                                            const pct = maxWeekly > 0 ? (Math.abs(member.weeklyGrowth!) / maxWeekly) * 100 : 0;
+                                                                            const isPositive = member.weeklyGrowth! >= 0;
+                                                                            return (
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#01b574] to-[#01b574]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <span className={`text-right font-medium min-w-[60px] ${isPositive ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                                                        {member.weeklyGrowth! >= 0 ? '+' : ''}{member.weeklyGrowth!.toLocaleString()}
+                                                                                    </span>
+                                                                                </div>
+                                                                            );
+                                                                        })() : <span className={theme.textMuted}>—</span>}
                                                                     </td>
                                                                 </tr>
                                                             );

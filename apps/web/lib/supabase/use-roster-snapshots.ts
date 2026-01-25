@@ -356,102 +356,141 @@ export async function getTopGainers(startDate: string, endDate: string, limit = 
 
 export interface KpGrowth {
   name: string;
-  previousKp: number;
+  // All-time growth (from first entry to latest)
+  firstKp: number;
+  firstDate: string | null;
   currentKp: number;
-  kpGrowth: number;
-  previousT4: number;
-  currentT4: number;
-  t4Growth: number;
-  previousT5: number;
-  currentT5: number;
-  t5Growth: number;
-  previousDate: string | null;
   currentDate: string | null;
+  allTimeKpGrowth: number;
+  // Weekly growth (past 7 days)
+  weekAgoKp: number | null;
+  weekAgoDate: string | null;
+  weeklyKpGrowth: number | null;
+  // T4/T5 details for current
+  currentT4: number;
+  currentT5: number;
+  // T4/T5 all-time growth
+  firstT4: number;
+  firstT5: number;
+  allTimeT4Growth: number;
+  allTimeT5Growth: number;
+  // T4/T5 weekly growth
+  weekAgoT4: number | null;
+  weekAgoT5: number | null;
+  weeklyT4Growth: number | null;
+  weeklyT5Growth: number | null;
 }
 
 /**
- * Get KP growth between the two most recent snapshots that have KP data changes
- * Compares kills, T4 kills, and T5 kills between snapshots
+ * Get KP growth - both all-time (from first entry) and weekly (past 7 days)
+ * "Entry" means when a non-zero value was first recorded for that field
  */
 export async function getKpGrowth(currentRoster: Array<{ name: string; kills: number; t4_kills: number; t5_kills: number }>): Promise<KpGrowth[]> {
   const supabase = createClient();
 
-  // Get all recent snapshot dates (excluding unreliable ones)
+  // Get all snapshot dates (excluding unreliable ones)
   const allDates = await getSnapshotDates();
   const dates = getFilteredSnapshotDates(allDates);
-  if (dates.length < 2) return [];
+  if (dates.length < 1) return [];
 
-  // Find two dates where KP totals actually differ (indicating real updates)
-  let currentDate: string | null = null;
-  let previousDate: string | null = null;
-  let currentTotalKp = 0;
+  const currentDate = dates[0]; // Most recent
 
-  for (const date of dates) {
-    const { data } = await supabase
-      .from('roster_snapshots')
-      .select('kills')
-      .eq('snapshot_date', date)
-      .eq('is_active', true)
-      .limit(2000);
+  // Calculate date 7 days ago
+  const weekAgoTarget = new Date(currentDate);
+  weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
+  const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
 
-    const totalKp = data?.reduce((sum, d) => sum + (d.kills || 0), 0) || 0;
+  // Find the closest date to 7 days ago (or earlier)
+  const weekAgoDate = dates.find(d => d <= weekAgoStr) || null;
 
-    if (!currentDate) {
-      currentDate = date;
-      currentTotalKp = totalKp;
-    } else if (totalKp !== currentTotalKp) {
-      // Found a date with different KP total - this is actual data, not carryover
-      previousDate = date;
-      break;
+  // Get all snapshots for all members to find first entry with kills > 0
+  const { data: allSnapshots } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, snapshot_date, kills, t4_kills, t5_kills')
+    .gt('kills', 0)
+    .order('snapshot_date', { ascending: true })
+    .limit(5000);
+
+  if (!allSnapshots) return [];
+
+  // Build map of first entry date and values for each member
+  const firstEntryMap = new Map<string, { date: string; kills: number; t4: number; t5: number }>();
+  for (const snap of allSnapshots) {
+    const normName = normalizeName(snap.member_name);
+    if (!firstEntryMap.has(normName)) {
+      firstEntryMap.set(normName, {
+        date: snap.snapshot_date,
+        kills: snap.kills || 0,
+        t4: snap.t4_kills || 0,
+        t5: snap.t5_kills || 0,
+      });
     }
   }
 
-  if (!currentDate || !previousDate) return [];
-
-  // Get snapshot data for both dates
+  // Get current snapshot data
   const { data: currentData } = await supabase
     .from('roster_snapshots')
     .select('member_name, kills, t4_kills, t5_kills')
     .eq('snapshot_date', currentDate)
     .eq('is_active', true)
+    .gt('kills', 0)
     .limit(2000);
 
-  const { data: previousData } = await supabase
-    .from('roster_snapshots')
-    .select('member_name, kills, t4_kills, t5_kills')
-    .eq('snapshot_date', previousDate)
-    .eq('is_active', true)
-    .limit(2000);
+  if (!currentData) return [];
 
-  if (!previousData || !currentData) return [];
+  // Get week-ago snapshot data if available
+  let weekAgoMap = new Map<string, { kills: number; t4: number; t5: number }>();
+  if (weekAgoDate) {
+    const { data: weekAgoData } = await supabase
+      .from('roster_snapshots')
+      .select('member_name, kills, t4_kills, t5_kills')
+      .eq('snapshot_date', weekAgoDate)
+      .gt('kills', 0)
+      .limit(2000);
 
-  // Use normalized names for matching
-  const previousMap = new Map(previousData.map(d => [normalizeName(d.member_name), {
-    kills: d.kills || 0,
-    t4_kills: d.t4_kills || 0,
-    t5_kills: d.t5_kills || 0,
-  }]));
+    if (weekAgoData) {
+      weekAgoMap = new Map(weekAgoData.map(d => [normalizeName(d.member_name), {
+        kills: d.kills || 0,
+        t4: d.t4_kills || 0,
+        t5: d.t5_kills || 0,
+      }]));
+    }
+  }
 
   const growth: KpGrowth[] = currentData
     .filter(m => {
-      const prev = previousMap.get(normalizeName(m.member_name));
-      return prev && prev.kills > 0;
+      const normName = normalizeName(m.member_name);
+      const firstEntry = firstEntryMap.get(normName);
+      return firstEntry !== undefined;
     })
     .map(m => {
-      const prev = previousMap.get(normalizeName(m.member_name)) || { kills: 0, t4_kills: 0, t5_kills: 0 };
+      const normName = normalizeName(m.member_name);
+      const firstEntry = firstEntryMap.get(normName)!;
+      const currentKp = m.kills || 0;
+      const currentT4 = m.t4_kills || 0;
+      const currentT5 = m.t5_kills || 0;
+      const weekAgo = weekAgoMap.get(normName) ?? null;
+
       return {
         name: m.member_name,
-        previousKp: prev.kills,
-        currentKp: m.kills || 0,
-        kpGrowth: (m.kills || 0) - prev.kills,
-        previousT4: prev.t4_kills,
-        currentT4: m.t4_kills || 0,
-        t4Growth: prev.t4_kills > 0 ? (m.t4_kills || 0) - prev.t4_kills : 0,
-        previousT5: prev.t5_kills,
-        currentT5: m.t5_kills || 0,
-        t5Growth: prev.t5_kills > 0 ? (m.t5_kills || 0) - prev.t5_kills : 0,
-        previousDate,
+        firstKp: firstEntry.kills,
+        firstDate: firstEntry.date,
+        currentKp,
         currentDate,
+        allTimeKpGrowth: currentKp - firstEntry.kills,
+        weekAgoKp: weekAgo?.kills ?? null,
+        weekAgoDate,
+        weeklyKpGrowth: weekAgo !== null ? currentKp - weekAgo.kills : null,
+        currentT4,
+        currentT5,
+        firstT4: firstEntry.t4,
+        firstT5: firstEntry.t5,
+        allTimeT4Growth: currentT4 - firstEntry.t4,
+        allTimeT5Growth: currentT5 - firstEntry.t5,
+        weekAgoT4: weekAgo?.t4 ?? null,
+        weekAgoT5: weekAgo?.t5 ?? null,
+        weeklyT4Growth: weekAgo !== null ? currentT4 - weekAgo.t4 : null,
+        weeklyT5Growth: weekAgo !== null ? currentT5 - weekAgo.t5 : null,
       };
     });
 
@@ -460,85 +499,107 @@ export async function getKpGrowth(currentRoster: Array<{ name: string; kills: nu
 
 export interface PowerGrowth {
   name: string;
-  previousPower: number;
+  // All-time growth (from first entry to latest)
+  firstPower: number;
+  firstDate: string | null;
   currentPower: number;
-  powerGrowth: number;
-  previousDate: string | null;
   currentDate: string | null;
+  allTimeGrowth: number;
+  // Weekly growth (past 7 days)
+  weekAgoPower: number | null;
+  weekAgoDate: string | null;
+  weeklyGrowth: number | null;
 }
 
 /**
- * Get Power growth between the two most recent snapshots that have Power data changes
+ * Get Power growth - both all-time (from first entry) and weekly (past 7 days)
+ * "Entry" means when a non-zero value was first recorded for that field
  */
 export async function getPowerGrowth(currentRoster: Array<{ name: string; power: number }>): Promise<PowerGrowth[]> {
   const supabase = createClient();
 
-  // Get all recent snapshot dates (excluding unreliable ones)
+  // Get all snapshot dates (excluding unreliable ones)
   const allDates = await getSnapshotDates();
   const dates = getFilteredSnapshotDates(allDates);
-  if (dates.length < 2) return [];
+  if (dates.length < 1) return [];
 
-  // Find two dates where Power totals actually differ (indicating real updates)
-  let currentDate: string | null = null;
-  let previousDate: string | null = null;
-  let currentTotalPower = 0;
+  const currentDate = dates[0]; // Most recent
 
-  for (const date of dates) {
-    const { data } = await supabase
-      .from('roster_snapshots')
-      .select('power')
-      .eq('snapshot_date', date)
-      .eq('is_active', true)
-      .limit(2000);
+  // Calculate date 7 days ago
+  const weekAgoTarget = new Date(currentDate);
+  weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
+  const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
 
-    const totalPower = data?.reduce((sum, d) => sum + (d.power || 0), 0) || 0;
+  // Find the closest date to 7 days ago (or earlier)
+  const weekAgoDate = dates.find(d => d <= weekAgoStr) || null;
 
-    if (!currentDate) {
-      currentDate = date;
-      currentTotalPower = totalPower;
-    } else if (totalPower !== currentTotalPower) {
-      // Found a date with different Power total - this is actual data, not carryover
-      previousDate = date;
-      break;
+  // Get all snapshots for all members to find first entry with power > 0
+  const { data: allSnapshots } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, snapshot_date, power')
+    .gt('power', 0)
+    .order('snapshot_date', { ascending: true })
+    .limit(5000);
+
+  if (!allSnapshots) return [];
+
+  // Build map of first entry date and value for each member
+  const firstEntryMap = new Map<string, { date: string; value: number }>();
+  for (const snap of allSnapshots) {
+    const normName = normalizeName(snap.member_name);
+    if (!firstEntryMap.has(normName)) {
+      firstEntryMap.set(normName, { date: snap.snapshot_date, value: snap.power });
     }
   }
 
-  if (!currentDate || !previousDate) return [];
-
-  // Get snapshot data for both dates
+  // Get current snapshot data
   const { data: currentData } = await supabase
     .from('roster_snapshots')
     .select('member_name, power')
     .eq('snapshot_date', currentDate)
     .eq('is_active', true)
+    .gt('power', 0)
     .limit(2000);
 
-  const { data: previousData } = await supabase
-    .from('roster_snapshots')
-    .select('member_name, power')
-    .eq('snapshot_date', previousDate)
-    .eq('is_active', true)
-    .limit(2000);
+  if (!currentData) return [];
 
-  if (!previousData || !currentData) return [];
+  // Get week-ago snapshot data if available
+  let weekAgoMap = new Map<string, number>();
+  if (weekAgoDate) {
+    const { data: weekAgoData } = await supabase
+      .from('roster_snapshots')
+      .select('member_name, power')
+      .eq('snapshot_date', weekAgoDate)
+      .gt('power', 0)
+      .limit(2000);
 
-  // Use normalized names for matching
-  const previousMap = new Map(previousData.map(d => [normalizeName(d.member_name), d.power || 0]));
+    if (weekAgoData) {
+      weekAgoMap = new Map(weekAgoData.map(d => [normalizeName(d.member_name), d.power || 0]));
+    }
+  }
 
   const growth: PowerGrowth[] = currentData
     .filter(m => {
-      const prev = previousMap.get(normalizeName(m.member_name));
-      return prev !== undefined && prev > 0;
+      const normName = normalizeName(m.member_name);
+      const firstEntry = firstEntryMap.get(normName);
+      return firstEntry !== undefined;
     })
     .map(m => {
-      const prev = previousMap.get(normalizeName(m.member_name)) || 0;
+      const normName = normalizeName(m.member_name);
+      const firstEntry = firstEntryMap.get(normName)!;
+      const currentPower = m.power || 0;
+      const weekAgoPower = weekAgoMap.get(normName) ?? null;
+
       return {
         name: m.member_name,
-        previousPower: prev,
-        currentPower: m.power || 0,
-        powerGrowth: (m.power || 0) - prev,
-        previousDate,
+        firstPower: firstEntry.value,
+        firstDate: firstEntry.date,
+        currentPower,
         currentDate,
+        allTimeGrowth: currentPower - firstEntry.value,
+        weekAgoPower,
+        weekAgoDate,
+        weeklyGrowth: weekAgoPower !== null ? currentPower - weekAgoPower : null,
       };
     });
 
@@ -547,63 +608,108 @@ export async function getPowerGrowth(currentRoster: Array<{ name: string; power:
 
 export interface HonorGrowth {
   name: string;
-  previousHonor: number;
+  // All-time growth (from first entry to latest)
+  firstHonor: number;
+  firstDate: string | null;
   currentHonor: number;
-  honorGrowth: number;
-  previousDate: string | null;
   currentDate: string | null;
+  allTimeGrowth: number;
+  // Weekly growth (past 7 days)
+  weekAgoHonor: number | null;
+  weekAgoDate: string | null;
+  weeklyGrowth: number | null;
 }
 
 /**
- * Get Honor growth between the two most recent snapshots
- * Compares snapshot data directly (not current roster) to show accurate growth
+ * Get Honor growth - both all-time (from first entry) and weekly (past 7 days)
+ * "Entry" means when a non-zero value was first recorded for that field
  */
 export async function getHonorGrowth(currentRoster: Array<{ name: string; honor_points: number }>): Promise<HonorGrowth[]> {
   const supabase = createClient();
 
-  // Get the two most recent snapshot dates (excluding unreliable ones)
+  // Get all snapshot dates (excluding unreliable ones)
   const allDates = await getSnapshotDates();
   const dates = getFilteredSnapshotDates(allDates);
-  if (dates.length < 2) return [];
+  if (dates.length < 1) return [];
 
-  const previousDate = dates[1]; // Second most recent
-  const currentDate = dates[0];  // Most recent
+  const currentDate = dates[0]; // Most recent
 
-  // Get previous snapshot data
-  const { data: previousData } = await supabase
+  // Calculate date 7 days ago
+  const weekAgoTarget = new Date(currentDate);
+  weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
+  const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
+
+  // Find the closest date to 7 days ago (or earlier)
+  const weekAgoDate = dates.find(d => d <= weekAgoStr) || null;
+
+  // Get all snapshots for all members to find first entry with honor > 0
+  const { data: allSnapshots } = await supabase
     .from('roster_snapshots')
-    .select('member_name, honor_points')
-    .eq('snapshot_date', previousDate)
-    .eq('is_active', true);
+    .select('member_name, snapshot_date, honor_points')
+    .gt('honor_points', 0)
+    .order('snapshot_date', { ascending: true })
+    .limit(5000);
 
-  // Get current snapshot data (use actual snapshot, not live roster)
+  if (!allSnapshots) return [];
+
+  // Build map of first entry date and value for each member
+  const firstEntryMap = new Map<string, { date: string; value: number }>();
+  for (const snap of allSnapshots) {
+    const normName = normalizeName(snap.member_name);
+    if (!firstEntryMap.has(normName)) {
+      firstEntryMap.set(normName, { date: snap.snapshot_date, value: snap.honor_points });
+    }
+  }
+
+  // Get current snapshot data
   const { data: currentData } = await supabase
     .from('roster_snapshots')
     .select('member_name, honor_points')
     .eq('snapshot_date', currentDate)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .gt('honor_points', 0)
+    .limit(2000);
 
-  if (!previousData || !currentData) return [];
+  if (!currentData) return [];
 
-  // Use normalized names for matching (handles prefix variations between snapshots)
-  const previousMap = new Map(previousData.map(d => [normalizeName(d.member_name), d.honor_points || 0]));
+  // Get week-ago snapshot data if available
+  let weekAgoMap = new Map<string, number>();
+  if (weekAgoDate) {
+    const { data: weekAgoData } = await supabase
+      .from('roster_snapshots')
+      .select('member_name, honor_points')
+      .eq('snapshot_date', weekAgoDate)
+      .gt('honor_points', 0)
+      .limit(2000);
+
+    if (weekAgoData) {
+      weekAgoMap = new Map(weekAgoData.map(d => [normalizeName(d.member_name), d.honor_points || 0]));
+    }
+  }
 
   const growth: HonorGrowth[] = currentData
     .filter(m => {
-      const prev = previousMap.get(normalizeName(m.member_name));
-      // Only include if they existed in previous snapshot AND had non-zero honor in both
-      return prev !== undefined && prev > 0 && (m.honor_points || 0) > 0;
+      const normName = normalizeName(m.member_name);
+      const firstEntry = firstEntryMap.get(normName);
+      // Only include if they have a first entry with honor > 0
+      return firstEntry !== undefined;
     })
     .map(m => {
-      const prev = previousMap.get(normalizeName(m.member_name)) || 0;
-      const current = m.honor_points || 0;
+      const normName = normalizeName(m.member_name);
+      const firstEntry = firstEntryMap.get(normName)!;
+      const currentHonor = m.honor_points || 0;
+      const weekAgoHonor = weekAgoMap.get(normName) ?? null;
+
       return {
         name: m.member_name,
-        previousHonor: prev,
-        currentHonor: current,
-        honorGrowth: current - prev,
-        previousDate,
+        firstHonor: firstEntry.value,
+        firstDate: firstEntry.date,
+        currentHonor,
         currentDate,
+        allTimeGrowth: currentHonor - firstEntry.value,
+        weekAgoHonor,
+        weekAgoDate,
+        weeklyGrowth: weekAgoHonor !== null ? currentHonor - weekAgoHonor : null,
       };
     });
 
