@@ -3066,31 +3066,6 @@ export default function RosterPage() {
                                         </div>
                                     </div>
 
-                                    {/* Member Count */}
-                                    <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
-                                        <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-                                            <Users className="w-3 sm:w-4 h-3 sm:h-4 text-[#9f7aea]" />
-                                            {memberLabel}
-                                        </h3>
-                                        <div className="space-y-1 sm:space-y-1.5">
-                                            {filteredDailyTotals.slice(-5).map((day) => {
-                                                const maxCount = Math.max(...filteredDailyTotals.map(d => d.count), 1);
-                                                const pct = (day.count / maxCount) * 100;
-                                                return (
-                                                    <div key={day.date} className="flex items-center gap-1 sm:gap-2">
-                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.date)}</span>
-                                                        <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-gradient-to-r from-[#9f7aea] to-[#9f7aea]/50 rounded"
-                                                                style={{ width: `${pct}%` }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{day.count}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
                                 </div>
 
                                 {/* KP Growth Table */}
