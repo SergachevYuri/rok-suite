@@ -2987,7 +2987,7 @@ export default function RosterPage() {
                                 })()}
 
                                 {/* Alliance Stats Overview - 2x2 Grid */}
-                                <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                                     {/* Total Power Over Time */}
                                     <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
                                         <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
