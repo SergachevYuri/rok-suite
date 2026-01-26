@@ -12,6 +12,7 @@ import {
   Calendar,
   FlaskConical,
   Users,
+  Trophy,
 } from 'lucide-react';
 
 export default function Home() {
@@ -33,6 +34,15 @@ export default function Home() {
       gradient: 'from-[#4318ff] to-[#9f7aea]',
       shadowColor: 'shadow-[#4318ff]/20',
       badge: { text: 'Members', color: 'bg-[#4318ff]/15 text-[#9f7aea]' },
+    },
+    {
+      href: '/events',
+      title: 'Alliance Events',
+      description: 'Event results, challenge rankings, and competition tracking',
+      icon: Trophy,
+      gradient: 'from-[#f59e0b] to-[#eab308]',
+      shadowColor: 'shadow-[#f59e0b]/20',
+      badge: { text: 'Results', color: 'bg-[#f59e0b]/15 text-[#f59e0b]' },
     },
     {
       href: '/aoo-strategy',
