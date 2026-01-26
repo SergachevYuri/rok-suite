@@ -2724,34 +2724,49 @@ export default function RosterPage() {
                             <>
                                 {/* Compute filtered data based on tag filter - used by both charts and overview */}
                                 {(() => {
-                                    // Get filtered member names based on tag filter
-                                    const filteredMemberNames = new Set(
-                                        roster
-                                            .filter(m => !tagFilter || m.tags?.includes(tagFilter))
-                                            .map(m => m.name)
-                                    );
+                                    // When no tag filter, use raw dailyTotals from DB view (complete data)
+                                    // When tag filter is set, compute filtered totals from snapshots
+                                    let filteredDailyTotals: { kills: number; power: number; honor: number; count: number; date: string }[];
 
-                                    // Compute totals from allSnapshots filtered by tag
-                                    const snapshotsByDate = new Map<string, { kills: number; power: number; honor: number; count: number; date: string }>();
+                                    if (!tagFilter) {
+                                        // Use pre-aggregated totals from DB - these are complete and accurate
+                                        filteredDailyTotals = dailyTotals.map(d => ({
+                                            kills: d.total_kills,
+                                            power: d.total_power,
+                                            honor: d.total_honor,
+                                            count: d.member_count,
+                                            date: d.snapshot_date,
+                                        }));
+                                    } else {
+                                        // Get filtered member names based on tag filter
+                                        const filteredMemberNames = new Set(
+                                            roster
+                                                .filter(m => m.tags?.includes(tagFilter))
+                                                .map(m => m.name)
+                                        );
 
-                                    for (const snap of allSnapshots) {
-                                        // Only include members that match the current tag filter
-                                        if (!filteredMemberNames.has(snap.member_name)) continue;
+                                        // Compute totals from allSnapshots filtered by tag
+                                        const snapshotsByDate = new Map<string, { kills: number; power: number; honor: number; count: number; date: string }>();
 
-                                        const existing = snapshotsByDate.get(snap.snapshot_date) || { kills: 0, power: 0, honor: 0, count: 0, date: snap.snapshot_date };
-                                        snapshotsByDate.set(snap.snapshot_date, {
-                                            kills: existing.kills + (snap.kills || 0),
-                                            power: existing.power + (snap.power || 0),
-                                            honor: existing.honor + (snap.honor_points || 0),
-                                            count: existing.count + 1,
-                                            date: snap.snapshot_date,
-                                        });
+                                        for (const snap of allSnapshots) {
+                                            // Only include members that match the current tag filter
+                                            if (!filteredMemberNames.has(snap.member_name)) continue;
+
+                                            const existing = snapshotsByDate.get(snap.snapshot_date) || { kills: 0, power: 0, honor: 0, count: 0, date: snap.snapshot_date };
+                                            snapshotsByDate.set(snap.snapshot_date, {
+                                                kills: existing.kills + (snap.kills || 0),
+                                                power: existing.power + (snap.power || 0),
+                                                honor: existing.honor + (snap.honor_points || 0),
+                                                count: existing.count + 1,
+                                                date: snap.snapshot_date,
+                                            });
+                                        }
+
+                                        // Convert to array sorted by date
+                                        filteredDailyTotals = Array.from(snapshotsByDate.entries())
+                                            .sort((a, b) => a[0].localeCompare(b[0]))
+                                            .map(([, totals]) => totals);
                                     }
-
-                                    // Convert to array sorted by date
-                                    const filteredDailyTotals = Array.from(snapshotsByDate.entries())
-                                        .sort((a, b) => a[0].localeCompare(b[0]))
-                                        .map(([, totals]) => totals);
 
                                     const memberLabel = tagFilter
                                         ? (tagFilter === 'angmar-og' ? 'Core Members' : tagFilter === 'inactive' ? 'Inactive' : tagFilter === 'quit' ? 'Quit' : 'Members')
