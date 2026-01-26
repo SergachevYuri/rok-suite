@@ -285,6 +285,8 @@ export default function RosterPage() {
     const [showCharts, setShowCharts] = useState(false);
     const [chartMetric, setChartMetric] = useState<'all' | 'kp' | 'power' | 'honor' | 'ratio'>('all');
     const [chartMode, setChartMode] = useState<'alliance' | 'individual'>('alliance');
+    const [chartStartDate, setChartStartDate] = useState<string | null>(null); // null = earliest available
+    const [chartEndDate, setChartEndDate] = useState<string | null>(null); // null = latest available
     const [selectedPlayer, setSelectedPlayer] = useState<string>('');
     const [playerHistory, setPlayerHistory] = useState<RosterSnapshot[]>([]);
 
@@ -2707,6 +2709,34 @@ export default function RosterPage() {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Date Range Selection - Only for alliance mode */}
+                                    {chartMode === 'alliance' && availableSnapshotDates.length > 1 && (
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs ${theme.textMuted}`}>Range:</span>
+                                            <select
+                                                value={chartStartDate || ''}
+                                                onChange={(e) => setChartStartDate(e.target.value || null)}
+                                                className={`text-xs ${theme.card} border rounded px-2 py-1`}
+                                            >
+                                                <option value="">Earliest</option>
+                                                {availableSnapshotDates.slice().reverse().map(date => (
+                                                    <option key={date} value={date}>{formatDate(date)}</option>
+                                                ))}
+                                            </select>
+                                            <span className={`text-xs ${theme.textMuted}`}>→</span>
+                                            <select
+                                                value={chartEndDate || ''}
+                                                onChange={(e) => setChartEndDate(e.target.value || null)}
+                                                className={`text-xs ${theme.card} border rounded px-2 py-1`}
+                                            >
+                                                <option value="">Latest</option>
+                                                {availableSnapshotDates.map(date => (
+                                                    <option key={date} value={date}>{formatDate(date)}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -2907,11 +2937,18 @@ export default function RosterPage() {
                                     }
 
                                     // Alliance chart mode (existing code)
+                                    // Filter by selected date range
+                                    const dateFilteredTotals = filteredDailyTotals.filter(day => {
+                                        if (chartStartDate && day.date < chartStartDate) return false;
+                                        if (chartEndDate && day.date > chartEndDate) return false;
+                                        return true;
+                                    });
+
                                     // Use running maximums for KP and Honor since they can only increase
                                     // (drops would indicate data issues or member departures, not real decreases)
                                     let maxKp = 0;
                                     let maxHonor = 0;
-                                    const chartData = filteredDailyTotals.map(day => {
+                                    const chartData = dateFilteredTotals.map(day => {
                                         maxKp = Math.max(maxKp, day.kills);
                                         maxHonor = Math.max(maxHonor, day.honor);
                                         return {
@@ -4994,56 +5031,9 @@ export default function RosterPage() {
                                 </div>
                             </div>
 
-                            {/* Growth Stats */}
-                            {(rankings.kpGrowthValue !== null || rankings.powerGrowthValue !== null) && (
-                                <div className="border-t border-[var(--border)] pt-3">
-                                    <div className={`text-xs ${theme.textMuted} mb-2`}>Recent Growth</div>
-                                    <div className="grid grid-cols-2 gap-2 text-center mb-2">
-                                        {rankings.powerGrowthValue !== null && (
-                                            <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
-                                                <div className={`text-sm font-medium ${rankings.powerGrowthValue > 0 ? 'text-[#01b574]' : 'text-gray-400'}`}>
-                                                    {rankings.powerGrowthValue > 0 ? '+' : ''}{formatPower(rankings.powerGrowthValue)}
-                                                    {rankings.powerGrowthPercent !== null && (
-                                                        <span className={`text-[10px] ${theme.textMuted} ml-1`}>({rankings.powerGrowthPercent.toFixed(1)}%)</span>
-                                                    )}
-                                                </div>
-                                                <div className={`text-[10px] ${theme.textMuted}`}>Power #{rankings.powerGrowthRank}</div>
-                                            </div>
-                                        )}
-                                        {rankings.kpGrowthValue !== null && (
-                                            <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
-                                                <div className={`text-sm font-medium ${rankings.kpGrowthValue > 0 ? 'text-green-400' : 'text-gray-400'}`}>
-                                                    {rankings.kpGrowthValue > 0 ? '+' : ''}{formatPower(rankings.kpGrowthValue)}
-                                                    {rankings.kpGrowthPercent !== null && (
-                                                        <span className={`text-[10px] ${theme.textMuted} ml-1`}>({rankings.kpGrowthPercent.toFixed(1)}%)</span>
-                                                    )}
-                                                </div>
-                                                <div className={`text-[10px] ${theme.textMuted}`}>KP #{rankings.kpGrowthRank}</div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {rankings.kpGrowthValue !== null && (
-                                        <div className="grid grid-cols-2 gap-2 text-center">
-                                            <div>
-                                                <div className={`text-sm font-medium ${(rankings.t4GrowthValue || 0) > 0 ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
-                                                    {(rankings.t4GrowthValue || 0) > 0 ? '+' : ''}{formatPower(rankings.t4GrowthValue || 0)}
-                                                </div>
-                                                <div className={`text-[10px] ${theme.textMuted}`}>T4 Growth</div>
-                                            </div>
-                                            <div>
-                                                <div className={`text-sm font-medium ${(rankings.t5GrowthValue || 0) > 0 ? 'text-[#f97316]' : 'text-gray-400'}`}>
-                                                    {(rankings.t5GrowthValue || 0) > 0 ? '+' : ''}{formatPower(rankings.t5GrowthValue || 0)}
-                                                </div>
-                                                <div className={`text-[10px] ${theme.textMuted}`}>T5 Growth</div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
                             {/* Sparkline Charts */}
                             {memberHistory.length >= 2 && (
-                                <div className="border-t border-[var(--border)] pt-3 mt-3">
+                                <div className="border-t border-[var(--border)] pt-3">
                                     <div className={`text-xs ${theme.textMuted} mb-2`}>Trend</div>
                                     <div className="grid grid-cols-3 gap-2">
                                         {/* Power Sparkline */}
