@@ -390,7 +390,8 @@ export interface KpGrowth {
  */
 export async function getKpGrowth(
   currentRoster: Array<{ name: string; kills: number; t4_kills: number; t5_kills: number }>,
-  compareDate?: string | null
+  compareDate?: string | null,
+  endDate?: string | null
 ): Promise<KpGrowth[]> {
   const supabase = createClient();
 
@@ -399,9 +400,10 @@ export async function getKpGrowth(
   const dates = getFilteredSnapshotDates(allDates);
   if (dates.length < 1) return [];
 
-  const currentDate = dates[0]; // Most recent
+  // Use provided endDate or default to most recent
+  const currentDate = endDate && dates.includes(endDate) ? endDate : dates[0];
 
-  // Use provided compareDate or default to ~7 days ago
+  // Use provided compareDate or default to ~7 days ago from the end date
   let effectiveCompareDate: string | null = compareDate ?? null;
   if (!effectiveCompareDate) {
     const weekAgoTarget = new Date(currentDate);
@@ -532,7 +534,8 @@ export interface PowerGrowth {
  */
 export async function getPowerGrowth(
   currentRoster: Array<{ name: string; power: number }>,
-  compareDate?: string | null
+  compareDate?: string | null,
+  endDate?: string | null
 ): Promise<PowerGrowth[]> {
   const supabase = createClient();
 
@@ -541,9 +544,10 @@ export async function getPowerGrowth(
   const dates = getFilteredSnapshotDates(allDates);
   if (dates.length < 1) return [];
 
-  const currentDate = dates[0]; // Most recent
+  // Use provided endDate or default to most recent
+  const currentDate = endDate && dates.includes(endDate) ? endDate : dates[0];
 
-  // Use provided compareDate or default to ~7 days ago
+  // Use provided compareDate or default to ~7 days ago from the end date
   let effectiveCompareDate: string | null = compareDate ?? null;
   if (!effectiveCompareDate) {
     const weekAgoTarget = new Date(currentDate);
@@ -653,7 +657,8 @@ export interface HonorGrowth {
  */
 export async function getHonorGrowth(
   currentRoster: Array<{ name: string; honor_points: number }>,
-  compareDate?: string | null
+  compareDate?: string | null,
+  endDate?: string | null
 ): Promise<HonorGrowth[]> {
   const supabase = createClient();
 
@@ -662,9 +667,10 @@ export async function getHonorGrowth(
   const dates = getFilteredSnapshotDates(allDates);
   if (dates.length < 1) return [];
 
-  const currentDate = dates[0]; // Most recent
+  // Use provided endDate or default to most recent
+  const currentDate = endDate && dates.includes(endDate) ? endDate : dates[0];
 
-  // Use provided compareDate or default to ~7 days ago
+  // Use provided compareDate or default to ~7 days ago from the end date
   let effectiveCompareDate: string | null = compareDate ?? null;
   if (!effectiveCompareDate) {
     const weekAgoTarget = new Date(currentDate);

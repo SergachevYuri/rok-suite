@@ -280,6 +280,7 @@ export default function RosterPage() {
     // Growth comparison date selection
     const [availableSnapshotDates, setAvailableSnapshotDates] = useState<string[]>([]);
     const [growthCompareDate, setGrowthCompareDate] = useState<string | null>(null); // null = default (past week)
+    const [growthEndDate, setGrowthEndDate] = useState<string | null>(null); // null = most recent snapshot
 
     // Growth tab charts toggle
     const [showCharts, setShowCharts] = useState(false);
@@ -449,14 +450,14 @@ export default function RosterPage() {
         }).catch(console.error);
     }, []);
 
-    // Fetch KP, Power, and Honor growth data when roster loads or compare date changes
+    // Fetch KP, Power, and Honor growth data when roster loads or date range changes
     useEffect(() => {
         if (roster.length > 0) {
-            getKpGrowth(roster, growthCompareDate).then(setKpGrowthData).catch(console.error);
-            getPowerGrowth(roster, growthCompareDate).then(setPowerGrowthData).catch(console.error);
-            getHonorGrowth(roster, growthCompareDate).then(setHonorGrowthData).catch(console.error);
+            getKpGrowth(roster, growthCompareDate, growthEndDate).then(setKpGrowthData).catch(console.error);
+            getPowerGrowth(roster, growthCompareDate, growthEndDate).then(setPowerGrowthData).catch(console.error);
+            getHonorGrowth(roster, growthCompareDate, growthEndDate).then(setHonorGrowthData).catch(console.error);
         }
-    }, [roster, growthCompareDate]);
+    }, [roster, growthCompareDate, growthEndDate]);
 
     // Fetch individual player history when selected
     useEffect(() => {
@@ -3314,17 +3315,31 @@ export default function RosterPage() {
                                                                     <button onClick={() => handleKpSort('compareKpGrowth')} className="flex items-center gap-1 hover:text-white">
                                                                         Growth <KpSortIcon field="compareKpGrowth" />
                                                                     </button>
-                                                                    <select
-                                                                        value={growthCompareDate || ''}
-                                                                        onChange={(e) => setGrowthCompareDate(e.target.value || null)}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                        className={`text-[10px] ${theme.card} border rounded px-1.5 py-0.5 font-normal normal-case ml-1`}
-                                                                    >
-                                                                        <option value="">Past week</option>
-                                                                        {availableSnapshotDates.slice(1).map(date => (
-                                                                            <option key={date} value={date}>{formatDate(date)}</option>
-                                                                        ))}
-                                                                    </select>
+                                                                    <div className="flex items-center gap-1 text-[10px] font-normal normal-case">
+                                                                        <select
+                                                                            value={growthCompareDate || ''}
+                                                                            onChange={(e) => setGrowthCompareDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">From...</option>
+                                                                            {availableSnapshotDates.slice(1).map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                        <span>→</span>
+                                                                        <select
+                                                                            value={growthEndDate || ''}
+                                                                            onChange={(e) => setGrowthEndDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">Latest</option>
+                                                                            {availableSnapshotDates.map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
                                                                 </div>
                                                             </th>
                                                         </tr>
@@ -3546,17 +3561,31 @@ export default function RosterPage() {
                                                                     <button onClick={() => handleHonorSort('compareGrowth')} className="flex items-center gap-1 hover:text-white">
                                                                         Growth <HonorSortIcon field="compareGrowth" />
                                                                     </button>
-                                                                    <select
-                                                                        value={growthCompareDate || ''}
-                                                                        onChange={(e) => setGrowthCompareDate(e.target.value || null)}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                        className={`text-[10px] ${theme.card} border rounded px-1.5 py-0.5 font-normal normal-case ml-1`}
-                                                                    >
-                                                                        <option value="">Past week</option>
-                                                                        {availableSnapshotDates.slice(1).map(date => (
-                                                                            <option key={date} value={date}>{formatDate(date)}</option>
-                                                                        ))}
-                                                                    </select>
+                                                                    <div className="flex items-center gap-1 text-[10px] font-normal normal-case">
+                                                                        <select
+                                                                            value={growthCompareDate || ''}
+                                                                            onChange={(e) => setGrowthCompareDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">From...</option>
+                                                                            {availableSnapshotDates.slice(1).map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                        <span>→</span>
+                                                                        <select
+                                                                            value={growthEndDate || ''}
+                                                                            onChange={(e) => setGrowthEndDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">Latest</option>
+                                                                            {availableSnapshotDates.map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
                                                                 </div>
                                                             </th>
                                                         </tr>
