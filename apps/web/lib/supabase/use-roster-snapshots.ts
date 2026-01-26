@@ -198,7 +198,8 @@ export async function getSnapshotDates(): Promise<string[]> {
 }
 
 // Snapshot dates to exclude from charts/growth tracking (data not reliable for these dates)
-const EXCLUDED_SNAPSHOT_DATES = ['2026-01-14', '2026-01-23'];
+// These dates were deleted from the database, keeping this for future use if needed
+const EXCLUDED_SNAPSHOT_DATES: string[] = [];
 
 /**
  * Get snapshot dates excluding unreliable ones
