@@ -400,8 +400,10 @@ export async function getMemberHistory(memberName: string, limit = 30): Promise<
 
   if (data && data.length > 0) {
     // Deduplicate by date (keep only one entry per date, prefer current name)
+    // Also filter out unreliable snapshot dates
     const byDate = new Map<string, RosterSnapshot>();
     for (const snap of data) {
+      if (EXCLUDED_SNAPSHOT_DATES.includes(snap.snapshot_date)) continue;
       const existing = byDate.get(snap.snapshot_date);
       if (!existing || snap.member_name === memberName) {
         byDate.set(snap.snapshot_date, snap);
@@ -440,7 +442,8 @@ export async function getMemberHistory(memberName: string, limit = 30): Promise<
     return [];
   }
 
-  return historyData || [];
+  // Filter out unreliable snapshot dates
+  return (historyData || []).filter(snap => !EXCLUDED_SNAPSHOT_DATES.includes(snap.snapshot_date));
 }
 
 /**
