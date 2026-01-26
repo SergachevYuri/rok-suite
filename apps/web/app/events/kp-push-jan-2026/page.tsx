@@ -295,11 +295,11 @@ export default function KpPushEventPage() {
     ? rankedMembers
     : rankedMembers.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
 
-  // Format Power:KP as a proper reduced ratio (e.g., "42:1" meaning 42 power per 1 KP)
+  // Format Power/KP ratio as a simple number (e.g., "42.5" meaning 42.5 power per 1 KP)
   const formatPowerKpRatio = (power: number, kp: number): string => {
     if (kp === 0) return '-';
     const ratio = power / kp;
-    return ratio.toFixed(1) + ':1';
+    return ratio.toFixed(1);
   };
 
   // Format a computed ratio for alliance summary (gains ratio)
@@ -473,8 +473,8 @@ export default function KpPushEventPage() {
                   <th className="px-4 py-3 text-left font-medium">Name</th>
                   <th className="px-4 py-3 text-right font-medium">KP Gained</th>
                   <th className="px-4 py-3 text-right font-medium">Power Change</th>
-                  <th className="px-4 py-3 text-right font-medium">Start (P:KP)</th>
-                  <th className="px-4 py-3 text-right font-medium">End (P:KP)</th>
+                  <th className="px-4 py-3 text-right font-medium">Start P/KP</th>
+                  <th className="px-4 py-3 text-right font-medium">End P/KP</th>
                   <th className="px-4 py-3 text-center font-medium">Improved</th>
                 </tr>
               </thead>
@@ -737,8 +737,8 @@ export default function KpPushEventPage() {
                       <th className="px-4 py-3 text-left font-medium">Role</th>
                       <th className="px-4 py-3 text-right font-medium">KP Gained</th>
                       <th className="px-4 py-3 text-right font-medium">Power Change</th>
-                      <th className="px-4 py-3 text-right font-medium">Start (P:KP)</th>
-                      <th className="px-4 py-3 text-right font-medium">End (P:KP)</th>
+                      <th className="px-4 py-3 text-right font-medium">Start P/KP</th>
+                      <th className="px-4 py-3 text-right font-medium">End P/KP</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
