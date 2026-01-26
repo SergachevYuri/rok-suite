@@ -56,6 +56,7 @@ const COLUMN_TOOLTIPS: Record<string, string> = {
     name: 'In-game governor name',
     power: 'Total account power',
     kp: 'Kill points (total kills)',
+    ratio: 'Power per kill point - lower ratio indicates more aggressive play style',
     t4t5: 'T4 and T5 troop kill points',
     t1t2t3: 'T1, T2 and T3 troop kill points',
     honor: 'Honor points earned in Ark of Osiris',
@@ -73,7 +74,7 @@ const COLUMN_TOOLTIPS: Record<string, string> = {
 };
 
 // Column configuration for View Options
-type ColumnId = 'power' | 'kp' | 't4t5' | 't1t2t3' | 'deads' | 'healed' | 'honor' | 'aoo' | 'mob' | 'rank' | 'alliance' | 'acclaim' | 'kvkPts' | 'highestPower' | 'ch' | 'civilization';
+type ColumnId = 'power' | 'kp' | 'ratio' | 't4t5' | 't1t2t3' | 'deads' | 'healed' | 'honor' | 'aoo' | 'mob' | 'rank' | 'alliance' | 'acclaim' | 'kvkPts' | 'highestPower' | 'ch' | 'civilization';
 
 interface ColumnConfig {
     id: ColumnId;
@@ -87,6 +88,7 @@ const COLUMN_CONFIG: ColumnConfig[] = [
     // Core columns
     { id: 'power', label: 'Power', tooltip: COLUMN_TOOLTIPS.power, defaultVisible: true, category: 'core' },
     { id: 'kp', label: 'Kill Points', tooltip: COLUMN_TOOLTIPS.kp, defaultVisible: true, category: 'core' },
+    { id: 'ratio', label: 'Power:KP', tooltip: COLUMN_TOOLTIPS.ratio, defaultVisible: true, category: 'core' },
     { id: 'rank', label: 'Rank', tooltip: COLUMN_TOOLTIPS.rank, defaultVisible: true, category: 'core' },
     { id: 'alliance', label: 'Alliance', tooltip: COLUMN_TOOLTIPS.alliance, defaultVisible: true, category: 'core' },
     // Combat columns
@@ -2009,6 +2011,15 @@ export default function RosterPage() {
                                             </ColumnTooltip>
                                         </th>
                                     )}
+                                    {isColumnVisible('ratio') && (
+                                        <th className="text-right px-2 sm:px-4 py-2 sm:py-3 hidden md:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.ratio}>
+                                                <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Ratio
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
                                     {isColumnVisible('t4t5') && (
                                         <th className="text-right px-4 py-3 hidden md:table-cell">
                                             <ColumnTooltip text={COLUMN_TOOLTIPS.t4t5}>
@@ -2276,6 +2287,13 @@ export default function RosterPage() {
                                                         {member.kills ? formatPower(member.kills) : '-'}
                                                     </span>
                                                 )}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('ratio') && (
+                                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-right hidden md:table-cell">
+                                                <span className={`text-sm ${member.kills ? 'text-[#9f7aea]' : theme.textMuted}`}>
+                                                    {member.kills ? (member.power / member.kills).toFixed(1) : '-'}
+                                                </span>
                                             </td>
                                         )}
                                         {isColumnVisible('t4t5') && (
@@ -5201,7 +5219,7 @@ export default function RosterPage() {
                             {memberHistory.length >= 2 && (
                                 <div className="border-t border-[var(--border)] pt-3">
                                     <div className={`text-xs ${theme.textMuted} mb-2`}>Trend</div>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-4 gap-2">
                                         {/* Power Sparkline */}
                                         <div className="text-center">
                                             <div style={{ height: 40 }}>
@@ -5234,6 +5252,17 @@ export default function RosterPage() {
                                                 </ResponsiveContainer>
                                             </div>
                                             <div className={`text-[9px] ${theme.textMuted}`}>Honor</div>
+                                        </div>
+                                        {/* Ratio Sparkline */}
+                                        <div className="text-center">
+                                            <div style={{ height: 40 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <LineChart data={memberHistory.map(s => ({ v: s.kills ? (s.power / s.kills) : 0 }))} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                                                        <Line type="monotone" dataKey="v" stroke="#9f7aea" strokeWidth={1.5} dot={false} />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            <div className={`text-[9px] ${theme.textMuted}`}>Ratio</div>
                                         </div>
                                     </div>
                                 </div>
@@ -5270,7 +5299,8 @@ export default function RosterPage() {
                                                     <th className="text-left py-1 pr-2">Date</th>
                                                     <th className="text-right py-1 px-1">Power</th>
                                                     <th className="text-right py-1 px-1">KP</th>
-                                                    <th className="text-right py-1 pl-1">Honor</th>
+                                                    <th className="text-right py-1 px-1">Honor</th>
+                                                    <th className="text-right py-1 pl-1">Ratio</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -5279,6 +5309,9 @@ export default function RosterPage() {
                                                     const powerDelta = prevSnap ? snap.power - prevSnap.power : 0;
                                                     const kpDelta = prevSnap ? (snap.kills || 0) - (prevSnap.kills || 0) : 0;
                                                     const honorDelta = prevSnap ? (snap.honor_points || 0) - (prevSnap.honor_points || 0) : 0;
+                                                    const currentRatio = snap.kills ? (snap.power / snap.kills) : null;
+                                                    const prevRatio = prevSnap && prevSnap.kills ? (prevSnap.power / prevSnap.kills) : null;
+                                                    const ratioDelta = (currentRatio !== null && prevRatio !== null) ? currentRatio - prevRatio : 0;
                                                     return (
                                                         <tr key={snap.snapshot_date} className="border-b border-[var(--border)]/50">
                                                             <td className="py-1 pr-2">{formatDate(snap.snapshot_date)}</td>
@@ -5298,11 +5331,19 @@ export default function RosterPage() {
                                                                     </div>
                                                                 )}
                                                             </td>
-                                                            <td className="py-1 pl-1 text-right">
+                                                            <td className="py-1 px-1 text-right">
                                                                 <div className="text-[#fbbf24]">{snap.honor_points ? snap.honor_points.toLocaleString() : '-'}</div>
                                                                 {honorDelta !== 0 && (
                                                                     <div className={`text-[9px] ${honorDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                                         {honorDelta > 0 ? '+' : ''}{honorDelta.toLocaleString()}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-1 pl-1 text-right">
+                                                                <div className="text-[#9f7aea]">{currentRatio !== null ? currentRatio.toFixed(1) : '-'}</div>
+                                                                {ratioDelta !== 0 && Math.abs(ratioDelta) >= 0.05 && (
+                                                                    <div className={`text-[9px] ${ratioDelta < 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                                        {ratioDelta > 0 ? '+' : ''}{ratioDelta.toFixed(1)}
                                                                     </div>
                                                                 )}
                                                             </td>
