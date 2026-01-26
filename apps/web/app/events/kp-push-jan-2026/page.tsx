@@ -26,8 +26,9 @@ interface MemberResult {
   startKp: number;
   endKp: number;
   kpGain: number;
-  ratio: number | null; // power:kp ratio (lower is better for KP focus)
-  ratioMet: boolean; // true if KP gain >= power gain
+  startRatio: number | null; // power:kp ratio at start
+  endRatio: number | null; // power:kp ratio at end
+  ratioImproved: boolean; // true if end ratio is better (lower) than start ratio
 }
 
 interface EventData {
@@ -114,43 +115,71 @@ export default function KpPushEventPage() {
         // Get canonical name helper
         const getCanonicalName = (name: string) => nameVariantMap.get(name) || name;
 
-        // Fetch snapshots for start date
-        const { data: startSnapshots } = await supabase
+        // Fetch ALL snapshots in the event period (and slightly before/after for fallback)
+        const { data: allSnapshots } = await supabase
           .from('roster_snapshots')
-          .select('member_name, power, kills')
-          .eq('snapshot_date', actualStartDate)
-          .eq('is_active', true);
+          .select('member_name, power, kills, snapshot_date')
+          .gte('snapshot_date', actualStartDate)
+          .lte('snapshot_date', actualEndDate)
+          .eq('is_active', true)
+          .order('snapshot_date', { ascending: true });
 
-        // Fetch snapshots for end date
-        const { data: endSnapshots } = await supabase
-          .from('roster_snapshots')
-          .select('member_name, power, kills')
-          .eq('snapshot_date', actualEndDate)
-          .eq('is_active', true);
-
-        if (!startSnapshots || !endSnapshots) {
+        if (!allSnapshots || allSnapshots.length === 0) {
           setError('Could not fetch snapshot data');
           return;
         }
 
-        // Build maps using canonical names
+        // Group snapshots by canonical member name
+        const snapshotsByMember = new Map<string, Array<{ date: string; power: number; kp: number; name: string }>>();
+        for (const snap of allSnapshots) {
+          const canonical = getCanonicalName(snap.member_name);
+          if (!snapshotsByMember.has(canonical)) {
+            snapshotsByMember.set(canonical, []);
+          }
+          snapshotsByMember.get(canonical)!.push({
+            date: snap.snapshot_date,
+            power: snap.power || 0,
+            kp: snap.kills || 0,
+            name: snap.member_name,
+          });
+        }
+
+        // For each member, find closest valid start and end snapshots
         const startMap = new Map<string, { power: number; kp: number }>();
-        for (const snap of startSnapshots) {
-          const canonical = getCanonicalName(snap.member_name);
-          if (!startMap.has(canonical)) {
-            startMap.set(canonical, { power: snap.power || 0, kp: snap.kills || 0 });
-          }
-        }
-
         const endMap = new Map<string, { power: number; kp: number; name: string }>();
-        for (const snap of endSnapshots) {
-          const canonical = getCanonicalName(snap.member_name);
-          if (!endMap.has(canonical)) {
-            endMap.set(canonical, { power: snap.power || 0, kp: snap.kills || 0, name: snap.member_name });
+
+        for (const [canonical, snapshots] of snapshotsByMember) {
+          if (snapshots.length === 0) continue;
+
+          // Sort by date
+          snapshots.sort((a, b) => a.date.localeCompare(b.date));
+
+          // Find closest to start date (prefer exact match, then closest after)
+          let startSnap = snapshots.find(s => s.date === actualStartDate);
+          if (!startSnap) {
+            // Use earliest snapshot as fallback for start
+            startSnap = snapshots[0];
+          }
+
+          // Find closest to end date (prefer exact match, then closest before)
+          let endSnap = snapshots.find(s => s.date === actualEndDate);
+          if (!endSnap) {
+            // Use latest snapshot as fallback for end
+            endSnap = snapshots[snapshots.length - 1];
+          }
+
+          // Only include if we have different dates (actual growth period)
+          if (startSnap && endSnap && startSnap.date !== endSnap.date) {
+            startMap.set(canonical, { power: startSnap.power, kp: startSnap.kp });
+            endMap.set(canonical, { power: endSnap.power, kp: endSnap.kp, name: endSnap.name });
+          } else if (startSnap && endSnap) {
+            // Same date - still include but growth will be 0
+            startMap.set(canonical, { power: startSnap.power, kp: startSnap.kp });
+            endMap.set(canonical, { power: endSnap.power, kp: endSnap.kp, name: endSnap.name });
           }
         }
 
-        // Calculate results for members present in both snapshots
+        // Calculate results for members present in both maps
         const results: MemberResult[] = [];
         let totalPowerGain = 0;
         let totalKpGain = 0;
@@ -165,8 +194,11 @@ export default function KpPushEventPage() {
           totalPowerGain += Math.max(0, powerGain);
           totalKpGain += Math.max(0, kpGain);
 
-          const ratio = kpGain > 0 ? powerGain / kpGain : (powerGain > 0 ? Infinity : null);
-          const ratioMet = kpGain >= powerGain;
+          // Calculate Power:KP ratios at start and end
+          const startRatio = start.kp > 0 ? start.power / start.kp : null;
+          const endRatio = end.kp > 0 ? end.power / end.kp : null;
+          // Ratio improved if end ratio is lower (more KP per power = better)
+          const ratioImproved = startRatio !== null && endRatio !== null && endRatio < startRatio;
 
           results.push({
             name: end.name,
@@ -177,8 +209,9 @@ export default function KpPushEventPage() {
             startKp: start.kp,
             endKp: end.kp,
             kpGain,
-            ratio,
-            ratioMet,
+            startRatio,
+            endRatio,
+            ratioImproved,
           });
         }
 
@@ -246,7 +279,13 @@ export default function KpPushEventPage() {
     ? rankedMembers
     : rankedMembers.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
 
-  const formatRatio = (ratio: number | null): string => {
+  // Format Power:KP as compact ratio display (e.g., "50M:1M")
+  const formatPowerKpRatio = (power: number, kp: number): string => {
+    return `${formatPower(power)}:${formatPower(kp)}`;
+  };
+
+  // Format a computed ratio for alliance summary (gains ratio)
+  const formatGainsRatio = (ratio: number | null): string => {
     if (ratio === null) return '-';
     if (ratio === Infinity) return '∞';
     return ratio.toFixed(1) + ':1';
@@ -347,7 +386,7 @@ export default function KpPushEventPage() {
               <span className={`text-sm ${theme.textMuted}`}>Alliance Ratio</span>
             </div>
             <p className={`text-2xl font-bold ${eventData?.allianceRatio && eventData.allianceRatio <= 1 ? 'text-green-400' : 'text-amber-400'}`}>
-              {formatRatio(eventData?.allianceRatio || null)}
+              {formatGainsRatio(eventData?.allianceRatio || null)}
             </p>
             <p className={`text-xs ${theme.textMuted}`}>Goal: ≤1:1</p>
           </div>
@@ -384,8 +423,9 @@ export default function KpPushEventPage() {
                   <th className="px-4 py-3 text-left font-medium">Name</th>
                   <th className="px-4 py-3 text-right font-medium">KP Gained</th>
                   <th className="px-4 py-3 text-right font-medium">Power Change</th>
-                  <th className="px-4 py-3 text-right font-medium">Ratio</th>
-                  <th className="px-4 py-3 text-center font-medium">Goal Met</th>
+                  <th className="px-4 py-3 text-right font-medium">Start (P:KP)</th>
+                  <th className="px-4 py-3 text-right font-medium">End (P:KP)</th>
+                  <th className="px-4 py-3 text-center font-medium">Improved</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -428,10 +468,13 @@ export default function KpPushEventPage() {
                           +{formatPower(member.powerGain)}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {formatRatio(member.ratio)}
+                          {formatPowerKpRatio(member.startPower, member.startKp)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {formatPowerKpRatio(member.endPower, member.endKp)}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {member.ratioMet ? (
+                          {member.ratioImproved ? (
                             <span className="text-green-400">✓</span>
                           ) : (
                             <span className="text-red-400">✗</span>
@@ -441,7 +484,7 @@ export default function KpPushEventPage() {
                       {/* Expanded row with snapshot history */}
                       {isExpanded && (
                         <tr className="bg-[var(--background-secondary)]/50">
-                          <td colSpan={7} className="px-4 py-4">
+                          <td colSpan={8} className="px-4 py-4">
                             <div className="ml-8">
                               <h4 className={`text-sm font-semibold mb-3 ${theme.textMuted}`}>
                                 Snapshot History for {member.name}
@@ -644,7 +687,8 @@ export default function KpPushEventPage() {
                       <th className="px-4 py-3 text-left font-medium">Role</th>
                       <th className="px-4 py-3 text-right font-medium">KP Gained</th>
                       <th className="px-4 py-3 text-right font-medium">Power Change</th>
-                      <th className="px-4 py-3 text-right font-medium">Ratio</th>
+                      <th className="px-4 py-3 text-right font-medium">Start (P:KP)</th>
+                      <th className="px-4 py-3 text-right font-medium">End (P:KP)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -666,7 +710,10 @@ export default function KpPushEventPage() {
                           {member.powerGain > 0 ? '+' : ''}{formatPower(member.powerGain)}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {formatRatio(member.ratio)}
+                          {formatPowerKpRatio(member.startPower, member.startKp)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {formatPowerKpRatio(member.endPower, member.endKp)}
                         </td>
                       </tr>
                     ))}
