@@ -2861,30 +2861,20 @@ export default function RosterPage() {
                                             );
                                         }
 
-                                        const playerChartData = playerHistory.map(snap => ({
-                                            date: formatDate(snap.snapshot_date),
-                                            // Use local time to avoid timezone shift
-                                            timestamp: new Date(snap.snapshot_date + 'T00:00:00').getTime(),
-                                            kp: snap.kills || 0,
-                                            power: snap.power || 0,
-                                            honor: snap.honor_points || 0,
-                                            t4: snap.t4_kills || 0,
-                                            t5: snap.t5_kills || 0,
-                                        }));
-
-                                        // Generate ticks for every day in the player's date range
-                                        const generatePlayerDailyTicks = () => {
-                                            if (playerChartData.length === 0) return [];
-                                            const firstTs = playerChartData[0].timestamp;
-                                            const lastTs = playerChartData[playerChartData.length - 1].timestamp;
-                                            const ticks: number[] = [];
-                                            const oneDay = 24 * 60 * 60 * 1000;
-                                            for (let ts = firstTs; ts <= lastTs; ts += oneDay) {
-                                                ticks.push(ts);
-                                            }
-                                            return ticks;
-                                        };
-                                        const playerDailyTicks = generatePlayerDailyTicks();
+                                        // Filter out excluded snapshot dates and build chart data
+                                        const excludedDates = ['2026-01-14', '2026-01-23'];
+                                        const playerChartData = playerHistory
+                                            .filter(snap => !excludedDates.includes(snap.snapshot_date))
+                                            .map(snap => ({
+                                                date: formatDate(snap.snapshot_date),
+                                                // Use local time to avoid timezone shift
+                                                timestamp: new Date(snap.snapshot_date + 'T00:00:00').getTime(),
+                                                kp: snap.kills || 0,
+                                                power: snap.power || 0,
+                                                honor: snap.honor_points || 0,
+                                                t4: snap.t4_kills || 0,
+                                                t5: snap.t5_kills || 0,
+                                            }));
 
                                         const playerMetrics = [
                                             { key: 'kp', label: 'Kill Points', color: '#f56565' },
@@ -2908,14 +2898,13 @@ export default function RosterPage() {
                                                                 dataKey="timestamp"
                                                                 type="number"
                                                                 scale="time"
-                                                                domain={[playerDailyTicks[0] || 'dataMin', playerDailyTicks[playerDailyTicks.length - 1] || 'dataMax']}
-                                                                ticks={playerDailyTicks}
+                                                                domain={['dataMin', 'dataMax']}
                                                                 tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                                                                 axisLine={{ stroke: 'var(--border)' }}
                                                                 tickLine={{ stroke: 'var(--border)' }}
                                                                 tickFormatter={(ts) => {
                                                                     const d = new Date(ts);
-                                                                    return `${d.getDate()}`;
+                                                                    return `${d.getMonth() + 1}/${d.getDate()}`;
                                                                 }}
                                                             />
                                                             <YAxis
@@ -2940,13 +2929,13 @@ export default function RosterPage() {
                                                                 labelStyle={{ color: 'var(--foreground)' }}
                                                             />
                                                             <Line
-                                                                type="monotone"
+                                                                type="natural"
                                                                 dataKey={metric.key}
                                                                 name={metric.label}
                                                                 stroke={metric.color}
                                                                 strokeWidth={2}
-                                                                dot={{ fill: metric.color, strokeWidth: 2, r: 3 }}
-                                                                activeDot={{ r: 5 }}
+                                                                dot={{ fill: metric.color, strokeWidth: 2, r: 4 }}
+                                                                activeDot={{ r: 6 }}
                                                             />
                                                         </LineChart>
                                                     </ResponsiveContainer>
