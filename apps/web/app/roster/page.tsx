@@ -3114,8 +3114,129 @@ export default function RosterPage() {
                                     return renderChart(selectedMetric, 350);
                                 })()}
 
-                                {/* Alliance Stats Overview - 2x2 Grid */}
+                                {/* Stats Overview - 2x2 Grid (Individual or Alliance) */}
                                 {(() => {
+                                    // Individual player mode - show player stats
+                                    if (chartMode === 'individual' && selectedPlayer && playerHistory.length > 0) {
+                                        const excludedDates = ['2026-01-14', '2026-01-23'];
+                                        const filteredHistory = playerHistory.filter(s => !excludedDates.includes(s.snapshot_date));
+                                        const last5 = filteredHistory.slice(-5);
+
+                                        const globalMaxPower = Math.max(...filteredHistory.map(s => s.power || 0), 1);
+                                        const globalMaxKp = Math.max(...filteredHistory.map(s => s.kills || 0), 1);
+                                        const globalMaxHonor = Math.max(...filteredHistory.map(s => s.honor_points || 0), 1);
+
+                                        return (
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+                                                {/* Player Power Over Time */}
+                                                <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                                    <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                                        <TrendingUp className="w-3 sm:w-4 h-3 sm:h-4 text-[#01b574]" />
+                                                        Power
+                                                    </h3>
+                                                    <div className="space-y-1 sm:space-y-1.5">
+                                                        {last5.map((snap) => {
+                                                            const pct = ((snap.power || 0) / globalMaxPower) * 100;
+                                                            return (
+                                                                <div key={snap.snapshot_date} className="flex items-center gap-1 sm:gap-2">
+                                                                    <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(snap.snapshot_date)}</span>
+                                                                    <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-gradient-to-r from-[#01b574] to-[#01b574]/50 rounded"
+                                                                            style={{ width: `${pct}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(snap.power || 0)}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Player KP Over Time */}
+                                                <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                                    <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                                        <TrendingUp className="w-3 sm:w-4 h-3 sm:h-4 text-[#f56565]" />
+                                                        KP
+                                                    </h3>
+                                                    <div className="space-y-1 sm:space-y-1.5">
+                                                        {last5.map((snap) => {
+                                                            const pct = ((snap.kills || 0) / globalMaxKp) * 100;
+                                                            return (
+                                                                <div key={snap.snapshot_date} className="flex items-center gap-1 sm:gap-2">
+                                                                    <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(snap.snapshot_date)}</span>
+                                                                    <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-gradient-to-r from-[#f56565] to-[#f56565]/50 rounded"
+                                                                            style={{ width: `${pct}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(snap.kills || 0)}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Player Honor Over Time */}
+                                                <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                                    <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                                        <Trophy className="w-3 sm:w-4 h-3 sm:h-4 text-[#fbbf24]" />
+                                                        Honor
+                                                    </h3>
+                                                    <div className="space-y-1 sm:space-y-1.5">
+                                                        {last5.map((snap) => {
+                                                            const pct = ((snap.honor_points || 0) / globalMaxHonor) * 100;
+                                                            return (
+                                                                <div key={snap.snapshot_date} className="flex items-center gap-1 sm:gap-2">
+                                                                    <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(snap.snapshot_date)}</span>
+                                                                    <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-gradient-to-r from-[#fbbf24] to-[#fbbf24]/50 rounded"
+                                                                            style={{ width: `${pct}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{(snap.honor_points || 0).toLocaleString()}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Player Power:KP Ratio Over Time */}
+                                                <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                                    <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                                        <BarChart3 className="w-3 sm:w-4 h-3 sm:h-4 text-[#9f7aea]" />
+                                                        <span className="hidden sm:inline">Power:KP</span> Ratio
+                                                    </h3>
+                                                    <div className="space-y-1 sm:space-y-1.5">
+                                                        {last5.map((snap) => {
+                                                            const ratio = (snap.kills || 0) > 0 ? (snap.power || 0) / (snap.kills || 1) : 0;
+                                                            const ratios = filteredHistory.map(s => (s.kills || 0) > 0 ? (s.power || 0) / (s.kills || 1) : 0);
+                                                            const minRatio = Math.min(...ratios.filter(r => r > 0));
+                                                            const maxRatio = Math.max(...ratios);
+                                                            const range = maxRatio - minRatio || 1;
+                                                            const pct = ratio > 0 ? ((ratio - minRatio) / range) * 100 : 0;
+                                                            return (
+                                                                <div key={snap.snapshot_date} className="flex items-center gap-1 sm:gap-2">
+                                                                    <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(snap.snapshot_date)}</span>
+                                                                    <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-gradient-to-r from-[#9f7aea] to-[#9f7aea]/50 rounded"
+                                                                            style={{ width: `${Math.max(pct, 10)}%` }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{ratio.toFixed(1)}</span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
+                                    // Alliance mode - show alliance totals
                                     // Compute running maximums for KP and Honor (they can only increase)
                                     let runningMaxKp = 0;
                                     let runningMaxHonor = 0;
