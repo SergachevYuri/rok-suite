@@ -90,7 +90,7 @@ const COLUMN_CONFIG: ColumnConfig[] = [
     { id: 'kp', label: 'Kill Points', tooltip: COLUMN_TOOLTIPS.kp, defaultVisible: true, category: 'core' },
     { id: 'ratio', label: 'Power:KP', tooltip: COLUMN_TOOLTIPS.ratio, defaultVisible: true, category: 'core' },
     { id: 'rank', label: 'Rank', tooltip: COLUMN_TOOLTIPS.rank, defaultVisible: true, category: 'core' },
-    { id: 'alliance', label: 'Alliance', tooltip: COLUMN_TOOLTIPS.alliance, defaultVisible: true, category: 'core' },
+    { id: 'alliance', label: 'Alliance', tooltip: COLUMN_TOOLTIPS.alliance, defaultVisible: false, category: 'core' },
     // Combat columns
     { id: 't4t5', label: 'T4/T5 KP', tooltip: COLUMN_TOOLTIPS.t4t5, defaultVisible: true, category: 'combat' },
     { id: 't1t2t3', label: 'T1/T2/T3 KP', tooltip: COLUMN_TOOLTIPS.t1t2t3, defaultVisible: false, category: 'combat' },
@@ -339,7 +339,18 @@ export default function RosterPage() {
             const saved = localStorage.getItem('roster-visible-columns');
             if (saved) {
                 try {
-                    return JSON.parse(saved);
+                    const parsed = JSON.parse(saved) as ColumnId[];
+                    // Migration: add ratio column for existing users who don't have it
+                    // Insert it after 'kp' if they have kp visible
+                    if (!parsed.includes('ratio')) {
+                        const kpIndex = parsed.indexOf('kp');
+                        if (kpIndex !== -1) {
+                            parsed.splice(kpIndex + 1, 0, 'ratio');
+                        } else {
+                            parsed.push('ratio');
+                        }
+                    }
+                    return parsed;
                 } catch {
                     return DEFAULT_VISIBLE_COLUMNS;
                 }
