@@ -3354,7 +3354,16 @@ export default function RosterPage() {
                                                                 <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
                                                                     <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
                                                                     <td className="px-2 py-2 font-medium">
-                                                                        {member.name}
+                                                                        <span
+                                                                            className="cursor-pointer hover:text-[#4318ff] hover:underline"
+                                                                            onClick={() => {
+                                                                                setSelectedPlayer(member.name);
+                                                                                setChartMode('individual');
+                                                                                setShowCharts(true);
+                                                                            }}
+                                                                        >
+                                                                            {member.name}
+                                                                        </span>
                                                                         {rosterMember?.tags?.includes('angmar-og') && (
                                                                             <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
                                                                         )}
@@ -3600,7 +3609,16 @@ export default function RosterPage() {
                                                                 <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
                                                                     <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
                                                                     <td className="px-2 py-2 font-medium">
-                                                                        {member.name}
+                                                                        <span
+                                                                            className="cursor-pointer hover:text-[#4318ff] hover:underline"
+                                                                            onClick={() => {
+                                                                                setSelectedPlayer(member.name);
+                                                                                setChartMode('individual');
+                                                                                setShowCharts(true);
+                                                                            }}
+                                                                        >
+                                                                            {member.name}
+                                                                        </span>
                                                                         {rosterMember?.tags?.includes('angmar-og') && (
                                                                             <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
                                                                         )}
