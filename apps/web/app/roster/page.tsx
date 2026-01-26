@@ -2988,7 +2988,7 @@ export default function RosterPage() {
                                 })()}
 
                                 {/* Alliance Stats Overview - 2x2 Grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
                                     {/* Total Power Over Time */}
                                     <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
                                         <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
@@ -3061,6 +3061,36 @@ export default function RosterPage() {
                                                             />
                                                         </div>
                                                         <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{formatPower(day.honor)}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Power:KP Ratio Over Time */}
+                                    <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                        <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                            <BarChart3 className="w-3 sm:w-4 h-3 sm:h-4 text-[#9f7aea]" />
+                                            <span className="hidden sm:inline">Power:KP</span> Ratio
+                                        </h3>
+                                        <div className="space-y-1 sm:space-y-1.5">
+                                            {filteredDailyTotals.slice(-5).map((day) => {
+                                                const ratio = day.kills > 0 ? day.power / day.kills : 0;
+                                                const ratios = filteredDailyTotals.map(d => d.kills > 0 ? d.power / d.kills : 0);
+                                                const minRatio = Math.min(...ratios.filter(r => r > 0));
+                                                const maxRatio = Math.max(...ratios);
+                                                const range = maxRatio - minRatio || 1;
+                                                const pct = ratio > 0 ? ((ratio - minRatio) / range) * 100 : 0;
+                                                return (
+                                                    <div key={day.date} className="flex items-center gap-1 sm:gap-2">
+                                                        <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.date)}</span>
+                                                        <div className="flex-1 h-3 sm:h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-gradient-to-r from-[#9f7aea] to-[#9f7aea]/50 rounded"
+                                                                style={{ width: `${Math.max(pct, 10)}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[10px] sm:text-xs font-medium w-10 sm:w-14 text-right">{ratio.toFixed(1)}</span>
                                                     </div>
                                                 );
                                             })}
