@@ -302,6 +302,13 @@ export default function KpPushEventPage() {
     return ratio.toFixed(1);
   };
 
+  // Format growth value with proper sign prefix
+  const formatGrowth = (value: number): string => {
+    if (value > 0) return '+' + formatPower(value);
+    if (value < 0) return formatPower(value); // formatPower handles negative sign
+    return '0';
+  };
+
   // Format a computed ratio for alliance summary (gains ratio)
   const formatGainsRatio = (ratio: number | null): string => {
     if (ratio === null) return '-';
@@ -512,10 +519,10 @@ export default function KpPushEventPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right text-red-400 font-medium">
-                          +{formatPower(member.kpGain)}
+                          {formatGrowth(member.kpGain)}
                         </td>
                         <td className="px-4 py-3 text-right text-blue-400">
-                          +{formatPower(member.powerGain)}
+                          {formatGrowth(member.powerGain)}
                         </td>
                         <td className="px-4 py-3 text-right">
                           {formatPowerKpRatio(member.startPower, member.startKp)}
@@ -754,10 +761,10 @@ export default function KpPushEventPage() {
                           </span>
                         </td>
                         <td className={`px-4 py-3 text-right ${member.kpGain > 0 ? 'text-red-400' : theme.textMuted}`}>
-                          {member.kpGain > 0 ? '+' : ''}{formatPower(member.kpGain)}
+                          {formatGrowth(member.kpGain)}
                         </td>
                         <td className={`px-4 py-3 text-right ${member.powerGain > 0 ? 'text-blue-400' : theme.textMuted}`}>
-                          {member.powerGain > 0 ? '+' : ''}{formatPower(member.powerGain)}
+                          {formatGrowth(member.powerGain)}
                         </td>
                         <td className="px-4 py-3 text-right">
                           {formatPowerKpRatio(member.startPower, member.startKp)}
@@ -811,10 +818,10 @@ export default function KpPushEventPage() {
                           )}
                         </td>
                         <td className={`px-4 py-3 text-right ${theme.textMuted}`}>
-                          {member.kpGain === 0 ? '0' : formatPower(member.kpGain)}
+                          {formatGrowth(member.kpGain)}
                         </td>
                         <td className={`px-4 py-3 text-right ${member.powerGain > 0 ? 'text-blue-400' : theme.textMuted}`}>
-                          {member.powerGain > 0 ? '+' : ''}{formatPower(member.powerGain)}
+                          {formatGrowth(member.powerGain)}
                         </td>
                       </tr>
                     ))}
