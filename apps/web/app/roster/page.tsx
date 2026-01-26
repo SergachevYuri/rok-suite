@@ -2531,146 +2531,130 @@ export default function RosterPage() {
                                                     ) : memberSnapshots.length === 0 ? (
                                                         <div className={`text-sm ${theme.textMuted}`}>No snapshot history found</div>
                                                     ) : (
-                                                        <div>
-                                                            {/* Growth Sparkline Charts */}
+                                                        <div className="flex flex-col md:flex-row gap-4">
+                                                            {/* Snapshot History Table */}
+                                                            <div className="flex-1 overflow-x-auto">
+                                                                <table className="text-xs sm:text-sm">
+                                                                    <thead>
+                                                                        <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
+                                                                            <th className="text-left px-2 py-1">Date</th>
+                                                                            <th className="text-right px-2 py-1">Power</th>
+                                                                            <th className="text-right px-2 py-1">KP</th>
+                                                                            <th className="text-right px-2 py-1">T4</th>
+                                                                            <th className="text-right px-2 py-1">T5</th>
+                                                                            <th className="text-right px-2 py-1">Honor</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        {memberSnapshots.map((snap, snapIdx) => {
+                                                                            const prevSnap = snapIdx > 0 ? memberSnapshots[snapIdx - 1] : null;
+                                                                            const isCarryover = (current: number | undefined, prev: number | undefined) =>
+                                                                                prevSnap && current === prev;
+
+                                                                            const carryoverClass = "opacity-40 italic";
+                                                                            const powerCarry = isCarryover(snap.power, prevSnap?.power);
+                                                                            const killsCarry = isCarryover(snap.kills, prevSnap?.kills);
+                                                                            const t4Carry = isCarryover(snap.t4_kills, prevSnap?.t4_kills);
+                                                                            const t5Carry = isCarryover(snap.t5_kills, prevSnap?.t5_kills);
+                                                                            const honorCarry = isCarryover(snap.honor_points, prevSnap?.honor_points);
+
+                                                                            return (
+                                                                                <tr key={snap.id || snapIdx} className="border-b border-[var(--border)]/30">
+                                                                                    <td className="px-2 py-1 text-[#9f7aea]">
+                                                                                        {formatDate(snap.snapshot_date)}
+                                                                                    </td>
+                                                                                    <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
+                                                                                        {formatPower(snap.power)}
+                                                                                    </td>
+                                                                                    <td className={`px-2 py-1 text-right text-[#f56565] ${killsCarry ? carryoverClass : ''}`}>
+                                                                                        {formatPower(snap.kills)}
+                                                                                    </td>
+                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
+                                                                                        {formatPower(snap.t4_kills)}
+                                                                                    </td>
+                                                                                    <td className={`px-2 py-1 text-right text-[#f97316] ${t5Carry ? carryoverClass : ''}`}>
+                                                                                        {formatPower(snap.t5_kills)}
+                                                                                    </td>
+                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${honorCarry ? carryoverClass : ''}`}>
+                                                                                        {snap.honor_points?.toLocaleString() || '-'}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                    </tbody>
+                                                                </table>
+                                                                <div className={`text-[10px] ${theme.textMuted} mt-2 italic`}>
+                                                                    Dimmed values are unchanged from previous snapshot
+                                                                </div>
+                                                            </div>
+                                                            {/* Growth Sparkline Charts - 2x2 grid to the right */}
                                                             {memberSnapshots.length >= 2 && (
-                                                                <div className="mb-4">
+                                                                <div className="md:w-64 shrink-0">
                                                                     <div className={`text-xs ${theme.textMuted} mb-2`}>Growth Trends</div>
-                                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                                    <div className="grid grid-cols-2 gap-2">
                                                                         {/* Power Sparkline */}
                                                                         <div className="text-center bg-[var(--background)]/50 rounded p-2">
-                                                                            <div style={{ height: 50 }}>
+                                                                            <div style={{ height: 45 }}>
                                                                                 <ResponsiveContainer width="100%" height="100%">
-                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.power, date: s.snapshot_date }))} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.power }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
                                                                                         <Line type="monotone" dataKey="v" stroke="#01b574" strokeWidth={2} dot={false} />
                                                                                     </LineChart>
                                                                                 </ResponsiveContainer>
                                                                             </div>
-                                                                            <div className={`text-[10px] ${theme.textMuted} mt-1`}>Power</div>
-                                                                            <div className="text-xs text-[#01b574] font-medium">
-                                                                                {memberSnapshots.length >= 2 && (
-                                                                                    <>
-                                                                                        {memberSnapshots[memberSnapshots.length - 1].power > memberSnapshots[0].power ? '+' : ''}
-                                                                                        {formatPower(memberSnapshots[memberSnapshots.length - 1].power - memberSnapshots[0].power)}
-                                                                                    </>
-                                                                                )}
+                                                                            <div className={`text-[9px] ${theme.textMuted}`}>Power</div>
+                                                                            <div className="text-[10px] text-[#01b574] font-medium">
+                                                                                {memberSnapshots[memberSnapshots.length - 1].power > memberSnapshots[0].power ? '+' : ''}
+                                                                                {formatPower(memberSnapshots[memberSnapshots.length - 1].power - memberSnapshots[0].power)}
                                                                             </div>
                                                                         </div>
                                                                         {/* KP Sparkline */}
                                                                         <div className="text-center bg-[var(--background)]/50 rounded p-2">
-                                                                            <div style={{ height: 50 }}>
+                                                                            <div style={{ height: 45 }}>
                                                                                 <ResponsiveContainer width="100%" height="100%">
-                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.kills || 0, date: s.snapshot_date }))} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
                                                                                         <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={2} dot={false} />
                                                                                     </LineChart>
                                                                                 </ResponsiveContainer>
                                                                             </div>
-                                                                            <div className={`text-[10px] ${theme.textMuted} mt-1`}>KP</div>
-                                                                            <div className="text-xs text-[#f56565] font-medium">
-                                                                                {memberSnapshots.length >= 2 && (
-                                                                                    <>
-                                                                                        {(memberSnapshots[memberSnapshots.length - 1].kills || 0) > (memberSnapshots[0].kills || 0) ? '+' : ''}
-                                                                                        {formatPower((memberSnapshots[memberSnapshots.length - 1].kills || 0) - (memberSnapshots[0].kills || 0))}
-                                                                                    </>
-                                                                                )}
+                                                                            <div className={`text-[9px] ${theme.textMuted}`}>KP</div>
+                                                                            <div className="text-[10px] text-[#f56565] font-medium">
+                                                                                {(memberSnapshots[memberSnapshots.length - 1].kills || 0) > (memberSnapshots[0].kills || 0) ? '+' : ''}
+                                                                                {formatPower((memberSnapshots[memberSnapshots.length - 1].kills || 0) - (memberSnapshots[0].kills || 0))}
                                                                             </div>
                                                                         </div>
                                                                         {/* T4 Sparkline */}
                                                                         <div className="text-center bg-[var(--background)]/50 rounded p-2">
-                                                                            <div style={{ height: 50 }}>
+                                                                            <div style={{ height: 45 }}>
                                                                                 <ResponsiveContainer width="100%" height="100%">
-                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.t4_kills || 0, date: s.snapshot_date }))} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.t4_kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
                                                                                         <Line type="monotone" dataKey="v" stroke="#fbbf24" strokeWidth={2} dot={false} />
                                                                                     </LineChart>
                                                                                 </ResponsiveContainer>
                                                                             </div>
-                                                                            <div className={`text-[10px] ${theme.textMuted} mt-1`}>T4 KP</div>
-                                                                            <div className="text-xs text-[#fbbf24] font-medium">
-                                                                                {memberSnapshots.length >= 2 && (
-                                                                                    <>
-                                                                                        {(memberSnapshots[memberSnapshots.length - 1].t4_kills || 0) > (memberSnapshots[0].t4_kills || 0) ? '+' : ''}
-                                                                                        {formatPower((memberSnapshots[memberSnapshots.length - 1].t4_kills || 0) - (memberSnapshots[0].t4_kills || 0))}
-                                                                                    </>
-                                                                                )}
+                                                                            <div className={`text-[9px] ${theme.textMuted}`}>T4 KP</div>
+                                                                            <div className="text-[10px] text-[#fbbf24] font-medium">
+                                                                                {(memberSnapshots[memberSnapshots.length - 1].t4_kills || 0) > (memberSnapshots[0].t4_kills || 0) ? '+' : ''}
+                                                                                {formatPower((memberSnapshots[memberSnapshots.length - 1].t4_kills || 0) - (memberSnapshots[0].t4_kills || 0))}
                                                                             </div>
                                                                         </div>
                                                                         {/* T5 Sparkline */}
                                                                         <div className="text-center bg-[var(--background)]/50 rounded p-2">
-                                                                            <div style={{ height: 50 }}>
+                                                                            <div style={{ height: 45 }}>
                                                                                 <ResponsiveContainer width="100%" height="100%">
-                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.t5_kills || 0, date: s.snapshot_date }))} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.t5_kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
                                                                                         <Line type="monotone" dataKey="v" stroke="#f97316" strokeWidth={2} dot={false} />
                                                                                     </LineChart>
                                                                                 </ResponsiveContainer>
                                                                             </div>
-                                                                            <div className={`text-[10px] ${theme.textMuted} mt-1`}>T5 KP</div>
-                                                                            <div className="text-xs text-[#f97316] font-medium">
-                                                                                {memberSnapshots.length >= 2 && (
-                                                                                    <>
-                                                                                        {(memberSnapshots[memberSnapshots.length - 1].t5_kills || 0) > (memberSnapshots[0].t5_kills || 0) ? '+' : ''}
-                                                                                        {formatPower((memberSnapshots[memberSnapshots.length - 1].t5_kills || 0) - (memberSnapshots[0].t5_kills || 0))}
-                                                                                    </>
-                                                                                )}
+                                                                            <div className={`text-[9px] ${theme.textMuted}`}>T5 KP</div>
+                                                                            <div className="text-[10px] text-[#f97316] font-medium">
+                                                                                {(memberSnapshots[memberSnapshots.length - 1].t5_kills || 0) > (memberSnapshots[0].t5_kills || 0) ? '+' : ''}
+                                                                                {formatPower((memberSnapshots[memberSnapshots.length - 1].t5_kills || 0) - (memberSnapshots[0].t5_kills || 0))}
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             )}
-                                                            <div className="overflow-x-auto">
-                                                            <table className="text-xs sm:text-sm">
-                                                                <thead>
-                                                                    <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
-                                                                        <th className="text-left px-2 py-1">Date</th>
-                                                                        <th className="text-right px-2 py-1">Power</th>
-                                                                        <th className="text-right px-2 py-1">KP</th>
-                                                                        <th className="text-right px-2 py-1">T4</th>
-                                                                        <th className="text-right px-2 py-1">T5</th>
-                                                                        <th className="text-right px-2 py-1">Honor</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {memberSnapshots.map((snap, snapIdx) => {
-                                                                        // Compare with previous snapshot to detect carryovers
-                                                                        const prevSnap = snapIdx > 0 ? memberSnapshots[snapIdx - 1] : null;
-                                                                        const isCarryover = (current: number | undefined, prev: number | undefined) =>
-                                                                            prevSnap && current === prev;
-
-                                                                        const carryoverClass = "opacity-40 italic";
-                                                                        const powerCarry = isCarryover(snap.power, prevSnap?.power);
-                                                                        const killsCarry = isCarryover(snap.kills, prevSnap?.kills);
-                                                                        const t4Carry = isCarryover(snap.t4_kills, prevSnap?.t4_kills);
-                                                                        const t5Carry = isCarryover(snap.t5_kills, prevSnap?.t5_kills);
-                                                                        const honorCarry = isCarryover(snap.honor_points, prevSnap?.honor_points);
-
-                                                                        return (
-                                                                            <tr key={snap.id || snapIdx} className="border-b border-[var(--border)]/30">
-                                                                                <td className="px-2 py-1 text-[#9f7aea]">
-                                                                                    {formatDate(snap.snapshot_date)}
-                                                                                </td>
-                                                                                <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
-                                                                                    {formatPower(snap.power)}
-                                                                                </td>
-                                                                                <td className={`px-2 py-1 text-right text-[#f56565] ${killsCarry ? carryoverClass : ''}`}>
-                                                                                    {formatPower(snap.kills)}
-                                                                                </td>
-                                                                                <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
-                                                                                    {formatPower(snap.t4_kills)}
-                                                                                </td>
-                                                                                <td className={`px-2 py-1 text-right text-[#f97316] ${t5Carry ? carryoverClass : ''}`}>
-                                                                                    {formatPower(snap.t5_kills)}
-                                                                                </td>
-                                                                                <td className={`px-2 py-1 text-right text-[#fbbf24] ${honorCarry ? carryoverClass : ''}`}>
-                                                                                    {snap.honor_points?.toLocaleString() || '-'}
-                                                                                </td>
-                                                                            </tr>
-                                                                        );
-                                                                    })}
-                                                                </tbody>
-                                                            </table>
-                                                            <div className={`text-[10px] ${theme.textMuted} mt-2 italic`}>
-                                                                Dimmed values are unchanged from previous snapshot
-                                                            </div>
-                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
