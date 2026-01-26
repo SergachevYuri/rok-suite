@@ -283,7 +283,7 @@ export default function RosterPage() {
 
     // Growth tab charts toggle
     const [showCharts, setShowCharts] = useState(false);
-    const [chartMetric, setChartMetric] = useState<'all' | 'kp' | 'power' | 'honor' | 'members'>('all');
+    const [chartMetric, setChartMetric] = useState<'all' | 'kp' | 'power' | 'honor' | 'ratio'>('all');
     const [chartMode, setChartMode] = useState<'alliance' | 'individual'>('alliance');
     const [selectedPlayer, setSelectedPlayer] = useState<string>('');
     const [playerHistory, setPlayerHistory] = useState<RosterSnapshot[]>([]);
@@ -1212,10 +1212,12 @@ export default function RosterPage() {
             honorRank: number;
             kpGrowthRank: number | null;
             kpGrowthValue: number | null;
+            kpGrowthPercent: number | null;
             t4GrowthValue: number | null;
             t5GrowthValue: number | null;
             powerGrowthRank: number | null;
             powerGrowthValue: number | null;
+            powerGrowthPercent: number | null;
         }>();
 
         // Sort by each metric to get rankings
@@ -1227,11 +1229,11 @@ export default function RosterPage() {
 
         // Sort KP growth data
         const sortedKpGrowth = [...kpGrowthData].sort((a, b) => b.allTimeKpGrowth - a.allTimeKpGrowth);
-        const kpGrowthMap = new Map(sortedKpGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.allTimeKpGrowth, t4Growth: g.allTimeT4Growth, t5Growth: g.allTimeT5Growth }]));
+        const kpGrowthMap = new Map(sortedKpGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.allTimeKpGrowth, growthPercent: g.allTimeKpGrowthPercent, t4Growth: g.allTimeT4Growth, t5Growth: g.allTimeT5Growth }]));
 
         // Sort Power growth data
         const sortedPowerGrowth = [...powerGrowthData].sort((a, b) => b.allTimeGrowth - a.allTimeGrowth);
-        const powerGrowthMap = new Map(sortedPowerGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.allTimeGrowth }]));
+        const powerGrowthMap = new Map(sortedPowerGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.allTimeGrowth, growthPercent: g.allTimeGrowthPercent }]));
 
         roster.forEach(member => {
             const kpGrowthInfo = kpGrowthMap.get(member.name);
@@ -1244,10 +1246,12 @@ export default function RosterPage() {
                 honorRank: byHonor.findIndex(m => m.name === member.name) + 1,
                 kpGrowthRank: kpGrowthInfo?.rank ?? null,
                 kpGrowthValue: kpGrowthInfo?.growth ?? null,
+                kpGrowthPercent: kpGrowthInfo?.growthPercent ?? null,
                 t4GrowthValue: kpGrowthInfo?.t4Growth ?? null,
                 t5GrowthValue: kpGrowthInfo?.t5Growth ?? null,
                 powerGrowthRank: powerGrowthInfo?.rank ?? null,
                 powerGrowthValue: powerGrowthInfo?.growth ?? null,
+                powerGrowthPercent: powerGrowthInfo?.growthPercent ?? null,
             });
         });
 
@@ -2685,11 +2689,11 @@ export default function RosterPage() {
                                                     { key: 'kp', label: 'KP', color: '#f56565' },
                                                     { key: 'power', label: 'Power', color: '#01b574' },
                                                     { key: 'honor', label: 'Honor', color: '#fbbf24' },
-                                                    { key: 'members', label: 'Members', color: '#9f7aea' },
+                                                    { key: 'ratio', label: 'P:KP Ratio', color: '#9f7aea' },
                                                 ].map(metric => (
                                                     <button
                                                         key={metric.key}
-                                                        onClick={() => setChartMetric(metric.key as 'all' | 'kp' | 'power' | 'honor' | 'members')}
+                                                        onClick={() => setChartMetric(metric.key as 'all' | 'kp' | 'power' | 'honor' | 'ratio')}
                                                         className={`px-2 py-1 text-xs font-medium rounded transition-all ${
                                                             chartMetric === metric.key
                                                                 ? 'text-white'
@@ -2767,10 +2771,6 @@ export default function RosterPage() {
                                             .sort((a, b) => a[0].localeCompare(b[0]))
                                             .map(([, totals]) => totals);
                                     }
-
-                                    const memberLabel = tagFilter
-                                        ? (tagFilter === 'angmar-og' ? 'Core Members' : tagFilter === 'inactive' ? 'Inactive' : tagFilter === 'quit' ? 'Quit' : 'Members')
-                                        : 'All Members';
 
                                     return (
                                         <>
@@ -2912,14 +2912,14 @@ export default function RosterPage() {
                                         kp: day.kills,
                                         power: day.power,
                                         honor: day.honor,
-                                        members: day.count,
+                                        ratio: day.kills > 0 ? Math.round(day.power / day.kills * 10) / 10 : 0,
                                     }));
 
                                     const metrics = [
-                                        { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false },
-                                        { key: 'power', label: 'Power', color: '#01b574', isCount: false },
-                                        { key: 'honor', label: 'Honor', color: '#fbbf24', isCount: false },
-                                        { key: 'members', label: memberLabel, color: '#9f7aea', isCount: true },
+                                        { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false, isRatio: false },
+                                        { key: 'power', label: 'Power', color: '#01b574', isCount: false, isRatio: false },
+                                        { key: 'honor', label: 'Honor', color: '#fbbf24', isCount: false, isRatio: false },
+                                        { key: 'ratio', label: 'Power:KP Ratio', color: '#9f7aea', isCount: false, isRatio: true },
                                     ];
 
                                     const renderChart = (metric: typeof metrics[0], height: number = 300) => (
@@ -2942,7 +2942,7 @@ export default function RosterPage() {
                                                             tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                                                             axisLine={{ stroke: 'var(--border)' }}
                                                             tickLine={{ stroke: 'var(--border)' }}
-                                                            tickFormatter={(value) => metric.isCount ? String(value) : formatPower(value)}
+                                                            tickFormatter={(value) => metric.isRatio ? value.toFixed(1) : (metric.isCount ? String(value) : formatPower(value))}
                                                             width={50}
                                                         />
                                                         <Tooltip
@@ -2954,6 +2954,7 @@ export default function RosterPage() {
                                                             }}
                                                             formatter={(value) => {
                                                                 const numVal = typeof value === 'number' ? value : 0;
+                                                                if (metric.isRatio) return [numVal.toFixed(1), metric.label];
                                                                 return [metric.isCount ? String(numVal) : formatPower(numVal), metric.label];
                                                             }}
                                                             labelStyle={{ color: 'var(--foreground)' }}
@@ -3134,21 +3135,45 @@ export default function RosterPage() {
                                                                 </button>
                                                             </th>
                                                             <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <div className="flex items-center gap-1 ml-auto">
+                                                                <div className="flex flex-col items-end gap-1">
                                                                     <button onClick={() => handleKpSort('compareKpGrowth')} className="flex items-center gap-1 hover:text-white">
                                                                         Growth <KpSortIcon field="compareKpGrowth" />
                                                                     </button>
-                                                                    <select
-                                                                        value={growthCompareDate || ''}
-                                                                        onChange={(e) => setGrowthCompareDate(e.target.value || null)}
-                                                                        className={`text-[10px] ${theme.card} border rounded px-1 py-0.5 ml-1 font-normal normal-case`}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        <option value="">Past week</option>
-                                                                        {availableSnapshotDates.slice(1).map(date => (
-                                                                            <option key={date} value={date}>{formatDate(date)}</option>
-                                                                        ))}
-                                                                    </select>
+                                                                    <div className="flex items-center gap-1 font-normal normal-case">
+                                                                        {[
+                                                                            { label: '1W', days: 7 },
+                                                                            { label: '2W', days: 14 },
+                                                                            { label: '1M', days: 30 },
+                                                                            { label: 'All', days: null },
+                                                                        ].map(preset => {
+                                                                            const targetDate = preset.days
+                                                                                ? availableSnapshotDates.find(d => {
+                                                                                    const diff = Math.abs(new Date(availableSnapshotDates[0]).getTime() - new Date(d).getTime());
+                                                                                    return diff >= preset.days * 24 * 60 * 60 * 1000;
+                                                                                })
+                                                                                : availableSnapshotDates[availableSnapshotDates.length - 1];
+                                                                            const isActive = preset.days === null
+                                                                                ? growthCompareDate === availableSnapshotDates[availableSnapshotDates.length - 1]
+                                                                                : (preset.days === 7 ? !growthCompareDate : growthCompareDate === targetDate);
+                                                                            return (
+                                                                                <button
+                                                                                    key={preset.label}
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        if (preset.days === 7) setGrowthCompareDate(null);
+                                                                                        else setGrowthCompareDate(targetDate || null);
+                                                                                    }}
+                                                                                    className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+                                                                                        isActive
+                                                                                            ? 'bg-[#4318ff] text-white'
+                                                                                            : 'bg-[var(--background-secondary)] hover:bg-[var(--background-hover)]'
+                                                                                    }`}
+                                                                                >
+                                                                                    {preset.label}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
                                                                 </div>
                                                             </th>
                                                         </tr>
@@ -3188,9 +3213,14 @@ export default function RosterPage() {
                                                                                     );
                                                                                 })()}
                                                                             </div>
-                                                                            <span className={`text-right font-medium min-w-[50px] ${member.allTimeKpGrowth >= 0 ? 'text-[#f56565]' : 'text-gray-400'}`}>
-                                                                                {member.allTimeKpGrowth >= 0 ? '+' : ''}{formatPower(member.allTimeKpGrowth)}
-                                                                            </span>
+                                                                            <div className="text-right min-w-[70px]">
+                                                                                <span className={`font-medium ${member.allTimeKpGrowth >= 0 ? 'text-[#f56565]' : 'text-gray-400'}`}>
+                                                                                    {member.allTimeKpGrowth >= 0 ? '+' : ''}{formatPower(member.allTimeKpGrowth)}
+                                                                                </span>
+                                                                                <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                    ({member.allTimeKpGrowthPercent.toFixed(1)}%)
+                                                                                </span>
+                                                                            </div>
                                                                         </div>
                                                                     </td>
                                                                     <td className="px-2 py-2">
@@ -3208,9 +3238,16 @@ export default function RosterPage() {
                                                                                         );
                                                                                     })()}
                                                                                 </div>
-                                                                                <span className={`text-right font-medium min-w-[50px] ${member.compareKpGrowth! >= 0 ? 'text-[#01b574]' : 'text-gray-400'}`}>
-                                                                                    {member.compareKpGrowth! >= 0 ? '+' : ''}{formatPower(member.compareKpGrowth!)}
-                                                                                </span>
+                                                                                <div className="text-right min-w-[70px]">
+                                                                                    <span className={`font-medium ${member.compareKpGrowth! >= 0 ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                                                        {member.compareKpGrowth! >= 0 ? '+' : ''}{formatPower(member.compareKpGrowth!)}
+                                                                                    </span>
+                                                                                    {member.compareKpGrowthPercent !== null && (
+                                                                                        <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                            ({member.compareKpGrowthPercent.toFixed(1)}%)
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
                                                                         ) : <span className={theme.textMuted}>—</span>}
                                                                     </td>
@@ -3354,21 +3391,45 @@ export default function RosterPage() {
                                                                 </button>
                                                             </th>
                                                             <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
-                                                                <div className="flex items-center gap-1 ml-auto">
+                                                                <div className="flex flex-col items-end gap-1">
                                                                     <button onClick={() => handleHonorSort('compareGrowth')} className="flex items-center gap-1 hover:text-white">
                                                                         Growth <HonorSortIcon field="compareGrowth" />
                                                                     </button>
-                                                                    <select
-                                                                        value={growthCompareDate || ''}
-                                                                        onChange={(e) => setGrowthCompareDate(e.target.value || null)}
-                                                                        className={`text-[10px] ${theme.card} border rounded px-1 py-0.5 ml-1 font-normal normal-case`}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        <option value="">Past week</option>
-                                                                        {availableSnapshotDates.slice(1).map(date => (
-                                                                            <option key={date} value={date}>{formatDate(date)}</option>
-                                                                        ))}
-                                                                    </select>
+                                                                    <div className="flex items-center gap-1 font-normal normal-case">
+                                                                        {[
+                                                                            { label: '1W', days: 7 },
+                                                                            { label: '2W', days: 14 },
+                                                                            { label: '1M', days: 30 },
+                                                                            { label: 'All', days: null },
+                                                                        ].map(preset => {
+                                                                            const targetDate = preset.days
+                                                                                ? availableSnapshotDates.find(d => {
+                                                                                    const diff = Math.abs(new Date(availableSnapshotDates[0]).getTime() - new Date(d).getTime());
+                                                                                    return diff >= preset.days * 24 * 60 * 60 * 1000;
+                                                                                })
+                                                                                : availableSnapshotDates[availableSnapshotDates.length - 1];
+                                                                            const isActive = preset.days === null
+                                                                                ? growthCompareDate === availableSnapshotDates[availableSnapshotDates.length - 1]
+                                                                                : (preset.days === 7 ? !growthCompareDate : growthCompareDate === targetDate);
+                                                                            return (
+                                                                                <button
+                                                                                    key={preset.label}
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        if (preset.days === 7) setGrowthCompareDate(null);
+                                                                                        else setGrowthCompareDate(targetDate || null);
+                                                                                    }}
+                                                                                    className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
+                                                                                        isActive
+                                                                                            ? 'bg-[#4318ff] text-white'
+                                                                                            : 'bg-[var(--background-secondary)] hover:bg-[var(--background-hover)]'
+                                                                                    }`}
+                                                                                >
+                                                                                    {preset.label}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
                                                                 </div>
                                                             </th>
                                                         </tr>
@@ -3406,9 +3467,14 @@ export default function RosterPage() {
                                                                                             style={{ width: `${pct}%` }}
                                                                                         />
                                                                                     </div>
-                                                                                    <span className={`text-right font-medium min-w-[60px] ${isPositive ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
-                                                                                        {member.allTimeGrowth >= 0 ? '+' : ''}{member.allTimeGrowth.toLocaleString()}
-                                                                                    </span>
+                                                                                    <div className="text-right min-w-[80px]">
+                                                                                        <span className={`font-medium ${isPositive ? 'text-[#fbbf24]' : 'text-gray-400'}`}>
+                                                                                            {member.allTimeGrowth >= 0 ? '+' : ''}{member.allTimeGrowth.toLocaleString()}
+                                                                                        </span>
+                                                                                        <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                            ({member.allTimeGrowthPercent.toFixed(1)}%)
+                                                                                        </span>
+                                                                                    </div>
                                                                                 </div>
                                                                             );
                                                                         })()}
@@ -3425,9 +3491,16 @@ export default function RosterPage() {
                                                                                             style={{ width: `${pct}%` }}
                                                                                         />
                                                                                     </div>
-                                                                                    <span className={`text-right font-medium min-w-[60px] ${isPositive ? 'text-[#01b574]' : 'text-gray-400'}`}>
-                                                                                        {member.compareGrowth! >= 0 ? '+' : ''}{member.compareGrowth!.toLocaleString()}
-                                                                                    </span>
+                                                                                    <div className="text-right min-w-[80px]">
+                                                                                        <span className={`font-medium ${isPositive ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                                                            {member.compareGrowth! >= 0 ? '+' : ''}{member.compareGrowth!.toLocaleString()}
+                                                                                        </span>
+                                                                                        {member.compareGrowthPercent !== null && (
+                                                                                            <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                                ({member.compareGrowthPercent.toFixed(1)}%)
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
                                                                             );
                                                                         })() : <span className={theme.textMuted}>—</span>}
@@ -4873,6 +4946,9 @@ export default function RosterPage() {
                                             <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
                                                 <div className={`text-sm font-medium ${rankings.powerGrowthValue > 0 ? 'text-[#01b574]' : 'text-gray-400'}`}>
                                                     {rankings.powerGrowthValue > 0 ? '+' : ''}{formatPower(rankings.powerGrowthValue)}
+                                                    {rankings.powerGrowthPercent !== null && (
+                                                        <span className={`text-[10px] ${theme.textMuted} ml-1`}>({rankings.powerGrowthPercent.toFixed(1)}%)</span>
+                                                    )}
                                                 </div>
                                                 <div className={`text-[10px] ${theme.textMuted}`}>Power #{rankings.powerGrowthRank}</div>
                                             </div>
@@ -4881,6 +4957,9 @@ export default function RosterPage() {
                                             <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2">
                                                 <div className={`text-sm font-medium ${rankings.kpGrowthValue > 0 ? 'text-green-400' : 'text-gray-400'}`}>
                                                     {rankings.kpGrowthValue > 0 ? '+' : ''}{formatPower(rankings.kpGrowthValue)}
+                                                    {rankings.kpGrowthPercent !== null && (
+                                                        <span className={`text-[10px] ${theme.textMuted} ml-1`}>({rankings.kpGrowthPercent.toFixed(1)}%)</span>
+                                                    )}
                                                 </div>
                                                 <div className={`text-[10px] ${theme.textMuted}`}>KP #{rankings.kpGrowthRank}</div>
                                             </div>
@@ -4902,6 +4981,48 @@ export default function RosterPage() {
                                             </div>
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {/* Sparkline Charts */}
+                            {memberHistory.length >= 2 && (
+                                <div className="border-t border-[var(--border)] pt-3 mt-3">
+                                    <div className={`text-xs ${theme.textMuted} mb-2`}>Trend</div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {/* Power Sparkline */}
+                                        <div className="text-center">
+                                            <div style={{ height: 40 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <LineChart data={memberHistory.map(s => ({ v: s.power }))} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                                                        <Line type="monotone" dataKey="v" stroke="#01b574" strokeWidth={1.5} dot={false} />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            <div className={`text-[9px] ${theme.textMuted}`}>Power</div>
+                                        </div>
+                                        {/* KP Sparkline */}
+                                        <div className="text-center">
+                                            <div style={{ height: 40 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <LineChart data={memberHistory.map(s => ({ v: s.kills || 0 }))} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                                                        <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={1.5} dot={false} />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            <div className={`text-[9px] ${theme.textMuted}`}>KP</div>
+                                        </div>
+                                        {/* Honor Sparkline */}
+                                        <div className="text-center">
+                                            <div style={{ height: 40 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <LineChart data={memberHistory.map(s => ({ v: s.honor_points || 0 }))} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+                                                        <Line type="monotone" dataKey="v" stroke="#fbbf24" strokeWidth={1.5} dot={false} />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            <div className={`text-[9px] ${theme.textMuted}`}>Honor</div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 

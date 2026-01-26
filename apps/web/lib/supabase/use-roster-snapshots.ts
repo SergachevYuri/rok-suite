@@ -362,10 +362,12 @@ export interface KpGrowth {
   currentKp: number;
   currentDate: string | null;
   allTimeKpGrowth: number;
+  allTimeKpGrowthPercent: number;
   // Comparison growth (between selected dates)
   compareKp: number | null;
   compareDate: string | null;
   compareKpGrowth: number | null;
+  compareKpGrowthPercent: number | null;
   // T4/T5 details for current
   currentT4: number;
   currentT5: number;
@@ -476,16 +478,21 @@ export async function getKpGrowth(
       const currentT5 = m.t5_kills || 0;
       const compare = compareMap.get(normName) ?? null;
 
+      const allTimeKpGrowth = currentKp - firstEntry.kills;
+      const compareKpGrowth = compare !== null ? currentKp - compare.kills : null;
+
       return {
         name: m.member_name,
         firstKp: firstEntry.kills,
         firstDate: firstEntry.date,
         currentKp,
         currentDate,
-        allTimeKpGrowth: currentKp - firstEntry.kills,
+        allTimeKpGrowth,
+        allTimeKpGrowthPercent: firstEntry.kills > 0 ? (allTimeKpGrowth / firstEntry.kills) * 100 : 0,
         compareKp: compare?.kills ?? null,
         compareDate: effectiveCompareDate,
-        compareKpGrowth: compare !== null ? currentKp - compare.kills : null,
+        compareKpGrowth,
+        compareKpGrowthPercent: compare !== null && compare.kills > 0 ? (compareKpGrowth! / compare.kills) * 100 : null,
         currentT4,
         currentT5,
         firstT4: firstEntry.t4,
@@ -510,10 +517,12 @@ export interface PowerGrowth {
   currentPower: number;
   currentDate: string | null;
   allTimeGrowth: number;
+  allTimeGrowthPercent: number;
   // Comparison growth (between selected dates)
   comparePower: number | null;
   compareDate: string | null;
   compareGrowth: number | null;
+  compareGrowthPercent: number | null;
 }
 
 /**
@@ -600,16 +609,21 @@ export async function getPowerGrowth(
       const currentPower = m.power || 0;
       const comparePower = compareMap.get(normName) ?? null;
 
+      const allTimeGrowth = currentPower - firstEntry.value;
+      const compareGrowth = comparePower !== null ? currentPower - comparePower : null;
+
       return {
         name: m.member_name,
         firstPower: firstEntry.value,
         firstDate: firstEntry.date,
         currentPower,
         currentDate,
-        allTimeGrowth: currentPower - firstEntry.value,
+        allTimeGrowth,
+        allTimeGrowthPercent: firstEntry.value > 0 ? (allTimeGrowth / firstEntry.value) * 100 : 0,
         comparePower,
         compareDate: effectiveCompareDate,
-        compareGrowth: comparePower !== null ? currentPower - comparePower : null,
+        compareGrowth,
+        compareGrowthPercent: comparePower !== null && comparePower > 0 ? (compareGrowth! / comparePower) * 100 : null,
       };
     });
 
@@ -624,10 +638,12 @@ export interface HonorGrowth {
   currentHonor: number;
   currentDate: string | null;
   allTimeGrowth: number;
+  allTimeGrowthPercent: number;
   // Comparison growth (between selected dates)
   compareHonor: number | null;
   compareDate: string | null;
   compareGrowth: number | null;
+  compareGrowthPercent: number | null;
 }
 
 /**
@@ -715,16 +731,21 @@ export async function getHonorGrowth(
       const currentHonor = m.honor_points || 0;
       const compareHonor = compareMap.get(normName) ?? null;
 
+      const allTimeGrowth = currentHonor - firstEntry.value;
+      const compareGrowth = compareHonor !== null ? currentHonor - compareHonor : null;
+
       return {
         name: m.member_name,
         firstHonor: firstEntry.value,
         firstDate: firstEntry.date,
         currentHonor,
         currentDate,
-        allTimeGrowth: currentHonor - firstEntry.value,
+        allTimeGrowth,
+        allTimeGrowthPercent: firstEntry.value > 0 ? (allTimeGrowth / firstEntry.value) * 100 : 0,
         compareHonor,
         compareDate: effectiveCompareDate,
-        compareGrowth: compareHonor !== null ? currentHonor - compareHonor : null,
+        compareGrowth,
+        compareGrowthPercent: compareHonor !== null && compareHonor > 0 ? (compareGrowth! / compareHonor) * 100 : null,
       };
     });
 
