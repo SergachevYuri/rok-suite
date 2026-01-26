@@ -289,6 +289,8 @@ export default function RosterPage() {
     const [chartEndDate, setChartEndDate] = useState<string | null>(null); // null = latest available
     const [selectedPlayer, setSelectedPlayer] = useState<string>('');
     const [playerHistory, setPlayerHistory] = useState<RosterSnapshot[]>([]);
+    const [playerSearchQuery, setPlayerSearchQuery] = useState<string>('');
+    const [playerDropdownOpen, setPlayerDropdownOpen] = useState(false);
 
     // Pagination state
     const [rowsPerPage, setRowsPerPage] = useState<number>(25);
@@ -2666,19 +2668,52 @@ export default function RosterPage() {
 
                                     {/* Player Selector - Only for individual mode */}
                                     {chartMode === 'individual' && (
-                                        <select
-                                            value={selectedPlayer}
-                                            onChange={(e) => setSelectedPlayer(e.target.value)}
-                                            className={`${theme.input} px-2 py-1 rounded text-xs max-w-[180px]`}
-                                        >
-                                            <option value="">Select player...</option>
-                                            {displayRoster
-                                                .sort((a, b) => a.name.localeCompare(b.name))
-                                                .map(m => (
-                                                    <option key={m.id} value={m.name}>{m.name}</option>
-                                                ))
-                                            }
-                                        </select>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={playerDropdownOpen ? playerSearchQuery : selectedPlayer}
+                                                onChange={(e) => {
+                                                    setPlayerSearchQuery(e.target.value);
+                                                    setPlayerDropdownOpen(true);
+                                                }}
+                                                onFocus={() => {
+                                                    setPlayerDropdownOpen(true);
+                                                    setPlayerSearchQuery('');
+                                                }}
+                                                onBlur={() => {
+                                                    // Delay to allow click on dropdown item
+                                                    setTimeout(() => setPlayerDropdownOpen(false), 150);
+                                                }}
+                                                placeholder="Search player..."
+                                                className={`${theme.input} px-2 py-1 rounded text-xs w-[180px]`}
+                                            />
+                                            {playerDropdownOpen && (
+                                                <div className={`absolute z-50 mt-1 w-[180px] max-h-[200px] overflow-y-auto ${theme.card} border rounded shadow-lg`}>
+                                                    {displayRoster
+                                                        .filter(m => m.name.toLowerCase().includes(playerSearchQuery.toLowerCase()))
+                                                        .sort((a, b) => a.name.localeCompare(b.name))
+                                                        .slice(0, 50)
+                                                        .map(m => (
+                                                            <div
+                                                                key={m.id}
+                                                                className={`px-2 py-1 text-xs cursor-pointer hover:bg-[var(--background-secondary)] ${selectedPlayer === m.name ? 'bg-[var(--background-secondary)]' : ''}`}
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    setSelectedPlayer(m.name);
+                                                                    setPlayerSearchQuery('');
+                                                                    setPlayerDropdownOpen(false);
+                                                                }}
+                                                            >
+                                                                {m.name}
+                                                            </div>
+                                                        ))
+                                                    }
+                                                    {displayRoster.filter(m => m.name.toLowerCase().includes(playerSearchQuery.toLowerCase())).length === 0 && (
+                                                        <div className={`px-2 py-1 text-xs ${theme.textMuted}`}>No players found</div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
 
                                     {/* Metric Toggles - Only for alliance mode */}
