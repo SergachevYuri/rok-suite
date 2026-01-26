@@ -12,12 +12,6 @@ const CALENDARS = [
         color: '#039BE5', // blue - shows as blue after invert
         displayColor: '#039BE5', // blue to match calendar
     },
-    {
-        id: '4fee3b72af12b7cd4b5741024cecfdb3e8c20e5851269ec50facf7f66cf6258e@group.calendar.google.com',
-        name: 'RoK Events',
-        color: '#7986CB', // indigo - shows as indigo/purple after invert
-        displayColor: '#7986CB', // indigo to match calendar
-    },
 ];
 
 const TIMEZONE_OPTIONS = [
