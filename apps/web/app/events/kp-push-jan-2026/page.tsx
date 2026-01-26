@@ -334,7 +334,7 @@ export default function KpPushEventPage() {
           <div className={`${theme.card} border rounded-lg p-4`}>
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp size={18} className="text-blue-400" />
-              <span className={`text-sm ${theme.textMuted}`}>Total Power Gained</span>
+              <span className={`text-sm ${theme.textMuted}`}>Total Power Change</span>
             </div>
             <p className="text-2xl font-bold text-blue-400">
               {formatPower(eventData?.totalPowerGain || 0)}
@@ -383,7 +383,7 @@ export default function KpPushEventPage() {
                   <th className="px-4 py-3 text-left font-medium">Rank</th>
                   <th className="px-4 py-3 text-left font-medium">Name</th>
                   <th className="px-4 py-3 text-right font-medium">KP Gained</th>
-                  <th className="px-4 py-3 text-right font-medium">Power Gained</th>
+                  <th className="px-4 py-3 text-right font-medium">Power Change</th>
                   <th className="px-4 py-3 text-right font-medium">Ratio</th>
                   <th className="px-4 py-3 text-center font-medium">Goal Met</th>
                 </tr>
@@ -643,7 +643,7 @@ export default function KpPushEventPage() {
                       <th className="px-4 py-3 text-left font-medium">Name</th>
                       <th className="px-4 py-3 text-left font-medium">Role</th>
                       <th className="px-4 py-3 text-right font-medium">KP Gained</th>
-                      <th className="px-4 py-3 text-right font-medium">Power Gained</th>
+                      <th className="px-4 py-3 text-right font-medium">Power Change</th>
                       <th className="px-4 py-3 text-right font-medium">Ratio</th>
                     </tr>
                   </thead>
