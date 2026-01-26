@@ -2531,7 +2531,92 @@ export default function RosterPage() {
                                                     ) : memberSnapshots.length === 0 ? (
                                                         <div className={`text-sm ${theme.textMuted}`}>No snapshot history found</div>
                                                     ) : (
-                                                        <div className="overflow-x-auto">
+                                                        <div>
+                                                            {/* Growth Sparkline Charts */}
+                                                            {memberSnapshots.length >= 2 && (
+                                                                <div className="mb-4">
+                                                                    <div className={`text-xs ${theme.textMuted} mb-2`}>Growth Trends</div>
+                                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                                        {/* Power Sparkline */}
+                                                                        <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                                                            <div style={{ height: 50 }}>
+                                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.power, date: s.snapshot_date }))} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                                                                        <Line type="monotone" dataKey="v" stroke="#01b574" strokeWidth={2} dot={false} />
+                                                                                    </LineChart>
+                                                                                </ResponsiveContainer>
+                                                                            </div>
+                                                                            <div className={`text-[10px] ${theme.textMuted} mt-1`}>Power</div>
+                                                                            <div className="text-xs text-[#01b574] font-medium">
+                                                                                {memberSnapshots.length >= 2 && (
+                                                                                    <>
+                                                                                        {memberSnapshots[memberSnapshots.length - 1].power > memberSnapshots[0].power ? '+' : ''}
+                                                                                        {formatPower(memberSnapshots[memberSnapshots.length - 1].power - memberSnapshots[0].power)}
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {/* KP Sparkline */}
+                                                                        <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                                                            <div style={{ height: 50 }}>
+                                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.kills || 0, date: s.snapshot_date }))} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                                                                        <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={2} dot={false} />
+                                                                                    </LineChart>
+                                                                                </ResponsiveContainer>
+                                                                            </div>
+                                                                            <div className={`text-[10px] ${theme.textMuted} mt-1`}>KP</div>
+                                                                            <div className="text-xs text-[#f56565] font-medium">
+                                                                                {memberSnapshots.length >= 2 && (
+                                                                                    <>
+                                                                                        {(memberSnapshots[memberSnapshots.length - 1].kills || 0) > (memberSnapshots[0].kills || 0) ? '+' : ''}
+                                                                                        {formatPower((memberSnapshots[memberSnapshots.length - 1].kills || 0) - (memberSnapshots[0].kills || 0))}
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {/* T4 Sparkline */}
+                                                                        <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                                                            <div style={{ height: 50 }}>
+                                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.t4_kills || 0, date: s.snapshot_date }))} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                                                                        <Line type="monotone" dataKey="v" stroke="#fbbf24" strokeWidth={2} dot={false} />
+                                                                                    </LineChart>
+                                                                                </ResponsiveContainer>
+                                                                            </div>
+                                                                            <div className={`text-[10px] ${theme.textMuted} mt-1`}>T4 KP</div>
+                                                                            <div className="text-xs text-[#fbbf24] font-medium">
+                                                                                {memberSnapshots.length >= 2 && (
+                                                                                    <>
+                                                                                        {(memberSnapshots[memberSnapshots.length - 1].t4_kills || 0) > (memberSnapshots[0].t4_kills || 0) ? '+' : ''}
+                                                                                        {formatPower((memberSnapshots[memberSnapshots.length - 1].t4_kills || 0) - (memberSnapshots[0].t4_kills || 0))}
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                        {/* T5 Sparkline */}
+                                                                        <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                                                            <div style={{ height: 50 }}>
+                                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.t5_kills || 0, date: s.snapshot_date }))} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                                                                        <Line type="monotone" dataKey="v" stroke="#f97316" strokeWidth={2} dot={false} />
+                                                                                    </LineChart>
+                                                                                </ResponsiveContainer>
+                                                                            </div>
+                                                                            <div className={`text-[10px] ${theme.textMuted} mt-1`}>T5 KP</div>
+                                                                            <div className="text-xs text-[#f97316] font-medium">
+                                                                                {memberSnapshots.length >= 2 && (
+                                                                                    <>
+                                                                                        {(memberSnapshots[memberSnapshots.length - 1].t5_kills || 0) > (memberSnapshots[0].t5_kills || 0) ? '+' : ''}
+                                                                                        {formatPower((memberSnapshots[memberSnapshots.length - 1].t5_kills || 0) - (memberSnapshots[0].t5_kills || 0))}
+                                                                                    </>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            <div className="overflow-x-auto">
                                                             <table className="text-xs sm:text-sm">
                                                                 <thead>
                                                                     <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
@@ -2584,6 +2669,7 @@ export default function RosterPage() {
                                                             </table>
                                                             <div className={`text-[10px] ${theme.textMuted} mt-2 italic`}>
                                                                 Dimmed values are unchanged from previous snapshot
+                                                            </div>
                                                             </div>
                                                         </div>
                                                     )}
