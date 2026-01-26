@@ -7,6 +7,7 @@ import { getTheme } from '@/lib/guide/theme';
 import { createClient } from '@/lib/supabase/client';
 import { formatPower, formatDate, getMemberHistory, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { AppSidebar } from '@/components/AppSidebar';
 
 // Event configuration
 const EVENT_CONFIG = {
@@ -300,33 +301,38 @@ export default function KpPushEventPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--background)] text-[var(--text)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
-          <p className={theme.textMuted}>Loading event data...</p>
+      <AppSidebar>
+        <div className="min-h-screen bg-[var(--background)] text-[var(--text)] flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+            <p className={theme.textMuted}>Loading event data...</p>
+          </div>
         </div>
-      </div>
+      </AppSidebar>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[var(--background)] text-[var(--text)]">
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className={`${theme.card} border border-red-500/30 rounded-lg p-8 text-center`}>
-            <p className="text-red-400 mb-4">{error}</p>
-            <Link href="/events" className="text-emerald-400 hover:underline">
-              Back to Events
-            </Link>
+      <AppSidebar>
+        <div className="min-h-screen bg-[var(--background)] text-[var(--text)]">
+          <div className="max-w-4xl mx-auto px-4 py-8">
+            <div className={`${theme.card} border border-red-500/30 rounded-lg p-8 text-center`}>
+              <p className="text-red-400 mb-4">{error}</p>
+              <Link href="/events" className="text-emerald-400 hover:underline">
+                Back to Events
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      </AppSidebar>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--text)]">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+    <AppSidebar>
+      <div className="min-h-screen bg-[var(--background)] text-[var(--text)]">
+        <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Back link */}
         <Link
           href="/events"
@@ -776,5 +782,6 @@ export default function KpPushEventPage() {
         )}
       </div>
     </div>
+    </AppSidebar>
   );
 }
