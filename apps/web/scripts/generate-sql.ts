@@ -37,13 +37,13 @@ const ZONE_OVERRIDES: Record<string, number> = {
 };
 
 // Players to exclude from main roster (moved to substitutes or removed)
-const EXCLUDE_FROM_ROSTER = new Set(['KKTowMater2', 'bear', 'WOLF', 'SkyLord']);
+const EXCLUDE_FROM_ROSTER = new Set(['KKTowMater2', 'bear', 'WOLF']);
 
 // Players to add as substitutes (not removed, just benched)
 const ADD_TO_SUBSTITUTES = new Set(['KKTowMater2']);
 
 // Players removed from gold AoO (signed up for silver)
-const SILVER_AOO_PLAYERS = new Set(['WOLF', 'SkyLord']);
+const SILVER_AOO_PLAYERS = new Set(['WOLF']);
 
 // Players removed from alliance entirely
 const REMOVED_FROM_ALLIANCE = new Set(['bear']);
