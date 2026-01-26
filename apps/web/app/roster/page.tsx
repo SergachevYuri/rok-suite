@@ -2907,13 +2907,21 @@ export default function RosterPage() {
                                     }
 
                                     // Alliance chart mode (existing code)
-                                    const chartData = filteredDailyTotals.map(day => ({
-                                        date: formatDate(day.date),
-                                        kp: day.kills,
-                                        power: day.power,
-                                        honor: day.honor,
-                                        ratio: day.kills > 0 ? Math.round(day.power / day.kills * 10) / 10 : 0,
-                                    }));
+                                    // Use running maximums for KP and Honor since they can only increase
+                                    // (drops would indicate data issues or member departures, not real decreases)
+                                    let maxKp = 0;
+                                    let maxHonor = 0;
+                                    const chartData = filteredDailyTotals.map(day => {
+                                        maxKp = Math.max(maxKp, day.kills);
+                                        maxHonor = Math.max(maxHonor, day.honor);
+                                        return {
+                                            date: formatDate(day.date),
+                                            kp: maxKp,
+                                            power: day.power,
+                                            honor: maxHonor,
+                                            ratio: maxKp > 0 ? Math.round(day.power / maxKp * 10) / 10 : 0,
+                                        };
+                                    });
 
                                     const metrics = [
                                         { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false, isRatio: false },
@@ -2988,6 +2996,26 @@ export default function RosterPage() {
                                 })()}
 
                                 {/* Alliance Stats Overview - 2x2 Grid */}
+                                {(() => {
+                                    // Compute running maximums for KP and Honor (they can only increase)
+                                    let runningMaxKp = 0;
+                                    let runningMaxHonor = 0;
+                                    const overviewData = filteredDailyTotals.map(day => {
+                                        runningMaxKp = Math.max(runningMaxKp, day.kills);
+                                        runningMaxHonor = Math.max(runningMaxHonor, day.honor);
+                                        return {
+                                            date: day.date,
+                                            power: day.power,
+                                            kills: runningMaxKp,
+                                            honor: runningMaxHonor,
+                                        };
+                                    });
+                                    const last5 = overviewData.slice(-5);
+                                    const globalMaxPower = Math.max(...overviewData.map(d => d.power), 1);
+                                    const globalMaxKp = Math.max(...overviewData.map(d => d.kills), 1);
+                                    const globalMaxHonor = Math.max(...overviewData.map(d => d.honor), 1);
+
+                                    return (
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
                                     {/* Total Power Over Time */}
                                     <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
@@ -2996,9 +3024,8 @@ export default function RosterPage() {
                                             <span className="hidden sm:inline">Total</span> Power
                                         </h3>
                                         <div className="space-y-1 sm:space-y-1.5">
-                                            {filteredDailyTotals.slice(-5).map((day) => {
-                                                const maxPower = Math.max(...filteredDailyTotals.map(d => d.power), 1);
-                                                const pct = (day.power / maxPower) * 100;
+                                            {last5.map((day) => {
+                                                const pct = (day.power / globalMaxPower) * 100;
                                                 return (
                                                     <div key={day.date} className="flex items-center gap-1 sm:gap-2">
                                                         <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.date)}</span>
@@ -3022,9 +3049,8 @@ export default function RosterPage() {
                                             <span className="hidden sm:inline">Total</span> KP
                                         </h3>
                                         <div className="space-y-1 sm:space-y-1.5">
-                                            {filteredDailyTotals.slice(-5).map((day) => {
-                                                const maxKills = Math.max(...filteredDailyTotals.map(d => d.kills), 1);
-                                                const pct = (day.kills / maxKills) * 100;
+                                            {last5.map((day) => {
+                                                const pct = (day.kills / globalMaxKp) * 100;
                                                 return (
                                                     <div key={day.date} className="flex items-center gap-1 sm:gap-2">
                                                         <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.date)}</span>
@@ -3048,9 +3074,8 @@ export default function RosterPage() {
                                             Honor
                                         </h3>
                                         <div className="space-y-1 sm:space-y-1.5">
-                                            {filteredDailyTotals.slice(-5).map((day) => {
-                                                const maxHonor = Math.max(...filteredDailyTotals.map(d => d.honor), 1);
-                                                const pct = (day.honor / maxHonor) * 100;
+                                            {last5.map((day) => {
+                                                const pct = (day.honor / globalMaxHonor) * 100;
                                                 return (
                                                     <div key={day.date} className="flex items-center gap-1 sm:gap-2">
                                                         <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-8 sm:w-12`}>{formatDate(day.date)}</span>
@@ -3098,6 +3123,8 @@ export default function RosterPage() {
                                     </div>
 
                                 </div>
+                                    );
+                                })()}
 
                                 {/* KP Growth Table */}
                                 {(() => {
