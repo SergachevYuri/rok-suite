@@ -9,22 +9,12 @@ import {
   Github,
   ExternalLink,
   Sparkles,
-  Calendar,
   FlaskConical,
   Users,
 } from 'lucide-react';
 
 export default function Home() {
   const tools = [
-    {
-      href: '/calendar',
-      title: 'Alliance Calendar',
-      description: 'Upcoming events, KvK schedule, and alliance activities',
-      icon: Calendar,
-      gradient: 'from-[#f56565] to-[#ed8936]',
-      shadowColor: 'shadow-[#f56565]/20',
-      badge: { text: 'Events', color: 'bg-[#f56565]/15 text-[#f56565]' },
-    },
     {
       href: '/roster',
       title: 'Alliance Roster',

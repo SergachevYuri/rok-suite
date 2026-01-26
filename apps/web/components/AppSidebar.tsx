@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
-  Calendar,
   Users,
   Swords,
   BookOpen,
@@ -30,11 +29,6 @@ const navItems: NavItem[] = [
     label: 'Home',
     href: '/',
     icon: <Home size={20} />,
-  },
-  {
-    label: 'Calendar',
-    href: '/calendar',
-    icon: <Calendar size={20} />,
   },
   {
     label: 'Roster',
