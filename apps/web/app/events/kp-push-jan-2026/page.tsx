@@ -295,9 +295,11 @@ export default function KpPushEventPage() {
     ? rankedMembers
     : rankedMembers.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
 
-  // Format Power:KP as compact ratio display (e.g., "50M:1M")
+  // Format Power:KP as a proper reduced ratio (e.g., "42:1" meaning 42 power per 1 KP)
   const formatPowerKpRatio = (power: number, kp: number): string => {
-    return `${formatPower(power)}:${formatPower(kp)}`;
+    if (kp === 0) return '-';
+    const ratio = power / kp;
+    return ratio.toFixed(1) + ':1';
   };
 
   // Format a computed ratio for alliance summary (gains ratio)
