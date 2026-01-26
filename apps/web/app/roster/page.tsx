@@ -3233,41 +3233,17 @@ export default function RosterPage() {
                                                                     <button onClick={() => handleKpSort('compareKpGrowth')} className="flex items-center gap-1 hover:text-white">
                                                                         Growth <KpSortIcon field="compareKpGrowth" />
                                                                     </button>
-                                                                    <div className="flex items-center gap-1 font-normal normal-case">
-                                                                        {[
-                                                                            { label: '1W', days: 7 },
-                                                                            { label: '2W', days: 14 },
-                                                                            { label: '1M', days: 30 },
-                                                                            { label: 'All', days: null },
-                                                                        ].map(preset => {
-                                                                            const targetDate = preset.days
-                                                                                ? availableSnapshotDates.find(d => {
-                                                                                    const diff = Math.abs(new Date(availableSnapshotDates[0]).getTime() - new Date(d).getTime());
-                                                                                    return diff >= preset.days * 24 * 60 * 60 * 1000;
-                                                                                })
-                                                                                : availableSnapshotDates[availableSnapshotDates.length - 1];
-                                                                            const isActive = preset.days === null
-                                                                                ? growthCompareDate === availableSnapshotDates[availableSnapshotDates.length - 1]
-                                                                                : (preset.days === 7 ? !growthCompareDate : growthCompareDate === targetDate);
-                                                                            return (
-                                                                                <button
-                                                                                    key={preset.label}
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        if (preset.days === 7) setGrowthCompareDate(null);
-                                                                                        else setGrowthCompareDate(targetDate || null);
-                                                                                    }}
-                                                                                    className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
-                                                                                        isActive
-                                                                                            ? 'bg-[#4318ff] text-white'
-                                                                                            : 'bg-[var(--background-secondary)] hover:bg-[var(--background-hover)]'
-                                                                                    }`}
-                                                                                >
-                                                                                    {preset.label}
-                                                                                </button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
+                                                                    <select
+                                                                        value={growthCompareDate || ''}
+                                                                        onChange={(e) => setGrowthCompareDate(e.target.value || null)}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        className={`text-[10px] ${theme.card} border rounded px-1.5 py-0.5 font-normal normal-case ml-1`}
+                                                                    >
+                                                                        <option value="">Past week</option>
+                                                                        {availableSnapshotDates.slice(1).map(date => (
+                                                                            <option key={date} value={date}>{formatDate(date)}</option>
+                                                                        ))}
+                                                                    </select>
                                                                 </div>
                                                             </th>
                                                         </tr>
@@ -3489,41 +3465,17 @@ export default function RosterPage() {
                                                                     <button onClick={() => handleHonorSort('compareGrowth')} className="flex items-center gap-1 hover:text-white">
                                                                         Growth <HonorSortIcon field="compareGrowth" />
                                                                     </button>
-                                                                    <div className="flex items-center gap-1 font-normal normal-case">
-                                                                        {[
-                                                                            { label: '1W', days: 7 },
-                                                                            { label: '2W', days: 14 },
-                                                                            { label: '1M', days: 30 },
-                                                                            { label: 'All', days: null },
-                                                                        ].map(preset => {
-                                                                            const targetDate = preset.days
-                                                                                ? availableSnapshotDates.find(d => {
-                                                                                    const diff = Math.abs(new Date(availableSnapshotDates[0]).getTime() - new Date(d).getTime());
-                                                                                    return diff >= preset.days * 24 * 60 * 60 * 1000;
-                                                                                })
-                                                                                : availableSnapshotDates[availableSnapshotDates.length - 1];
-                                                                            const isActive = preset.days === null
-                                                                                ? growthCompareDate === availableSnapshotDates[availableSnapshotDates.length - 1]
-                                                                                : (preset.days === 7 ? !growthCompareDate : growthCompareDate === targetDate);
-                                                                            return (
-                                                                                <button
-                                                                                    key={preset.label}
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        if (preset.days === 7) setGrowthCompareDate(null);
-                                                                                        else setGrowthCompareDate(targetDate || null);
-                                                                                    }}
-                                                                                    className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
-                                                                                        isActive
-                                                                                            ? 'bg-[#4318ff] text-white'
-                                                                                            : 'bg-[var(--background-secondary)] hover:bg-[var(--background-hover)]'
-                                                                                    }`}
-                                                                                >
-                                                                                    {preset.label}
-                                                                                </button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
+                                                                    <select
+                                                                        value={growthCompareDate || ''}
+                                                                        onChange={(e) => setGrowthCompareDate(e.target.value || null)}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        className={`text-[10px] ${theme.card} border rounded px-1.5 py-0.5 font-normal normal-case ml-1`}
+                                                                    >
+                                                                        <option value="">Past week</option>
+                                                                        {availableSnapshotDates.slice(1).map(date => (
+                                                                            <option key={date} value={date}>{formatDate(date)}</option>
+                                                                        ))}
+                                                                    </select>
                                                                 </div>
                                                             </th>
                                                         </tr>
@@ -4995,41 +4947,6 @@ export default function RosterPage() {
                                     <Lock className="w-3 h-3" /> <span className="hidden sm:inline">Pinned - drag to move</span><span className="sm:hidden">Tap ✕ to close</span>
                                 </div>
                             )}
-
-                            {/* Stats Grid */}
-                            <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
-                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>Power</div>
-                                    <div className="text-[#01b574] font-semibold text-sm sm:text-base">{formatPower(member.power)}</div>
-                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.powerRank}</div>
-                                </div>
-                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
-                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>Kill Points</div>
-                                    <div className="text-[#f56565] font-semibold text-sm sm:text-base">{formatPower(member.kills)}</div>
-                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.kpRank}</div>
-                                </div>
-                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
-                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>T4 KP</div>
-                                    <div className="text-[#fbbf24] font-semibold text-sm sm:text-base">{formatPower(member.t4_kills)}</div>
-                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.t4Rank}</div>
-                                </div>
-                                <div className="bg-[var(--background-secondary)]/50 rounded-lg p-1.5 sm:p-2">
-                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted} mb-0.5 sm:mb-1`}>T5 KP</div>
-                                    <div className="text-[#f97316] font-semibold text-sm sm:text-base">{formatPower(member.t5_kills)}</div>
-                                    <div className={`text-[10px] sm:text-xs ${theme.textMuted}`}>#{rankings.t5Rank}</div>
-                                </div>
-                            </div>
-
-                            {/* Honor */}
-                            <div className="bg-[var(--background-secondary)]/50 rounded-lg p-2 mb-4">
-                                <div className="flex justify-between items-center">
-                                    <div>
-                                        <div className={`text-xs ${theme.textMuted} mb-1`}>Honor Points</div>
-                                        <div className="text-[#fbbf24] font-semibold">{member.honor_points ? member.honor_points.toLocaleString() : '-'}</div>
-                                    </div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Rank #{rankings.honorRank}</div>
-                                </div>
-                            </div>
 
                             {/* Sparkline Charts */}
                             {memberHistory.length >= 2 && (
