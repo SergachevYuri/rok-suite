@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
 import { getTheme } from '@/lib/guide/theme';
 import { createClient } from '@/lib/supabase/client';
-import { formatPower } from '@/lib/supabase/use-roster-snapshots';
+import { formatPower, formatDate, getMemberHistory, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 // Event configuration
 const EVENT_CONFIG = {
@@ -46,6 +47,15 @@ export default function KpPushEventPage() {
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [showLeadership, setShowLeadership] = useState(true);
   const [showNonGainers, setShowNonGainers] = useState(true);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
+
+  // Expanded row state
+  const [expandedMember, setExpandedMember] = useState<string | null>(null);
+  const [memberSnapshots, setMemberSnapshots] = useState<RosterSnapshot[]>([]);
+  const [loadingSnapshots, setLoadingSnapshots] = useState(false);
 
   useEffect(() => {
     async function fetchEventData() {
@@ -195,6 +205,28 @@ export default function KpPushEventPage() {
     fetchEventData();
   }, []);
 
+  // Load member snapshots when expanded
+  const handleExpandMember = async (memberName: string) => {
+    if (expandedMember === memberName) {
+      setExpandedMember(null);
+      setMemberSnapshots([]);
+      return;
+    }
+
+    setExpandedMember(memberName);
+    setLoadingSnapshots(true);
+
+    try {
+      const history = await getMemberHistory(memberName, 30);
+      setMemberSnapshots(history);
+    } catch (err) {
+      console.error('Error loading member history:', err);
+      setMemberSnapshots([]);
+    } finally {
+      setLoadingSnapshots(false);
+    }
+  };
+
   // Separate results into categories
   const rankedMembers = eventData?.results
     .filter(r => r.kpGain > 0 && r.role !== 'R4' && r.role !== 'R5')
@@ -208,17 +240,23 @@ export default function KpPushEventPage() {
     .filter(r => r.kpGain <= 0 && r.role !== 'R4' && r.role !== 'R5')
     .sort((a, b) => a.kpGain - b.kpGain) || [];
 
+  // Pagination
+  const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(rankedMembers.length / rowsPerPage);
+  const paginatedMembers = rowsPerPage === -1
+    ? rankedMembers
+    : rankedMembers.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
+
   const formatRatio = (ratio: number | null): string => {
     if (ratio === null) return '-';
     if (ratio === Infinity) return '∞';
     return ratio.toFixed(1) + ':1';
   };
 
-  const getRankBadge = (index: number) => {
-    if (index === 0) return <span className="text-amber-400">🥇</span>;
-    if (index === 1) return <span className="text-gray-300">🥈</span>;
-    if (index === 2) return <span className="text-amber-600">🥉</span>;
-    return <span className="text-[var(--text-muted)] w-6 inline-block text-center">{index + 1}</span>;
+  const getRankBadge = (index: number, globalIndex: number) => {
+    if (globalIndex === 0) return <span className="text-amber-400">🥇</span>;
+    if (globalIndex === 1) return <span className="text-gray-300">🥈</span>;
+    if (globalIndex === 2) return <span className="text-amber-600">🥉</span>;
+    return <span className="text-[var(--text-muted)] w-6 inline-block text-center">{globalIndex + 1}</span>;
   };
 
   if (loading) {
@@ -334,13 +372,14 @@ export default function KpPushEventPage() {
               <h2 className="text-lg font-semibold">Rankings</h2>
               <span className={`text-sm ${theme.textMuted}`}>({rankedMembers.length} members)</span>
             </div>
-            <p className={`text-xs ${theme.textMuted} mt-1`}>Excludes R4/R5 leadership</p>
+            <p className={`text-xs ${theme.textMuted} mt-1`}>Excludes R4/R5 leadership. Click a row to view snapshot history.</p>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className={`${theme.card} border-b border-[var(--border)]`}>
                 <tr>
+                  <th className="px-4 py-3 text-left font-medium w-8"></th>
                   <th className="px-4 py-3 text-left font-medium">Rank</th>
                   <th className="px-4 py-3 text-left font-medium">Name</th>
                   <th className="px-4 py-3 text-right font-medium">KP Gained</th>
@@ -350,43 +389,234 @@ export default function KpPushEventPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
-                {rankedMembers.map((member, index) => (
-                  <tr key={member.name} className="hover:bg-[var(--background-secondary)]">
-                    <td className="px-4 py-3 font-medium">
-                      {getRankBadge(index)}
-                    </td>
-                    <td className="px-4 py-3 font-medium">
-                      {member.name}
-                      {member.role && (
-                        <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
-                          member.role === 'R3' ? 'bg-blue-500/20 text-blue-400' :
-                          member.role === 'R2' ? 'bg-green-500/20 text-green-400' :
-                          'bg-[var(--background-secondary)] text-[var(--text-muted)]'
-                        }`}>
-                          {member.role}
-                        </span>
+                {paginatedMembers.map((member, index) => {
+                  const globalIndex = rowsPerPage === -1 ? index : currentPage * rowsPerPage + index;
+                  const isExpanded = expandedMember === member.name;
+
+                  return (
+                    <>
+                      <tr
+                        key={member.name}
+                        className={`hover:bg-[var(--background-secondary)] cursor-pointer ${isExpanded ? 'bg-[var(--background-secondary)]' : ''}`}
+                        onClick={() => handleExpandMember(member.name)}
+                      >
+                        <td className="px-4 py-3">
+                          <ChevronRight
+                            size={16}
+                            className={`transition-transform ${isExpanded ? 'rotate-90' : ''} ${theme.textMuted}`}
+                          />
+                        </td>
+                        <td className="px-4 py-3 font-medium">
+                          {getRankBadge(index, globalIndex)}
+                        </td>
+                        <td className="px-4 py-3 font-medium">
+                          {member.name}
+                          {member.role && (
+                            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
+                              member.role === 'R3' ? 'bg-blue-500/20 text-blue-400' :
+                              member.role === 'R2' ? 'bg-green-500/20 text-green-400' :
+                              'bg-[var(--background-secondary)] text-[var(--text-muted)]'
+                            }`}>
+                              {member.role}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right text-red-400 font-medium">
+                          +{formatPower(member.kpGain)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-blue-400">
+                          +{formatPower(member.powerGain)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {formatRatio(member.ratio)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {member.ratioMet ? (
+                            <span className="text-green-400">✓</span>
+                          ) : (
+                            <span className="text-red-400">✗</span>
+                          )}
+                        </td>
+                      </tr>
+                      {/* Expanded row with snapshot history */}
+                      {isExpanded && (
+                        <tr className="bg-[var(--background-secondary)]/50">
+                          <td colSpan={7} className="px-4 py-4">
+                            <div className="ml-8">
+                              <h4 className={`text-sm font-semibold mb-3 ${theme.textMuted}`}>
+                                Snapshot History for {member.name}
+                              </h4>
+                              {loadingSnapshots ? (
+                                <div className={`text-sm ${theme.textMuted}`}>Loading...</div>
+                              ) : memberSnapshots.length === 0 ? (
+                                <div className={`text-sm ${theme.textMuted}`}>No snapshot history found</div>
+                              ) : (
+                                <div className="flex flex-col md:flex-row gap-4">
+                                  {/* Snapshot History Table */}
+                                  <div className="flex-1 overflow-x-auto">
+                                    <table className="text-xs sm:text-sm">
+                                      <thead>
+                                        <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
+                                          <th className="text-left px-2 py-1">Date</th>
+                                          <th className="text-right px-2 py-1">Power</th>
+                                          <th className="text-right px-2 py-1">KP</th>
+                                          <th className="text-right px-2 py-1">T4</th>
+                                          <th className="text-right px-2 py-1">T5</th>
+                                          <th className="text-right px-2 py-1">Honor</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {memberSnapshots.map((snap, snapIdx) => {
+                                          const prevSnap = snapIdx > 0 ? memberSnapshots[snapIdx - 1] : null;
+                                          const isCarryover = (current: number | undefined, prev: number | undefined) =>
+                                            prevSnap && current === prev;
+
+                                          const carryoverClass = "opacity-40 italic";
+                                          const powerCarry = isCarryover(snap.power, prevSnap?.power);
+                                          const killsCarry = isCarryover(snap.kills, prevSnap?.kills);
+                                          const t4Carry = isCarryover(snap.t4_kills, prevSnap?.t4_kills);
+                                          const t5Carry = isCarryover(snap.t5_kills, prevSnap?.t5_kills);
+                                          const honorCarry = isCarryover(snap.honor_points, prevSnap?.honor_points);
+
+                                          return (
+                                            <tr key={snap.id || snapIdx} className="border-b border-[var(--border)]/30">
+                                              <td className="px-2 py-1 text-[#9f7aea]">
+                                                {formatDate(snap.snapshot_date)}
+                                              </td>
+                                              <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
+                                                {formatPower(snap.power)}
+                                              </td>
+                                              <td className={`px-2 py-1 text-right text-[#f56565] ${killsCarry ? carryoverClass : ''}`}>
+                                                {formatPower(snap.kills)}
+                                              </td>
+                                              <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
+                                                {formatPower(snap.t4_kills)}
+                                              </td>
+                                              <td className={`px-2 py-1 text-right text-[#f97316] ${t5Carry ? carryoverClass : ''}`}>
+                                                {formatPower(snap.t5_kills)}
+                                              </td>
+                                              <td className={`px-2 py-1 text-right text-[#fbbf24] ${honorCarry ? carryoverClass : ''}`}>
+                                                {snap.honor_points?.toLocaleString() || '-'}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                    <div className={`text-[10px] ${theme.textMuted} mt-2 italic`}>
+                                      Dimmed values are unchanged from previous snapshot
+                                    </div>
+                                  </div>
+                                  {/* Growth Sparkline Charts - 2x2 grid to the right */}
+                                  {memberSnapshots.length >= 2 && (
+                                    <div className="md:w-64 shrink-0">
+                                      <div className={`text-xs ${theme.textMuted} mb-2`}>Growth Trends</div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {/* Power Sparkline */}
+                                        <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                          <div style={{ height: 45 }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                              <LineChart data={memberSnapshots.map(s => ({ v: s.power }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                <Line type="monotone" dataKey="v" stroke="#01b574" strokeWidth={1.5} dot={false} />
+                                              </LineChart>
+                                            </ResponsiveContainer>
+                                          </div>
+                                          <div className={`text-[10px] ${theme.textMuted} mt-1`}>Power</div>
+                                        </div>
+                                        {/* KP Sparkline */}
+                                        <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                          <div style={{ height: 45 }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                              <LineChart data={memberSnapshots.map(s => ({ v: s.kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={1.5} dot={false} />
+                                              </LineChart>
+                                            </ResponsiveContainer>
+                                          </div>
+                                          <div className={`text-[10px] ${theme.textMuted} mt-1`}>Kill Points</div>
+                                        </div>
+                                        {/* T4 Sparkline */}
+                                        <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                          <div style={{ height: 45 }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                              <LineChart data={memberSnapshots.map(s => ({ v: s.t4_kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                <Line type="monotone" dataKey="v" stroke="#fbbf24" strokeWidth={1.5} dot={false} />
+                                              </LineChart>
+                                            </ResponsiveContainer>
+                                          </div>
+                                          <div className={`text-[10px] ${theme.textMuted} mt-1`}>T4 KP</div>
+                                        </div>
+                                        {/* T5 Sparkline */}
+                                        <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                          <div style={{ height: 45 }}>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                              <LineChart data={memberSnapshots.map(s => ({ v: s.t5_kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                <Line type="monotone" dataKey="v" stroke="#f97316" strokeWidth={1.5} dot={false} />
+                                              </LineChart>
+                                            </ResponsiveContainer>
+                                          </div>
+                                          <div className={`text-[10px] ${theme.textMuted} mt-1`}>T5 KP</div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-right text-red-400 font-medium">
-                      +{formatPower(member.kpGain)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-blue-400">
-                      +{formatPower(member.powerGain)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {formatRatio(member.ratio)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {member.ratioMet ? (
-                        <span className="text-green-400">✓</span>
-                      ) : (
-                        <span className="text-red-400">✗</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination controls */}
+          <div className="p-4 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <span className={`text-sm ${theme.textMuted}`}>Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => {
+                  setRowsPerPage(Number(e.target.value));
+                  setCurrentPage(0);
+                }}
+                className={`text-sm px-2 py-1 rounded border ${theme.input}`}
+              >
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={-1}>All</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              <span className={theme.textMuted}>
+                {rowsPerPage === -1
+                  ? `Showing all ${rankedMembers.length} members`
+                  : `Showing ${Math.min(currentPage * rowsPerPage + 1, rankedMembers.length)}-${Math.min((currentPage + 1) * rowsPerPage, rankedMembers.length)} of ${rankedMembers.length}`
+                }
+              </span>
+              {rowsPerPage !== -1 && totalPages > 1 && (
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                    disabled={currentPage === 0}
+                    className={`px-3 py-1 rounded ${theme.button} disabled:opacity-50`}
+                  >
+                    Prev
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                    disabled={currentPage >= totalPages - 1}
+                    className={`px-3 py-1 rounded ${theme.button} disabled:opacity-50`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
