@@ -2828,6 +2828,7 @@ export default function RosterPage() {
 
                                         const playerChartData = playerHistory.map(snap => ({
                                             date: formatDate(snap.snapshot_date),
+                                            timestamp: new Date(snap.snapshot_date).getTime(),
                                             kp: snap.kills || 0,
                                             power: snap.power || 0,
                                             honor: snap.honor_points || 0,
@@ -2854,10 +2855,17 @@ export default function RosterPage() {
                                                         <LineChart data={playerChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                                                             <XAxis
-                                                                dataKey="date"
+                                                                dataKey="timestamp"
+                                                                type="number"
+                                                                scale="time"
+                                                                domain={['dataMin', 'dataMax']}
                                                                 tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                                                                 axisLine={{ stroke: 'var(--border)' }}
                                                                 tickLine={{ stroke: 'var(--border)' }}
+                                                                tickFormatter={(ts) => {
+                                                                    const d = new Date(ts);
+                                                                    return `${d.getMonth() + 1}/${d.getDate()}`;
+                                                                }}
                                                             />
                                                             <YAxis
                                                                 tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
@@ -2874,6 +2882,10 @@ export default function RosterPage() {
                                                                     color: 'var(--foreground)',
                                                                 }}
                                                                 formatter={(value) => [formatPower(typeof value === 'number' ? value : 0), metric.label]}
+                                                                labelFormatter={(ts) => {
+                                                                    const d = new Date(ts);
+                                                                    return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                                                                }}
                                                                 labelStyle={{ color: 'var(--foreground)' }}
                                                             />
                                                             <Line
@@ -2953,6 +2965,7 @@ export default function RosterPage() {
                                         maxHonor = Math.max(maxHonor, day.honor);
                                         return {
                                             date: formatDate(day.date),
+                                            timestamp: new Date(day.date).getTime(),
                                             kp: maxKp,
                                             power: day.power,
                                             honor: maxHonor,
@@ -2978,10 +2991,17 @@ export default function RosterPage() {
                                                     <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
                                                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                                                         <XAxis
-                                                            dataKey="date"
+                                                            dataKey="timestamp"
+                                                            type="number"
+                                                            scale="time"
+                                                            domain={['dataMin', 'dataMax']}
                                                             tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                                                             axisLine={{ stroke: 'var(--border)' }}
                                                             tickLine={{ stroke: 'var(--border)' }}
+                                                            tickFormatter={(ts) => {
+                                                                const d = new Date(ts);
+                                                                return `${d.getMonth() + 1}/${d.getDate()}`;
+                                                            }}
                                                         />
                                                         <YAxis
                                                             tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
@@ -3001,6 +3021,10 @@ export default function RosterPage() {
                                                                 const numVal = typeof value === 'number' ? value : 0;
                                                                 if (metric.isRatio) return [numVal.toFixed(1), metric.label];
                                                                 return [metric.isCount ? String(numVal) : formatPower(numVal), metric.label];
+                                                            }}
+                                                            labelFormatter={(ts) => {
+                                                                const d = new Date(ts);
+                                                                return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
                                                             }}
                                                             labelStyle={{ color: 'var(--foreground)' }}
                                                         />
