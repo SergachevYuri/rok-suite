@@ -2828,13 +2828,28 @@ export default function RosterPage() {
 
                                         const playerChartData = playerHistory.map(snap => ({
                                             date: formatDate(snap.snapshot_date),
-                                            timestamp: new Date(snap.snapshot_date).getTime(),
+                                            // Use local time to avoid timezone shift
+                                            timestamp: new Date(snap.snapshot_date + 'T00:00:00').getTime(),
                                             kp: snap.kills || 0,
                                             power: snap.power || 0,
                                             honor: snap.honor_points || 0,
                                             t4: snap.t4_kills || 0,
                                             t5: snap.t5_kills || 0,
                                         }));
+
+                                        // Generate ticks for every day in the player's date range
+                                        const generatePlayerDailyTicks = () => {
+                                            if (playerChartData.length === 0) return [];
+                                            const firstTs = playerChartData[0].timestamp;
+                                            const lastTs = playerChartData[playerChartData.length - 1].timestamp;
+                                            const ticks: number[] = [];
+                                            const oneDay = 24 * 60 * 60 * 1000;
+                                            for (let ts = firstTs; ts <= lastTs; ts += oneDay) {
+                                                ticks.push(ts);
+                                            }
+                                            return ticks;
+                                        };
+                                        const playerDailyTicks = generatePlayerDailyTicks();
 
                                         const playerMetrics = [
                                             { key: 'kp', label: 'Kill Points', color: '#f56565' },
@@ -2858,13 +2873,14 @@ export default function RosterPage() {
                                                                 dataKey="timestamp"
                                                                 type="number"
                                                                 scale="time"
-                                                                domain={['dataMin', 'dataMax']}
+                                                                domain={[playerDailyTicks[0] || 'dataMin', playerDailyTicks[playerDailyTicks.length - 1] || 'dataMax']}
+                                                                ticks={playerDailyTicks}
                                                                 tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                                                                 axisLine={{ stroke: 'var(--border)' }}
                                                                 tickLine={{ stroke: 'var(--border)' }}
                                                                 tickFormatter={(ts) => {
                                                                     const d = new Date(ts);
-                                                                    return `${d.getMonth() + 1}/${d.getDate()}`;
+                                                                    return `${d.getDate()}`;
                                                                 }}
                                                             />
                                                             <YAxis
@@ -2965,13 +2981,28 @@ export default function RosterPage() {
                                         maxHonor = Math.max(maxHonor, day.honor);
                                         return {
                                             date: formatDate(day.date),
-                                            timestamp: new Date(day.date).getTime(),
+                                            // Use local time to avoid timezone shift
+                                            timestamp: new Date(day.date + 'T00:00:00').getTime(),
                                             kp: maxKp,
                                             power: day.power,
                                             honor: maxHonor,
                                             ratio: maxKp > 0 ? Math.round(day.power / maxKp * 10) / 10 : 0,
                                         };
                                     });
+
+                                    // Generate ticks for every day in the date range
+                                    const generateDailyTicks = () => {
+                                        if (chartData.length === 0) return [];
+                                        const firstTs = chartData[0].timestamp;
+                                        const lastTs = chartData[chartData.length - 1].timestamp;
+                                        const ticks: number[] = [];
+                                        const oneDay = 24 * 60 * 60 * 1000;
+                                        for (let ts = firstTs; ts <= lastTs; ts += oneDay) {
+                                            ticks.push(ts);
+                                        }
+                                        return ticks;
+                                    };
+                                    const dailyTicks = generateDailyTicks();
 
                                     const metrics = [
                                         { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false, isRatio: false },
@@ -2994,13 +3025,14 @@ export default function RosterPage() {
                                                             dataKey="timestamp"
                                                             type="number"
                                                             scale="time"
-                                                            domain={['dataMin', 'dataMax']}
+                                                            domain={[dailyTicks[0] || 'dataMin', dailyTicks[dailyTicks.length - 1] || 'dataMax']}
+                                                            ticks={dailyTicks}
                                                             tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                                                             axisLine={{ stroke: 'var(--border)' }}
                                                             tickLine={{ stroke: 'var(--border)' }}
                                                             tickFormatter={(ts) => {
                                                                 const d = new Date(ts);
-                                                                return `${d.getMonth() + 1}/${d.getDate()}`;
+                                                                return `${d.getDate()}`;
                                                             }}
                                                         />
                                                         <YAxis
@@ -3024,7 +3056,7 @@ export default function RosterPage() {
                                                             }}
                                                             labelFormatter={(ts) => {
                                                                 const d = new Date(ts);
-                                                                return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                                                                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                                                             }}
                                                             labelStyle={{ color: 'var(--foreground)' }}
                                                         />
@@ -3036,6 +3068,7 @@ export default function RosterPage() {
                                                             strokeWidth={2}
                                                             dot={{ fill: metric.color, strokeWidth: 2, r: 3 }}
                                                             activeDot={{ r: 5 }}
+                                                            connectNulls={false}
                                                         />
                                                     </LineChart>
                                                 </ResponsiveContainer>
