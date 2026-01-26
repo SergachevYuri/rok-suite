@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronDown, ChevronUp, ChevronRight, Search, X } from 'lucide-react';
 import { getTheme } from '@/lib/guide/theme';
 import { createClient } from '@/lib/supabase/client';
 import { formatPower, formatDate, getMemberHistory, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
@@ -49,6 +49,9 @@ export default function KpPushEventPage() {
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [showLeadership, setShowLeadership] = useState(true);
   const [showNonGainers, setShowNonGainers] = useState(true);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
@@ -261,18 +264,30 @@ export default function KpPushEventPage() {
     }
   };
 
-  // Separate results into categories
+  // Search filter helper
+  const matchesSearch = (name: string) => {
+    if (!searchQuery.trim()) return true;
+    return name.toLowerCase().includes(searchQuery.toLowerCase().trim());
+  };
+
+  // Separate results into categories (with search filter applied)
   const rankedMembers = eventData?.results
-    .filter(r => r.kpGain > 0 && r.role !== 'R4' && r.role !== 'R5')
+    .filter(r => r.kpGain > 0 && r.role !== 'R4' && r.role !== 'R5' && matchesSearch(r.name))
     .sort((a, b) => b.kpGain - a.kpGain) || [];
 
   const leadership = eventData?.results
-    .filter(r => r.role === 'R4' || r.role === 'R5')
+    .filter(r => (r.role === 'R4' || r.role === 'R5') && matchesSearch(r.name))
     .sort((a, b) => b.kpGain - a.kpGain) || [];
 
   const nonGainers = eventData?.results
-    .filter(r => r.kpGain <= 0 && r.role !== 'R4' && r.role !== 'R5')
+    .filter(r => r.kpGain <= 0 && r.role !== 'R4' && r.role !== 'R5' && matchesSearch(r.name))
     .sort((a, b) => a.kpGain - b.kpGain) || [];
+
+  // Reset pagination when search changes
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(0);
+  };
 
   // Pagination
   const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(rankedMembers.length / rowsPerPage);
@@ -407,6 +422,33 @@ export default function KpPushEventPage() {
             </p>
             <p className={`text-xs ${theme.textMuted}`}>gained KP</p>
           </div>
+        </div>
+
+        {/* Search */}
+        <div className={`${theme.card} border rounded-lg p-4 mb-6`}>
+          <div className="relative">
+            <Search size={18} className={`absolute left-3 top-1/2 -translate-y-1/2 ${theme.textMuted}`} />
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className={`w-full pl-10 pr-10 py-2 rounded-lg border ${theme.input} text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50`}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => handleSearchChange('')}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 ${theme.textMuted} hover:text-white`}
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className={`text-sm ${theme.textMuted} mt-2`}>
+              Found {rankedMembers.length + leadership.length + nonGainers.length} member{rankedMembers.length + leadership.length + nonGainers.length !== 1 ? 's' : ''} matching &quot;{searchQuery}&quot;
+            </p>
+          )}
         </div>
 
         {/* Leaderboard */}
