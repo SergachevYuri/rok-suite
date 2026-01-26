@@ -223,6 +223,138 @@ function normalizeName(name: string): string {
 }
 
 /**
+ * Get all name variants for a member from the alliance_roster table
+ * Includes current name, alternate_names, and follows merged_into chain
+ */
+async function getMemberNameVariants(memberName: string): Promise<string[]> {
+  const supabase = createClient();
+  const variants = new Set<string>([memberName]);
+
+  // Look up the member in alliance_roster
+  const { data: member } = await supabase
+    .from('alliance_roster')
+    .select('id, name, alternate_names, merged_into')
+    .eq('name', memberName)
+    .single();
+
+  if (member) {
+    // Add alternate names
+    if (member.alternate_names && Array.isArray(member.alternate_names)) {
+      for (const alt of member.alternate_names) {
+        variants.add(alt);
+      }
+    }
+
+    // If this member was merged into another, get that member's names too
+    if (member.merged_into) {
+      const { data: primary } = await supabase
+        .from('alliance_roster')
+        .select('name, alternate_names')
+        .eq('id', member.merged_into)
+        .single();
+
+      if (primary) {
+        variants.add(primary.name);
+        if (primary.alternate_names && Array.isArray(primary.alternate_names)) {
+          for (const alt of primary.alternate_names) {
+            variants.add(alt);
+          }
+        }
+      }
+    }
+  }
+
+  // Also find any members that were merged INTO this member
+  const { data: mergedMembers } = await supabase
+    .from('alliance_roster')
+    .select('name, alternate_names')
+    .eq('merged_into', member?.id || '');
+
+  if (mergedMembers) {
+    for (const merged of mergedMembers) {
+      variants.add(merged.name);
+      if (merged.alternate_names && Array.isArray(merged.alternate_names)) {
+        for (const alt of merged.alternate_names) {
+          variants.add(alt);
+        }
+      }
+    }
+  }
+
+  return [...variants];
+}
+
+/**
+ * Build a mapping from all name variants to the canonical (current) member name
+ * This allows growth functions to match snapshots across name changes
+ */
+async function buildNameVariantMapping(): Promise<Map<string, string>> {
+  const supabase = createClient();
+  const mapping = new Map<string, string>();
+
+  // Get all roster members with their alternate names
+  const { data: roster } = await supabase
+    .from('alliance_roster')
+    .select('name, alternate_names, merged_into, is_active')
+    .eq('is_active', true);
+
+  if (!roster) return mapping;
+
+  // For each active member, map all their variants to the canonical name
+  for (const member of roster) {
+    // Map the canonical name to itself
+    mapping.set(member.name, member.name);
+
+    // Map alternate names to the canonical name
+    if (member.alternate_names && Array.isArray(member.alternate_names)) {
+      for (const alt of member.alternate_names) {
+        mapping.set(alt, member.name);
+      }
+    }
+  }
+
+  // Also handle merged members - their names should map to the primary member
+  const { data: mergedMembers } = await supabase
+    .from('alliance_roster')
+    .select('name, alternate_names, merged_into')
+    .not('merged_into', 'is', null);
+
+  if (mergedMembers) {
+    for (const merged of mergedMembers) {
+      // Find the primary member
+      const primary = roster.find(m => m.name === merged.merged_into ||
+        roster.some(r => r.alternate_names?.includes(merged.merged_into)));
+
+      if (primary) {
+        mapping.set(merged.name, primary.name);
+        if (merged.alternate_names && Array.isArray(merged.alternate_names)) {
+          for (const alt of merged.alternate_names) {
+            mapping.set(alt, primary.name);
+          }
+        }
+      }
+    }
+  }
+
+  return mapping;
+}
+
+// Cache for name variant mapping (avoid repeated DB calls)
+let nameVariantMappingCache: Map<string, string> | null = null;
+let nameVariantMappingTimestamp = 0;
+const CACHE_TTL_MS = 60000; // 1 minute cache
+
+async function getNameVariantMapping(): Promise<Map<string, string>> {
+  const now = Date.now();
+  if (nameVariantMappingCache && (now - nameVariantMappingTimestamp) < CACHE_TTL_MS) {
+    return nameVariantMappingCache;
+  }
+  nameVariantMappingCache = await buildNameVariantMapping();
+  nameVariantMappingTimestamp = now;
+  return nameVariantMappingCache;
+}
+
+/**
  * Get daily totals for charts
  */
 export async function getDailyTotals(limit = 30): Promise<DailyTotals[]> {
@@ -245,16 +377,19 @@ export async function getDailyTotals(limit = 30): Promise<DailyTotals[]> {
 
 /**
  * Get history for a specific member
- * Handles name variations by searching with normalized names if exact match fails
+ * Uses alternate_names and merged_into from alliance_roster for comprehensive history
  */
 export async function getMemberHistory(memberName: string, limit = 30): Promise<RosterSnapshot[]> {
   const supabase = createClient();
 
-  // First try exact match
+  // Get all name variants for this member (including alternate names and merged entries)
+  const nameVariants = await getMemberNameVariants(memberName);
+
+  // Fetch history for all name variations
   const { data, error } = await supabase
     .from('roster_snapshots')
     .select('*')
-    .eq('member_name', memberName)
+    .in('member_name', nameVariants)
     .order('snapshot_date', { ascending: true })
     .limit(limit);
 
@@ -263,15 +398,21 @@ export async function getMemberHistory(memberName: string, limit = 30): Promise<
     return [];
   }
 
-  // If we got results, return them
   if (data && data.length > 0) {
-    return data;
+    // Deduplicate by date (keep only one entry per date, prefer current name)
+    const byDate = new Map<string, RosterSnapshot>();
+    for (const snap of data) {
+      const existing = byDate.get(snap.snapshot_date);
+      if (!existing || snap.member_name === memberName) {
+        byDate.set(snap.snapshot_date, snap);
+      }
+    }
+    return [...byDate.values()].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
   }
 
-  // Try to find matching members by normalized name
+  // Fallback: try normalized name matching if no results from alternate_names
   const normalizedTarget = normalizeName(memberName);
 
-  // Get all unique member names to find variations
   const { data: allMembers } = await supabase
     .from('roster_snapshots')
     .select('member_name')
@@ -279,20 +420,18 @@ export async function getMemberHistory(memberName: string, limit = 30): Promise<
 
   if (!allMembers) return [];
 
-  // Find all name variations that match the normalized name
-  const nameVariations = [...new Set(
+  const normalizedVariations = [...new Set(
     allMembers
       .map(m => m.member_name)
       .filter(name => normalizeName(name) === normalizedTarget)
   )];
 
-  if (nameVariations.length === 0) return [];
+  if (normalizedVariations.length === 0) return [];
 
-  // Fetch history for all name variations
   const { data: historyData, error: historyError } = await supabase
     .from('roster_snapshots')
     .select('*')
-    .in('member_name', nameVariations)
+    .in('member_name', normalizedVariations)
     .order('snapshot_date', { ascending: true })
     .limit(limit);
 
@@ -306,9 +445,18 @@ export async function getMemberHistory(memberName: string, limit = 30): Promise<
 
 /**
  * Get top power/KP/Honor gainers between two dates
+ * Uses alternate_names from alliance_roster to match members across name changes
  */
 export async function getTopGainers(startDate: string, endDate: string, limit = 10): Promise<TopGainer[]> {
   const supabase = createClient();
+
+  // Get name variant mapping for matching across name changes
+  const nameMapping = await getNameVariantMapping();
+
+  // Helper to get canonical name (checks mapping first, falls back to normalized)
+  const getKey = (name: string): string => {
+    return nameMapping.get(name) || normalizeName(name);
+  };
 
   // Get snapshots for start date
   const { data: startData } = await supabase
@@ -326,12 +474,12 @@ export async function getTopGainers(startDate: string, endDate: string, limit = 
 
   if (!startData || !endData) return [];
 
-  // Use normalized names for matching (handles prefix variations between snapshots)
-  const startMap = new Map(startData.map(d => [normalizeName(d.member_name), d]));
+  // Use canonical names for matching (handles name changes via alternate_names)
+  const startMap = new Map(startData.map(d => [getKey(d.member_name), d]));
   const gainers: TopGainer[] = [];
 
   for (const end of endData) {
-    const start = startMap.get(normalizeName(end.member_name));
+    const start = startMap.get(getKey(end.member_name));
     if (start) {
       gainers.push({
         name: end.member_name,
@@ -386,6 +534,7 @@ export interface KpGrowth {
 /**
  * Get KP growth - both all-time (from first entry) and comparison between dates
  * "Entry" means when a non-zero value was first recorded for that field
+ * Uses alternate_names from alliance_roster to match members across name changes
  * @param compareDate - Optional date to compare against (defaults to ~7 days ago)
  */
 export async function getKpGrowth(
@@ -394,6 +543,14 @@ export async function getKpGrowth(
   endDate?: string | null
 ): Promise<KpGrowth[]> {
   const supabase = createClient();
+
+  // Get name variant mapping for matching across name changes
+  const nameMapping = await getNameVariantMapping();
+
+  // Helper to get canonical name (checks mapping first, falls back to normalized)
+  const getKey = (name: string): string => {
+    return nameMapping.get(name) || normalizeName(name);
+  };
 
   // Get all snapshot dates (excluding unreliable ones)
   const allDates = await getSnapshotDates();
@@ -422,12 +579,12 @@ export async function getKpGrowth(
 
   if (!allSnapshots) return [];
 
-  // Build map of first entry date and values for each member
+  // Build map of first entry date and values for each member (using canonical names)
   const firstEntryMap = new Map<string, { date: string; kills: number; t4: number; t5: number }>();
   for (const snap of allSnapshots) {
-    const normName = normalizeName(snap.member_name);
-    if (!firstEntryMap.has(normName)) {
-      firstEntryMap.set(normName, {
+    const key = getKey(snap.member_name);
+    if (!firstEntryMap.has(key)) {
+      firstEntryMap.set(key, {
         date: snap.snapshot_date,
         kills: snap.kills || 0,
         t4: snap.t4_kills || 0,
@@ -458,7 +615,7 @@ export async function getKpGrowth(
       .limit(2000);
 
     if (compareData) {
-      compareMap = new Map(compareData.map(d => [normalizeName(d.member_name), {
+      compareMap = new Map(compareData.map(d => [getKey(d.member_name), {
         kills: d.kills || 0,
         t4: d.t4_kills || 0,
         t5: d.t5_kills || 0,
@@ -468,17 +625,17 @@ export async function getKpGrowth(
 
   const growth: KpGrowth[] = currentData
     .filter(m => {
-      const normName = normalizeName(m.member_name);
-      const firstEntry = firstEntryMap.get(normName);
+      const key = getKey(m.member_name);
+      const firstEntry = firstEntryMap.get(key);
       return firstEntry !== undefined;
     })
     .map(m => {
-      const normName = normalizeName(m.member_name);
-      const firstEntry = firstEntryMap.get(normName)!;
+      const key = getKey(m.member_name);
+      const firstEntry = firstEntryMap.get(key)!;
       const currentKp = m.kills || 0;
       const currentT4 = m.t4_kills || 0;
       const currentT5 = m.t5_kills || 0;
-      const compare = compareMap.get(normName) ?? null;
+      const compare = compareMap.get(key) ?? null;
 
       const allTimeKpGrowth = currentKp - firstEntry.kills;
       const compareKpGrowth = compare !== null ? currentKp - compare.kills : null;
@@ -530,6 +687,7 @@ export interface PowerGrowth {
 /**
  * Get Power growth - both all-time (from first entry) and comparison between dates
  * "Entry" means when a non-zero value was first recorded for that field
+ * Uses alternate_names from alliance_roster to match members across name changes
  * @param compareDate - Optional date to compare against (defaults to ~7 days ago)
  */
 export async function getPowerGrowth(
@@ -538,6 +696,14 @@ export async function getPowerGrowth(
   endDate?: string | null
 ): Promise<PowerGrowth[]> {
   const supabase = createClient();
+
+  // Get name variant mapping for matching across name changes
+  const nameMapping = await getNameVariantMapping();
+
+  // Helper to get canonical name (checks mapping first, falls back to normalized)
+  const getKey = (name: string): string => {
+    return nameMapping.get(name) || normalizeName(name);
+  };
 
   // Get all snapshot dates (excluding unreliable ones)
   const allDates = await getSnapshotDates();
@@ -566,12 +732,12 @@ export async function getPowerGrowth(
 
   if (!allSnapshots) return [];
 
-  // Build map of first entry date and value for each member
+  // Build map of first entry date and value for each member (using canonical names)
   const firstEntryMap = new Map<string, { date: string; value: number }>();
   for (const snap of allSnapshots) {
-    const normName = normalizeName(snap.member_name);
-    if (!firstEntryMap.has(normName)) {
-      firstEntryMap.set(normName, { date: snap.snapshot_date, value: snap.power });
+    const key = getKey(snap.member_name);
+    if (!firstEntryMap.has(key)) {
+      firstEntryMap.set(key, { date: snap.snapshot_date, value: snap.power });
     }
   }
 
@@ -597,21 +763,21 @@ export async function getPowerGrowth(
       .limit(2000);
 
     if (compareData) {
-      compareMap = new Map(compareData.map(d => [normalizeName(d.member_name), d.power || 0]));
+      compareMap = new Map(compareData.map(d => [getKey(d.member_name), d.power || 0]));
     }
   }
 
   const growth: PowerGrowth[] = currentData
     .filter(m => {
-      const normName = normalizeName(m.member_name);
-      const firstEntry = firstEntryMap.get(normName);
+      const key = getKey(m.member_name);
+      const firstEntry = firstEntryMap.get(key);
       return firstEntry !== undefined;
     })
     .map(m => {
-      const normName = normalizeName(m.member_name);
-      const firstEntry = firstEntryMap.get(normName)!;
+      const key = getKey(m.member_name);
+      const firstEntry = firstEntryMap.get(key)!;
       const currentPower = m.power || 0;
-      const comparePower = compareMap.get(normName) ?? null;
+      const comparePower = compareMap.get(key) ?? null;
 
       const allTimeGrowth = currentPower - firstEntry.value;
       const compareGrowth = comparePower !== null ? currentPower - comparePower : null;
@@ -653,6 +819,7 @@ export interface HonorGrowth {
 /**
  * Get Honor growth - both all-time (from first entry) and comparison between dates
  * "Entry" means when a non-zero value was first recorded for that field
+ * Uses alternate_names from alliance_roster to match members across name changes
  * @param compareDate - Optional date to compare against (defaults to ~7 days ago)
  */
 export async function getHonorGrowth(
@@ -661,6 +828,14 @@ export async function getHonorGrowth(
   endDate?: string | null
 ): Promise<HonorGrowth[]> {
   const supabase = createClient();
+
+  // Get name variant mapping for matching across name changes
+  const nameMapping = await getNameVariantMapping();
+
+  // Helper to get canonical name (checks mapping first, falls back to normalized)
+  const getKey = (name: string): string => {
+    return nameMapping.get(name) || normalizeName(name);
+  };
 
   // Get all snapshot dates (excluding unreliable ones)
   const allDates = await getSnapshotDates();
@@ -689,12 +864,12 @@ export async function getHonorGrowth(
 
   if (!allSnapshots) return [];
 
-  // Build map of first entry date and value for each member
+  // Build map of first entry date and value for each member (using canonical names)
   const firstEntryMap = new Map<string, { date: string; value: number }>();
   for (const snap of allSnapshots) {
-    const normName = normalizeName(snap.member_name);
-    if (!firstEntryMap.has(normName)) {
-      firstEntryMap.set(normName, { date: snap.snapshot_date, value: snap.honor_points });
+    const key = getKey(snap.member_name);
+    if (!firstEntryMap.has(key)) {
+      firstEntryMap.set(key, { date: snap.snapshot_date, value: snap.honor_points });
     }
   }
 
@@ -720,22 +895,22 @@ export async function getHonorGrowth(
       .limit(2000);
 
     if (compareData) {
-      compareMap = new Map(compareData.map(d => [normalizeName(d.member_name), d.honor_points || 0]));
+      compareMap = new Map(compareData.map(d => [getKey(d.member_name), d.honor_points || 0]));
     }
   }
 
   const growth: HonorGrowth[] = currentData
     .filter(m => {
-      const normName = normalizeName(m.member_name);
-      const firstEntry = firstEntryMap.get(normName);
+      const key = getKey(m.member_name);
+      const firstEntry = firstEntryMap.get(key);
       // Only include if they have a first entry with honor > 0
       return firstEntry !== undefined;
     })
     .map(m => {
-      const normName = normalizeName(m.member_name);
-      const firstEntry = firstEntryMap.get(normName)!;
+      const key = getKey(m.member_name);
+      const firstEntry = firstEntryMap.get(key)!;
       const currentHonor = m.honor_points || 0;
-      const compareHonor = compareMap.get(normName) ?? null;
+      const compareHonor = compareMap.get(key) ?? null;
 
       const allTimeGrowth = currentHonor - firstEntry.value;
       const compareGrowth = compareHonor !== null ? currentHonor - compareHonor : null;
