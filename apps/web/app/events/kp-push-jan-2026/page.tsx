@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Fragment } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronDown, ChevronUp, ChevronRight, Search, X } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronDown, ChevronUp, ChevronRight, Search, X, BarChart3 } from 'lucide-react';
 import { getTheme } from '@/lib/guide/theme';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
 import { formatPower, formatDate, getMemberHistory, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
@@ -82,6 +82,9 @@ export default function KpPushEventPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(15);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview');
 
   // Expanded row state
   const [expandedMember, setExpandedMember] = useState<string | null>(null);
@@ -459,6 +462,34 @@ export default function KpPushEventPage() {
           <p className={theme.textMuted}>{EVENT_CONFIG.description}</p>
         </div>
 
+        {/* Tab Bar */}
+        <div className="flex items-center gap-2 border-b border-[var(--border)] pb-0 overflow-x-auto hide-scrollbar sticky top-0 z-20 bg-[var(--background)] pt-2 -mt-2 mb-6">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
+              activeTab === 'overview'
+                ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
+            }`}
+          >
+            <Medal className="w-4 h-4" />
+            Rankings
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
+              activeTab === 'analytics'
+                ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Analytics
+          </button>
+        </div>
+
+        {activeTab === 'overview' && (
+        <>
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className={`${theme.card} border rounded-lg p-4`}>
@@ -558,8 +589,39 @@ export default function KpPushEventPage() {
           </div>
         )}
 
+        {/* Search */}
+        <div className={`${theme.card} border rounded-lg p-4 mb-6`}>
+          <div className="relative">
+            <Search size={18} className={`absolute left-3 top-1/2 -translate-y-1/2 ${theme.textMuted}`} />
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className={`w-full pl-10 pr-10 py-2 rounded-lg border ${theme.input} text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50`}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => handleSearchChange('')}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 ${theme.textMuted} hover:text-white`}
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className={`text-sm ${theme.textMuted} mt-2`}>
+              Found {rankedMembers.length + leadership.length} member{rankedMembers.length + leadership.length !== 1 ? 's' : ''} matching &quot;{searchQuery}&quot;
+            </p>
+          )}
+        </div>
+        </>
+        )}
+
+        {activeTab === 'analytics' && (
+        <div className="space-y-6">
         {/* KP Distribution Chart */}
-        {rankedMembers.length > 0 && !searchQuery && (
+        {rankedMembers.length > 0 && (
           <div className={`${theme.card} border rounded-lg p-4 mb-6`}>
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp size={16} className="text-[#f6993f]" />
@@ -611,7 +673,7 @@ export default function KpPushEventPage() {
         )}
 
         {/* Analytics Charts Row */}
-        {rankedMembers.length > 0 && !searchQuery && (
+        {rankedMembers.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             {/* KP vs Power Scatter Plot */}
             <div className={`${theme.card} border rounded-lg p-4`}>
@@ -716,7 +778,7 @@ export default function KpPushEventPage() {
         )}
 
         {/* Role Breakdown + Stats */}
-        {eventData && !searchQuery && (() => {
+        {eventData && (() => {
           const allResults = eventData.results;
           const roles = ['R1', 'R2', 'R3', 'R4', 'R5'];
           const roleData = roles.map(role => {
@@ -760,34 +822,12 @@ export default function KpPushEventPage() {
             </div>
           );
         })()}
-
-        {/* Search */}
-        <div className={`${theme.card} border rounded-lg p-4 mb-6`}>
-          <div className="relative">
-            <Search size={18} className={`absolute left-3 top-1/2 -translate-y-1/2 ${theme.textMuted}`} />
-            <input
-              type="text"
-              placeholder="Search by name..."
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className={`w-full pl-10 pr-10 py-2 rounded-lg border ${theme.input} text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50`}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => handleSearchChange('')}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 ${theme.textMuted} hover:text-white`}
-              >
-                <X size={18} />
-              </button>
-            )}
-          </div>
-          {searchQuery && (
-            <p className={`text-sm ${theme.textMuted} mt-2`}>
-              Found {rankedMembers.length + leadership.length} member{rankedMembers.length + leadership.length !== 1 ? 's' : ''} matching &quot;{searchQuery}&quot;
-            </p>
-          )}
         </div>
+        )}
 
+        {/* Leaderboard (shown in overview tab) */}
+        {activeTab === 'overview' && (
+        <>
         {/* Leaderboard */}
         <div className={`${theme.card} border rounded-lg overflow-hidden mb-6`}>
           <div className="p-4 border-b border-[var(--border)]">
@@ -1338,6 +1378,8 @@ export default function KpPushEventPage() {
               </div>
             )}
           </div>
+        )}
+        </>
         )}
 
       </div>
