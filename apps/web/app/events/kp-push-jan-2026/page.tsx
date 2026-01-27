@@ -363,7 +363,7 @@ export default function KpPushEventPage() {
     }
   };
 
-  const SortIcon = ({ field, table }: { field: EventSortField; table: 'rankings' | 'leadership' }) => {
+  const renderSortIcon = (field: EventSortField, table: 'rankings' | 'leadership') => {
     const activeField = table === 'rankings' ? sortField : leaderSortField;
     const activeDir = table === 'rankings' ? sortDirection : leaderSortDirection;
     const isActive = activeField === field;
@@ -647,27 +647,27 @@ export default function KpPushEventPage() {
                   <th className="px-3 py-3 text-left font-medium w-8"></th>
                   <th className="px-2 py-3 text-left font-medium w-12">
                     <button onClick={() => handleSort('rank', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      Rank <SortIcon field="rank" table="rankings" />
+                      Rank {renderSortIcon('rank', 'rankings')}
                     </button>
                   </th>
                   <th className="px-3 py-3 text-left font-medium">
                     <button onClick={() => handleSort('name', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      Name <SortIcon field="name" table="rankings" />
+                      Name {renderSortIcon('name', 'rankings')}
                     </button>
                   </th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>
                     <button onClick={() => handleSort('kpGain', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      KP Gained <SortIcon field="kpGain" table="rankings" />
+                      KP Gained {renderSortIcon('kpGain', 'rankings')}
                     </button>
                   </th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
                     <button onClick={() => handleSort('powerGain', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      Power Change <SortIcon field="powerGain" table="rankings" />
+                      Power Change {renderSortIcon('powerGain', 'rankings')}
                     </button>
                   </th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
                     <button onClick={() => handleSort('ratio', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      KP/P Ratio <SortIcon field="ratio" table="rankings" />
+                      KP/P Ratio {renderSortIcon('ratio', 'rankings')}
                     </button>
                   </th>
                 </tr>
@@ -961,23 +961,23 @@ export default function KpPushEventPage() {
                       <th className="px-3 py-3 text-left font-medium w-8"></th>
                       <th className="px-3 py-3 text-left font-medium">
                         <button onClick={() => handleSort('name', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                          Name <SortIcon field="name" table="leadership" />
+                          Name {renderSortIcon('name', 'leadership')}
                         </button>
                       </th>
                       <th className="px-3 py-3 text-left font-medium w-16">Role</th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>
                         <button onClick={() => handleSort('kpGain', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                          KP Gained <SortIcon field="kpGain" table="leadership" />
+                          KP Gained {renderSortIcon('kpGain', 'leadership')}
                         </button>
                       </th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
                         <button onClick={() => handleSort('powerGain', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                          Power Change <SortIcon field="powerGain" table="leadership" />
+                          Power Change {renderSortIcon('powerGain', 'leadership')}
                         </button>
                       </th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
                         <button onClick={() => handleSort('ratio', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                          KP/P Ratio <SortIcon field="ratio" table="leadership" />
+                          KP/P Ratio {renderSortIcon('ratio', 'leadership')}
                         </button>
                       </th>
                     </tr>
