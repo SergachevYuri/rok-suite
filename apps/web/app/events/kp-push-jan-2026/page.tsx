@@ -159,7 +159,6 @@ export default function KpPushEventPage() {
             .from('roster_snapshots')
             .select('member_name, power, kills, snapshot_date')
             .in('snapshot_date', [actualStartDate, actualEndDate])
-            .eq('is_active', true)
             .order('snapshot_date', { ascending: true })
             .range(range.from, range.to)
         );
