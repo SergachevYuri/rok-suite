@@ -201,11 +201,11 @@ export default function KpPushEventPage() {
           totalPowerGain += Math.max(0, powerGain);
           totalKpGain += Math.max(0, kpGain);
 
-          // Calculate Power:KP ratios at start and end
-          const startRatio = start.kp > 0 ? start.power / start.kp : null;
-          const endRatio = end.kp > 0 ? end.power / end.kp : null;
-          // Ratio improved if end ratio is lower (more KP per power = better)
-          const ratioImproved = startRatio !== null && endRatio !== null && endRatio < startRatio;
+          // Calculate KP:Power ratios at start and end (higher = more KP per power = better)
+          const startRatio = start.power > 0 ? start.kp / start.power : null;
+          const endRatio = end.power > 0 ? end.kp / end.power : null;
+          // Ratio improved if end ratio is higher (more KP per power = better)
+          const ratioImproved = startRatio !== null && endRatio !== null && endRatio > startRatio;
 
           results.push({
             name: end.name,
@@ -222,7 +222,7 @@ export default function KpPushEventPage() {
           });
         }
 
-        const allianceRatio = totalKpGain > 0 ? totalPowerGain / totalKpGain : null;
+        const allianceRatio = totalPowerGain > 0 ? totalKpGain / totalPowerGain : null;
         const participantCount = results.filter(r => r.kpGain > 0).length;
 
         setEventData({
@@ -299,10 +299,10 @@ export default function KpPushEventPage() {
   const maxKpGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => r.kpGain)) : 1;
   const maxPowerGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => Math.abs(r.powerGain))) : 1;
 
-  // Ratio change helper: positive = improved (ratio went down = more KP per power)
+  // Ratio change helper: positive = improved (ratio went up = more KP per power)
   const getRatioChange = (member: MemberResult) => {
     if (member.startRatio === null || member.endRatio === null) return null;
-    return member.startRatio - member.endRatio; // positive = improved
+    return member.endRatio - member.startRatio; // positive = improved
   };
 
   // Best ratio improver (among ranked members with valid ratios)
@@ -565,7 +565,7 @@ export default function KpPushEventPage() {
                   <th className="px-3 py-3 text-left font-medium">Name</th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
-                  <th className="px-3 py-3 text-right font-medium" style={{ minWidth: '120px' }}>P/KP Ratio</th>
+                  <th className="px-3 py-3 text-right font-medium" style={{ minWidth: '120px' }}>KP/P Ratio</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -640,7 +640,7 @@ export default function KpPushEventPage() {
                                 if (change === null) return null;
                                 return (
                                   <span className={`text-[10px] ${change > 0 ? 'text-green-400' : 'text-red-400/70'}`}>
-                                    {change > 0 ? '↓' : '↑'}{Math.abs(change).toFixed(1)}
+                                    {change > 0 ? '↑' : '↓'}{Math.abs(change).toFixed(1)}
                                   </span>
                                 );
                               })()}
@@ -857,7 +857,7 @@ export default function KpPushEventPage() {
                       <th className="px-3 py-3 text-left font-medium w-16">Role</th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
-                      <th className="px-3 py-3 text-right font-medium" style={{ minWidth: '120px' }}>P/KP Ratio</th>
+                      <th className="px-3 py-3 text-right font-medium" style={{ minWidth: '120px' }}>KP/P Ratio</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -934,7 +934,7 @@ export default function KpPushEventPage() {
                                     if (change === null) return null;
                                     return (
                                       <span className={`text-[10px] ${change > 0 ? 'text-green-400' : 'text-red-400/70'}`}>
-                                        {change > 0 ? '↓' : '↑'}{Math.abs(change).toFixed(1)}
+                                        {change > 0 ? '↑' : '↓'}{Math.abs(change).toFixed(1)}
                                       </span>
                                     );
                                   })()}
