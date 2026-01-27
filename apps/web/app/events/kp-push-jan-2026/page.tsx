@@ -13,7 +13,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 const EVENT_CONFIG = {
   name: 'KP Push Challenge',
   startDate: '2026-01-12',
-  endDate: '2026-01-25',
+  endDate: '2026-01-27',
   goal: '1:1 Power to KP ratio',
   description: 'Alliance challenge to increase kill points while maintaining efficient power growth.',
 };

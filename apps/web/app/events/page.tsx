@@ -17,7 +17,7 @@ const allianceEvents: AllianceEvent[] = [
   {
     slug: 'kp-push-jan-2026',
     name: 'KP Push Challenge',
-    dates: 'Jan 12 - Jan 25, 2026',
+    dates: 'Jan 12 - Jan 27, 2026',
     status: 'completed',
     description: 'Alliance-wide challenge to increase KP with a 1:1 power:KP ratio goal',
   },

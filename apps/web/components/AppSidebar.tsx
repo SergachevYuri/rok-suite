@@ -10,6 +10,7 @@ import {
   BookOpen,
   FlaskConical,
   Home,
+  Trophy,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -40,6 +41,11 @@ const navItems: NavItem[] = [
     label: 'Roster',
     href: '/roster',
     icon: <Users size={20} />,
+  },
+  {
+    label: 'Events',
+    href: '/events',
+    icon: <Trophy size={20} />,
   },
   {
     label: 'AoO Planner',
