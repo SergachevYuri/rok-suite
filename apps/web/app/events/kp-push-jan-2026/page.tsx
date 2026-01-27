@@ -298,6 +298,7 @@ export default function KpPushEventPage() {
   // Max values for bar scaling
   const maxKpGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => r.kpGain)) : 1;
   const maxPowerGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => Math.abs(r.powerGain))) : 1;
+  const maxEndRatio = rankedMembers.length > 0 ? Math.max(...rankedMembers.filter(r => r.endRatio !== null).map(r => r.endRatio!)) : 1;
 
   // Ratio change helper: positive = improved (ratio went up = more KP per power)
   const getRatioChange = (member: MemberResult) => {
@@ -565,7 +566,7 @@ export default function KpPushEventPage() {
                   <th className="px-3 py-3 text-left font-medium">Name</th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
-                  <th className="px-3 py-3 text-right font-medium" style={{ minWidth: '120px' }}>KP/P Ratio</th>
+                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>KP/P Ratio</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -627,23 +628,25 @@ export default function KpPushEventPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-right">
-                          {member.startRatio !== null && member.endRatio !== null ? (
-                            <div className="flex flex-col items-end">
-                              <div className="flex items-center gap-1 text-xs">
-                                <span className={theme.textMuted}>{formatRatio(member.startRatio)}</span>
-                                <span className={theme.textMuted}>→</span>
-                                <span className={member.ratioImproved ? 'text-green-400 font-medium' : 'text-red-400/70'}>{formatRatio(member.endRatio)}</span>
+                        <td className="px-3 py-3">
+                          {member.endRatio !== null ? (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                <div
+                                  className={`h-full rounded bg-gradient-to-r ${member.ratioImproved ? 'from-[#01b574] to-[#01b574]/50' : 'from-[#01b574]/30 to-[#01b574]/15'}`}
+                                  style={{ width: `${(member.endRatio / maxEndRatio) * 100}%` }}
+                                />
                               </div>
-                              {(() => {
-                                const change = getRatioChange(member);
-                                if (change === null) return null;
-                                return (
-                                  <span className={`text-[10px] ${change > 0 ? 'text-green-400' : 'text-red-400/70'}`}>
-                                    {change > 0 ? '↑' : '↓'}{Math.abs(change).toFixed(1)}
+                              <div className="flex flex-col items-end min-w-[70px]">
+                                <span className={`font-medium text-xs ${member.ratioImproved ? 'text-[#01b574]' : 'text-[#01b574]/70'}`}>
+                                  {formatRatio(member.endRatio)}
+                                </span>
+                                {member.startRatio !== null && (
+                                  <span className={`text-[10px] ${theme.textMuted}`}>
+                                    {formatRatio(member.startRatio)} → {formatRatio(member.endRatio)}
                                   </span>
-                                );
-                              })()}
+                                )}
+                              </div>
                             </div>
                           ) : (
                             <span className={theme.textMuted}>-</span>
@@ -857,7 +860,7 @@ export default function KpPushEventPage() {
                       <th className="px-3 py-3 text-left font-medium w-16">Role</th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
-                      <th className="px-3 py-3 text-right font-medium" style={{ minWidth: '120px' }}>KP/P Ratio</th>
+                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>KP/P Ratio</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -921,23 +924,25 @@ export default function KpPushEventPage() {
                                 <span className={`text-xs ${theme.textMuted}`}>0</span>
                               )}
                             </td>
-                            <td className="px-3 py-3 text-right">
-                              {member.startRatio !== null && member.endRatio !== null ? (
-                                <div className="flex flex-col items-end">
-                                  <div className="flex items-center gap-1 text-xs">
-                                    <span className={theme.textMuted}>{formatRatio(member.startRatio)}</span>
-                                    <span className={theme.textMuted}>→</span>
-                                    <span className={member.ratioImproved ? 'text-green-400 font-medium' : 'text-red-400/70'}>{formatRatio(member.endRatio)}</span>
+                            <td className="px-3 py-3">
+                              {member.endRatio !== null ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                    <div
+                                      className={`h-full rounded bg-gradient-to-r ${member.ratioImproved ? 'from-[#01b574] to-[#01b574]/50' : 'from-[#01b574]/30 to-[#01b574]/15'}`}
+                                      style={{ width: `${(member.endRatio / maxEndRatio) * 100}%` }}
+                                    />
                                   </div>
-                                  {(() => {
-                                    const change = getRatioChange(member);
-                                    if (change === null) return null;
-                                    return (
-                                      <span className={`text-[10px] ${change > 0 ? 'text-green-400' : 'text-red-400/70'}`}>
-                                        {change > 0 ? '↑' : '↓'}{Math.abs(change).toFixed(1)}
+                                  <div className="flex flex-col items-end min-w-[70px]">
+                                    <span className={`font-medium text-xs ${member.ratioImproved ? 'text-[#01b574]' : 'text-[#01b574]/70'}`}>
+                                      {formatRatio(member.endRatio)}
+                                    </span>
+                                    {member.startRatio !== null && (
+                                      <span className={`text-[10px] ${theme.textMuted}`}>
+                                        {formatRatio(member.startRatio)} → {formatRatio(member.endRatio)}
                                       </span>
-                                    );
-                                  })()}
+                                    )}
+                                  </div>
                                 </div>
                               ) : (
                                 <span className={theme.textMuted}>-</span>
