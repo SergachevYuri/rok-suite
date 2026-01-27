@@ -6,7 +6,7 @@ import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronD
 import { getTheme } from '@/lib/guide/theme';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
 import { formatPower, formatDate, getMemberHistory, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
-import { LineChart, Line, BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, ScatterChart, Scatter, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { AppSidebar } from '@/components/AppSidebar';
 
 // Event configuration
@@ -566,42 +566,200 @@ export default function KpPushEventPage() {
               <span className={`text-sm font-medium`}>KP Gain Distribution</span>
               <span className={`text-xs ${theme.textMuted}`}>({rankedMembers.length} members)</span>
             </div>
-            <div style={{ height: 100 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                {(() => {
-                  // Build histogram buckets
-                  const maxGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => r.kpGain)) : 0;
-                  const bucketSize = maxGain > 0 ? Math.ceil(maxGain / 1e6 / 10) * 1e6 : 50e6; // round to nice millions
-                  const bucketCount = Math.min(12, Math.max(5, Math.ceil(maxGain / bucketSize)));
-                  const buckets: Array<{ label: string; count: number; from: number; to: number }> = [];
-                  for (let i = 0; i < bucketCount; i++) {
-                    const from = i * bucketSize;
-                    const to = (i + 1) * bucketSize;
-                    const count = rankedMembers.filter(r => r.kpGain >= from && r.kpGain < to).length;
-                    buckets.push({ label: `${formatPower(from)}–${formatPower(to)}`, count, from, to });
-                  }
-                  // Include any overflow in last bucket
-                  const overflow = rankedMembers.filter(r => r.kpGain >= bucketCount * bucketSize).length;
-                  if (overflow > 0 && buckets.length > 0) buckets[buckets.length - 1].count += overflow;
-                  // Remove trailing empty buckets
-                  while (buckets.length > 1 && buckets[buckets.length - 1].count === 0) buckets.pop();
+            {(() => {
+              // Build histogram buckets
+              const maxGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => r.kpGain)) : 0;
+              const bucketSize = maxGain > 0 ? Math.ceil(maxGain / 1e6 / 10) * 1e6 : 50e6;
+              const bucketCount = Math.min(12, Math.max(5, Math.ceil(maxGain / bucketSize)));
+              const buckets: Array<{ label: string; shortLabel: string; count: number; from: number; to: number }> = [];
+              for (let i = 0; i < bucketCount; i++) {
+                const from = i * bucketSize;
+                const to = (i + 1) * bucketSize;
+                const count = rankedMembers.filter(r => r.kpGain >= from && r.kpGain < to).length;
+                buckets.push({
+                  label: `${formatPower(from)} – ${formatPower(to)}`,
+                  shortLabel: formatPower(from),
+                  count,
+                  from,
+                  to,
+                });
+              }
+              const overflow = rankedMembers.filter(r => r.kpGain >= bucketCount * bucketSize).length;
+              if (overflow > 0 && buckets.length > 0) buckets[buckets.length - 1].count += overflow;
+              while (buckets.length > 1 && buckets[buckets.length - 1].count === 0) buckets.pop();
 
-                  return (
-                    <BarChart data={buckets} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              return (
+                <div style={{ height: 160 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={buckets} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="shortLabel" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} width={28} />
                       <Tooltip
                         contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
                         labelStyle={{ color: 'var(--text)' }}
                         formatter={(value: any) => [`${value} member${value !== 1 ? 's' : ''}`, 'Count']}
                         labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.label ?? ''}
                       />
-                      <Bar dataKey="count" fill="#f6993f" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="count" fill="#f6993f" radius={[3, 3, 0, 0]} />
                     </BarChart>
-                  );
-                })()}
-              </ResponsiveContainer>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Analytics Charts Row */}
+        {rankedMembers.length > 0 && !searchQuery && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {/* KP vs Power Scatter Plot */}
+            <div className={`${theme.card} border rounded-lg p-4`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Target size={16} className="text-emerald-400" />
+                <span className="text-sm font-medium">KP Gain vs Power Change</span>
+              </div>
+              <p className={`text-[10px] ${theme.textMuted} mb-2`}>Each dot is a member. Top-left = efficient KP farmer (high KP, low power growth)</p>
+              <div style={{ height: 220 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis
+                      type="number"
+                      dataKey="power"
+                      name="Power Change"
+                      tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v: number) => formatPower(v)}
+                      label={{ value: 'Power Change', position: 'insideBottom', offset: -2, fontSize: 10, fill: 'var(--text-muted)' }}
+                    />
+                    <YAxis
+                      type="number"
+                      dataKey="kp"
+                      name="KP Gained"
+                      tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v: number) => formatPower(v)}
+                      width={48}
+                      label={{ value: 'KP Gained', angle: -90, position: 'insideLeft', offset: 8, fontSize: 10, fill: 'var(--text-muted)' }}
+                    />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value: any, name: any) => [formatPower(value as number), name === 'kp' ? 'KP Gained' : 'Power Change']}
+                      labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name ?? ''}
+                    />
+                    <Scatter
+                      data={rankedMembers.map(m => ({ name: m.name, power: m.powerGain, kp: m.kpGain, role: m.role }))}
+                      fill="#f6993f"
+                    >
+                      {rankedMembers.map((m, i) => {
+                        const rank = rankOrder.get(m.name) ?? i;
+                        const color = rank === 0 ? '#fbbf24' : rank === 1 ? '#9ca3af' : rank === 2 ? '#cd7f32' : '#f6993f';
+                        return <Cell key={m.name} fill={color} fillOpacity={rank < 3 ? 1 : 0.6} />;
+                      })}
+                    </Scatter>
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Top 10 KP Gainers Horizontal Bar Chart */}
+            <div className={`${theme.card} border rounded-lg p-4`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Trophy size={16} className="text-amber-400" />
+                <span className="text-sm font-medium">Top 10 KP Gainers</span>
+              </div>
+              <div style={{ height: 250 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={rankedByKp.slice(0, 10).map(m => ({
+                      name: m.name.length > 12 ? m.name.slice(0, 11) + '…' : m.name,
+                      fullName: m.name,
+                      kp: m.kpGain,
+                    }))}
+                    layout="vertical"
+                    margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                    <XAxis
+                      type="number"
+                      tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v: number) => formatPower(v)}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={90}
+                    />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                      formatter={(value: any) => [`+${formatPower(value as number)}`, 'KP Gained']}
+                      labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.fullName ?? ''}
+                    />
+                    <Bar dataKey="kp" radius={[0, 4, 4, 0]}>
+                      {rankedByKp.slice(0, 10).map((_, i) => (
+                        <Cell key={i} fill={i === 0 ? '#fbbf24' : i === 1 ? '#9ca3af' : i === 2 ? '#cd7f32' : '#f6993f'} fillOpacity={i < 3 ? 1 : 0.7} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         )}
+
+        {/* Role Breakdown + Stats */}
+        {eventData && !searchQuery && (() => {
+          const allResults = eventData.results;
+          const roles = ['R1', 'R2', 'R3', 'R4', 'R5'];
+          const roleData = roles.map(role => {
+            const members = allResults.filter(m => m.role === role && m.kpGain > 0);
+            const totalKp = members.reduce((s, m) => s + m.kpGain, 0);
+            const totalPower = members.reduce((s, m) => s + m.powerGain, 0);
+            const avgKp = members.length > 0 ? totalKp / members.length : 0;
+            return { role, count: members.length, totalKp, totalPower, avgKp };
+          }).filter(r => r.count > 0);
+
+          const maxRoleKp = Math.max(...roleData.map(r => r.totalKp), 1);
+
+          return (
+            <div className={`${theme.card} border rounded-lg p-4 mb-8`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Users size={16} className="text-purple-400" />
+                <span className="text-sm font-medium">KP Contribution by Role</span>
+              </div>
+              <div className="space-y-2">
+                {roleData.map(r => {
+                  const pct = (r.totalKp / maxRoleKp) * 100;
+                  const roleColor = r.role === 'R5' ? '#fbbf24' : r.role === 'R4' ? '#a78bfa' : r.role === 'R3' ? '#60a5fa' : r.role === 'R2' ? '#34d399' : '#94a3b8';
+                  return (
+                    <div key={r.role} className="flex items-center gap-3">
+                      <span className="text-xs font-medium w-7" style={{ color: roleColor }}>{r.role}</span>
+                      <div className="flex-1 h-5 bg-[var(--background-secondary)] rounded overflow-hidden">
+                        <div
+                          className="h-full rounded"
+                          style={{ width: `${pct}%`, backgroundColor: roleColor, opacity: 0.7 }}
+                        />
+                      </div>
+                      <div className="text-right min-w-[140px] flex gap-3 text-xs">
+                        <span style={{ color: roleColor }} className="font-medium">{formatPower(r.totalKp)}</span>
+                        <span className={theme.textMuted}>{r.count} members</span>
+                        <span className={theme.textMuted}>avg {formatPower(r.avgKp)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Search */}
         <div className={`${theme.card} border rounded-lg p-4 mb-6`}>
