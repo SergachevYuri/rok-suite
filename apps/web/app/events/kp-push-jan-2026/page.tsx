@@ -299,6 +299,23 @@ export default function KpPushEventPage() {
   const maxKpGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => r.kpGain)) : 1;
   const maxPowerGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => Math.abs(r.powerGain))) : 1;
 
+  // Ratio change helper: positive = improved (ratio went down = more KP per power)
+  const getRatioChange = (member: MemberResult) => {
+    if (member.startRatio === null || member.endRatio === null) return null;
+    return member.startRatio - member.endRatio; // positive = improved
+  };
+
+  // Best ratio improver (among ranked members with valid ratios)
+  const bestRatioImprover = rankedMembers
+    .filter(r => r.startRatio !== null && r.endRatio !== null)
+    .sort((a, b) => (getRatioChange(b) ?? 0) - (getRatioChange(a) ?? 0))[0] || null;
+
+  // Format ratio value
+  const formatRatio = (ratio: number | null): string => {
+    if (ratio === null) return '-';
+    return ratio.toFixed(1);
+  };
+
   // Format growth value with proper sign prefix
   const formatGrowth = (value: number): string => {
     if (value > 0) return '+' + formatPower(value);
@@ -415,13 +432,15 @@ export default function KpPushEventPage() {
 
           <div className={`${theme.card} border rounded-lg p-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <Target size={18} className="text-purple-400" />
-              <span className={`text-sm ${theme.textMuted}`}>Avg KP Gain</span>
+              <Target size={18} className="text-green-400" />
+              <span className={`text-sm ${theme.textMuted}`}>Best Ratio Gain</span>
             </div>
-            <p className="text-2xl font-bold text-purple-400">
-              {rankedMembers.length > 0 ? formatPower((eventData?.totalKpGain || 0) / rankedMembers.length) : '-'}
+            <p className="text-lg font-bold text-green-400 truncate">
+              {bestRatioImprover?.name || '-'}
             </p>
-            <p className={`text-xs ${theme.textMuted}`}>{rankedMembers.length} participants</p>
+            <p className={`text-xs ${theme.textMuted}`}>
+              {bestRatioImprover ? `${formatRatio(bestRatioImprover.startRatio)} → ${formatRatio(bestRatioImprover.endRatio)}` : '-'}
+            </p>
           </div>
         </div>
 
@@ -460,9 +479,13 @@ export default function KpPushEventPage() {
                     </div>
                     <div>
                       <span className={theme.textMuted}>Ratio </span>
-                      <span className={member.ratioImproved ? 'text-green-400' : 'text-red-400'}>
-                        {member.ratioImproved ? '↑ Improved' : '↓'}
-                      </span>
+                      {member.startRatio !== null && member.endRatio !== null ? (
+                        <span className={member.ratioImproved ? 'text-green-400' : 'text-red-400'}>
+                          {formatRatio(member.startRatio)} → {formatRatio(member.endRatio)}
+                        </span>
+                      ) : (
+                        <span className={theme.textMuted}>-</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -542,7 +565,7 @@ export default function KpPushEventPage() {
                   <th className="px-3 py-3 text-left font-medium">Name</th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
-                  <th className="px-3 py-3 text-center font-medium w-16">Ratio</th>
+                  <th className="px-3 py-3 text-right font-medium" style={{ minWidth: '120px' }}>P/KP Ratio</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -604,11 +627,26 @@ export default function KpPushEventPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-center">
-                          {member.ratioImproved ? (
-                            <span className="text-green-400 text-lg">✓</span>
+                        <td className="px-3 py-3 text-right">
+                          {member.startRatio !== null && member.endRatio !== null ? (
+                            <div className="flex flex-col items-end">
+                              <div className="flex items-center gap-1 text-xs">
+                                <span className={theme.textMuted}>{formatRatio(member.startRatio)}</span>
+                                <span className={theme.textMuted}>→</span>
+                                <span className={member.ratioImproved ? 'text-green-400 font-medium' : 'text-red-400/70'}>{formatRatio(member.endRatio)}</span>
+                              </div>
+                              {(() => {
+                                const change = getRatioChange(member);
+                                if (change === null) return null;
+                                return (
+                                  <span className={`text-[10px] ${change > 0 ? 'text-green-400' : 'text-red-400/70'}`}>
+                                    {change > 0 ? '↓' : '↑'}{Math.abs(change).toFixed(1)}
+                                  </span>
+                                );
+                              })()}
+                            </div>
                           ) : (
-                            <span className="text-red-400/50 text-lg">✗</span>
+                            <span className={theme.textMuted}>-</span>
                           )}
                         </td>
                       </tr>
@@ -819,7 +857,7 @@ export default function KpPushEventPage() {
                       <th className="px-3 py-3 text-left font-medium w-16">Role</th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
-                      <th className="px-3 py-3 text-center font-medium w-16">Ratio</th>
+                      <th className="px-3 py-3 text-right font-medium" style={{ minWidth: '120px' }}>P/KP Ratio</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -883,11 +921,26 @@ export default function KpPushEventPage() {
                                 <span className={`text-xs ${theme.textMuted}`}>0</span>
                               )}
                             </td>
-                            <td className="px-3 py-3 text-center">
-                              {member.ratioImproved ? (
-                                <span className="text-green-400 text-lg">✓</span>
+                            <td className="px-3 py-3 text-right">
+                              {member.startRatio !== null && member.endRatio !== null ? (
+                                <div className="flex flex-col items-end">
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <span className={theme.textMuted}>{formatRatio(member.startRatio)}</span>
+                                    <span className={theme.textMuted}>→</span>
+                                    <span className={member.ratioImproved ? 'text-green-400 font-medium' : 'text-red-400/70'}>{formatRatio(member.endRatio)}</span>
+                                  </div>
+                                  {(() => {
+                                    const change = getRatioChange(member);
+                                    if (change === null) return null;
+                                    return (
+                                      <span className={`text-[10px] ${change > 0 ? 'text-green-400' : 'text-red-400/70'}`}>
+                                        {change > 0 ? '↓' : '↑'}{Math.abs(change).toFixed(1)}
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
                               ) : (
-                                <span className="text-red-400/50 text-lg">✗</span>
+                                <span className={theme.textMuted}>-</span>
                               )}
                             </td>
                           </tr>
