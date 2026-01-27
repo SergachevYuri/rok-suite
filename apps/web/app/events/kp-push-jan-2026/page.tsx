@@ -566,17 +566,38 @@ export default function KpPushEventPage() {
               <span className={`text-sm font-medium`}>KP Gain Distribution</span>
               <span className={`text-xs ${theme.textMuted}`}>({rankedMembers.length} members)</span>
             </div>
-            <div style={{ height: 80 }}>
+            <div style={{ height: 100 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={rankedMembers.map(r => ({ name: r.name, kp: r.kpGain }))} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
-                    labelStyle={{ color: 'var(--text)' }}
-                    formatter={(value: number | undefined) => [formatPower(value ?? 0), 'KP Gain']}
-                    labelFormatter={(label: string) => label}
-                  />
-                  <Bar dataKey="kp" fill="#f6993f" radius={[2, 2, 0, 0]} />
-                </BarChart>
+                {(() => {
+                  // Build histogram buckets
+                  const maxGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => r.kpGain)) : 0;
+                  const bucketSize = maxGain > 0 ? Math.ceil(maxGain / 1e6 / 10) * 1e6 : 50e6; // round to nice millions
+                  const bucketCount = Math.min(12, Math.max(5, Math.ceil(maxGain / bucketSize)));
+                  const buckets: Array<{ label: string; count: number; from: number; to: number }> = [];
+                  for (let i = 0; i < bucketCount; i++) {
+                    const from = i * bucketSize;
+                    const to = (i + 1) * bucketSize;
+                    const count = rankedMembers.filter(r => r.kpGain >= from && r.kpGain < to).length;
+                    buckets.push({ label: `${formatPower(from)}–${formatPower(to)}`, count, from, to });
+                  }
+                  // Include any overflow in last bucket
+                  const overflow = rankedMembers.filter(r => r.kpGain >= bucketCount * bucketSize).length;
+                  if (overflow > 0 && buckets.length > 0) buckets[buckets.length - 1].count += overflow;
+                  // Remove trailing empty buckets
+                  while (buckets.length > 1 && buckets[buckets.length - 1].count === 0) buckets.pop();
+
+                  return (
+                    <BarChart data={buckets} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                        labelStyle={{ color: 'var(--text)' }}
+                        formatter={(value: any) => [`${value} member${value !== 1 ? 's' : ''}`, 'Count']}
+                        labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.label ?? ''}
+                      />
+                      <Bar dataKey="count" fill="#f6993f" radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  );
+                })()}
               </ResponsiveContainer>
             </div>
           </div>
