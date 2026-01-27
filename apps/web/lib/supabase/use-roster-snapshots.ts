@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from './client';
+import { createClient, fetchAllRows } from './client';
 
 export interface RosterSnapshot {
   id: string;
@@ -943,14 +943,19 @@ export async function getHonorGrowth(
 export async function getMembershipChanges(limit = 20): Promise<MemberChange[]> {
   const supabase = createClient();
 
-  // Get all snapshots ordered by date
-  const { data: snapshots } = await supabase
-    .from('roster_snapshots')
-    .select('snapshot_date, member_name, is_active, power')
-    .eq('is_active', true)
-    .order('snapshot_date', { ascending: true });
+  // Get all snapshots ordered by date (paginated to avoid 1000-row limit)
+  const snapshots = await fetchAllRows<{
+    snapshot_date: string; member_name: string; is_active: boolean; power: number;
+  }>((range) =>
+    supabase
+      .from('roster_snapshots')
+      .select('snapshot_date, member_name, is_active, power')
+      .eq('is_active', true)
+      .order('snapshot_date', { ascending: true })
+      .range(range.from, range.to)
+  );
 
-  if (!snapshots || snapshots.length === 0) return [];
+  if (snapshots.length === 0) return [];
 
   // Group by date
   const byDate = new Map<string, Set<string>>();
@@ -1105,7 +1110,7 @@ export async function getLatestValuesForAllMembers(): Promise<Map<string, {
   const supabase = createClient();
 
   // Fetch all snapshots using pagination (Supabase default limit is 1000)
-  let allSnapshots: {
+  let snapshots: {
     member_name: string;
     snapshot_date: string;
     kills: number | null;
@@ -1113,31 +1118,20 @@ export async function getLatestValuesForAllMembers(): Promise<Map<string, {
     t5_kills: number | null;
     honor_points: number | null;
     power: number | null;
-  }[] = [];
+  }[];
 
-  let offset = 0;
-  const FETCH_SIZE = 1000;
-
-  while (true) {
-    const { data: batch, error } = await supabase
-      .from('roster_snapshots')
-      .select('member_name, snapshot_date, kills, t4_kills, t5_kills, honor_points, power')
-      .order('snapshot_date', { ascending: false })
-      .range(offset, offset + FETCH_SIZE - 1);
-
-    if (error) {
-      console.error('Error fetching snapshots for latest values:', error);
-      return new Map();
-    }
-
-    if (!batch || batch.length === 0) break;
-    allSnapshots = allSnapshots.concat(batch);
-    offset += FETCH_SIZE;
-
-    if (batch.length < FETCH_SIZE) break;
+  try {
+    snapshots = await fetchAllRows((range) =>
+      supabase
+        .from('roster_snapshots')
+        .select('member_name, snapshot_date, kills, t4_kills, t5_kills, honor_points, power')
+        .order('snapshot_date', { ascending: false })
+        .range(range.from, range.to)
+    );
+  } catch (err) {
+    console.error('Error fetching snapshots for latest values:', err);
+    return new Map();
   }
-
-  const snapshots = allSnapshots;
 
   // For each member, find the latest non-null/non-zero value for each field
   const latestValues = new Map<string, {

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronDown, ChevronUp, ChevronRight, Search, X } from 'lucide-react';
 import { getTheme } from '@/lib/guide/theme';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, fetchAllRows } from '@/lib/supabase/client';
 import { formatPower, formatDate, getMemberHistory, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -71,12 +71,15 @@ export default function KpPushEventPage() {
         const supabase = createClient();
 
         // Get available snapshot dates
-        const { data: dates } = await supabase
-          .from('roster_snapshots')
-          .select('snapshot_date')
-          .order('snapshot_date', { ascending: true });
+        const dates = await fetchAllRows<{ snapshot_date: string }>((range) =>
+          supabase
+            .from('roster_snapshots')
+            .select('snapshot_date')
+            .order('snapshot_date', { ascending: true })
+            .range(range.from, range.to)
+        );
 
-        if (!dates || dates.length === 0) {
+        if (dates.length === 0) {
           setError('No snapshot data available');
           return;
         }
@@ -119,16 +122,20 @@ export default function KpPushEventPage() {
         // Get canonical name helper
         const getCanonicalName = (name: string) => nameVariantMap.get(name) || name;
 
-        // Fetch ALL snapshots in the event period (and slightly before/after for fallback)
-        const { data: allSnapshots } = await supabase
-          .from('roster_snapshots')
-          .select('member_name, power, kills, snapshot_date')
-          .gte('snapshot_date', actualStartDate)
-          .lte('snapshot_date', actualEndDate)
-          .eq('is_active', true)
-          .order('snapshot_date', { ascending: true });
+        // Fetch snapshots for start and end dates using pagination
+        const allSnapshots = await fetchAllRows<{
+          member_name: string; power: number; kills: number; snapshot_date: string;
+        }>((range) =>
+          supabase
+            .from('roster_snapshots')
+            .select('member_name, power, kills, snapshot_date')
+            .in('snapshot_date', [actualStartDate, actualEndDate])
+            .eq('is_active', true)
+            .order('snapshot_date', { ascending: true })
+            .range(range.from, range.to)
+        );
 
-        if (!allSnapshots || allSnapshots.length === 0) {
+        if (allSnapshots.length === 0) {
           setError('Could not fetch snapshot data');
           return;
         }
@@ -172,12 +179,9 @@ export default function KpPushEventPage() {
             endSnap = snapshots[snapshots.length - 1];
           }
 
-          // Only include if we have different dates (actual growth period)
+          // Only include members who have snapshots on both different dates
+          // Members with only one snapshot date weren't present for the full event period
           if (startSnap && endSnap && startSnap.date !== endSnap.date) {
-            startMap.set(canonical, { power: startSnap.power, kp: startSnap.kp });
-            endMap.set(canonical, { power: endSnap.power, kp: endSnap.kp, name: endSnap.name });
-          } else if (startSnap && endSnap) {
-            // Same date - still include but growth will be 0
             startMap.set(canonical, { power: startSnap.power, kp: startSnap.kp });
             endMap.set(canonical, { power: endSnap.power, kp: endSnap.kp, name: endSnap.name });
           }
