@@ -6,7 +6,7 @@ import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronD
 import { getTheme } from '@/lib/guide/theme';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
 import { formatPower, formatDate, getMemberHistory, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, ResponsiveContainer, Tooltip } from 'recharts';
 import { AppSidebar } from '@/components/AppSidebar';
 
 // Event configuration
@@ -48,7 +48,6 @@ export default function KpPushEventPage() {
   const [error, setError] = useState<string | null>(null);
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [showLeadership, setShowLeadership] = useState(true);
-  const [showNonGainers, setShowNonGainers] = useState(true);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -283,9 +282,6 @@ export default function KpPushEventPage() {
     .filter(r => (r.role === 'R4' || r.role === 'R5') && matchesSearch(r.name))
     .sort((a, b) => b.kpGain - a.kpGain) || [];
 
-  const nonGainers = eventData?.results
-    .filter(r => r.kpGain <= 0 && r.role !== 'R4' && r.role !== 'R5' && matchesSearch(r.name))
-    .sort((a, b) => a.kpGain - b.kpGain) || [];
 
   // Reset pagination when search changes
   const handleSearchChange = (value: string) => {
@@ -299,25 +295,15 @@ export default function KpPushEventPage() {
     ? rankedMembers
     : rankedMembers.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
 
-  // Format Power/KP ratio as a simple number (e.g., "42.5" meaning 42.5 power per 1 KP)
-  const formatPowerKpRatio = (power: number, kp: number): string => {
-    if (kp === 0) return '-';
-    const ratio = power / kp;
-    return ratio.toFixed(1);
-  };
+  // Max values for bar scaling
+  const maxKpGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => r.kpGain)) : 1;
+  const maxPowerGain = rankedMembers.length > 0 ? Math.max(...rankedMembers.map(r => Math.abs(r.powerGain))) : 1;
 
   // Format growth value with proper sign prefix
   const formatGrowth = (value: number): string => {
     if (value > 0) return '+' + formatPower(value);
     if (value < 0) return formatPower(value); // formatPower handles negative sign
     return '0';
-  };
-
-  // Format a computed ratio for alliance summary (gains ratio)
-  const formatGainsRatio = (ratio: number | null): string => {
-    if (ratio === null) return '-';
-    if (ratio === Infinity) return '∞';
-    return ratio.toFixed(1) + ':1';
   };
 
   const getRankBadge = (index: number, globalIndex: number) => {
@@ -416,26 +402,98 @@ export default function KpPushEventPage() {
 
           <div className={`${theme.card} border rounded-lg p-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <Target size={18} className={eventData?.allianceRatio && eventData.allianceRatio <= 1 ? 'text-green-400' : 'text-amber-400'} />
-              <span className={`text-sm ${theme.textMuted}`}>Alliance Ratio</span>
+              <Trophy size={18} className="text-amber-400" />
+              <span className={`text-sm ${theme.textMuted}`}>Top Performer</span>
             </div>
-            <p className={`text-2xl font-bold ${eventData?.allianceRatio && eventData.allianceRatio <= 1 ? 'text-green-400' : 'text-amber-400'}`}>
-              {formatGainsRatio(eventData?.allianceRatio || null)}
+            <p className="text-lg font-bold text-amber-400 truncate">
+              {rankedMembers[0]?.name || '-'}
             </p>
-            <p className={`text-xs ${theme.textMuted}`}>Goal: ≤1:1</p>
+            <p className={`text-xs ${theme.textMuted}`}>
+              {rankedMembers[0] ? `+${formatPower(rankedMembers[0].kpGain)} KP` : '-'}
+            </p>
           </div>
 
           <div className={`${theme.card} border rounded-lg p-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <Users size={18} className="text-purple-400" />
-              <span className={`text-sm ${theme.textMuted}`}>Participants</span>
+              <Target size={18} className="text-purple-400" />
+              <span className={`text-sm ${theme.textMuted}`}>Avg KP Gain</span>
             </div>
             <p className="text-2xl font-bold text-purple-400">
-              {eventData?.participantCount || 0}
+              {rankedMembers.length > 0 ? formatPower((eventData?.totalKpGain || 0) / rankedMembers.length) : '-'}
             </p>
-            <p className={`text-xs ${theme.textMuted}`}>gained KP</p>
+            <p className={`text-xs ${theme.textMuted}`}>{rankedMembers.length} participants</p>
           </div>
         </div>
+
+        {/* Top 3 Podium */}
+        {rankedMembers.length >= 3 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {rankedMembers.slice(0, 3).map((member, i) => {
+              const medals = ['🥇', '🥈', '🥉'];
+              const borderColors = ['border-amber-400/60', 'border-gray-400/60', 'border-amber-600/60'];
+              const bgColors = ['bg-amber-400/5', 'bg-gray-400/5', 'bg-amber-600/5'];
+              const textColors = ['text-amber-400', 'text-gray-300', 'text-amber-600'];
+              return (
+                <div
+                  key={member.name}
+                  className={`${theme.card} border-2 ${borderColors[i]} ${bgColors[i]} rounded-lg p-5 text-center`}
+                >
+                  <div className="text-3xl mb-2">{medals[i]}</div>
+                  <div className="text-lg font-bold mb-1 truncate">{member.name}</div>
+                  {member.role && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      member.role === 'R3' ? 'bg-blue-500/20 text-blue-400' :
+                      member.role === 'R2' ? 'bg-green-500/20 text-green-400' :
+                      'bg-[var(--background-secondary)] text-[var(--text-muted)]'
+                    }`}>
+                      {member.role}
+                    </span>
+                  )}
+                  <div className={`text-2xl font-bold ${textColors[i]} mt-3`}>
+                    +{formatPower(member.kpGain)}
+                  </div>
+                  <div className={`text-xs ${theme.textMuted} mt-1`}>KP Gained</div>
+                  <div className="flex justify-center gap-4 mt-3 text-xs">
+                    <div>
+                      <span className={theme.textMuted}>Power </span>
+                      <span className="text-blue-400">{formatGrowth(member.powerGain)}</span>
+                    </div>
+                    <div>
+                      <span className={theme.textMuted}>Ratio </span>
+                      <span className={member.ratioImproved ? 'text-green-400' : 'text-red-400'}>
+                        {member.ratioImproved ? '↑ Improved' : '↓'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* KP Distribution Chart */}
+        {rankedMembers.length > 0 && !searchQuery && (
+          <div className={`${theme.card} border rounded-lg p-4 mb-6`}>
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp size={16} className="text-red-400" />
+              <span className={`text-sm font-medium`}>KP Gain Distribution</span>
+              <span className={`text-xs ${theme.textMuted}`}>({rankedMembers.length} members)</span>
+            </div>
+            <div style={{ height: 80 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={rankedMembers.map(r => ({ name: r.name, kp: r.kpGain }))} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                    labelStyle={{ color: 'var(--text)' }}
+                    formatter={(value: number | undefined) => [formatPower(value ?? 0), 'KP Gain']}
+                    labelFormatter={(label: string) => label}
+                  />
+                  <Bar dataKey="kp" fill="#f56565" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
 
         {/* Search */}
         <div className={`${theme.card} border rounded-lg p-4 mb-6`}>
@@ -459,7 +517,7 @@ export default function KpPushEventPage() {
           </div>
           {searchQuery && (
             <p className={`text-sm ${theme.textMuted} mt-2`}>
-              Found {rankedMembers.length + leadership.length + nonGainers.length} member{rankedMembers.length + leadership.length + nonGainers.length !== 1 ? 's' : ''} matching &quot;{searchQuery}&quot;
+              Found {rankedMembers.length + leadership.length} member{rankedMembers.length + leadership.length !== 1 ? 's' : ''} matching &quot;{searchQuery}&quot;
             </p>
           )}
         </div>
@@ -479,14 +537,12 @@ export default function KpPushEventPage() {
             <table className="w-full text-sm">
               <thead className={`${theme.card} border-b border-[var(--border)]`}>
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium w-8"></th>
-                  <th className="px-4 py-3 text-left font-medium">Rank</th>
-                  <th className="px-4 py-3 text-left font-medium">Name</th>
-                  <th className="px-4 py-3 text-right font-medium">KP Gained</th>
-                  <th className="px-4 py-3 text-right font-medium">Power Change</th>
-                  <th className="px-4 py-3 text-right font-medium">Start P/KP</th>
-                  <th className="px-4 py-3 text-right font-medium">End P/KP</th>
-                  <th className="px-4 py-3 text-center font-medium">Improved</th>
+                  <th className="px-3 py-3 text-left font-medium w-8"></th>
+                  <th className="px-2 py-3 text-left font-medium w-12">Rank</th>
+                  <th className="px-3 py-3 text-left font-medium">Name</th>
+                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
+                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
+                  <th className="px-3 py-3 text-center font-medium w-16">Ratio</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -501,16 +557,16 @@ export default function KpPushEventPage() {
                         className={`hover:bg-[var(--background-secondary)] cursor-pointer ${isExpanded ? 'bg-[var(--background-secondary)]' : ''}`}
                         onClick={() => handleExpandMember(member.name)}
                       >
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <ChevronRight
                             size={16}
                             className={`transition-transform ${isExpanded ? 'rotate-90' : ''} ${theme.textMuted}`}
                           />
                         </td>
-                        <td className="px-4 py-3 font-medium">
+                        <td className="px-2 py-3 font-medium">
                           {getRankBadge(index, globalIndex)}
                         </td>
-                        <td className="px-4 py-3 font-medium">
+                        <td className="px-3 py-3 font-medium">
                           {member.name}
                           {member.role && (
                             <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
@@ -522,30 +578,44 @@ export default function KpPushEventPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right text-red-400 font-medium">
-                          {formatGrowth(member.kpGain)}
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                              <div
+                                className="h-full rounded bg-gradient-to-r from-[#f56565] to-[#f56565]/50"
+                                style={{ width: `${(member.kpGain / maxKpGain) * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-right min-w-[70px] font-medium text-[#f56565] text-xs">
+                              +{formatPower(member.kpGain)}
+                            </span>
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-right text-blue-400">
-                          {formatGrowth(member.powerGain)}
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[50px]">
+                              <div
+                                className={`h-full rounded bg-gradient-to-r ${member.powerGain >= 0 ? 'from-[#4299e1] to-[#4299e1]/50' : 'from-[#f56565] to-[#f56565]/50'}`}
+                                style={{ width: `${(Math.abs(member.powerGain) / maxPowerGain) * 100}%` }}
+                              />
+                            </div>
+                            <span className={`text-right min-w-[65px] font-medium text-xs ${member.powerGain >= 0 ? 'text-[#4299e1]' : 'text-[#f56565]'}`}>
+                              {formatGrowth(member.powerGain)}
+                            </span>
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          {formatPowerKpRatio(member.startPower, member.startKp)}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {formatPowerKpRatio(member.endPower, member.endKp)}
-                        </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-3 py-3 text-center">
                           {member.ratioImproved ? (
-                            <span className="text-green-400">✓</span>
+                            <span className="text-green-400 text-lg">✓</span>
                           ) : (
-                            <span className="text-red-400">✗</span>
+                            <span className="text-red-400/50 text-lg">✗</span>
                           )}
                         </td>
                       </tr>
                       {/* Expanded row with snapshot history */}
                       {isExpanded && (
                         <tr className="bg-[var(--background-secondary)]/50">
-                          <td colSpan={8} className="px-4 py-4">
+                          <td colSpan={6} className="px-4 py-4">
                             <div className="ml-8">
                               <h4 className={`text-sm font-semibold mb-3 ${theme.textMuted}`}>
                                 Snapshot History for {member.name}
@@ -744,97 +814,216 @@ export default function KpPushEventPage() {
                 <table className="w-full text-sm">
                   <thead className={`${theme.card} border-b border-[var(--border)]`}>
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium">Name</th>
-                      <th className="px-4 py-3 text-left font-medium">Role</th>
-                      <th className="px-4 py-3 text-right font-medium">KP Gained</th>
-                      <th className="px-4 py-3 text-right font-medium">Power Change</th>
-                      <th className="px-4 py-3 text-right font-medium">Start P/KP</th>
-                      <th className="px-4 py-3 text-right font-medium">End P/KP</th>
+                      <th className="px-3 py-3 text-left font-medium w-8"></th>
+                      <th className="px-3 py-3 text-left font-medium">Name</th>
+                      <th className="px-3 py-3 text-left font-medium w-16">Role</th>
+                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
+                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
+                      <th className="px-3 py-3 text-center font-medium w-16">Ratio</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
-                    {leadership.map((member) => (
-                      <tr key={member.name} className="hover:bg-[var(--background-secondary)]">
-                        <td className="px-4 py-3 font-medium">{member.name}</td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${
-                            member.role === 'R5' ? 'bg-amber-500/20 text-amber-400' :
-                            'bg-purple-500/20 text-purple-400'
-                          }`}>
-                            {member.role}
-                          </span>
-                        </td>
-                        <td className={`px-4 py-3 text-right ${member.kpGain > 0 ? 'text-red-400' : theme.textMuted}`}>
-                          {formatGrowth(member.kpGain)}
-                        </td>
-                        <td className={`px-4 py-3 text-right ${member.powerGain > 0 ? 'text-blue-400' : theme.textMuted}`}>
-                          {formatGrowth(member.powerGain)}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {formatPowerKpRatio(member.startPower, member.startKp)}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {formatPowerKpRatio(member.endPower, member.endKp)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+                    {leadership.map((member) => {
+                      const isExpanded = expandedMember === member.name;
+                      const leaderMaxKp = Math.max(...leadership.map(l => Math.abs(l.kpGain)), 1);
+                      const leaderMaxPower = Math.max(...leadership.map(l => Math.abs(l.powerGain)), 1);
+                      return (
+                        <>
+                          <tr
+                            key={member.name}
+                            className={`hover:bg-[var(--background-secondary)] cursor-pointer ${isExpanded ? 'bg-[var(--background-secondary)]' : ''}`}
+                            onClick={() => handleExpandMember(member.name)}
+                          >
+                            <td className="px-3 py-3">
+                              <ChevronRight
+                                size={16}
+                                className={`transition-transform ${isExpanded ? 'rotate-90' : ''} ${theme.textMuted}`}
+                              />
+                            </td>
+                            <td className="px-3 py-3 font-medium">{member.name}</td>
+                            <td className="px-3 py-3">
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                member.role === 'R5' ? 'bg-amber-500/20 text-amber-400' :
+                                'bg-purple-500/20 text-purple-400'
+                              }`}>
+                                {member.role}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3">
+                              {member.kpGain > 0 ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                    <div
+                                      className="h-full rounded bg-gradient-to-r from-[#f56565] to-[#f56565]/50"
+                                      style={{ width: `${(member.kpGain / leaderMaxKp) * 100}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-right min-w-[70px] font-medium text-[#f56565] text-xs">
+                                    +{formatPower(member.kpGain)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className={`text-xs ${theme.textMuted}`}>{formatGrowth(member.kpGain)}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3">
+                              {member.powerGain !== 0 ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[50px]">
+                                    <div
+                                      className={`h-full rounded bg-gradient-to-r ${member.powerGain >= 0 ? 'from-[#4299e1] to-[#4299e1]/50' : 'from-[#f56565] to-[#f56565]/50'}`}
+                                      style={{ width: `${(Math.abs(member.powerGain) / leaderMaxPower) * 100}%` }}
+                                    />
+                                  </div>
+                                  <span className={`text-right min-w-[65px] font-medium text-xs ${member.powerGain >= 0 ? 'text-[#4299e1]' : 'text-[#f56565]'}`}>
+                                    {formatGrowth(member.powerGain)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className={`text-xs ${theme.textMuted}`}>0</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              {member.ratioImproved ? (
+                                <span className="text-green-400 text-lg">✓</span>
+                              ) : (
+                                <span className="text-red-400/50 text-lg">✗</span>
+                              )}
+                            </td>
+                          </tr>
+                          {/* Expanded row with snapshot history */}
+                          {isExpanded && (
+                            <tr className="bg-[var(--background-secondary)]/50">
+                              <td colSpan={6} className="px-4 py-4">
+                                <div className="ml-8">
+                                  <h4 className={`text-sm font-semibold mb-3 ${theme.textMuted}`}>
+                                    Snapshot History for {member.name}
+                                  </h4>
+                                  {loadingSnapshots ? (
+                                    <div className={`text-sm ${theme.textMuted}`}>Loading...</div>
+                                  ) : memberSnapshots.length === 0 ? (
+                                    <div className={`text-sm ${theme.textMuted}`}>No snapshot history found</div>
+                                  ) : (
+                                    <div className="flex flex-col md:flex-row gap-4">
+                                      {/* Snapshot History Table */}
+                                      <div className="flex-1 overflow-x-auto">
+                                        <table className="text-xs sm:text-sm">
+                                          <thead>
+                                            <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
+                                              <th className="text-left px-2 py-1">Date</th>
+                                              <th className="text-right px-2 py-1">Power</th>
+                                              <th className="text-right px-2 py-1">KP</th>
+                                              <th className="text-right px-2 py-1">T4</th>
+                                              <th className="text-right px-2 py-1">T5</th>
+                                              <th className="text-right px-2 py-1">Honor</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {memberSnapshots.map((snap, snapIdx) => {
+                                              const prevSnap = snapIdx > 0 ? memberSnapshots[snapIdx - 1] : null;
+                                              const isCarryover = (current: number | undefined, prev: number | undefined) =>
+                                                prevSnap && current === prev;
 
-        {/* Non-Gainers Section */}
-        {nonGainers.length > 0 && (
-          <div className={`${theme.card} border rounded-lg overflow-hidden`}>
-            <button
-              onClick={() => setShowNonGainers(!showNonGainers)}
-              className="w-full p-4 border-b border-[var(--border)] flex items-center justify-between hover:bg-[var(--background-secondary)]"
-            >
-              <div className="flex items-center gap-2">
-                <Users size={20} className={theme.textMuted} />
-                <h2 className="text-lg font-semibold">No KP Gain</h2>
-                <span className={`text-sm ${theme.textMuted}`}>({nonGainers.length})</span>
-              </div>
-              {showNonGainers ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </button>
+                                              const carryoverClass = "opacity-40 italic";
+                                              const powerCarry = isCarryover(snap.power, prevSnap?.power);
+                                              const killsCarry = isCarryover(snap.kills, prevSnap?.kills);
+                                              const t4Carry = isCarryover(snap.t4_kills, prevSnap?.t4_kills);
+                                              const t5Carry = isCarryover(snap.t5_kills, prevSnap?.t5_kills);
+                                              const honorCarry = isCarryover(snap.honor_points, prevSnap?.honor_points);
 
-            {showNonGainers && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className={`${theme.card} border-b border-[var(--border)]`}>
-                    <tr>
-                      <th className="px-4 py-3 text-left font-medium">Name</th>
-                      <th className="px-4 py-3 text-right font-medium">KP Change</th>
-                      <th className="px-4 py-3 text-right font-medium">Power Change</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border)]">
-                    {nonGainers.map((member) => (
-                      <tr key={member.name} className="hover:bg-[var(--background-secondary)]">
-                        <td className="px-4 py-3 font-medium">
-                          {member.name}
-                          {member.role && (
-                            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded bg-[var(--background-secondary)] text-[var(--text-muted)]`}>
-                              {member.role}
-                            </span>
+                                              return (
+                                                <tr key={snap.id || snapIdx} className="border-b border-[var(--border)]/30">
+                                                  <td className="px-2 py-1 text-[#9f7aea]">
+                                                    {formatDate(snap.snapshot_date)}
+                                                  </td>
+                                                  <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
+                                                    {formatPower(snap.power)}
+                                                  </td>
+                                                  <td className={`px-2 py-1 text-right text-[#f56565] ${killsCarry ? carryoverClass : ''}`}>
+                                                    {formatPower(snap.kills)}
+                                                  </td>
+                                                  <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
+                                                    {formatPower(snap.t4_kills)}
+                                                  </td>
+                                                  <td className={`px-2 py-1 text-right text-[#f97316] ${t5Carry ? carryoverClass : ''}`}>
+                                                    {formatPower(snap.t5_kills)}
+                                                  </td>
+                                                  <td className={`px-2 py-1 text-right text-[#fbbf24] ${honorCarry ? carryoverClass : ''}`}>
+                                                    {snap.honor_points?.toLocaleString() || '-'}
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                        <div className={`text-[10px] ${theme.textMuted} mt-2 italic`}>
+                                          Dimmed values are unchanged from previous snapshot
+                                        </div>
+                                      </div>
+                                      {/* Growth Sparkline Charts */}
+                                      {memberSnapshots.length >= 2 && (
+                                        <div className="md:w-64 shrink-0">
+                                          <div className={`text-xs ${theme.textMuted} mb-2`}>Growth Trends</div>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                              <div style={{ height: 45 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                  <LineChart data={memberSnapshots.map(s => ({ v: s.power }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                    <Line type="monotone" dataKey="v" stroke="#01b574" strokeWidth={1.5} dot={false} />
+                                                  </LineChart>
+                                                </ResponsiveContainer>
+                                              </div>
+                                              <div className={`text-[10px] ${theme.textMuted} mt-1`}>Power</div>
+                                            </div>
+                                            <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                              <div style={{ height: 45 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                  <LineChart data={memberSnapshots.map(s => ({ v: s.kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                    <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={1.5} dot={false} />
+                                                  </LineChart>
+                                                </ResponsiveContainer>
+                                              </div>
+                                              <div className={`text-[10px] ${theme.textMuted} mt-1`}>Kill Points</div>
+                                            </div>
+                                            <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                              <div style={{ height: 45 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                  <LineChart data={memberSnapshots.map(s => ({ v: s.t4_kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                    <Line type="monotone" dataKey="v" stroke="#fbbf24" strokeWidth={1.5} dot={false} />
+                                                  </LineChart>
+                                                </ResponsiveContainer>
+                                              </div>
+                                              <div className={`text-[10px] ${theme.textMuted} mt-1`}>T4 KP</div>
+                                            </div>
+                                            <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                              <div style={{ height: 45 }}>
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                  <LineChart data={memberSnapshots.map(s => ({ v: s.t5_kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                    <Line type="monotone" dataKey="v" stroke="#f97316" strokeWidth={1.5} dot={false} />
+                                                  </LineChart>
+                                                </ResponsiveContainer>
+                                              </div>
+                                              <div className={`text-[10px] ${theme.textMuted} mt-1`}>T5 KP</div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
                           )}
-                        </td>
-                        <td className={`px-4 py-3 text-right ${theme.textMuted}`}>
-                          {formatGrowth(member.kpGain)}
-                        </td>
-                        <td className={`px-4 py-3 text-right ${member.powerGain > 0 ? 'text-blue-400' : theme.textMuted}`}>
-                          {formatGrowth(member.powerGain)}
-                        </td>
-                      </tr>
-                    ))}
+                        </>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
         )}
+
       </div>
     </div>
     </AppSidebar>
