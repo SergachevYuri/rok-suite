@@ -658,8 +658,9 @@ export default function KpPushEventPage() {
                       <XAxis dataKey="shortLabel" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} width={28} />
                       <Tooltip
-                        contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
-                        labelStyle={{ color: 'var(--text)' }}
+                        contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: '#e2e8f0' }}
+                        labelStyle={{ color: '#e2e8f0', fontWeight: 600 }}
+                        itemStyle={{ color: '#e2e8f0' }}
                         formatter={(value: any) => [`${value} member${value !== 1 ? 's' : ''}`, 'Count']}
                         labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.label ?? ''}
                       />
@@ -708,9 +709,18 @@ export default function KpPushEventPage() {
                       label={{ value: 'KP Gained', angle: -90, position: 'insideLeft', offset: 8, fontSize: 10, fill: 'var(--text-muted)' }}
                     />
                     <Tooltip
-                      contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
-                      formatter={(value: any, name: any) => [formatPower(value as number), name === 'kp' ? 'KP Gained' : 'Power Change']}
-                      labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.name ?? ''}
+                      content={({ active, payload }: any) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0]?.payload;
+                        if (!d) return null;
+                        return (
+                          <div style={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#e2e8f0' }}>
+                            <div style={{ fontWeight: 600, marginBottom: 4 }}>{d.name}</div>
+                            <div><span style={{ color: '#f6993f' }}>KP Gained:</span> {formatPower(d.kp)}</div>
+                            <div><span style={{ color: '#60a5fa' }}>Power Change:</span> {formatGrowth(d.power)}</div>
+                          </div>
+                        );
+                      }}
                     />
                     <Scatter
                       data={rankedMembers.map(m => ({ name: m.name, power: m.powerGain, kp: m.kpGain, role: m.role }))}
@@ -761,7 +771,9 @@ export default function KpPushEventPage() {
                       width={90}
                     />
                     <Tooltip
-                      contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px' }}
+                      contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', color: '#e2e8f0' }}
+                      labelStyle={{ color: '#e2e8f0', fontWeight: 600 }}
+                      itemStyle={{ color: '#e2e8f0' }}
                       formatter={(value: any) => [`+${formatPower(value as number)}`, 'KP Gained']}
                       labelFormatter={(_: any, payload: any) => payload?.[0]?.payload?.fullName ?? ''}
                     />
@@ -820,6 +832,168 @@ export default function KpPushEventPage() {
                 })}
               </div>
             </div>
+          );
+        })()}
+
+        {/* Event Summary Stats */}
+        {eventData && (() => {
+          const allResults = eventData.results;
+          const gainers = allResults.filter(m => m.kpGain > 0).sort((a, b) => b.kpGain - a.kpGain);
+          const totalMembers = allResults.length;
+          const participationRate = totalMembers > 0 ? (gainers.length / totalMembers * 100) : 0;
+
+          // Percentile calculations
+          const kpGains = gainers.map(m => m.kpGain);
+          const median = kpGains.length > 0 ? kpGains[Math.floor(kpGains.length / 2)] : 0;
+          const p75 = kpGains.length > 3 ? kpGains[Math.floor(kpGains.length * 0.25)] : kpGains[0] || 0; // top 25%
+          const p25 = kpGains.length > 3 ? kpGains[Math.floor(kpGains.length * 0.75)] : kpGains[kpGains.length - 1] || 0; // bottom 25%
+          const avgKp = gainers.length > 0 ? gainers.reduce((s, m) => s + m.kpGain, 0) / gainers.length : 0;
+
+          // Power stats
+          const powerGainers = allResults.filter(m => m.powerGain > 0);
+          const powerLosers = allResults.filter(m => m.powerGain < 0);
+          const totalPowerLost = powerLosers.reduce((s, m) => s + m.powerGain, 0);
+
+          // Efficiency: KP gained per power gained (higher = more efficient)
+          const withBothGains = gainers.filter(m => m.powerGain > 0);
+          const efficientMembers = withBothGains
+            .map(m => ({ ...m, efficiency: m.kpGain / m.powerGain }))
+            .sort((a, b) => b.efficiency - a.efficiency);
+
+          // Ratio improvers
+          const ratioImprovers = allResults
+            .filter(m => m.startRatio !== null && m.endRatio !== null && m.endRatio > m.startRatio)
+            .sort((a, b) => (b.endRatio! - b.startRatio!) - (a.endRatio! - a.startRatio!));
+
+          return (
+            <>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className={`${theme.card} border rounded-lg p-4`}>
+                <div className={`text-xs ${theme.textMuted} mb-1`}>Participation</div>
+                <div className="text-xl font-bold text-emerald-400">{participationRate.toFixed(0)}%</div>
+                <div className={`text-[10px] ${theme.textMuted}`}>{gainers.length} of {totalMembers} gained KP</div>
+              </div>
+              <div className={`${theme.card} border rounded-lg p-4`}>
+                <div className={`text-xs ${theme.textMuted} mb-1`}>Median KP Gain</div>
+                <div className="text-xl font-bold text-[#f6993f]">{formatPower(median)}</div>
+                <div className={`text-[10px] ${theme.textMuted}`}>Avg: {formatPower(avgKp)}</div>
+              </div>
+              <div className={`${theme.card} border rounded-lg p-4`}>
+                <div className={`text-xs ${theme.textMuted} mb-1`}>Top 25% Threshold</div>
+                <div className="text-xl font-bold text-amber-400">{formatPower(p75)}</div>
+                <div className={`text-[10px] ${theme.textMuted}`}>Bottom 25%: {formatPower(p25)}</div>
+              </div>
+              <div className={`${theme.card} border rounded-lg p-4`}>
+                <div className={`text-xs ${theme.textMuted} mb-1`}>Power Lost</div>
+                <div className="text-xl font-bold text-red-400">{formatPower(Math.abs(totalPowerLost))}</div>
+                <div className={`text-[10px] ${theme.textMuted}`}>{powerLosers.length} member{powerLosers.length !== 1 ? 's' : ''} lost power</div>
+              </div>
+            </div>
+
+            {/* Efficiency + Ratio Tables side by side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {/* Most Efficient KP Farmers */}
+              <div className={`${theme.card} border rounded-lg p-4`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Target size={16} className="text-emerald-400" />
+                  <span className="text-sm font-medium">Most Efficient KP Farmers</span>
+                </div>
+                <p className={`text-[10px] ${theme.textMuted} mb-2`}>Highest KP gained per unit of power gained</p>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
+                      <th className="text-left py-1.5">#</th>
+                      <th className="text-left py-1.5">Name</th>
+                      <th className="text-right py-1.5">KP/Power</th>
+                      <th className="text-right py-1.5">KP Gained</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {efficientMembers.slice(0, 10).map((m, i) => (
+                      <tr key={m.name} className="border-b border-[var(--border)]/30">
+                        <td className="py-1.5 text-[var(--text-muted)]">{i + 1}</td>
+                        <td className="py-1.5 font-medium">{m.name}</td>
+                        <td className="py-1.5 text-right text-emerald-400 font-medium">{m.efficiency.toFixed(1)}x</td>
+                        <td className="py-1.5 text-right text-[#f6993f]">{formatPower(m.kpGain)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Biggest Ratio Improvers */}
+              <div className={`${theme.card} border rounded-lg p-4`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp size={16} className="text-green-400" />
+                  <span className="text-sm font-medium">Biggest Ratio Improvers</span>
+                </div>
+                <p className={`text-[10px] ${theme.textMuted} mb-2`}>Largest KP/Power ratio improvement (higher = better)</p>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
+                      <th className="text-left py-1.5">#</th>
+                      <th className="text-left py-1.5">Name</th>
+                      <th className="text-right py-1.5">Before</th>
+                      <th className="text-right py-1.5">After</th>
+                      <th className="text-right py-1.5">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ratioImprovers.slice(0, 10).map((m, i) => {
+                      const change = m.endRatio! - m.startRatio!;
+                      return (
+                        <tr key={m.name} className="border-b border-[var(--border)]/30">
+                          <td className="py-1.5 text-[var(--text-muted)]">{i + 1}</td>
+                          <td className="py-1.5 font-medium">{m.name}</td>
+                          <td className="py-1.5 text-right text-[var(--text-muted)]">{formatRatio(m.startRatio)}</td>
+                          <td className="py-1.5 text-right text-[#01b574]">{formatRatio(m.endRatio)}</td>
+                          <td className="py-1.5 text-right text-green-400 font-medium">+{change.toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Power Losers who gained KP (interesting stat) */}
+            {(() => {
+              const kpGainersWhoLostPower = gainers.filter(m => m.powerGain < 0).sort((a, b) => a.powerGain - b.powerGain);
+              if (kpGainersWhoLostPower.length === 0) return null;
+              return (
+                <div className={`${theme.card} border rounded-lg p-4 mb-6`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Medal size={16} className="text-red-400" />
+                    <span className="text-sm font-medium">KP Gainers Who Lost Power</span>
+                  </div>
+                  <p className={`text-[10px] ${theme.textMuted} mb-2`}>Members who gained KP while their power decreased — likely killed troops for the cause</p>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
+                        <th className="text-left py-1.5">Name</th>
+                        <th className="text-right py-1.5">KP Gained</th>
+                        <th className="text-right py-1.5">Power Lost</th>
+                        <th className="text-right py-1.5">KP/Power</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {kpGainersWhoLostPower.map(m => (
+                        <tr key={m.name} className="border-b border-[var(--border)]/30">
+                          <td className="py-1.5 font-medium">{m.name}</td>
+                          <td className="py-1.5 text-right text-[#f6993f]">+{formatPower(m.kpGain)}</td>
+                          <td className="py-1.5 text-right text-red-400">{formatPower(m.powerGain)}</td>
+                          <td className="py-1.5 text-right text-emerald-400 font-medium">
+                            {m.powerGain !== 0 ? (m.kpGain / Math.abs(m.powerGain)).toFixed(1) + 'x' : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+            </>
           );
         })()}
         </div>
