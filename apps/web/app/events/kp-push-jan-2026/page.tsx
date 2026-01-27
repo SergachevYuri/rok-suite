@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Trophy, Calendar, Target, Users, TrendingUp, Medal, ChevronDown, ChevronUp, ChevronRight, Search, X } from 'lucide-react';
 import { getTheme } from '@/lib/guide/theme';
@@ -678,9 +678,8 @@ export default function KpPushEventPage() {
                   const isExpanded = expandedMember === member.name;
 
                   return (
-                    <>
+                    <Fragment key={member.name}>
                       <tr
-                        key={member.name}
                         className={`hover:bg-[var(--background-secondary)] cursor-pointer ${isExpanded ? 'bg-[var(--background-secondary)]' : ''}`}
                         onClick={() => handleExpandMember(member.name)}
                       >
@@ -883,7 +882,7 @@ export default function KpPushEventPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -988,9 +987,8 @@ export default function KpPushEventPage() {
                       const leaderMaxKp = Math.max(...leadership.map(l => Math.abs(l.kpGain)), 1);
                       const leaderMaxPower = Math.max(...leadership.map(l => Math.abs(l.powerGain)), 1);
                       return (
-                        <>
+                        <Fragment key={member.name}>
                           <tr
-                            key={member.name}
                             className={`hover:bg-[var(--background-secondary)] cursor-pointer ${isExpanded ? 'bg-[var(--background-secondary)]' : ''}`}
                             onClick={() => handleExpandMember(member.name)}
                           >
@@ -1191,7 +1189,7 @@ export default function KpPushEventPage() {
                               </td>
                             </tr>
                           )}
-                        </>
+                        </Fragment>
                       );
                     })}
                   </tbody>
