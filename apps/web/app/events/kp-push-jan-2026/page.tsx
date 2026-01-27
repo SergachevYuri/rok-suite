@@ -42,6 +42,9 @@ interface EventData {
   endDate: string;
 }
 
+type EventSortField = 'rank' | 'name' | 'kpGain' | 'powerGain' | 'ratio';
+type SortDirection = 'asc' | 'desc';
+
 export default function KpPushEventPage() {
   const theme = getTheme();
   const [loading, setLoading] = useState(true);
@@ -51,6 +54,12 @@ export default function KpPushEventPage() {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Sort state
+  const [sortField, setSortField] = useState<EventSortField>('rank');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [leaderSortField, setLeaderSortField] = useState<EventSortField>('kpGain');
+  const [leaderSortDirection, setLeaderSortDirection] = useState<SortDirection>('desc');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
@@ -274,13 +283,23 @@ export default function KpPushEventPage() {
   };
 
   // Separate results into categories (with search filter applied)
-  const rankedMembers = eventData?.results
+  // Base order is always by KP gain desc (used for rank badges)
+  const rankedByKp = eventData?.results
     .filter(r => r.kpGain > 0 && r.role !== 'R4' && r.role !== 'R5' && matchesSearch(r.name))
     .sort((a, b) => b.kpGain - a.kpGain) || [];
 
-  const leadership = eventData?.results
+  // Map of name -> base rank index (for rank badges regardless of sort)
+  const rankOrder = new Map(rankedByKp.map((m, i) => [m.name, i]));
+
+  // Apply user sort
+  const rankedMembers = [...rankedByKp].sort((a, b) => sortMembers(a, b, sortField, sortDirection, rankOrder));
+
+  const leadershipByKp = eventData?.results
     .filter(r => (r.role === 'R4' || r.role === 'R5') && matchesSearch(r.name))
     .sort((a, b) => b.kpGain - a.kpGain) || [];
+
+  const leaderRankOrder = new Map(leadershipByKp.map((m, i) => [m.name, i]));
+  const leadership = [...leadershipByKp].sort((a, b) => sortMembers(a, b, leaderSortField, leaderSortDirection, leaderRankOrder));
 
 
   // Reset pagination when search changes
@@ -322,6 +341,70 @@ export default function KpPushEventPage() {
     if (value > 0) return '+' + formatPower(value);
     if (value < 0) return formatPower(value); // formatPower handles negative sign
     return '0';
+  };
+
+  // Sort handler
+  const handleSort = (field: EventSortField, table: 'rankings' | 'leadership') => {
+    if (table === 'rankings') {
+      if (sortField === field) {
+        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      } else {
+        setSortField(field);
+        setSortDirection(field === 'name' ? 'asc' : field === 'rank' ? 'asc' : 'desc');
+      }
+      setCurrentPage(0);
+    } else {
+      if (leaderSortField === field) {
+        setLeaderSortDirection(leaderSortDirection === 'asc' ? 'desc' : 'asc');
+      } else {
+        setLeaderSortField(field);
+        setLeaderSortDirection(field === 'name' ? 'asc' : 'desc');
+      }
+    }
+  };
+
+  const SortIcon = ({ field, table }: { field: EventSortField; table: 'rankings' | 'leadership' }) => {
+    const activeField = table === 'rankings' ? sortField : leaderSortField;
+    const activeDir = table === 'rankings' ? sortDirection : leaderSortDirection;
+    const isActive = activeField === field;
+    const Icon = isActive && activeDir === 'desc' ? ChevronDown : ChevronUp;
+    return <Icon className={`w-3.5 h-3.5 transition-opacity ${isActive ? 'opacity-100' : 'opacity-30'}`} />;
+  };
+
+  // Sort comparator for event members
+  const sortMembers = (a: MemberResult, b: MemberResult, field: EventSortField, direction: SortDirection, baseOrder: Map<string, number>) => {
+    let aVal: number | string = 0;
+    let bVal: number | string = 0;
+
+    switch (field) {
+      case 'rank':
+        // Use original KP-gain ranking order
+        aVal = baseOrder.get(a.name) ?? 999;
+        bVal = baseOrder.get(b.name) ?? 999;
+        break;
+      case 'name':
+        aVal = a.name.toLowerCase();
+        bVal = b.name.toLowerCase();
+        break;
+      case 'kpGain':
+        aVal = a.kpGain;
+        bVal = b.kpGain;
+        break;
+      case 'powerGain':
+        aVal = a.powerGain;
+        bVal = b.powerGain;
+        break;
+      case 'ratio':
+        aVal = a.endRatio ?? -1;
+        bVal = b.endRatio ?? -1;
+        break;
+    }
+
+    if (direction === 'asc') {
+      return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+    } else {
+      return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+    }
   };
 
   const getRankBadge = (index: number, globalIndex: number) => {
@@ -400,10 +483,10 @@ export default function KpPushEventPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className={`${theme.card} border rounded-lg p-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp size={18} className="text-red-400" />
+              <TrendingUp size={18} className="text-[#f6993f]" />
               <span className={`text-sm ${theme.textMuted}`}>Total KP Gained</span>
             </div>
-            <p className="text-2xl font-bold text-red-400">
+            <p className="text-2xl font-bold text-[#f6993f]">
               {formatPower(eventData?.totalKpGain || 0)}
             </p>
           </div>
@@ -499,7 +582,7 @@ export default function KpPushEventPage() {
         {rankedMembers.length > 0 && !searchQuery && (
           <div className={`${theme.card} border rounded-lg p-4 mb-6`}>
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp size={16} className="text-red-400" />
+              <TrendingUp size={16} className="text-[#f6993f]" />
               <span className={`text-sm font-medium`}>KP Gain Distribution</span>
               <span className={`text-xs ${theme.textMuted}`}>({rankedMembers.length} members)</span>
             </div>
@@ -512,7 +595,7 @@ export default function KpPushEventPage() {
                     formatter={(value: number | undefined) => [formatPower(value ?? 0), 'KP Gain']}
                     labelFormatter={(label: string) => label}
                   />
-                  <Bar dataKey="kp" fill="#f56565" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="kp" fill="#f6993f" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -562,16 +645,36 @@ export default function KpPushEventPage() {
               <thead className={`${theme.card} border-b border-[var(--border)]`}>
                 <tr>
                   <th className="px-3 py-3 text-left font-medium w-8"></th>
-                  <th className="px-2 py-3 text-left font-medium w-12">Rank</th>
-                  <th className="px-3 py-3 text-left font-medium">Name</th>
-                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
-                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
-                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>KP/P Ratio</th>
+                  <th className="px-2 py-3 text-left font-medium w-12">
+                    <button onClick={() => handleSort('rank', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
+                      Rank <SortIcon field="rank" table="rankings" />
+                    </button>
+                  </th>
+                  <th className="px-3 py-3 text-left font-medium">
+                    <button onClick={() => handleSort('name', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
+                      Name <SortIcon field="name" table="rankings" />
+                    </button>
+                  </th>
+                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>
+                    <button onClick={() => handleSort('kpGain', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
+                      KP Gained <SortIcon field="kpGain" table="rankings" />
+                    </button>
+                  </th>
+                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
+                    <button onClick={() => handleSort('powerGain', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
+                      Power Change <SortIcon field="powerGain" table="rankings" />
+                    </button>
+                  </th>
+                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
+                    <button onClick={() => handleSort('ratio', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
+                      KP/P Ratio <SortIcon field="ratio" table="rankings" />
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 {paginatedMembers.map((member, index) => {
-                  const globalIndex = rowsPerPage === -1 ? index : currentPage * rowsPerPage + index;
+                  const baseRank = rankOrder.get(member.name) ?? index;
                   const isExpanded = expandedMember === member.name;
 
                   return (
@@ -588,7 +691,7 @@ export default function KpPushEventPage() {
                           />
                         </td>
                         <td className="px-2 py-3 font-medium">
-                          {getRankBadge(index, globalIndex)}
+                          {getRankBadge(0, baseRank)}
                         </td>
                         <td className="px-3 py-3 font-medium">
                           {member.name}
@@ -606,11 +709,11 @@ export default function KpPushEventPage() {
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
                               <div
-                                className="h-full rounded bg-gradient-to-r from-[#f56565] to-[#f56565]/50"
+                                className="h-full rounded bg-gradient-to-r from-[#f6993f] to-[#f6993f]/50"
                                 style={{ width: `${(member.kpGain / maxKpGain) * 100}%` }}
                               />
                             </div>
-                            <span className="text-right min-w-[70px] font-medium text-[#f56565] text-xs">
+                            <span className="text-right min-w-[70px] font-medium text-[#f6993f] text-xs">
                               +{formatPower(member.kpGain)}
                             </span>
                           </div>
@@ -701,7 +804,7 @@ export default function KpPushEventPage() {
                                               <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
                                                 {formatPower(snap.power)}
                                               </td>
-                                              <td className={`px-2 py-1 text-right text-[#f56565] ${killsCarry ? carryoverClass : ''}`}>
+                                              <td className={`px-2 py-1 text-right text-[#f6993f] ${killsCarry ? carryoverClass : ''}`}>
                                                 {formatPower(snap.kills)}
                                               </td>
                                               <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
@@ -743,7 +846,7 @@ export default function KpPushEventPage() {
                                           <div style={{ height: 45 }}>
                                             <ResponsiveContainer width="100%" height="100%">
                                               <LineChart data={memberSnapshots.map(s => ({ v: s.kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                                                <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={1.5} dot={false} />
+                                                <Line type="monotone" dataKey="v" stroke="#f6993f" strokeWidth={1.5} dot={false} />
                                               </LineChart>
                                             </ResponsiveContainer>
                                           </div>
@@ -856,11 +959,27 @@ export default function KpPushEventPage() {
                   <thead className={`${theme.card} border-b border-[var(--border)]`}>
                     <tr>
                       <th className="px-3 py-3 text-left font-medium w-8"></th>
-                      <th className="px-3 py-3 text-left font-medium">Name</th>
+                      <th className="px-3 py-3 text-left font-medium">
+                        <button onClick={() => handleSort('name', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
+                          Name <SortIcon field="name" table="leadership" />
+                        </button>
+                      </th>
                       <th className="px-3 py-3 text-left font-medium w-16">Role</th>
-                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>KP Gained</th>
-                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>Power Change</th>
-                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>KP/P Ratio</th>
+                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>
+                        <button onClick={() => handleSort('kpGain', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
+                          KP Gained <SortIcon field="kpGain" table="leadership" />
+                        </button>
+                      </th>
+                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
+                        <button onClick={() => handleSort('powerGain', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
+                          Power Change <SortIcon field="powerGain" table="leadership" />
+                        </button>
+                      </th>
+                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
+                        <button onClick={() => handleSort('ratio', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
+                          KP/P Ratio <SortIcon field="ratio" table="leadership" />
+                        </button>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)]">
@@ -895,11 +1014,11 @@ export default function KpPushEventPage() {
                                 <div className="flex items-center gap-2">
                                   <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
                                     <div
-                                      className="h-full rounded bg-gradient-to-r from-[#f56565] to-[#f56565]/50"
+                                      className="h-full rounded bg-gradient-to-r from-[#f6993f] to-[#f6993f]/50"
                                       style={{ width: `${(member.kpGain / leaderMaxKp) * 100}%` }}
                                     />
                                   </div>
-                                  <span className="text-right min-w-[70px] font-medium text-[#f56565] text-xs">
+                                  <span className="text-right min-w-[70px] font-medium text-[#f6993f] text-xs">
                                     +{formatPower(member.kpGain)}
                                   </span>
                                 </div>
@@ -997,7 +1116,7 @@ export default function KpPushEventPage() {
                                                   <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
                                                     {formatPower(snap.power)}
                                                   </td>
-                                                  <td className={`px-2 py-1 text-right text-[#f56565] ${killsCarry ? carryoverClass : ''}`}>
+                                                  <td className={`px-2 py-1 text-right text-[#f6993f] ${killsCarry ? carryoverClass : ''}`}>
                                                     {formatPower(snap.kills)}
                                                   </td>
                                                   <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
@@ -1037,7 +1156,7 @@ export default function KpPushEventPage() {
                                               <div style={{ height: 45 }}>
                                                 <ResponsiveContainer width="100%" height="100%">
                                                   <LineChart data={memberSnapshots.map(s => ({ v: s.kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                                                    <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={1.5} dot={false} />
+                                                    <Line type="monotone" dataKey="v" stroke="#f6993f" strokeWidth={1.5} dot={false} />
                                                   </LineChart>
                                                 </ResponsiveContainer>
                                               </div>
