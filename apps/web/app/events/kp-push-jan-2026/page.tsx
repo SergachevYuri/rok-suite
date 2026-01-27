@@ -45,6 +45,24 @@ interface EventData {
 type EventSortField = 'rank' | 'name' | 'kpGain' | 'powerGain' | 'ratio';
 type SortDirection = 'asc' | 'desc';
 
+function compareMembersByField(
+  a: MemberResult, b: MemberResult,
+  field: EventSortField, direction: SortDirection,
+  baseOrder: Map<string, number>
+): number {
+  let aVal: number | string = 0;
+  let bVal: number | string = 0;
+  switch (field) {
+    case 'rank': aVal = baseOrder.get(a.name) ?? 999; bVal = baseOrder.get(b.name) ?? 999; break;
+    case 'name': aVal = a.name.toLowerCase(); bVal = b.name.toLowerCase(); break;
+    case 'kpGain': aVal = a.kpGain; bVal = b.kpGain; break;
+    case 'powerGain': aVal = a.powerGain; bVal = b.powerGain; break;
+    case 'ratio': aVal = a.endRatio ?? -1; bVal = b.endRatio ?? -1; break;
+  }
+  if (direction === 'asc') return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+  return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+}
+
 export default function KpPushEventPage() {
   const theme = getTheme();
   const [loading, setLoading] = useState(true);
@@ -284,22 +302,21 @@ export default function KpPushEventPage() {
 
   // Separate results into categories (with search filter applied)
   // Base order is always by KP gain desc (used for rank badges)
-  const rankedByKp = eventData?.results
+  const rankedByKp = (eventData?.results ?? [])
     .filter(r => r.kpGain > 0 && r.role !== 'R4' && r.role !== 'R5' && matchesSearch(r.name))
-    .sort((a, b) => b.kpGain - a.kpGain) || [];
-
-  // Map of name -> base rank index (for rank badges regardless of sort)
+    .sort((a, b) => b.kpGain - a.kpGain);
   const rankOrder = new Map(rankedByKp.map((m, i) => [m.name, i]));
+  const rankedMembers = [...rankedByKp].sort((a, b) =>
+    compareMembersByField(a, b, sortField, sortDirection, rankOrder)
+  );
 
-  // Apply user sort
-  const rankedMembers = [...rankedByKp].sort((a, b) => sortMembers(a, b, sortField, sortDirection, rankOrder));
-
-  const leadershipByKp = eventData?.results
+  const leadershipByKp = (eventData?.results ?? [])
     .filter(r => (r.role === 'R4' || r.role === 'R5') && matchesSearch(r.name))
-    .sort((a, b) => b.kpGain - a.kpGain) || [];
-
+    .sort((a, b) => b.kpGain - a.kpGain);
   const leaderRankOrder = new Map(leadershipByKp.map((m, i) => [m.name, i]));
-  const leadership = [...leadershipByKp].sort((a, b) => sortMembers(a, b, leaderSortField, leaderSortDirection, leaderRankOrder));
+  const leadership = [...leadershipByKp].sort((a, b) =>
+    compareMembersByField(a, b, leaderSortField, leaderSortDirection, leaderRankOrder)
+  );
 
 
   // Reset pagination when search changes
@@ -343,19 +360,18 @@ export default function KpPushEventPage() {
     return '0';
   };
 
-  // Sort handler
   const handleSort = (field: EventSortField, table: 'rankings' | 'leadership') => {
     if (table === 'rankings') {
       if (sortField === field) {
-        setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
       } else {
         setSortField(field);
-        setSortDirection(field === 'name' ? 'asc' : field === 'rank' ? 'asc' : 'desc');
+        setSortDirection(field === 'name' || field === 'rank' ? 'asc' : 'desc');
       }
       setCurrentPage(0);
     } else {
       if (leaderSortField === field) {
-        setLeaderSortDirection(leaderSortDirection === 'asc' ? 'desc' : 'asc');
+        setLeaderSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
       } else {
         setLeaderSortField(field);
         setLeaderSortDirection(field === 'name' ? 'asc' : 'desc');
@@ -363,48 +379,12 @@ export default function KpPushEventPage() {
     }
   };
 
-  const renderSortIcon = (field: EventSortField, table: 'rankings' | 'leadership') => {
-    const activeField = table === 'rankings' ? sortField : leaderSortField;
-    const activeDir = table === 'rankings' ? sortDirection : leaderSortDirection;
-    const isActive = activeField === field;
-    const Icon = isActive && activeDir === 'desc' ? ChevronDown : ChevronUp;
-    return <Icon className={`w-3.5 h-3.5 transition-opacity ${isActive ? 'opacity-100' : 'opacity-30'}`} />;
-  };
-
-  // Sort comparator for event members
-  const sortMembers = (a: MemberResult, b: MemberResult, field: EventSortField, direction: SortDirection, baseOrder: Map<string, number>) => {
-    let aVal: number | string = 0;
-    let bVal: number | string = 0;
-
-    switch (field) {
-      case 'rank':
-        // Use original KP-gain ranking order
-        aVal = baseOrder.get(a.name) ?? 999;
-        bVal = baseOrder.get(b.name) ?? 999;
-        break;
-      case 'name':
-        aVal = a.name.toLowerCase();
-        bVal = b.name.toLowerCase();
-        break;
-      case 'kpGain':
-        aVal = a.kpGain;
-        bVal = b.kpGain;
-        break;
-      case 'powerGain':
-        aVal = a.powerGain;
-        bVal = b.powerGain;
-        break;
-      case 'ratio':
-        aVal = a.endRatio ?? -1;
-        bVal = b.endRatio ?? -1;
-        break;
-    }
-
-    if (direction === 'asc') {
-      return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-    } else {
-      return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-    }
+  const sortIcon = (field: EventSortField, table: 'rankings' | 'leadership') => {
+    const af = table === 'rankings' ? sortField : leaderSortField;
+    const ad = table === 'rankings' ? sortDirection : leaderSortDirection;
+    const active = af === field;
+    const Icon = active && ad === 'desc' ? ChevronDown : ChevronUp;
+    return <Icon className={`w-3.5 h-3.5 inline-block ml-0.5 ${active ? 'opacity-100' : 'opacity-30'}`} />;
   };
 
   const getRankBadge = (index: number, globalIndex: number) => {
@@ -646,29 +626,19 @@ export default function KpPushEventPage() {
                 <tr>
                   <th className="px-3 py-3 text-left font-medium w-8"></th>
                   <th className="px-2 py-3 text-left font-medium w-12">
-                    <button onClick={() => handleSort('rank', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      Rank {renderSortIcon('rank', 'rankings')}
-                    </button>
+                    <button onClick={() => handleSort('rank', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Rank{sortIcon('rank', 'rankings')}</button>
                   </th>
                   <th className="px-3 py-3 text-left font-medium">
-                    <button onClick={() => handleSort('name', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      Name {renderSortIcon('name', 'rankings')}
-                    </button>
+                    <button onClick={() => handleSort('name', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Name{sortIcon('name', 'rankings')}</button>
                   </th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>
-                    <button onClick={() => handleSort('kpGain', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      KP Gained {renderSortIcon('kpGain', 'rankings')}
-                    </button>
+                    <button onClick={() => handleSort('kpGain', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP Gained{sortIcon('kpGain', 'rankings')}</button>
                   </th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
-                    <button onClick={() => handleSort('powerGain', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      Power Change {renderSortIcon('powerGain', 'rankings')}
-                    </button>
+                    <button onClick={() => handleSort('powerGain', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Power Change{sortIcon('powerGain', 'rankings')}</button>
                   </th>
                   <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
-                    <button onClick={() => handleSort('ratio', 'rankings')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                      KP/P Ratio {renderSortIcon('ratio', 'rankings')}
-                    </button>
+                    <button onClick={() => handleSort('ratio', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP/P Ratio{sortIcon('ratio', 'rankings')}</button>
                   </th>
                 </tr>
               </thead>
@@ -959,25 +929,17 @@ export default function KpPushEventPage() {
                     <tr>
                       <th className="px-3 py-3 text-left font-medium w-8"></th>
                       <th className="px-3 py-3 text-left font-medium">
-                        <button onClick={() => handleSort('name', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                          Name {renderSortIcon('name', 'leadership')}
-                        </button>
+                        <button onClick={() => handleSort('name', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Name{sortIcon('name', 'leadership')}</button>
                       </th>
                       <th className="px-3 py-3 text-left font-medium w-16">Role</th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>
-                        <button onClick={() => handleSort('kpGain', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                          KP Gained {renderSortIcon('kpGain', 'leadership')}
-                        </button>
+                        <button onClick={() => handleSort('kpGain', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP Gained{sortIcon('kpGain', 'leadership')}</button>
                       </th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
-                        <button onClick={() => handleSort('powerGain', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                          Power Change {renderSortIcon('powerGain', 'leadership')}
-                        </button>
+                        <button onClick={() => handleSort('powerGain', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Power Change{sortIcon('powerGain', 'leadership')}</button>
                       </th>
                       <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
-                        <button onClick={() => handleSort('ratio', 'leadership')} className={`flex items-center gap-1 font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}>
-                          KP/P Ratio {renderSortIcon('ratio', 'leadership')}
-                        </button>
+                        <button onClick={() => handleSort('ratio', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP/P Ratio{sortIcon('ratio', 'leadership')}</button>
                       </th>
                     </tr>
                   </thead>
