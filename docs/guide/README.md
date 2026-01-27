@@ -41,6 +41,11 @@ Each guide includes:
 - **Checklists** - Preparation and execution steps
 - **Rewards** - What you can earn
 
+## Related Tools
+
+- **[Alliance Roster](/roster/README.md)** — Track member growth with daily snapshots, growth tables, and activity scoring
+- **[Alliance Events](/events/README.md)** — Run KP Push challenges with leaderboards, bar graphs, and ratio analytics
+
 ## Contributing
 
 Guides are maintained in the app's data files:

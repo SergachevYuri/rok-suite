@@ -4,6 +4,12 @@
   * [Home](/)
   * [Quick Start](quickstart.md)
 
+* **Alliance Roster**
+  * [Overview](roster/README.md)
+
+* **Alliance Events**
+  * [Overview](events/README.md)
+
 * **Ark of Osiris**
   * [Overview](aoo-strategy/README.md)
   * [Battle Phases](aoo-strategy/phases.md)

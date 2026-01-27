@@ -4,6 +4,21 @@ Welcome to the Rise of Kingdoms Strategy Suite documentation.
 
 ## Tools
 
+### [Alliance Roster](roster/README.md)
+
+Track your alliance members' growth over time with daily snapshots and visual analytics.
+
+- [Snapshots & Growth](roster/README.md#snapshots) - Daily data collection and comparison
+- [Growth Tables](roster/README.md#growth-tables) - KP, Power, and Honor growth with bar graphs
+- [Member Management](roster/README.md#member-management) - Bulk operations, merges, and name changes
+
+### [Alliance Events](events/README.md)
+
+Run alliance-wide challenges and track participation with leaderboards.
+
+- [KP Push Challenge](events/README.md#kp-push-challenge) - Kill point growth competition
+- [Leaderboards](events/README.md#leaderboards) - Rankings with bar graphs and ratio tracking
+
 ### [Ark of Osiris Planner](aoo-strategy/README.md)
 
 Coordinate your alliance's 30v30 battles with interactive maps and role assignments.
@@ -57,16 +72,18 @@ Comprehensive strategy guides for events, alliance coordination, and commander p
 
 ## About
 
-RoK Suite is a toolkit for Rise of Kingdoms strategy planning, built for the **Angmar Nazgul Guards** alliance.
+RoK Suite is a toolkit for Rise of Kingdoms strategy planning, built for the **Angmar Nazgul Guards** alliance. The app is backed by **Supabase** (PostgreSQL) for persistent data storage, real-time sync, and authentication.
 
 ### Recent Updates
 
-- **Scanners Hub** - New screenshot analysis tools for commanders, equipment, and bag items
+- **Alliance Roster** - Full member tracking with daily snapshots, growth tables (KP/Power/Honor), and name change handling
+- **Alliance Events** - KP Push Challenge with leaderboards, podium, bar graphs, ratio tracking, and expandable snapshot history
+- **Alliance Calendar** - Google Calendar integration with multi-timezone support and iCal subscriptions
+- **Visual Overhaul** - Bar graphs, sparkline charts, and distribution charts across roster and event pages
+- **Supabase Schema** - Added `alliance_roster`, `roster_snapshots`, `roster_daily_totals`, and `event_participation` tables
+- **Scanners Hub** - Screenshot analysis tools for commanders, equipment, and bag items
 - **Training Polls** - Schedule AoO training with drag-to-select availability polls
-- **Corner Swap** - Toggle map strategy for different spawn positions
-- **Zone Colors** - Consistent Blue/Orange/Purple matching in-game zones
 - **Game Guides** - Comprehensive event and alliance documentation
-- **Roster Management** - CSV import with automatic teleport wave assignments
 
 ### Data Sources
 
@@ -78,4 +95,4 @@ The optimization algorithms and meta data are sourced from community guides incl
 
 ---
 
-*Last updated: December 2025*
+*Last updated: January 2026*

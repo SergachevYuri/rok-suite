@@ -23,6 +23,29 @@ Learn how it works
 
 ## Features
 
+### Alliance Roster (`/roster`)
+- **Full member tracking** with power, kill points (T4/T5), honor points, role, and alliance tags
+- **Historical snapshots** stored in Supabase — create daily snapshots and compare growth over time
+- **Growth tables** for KP, Power, and Honor with bar graphs and percentage-based comparisons
+- **Member history** with line charts showing stat trends across snapshot dates
+- **Name change handling** via `alternate_names` arrays and `merged_into` foreign keys
+- **Customizable columns** — toggle 17+ metrics across core, combat, support, events, and profile categories
+- **Bulk operations** — CSV/JSON import, bulk event recording, member merge/deactivation
+- **Pagination helper** (`fetchAllRows`) to auto-paginate past Supabase's 1,000-row limit
+
+### Alliance Events (`/events`)
+- **Event hub** listing active, completed, and upcoming alliance challenges
+- **KP Push Challenge** — track KP gains, power changes, and P/KP ratio improvement per member
+- **Top 3 podium** with gold/silver/bronze styling and KP distribution bar chart
+- **Expandable rows** with snapshot history tables and sparkline growth charts (Power, KP, T4, T5)
+- **Leadership table** with the same expand/bar-graph treatment as the main rankings
+- **Best Ratio Gain** highlighting — identifies who improved their P/KP ratio most
+
+### Alliance Calendar (`/calendar`)
+- **Google Calendar embed** for alliance events (AoO training, KvK, rallies)
+- **Multi-timezone support** — UTC, US Eastern/Pacific, UK, Europe, Asia-Pacific, Australia
+- **Calendar subscription** with iCal URLs for Apple Calendar, Outlook, and other apps
+
 ### Ark of Osiris Strategy (`/aoo-strategy`)
 - **30v30 team assignments** with 3-zone system (Blue/Orange/Purple matching in-game colors)
 - **Interactive battle map** with 18 strategic buildings and phase-based attack planning
@@ -65,6 +88,7 @@ Learn how it works
 | Frontend | Next.js 16, React 19, Tailwind CSS 4 |
 | Auth | Supabase (Discord & Google OAuth) |
 | Database | Supabase (PostgreSQL with real-time subscriptions) |
+| Charts | Recharts (bar charts, line charts, sparklines) |
 | OCR | Tesseract.js (text extraction) |
 | Vision AI | Roboflow (commander detection, screenshot scanning) |
 | State | Zustand + localStorage persistence |
@@ -79,15 +103,23 @@ rok-suite/
 ├── apps/
 │   └── web/                     # Next.js web application
 │       ├── app/                 # App router pages
+│       │   ├── roster/          # Alliance roster & snapshot tracking
+│       │   ├── events/          # Alliance events & challenges
+│       │   │   └── kp-push-jan-2026/  # KP Push event page
+│       │   ├── calendar/        # Google Calendar integration
 │       │   ├── aoo-strategy/    # Ark of Osiris planner
+│       │   ├── guide/           # Event & alliance guides
 │       │   ├── sunset-canyon/   # Canyon simulator
 │       │   ├── upgrade-calculator/  # Building calculator
-│       │   └── guide/           # Event & alliance guides
+│       │   └── beta-tools/      # Experimental features
 │       ├── components/          # React components
+│       │   ├── AppSidebar.tsx   # Global sidebar navigation
 │       │   └── aoo-strategy/    # Map, polls, roster components
-│       ├── lib/                 # Utilities and data
-│       ├── data/                # CSV roster data
-│       └── scripts/             # Import/seed scripts
+│       ├── lib/
+│       │   ├── supabase/        # Supabase client, fetchAllRows, roster snapshots
+│       │   └── guide/           # Guide data and theme utilities
+│       ├── data/                # CSV roster data & import files
+│       └── scripts/             # Import/seed/check scripts
 ├── adapters/
 │   ├── discord-js/              # Discord bot (JavaScript) - TBD
 │   └── discord-py/              # Discord bot (Python) - TBD
@@ -100,7 +132,9 @@ rok-suite/
 └── docs/                        # Documentation (GitHub Pages)
     ├── aoo-strategy/            # AoO planner docs
     ├── sunset-canyon/           # Canyon optimizer docs
-    └── upgrade-calculator/      # Calculator docs
+    ├── upgrade-calculator/      # Calculator docs
+    ├── roster/                  # Roster management docs
+    └── events/                  # Events & challenges docs
 ```
 
 ---
@@ -136,6 +170,9 @@ Create `apps/web/.env.local` with:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
+# Required for roster scripts (admin operations)
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
 # Optional - Roboflow Vision AI (for screenshot scanning)
 NEXT_PUBLIC_ROBOFLOW_API_KEY=your_roboflow_api_key
 NEXT_PUBLIC_ROBOFLOW_WORKSPACE=your_workspace
@@ -143,12 +180,27 @@ NEXT_PUBLIC_ROBOFLOW_WORKFLOW=your_workflow_id
 NEXT_PUBLIC_ROBOFLOW_PROJECT=your_project  # For training data uploads
 ```
 
-### Supabase Setup
+---
 
-The app requires the following Supabase tables:
-- `aoo_strategy` - Stores player assignments, map positions, and roster data
-- `training_polls` - Training availability polls with multi-day/time support
-- `poll_responses` - Individual poll responses with voter tracking
+## Supabase Schema
+
+The app uses the following Supabase tables:
+
+| Table | Purpose |
+|-------|---------|
+| `alliance_roster` | Active member data — name, power, kills, t4/t5 kills, honor, role, tier, tags, alternate_names, merged_into |
+| `roster_snapshots` | Daily historical snapshots — member_name, snapshot_date, power, kills, t4/t5 kills, honor_points, is_active |
+| `roster_daily_totals` | Aggregated daily stats (database view) — member_count, total_power, total_kills, avg_power |
+| `event_participation` | Event tracking — member_name, event_type (aoo/mobilization), event_date, team, score |
+| `aoo_strategy` | AoO player assignments, map positions, and roster data |
+| `training_polls` | Training availability polls with multi-day/time support |
+| `poll_responses` | Individual poll responses with voter tracking |
+
+### Key Patterns
+
+- **Name changes**: Members have `alternate_names` (text array) and `merged_into` (FK to another member) for tracking renames and account merges.
+- **Pagination**: The `fetchAllRows()` utility in `lib/supabase/client.ts` auto-paginates queries past Supabase's default 1,000-row limit.
+- **Snapshot comparison**: Growth tables compare the latest snapshot date against a selected earlier date, computing deltas for power, KP, and honor.
 
 ---
 
@@ -263,6 +315,8 @@ Full documentation is available at **[avweigel.github.io/rok-suite](https://avwe
 | Guide | Description |
 |-------|-------------|
 | [Quick Start](https://avweigel.github.io/rok-suite/#/quickstart) | Get started with the tools |
+| [Roster Management](https://avweigel.github.io/rok-suite/#/roster/README) | Member tracking and growth analysis |
+| [Alliance Events](https://avweigel.github.io/rok-suite/#/events/README) | Event challenges and leaderboards |
 | [AoO Strategy](https://avweigel.github.io/rok-suite/#/aoo-strategy/README) | 30v30 battle planning |
 | [Sunset Canyon](https://avweigel.github.io/rok-suite/#/sunset-canyon/README) | Formation optimizer |
 | [Upgrade Calculator](https://avweigel.github.io/rok-suite/#/upgrade-calculator/README) | Building dependencies |
