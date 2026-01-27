@@ -35,7 +35,7 @@ A compact bar chart showing the KP gain spread across all participants:
 - Red gradient bars with tooltip on hover
 - Provides an instant visual feel for gain distribution
 
-### Rankings Table
+### Leaderboards
 
 The main leaderboard for regular members (R1-R3):
 

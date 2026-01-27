@@ -26,7 +26,7 @@ The main roster table displays all active alliance members with configurable col
 - **Filters** by tag, alliance, rank, and AoO team assignment
 - **Pagination** with configurable rows per page (10, 15, 25, 50, All)
 
-### Analytics Tab — Growth Tables
+### Growth Tables
 
 Three growth tables track member progression over time:
 
@@ -52,7 +52,7 @@ Three growth tables track member progression over time:
 - **Comparison Growth** = current value - compare date value
 - Handles name changes via variant mapping (alternate names, merged members)
 
-### History Tab — Charts
+### History Charts
 
 Two chart modes for visualizing trends:
 

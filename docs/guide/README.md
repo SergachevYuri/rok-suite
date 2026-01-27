@@ -43,8 +43,8 @@ Each guide includes:
 
 ## Related Tools
 
-- **[Alliance Roster](/roster/README.md)** — Track member growth with daily snapshots, growth tables, and activity scoring
-- **[Alliance Events](/events/README.md)** — Run KP Push challenges with leaderboards, bar graphs, and ratio analytics
+- **[Alliance Roster](roster/README.md)** — Track member growth with daily snapshots, growth tables, and activity scoring
+- **[Alliance Events](events/README.md)** — Run KP Push challenges with leaderboards, bar graphs, and ratio analytics
 
 ## Contributing
 
