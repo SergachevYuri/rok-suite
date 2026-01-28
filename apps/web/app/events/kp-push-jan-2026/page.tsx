@@ -549,10 +549,10 @@ export default function KpPushEventPage() {
               return (
                 <div
                   key={member.name}
-                  className={`${theme.card} border-2 ${borderColors[i]} ${bgColors[i]} rounded-lg p-5 text-center`}
+                  className={`${theme.card} border-2 ${borderColors[i]} ${bgColors[i]} rounded-lg p-3 sm:p-5 text-center`}
                 >
-                  <div className="text-3xl mb-2">{medals[i]}</div>
-                  <div className="text-lg font-bold mb-1 truncate">{member.name}</div>
+                  <div className="text-2xl sm:text-3xl mb-1 sm:mb-2">{medals[i]}</div>
+                  <div className="text-base sm:text-lg font-bold mb-1 truncate">{member.name}</div>
                   {member.role && (
                     <span className={`text-xs px-1.5 py-0.5 rounded ${
                       member.role === 'R3' ? 'bg-blue-500/20 text-blue-400' :
@@ -562,11 +562,11 @@ export default function KpPushEventPage() {
                       {member.role}
                     </span>
                   )}
-                  <div className={`text-2xl font-bold ${textColors[i]} mt-3`}>
+                  <div className={`text-xl sm:text-2xl font-bold ${textColors[i]} mt-2 sm:mt-3`}>
                     +{formatPower(member.kpGain)}
                   </div>
                   <div className={`text-xs ${theme.textMuted} mt-1`}>KP Gained</div>
-                  <div className="flex justify-center gap-4 mt-3 text-xs">
+                  <div className="flex flex-col sm:flex-row justify-center gap-1 sm:gap-4 mt-2 sm:mt-3 text-xs">
                     <div>
                       <span className={theme.textMuted}>Power </span>
                       <span className="text-blue-400">{formatGrowth(member.powerGain)}</span>
