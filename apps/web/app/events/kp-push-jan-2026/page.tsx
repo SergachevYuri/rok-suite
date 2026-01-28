@@ -821,10 +821,10 @@ export default function KpPushEventPage() {
                           style={{ width: `${pct}%`, backgroundColor: roleColor, opacity: 0.7 }}
                         />
                       </div>
-                      <div className="text-right min-w-[140px] flex gap-3 text-xs">
+                      <div className="text-right flex flex-wrap sm:flex-nowrap gap-1 sm:gap-3 text-[10px] sm:text-xs justify-end">
                         <span style={{ color: roleColor }} className="font-medium">{formatPower(r.totalKp)}</span>
-                        <span className={theme.textMuted}>{r.count} members</span>
-                        <span className={theme.textMuted}>avg {formatPower(r.avgKp)}</span>
+                        <span className={theme.textMuted}>{r.count} mbrs</span>
+                        <span className={`${theme.textMuted} hidden sm:inline`}>avg {formatPower(r.avgKp)}</span>
                       </div>
                     </div>
                   );
@@ -899,7 +899,8 @@ export default function KpPushEventPage() {
                   <span className="text-sm font-medium">Most Efficient KP Farmers</span>
                 </div>
                 <p className={`text-[10px] ${theme.textMuted} mb-2`}>Highest KP gained per unit of power gained</p>
-                <table className="w-full text-xs">
+                <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[280px]">
                   <thead>
                     <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
                       <th className="text-left py-1.5">#</th>
@@ -919,6 +920,7 @@ export default function KpPushEventPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               {/* Biggest Ratio Improvers */}
@@ -928,7 +930,8 @@ export default function KpPushEventPage() {
                   <span className="text-sm font-medium">Biggest Ratio Improvers</span>
                 </div>
                 <p className={`text-[10px] ${theme.textMuted} mb-2`}>Largest KP/Power ratio improvement (higher = better)</p>
-                <table className="w-full text-xs">
+                <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[320px]">
                   <thead>
                     <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
                       <th className="text-left py-1.5">#</th>
@@ -953,6 +956,7 @@ export default function KpPushEventPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 
@@ -967,7 +971,8 @@ export default function KpPushEventPage() {
                     <span className="text-sm font-medium">KP Gainers Who Lost Power</span>
                   </div>
                   <p className={`text-[10px] ${theme.textMuted} mb-2`}>Members who gained KP while their power decreased — likely killed troops for the cause</p>
-                  <table className="w-full text-xs">
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-xs min-w-[300px]">
                     <thead>
                       <tr className={`border-b border-[var(--border)] ${theme.textMuted}`}>
                         <th className="text-left py-1.5">Name</th>
@@ -989,6 +994,7 @@ export default function KpPushEventPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               );
             })()}
