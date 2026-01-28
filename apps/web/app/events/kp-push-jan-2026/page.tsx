@@ -457,25 +457,25 @@ export default function KpPushEventPage() {
         </Link>
 
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-lg bg-emerald-500/10">
-              <Trophy size={28} className="text-emerald-400" />
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-emerald-500/10 flex-shrink-0">
+              <Trophy size={22} className="text-emerald-400 sm:w-7 sm:h-7" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">{EVENT_CONFIG.name}</h1>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-400">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-3xl font-bold truncate">{EVENT_CONFIG.name}</h1>
+              <div className="flex items-center gap-2 sm:gap-3 mt-1 flex-wrap">
+                <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-blue-500/20 text-blue-400">
                   Completed
                 </span>
-                <span className={`flex items-center gap-1 text-sm ${theme.textMuted}`}>
-                  <Calendar size={14} />
+                <span className={`flex items-center gap-1 text-xs sm:text-sm ${theme.textMuted}`}>
+                  <Calendar size={12} className="sm:w-3.5 sm:h-3.5" />
                   {eventData?.startDate} to {eventData?.endDate}
                 </span>
               </div>
             </div>
           </div>
-          <p className={theme.textMuted}>{EVENT_CONFIG.description}</p>
+          <p className={`text-sm sm:text-base ${theme.textMuted}`}>{EVENT_CONFIG.description}</p>
         </div>
 
         {/* Tab Bar */}
@@ -507,49 +507,49 @@ export default function KpPushEventPage() {
         {activeTab === 'overview' && (
         <>
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className={`${theme.card} border rounded-lg p-4`}>
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp size={18} className="text-[#f6993f]" />
-              <span className={`text-sm ${theme.textMuted}`}>Total KP Gained</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
+          <div className={`${theme.card} border rounded-lg p-2.5 sm:p-4`}>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+              <TrendingUp size={14} className="text-[#f6993f] sm:w-[18px] sm:h-[18px] flex-shrink-0" />
+              <span className={`text-[10px] sm:text-sm ${theme.textMuted} truncate`}>Total KP</span>
             </div>
-            <p className="text-2xl font-bold text-[#f6993f]">
+            <p className="text-lg sm:text-2xl font-bold text-[#f6993f]">
               {formatPower(eventData?.totalKpGain || 0)}
             </p>
           </div>
 
-          <div className={`${theme.card} border rounded-lg p-4`}>
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp size={18} className="text-blue-400" />
-              <span className={`text-sm ${theme.textMuted}`}>Total Power Change</span>
+          <div className={`${theme.card} border rounded-lg p-2.5 sm:p-4`}>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+              <TrendingUp size={14} className="text-blue-400 sm:w-[18px] sm:h-[18px] flex-shrink-0" />
+              <span className={`text-[10px] sm:text-sm ${theme.textMuted} truncate`}>Power Δ</span>
             </div>
-            <p className="text-2xl font-bold text-blue-400">
+            <p className="text-lg sm:text-2xl font-bold text-blue-400">
               {formatPower(eventData?.totalPowerGain || 0)}
             </p>
           </div>
 
-          <div className={`${theme.card} border rounded-lg p-4`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Trophy size={18} className="text-amber-400" />
-              <span className={`text-sm ${theme.textMuted}`}>Top Performer</span>
+          <div className={`${theme.card} border rounded-lg p-2.5 sm:p-4`}>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+              <Trophy size={14} className="text-amber-400 sm:w-[18px] sm:h-[18px] flex-shrink-0" />
+              <span className={`text-[10px] sm:text-sm ${theme.textMuted} truncate`}>Top</span>
             </div>
-            <p className="text-lg font-bold text-amber-400 truncate">
+            <p className="text-sm sm:text-lg font-bold text-amber-400 truncate">
               {rankedMembers[0]?.name || '-'}
             </p>
-            <p className={`text-xs ${theme.textMuted}`}>
-              {rankedMembers[0] ? `+${formatPower(rankedMembers[0].kpGain)} KP` : '-'}
+            <p className={`text-[10px] sm:text-xs ${theme.textMuted}`}>
+              {rankedMembers[0] ? `+${formatPower(rankedMembers[0].kpGain)}` : '-'}
             </p>
           </div>
 
-          <div className={`${theme.card} border rounded-lg p-4`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Target size={18} className="text-green-400" />
-              <span className={`text-sm ${theme.textMuted}`}>Best Ratio Gain</span>
+          <div className={`${theme.card} border rounded-lg p-2.5 sm:p-4`}>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+              <Target size={14} className="text-green-400 sm:w-[18px] sm:h-[18px] flex-shrink-0" />
+              <span className={`text-[10px] sm:text-sm ${theme.textMuted} truncate`}>Best Ratio</span>
             </div>
-            <p className="text-lg font-bold text-green-400 truncate">
+            <p className="text-sm sm:text-lg font-bold text-green-400 truncate">
               {bestRatioImprover?.name || '-'}
             </p>
-            <p className={`text-xs ${theme.textMuted}`}>
+            <p className={`text-[10px] sm:text-xs ${theme.textMuted}`}>
               {bestRatioImprover ? `${formatRatio(bestRatioImprover.startRatio)} → ${formatRatio(bestRatioImprover.endRatio)}` : '-'}
             </p>
           </div>
@@ -1036,24 +1036,24 @@ export default function KpPushEventPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs sm:text-sm">
               <thead className={`${theme.card} border-b border-[var(--border)]`}>
                 <tr>
-                  <th className="px-3 py-3 text-left font-medium w-8"></th>
-                  <th className="px-2 py-3 text-left font-medium w-12">
-                    <button onClick={() => handleSort('rank', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Rank{sortIcon('rank', 'rankings')}</button>
+                  <th className="px-1 sm:px-3 py-2 sm:py-3 text-left font-medium w-6 sm:w-8"></th>
+                  <th className="px-1 sm:px-2 py-2 sm:py-3 text-left font-medium w-8 sm:w-12">
+                    <button onClick={() => handleSort('rank', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>#</button>
                   </th>
-                  <th className="px-3 py-3 text-left font-medium">
+                  <th className="px-1 sm:px-3 py-2 sm:py-3 text-left font-medium">
                     <button onClick={() => handleSort('name', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Name{sortIcon('name', 'rankings')}</button>
                   </th>
-                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>
-                    <button onClick={() => handleSort('kpGain', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP Gained{sortIcon('kpGain', 'rankings')}</button>
+                  <th className="px-1 sm:px-3 py-2 sm:py-3 text-left font-medium">
+                    <button onClick={() => handleSort('kpGain', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP{sortIcon('kpGain', 'rankings')}</button>
                   </th>
-                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
-                    <button onClick={() => handleSort('powerGain', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Power Change{sortIcon('powerGain', 'rankings')}</button>
+                  <th className="hidden md:table-cell px-3 py-3 text-left font-medium">
+                    <button onClick={() => handleSort('powerGain', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Power{sortIcon('powerGain', 'rankings')}</button>
                   </th>
-                  <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
-                    <button onClick={() => handleSort('ratio', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP/P Ratio{sortIcon('ratio', 'rankings')}</button>
+                  <th className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left font-medium">
+                    <button onClick={() => handleSort('ratio', 'rankings')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Ratio{sortIcon('ratio', 'rankings')}</button>
                   </th>
                 </tr>
               </thead>
@@ -1068,19 +1068,19 @@ export default function KpPushEventPage() {
                         className={`hover:bg-[var(--background-secondary)] cursor-pointer ${isExpanded ? 'bg-[var(--background-secondary)]' : ''}`}
                         onClick={() => handleExpandMember(member.name)}
                       >
-                        <td className="px-3 py-3">
+                        <td className="px-1 sm:px-3 py-2 sm:py-3">
                           <ChevronRight
-                            size={16}
-                            className={`transition-transform ${isExpanded ? 'rotate-90' : ''} ${theme.textMuted}`}
+                            size={14}
+                            className={`transition-transform ${isExpanded ? 'rotate-90' : ''} ${theme.textMuted} sm:w-4 sm:h-4`}
                           />
                         </td>
-                        <td className="px-2 py-3 font-medium">
+                        <td className="px-1 sm:px-2 py-2 sm:py-3 font-medium">
                           {getRankBadge(0, baseRank)}
                         </td>
-                        <td className="px-3 py-3 font-medium">
-                          {member.name}
+                        <td className="px-1 sm:px-3 py-2 sm:py-3 font-medium">
+                          <span className="truncate block max-w-[100px] sm:max-w-none">{member.name}</span>
                           {member.role && (
-                            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
+                            <span className={`hidden sm:inline ml-2 text-xs px-1.5 py-0.5 rounded ${
                               member.role === 'R3' ? 'bg-blue-500/20 text-blue-400' :
                               member.role === 'R2' ? 'bg-green-500/20 text-green-400' :
                               'bg-[var(--background-secondary)] text-[var(--text-muted)]'
@@ -1089,8 +1089,10 @@ export default function KpPushEventPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-2">
+                        <td className="px-1 sm:px-3 py-2 sm:py-3">
+                          {/* Mobile: simple value, Desktop: bar + value */}
+                          <span className="sm:hidden font-medium text-[#f6993f]">+{formatPower(member.kpGain)}</span>
+                          <div className="hidden sm:flex items-center gap-2">
                             <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
                               <div
                                 className="h-full rounded bg-gradient-to-r from-[#f6993f] to-[#f6993f]/50"
@@ -1102,7 +1104,7 @@ export default function KpPushEventPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="hidden md:table-cell px-3 py-3">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[50px]">
                               <div
@@ -1115,26 +1117,11 @@ export default function KpPushEventPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3">
                           {member.endRatio !== null ? (
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
-                                <div
-                                  className={`h-full rounded bg-gradient-to-r ${member.ratioImproved ? 'from-[#01b574] to-[#01b574]/50' : 'from-[#01b574]/30 to-[#01b574]/15'}`}
-                                  style={{ width: `${(member.endRatio / maxEndRatio) * 100}%` }}
-                                />
-                              </div>
-                              <div className="flex flex-col items-end min-w-[70px]">
-                                <span className={`font-medium text-xs ${member.ratioImproved ? 'text-[#01b574]' : 'text-[#01b574]/70'}`}>
-                                  {formatRatio(member.endRatio)}
-                                </span>
-                                {member.startRatio !== null && (
-                                  <span className={`text-[10px] ${theme.textMuted}`}>
-                                    {formatRatio(member.startRatio)} → {formatRatio(member.endRatio)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                            <span className={`font-medium text-xs ${member.ratioImproved ? 'text-[#01b574]' : 'text-[#01b574]/70'}`}>
+                              {formatRatio(member.endRatio)}
+                            </span>
                           ) : (
                             <span className={theme.textMuted}>-</span>
                           )}
@@ -1143,7 +1130,7 @@ export default function KpPushEventPage() {
                       {/* Expanded row with snapshot history */}
                       {isExpanded && (
                         <tr className="bg-[var(--background-secondary)]/50">
-                          <td colSpan={6} className="px-4 py-4">
+                          <td colSpan={10} className="px-4 py-4">
                             <div className="ml-8">
                               <h4 className={`text-sm font-semibold mb-3 ${theme.textMuted}`}>
                                 Snapshot History for {member.name}
@@ -1339,22 +1326,22 @@ export default function KpPushEventPage() {
 
             {showLeadership && (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs sm:text-sm">
                   <thead className={`${theme.card} border-b border-[var(--border)]`}>
                     <tr>
-                      <th className="px-3 py-3 text-left font-medium w-8"></th>
-                      <th className="px-3 py-3 text-left font-medium">
+                      <th className="px-1 sm:px-3 py-2 sm:py-3 text-left font-medium w-6 sm:w-8"></th>
+                      <th className="px-1 sm:px-3 py-2 sm:py-3 text-left font-medium">
                         <button onClick={() => handleSort('name', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Name{sortIcon('name', 'leadership')}</button>
                       </th>
-                      <th className="px-3 py-3 text-left font-medium w-16">Role</th>
-                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '200px' }}>
-                        <button onClick={() => handleSort('kpGain', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP Gained{sortIcon('kpGain', 'leadership')}</button>
+                      <th className="hidden sm:table-cell px-3 py-3 text-left font-medium w-16">Role</th>
+                      <th className="px-1 sm:px-3 py-2 sm:py-3 text-left font-medium">
+                        <button onClick={() => handleSort('kpGain', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP{sortIcon('kpGain', 'leadership')}</button>
                       </th>
-                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
-                        <button onClick={() => handleSort('powerGain', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Power Change{sortIcon('powerGain', 'leadership')}</button>
+                      <th className="hidden md:table-cell px-3 py-3 text-left font-medium">
+                        <button onClick={() => handleSort('powerGain', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Power{sortIcon('powerGain', 'leadership')}</button>
                       </th>
-                      <th className="px-3 py-3 text-left font-medium" style={{ minWidth: '180px' }}>
-                        <button onClick={() => handleSort('ratio', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>KP/P Ratio{sortIcon('ratio', 'leadership')}</button>
+                      <th className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3 text-left font-medium">
+                        <button onClick={() => handleSort('ratio', 'leadership')} className={`flex items-center gap-0.5 font-medium ${theme.textMuted} hover:text-[var(--foreground)]`}>Ratio{sortIcon('ratio', 'leadership')}</button>
                       </th>
                     </tr>
                   </thead>
@@ -1369,14 +1356,22 @@ export default function KpPushEventPage() {
                             className={`hover:bg-[var(--background-secondary)] cursor-pointer ${isExpanded ? 'bg-[var(--background-secondary)]' : ''}`}
                             onClick={() => handleExpandMember(member.name)}
                           >
-                            <td className="px-3 py-3">
+                            <td className="px-1 sm:px-3 py-2 sm:py-3">
                               <ChevronRight
-                                size={16}
-                                className={`transition-transform ${isExpanded ? 'rotate-90' : ''} ${theme.textMuted}`}
+                                size={14}
+                                className={`transition-transform ${isExpanded ? 'rotate-90' : ''} ${theme.textMuted} sm:w-4 sm:h-4`}
                               />
                             </td>
-                            <td className="px-3 py-3 font-medium">{member.name}</td>
-                            <td className="px-3 py-3">
+                            <td className="px-1 sm:px-3 py-2 sm:py-3 font-medium">
+                              <span className="truncate block max-w-[100px] sm:max-w-none">{member.name}</span>
+                              <span className={`sm:hidden text-[10px] px-1 py-0.5 rounded ${
+                                member.role === 'R5' ? 'bg-amber-500/20 text-amber-400' :
+                                'bg-purple-500/20 text-purple-400'
+                              }`}>
+                                {member.role}
+                              </span>
+                            </td>
+                            <td className="hidden sm:table-cell px-3 py-3">
                               <span className={`text-xs px-1.5 py-0.5 rounded ${
                                 member.role === 'R5' ? 'bg-amber-500/20 text-amber-400' :
                                 'bg-purple-500/20 text-purple-400'
@@ -1384,24 +1379,27 @@ export default function KpPushEventPage() {
                                 {member.role}
                               </span>
                             </td>
-                            <td className="px-3 py-3">
+                            <td className="px-1 sm:px-3 py-2 sm:py-3">
                               {member.kpGain > 0 ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
-                                    <div
-                                      className="h-full rounded bg-gradient-to-r from-[#f6993f] to-[#f6993f]/50"
-                                      style={{ width: `${(member.kpGain / leaderMaxKp) * 100}%` }}
-                                    />
+                                <>
+                                  <span className="sm:hidden font-medium text-[#f6993f]">+{formatPower(member.kpGain)}</span>
+                                  <div className="hidden sm:flex items-center gap-2">
+                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                      <div
+                                        className="h-full rounded bg-gradient-to-r from-[#f6993f] to-[#f6993f]/50"
+                                        style={{ width: `${(member.kpGain / leaderMaxKp) * 100}%` }}
+                                      />
+                                    </div>
+                                    <span className="text-right min-w-[70px] font-medium text-[#f6993f] text-xs">
+                                      +{formatPower(member.kpGain)}
+                                    </span>
                                   </div>
-                                  <span className="text-right min-w-[70px] font-medium text-[#f6993f] text-xs">
-                                    +{formatPower(member.kpGain)}
-                                  </span>
-                                </div>
+                                </>
                               ) : (
                                 <span className={`text-xs ${theme.textMuted}`}>{formatGrowth(member.kpGain)}</span>
                               )}
                             </td>
-                            <td className="px-3 py-3">
+                            <td className="hidden md:table-cell px-3 py-3">
                               {member.powerGain !== 0 ? (
                                 <div className="flex items-center gap-2">
                                   <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[50px]">
@@ -1418,26 +1416,11 @@ export default function KpPushEventPage() {
                                 <span className={`text-xs ${theme.textMuted}`}>0</span>
                               )}
                             </td>
-                            <td className="px-3 py-3">
+                            <td className="hidden sm:table-cell px-2 sm:px-3 py-2 sm:py-3">
                               {member.endRatio !== null ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
-                                    <div
-                                      className={`h-full rounded bg-gradient-to-r ${member.ratioImproved ? 'from-[#01b574] to-[#01b574]/50' : 'from-[#01b574]/30 to-[#01b574]/15'}`}
-                                      style={{ width: `${(member.endRatio / maxEndRatio) * 100}%` }}
-                                    />
-                                  </div>
-                                  <div className="flex flex-col items-end min-w-[70px]">
-                                    <span className={`font-medium text-xs ${member.ratioImproved ? 'text-[#01b574]' : 'text-[#01b574]/70'}`}>
-                                      {formatRatio(member.endRatio)}
-                                    </span>
-                                    {member.startRatio !== null && (
-                                      <span className={`text-[10px] ${theme.textMuted}`}>
-                                        {formatRatio(member.startRatio)} → {formatRatio(member.endRatio)}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
+                                <span className={`font-medium text-xs ${member.ratioImproved ? 'text-[#01b574]' : 'text-[#01b574]/70'}`}>
+                                  {formatRatio(member.endRatio)}
+                                </span>
                               ) : (
                                 <span className={theme.textMuted}>-</span>
                               )}
@@ -1446,7 +1429,7 @@ export default function KpPushEventPage() {
                           {/* Expanded row with snapshot history */}
                           {isExpanded && (
                             <tr className="bg-[var(--background-secondary)]/50">
-                              <td colSpan={6} className="px-4 py-4">
+                              <td colSpan={10} className="px-4 py-4">
                                 <div className="ml-8">
                                   <h4 className={`text-sm font-semibold mb-3 ${theme.textMuted}`}>
                                     Snapshot History for {member.name}
