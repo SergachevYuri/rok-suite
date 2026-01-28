@@ -126,17 +126,28 @@ export default function KpPushEventPage() {
         const actualStartDate = findClosestDate(EVENT_CONFIG.startDate, uniqueDates, 'after') || uniqueDates[0];
         const actualEndDate = findClosestDate(EVENT_CONFIG.endDate, uniqueDates, 'before') || uniqueDates[uniqueDates.length - 1];
 
-        // Get roster with roles
+        // Get roster with roles and tags
         const { data: roster } = await supabase
           .from('alliance_roster')
-          .select('name, role, alternate_names')
+          .select('name, role, alternate_names, tags')
           .eq('is_active', true);
 
         const roleMap = new Map<string, string | null>();
         const nameVariantMap = new Map<string, string>(); // variant -> canonical name
+        const afkMembers = new Set<string>(); // members with 'inactive' tag (AFK)
 
         if (roster) {
           for (const member of roster) {
+            // Track AFK members to exclude from event results
+            if (member.tags?.includes('inactive')) {
+              afkMembers.add(member.name);
+              if (member.alternate_names && Array.isArray(member.alternate_names)) {
+                for (const alt of member.alternate_names) {
+                  afkMembers.add(alt);
+                }
+              }
+              continue; // Skip adding to roleMap/nameVariantMap
+            }
             roleMap.set(member.name, member.role);
             nameVariantMap.set(member.name, member.name);
             if (member.alternate_names && Array.isArray(member.alternate_names)) {
@@ -168,10 +179,16 @@ export default function KpPushEventPage() {
           return;
         }
 
-        // Group snapshots by canonical member name
+        // Group snapshots by canonical member name (excluding AFK members)
         const snapshotsByMember = new Map<string, Array<{ date: string; power: number; kp: number; name: string }>>();
         for (const snap of allSnapshots) {
+          // Skip AFK members
+          if (afkMembers.has(snap.member_name)) continue;
+
           const canonical = getCanonicalName(snap.member_name);
+          // Also skip if canonical name is AFK
+          if (afkMembers.has(canonical)) continue;
+
           if (!snapshotsByMember.has(canonical)) {
             snapshotsByMember.set(canonical, []);
           }
