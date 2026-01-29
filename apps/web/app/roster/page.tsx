@@ -235,7 +235,7 @@ export default function RosterPage() {
 
     // Editing state - kills/power stored as string for decimal input (millions)
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editValues, setEditValues] = useState<{ powerM: string; killsM: string; t4t5KillsM: string; honor: string; notes: string }>({ powerM: '', killsM: '', t4t5KillsM: '', honor: '', notes: '' });
+    const [editValues, setEditValues] = useState<{ powerM: string; killsM: string; t4t5KillsM: string; honor: string; notes: string; alliance: string }>({ powerM: '', killsM: '', t4t5KillsM: '', honor: '', notes: '', alliance: '' });
     const firstEditInputRef = useRef<HTMLInputElement>(null);
 
     // CSV Import
@@ -585,14 +585,14 @@ export default function RosterPage() {
         const t4t5KillsM = (member.t4_kills || member.t5_kills) ? `${t4M}/${t5M}` : '';
         // Honor points as raw number
         const honor = member.honor_points ? member.honor_points.toString() : '';
-        setEditValues({ powerM, killsM, t4t5KillsM, honor, notes: member.notes || '' });
+        setEditValues({ powerM, killsM, t4t5KillsM, honor, notes: member.notes || '', alliance: member.alliance || '' });
         // Focus the first input after state update
         setTimeout(() => firstEditInputRef.current?.focus(), 50);
     };
 
     const cancelEditing = () => {
         setEditingId(null);
-        setEditValues({ powerM: '', killsM: '', t4t5KillsM: '', honor: '', notes: '' });
+        setEditValues({ powerM: '', killsM: '', t4t5KillsM: '', honor: '', notes: '', alliance: '' });
     };
 
     const saveEditing = async (): Promise<boolean> => {
@@ -619,6 +619,8 @@ export default function RosterPage() {
             // Honor points as raw number
             const honorRaw = editValues.honor ? parseInt(editValues.honor, 10) || 0 : 0;
 
+            const allianceVal = editValues.alliance.trim() || null;
+
             const { error } = await supabase
                 .from('alliance_roster')
                 .update({
@@ -627,7 +629,8 @@ export default function RosterPage() {
                     t4_kills: t4KillsRaw,
                     t5_kills: t5KillsRaw,
                     honor_points: honorRaw,
-                    notes: editValues.notes || null
+                    notes: editValues.notes || null,
+                    alliance: allianceVal,
                 })
                 .eq('id', editingId);
 
@@ -647,7 +650,7 @@ export default function RosterPage() {
 
             setRoster(roster.map(m =>
                 m.id === editingId
-                    ? { ...m, power: powerRaw, kills: killsRaw, t4_kills: t4KillsRaw, t5_kills: t5KillsRaw, honor_points: honorRaw, notes: editValues.notes || null }
+                    ? { ...m, power: powerRaw, kills: killsRaw, t4_kills: t4KillsRaw, t5_kills: t5KillsRaw, honor_points: honorRaw, notes: editValues.notes || null, alliance: allianceVal }
                     : m
             ));
             setEditingId(null);
@@ -2461,12 +2464,23 @@ export default function RosterPage() {
                                         )}
                                         {isColumnVisible('alliance') && (
                                             <td className="px-4 py-3 hidden md:table-cell">
-                                                <span
-                                                    className={`text-sm ${member.alliance ? 'text-[#9f7aea] cursor-pointer hover:underline' : theme.textMuted}`}
-                                                    onClick={() => member.alliance && setAllianceFilter(member.alliance)}
-                                                >
-                                                    {member.alliance || '-'}
-                                                </span>
+                                                {editingId === member.id ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editValues.alliance}
+                                                        onChange={(e) => setEditValues({ ...editValues, alliance: e.target.value })}
+                                                        onKeyDown={handleEditKeyDown}
+                                                        className={`w-20 px-2 py-1 rounded border ${theme.input}`}
+                                                        placeholder="e.g. ANG"
+                                                    />
+                                                ) : (
+                                                    <span
+                                                        className={`text-sm ${member.alliance ? 'text-[#9f7aea] cursor-pointer hover:underline' : theme.textMuted}`}
+                                                        onClick={() => member.alliance && setAllianceFilter(member.alliance)}
+                                                    >
+                                                        {member.alliance || '-'}
+                                                    </span>
+                                                )}
                                             </td>
                                         )}
                                         {isEditor && (
