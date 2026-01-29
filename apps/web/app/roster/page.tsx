@@ -5214,7 +5214,16 @@ export default function RosterPage() {
                         }
                         dateMap.set(snap.snapshot_date, entry);
                     }
-                    const timeSeries = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+                    // Use per-member averages so dates with fewer members aren't biased
+                    const timeSeries = Array.from(dateMap.values())
+                        .sort((a, b) => a.date.localeCompare(b.date))
+                        .map(d => ({
+                            date: d.date,
+                            angPower: d.angCount > 0 ? Math.round(d.angPower / d.angCount) : 0,
+                            kkPower: d.kkCount > 0 ? Math.round(d.kkPower / d.kkCount) : 0,
+                            angKP: d.angCount > 0 ? Math.round(d.angKP / d.angCount) : 0,
+                            kkKP: d.kkCount > 0 ? Math.round(d.kkKP / d.kkCount) : 0,
+                        }));
 
                     // Per-member averages
                     const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
@@ -5290,7 +5299,7 @@ export default function RosterPage() {
                         {/* Power Over Time Chart */}
                         {timeSeries.length >= 2 && (
                             <div className={`${theme.card} border rounded-xl p-5`}>
-                                <div className={`text-sm font-semibold mb-4`}>Total Power Over Time</div>
+                                <div className={`text-sm font-semibold mb-4`}>Avg Power Per Member Over Time</div>
                                 <div style={{ height: 300 }}>
                                     <ResponsiveContainer width="100%" height="100%">
                                         <LineChart data={timeSeries}>
@@ -5314,7 +5323,7 @@ export default function RosterPage() {
                         {/* KP Over Time Chart */}
                         {timeSeries.length >= 2 && (
                             <div className={`${theme.card} border rounded-xl p-5`}>
-                                <div className={`text-sm font-semibold mb-4`}>Total Kill Points Over Time</div>
+                                <div className={`text-sm font-semibold mb-4`}>Avg Kill Points Per Member Over Time</div>
                                 <div style={{ height: 300 }}>
                                     <ResponsiveContainer width="100%" height="100%">
                                         <LineChart data={timeSeries}>
