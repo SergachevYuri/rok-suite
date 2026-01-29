@@ -286,7 +286,7 @@ export default function RosterPage() {
 
     // Growth tab charts toggle
     const [showCharts, setShowCharts] = useState(false);
-    const [chartMetric, setChartMetric] = useState<'power' | 'kp' | 't4t5' | 'honor'>('power');
+    const [chartMetric, setChartMetric] = useState<'all' | 'kp' | 'power' | 'honor' | 'ratio'>('all');
     const [chartMode, setChartMode] = useState<'alliance' | 'individual'>('alliance');
     const [chartStartDate, setChartStartDate] = useState<string | null>(null); // null = earliest available
     const [chartEndDate, setChartEndDate] = useState<string | null>(null); // null = latest available
@@ -2844,14 +2844,15 @@ export default function RosterPage() {
                                             <span className={`text-xs ${theme.textMuted}`}>View:</span>
                                             <div className="flex gap-1">
                                                 {[
-                                                    { key: 'power', label: 'Power', color: '#01b574' },
+                                                    { key: 'all', label: 'All', color: '#4318ff' },
                                                     { key: 'kp', label: 'KP', color: '#f56565' },
-                                                    { key: 't4t5', label: 'T4 & T5', color: '#fbbf24' },
-                                                    { key: 'honor', label: 'Honor', color: '#a78bfa' },
+                                                    { key: 'power', label: 'Power', color: '#01b574' },
+                                                    { key: 'honor', label: 'Honor', color: '#fbbf24' },
+                                                    { key: 'ratio', label: 'P:KP Ratio', color: '#9f7aea' },
                                                 ].map(metric => (
                                                     <button
                                                         key={metric.key}
-                                                        onClick={() => setChartMetric(metric.key as 'power' | 'kp' | 't4t5' | 'honor')}
+                                                        onClick={() => setChartMetric(metric.key as 'all' | 'kp' | 'power' | 'honor' | 'ratio')}
                                                         className={`px-2 py-1 text-xs font-medium rounded transition-all ${
                                                             chartMetric === metric.key
                                                                 ? 'text-white'
@@ -2916,23 +2917,14 @@ export default function RosterPage() {
                                 {(() => {
                                     // When no tag filter, use raw dailyTotals from DB view (complete data)
                                     // When tag filter is set, compute filtered totals from snapshots
-                                    let filteredDailyTotals: { kills: number; power: number; honor: number; t4: number; t5: number; count: number; date: string }[];
+                                    let filteredDailyTotals: { kills: number; power: number; honor: number; count: number; date: string }[];
 
                                     if (!tagFilter) {
-                                        // Use pre-aggregated totals from DB, supplement with t4/t5 from allSnapshots
-                                        const t4t5ByDate = new Map<string, { t4: number; t5: number }>();
-                                        for (const snap of allSnapshots) {
-                                            const entry = t4t5ByDate.get(snap.snapshot_date) || { t4: 0, t5: 0 };
-                                            entry.t4 += snap.t4_kills || 0;
-                                            entry.t5 += snap.t5_kills || 0;
-                                            t4t5ByDate.set(snap.snapshot_date, entry);
-                                        }
+                                        // Use pre-aggregated totals from DB - these are complete and accurate
                                         filteredDailyTotals = dailyTotals.map(d => ({
                                             kills: d.total_kills,
                                             power: d.total_power,
                                             honor: d.total_honor,
-                                            t4: t4t5ByDate.get(d.snapshot_date)?.t4 || 0,
-                                            t5: t4t5ByDate.get(d.snapshot_date)?.t5 || 0,
                                             count: d.member_count,
                                             date: d.snapshot_date,
                                         }));
@@ -2945,19 +2937,17 @@ export default function RosterPage() {
                                         );
 
                                         // Compute totals from allSnapshots filtered by tag
-                                        const snapshotsByDate = new Map<string, { kills: number; power: number; honor: number; t4: number; t5: number; count: number; date: string }>();
+                                        const snapshotsByDate = new Map<string, { kills: number; power: number; honor: number; count: number; date: string }>();
 
                                         for (const snap of allSnapshots) {
                                             // Only include members that match the current tag filter
                                             if (!filteredMemberNames.has(snap.member_name)) continue;
 
-                                            const existing = snapshotsByDate.get(snap.snapshot_date) || { kills: 0, power: 0, honor: 0, t4: 0, t5: 0, count: 0, date: snap.snapshot_date };
+                                            const existing = snapshotsByDate.get(snap.snapshot_date) || { kills: 0, power: 0, honor: 0, count: 0, date: snap.snapshot_date };
                                             snapshotsByDate.set(snap.snapshot_date, {
                                                 kills: existing.kills + (snap.kills || 0),
                                                 power: existing.power + (snap.power || 0),
                                                 honor: existing.honor + (snap.honor_points || 0),
-                                                t4: existing.t4 + (snap.t4_kills || 0),
-                                                t5: existing.t5 + (snap.t5_kills || 0),
                                                 count: existing.count + 1,
                                                 date: snap.snapshot_date,
                                             });
@@ -3132,13 +3122,9 @@ export default function RosterPage() {
                                     // (drops would indicate data issues or member departures, not real decreases)
                                     let maxKp = 0;
                                     let maxHonor = 0;
-                                    let maxT4 = 0;
-                                    let maxT5 = 0;
                                     const chartData = dateFilteredTotals.map(day => {
                                         maxKp = Math.max(maxKp, day.kills);
                                         maxHonor = Math.max(maxHonor, day.honor);
-                                        maxT4 = Math.max(maxT4, day.t4);
-                                        maxT5 = Math.max(maxT5, day.t5);
                                         return {
                                             date: formatDate(day.date),
                                             // Use local time to avoid timezone shift
@@ -3146,8 +3132,7 @@ export default function RosterPage() {
                                             kp: maxKp,
                                             power: day.power,
                                             honor: maxHonor,
-                                            t4: maxT4,
-                                            t5: maxT5,
+                                            ratio: maxKp > 0 ? Math.round(day.power / maxKp * 10) / 10 : 0,
                                         };
                                     });
 
@@ -3166,28 +3151,17 @@ export default function RosterPage() {
                                     const dailyTicks = generateDailyTicks();
 
                                     const metrics = [
-                                        { key: 'power', label: 'Power', color: '#01b574', isCount: false, isRatio: false, isMultiLine: false },
-                                        { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false, isRatio: false, isMultiLine: false },
-                                        { key: 't4t5', label: 'T4 & T5 KP', color: '#fbbf24', isCount: false, isRatio: false, isMultiLine: true },
-                                        { key: 'honor', label: 'Honor', color: '#a78bfa', isCount: false, isRatio: false, isMultiLine: false },
+                                        { key: 'kp', label: 'Kill Points', color: '#f56565', isCount: false, isRatio: false },
+                                        { key: 'power', label: 'Power', color: '#01b574', isCount: false, isRatio: false },
+                                        { key: 'honor', label: 'Honor', color: '#fbbf24', isCount: false, isRatio: false },
+                                        { key: 'ratio', label: 'Power:KP Ratio', color: '#9f7aea', isCount: false, isRatio: true },
                                     ];
 
                                     const renderChart = (metric: typeof metrics[0], height: number = 300) => (
                                         <div key={metric.key} className={`${theme.card} border rounded-xl p-4`}>
                                             <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                                                {metric.isMultiLine ? (
-                                                    <>
-                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#fbbf24' }} />
-                                                        <span>T4</span>
-                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#f97316' }} />
-                                                        <span>T5</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: metric.color }} />
-                                                        {metric.label}
-                                                    </>
-                                                )}
+                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: metric.color }} />
+                                                {metric.label}
                                             </h4>
                                             <div style={{ height }}>
                                                 <ResponsiveContainer width="100%" height="100%">
@@ -3211,7 +3185,7 @@ export default function RosterPage() {
                                                             tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
                                                             axisLine={{ stroke: 'var(--border)' }}
                                                             tickLine={{ stroke: 'var(--border)' }}
-                                                            tickFormatter={(value) => formatPower(value)}
+                                                            tickFormatter={(value) => metric.isRatio ? value.toFixed(1) : (metric.isCount ? String(value) : formatPower(value))}
                                                             width={50}
                                                         />
                                                         <Tooltip
@@ -3223,7 +3197,8 @@ export default function RosterPage() {
                                                             }}
                                                             formatter={(value) => {
                                                                 const numVal = typeof value === 'number' ? value : 0;
-                                                                return [formatPower(numVal), ''];
+                                                                if (metric.isRatio) return [numVal.toFixed(1), metric.label];
+                                                                return [metric.isCount ? String(numVal) : formatPower(numVal), metric.label];
                                                             }}
                                                             labelFormatter={(ts) => {
                                                                 const d = new Date(ts);
@@ -3231,29 +3206,30 @@ export default function RosterPage() {
                                                             }}
                                                             labelStyle={{ color: 'var(--foreground)' }}
                                                         />
-                                                        {metric.isMultiLine ? (
-                                                            <>
-                                                                <Legend />
-                                                                <Line type="monotone" dataKey="t4" name="T4 KP" stroke="#fbbf24" strokeWidth={2} dot={{ fill: '#fbbf24', strokeWidth: 2, r: 3 }} activeDot={{ r: 5 }} connectNulls={false} />
-                                                                <Line type="monotone" dataKey="t5" name="T5 KP" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316', strokeWidth: 2, r: 3 }} activeDot={{ r: 5 }} connectNulls={false} />
-                                                            </>
-                                                        ) : (
-                                                            <Line
-                                                                type="monotone"
-                                                                dataKey={metric.key}
-                                                                name={metric.label}
-                                                                stroke={metric.color}
-                                                                strokeWidth={2}
-                                                                dot={{ fill: metric.color, strokeWidth: 2, r: 3 }}
-                                                                activeDot={{ r: 5 }}
-                                                                connectNulls={false}
-                                                            />
-                                                        )}
+                                                        <Line
+                                                            type="monotone"
+                                                            dataKey={metric.key}
+                                                            name={metric.label}
+                                                            stroke={metric.color}
+                                                            strokeWidth={2}
+                                                            dot={{ fill: metric.color, strokeWidth: 2, r: 3 }}
+                                                            activeDot={{ r: 5 }}
+                                                            connectNulls={false}
+                                                        />
                                                     </LineChart>
                                                 </ResponsiveContainer>
                                             </div>
                                         </div>
                                     );
+
+                                    // Show all charts in 2x2 grid or single chart
+                                    if (chartMetric === 'all') {
+                                        return (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {metrics.map(m => renderChart(m, 200))}
+                                            </div>
+                                        );
+                                    }
 
                                     const selectedMetric = metrics.find(m => m.key === chartMetric)!;
                                     return renderChart(selectedMetric, 350);
