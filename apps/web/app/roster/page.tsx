@@ -2618,9 +2618,9 @@ export default function RosterPage() {
                                                             </div>
                                                             {/* Growth Sparkline Charts - 2x2 grid to the right */}
                                                             {memberSnapshots.length >= 2 && (
-                                                                <div className="md:w-80 shrink-0">
+                                                                <div className="md:w-72 shrink-0">
                                                                     <div className={`text-xs ${theme.textMuted} mb-2`}>Growth Trends</div>
-                                                                    <div className="grid grid-cols-3 gap-2">
+                                                                    <div className="grid grid-cols-2 gap-2">
                                                                         {/* Power Sparkline */}
                                                                         <div className="text-center bg-[var(--background)]/50 rounded p-2">
                                                                             <div style={{ height: 45 }}>
@@ -2636,25 +2636,38 @@ export default function RosterPage() {
                                                                                 {formatPower(memberSnapshots[memberSnapshots.length - 1].power - memberSnapshots[0].power)}
                                                                             </div>
                                                                         </div>
-                                                                        {/* KP Overlaid Sparkline (Total, T4, T5) */}
+                                                                        {/* KP Sparkline */}
                                                                         <div className="text-center bg-[var(--background)]/50 rounded p-2">
                                                                             <div style={{ height: 45 }}>
                                                                                 <ResponsiveContainer width="100%" height="100%">
-                                                                                    <LineChart data={memberSnapshots.map(s => ({ kp: s.kills || 0, t4: s.t4_kills || 0, t5: s.t5_kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                                                                                        <Line type="monotone" dataKey="kp" stroke="#f56565" strokeWidth={2} dot={false} />
-                                                                                        <Line type="monotone" dataKey="t4" stroke="#fbbf24" strokeWidth={1.5} dot={false} />
-                                                                                        <Line type="monotone" dataKey="t5" stroke="#f97316" strokeWidth={1.5} dot={false} />
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                                                        <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={2} dot={false} />
+                                                                                    </LineChart>
+                                                                                </ResponsiveContainer>
+                                                                            </div>
+                                                                            <div className={`text-[9px] ${theme.textMuted}`}>KP</div>
+                                                                            <div className="text-[10px] text-[#f56565] font-medium">
+                                                                                {(memberSnapshots[memberSnapshots.length - 1].kills || 0) > (memberSnapshots[0].kills || 0) ? '+' : ''}
+                                                                                {formatPower((memberSnapshots[memberSnapshots.length - 1].kills || 0) - (memberSnapshots[0].kills || 0))}
+                                                                            </div>
+                                                                        </div>
+                                                                        {/* T4 & T5 Sparkline */}
+                                                                        <div className="text-center bg-[var(--background)]/50 rounded p-2">
+                                                                            <div style={{ height: 45 }}>
+                                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                                    <LineChart data={memberSnapshots.map(s => ({ t4: s.t4_kills || 0, t5: s.t5_kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                                                        <Line type="monotone" dataKey="t4" stroke="#fbbf24" strokeWidth={2} dot={false} />
+                                                                                        <Line type="monotone" dataKey="t5" stroke="#f97316" strokeWidth={2} dot={false} />
                                                                                     </LineChart>
                                                                                 </ResponsiveContainer>
                                                                             </div>
                                                                             <div className={`text-[9px] ${theme.textMuted}`}>
-                                                                                <span className="text-[#f56565]">KP</span>{' / '}
                                                                                 <span className="text-[#fbbf24]">T4</span>{' / '}
                                                                                 <span className="text-[#f97316]">T5</span>
                                                                             </div>
-                                                                            <div className="text-[10px] text-[#f56565] font-medium">
-                                                                                {(memberSnapshots[memberSnapshots.length - 1].kills || 0) > (memberSnapshots[0].kills || 0) ? '+' : ''}
-                                                                                {formatPower((memberSnapshots[memberSnapshots.length - 1].kills || 0) - (memberSnapshots[0].kills || 0))}
+                                                                            <div className="text-[10px] text-[#fbbf24] font-medium">
+                                                                                {(memberSnapshots[memberSnapshots.length - 1].t4_kills || 0) > (memberSnapshots[0].t4_kills || 0) ? '+' : ''}
+                                                                                {formatPower((memberSnapshots[memberSnapshots.length - 1].t4_kills || 0) - (memberSnapshots[0].t4_kills || 0))}
                                                                             </div>
                                                                         </div>
                                                                         {/* Honor Points Sparkline */}
