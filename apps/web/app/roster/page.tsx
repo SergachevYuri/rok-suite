@@ -89,17 +89,17 @@ const COLUMN_CONFIG: ColumnConfig[] = [
     { id: 'power', label: 'Power', tooltip: COLUMN_TOOLTIPS.power, defaultVisible: true, category: 'core' },
     { id: 'kp', label: 'Kill Points', tooltip: COLUMN_TOOLTIPS.kp, defaultVisible: true, category: 'core' },
     { id: 'ratio', label: 'Power:KP', tooltip: COLUMN_TOOLTIPS.ratio, defaultVisible: true, category: 'core' },
-    { id: 'rank', label: 'Rank', tooltip: COLUMN_TOOLTIPS.rank, defaultVisible: true, category: 'core' },
-    { id: 'alliance', label: 'Alliance', tooltip: COLUMN_TOOLTIPS.alliance, defaultVisible: false, category: 'core' },
+    { id: 'rank', label: 'Rank', tooltip: COLUMN_TOOLTIPS.rank, defaultVisible: false, category: 'core' },
+    { id: 'alliance', label: 'Alliance', tooltip: COLUMN_TOOLTIPS.alliance, defaultVisible: true, category: 'core' },
     // Combat columns
     { id: 't4t5', label: 'T4/T5 KP', tooltip: COLUMN_TOOLTIPS.t4t5, defaultVisible: true, category: 'combat' },
     { id: 't1t2t3', label: 'T1/T2/T3 KP', tooltip: COLUMN_TOOLTIPS.t1t2t3, defaultVisible: false, category: 'combat' },
     { id: 'deads', label: 'Deaths', tooltip: COLUMN_TOOLTIPS.deads, defaultVisible: false, category: 'combat' },
     { id: 'healed', label: 'Healed', tooltip: COLUMN_TOOLTIPS.healed, defaultVisible: false, category: 'combat' },
     // Events columns
-    { id: 'honor', label: 'Honor', tooltip: COLUMN_TOOLTIPS.honor, defaultVisible: true, category: 'events' },
-    { id: 'aoo', label: 'AoO', tooltip: COLUMN_TOOLTIPS.aoo, defaultVisible: true, category: 'events' },
-    { id: 'mob', label: 'Mob', tooltip: COLUMN_TOOLTIPS.mob, defaultVisible: true, category: 'events' },
+    { id: 'honor', label: 'Honor', tooltip: COLUMN_TOOLTIPS.honor, defaultVisible: false, category: 'events' },
+    { id: 'aoo', label: 'AoO', tooltip: COLUMN_TOOLTIPS.aoo, defaultVisible: false, category: 'events' },
+    { id: 'mob', label: 'Mob', tooltip: COLUMN_TOOLTIPS.mob, defaultVisible: false, category: 'events' },
     { id: 'acclaim', label: 'Acclaim', tooltip: COLUMN_TOOLTIPS.acclaim, defaultVisible: false, category: 'events' },
     { id: 'kvkPts', label: 'KvK Pts', tooltip: COLUMN_TOOLTIPS.kvkPts, defaultVisible: false, category: 'events' },
     // Profile columns
