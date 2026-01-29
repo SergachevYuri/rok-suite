@@ -249,7 +249,7 @@ export default function RosterPage() {
     const [mergeStatus, setMergeStatus] = useState<string | null>(null);
 
     // Tabs and History
-    const [activeTab, setActiveTab] = useState<'roster' | 'history' | 'events' | 'analytics'>('roster');
+    const [activeTab, setActiveTab] = useState<'roster' | 'history' | 'events' | 'analytics' | 'comparison'>('roster');
     const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
 
     // Event participation stats
@@ -680,7 +680,7 @@ export default function RosterPage() {
     };
 
     // Handle keyboard events for edit inputs
-    const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleEditKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             saveAndEditNext();
@@ -1462,10 +1462,10 @@ export default function RosterPage() {
                                 <button
                                     onClick={() => setShowPasswordPrompt(true)}
                                     className={`p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-1`}
-                                    title="Edit Mode"
+                                    title="Admin Mode"
                                 >
                                     <Edit2 className="w-4 h-4 sm:hidden" />
-                                    <span className="hidden sm:inline">Edit Mode</span>
+                                    <span className="hidden sm:inline">Admin Mode</span>
                                 </button>
                             ) : (
                                 <button
@@ -1497,7 +1497,7 @@ export default function RosterPage() {
                                     className="p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-medium bg-[#4318ff] text-white hover:bg-[#4318ff]/80 transition-colors flex items-center gap-1"
                                 >
                                     <X className="w-4 h-4 sm:hidden" />
-                                    <span className="hidden sm:inline">Exit Edit</span>
+                                    <span className="hidden sm:inline">Exit Admin</span>
                                 </button>
                             )}
                         </div>
@@ -1539,6 +1539,7 @@ export default function RosterPage() {
                             Analytics
                         </button>
                         {isEditor && (
+                            <>
                             <button
                                 onClick={() => setActiveTab('events')}
                                 className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
@@ -1550,6 +1551,18 @@ export default function RosterPage() {
                                 <Calendar className="w-4 h-4" />
                                 Events
                             </button>
+                            <button
+                                onClick={() => setActiveTab('comparison')}
+                                className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
+                                    activeTab === 'comparison'
+                                        ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                                        : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
+                                }`}
+                            >
+                                <BarChart3 className="w-4 h-4" />
+                                Comparison
+                            </button>
+                            </>
                         )}
                         <div className="flex-1" />
                         {lastSnapshotDate && (
@@ -1633,7 +1646,7 @@ export default function RosterPage() {
                 </div>
             )}
 
-            {/* Edit Mode Banner */}
+            {/* Admin Mode Banner */}
             {isEditor && (
                 <div className="bg-[#4318ff]/10 border-b border-[#4318ff]/30">
                     <div className="max-w-6xl mx-auto px-4 md:px-6 py-3">
@@ -1641,11 +1654,12 @@ export default function RosterPage() {
                             <div className="flex items-start gap-3">
                                 <Edit2 className="w-5 h-5 text-[#9f7aea] flex-shrink-0 mt-0.5" />
                                 <div>
-                                    <h3 className="font-medium text-[#9f7aea] text-sm">Edit Mode Active</h3>
+                                    <h3 className="font-medium text-[#9f7aea] text-sm">Admin Mode Active</h3>
                                     <p className={`text-xs ${theme.textMuted} mt-1`}>
                                         <strong>Roster tab:</strong> Click any row to edit KP and notes •
                                         <strong> Analytics tab:</strong> Adjust activity score weights •
-                                        <strong> Events tab:</strong> Record AoO teams and Mobilization scores
+                                        <strong> Events tab:</strong> Record AoO teams and Mobilization scores •
+                                        <strong> Comparison tab:</strong> ANG vs 23KK alliance comparison
                                     </p>
                                 </div>
                             </div>
@@ -5165,6 +5179,201 @@ export default function RosterPage() {
                         })()}
                     </div>
                 )}
+
+                {/* Comparison Tab (Admin Only) */}
+                {activeTab === 'comparison' && isEditor && (() => {
+                    // Build alliance-grouped data from roster
+                    const angMembers = roster.filter(m => m.alliance === 'ANG');
+                    const kkMembers = roster.filter(m => m.alliance === '23KK');
+
+                    const angTotalPower = angMembers.reduce((s, m) => s + (m.power || 0), 0);
+                    const kkTotalPower = kkMembers.reduce((s, m) => s + (m.power || 0), 0);
+                    const angTotalKP = angMembers.reduce((s, m) => s + (m.kills || 0), 0);
+                    const kkTotalKP = kkMembers.reduce((s, m) => s + (m.kills || 0), 0);
+                    const angTotalHonor = angMembers.reduce((s, m) => s + (m.honor_points || 0), 0);
+                    const kkTotalHonor = kkMembers.reduce((s, m) => s + (m.honor_points || 0), 0);
+
+                    // Build time series from allSnapshots grouped by alliance
+                    const angNames = new Set(angMembers.map(m => m.name));
+                    const kkNames = new Set(kkMembers.map(m => m.name));
+
+                    const dateMap = new Map<string, { date: string; angPower: number; kkPower: number; angKP: number; kkKP: number; angCount: number; kkCount: number }>();
+                    for (const snap of allSnapshots) {
+                        const isAng = angNames.has(snap.member_name);
+                        const isKK = kkNames.has(snap.member_name);
+                        if (!isAng && !isKK) continue;
+                        const entry = dateMap.get(snap.snapshot_date) || { date: snap.snapshot_date, angPower: 0, kkPower: 0, angKP: 0, kkKP: 0, angCount: 0, kkCount: 0 };
+                        if (isAng) {
+                            entry.angPower += snap.power || 0;
+                            entry.angKP += snap.kills || 0;
+                            entry.angCount++;
+                        } else {
+                            entry.kkPower += snap.power || 0;
+                            entry.kkKP += snap.kills || 0;
+                            entry.kkCount++;
+                        }
+                        dateMap.set(snap.snapshot_date, entry);
+                    }
+                    const timeSeries = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+                    // Per-member averages
+                    const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+                    const angAvgPower = avg(angMembers.map(m => m.power || 0));
+                    const kkAvgPower = avg(kkMembers.map(m => m.power || 0));
+                    const angAvgKP = avg(angMembers.map(m => m.kills || 0));
+                    const kkAvgKP = avg(kkMembers.map(m => m.kills || 0));
+                    const angAvgT4 = avg(angMembers.map(m => m.t4_kills || 0));
+                    const kkAvgT4 = avg(kkMembers.map(m => m.t4_kills || 0));
+                    const angAvgT5 = avg(angMembers.map(m => m.t5_kills || 0));
+                    const kkAvgT5 = avg(kkMembers.map(m => m.t5_kills || 0));
+                    const angAvgHonor = avg(angMembers.map(m => m.honor_points || 0));
+                    const kkAvgHonor = avg(kkMembers.map(m => m.honor_points || 0));
+
+                    const fmtB = (n: number) => {
+                        if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+                        if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+                        if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+                        return n.toLocaleString();
+                    };
+
+                    return (
+                    <div className="space-y-6">
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Members */}
+                            <div className={`${theme.card} border rounded-xl p-5`}>
+                                <div className={`text-xs ${theme.textMuted} mb-3 font-medium uppercase tracking-wider`}>Members</div>
+                                <div className="flex items-center justify-between">
+                                    <div className="text-center flex-1">
+                                        <div className="text-2xl font-bold text-[#01b574]">{angMembers.length}</div>
+                                        <div className={`text-xs ${theme.textMuted} mt-1`}>ANG</div>
+                                    </div>
+                                    <div className={`text-xs ${theme.textMuted} font-medium`}>vs</div>
+                                    <div className="text-center flex-1">
+                                        <div className="text-2xl font-bold text-[#f56565]">{kkMembers.length}</div>
+                                        <div className={`text-xs ${theme.textMuted} mt-1`}>23KK</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Total Power */}
+                            <div className={`${theme.card} border rounded-xl p-5`}>
+                                <div className={`text-xs ${theme.textMuted} mb-3 font-medium uppercase tracking-wider`}>Total Power</div>
+                                <div className="flex items-center justify-between">
+                                    <div className="text-center flex-1">
+                                        <div className="text-2xl font-bold text-[#01b574]">{fmtB(angTotalPower)}</div>
+                                        <div className={`text-xs ${theme.textMuted} mt-1`}>ANG</div>
+                                    </div>
+                                    <div className={`text-xs ${theme.textMuted} font-medium`}>vs</div>
+                                    <div className="text-center flex-1">
+                                        <div className="text-2xl font-bold text-[#f56565]">{fmtB(kkTotalPower)}</div>
+                                        <div className={`text-xs ${theme.textMuted} mt-1`}>23KK</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Total KP */}
+                            <div className={`${theme.card} border rounded-xl p-5`}>
+                                <div className={`text-xs ${theme.textMuted} mb-3 font-medium uppercase tracking-wider`}>Total Kill Points</div>
+                                <div className="flex items-center justify-between">
+                                    <div className="text-center flex-1">
+                                        <div className="text-2xl font-bold text-[#01b574]">{fmtB(angTotalKP)}</div>
+                                        <div className={`text-xs ${theme.textMuted} mt-1`}>ANG</div>
+                                    </div>
+                                    <div className={`text-xs ${theme.textMuted} font-medium`}>vs</div>
+                                    <div className="text-center flex-1">
+                                        <div className="text-2xl font-bold text-[#f56565]">{fmtB(kkTotalKP)}</div>
+                                        <div className={`text-xs ${theme.textMuted} mt-1`}>23KK</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Power Over Time Chart */}
+                        {timeSeries.length >= 2 && (
+                            <div className={`${theme.card} border rounded-xl p-5`}>
+                                <div className={`text-sm font-semibold mb-4`}>Total Power Over Time</div>
+                                <div style={{ height: 300 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={timeSeries}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                                            <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="var(--text-secondary)" />
+                                            <YAxis tick={{ fontSize: 10 }} stroke="var(--text-secondary)" tickFormatter={(v: number) => fmtB(v)} />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                                                labelStyle={{ color: 'var(--foreground)' }}
+                                                formatter={(value) => [fmtB(Number(value) || 0), '']}
+                                            />
+                                            <Legend />
+                                            <Line type="monotone" dataKey="angPower" name="ANG" stroke="#01b574" strokeWidth={2} dot={false} />
+                                            <Line type="monotone" dataKey="kkPower" name="23KK" stroke="#f56565" strokeWidth={2} dot={false} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* KP Over Time Chart */}
+                        {timeSeries.length >= 2 && (
+                            <div className={`${theme.card} border rounded-xl p-5`}>
+                                <div className={`text-sm font-semibold mb-4`}>Total Kill Points Over Time</div>
+                                <div style={{ height: 300 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={timeSeries}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                                            <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="var(--text-secondary)" />
+                                            <YAxis tick={{ fontSize: 10 }} stroke="var(--text-secondary)" tickFormatter={(v: number) => fmtB(v)} />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                                                labelStyle={{ color: 'var(--foreground)' }}
+                                                formatter={(value) => [fmtB(Number(value) || 0), '']}
+                                            />
+                                            <Legend />
+                                            <Line type="monotone" dataKey="angKP" name="ANG" stroke="#01b574" strokeWidth={2} dot={false} />
+                                            <Line type="monotone" dataKey="kkKP" name="23KK" stroke="#f56565" strokeWidth={2} dot={false} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Per-Member Averages Table */}
+                        <div className={`${theme.card} border rounded-xl p-5`}>
+                            <div className={`text-sm font-semibold mb-4`}>Per-Member Averages</div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className={`border-b ${theme.border}`}>
+                                            <th className={`px-4 py-2 text-left ${theme.textMuted} text-xs font-medium`}>Alliance</th>
+                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg Power</th>
+                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg KP</th>
+                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg T4</th>
+                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg T5</th>
+                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg Honor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr className={`border-b ${theme.border}`}>
+                                            <td className="px-4 py-3 font-semibold text-[#01b574]">ANG</td>
+                                            <td className="px-4 py-3 text-right">{fmtB(angAvgPower)}</td>
+                                            <td className="px-4 py-3 text-right">{fmtB(angAvgKP)}</td>
+                                            <td className="px-4 py-3 text-right">{fmtB(angAvgT4)}</td>
+                                            <td className="px-4 py-3 text-right">{fmtB(angAvgT5)}</td>
+                                            <td className="px-4 py-3 text-right">{angAvgHonor > 0 ? fmtB(angAvgHonor) : '-'}</td>
+                                        </tr>
+                                        <tr>
+                                            <td className="px-4 py-3 font-semibold text-[#f56565]">23KK</td>
+                                            <td className="px-4 py-3 text-right">{fmtB(kkAvgPower)}</td>
+                                            <td className="px-4 py-3 text-right">{fmtB(kkAvgKP)}</td>
+                                            <td className="px-4 py-3 text-right">{fmtB(kkAvgT4)}</td>
+                                            <td className="px-4 py-3 text-right">{fmtB(kkAvgT5)}</td>
+                                            <td className="px-4 py-3 text-right">{kkAvgHonor > 0 ? fmtB(kkAvgHonor) : '-'}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    );
+                })()}
 
                 <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
                     <p className={`text-xs ${theme.textMuted}`}>Angmar Nazgul Guards - Rise of Kingdoms</p>
