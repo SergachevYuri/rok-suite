@@ -5193,39 +5193,7 @@ export default function RosterPage() {
                     const angTotalHonor = angMembers.reduce((s, m) => s + (m.honor_points || 0), 0);
                     const kkTotalHonor = kkMembers.reduce((s, m) => s + (m.honor_points || 0), 0);
 
-                    // Build time series from allSnapshots grouped by alliance
-                    const angNames = new Set(angMembers.map(m => m.name));
-                    const kkNames = new Set(kkMembers.map(m => m.name));
-
-                    const dateMap = new Map<string, { date: string; angPower: number; kkPower: number; angKP: number; kkKP: number; angCount: number; kkCount: number }>();
-                    for (const snap of allSnapshots) {
-                        const isAng = angNames.has(snap.member_name);
-                        const isKK = kkNames.has(snap.member_name);
-                        if (!isAng && !isKK) continue;
-                        const entry = dateMap.get(snap.snapshot_date) || { date: snap.snapshot_date, angPower: 0, kkPower: 0, angKP: 0, kkKP: 0, angCount: 0, kkCount: 0 };
-                        if (isAng) {
-                            entry.angPower += snap.power || 0;
-                            entry.angKP += snap.kills || 0;
-                            entry.angCount++;
-                        } else {
-                            entry.kkPower += snap.power || 0;
-                            entry.kkKP += snap.kills || 0;
-                            entry.kkCount++;
-                        }
-                        dateMap.set(snap.snapshot_date, entry);
-                    }
-                    // Use per-member averages so dates with fewer members aren't biased
-                    const timeSeries = Array.from(dateMap.values())
-                        .sort((a, b) => a.date.localeCompare(b.date))
-                        .map(d => ({
-                            date: d.date,
-                            angPower: d.angCount > 0 ? Math.round(d.angPower / d.angCount) : 0,
-                            kkPower: d.kkCount > 0 ? Math.round(d.kkPower / d.kkCount) : 0,
-                            angKP: d.angCount > 0 ? Math.round(d.angKP / d.angCount) : 0,
-                            kkKP: d.kkCount > 0 ? Math.round(d.kkKP / d.kkCount) : 0,
-                        }));
-
-                    // Per-member averages
+                    // Per-member averages (current roster data only)
                     const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
                     const angAvgPower = avg(angMembers.map(m => m.power || 0));
                     const kkAvgPower = avg(kkMembers.map(m => m.power || 0));
@@ -5295,54 +5263,6 @@ export default function RosterPage() {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Power Over Time Chart */}
-                        {timeSeries.length >= 2 && (
-                            <div className={`${theme.card} border rounded-xl p-5`}>
-                                <div className={`text-sm font-semibold mb-4`}>Avg Power Per Member Over Time</div>
-                                <div style={{ height: 300 }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={timeSeries}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                            <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="var(--text-secondary)" />
-                                            <YAxis tick={{ fontSize: 10 }} stroke="var(--text-secondary)" tickFormatter={(v: number) => fmtB(v)} />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                                                labelStyle={{ color: 'var(--foreground)' }}
-                                                formatter={(value) => [fmtB(Number(value) || 0), '']}
-                                            />
-                                            <Legend />
-                                            <Line type="monotone" dataKey="angPower" name="ANG" stroke="#01b574" strokeWidth={2} dot={false} />
-                                            <Line type="monotone" dataKey="kkPower" name="23KK" stroke="#f56565" strokeWidth={2} dot={false} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* KP Over Time Chart */}
-                        {timeSeries.length >= 2 && (
-                            <div className={`${theme.card} border rounded-xl p-5`}>
-                                <div className={`text-sm font-semibold mb-4`}>Avg Kill Points Per Member Over Time</div>
-                                <div style={{ height: 300 }}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={timeSeries}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                                            <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="var(--text-secondary)" />
-                                            <YAxis tick={{ fontSize: 10 }} stroke="var(--text-secondary)" tickFormatter={(v: number) => fmtB(v)} />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: 'var(--background-secondary)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                                                labelStyle={{ color: 'var(--foreground)' }}
-                                                formatter={(value) => [fmtB(Number(value) || 0), '']}
-                                            />
-                                            <Legend />
-                                            <Line type="monotone" dataKey="angKP" name="ANG" stroke="#01b574" strokeWidth={2} dot={false} />
-                                            <Line type="monotone" dataKey="kkKP" name="23KK" stroke="#f56565" strokeWidth={2} dot={false} />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        )}
 
                         {/* Per-Member Averages Table */}
                         <div className={`${theme.card} border rounded-xl p-5`}>
