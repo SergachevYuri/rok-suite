@@ -1175,17 +1175,17 @@ export default function KpPushEventPage() {
                                               <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
                                                 {formatPower(snap.power)}
                                               </td>
-                                              <td className={`px-2 py-1 text-right text-[#f6993f] ${killsCarry ? carryoverClass : ''}`}>
-                                                {formatPower(snap.kills)}
+                                              <td className={`px-2 py-1 text-right text-[#f6993f] ${snap.kills == null ? carryoverClass : killsCarry ? carryoverClass : ''}`}>
+                                                {snap.kills != null ? formatPower(snap.kills) : '-'}
                                               </td>
-                                              <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
-                                                {formatPower(snap.t4_kills)}
+                                              <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.t4_kills == null ? carryoverClass : t4Carry ? carryoverClass : ''}`}>
+                                                {snap.t4_kills != null ? formatPower(snap.t4_kills) : '-'}
                                               </td>
-                                              <td className={`px-2 py-1 text-right text-[#f97316] ${t5Carry ? carryoverClass : ''}`}>
-                                                {formatPower(snap.t5_kills)}
+                                              <td className={`px-2 py-1 text-right text-[#f97316] ${snap.t5_kills == null ? carryoverClass : t5Carry ? carryoverClass : ''}`}>
+                                                {snap.t5_kills != null ? formatPower(snap.t5_kills) : '-'}
                                               </td>
-                                              <td className={`px-2 py-1 text-right text-[#fbbf24] ${honorCarry ? carryoverClass : ''}`}>
-                                                {snap.honor_points?.toLocaleString() || '-'}
+                                              <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.honor_points == null ? carryoverClass : honorCarry ? carryoverClass : ''}`}>
+                                                {snap.honor_points != null ? snap.honor_points.toLocaleString() : '-'}
                                               </td>
                                             </tr>
                                           );
@@ -1193,7 +1193,7 @@ export default function KpPushEventPage() {
                                       </tbody>
                                     </table>
                                     <div className={`text-[10px] ${theme.textMuted} mt-2 italic`}>
-                                      Dimmed values are unchanged from previous snapshot
+                                      Dimmed values are unchanged from previous snapshot or absent
                                     </div>
                                   </div>
                                   {/* Growth Sparkline Charts - 2x2 grid to the right */}
@@ -1474,17 +1474,17 @@ export default function KpPushEventPage() {
                                                   <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
                                                     {formatPower(snap.power)}
                                                   </td>
-                                                  <td className={`px-2 py-1 text-right text-[#f6993f] ${killsCarry ? carryoverClass : ''}`}>
-                                                    {formatPower(snap.kills)}
+                                                  <td className={`px-2 py-1 text-right text-[#f6993f] ${snap.kills == null ? carryoverClass : killsCarry ? carryoverClass : ''}`}>
+                                                    {snap.kills != null ? formatPower(snap.kills) : '-'}
                                                   </td>
-                                                  <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
-                                                    {formatPower(snap.t4_kills)}
+                                                  <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.t4_kills == null ? carryoverClass : t4Carry ? carryoverClass : ''}`}>
+                                                    {snap.t4_kills != null ? formatPower(snap.t4_kills) : '-'}
                                                   </td>
-                                                  <td className={`px-2 py-1 text-right text-[#f97316] ${t5Carry ? carryoverClass : ''}`}>
-                                                    {formatPower(snap.t5_kills)}
+                                                  <td className={`px-2 py-1 text-right text-[#f97316] ${snap.t5_kills == null ? carryoverClass : t5Carry ? carryoverClass : ''}`}>
+                                                    {snap.t5_kills != null ? formatPower(snap.t5_kills) : '-'}
                                                   </td>
-                                                  <td className={`px-2 py-1 text-right text-[#fbbf24] ${honorCarry ? carryoverClass : ''}`}>
-                                                    {snap.honor_points?.toLocaleString() || '-'}
+                                                  <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.honor_points == null ? carryoverClass : honorCarry ? carryoverClass : ''}`}>
+                                                    {snap.honor_points != null ? snap.honor_points.toLocaleString() : '-'}
                                                   </td>
                                                 </tr>
                                               );
@@ -1492,7 +1492,7 @@ export default function KpPushEventPage() {
                                           </tbody>
                                         </table>
                                         <div className={`text-[10px] ${theme.textMuted} mt-2 italic`}>
-                                          Dimmed values are unchanged from previous snapshot
+                                          Dimmed values are unchanged from previous snapshot or absent
                                         </div>
                                       </div>
                                       {/* Growth Sparkline Charts */}

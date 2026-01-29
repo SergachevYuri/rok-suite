@@ -2566,17 +2566,17 @@ export default function RosterPage() {
                                                                                     <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
                                                                                         {formatPower(snap.power)}
                                                                                     </td>
-                                                                                    <td className={`px-2 py-1 text-right text-[#f56565] ${killsCarry ? carryoverClass : ''}`}>
-                                                                                        {formatPower(snap.kills)}
+                                                                                    <td className={`px-2 py-1 text-right text-[#f56565] ${snap.kills == null ? carryoverClass : killsCarry ? carryoverClass : ''}`}>
+                                                                                        {snap.kills != null ? formatPower(snap.kills) : '-'}
                                                                                     </td>
-                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${t4Carry ? carryoverClass : ''}`}>
-                                                                                        {formatPower(snap.t4_kills)}
+                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.t4_kills == null ? carryoverClass : t4Carry ? carryoverClass : ''}`}>
+                                                                                        {snap.t4_kills != null ? formatPower(snap.t4_kills) : '-'}
                                                                                     </td>
-                                                                                    <td className={`px-2 py-1 text-right text-[#f97316] ${t5Carry ? carryoverClass : ''}`}>
-                                                                                        {formatPower(snap.t5_kills)}
+                                                                                    <td className={`px-2 py-1 text-right text-[#f97316] ${snap.t5_kills == null ? carryoverClass : t5Carry ? carryoverClass : ''}`}>
+                                                                                        {snap.t5_kills != null ? formatPower(snap.t5_kills) : '-'}
                                                                                     </td>
-                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${honorCarry ? carryoverClass : ''}`}>
-                                                                                        {snap.honor_points?.toLocaleString() || '-'}
+                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.honor_points == null ? carryoverClass : honorCarry ? carryoverClass : ''}`}>
+                                                                                        {snap.honor_points != null ? snap.honor_points.toLocaleString() : '-'}
                                                                                     </td>
                                                                                 </tr>
                                                                             );
@@ -5405,15 +5405,15 @@ export default function RosterPage() {
                                                                 )}
                                                             </td>
                                                             <td className="py-1 px-1 text-right">
-                                                                <div className="text-[#f56565]">{formatPower(snap.kills)}</div>
-                                                                {kpDelta !== 0 && (
+                                                                <div className={`text-[#f56565] ${snap.kills == null ? 'opacity-40 italic' : ''}`}>{snap.kills != null ? formatPower(snap.kills) : '-'}</div>
+                                                                {kpDelta !== 0 && snap.kills != null && (
                                                                     <div className={`text-[9px] ${kpDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                                         {kpDelta > 0 ? '+' : ''}{formatPower(kpDelta)}
                                                                     </div>
                                                                 )}
                                                             </td>
                                                             <td className="py-1 px-1 text-right">
-                                                                <div className="text-[#fbbf24]">{snap.honor_points ? snap.honor_points.toLocaleString() : '-'}</div>
+                                                                <div className={`text-[#fbbf24] ${snap.honor_points == null ? 'opacity-40 italic' : ''}`}>{snap.honor_points != null ? snap.honor_points.toLocaleString() : '-'}</div>
                                                                 {honorDelta !== 0 && (
                                                                     <div className={`text-[9px] ${honorDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
                                                                         {honorDelta > 0 ? '+' : ''}{honorDelta.toLocaleString()}
