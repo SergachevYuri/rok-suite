@@ -1296,9 +1296,7 @@ export default function RosterPage() {
     };
 
     // Filter and sort roster
-    // Only show members with tags (excludes CSV-imported members without tags)
     const filteredRoster = roster
-        .filter(m => m.tags && m.tags.length > 0) // Only show tagged members
         .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
         .filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)))
         .filter(m => !allianceFilter || m.alliance === allianceFilter)
@@ -1373,10 +1371,13 @@ export default function RosterPage() {
         ? filteredRoster
         : filteredRoster.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
 
-    // Only count tagged members for stats (excludes CSV-imported members without tags)
-    const displayRoster = roster.filter(m => m.tags && m.tags.length > 0);
-    const totalPower = displayRoster.reduce((sum, m) => sum + m.power, 0);
-    const totalKills = displayRoster.reduce((sum, m) => sum + (m.kills || 0), 0);
+    // Stats use the filtered roster (respects alliance/tag/rank filters, excludes search)
+    const statsRoster = roster
+        .filter(m => !allianceFilter || m.alliance === allianceFilter)
+        .filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)))
+        .filter(m => !rankFilter || m.role === rankFilter);
+    const totalPower = statsRoster.reduce((sum, m) => sum + m.power, 0);
+    const totalKills = statsRoster.reduce((sum, m) => sum + (m.kills || 0), 0);
 
     // Vision UI theme - using CSS variables for dark/light mode support
     const theme = {
@@ -1431,7 +1432,7 @@ export default function RosterPage() {
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight truncate">Alliance Roster</h1>
                                     <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#4318ff]/20 text-[#9f7aea] flex-shrink-0">
-                                        {displayRoster.length} members
+                                        {statsRoster.length} members
                                     </span>
                                 </div>
                                 <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>Member stats, power rankings, and event tracking</p>
@@ -1586,10 +1587,10 @@ export default function RosterPage() {
                                             : `${theme.button}`
                                     }`}
                                 >
-                                    All ({displayRoster.length})
+                                    All ({roster.length})
                                 </button>
                                 {availableTags.map(tag => {
-                                    const count = displayRoster.filter(m => m.tags?.includes(tag)).length;
+                                    const count = roster.filter(m => m.tags?.includes(tag)).length;
                                     const tagConfig = {
                                         'angmar-og': { label: 'Angmar Core', activeClass: 'bg-amber-500 text-black', inactiveClass: 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' },
                                         'inactive': { label: 'Inactive', activeClass: 'bg-gray-500 text-white', inactiveClass: 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30' },
@@ -1842,7 +1843,7 @@ export default function RosterPage() {
                     <div className={`${theme.card} border rounded-xl p-4 text-center`}>
                         <Users className="w-6 h-6 mx-auto mb-2 text-[#9f7aea]" />
                         <p className={`text-xs ${theme.textMuted}`}>Members</p>
-                        <p className="text-2xl font-bold">{displayRoster.length}</p>
+                        <p className="text-2xl font-bold">{statsRoster.length}</p>
                     </div>
                     <div className={`${theme.card} border rounded-xl p-4 text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Total Power</p>
@@ -1854,7 +1855,7 @@ export default function RosterPage() {
                     </div>
                     <div className={`${theme.card} border rounded-xl p-4 text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Avg Power</p>
-                        <p className="text-2xl font-bold text-[#4318ff]">{formatPower(Math.round(totalPower / (displayRoster.length || 1)))}</p>
+                        <p className="text-2xl font-bold text-[#4318ff]">{formatPower(Math.round(totalPower / (statsRoster.length || 1)))}</p>
                     </div>
                 </div>
 
@@ -2550,8 +2551,8 @@ export default function RosterPage() {
                                     {/* Expandable snapshot history row */}
                                     {isExpanded && (
                                         <tr className="bg-[var(--background-secondary)]/50">
-                                            <td colSpan={100} className="px-4 py-3">
-                                                <div className="ml-6">
+                                            <td colSpan={100} className="px-2 sm:px-4 py-3">
+                                                <div className="ml-2 sm:ml-6">
                                                     <h4 className={`text-sm font-semibold mb-2 ${theme.textMuted}`}>
                                                         Snapshot History for {member.name}
                                                     </h4>
@@ -2824,7 +2825,7 @@ export default function RosterPage() {
                                             />
                                             {playerDropdownOpen && (
                                                 <div className={`absolute z-50 mt-1 w-[180px] max-h-[200px] overflow-y-auto ${theme.card} border rounded shadow-lg`}>
-                                                    {displayRoster
+                                                    {roster
                                                         .filter(m => m.name.toLowerCase().includes(playerSearchQuery.toLowerCase()))
                                                         .sort((a, b) => a.name.localeCompare(b.name))
                                                         .slice(0, 50)
@@ -2843,7 +2844,7 @@ export default function RosterPage() {
                                                             </div>
                                                         ))
                                                     }
-                                                    {displayRoster.filter(m => m.name.toLowerCase().includes(playerSearchQuery.toLowerCase())).length === 0 && (
+                                                    {roster.filter(m => m.name.toLowerCase().includes(playerSearchQuery.toLowerCase())).length === 0 && (
                                                         <div className={`px-2 py-1 text-xs ${theme.textMuted}`}>No players found</div>
                                                     )}
                                                 </div>
@@ -5284,30 +5285,30 @@ export default function RosterPage() {
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className={`border-b ${theme.border}`}>
-                                            <th className={`px-4 py-2 text-left ${theme.textMuted} text-xs font-medium`}>Alliance</th>
-                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg Power</th>
-                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg KP</th>
-                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg T4</th>
-                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg T5</th>
-                                            <th className={`px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg Honor</th>
+                                            <th className={`px-2 sm:px-4 py-2 text-left ${theme.textMuted} text-xs font-medium`}>Alliance</th>
+                                            <th className={`px-2 sm:px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg Power</th>
+                                            <th className={`px-2 sm:px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg KP</th>
+                                            <th className={`px-2 sm:px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg T4</th>
+                                            <th className={`px-2 sm:px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg T5</th>
+                                            <th className={`px-2 sm:px-4 py-2 text-right ${theme.textMuted} text-xs font-medium`}>Avg Honor</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr className={`border-b ${theme.border}`}>
-                                            <td className="px-4 py-3 font-semibold text-[#01b574]">ANG</td>
-                                            <td className="px-4 py-3 text-right">{fmtB(angAvgPower)}</td>
-                                            <td className="px-4 py-3 text-right">{fmtB(angAvgKP)}</td>
-                                            <td className="px-4 py-3 text-right">{fmtB(angAvgT4)}</td>
-                                            <td className="px-4 py-3 text-right">{fmtB(angAvgT5)}</td>
-                                            <td className="px-4 py-3 text-right">{angAvgHonor > 0 ? fmtB(angAvgHonor) : '-'}</td>
+                                            <td className="px-2 sm:px-4 py-3 font-semibold text-[#01b574]">ANG</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{fmtB(angAvgPower)}</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{fmtB(angAvgKP)}</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{fmtB(angAvgT4)}</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{fmtB(angAvgT5)}</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{angAvgHonor > 0 ? fmtB(angAvgHonor) : '-'}</td>
                                         </tr>
                                         <tr>
-                                            <td className="px-4 py-3 font-semibold text-[#f56565]">23KK</td>
-                                            <td className="px-4 py-3 text-right">{fmtB(kkAvgPower)}</td>
-                                            <td className="px-4 py-3 text-right">{fmtB(kkAvgKP)}</td>
-                                            <td className="px-4 py-3 text-right">{fmtB(kkAvgT4)}</td>
-                                            <td className="px-4 py-3 text-right">{fmtB(kkAvgT5)}</td>
-                                            <td className="px-4 py-3 text-right">{kkAvgHonor > 0 ? fmtB(kkAvgHonor) : '-'}</td>
+                                            <td className="px-2 sm:px-4 py-3 font-semibold text-[#f56565]">23KK</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{fmtB(kkAvgPower)}</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{fmtB(kkAvgKP)}</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{fmtB(kkAvgT4)}</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{fmtB(kkAvgT5)}</td>
+                                            <td className="px-2 sm:px-4 py-3 text-right">{kkAvgHonor > 0 ? fmtB(kkAvgHonor) : '-'}</td>
                                         </tr>
                                     </tbody>
                                 </table>
