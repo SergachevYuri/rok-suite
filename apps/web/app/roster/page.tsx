@@ -2507,8 +2507,16 @@ export default function RosterPage() {
                                                                     <tbody>
                                                                         {memberSnapshots.map((snap, snapIdx) => {
                                                                             const prevSnap = snapIdx > 0 ? memberSnapshots[snapIdx - 1] : null;
-                                                                            const isCarryover = (current: number | undefined, prev: number | undefined) =>
-                                                                                prevSnap && current === prev;
+                                                                            const isCarryover = (current: number | null | undefined, prev: number | null | undefined) =>
+                                                                                prevSnap && current != null && current === prev;
+
+                                                                            // Find last known non-null value for a field
+                                                                            const getLastKnown = (field: 'kills' | 't4_kills' | 't5_kills' | 'honor_points') => {
+                                                                                for (let i = snapIdx - 1; i >= 0; i--) {
+                                                                                    if (memberSnapshots[i][field] != null) return memberSnapshots[i][field];
+                                                                                }
+                                                                                return null;
+                                                                            };
 
                                                                             const carryoverClass = "opacity-40 italic";
                                                                             const powerCarry = isCarryover(snap.power, prevSnap?.power);
@@ -2516,6 +2524,12 @@ export default function RosterPage() {
                                                                             const t4Carry = isCarryover(snap.t4_kills, prevSnap?.t4_kills);
                                                                             const t5Carry = isCarryover(snap.t5_kills, prevSnap?.t5_kills);
                                                                             const honorCarry = isCarryover(snap.honor_points, prevSnap?.honor_points);
+
+                                                                            // For null fields, use last known value (displayed dimmed)
+                                                                            const killsDisplay = snap.kills ?? getLastKnown('kills');
+                                                                            const t4Display = snap.t4_kills ?? getLastKnown('t4_kills');
+                                                                            const t5Display = snap.t5_kills ?? getLastKnown('t5_kills');
+                                                                            const honorDisplay = snap.honor_points ?? getLastKnown('honor_points');
 
                                                                             return (
                                                                                 <tr key={snap.id || snapIdx} className="border-b border-[var(--border)]/30">
@@ -2525,17 +2539,17 @@ export default function RosterPage() {
                                                                                     <td className={`px-2 py-1 text-right text-[#01b574] ${powerCarry ? carryoverClass : ''}`}>
                                                                                         {formatPower(snap.power)}
                                                                                     </td>
-                                                                                    <td className={`px-2 py-1 text-right text-[#f56565] ${snap.kills == null ? carryoverClass : killsCarry ? carryoverClass : ''}`}>
-                                                                                        {snap.kills != null ? formatPower(snap.kills) : '-'}
+                                                                                    <td className={`px-2 py-1 text-right text-[#f56565] ${snap.kills == null || killsCarry ? carryoverClass : ''}`}>
+                                                                                        {killsDisplay != null ? formatPower(killsDisplay) : '-'}
                                                                                     </td>
-                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.t4_kills == null ? carryoverClass : t4Carry ? carryoverClass : ''}`}>
-                                                                                        {snap.t4_kills != null ? formatPower(snap.t4_kills) : '-'}
+                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.t4_kills == null || t4Carry ? carryoverClass : ''}`}>
+                                                                                        {t4Display != null ? formatPower(t4Display) : '-'}
                                                                                     </td>
-                                                                                    <td className={`px-2 py-1 text-right text-[#f97316] ${snap.t5_kills == null ? carryoverClass : t5Carry ? carryoverClass : ''}`}>
-                                                                                        {snap.t5_kills != null ? formatPower(snap.t5_kills) : '-'}
+                                                                                    <td className={`px-2 py-1 text-right text-[#f97316] ${snap.t5_kills == null || t5Carry ? carryoverClass : ''}`}>
+                                                                                        {t5Display != null ? formatPower(t5Display) : '-'}
                                                                                     </td>
-                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.honor_points == null ? carryoverClass : honorCarry ? carryoverClass : ''}`}>
-                                                                                        {snap.honor_points != null ? snap.honor_points.toLocaleString() : '-'}
+                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.honor_points == null || honorCarry ? carryoverClass : ''}`}>
+                                                                                        {honorDisplay != null ? honorDisplay.toLocaleString() : '-'}
                                                                                     </td>
                                                                                 </tr>
                                                                             );
@@ -2543,7 +2557,7 @@ export default function RosterPage() {
                                                                     </tbody>
                                                                 </table>
                                                                 <div className={`text-[10px] ${theme.textMuted} mt-2 italic`}>
-                                                                    Dimmed values are unchanged from previous snapshot
+                                                                    Dimmed values are unchanged or carried forward from previous snapshot
                                                                 </div>
                                                             </div>
                                                             {/* Growth Sparkline Charts - 2x2 grid to the right */}
