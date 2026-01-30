@@ -3443,7 +3443,9 @@ export default function RosterPage() {
                                 {(() => {
                                     if (kpGrowthData.length === 0) return null;
 
+                                    const allianceNames = new Set(roster.filter(r => r.alliance === growthAllianceFilter).map(r => r.name));
                                     const sortedKpGrowth = [...kpGrowthData]
+                                        .filter(m => allianceNames.has(m.name))
                                         .filter(m => !tagFilter || roster.find(r => r.name === m.name)?.tags?.includes(tagFilter))
                                         .sort((a, b) => {
                                             const { field, direction } = kpGrowthSort;
@@ -3690,7 +3692,9 @@ export default function RosterPage() {
                                 {(() => {
                                     if (honorGrowthData.length === 0) return null;
 
+                                    const honorAllianceNames = new Set(roster.filter(r => r.alliance === growthAllianceFilter).map(r => r.name));
                                     const sortedHonorGrowth = [...honorGrowthData]
+                                        .filter(m => honorAllianceNames.has(m.name))
                                         .filter(m => !tagFilter || roster.find(r => r.name === m.name)?.tags?.includes(tagFilter))
                                         .sort((a, b) => {
                                             const { field, direction } = honorGrowthSort;
