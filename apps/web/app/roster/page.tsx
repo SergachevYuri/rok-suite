@@ -458,7 +458,7 @@ export default function RosterPage() {
     // Fetch KP, Power, and Honor growth data when roster loads or date range changes
     useEffect(() => {
         if (roster.length > 0) {
-            const angRoster = roster.filter(m => m.alliance === 'ANG');
+            const angRoster = roster.filter(m => m.alliance === 'ANG' || !m.alliance);
             getKpGrowth(angRoster, growthCompareDate, growthEndDate).then(setKpGrowthData).catch(console.error);
             getPowerGrowth(angRoster, growthCompareDate, growthEndDate).then(setPowerGrowthData).catch(console.error);
             getHonorGrowth(angRoster, growthCompareDate, growthEndDate).then(setHonorGrowthData).catch(console.error);
@@ -2869,7 +2869,7 @@ export default function RosterPage() {
                                         // Only include ANG members, with optional tag filter
                                         const filteredMemberNames = new Set(
                                             roster
-                                                .filter(m => m.alliance === 'ANG' && (!tagFilter || m.tags?.includes(tagFilter)))
+                                                .filter(m => (m.alliance === 'ANG' || !m.alliance) && (!tagFilter || m.tags?.includes(tagFilter)))
                                                 .map(m => m.name)
                                         );
 
@@ -4317,7 +4317,7 @@ export default function RosterPage() {
                     <div className="space-y-6">
                         {(() => {
                             // Filter to ANG members, then apply tag filter for analytics
-                            const analyticsRoster = roster.filter(m => m.alliance === 'ANG' && (!tagFilter || (m.tags && m.tags.includes(tagFilter))));
+                            const analyticsRoster = roster.filter(m => (m.alliance === 'ANG' || !m.alliance) && (!tagFilter || (m.tags && m.tags.includes(tagFilter))));
 
                             // Calculate activity scores
                             const activityScores = calculateActivityScores(analyticsRoster, eventStats, activityWeights);
@@ -5117,7 +5117,8 @@ export default function RosterPage() {
                 {/* Comparison Tab (Admin Only) */}
                 {activeTab === 'comparison' && isEditor && (() => {
                     // Build alliance-grouped data from roster
-                    const angMembers = roster.filter(m => m.alliance === 'ANG');
+                    // Members without an explicit alliance default to ANG (pre-migration members)
+                    const angMembers = roster.filter(m => m.alliance === 'ANG' || !m.alliance);
                     const kkMembers = roster.filter(m => m.alliance === '23KK');
 
                     const angTotalPower = angMembers.reduce((s, m) => s + (m.power || 0), 0);
@@ -5147,10 +5148,10 @@ export default function RosterPage() {
                         return n.toLocaleString();
                     };
 
-                    // Build name → alliance map from current roster
+                    // Build name → alliance map from current roster (null alliance defaults to ANG)
                     const allianceMap = new Map<string, string>();
                     for (const m of roster) {
-                        if (m.alliance) allianceMap.set(m.name, m.alliance);
+                        allianceMap.set(m.name, m.alliance || 'ANG');
                     }
 
                     // Aggregate allSnapshots by date + alliance
@@ -5193,11 +5194,21 @@ export default function RosterPage() {
 
                     return (
                     <div className="space-y-6">
-                        {/* Summary Cards */}
+                        {/* Section Header */}
+                        <div>
+                            <h2 className="text-lg font-bold">ANG vs 23KK Alliance Comparison</h2>
+                            <p className={`text-xs ${theme.textMuted} mt-1`}>
+                                Current roster snapshot for both alliances. ANG has full data coverage; 23KK data is partial
+                                (only available for dates where we collected their roster). Historical charts exclude dates with less than 50% member coverage
+                                to avoid misleading averages from incomplete data.
+                            </p>
+                        </div>
+
+                        {/* Summary Cards — current roster totals */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Members */}
                             <div className={`${theme.card} border rounded-xl p-5`}>
-                                <div className={`text-xs ${theme.textMuted} mb-3 font-medium uppercase tracking-wider`}>Members</div>
+                                <div className={`text-xs ${theme.textMuted} mb-3 font-medium uppercase tracking-wider`}>Active Members</div>
                                 <div className="flex items-center justify-between">
                                     <div className="text-center flex-1">
                                         <div className="text-2xl font-bold text-[#01b574]">{angMembers.length}</div>
@@ -5209,6 +5220,7 @@ export default function RosterPage() {
                                         <div className={`text-xs ${theme.textMuted} mt-1`}>23KK</div>
                                     </div>
                                 </div>
+                                <div className={`text-[10px] ${theme.textMuted} mt-2 text-center`}>Current active roster count</div>
                             </div>
                             {/* Total Power */}
                             <div className={`${theme.card} border rounded-xl p-5`}>
@@ -5224,6 +5236,7 @@ export default function RosterPage() {
                                         <div className={`text-xs ${theme.textMuted} mt-1`}>23KK</div>
                                     </div>
                                 </div>
+                                <div className={`text-[10px] ${theme.textMuted} mt-2 text-center`}>Sum of all active members&apos; power</div>
                             </div>
                             {/* Total KP */}
                             <div className={`${theme.card} border rounded-xl p-5`}>
@@ -5239,13 +5252,14 @@ export default function RosterPage() {
                                         <div className={`text-xs ${theme.textMuted} mt-1`}>23KK</div>
                                     </div>
                                 </div>
+                                <div className={`text-[10px] ${theme.textMuted} mt-2 text-center`}>Sum of all active members&apos; kills</div>
                             </div>
                         </div>
 
                         {/* Power Comparison Chart */}
                         <div className={`${theme.card} border rounded-xl p-5`}>
                             <div className={`text-sm font-semibold mb-1`}>Avg Power Per Member Over Time</div>
-                            <div className={`text-xs ${theme.textMuted} mb-3`}>Dates with &lt;50% member coverage are excluded</div>
+                            <div className={`text-xs ${theme.textMuted} mb-3`}>Total power divided by members with data on each date. Dates with &lt;50% member coverage are excluded to avoid skewed averages. Hover for member count details.</div>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={compChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
@@ -5293,7 +5307,7 @@ export default function RosterPage() {
                         {/* KP Comparison Chart */}
                         <div className={`${theme.card} border rounded-xl p-5`}>
                             <div className={`text-sm font-semibold mb-1`}>Avg Kill Points Per Member Over Time</div>
-                            <div className={`text-xs ${theme.textMuted} mb-3`}>Dates with &lt;50% member coverage are excluded</div>
+                            <div className={`text-xs ${theme.textMuted} mb-3`}>Total KP divided by members with data on each date. Dates with &lt;50% member coverage are excluded to avoid skewed averages. Hover for member count details.</div>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={compChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
@@ -5340,7 +5354,8 @@ export default function RosterPage() {
 
                         {/* Per-Member Averages Table */}
                         <div className={`${theme.card} border rounded-xl p-5`}>
-                            <div className={`text-sm font-semibold mb-4`}>Per-Member Averages</div>
+                            <div className={`text-sm font-semibold mb-1`}>Per-Member Averages (Current Roster)</div>
+                            <div className={`text-xs ${theme.textMuted} mb-4`}>Average stats per active member based on latest roster data. Useful for comparing typical member strength between alliances.</div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
