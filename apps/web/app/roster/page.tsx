@@ -5172,15 +5172,19 @@ export default function RosterPage() {
                         }
                     }
 
+                    // Minimum coverage threshold: only show 23KK data when we have at least 50% of members
+                    const kkMinCoverage = Math.floor(kkMembers.length * 0.5);
+                    const angMinCoverage = Math.floor(angMembers.length * 0.5);
+
                     const compChartData = [...dateAllianceAgg.entries()]
                         .sort(([a], [b]) => a.localeCompare(b))
                         .map(([date, agg]) => ({
                             date,
                             timestamp: new Date(date + 'T12:00:00').getTime(),
-                            angAvgPow: agg.angCount > 0 ? agg.angPower / agg.angCount : null,
-                            kkAvgPow: agg.kkCount > 0 ? agg.kkPower / agg.kkCount : null,
-                            angAvgKP: agg.angCount > 0 ? agg.angKP / agg.angCount : null,
-                            kkAvgKP: agg.kkCount > 0 ? agg.kkKP / agg.kkCount : null,
+                            angAvgPow: agg.angCount >= angMinCoverage ? agg.angPower / agg.angCount : null,
+                            kkAvgPow: agg.kkCount >= kkMinCoverage ? agg.kkPower / agg.kkCount : null,
+                            angAvgKP: agg.angCount >= angMinCoverage ? agg.angKP / agg.angCount : null,
+                            kkAvgKP: agg.kkCount >= kkMinCoverage ? agg.kkKP / agg.kkCount : null,
                             angCount: agg.angCount,
                             kkCount: agg.kkCount,
                         }));
@@ -5241,7 +5245,7 @@ export default function RosterPage() {
                         {/* Power Comparison Chart */}
                         <div className={`${theme.card} border rounded-xl p-5`}>
                             <div className={`text-sm font-semibold mb-1`}>Avg Power Per Member Over Time</div>
-                            <div className={`text-xs ${theme.textMuted} mb-3`}>Averaged per member to account for varying data coverage across dates</div>
+                            <div className={`text-xs ${theme.textMuted} mb-3`}>Dates with &lt;50% member coverage are excluded</div>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={compChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
@@ -5269,9 +5273,12 @@ export default function RosterPage() {
                                             formatter={(value, name, props) => {
                                                 const v = typeof value === 'number' ? value : 0;
                                                 const entry = props?.payload;
-                                                const count = name === 'angAvgPow' ? entry?.angCount : entry?.kkCount;
-                                                const label = name === 'angAvgPow' ? 'ANG' : '23KK';
-                                                return [`${fmtB(v)} (${count} members)`, label];
+                                                const isAng = name === 'angAvgPow';
+                                                const count = isAng ? entry?.angCount : entry?.kkCount;
+                                                const total = isAng ? angMembers.length : kkMembers.length;
+                                                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                                                const label = isAng ? 'ANG' : '23KK';
+                                                return [`${fmtB(v)} (${count}/${total} members, ${pct}%)`, label];
                                             }}
                                             labelFormatter={(ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                         />
@@ -5286,7 +5293,7 @@ export default function RosterPage() {
                         {/* KP Comparison Chart */}
                         <div className={`${theme.card} border rounded-xl p-5`}>
                             <div className={`text-sm font-semibold mb-1`}>Avg Kill Points Per Member Over Time</div>
-                            <div className={`text-xs ${theme.textMuted} mb-3`}>Averaged per member to account for varying data coverage across dates</div>
+                            <div className={`text-xs ${theme.textMuted} mb-3`}>Dates with &lt;50% member coverage are excluded</div>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={compChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
@@ -5314,9 +5321,12 @@ export default function RosterPage() {
                                             formatter={(value, name, props) => {
                                                 const v = typeof value === 'number' ? value : 0;
                                                 const entry = props?.payload;
-                                                const count = name === 'angAvgKP' ? entry?.angCount : entry?.kkCount;
-                                                const label = name === 'angAvgKP' ? 'ANG' : '23KK';
-                                                return [`${fmtB(v)} (${count} members)`, label];
+                                                const isAng = name === 'angAvgKP';
+                                                const count = isAng ? entry?.angCount : entry?.kkCount;
+                                                const total = isAng ? angMembers.length : kkMembers.length;
+                                                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                                                const label = isAng ? 'ANG' : '23KK';
+                                                return [`${fmtB(v)} (${count}/${total} members, ${pct}%)`, label];
                                             }}
                                             labelFormatter={(ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                         />
