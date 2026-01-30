@@ -223,6 +223,7 @@ export default function RosterPage() {
     const [search, setSearch] = useState('');
     const [tagFilter, setTagFilter] = useState<string | null>(null);
     const [allianceFilter, setAllianceFilter] = useState<string | null>(null);
+    const [growthAllianceFilter, setGrowthAllianceFilter] = useState<string>('ANG');
     const [rankFilter, setRankFilter] = useState<string | null>(null);
     const [aooFilter, setAooFilter] = useState<'all' | 'team1' | 'team2' | 'assigned' | 'unassigned'>('all');
     const [sortField, setSortField] = useState<SortField>('default'); // Default: rank → power → name
@@ -455,15 +456,15 @@ export default function RosterPage() {
         }).catch(console.error);
     }, []);
 
-    // Fetch KP, Power, and Honor growth data when roster loads or date range changes
+    // Fetch KP, Power, and Honor growth data when roster loads or date range/alliance changes
     useEffect(() => {
         if (roster.length > 0) {
-            const angRoster = roster.filter(m => m.alliance === 'ANG');
-            getKpGrowth(angRoster, growthCompareDate, growthEndDate).then(setKpGrowthData).catch(console.error);
-            getPowerGrowth(angRoster, growthCompareDate, growthEndDate).then(setPowerGrowthData).catch(console.error);
-            getHonorGrowth(angRoster, growthCompareDate, growthEndDate).then(setHonorGrowthData).catch(console.error);
+            const growthRoster = roster.filter(m => m.alliance === growthAllianceFilter);
+            getKpGrowth(growthRoster, growthCompareDate, growthEndDate).then(setKpGrowthData).catch(console.error);
+            getPowerGrowth(growthRoster, growthCompareDate, growthEndDate).then(setPowerGrowthData).catch(console.error);
+            getHonorGrowth(growthRoster, growthCompareDate, growthEndDate).then(setHonorGrowthData).catch(console.error);
         }
-    }, [roster, growthCompareDate, growthEndDate]);
+    }, [roster, growthCompareDate, growthEndDate, growthAllianceFilter]);
 
     // Fetch individual player history when selected
     useEffect(() => {
@@ -2694,19 +2695,36 @@ export default function RosterPage() {
                 {/* Growth Tab */}
                 {activeTab === 'history' && (
                     <div className="space-y-6">
-                        {/* Show Charts Toggle */}
+                        {/* Alliance Selector + Show Charts Toggle */}
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <button
-                                onClick={() => setShowCharts(!showCharts)}
-                                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-                                    showCharts
-                                        ? 'bg-[#4318ff] text-white'
-                                        : `${theme.button}`
-                                }`}
-                            >
-                                <TrendingUp className="w-3.5 h-3.5" />
-                                {showCharts ? 'Hide Charts' : 'Show Charts'}
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1 bg-[var(--background-secondary)] rounded-lg p-0.5">
+                                    {alliances.map(a => (
+                                        <button
+                                            key={a}
+                                            onClick={() => setGrowthAllianceFilter(a)}
+                                            className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
+                                                growthAllianceFilter === a
+                                                    ? 'bg-[#4318ff] text-white'
+                                                    : `${theme.textMuted} hover:text-[var(--foreground)]`
+                                            }`}
+                                        >
+                                            {a}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => setShowCharts(!showCharts)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                                        showCharts
+                                            ? 'bg-[#4318ff] text-white'
+                                            : `${theme.button}`
+                                    }`}
+                                >
+                                    <TrendingUp className="w-3.5 h-3.5" />
+                                    {showCharts ? 'Hide Charts' : 'Show Charts'}
+                                </button>
+                            </div>
 
                             {/* Chart Controls - Only show when charts visible */}
                             {showCharts && (
@@ -2866,10 +2884,10 @@ export default function RosterPage() {
                                     let filteredDailyTotals: { kills: number; power: number; honor: number; count: number; date: string }[];
 
                                     {
-                                        // Only include ANG members, with optional tag filter
+                                        // Only include selected alliance members, with optional tag filter
                                         const filteredMemberNames = new Set(
                                             roster
-                                                .filter(m => m.alliance === 'ANG' && (!tagFilter || m.tags?.includes(tagFilter)))
+                                                .filter(m => m.alliance === growthAllianceFilter && (!tagFilter || m.tags?.includes(tagFilter)))
                                                 .map(m => m.name)
                                         );
 
@@ -4315,9 +4333,25 @@ export default function RosterPage() {
                 {/* Analytics Tab */}
                 {activeTab === 'analytics' && (
                     <div className="space-y-6">
+                        {/* Alliance Selector */}
+                        <div className="flex items-center gap-1 bg-[var(--background-secondary)] rounded-lg p-0.5 w-fit">
+                            {alliances.map(a => (
+                                <button
+                                    key={a}
+                                    onClick={() => setGrowthAllianceFilter(a)}
+                                    className={`px-2.5 py-1 text-xs font-medium rounded transition-all ${
+                                        growthAllianceFilter === a
+                                            ? 'bg-[#4318ff] text-white'
+                                            : `${theme.textMuted} hover:text-[var(--foreground)]`
+                                    }`}
+                                >
+                                    {a}
+                                </button>
+                            ))}
+                        </div>
                         {(() => {
-                            // Filter to ANG members, then apply tag filter for analytics
-                            const analyticsRoster = roster.filter(m => m.alliance === 'ANG' && (!tagFilter || (m.tags && m.tags.includes(tagFilter))));
+                            // Filter to selected alliance members, then apply tag filter for analytics
+                            const analyticsRoster = roster.filter(m => m.alliance === growthAllianceFilter && (!tagFilter || (m.tags && m.tags.includes(tagFilter))));
 
                             // Calculate activity scores
                             const activityScores = calculateActivityScores(analyticsRoster, eventStats, activityWeights);
