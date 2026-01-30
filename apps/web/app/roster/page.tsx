@@ -304,14 +304,6 @@ export default function RosterPage() {
     const [memberSnapshots, setMemberSnapshots] = useState<RosterSnapshot[]>([]);
     const [loadingSnapshots, setLoadingSnapshots] = useState(false);
 
-    // Hover card state
-    const [hoveredMember, setHoveredMember] = useState<string | null>(null);
-    const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-    const [pinnedMember, setPinnedMember] = useState<string | null>(null);
-    const [pinnedPosition, setPinnedPosition] = useState<{ x: number; y: number }>({ x: 100, y: 100 });
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-    const memberHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Analytics chart hover state
     const [hoveredBucket, setHoveredBucket] = useState<{ type: 'aoo' | 'mob'; label: string } | null>(null);
@@ -1222,62 +1214,6 @@ export default function RosterPage() {
         });
         return Array.from(tags).sort();
     }, [roster]);
-
-    // Calculate rankings for hover card
-    const memberRankings = useMemo(() => {
-        const rankings = new Map<string, {
-            powerRank: number;
-            kpRank: number;
-            t4Rank: number;
-            t5Rank: number;
-            honorRank: number;
-            kpGrowthRank: number | null;
-            kpGrowthValue: number | null;
-            kpGrowthPercent: number | null;
-            t4GrowthValue: number | null;
-            t5GrowthValue: number | null;
-            powerGrowthRank: number | null;
-            powerGrowthValue: number | null;
-            powerGrowthPercent: number | null;
-        }>();
-
-        // Sort by each metric to get rankings
-        const byPower = [...roster].sort((a, b) => b.power - a.power);
-        const byKp = [...roster].sort((a, b) => (b.kills || 0) - (a.kills || 0));
-        const byT4 = [...roster].sort((a, b) => (b.t4_kills || 0) - (a.t4_kills || 0));
-        const byT5 = [...roster].sort((a, b) => (b.t5_kills || 0) - (a.t5_kills || 0));
-        const byHonor = [...roster].sort((a, b) => (b.honor_points || 0) - (a.honor_points || 0));
-
-        // Sort KP growth data
-        const sortedKpGrowth = [...kpGrowthData].sort((a, b) => b.allTimeKpGrowth - a.allTimeKpGrowth);
-        const kpGrowthMap = new Map(sortedKpGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.allTimeKpGrowth, growthPercent: g.allTimeKpGrowthPercent, t4Growth: g.allTimeT4Growth, t5Growth: g.allTimeT5Growth }]));
-
-        // Sort Power growth data
-        const sortedPowerGrowth = [...powerGrowthData].sort((a, b) => b.allTimeGrowth - a.allTimeGrowth);
-        const powerGrowthMap = new Map(sortedPowerGrowth.map((g, i) => [g.name, { rank: i + 1, growth: g.allTimeGrowth, growthPercent: g.allTimeGrowthPercent }]));
-
-        roster.forEach(member => {
-            const kpGrowthInfo = kpGrowthMap.get(member.name);
-            const powerGrowthInfo = powerGrowthMap.get(member.name);
-            rankings.set(member.name, {
-                powerRank: byPower.findIndex(m => m.name === member.name) + 1,
-                kpRank: byKp.findIndex(m => m.name === member.name) + 1,
-                t4Rank: byT4.findIndex(m => m.name === member.name) + 1,
-                t5Rank: byT5.findIndex(m => m.name === member.name) + 1,
-                honorRank: byHonor.findIndex(m => m.name === member.name) + 1,
-                kpGrowthRank: kpGrowthInfo?.rank ?? null,
-                kpGrowthValue: kpGrowthInfo?.growth ?? null,
-                kpGrowthPercent: kpGrowthInfo?.growthPercent ?? null,
-                t4GrowthValue: kpGrowthInfo?.t4Growth ?? null,
-                t5GrowthValue: kpGrowthInfo?.t5Growth ?? null,
-                powerGrowthRank: powerGrowthInfo?.rank ?? null,
-                powerGrowthValue: powerGrowthInfo?.growth ?? null,
-                powerGrowthPercent: powerGrowthInfo?.growthPercent ?? null,
-            });
-        });
-
-        return rankings;
-    }, [roster, kpGrowthData, powerGrowthData]);
 
     // Get unique alliances for filter dropdown
     const alliances = useMemo(() => {
@@ -2224,45 +2160,7 @@ export default function RosterPage() {
                                             {member.updated_at && (Date.now() - new Date(member.updated_at).getTime()) < 86400000 && (
                                                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 align-middle" title={`Updated ${new Date(member.updated_at).toLocaleString()}`} />
                                             )}
-                                            <span
-                                                className="font-medium cursor-pointer hover:text-[#9f7aea] active:text-[#9f7aea] transition-colors text-sm sm:text-base"
-                                                onMouseEnter={(e) => {
-                                                    if (memberHoverTimeoutRef.current) {
-                                                        clearTimeout(memberHoverTimeoutRef.current);
-                                                        memberHoverTimeoutRef.current = null;
-                                                    }
-                                                    setHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
-                                                    setHoveredMember(member.name);
-                                                }}
-                                                onMouseMove={(e) => {
-                                                    if (hoveredMember === member.name && !pinnedMember) {
-                                                        setHoverPosition({ x: e.clientX + 15, y: e.clientY + 15 });
-                                                    }
-                                                }}
-                                                onMouseLeave={() => {
-                                                    memberHoverTimeoutRef.current = setTimeout(() => {
-                                                        setHoveredMember(null);
-                                                    }, 100);
-                                                }}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    // On mobile, center the card on screen
-                                                    const isMobile = window.innerWidth < 640;
-                                                    if (pinnedMember === member.name) {
-                                                        setPinnedMember(null);
-                                                    } else {
-                                                        // Clear any hover state first
-                                                        setHoveredMember(null);
-                                                        setPinnedMember(member.name);
-                                                        if (isMobile) {
-                                                            // Center on mobile - account for card width (280px on mobile)
-                                                            setPinnedPosition({ x: Math.max(10, (window.innerWidth - 280) / 2), y: 80 });
-                                                        } else {
-                                                            setPinnedPosition({ x: hoverPosition.x, y: hoverPosition.y });
-                                                        }
-                                                    }
-                                                }}
-                                            >
+                                            <span className="font-medium text-sm sm:text-base">
                                                 {member.name}
                                             </span>
                                             {member.tags?.includes('angmar-og') && (
@@ -2553,9 +2451,40 @@ export default function RosterPage() {
                                         <tr className="bg-[var(--background-secondary)]/50">
                                             <td colSpan={100} className="px-2 sm:px-4 py-3">
                                                 <div className="ml-2 sm:ml-6">
-                                                    <h4 className={`text-sm font-semibold mb-2 ${theme.textMuted}`}>
-                                                        Snapshot History for {member.name}
-                                                    </h4>
+                                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-2">
+                                                        <h4 className={`text-sm font-semibold ${theme.textMuted}`}>
+                                                            {member.name}
+                                                        </h4>
+                                                        <span className={`text-xs ${theme.textMuted}`}>{member.role || 'Member'}</span>
+                                                        {member.updated_at && (
+                                                            <span className={`text-xs ${theme.textMuted} opacity-60`}>
+                                                                Updated {(() => {
+                                                                    const updated = new Date(member.updated_at);
+                                                                    const now = new Date();
+                                                                    const diffMs = now.getTime() - updated.getTime();
+                                                                    const diffMins = Math.floor(diffMs / 60000);
+                                                                    const diffHours = Math.floor(diffMs / 3600000);
+                                                                    const diffDays = Math.floor(diffMs / 86400000);
+                                                                    if (diffMins < 1) return 'just now';
+                                                                    if (diffMins < 60) return `${diffMins}m ago`;
+                                                                    if (diffHours < 24) return `${diffHours}h ago`;
+                                                                    if (diffDays === 1) return 'yesterday';
+                                                                    if (diffDays < 7) return `${diffDays}d ago`;
+                                                                    return updated.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                                                })()}
+                                                            </span>
+                                                        )}
+                                                        {(() => {
+                                                            const stats = eventStats.get(member.name);
+                                                            if (!stats || stats.aoo.totalAssigned === 0) return null;
+                                                            const rate = Math.round((stats.aoo.participatedCount / stats.aoo.totalAssigned) * 100);
+                                                            return (
+                                                                <span className={`text-xs font-medium ${rate >= 80 ? 'text-green-400' : rate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                                    AoO: {rate}% ({stats.aoo.participatedCount}/{stats.aoo.totalAssigned})
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </div>
                                                     {loadingSnapshots ? (
                                                         <div className={`text-sm ${theme.textMuted}`}>Loading...</div>
                                                     ) : memberSnapshots.length === 0 ? (
@@ -5326,280 +5255,6 @@ export default function RosterPage() {
                 </footer>
             </div>
 
-            {/* Mobile backdrop to close pinned cards */}
-            {pinnedMember && (
-                <div
-                    className="fixed inset-0 z-[99998] bg-black/30 sm:hidden"
-                    onClick={() => setPinnedMember(null)}
-                />
-            )}
-
-            {/* Member Hover Card */}
-            {(hoveredMember || pinnedMember) && (() => {
-                const activeMember = pinnedMember || hoveredMember;
-                const member = roster.find(m => m.name === activeMember);
-                const rankings = memberRankings.get(activeMember!);
-                const stats = eventStats.get(activeMember!);
-                if (!member || !rankings) return null;
-
-                // Get member's history from allSnapshots
-                const memberHistory = allSnapshots
-                    .filter(s => s.member_name === member.name)
-                    .sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date))
-                    .slice(-5); // Last 5 snapshots
-
-                const isPinned = pinnedMember === activeMember;
-                const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-
-                // Adjust position to stay on screen - center on mobile
-                const cardWidth = isMobile ? 280 : 320;
-                const cardHeight = 350;
-                let x = isPinned ? pinnedPosition.x : hoverPosition.x;
-                let y = isPinned ? pinnedPosition.y : hoverPosition.y;
-
-                // Keep card within viewport (only for non-pinned)
-                if (!isPinned) {
-                    if (x + cardWidth > window.innerWidth) {
-                        x = Math.max(10, window.innerWidth - cardWidth - 10);
-                    }
-                    if (y + cardHeight > window.innerHeight) {
-                        y = Math.max(10, window.innerHeight - cardHeight - 10);
-                    }
-                    if (y < 10) y = 10;
-                    if (x < 10) x = 10;
-                }
-
-                return (
-                    <div
-                        className={`fixed z-[99999] ${isPinned ? 'cursor-move' : 'pointer-events-none'}`}
-                        style={{ left: x, top: y }}
-                        onMouseDown={(e) => {
-                            if (isPinned) {
-                                setIsDragging(true);
-                                setDragOffset({ x: e.clientX - x, y: e.clientY - y });
-                            }
-                        }}
-                        onMouseMove={(e) => {
-                            if (isDragging && isPinned) {
-                                setPinnedPosition({
-                                    x: e.clientX - dragOffset.x,
-                                    y: e.clientY - dragOffset.y
-                                });
-                            }
-                        }}
-                        onMouseUp={() => setIsDragging(false)}
-                        onMouseLeave={() => setIsDragging(false)}
-                        onTouchStart={(e) => {
-                            if (isPinned && e.touches.length === 1) {
-                                const touch = e.touches[0];
-                                setIsDragging(true);
-                                setDragOffset({ x: touch.clientX - x, y: touch.clientY - y });
-                            }
-                        }}
-                        onTouchMove={(e) => {
-                            if (isDragging && isPinned && e.touches.length === 1) {
-                                const touch = e.touches[0];
-                                setPinnedPosition({
-                                    x: touch.clientX - dragOffset.x,
-                                    y: touch.clientY - dragOffset.y
-                                });
-                            }
-                        }}
-                        onTouchEnd={() => setIsDragging(false)}
-                    >
-                        <div className={`${theme.card} border ${isPinned ? 'border-[#9f7aea]' : 'border-[#9f7aea]/30'} rounded-xl p-3 sm:p-4 shadow-2xl shadow-[#9f7aea]/10 w-[280px] sm:w-80`}>
-                            {/* Header */}
-                            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 pb-2 sm:pb-3 border-b border-[var(--border)]">
-                                <div className="w-8 sm:w-10 h-8 sm:h-10 rounded-full bg-gradient-to-br from-[#9f7aea] to-[#4318ff] flex items-center justify-center text-white font-bold text-sm sm:text-base">
-                                    {member.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-semibold text-sm sm:text-lg truncate">{member.name}</h3>
-                                    <p className={`text-[10px] sm:text-xs ${theme.textMuted}`}>
-                                        {member.role || 'Member'}
-                                        {member.updated_at && (
-                                            <span className="ml-2 opacity-60">
-                                                · Updated {(() => {
-                                                    const updated = new Date(member.updated_at);
-                                                    const now = new Date();
-                                                    const diffMs = now.getTime() - updated.getTime();
-                                                    const diffMins = Math.floor(diffMs / 60000);
-                                                    const diffHours = Math.floor(diffMs / 3600000);
-                                                    const diffDays = Math.floor(diffMs / 86400000);
-                                                    if (diffMins < 1) return 'just now';
-                                                    if (diffMins < 60) return `${diffMins}m ago`;
-                                                    if (diffHours < 24) return `${diffHours}h ago`;
-                                                    if (diffDays === 1) return 'yesterday';
-                                                    if (diffDays < 7) return `${diffDays}d ago`;
-                                                    return updated.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                                                })()}
-                                            </span>
-                                        )}
-                                    </p>
-                                </div>
-                                {isPinned && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setPinnedMember(null);
-                                        }}
-                                        className="p-1.5 rounded hover:bg-[var(--background-secondary)] active:bg-[var(--background-secondary)] transition-colors"
-                                        title="Close"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-                            {isPinned && (
-                                <div className={`text-[10px] ${theme.textMuted} mb-2 -mt-1 sm:-mt-2 flex items-center gap-1`}>
-                                    <Lock className="w-3 h-3" /> <span className="hidden sm:inline">Pinned - drag to move</span><span className="sm:hidden">Tap ✕ to close</span>
-                                </div>
-                            )}
-
-                            {/* Sparkline Charts */}
-                            {memberHistory.length >= 2 && (
-                                <div className="border-t border-[var(--border)] pt-3">
-                                    <div className={`text-xs ${theme.textMuted} mb-2`}>Trend</div>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        {/* Power Sparkline */}
-                                        <div className="text-center">
-                                            <div style={{ height: 40 }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <LineChart data={memberHistory.map(s => ({ v: s.power }))} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                                                        <Line type="monotone" dataKey="v" stroke="#01b574" strokeWidth={1.5} dot={false} />
-                                                    </LineChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                            <div className={`text-[9px] ${theme.textMuted}`}>Power</div>
-                                        </div>
-                                        {/* KP Sparkline */}
-                                        <div className="text-center">
-                                            <div style={{ height: 40 }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <LineChart data={memberHistory.map(s => ({ v: s.kills || 0 }))} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                                                        <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={1.5} dot={false} />
-                                                    </LineChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                            <div className={`text-[9px] ${theme.textMuted}`}>KP</div>
-                                        </div>
-                                        {/* Honor Sparkline */}
-                                        <div className="text-center">
-                                            <div style={{ height: 40 }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <LineChart data={memberHistory.map(s => ({ v: s.honor_points || 0 }))} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                                                        <Line type="monotone" dataKey="v" stroke="#fbbf24" strokeWidth={1.5} dot={false} />
-                                                    </LineChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                            <div className={`text-[9px] ${theme.textMuted}`}>Honor</div>
-                                        </div>
-                                        {/* Ratio Sparkline */}
-                                        <div className="text-center">
-                                            <div style={{ height: 40 }}>
-                                                <ResponsiveContainer width="100%" height="100%">
-                                                    <LineChart data={memberHistory.map(s => ({ v: s.kills ? (s.power / s.kills) : 0 }))} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                                                        <Line type="monotone" dataKey="v" stroke="#9f7aea" strokeWidth={1.5} dot={false} />
-                                                    </LineChart>
-                                                </ResponsiveContainer>
-                                            </div>
-                                            <div className={`text-[9px] ${theme.textMuted}`}>Ratio</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* AoO Stats */}
-                            {stats && stats.aoo.totalAssigned > 0 && (
-                                <div className="border-t border-[var(--border)] pt-3 mt-3">
-                                    <div className="flex justify-between items-center">
-                                        <div className={`text-xs ${theme.textMuted}`}>AoO Participation</div>
-                                        {(() => {
-                                            const rate = Math.round((stats.aoo.participatedCount / stats.aoo.totalAssigned) * 100);
-                                            return (
-                                                <div className={`text-sm font-medium ${rate >= 80 ? 'text-green-400' : rate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                                    {rate}% ({stats.aoo.participatedCount}/{stats.aoo.totalAssigned})
-                                                </div>
-                                            );
-                                        })()}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* History Table */}
-                            {memberHistory.length > 1 && (
-                                <div className="border-t border-[var(--border)] pt-3 mt-3">
-                                    <div className={`text-xs ${theme.textMuted} mb-2 flex items-center gap-1`}>
-                                        <History className="w-3 h-3" />
-                                        Snapshot History
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-[10px]">
-                                            <thead>
-                                                <tr className={`${theme.textMuted} border-b border-[var(--border)]`}>
-                                                    <th className="text-left py-1 pr-2">Date</th>
-                                                    <th className="text-right py-1 px-1">Power</th>
-                                                    <th className="text-right py-1 px-1">KP</th>
-                                                    <th className="text-right py-1 px-1">Honor</th>
-                                                    <th className="text-right py-1 pl-1">Ratio</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {memberHistory.map((snap, idx) => {
-                                                    const prevSnap = idx > 0 ? memberHistory[idx - 1] : null;
-                                                    const powerDelta = prevSnap ? snap.power - prevSnap.power : 0;
-                                                    const kpDelta = prevSnap ? (snap.kills || 0) - (prevSnap.kills || 0) : 0;
-                                                    const honorDelta = prevSnap ? (snap.honor_points || 0) - (prevSnap.honor_points || 0) : 0;
-                                                    const currentRatio = snap.kills ? (snap.power / snap.kills) : null;
-                                                    const prevRatio = prevSnap && prevSnap.kills ? (prevSnap.power / prevSnap.kills) : null;
-                                                    const ratioDelta = (currentRatio !== null && prevRatio !== null) ? currentRatio - prevRatio : 0;
-                                                    return (
-                                                        <tr key={snap.snapshot_date} className="border-b border-[var(--border)]/50">
-                                                            <td className="py-1 pr-2">{formatDate(snap.snapshot_date)}</td>
-                                                            <td className="py-1 px-1 text-right">
-                                                                <div className="text-[#01b574]">{formatPower(snap.power)}</div>
-                                                                {powerDelta !== 0 && (
-                                                                    <div className={`text-[9px] ${powerDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                        {powerDelta > 0 ? '+' : ''}{formatPower(powerDelta)}
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td className="py-1 px-1 text-right">
-                                                                <div className={`text-[#f56565] ${snap.kills == null ? 'opacity-40 italic' : ''}`}>{snap.kills != null ? formatPower(snap.kills) : '-'}</div>
-                                                                {kpDelta !== 0 && snap.kills != null && (
-                                                                    <div className={`text-[9px] ${kpDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                        {kpDelta > 0 ? '+' : ''}{formatPower(kpDelta)}
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td className="py-1 px-1 text-right">
-                                                                <div className={`text-[#fbbf24] ${snap.honor_points == null ? 'opacity-40 italic' : ''}`}>{snap.honor_points != null ? snap.honor_points.toLocaleString() : '-'}</div>
-                                                                {honorDelta !== 0 && (
-                                                                    <div className={`text-[9px] ${honorDelta > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                        {honorDelta > 0 ? '+' : ''}{honorDelta.toLocaleString()}
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td className="py-1 pl-1 text-right">
-                                                                <div className="text-[#9f7aea]">{currentRatio !== null ? currentRatio.toFixed(1) : '-'}</div>
-                                                                {ratioDelta !== 0 && Math.abs(ratioDelta) >= 0.05 && (
-                                                                    <div className={`text-[9px] ${ratioDelta < 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                        {ratioDelta > 0 ? '+' : ''}{ratioDelta.toFixed(1)}
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                );
-            })()}
         </div>
         </AppSidebar>
     );
