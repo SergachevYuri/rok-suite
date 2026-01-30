@@ -5170,6 +5170,46 @@ export default function RosterPage() {
                         return n.toLocaleString();
                     };
 
+                    // Build name → alliance map from current roster
+                    const allianceMap = new Map<string, string>();
+                    for (const m of roster) {
+                        if (m.alliance) allianceMap.set(m.name, m.alliance);
+                    }
+
+                    // Aggregate allSnapshots by date + alliance
+                    const dateAllianceAgg = new Map<string, { angPower: number; kkPower: number; angKP: number; kkKP: number; angCount: number; kkCount: number }>();
+                    for (const snap of allSnapshots) {
+                        const alliance = allianceMap.get(snap.member_name);
+                        if (!alliance || (alliance !== 'ANG' && alliance !== '23KK')) continue;
+                        const key = snap.snapshot_date;
+                        if (!dateAllianceAgg.has(key)) dateAllianceAgg.set(key, { angPower: 0, kkPower: 0, angKP: 0, kkKP: 0, angCount: 0, kkCount: 0 });
+                        const agg = dateAllianceAgg.get(key)!;
+                        if (alliance === 'ANG') {
+                            agg.angPower += snap.power || 0;
+                            agg.angKP += snap.kills || 0;
+                            agg.angCount++;
+                        } else {
+                            agg.kkPower += snap.power || 0;
+                            agg.kkKP += snap.kills || 0;
+                            agg.kkCount++;
+                        }
+                    }
+
+                    const compChartData = [...dateAllianceAgg.entries()]
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([date, agg]) => ({
+                            date,
+                            timestamp: new Date(date + 'T12:00:00').getTime(),
+                            angPower: agg.angPower,
+                            kkPower: agg.kkPower,
+                            angKP: agg.angKP,
+                            kkKP: agg.kkKP,
+                            angCount: agg.angCount,
+                            kkCount: agg.kkCount,
+                        }));
+
+                    const compTicks = compChartData.map(d => d.timestamp);
+
                     return (
                     <div className="space-y-6">
                         {/* Summary Cards */}
@@ -5218,6 +5258,82 @@ export default function RosterPage() {
                                         <div className={`text-xs ${theme.textMuted} mt-1`}>23KK</div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Power Comparison Chart */}
+                        <div className={`${theme.card} border rounded-xl p-5`}>
+                            <div className={`text-sm font-semibold mb-4`}>Total Power Over Time</div>
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={compChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                                        <XAxis
+                                            dataKey="timestamp"
+                                            type="number"
+                                            scale="time"
+                                            domain={[compTicks[0] || 'dataMin', compTicks[compTicks.length - 1] || 'dataMax']}
+                                            ticks={compTicks}
+                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                            axisLine={{ stroke: 'var(--border)' }}
+                                            tickLine={{ stroke: 'var(--border)' }}
+                                            tickFormatter={(ts) => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()}`; }}
+                                        />
+                                        <YAxis
+                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                            axisLine={{ stroke: 'var(--border)' }}
+                                            tickLine={{ stroke: 'var(--border)' }}
+                                            tickFormatter={(v) => fmtB(v)}
+                                            width={55}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--foreground)' }}
+                                            formatter={(value) => [fmtB(typeof value === 'number' ? value : 0), '']}
+                                            labelFormatter={(ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        />
+                                        <Legend formatter={(value) => value === 'angPower' ? 'ANG' : '23KK'} />
+                                        <Line type="monotone" dataKey="angPower" name="angPower" stroke="#01b574" strokeWidth={2} dot={{ fill: '#01b574', r: 3 }} />
+                                        <Line type="monotone" dataKey="kkPower" name="kkPower" stroke="#f56565" strokeWidth={2} dot={{ fill: '#f56565', r: 3 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* KP Comparison Chart */}
+                        <div className={`${theme.card} border rounded-xl p-5`}>
+                            <div className={`text-sm font-semibold mb-4`}>Total Kill Points Over Time</div>
+                            <div className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={compChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                                        <XAxis
+                                            dataKey="timestamp"
+                                            type="number"
+                                            scale="time"
+                                            domain={[compTicks[0] || 'dataMin', compTicks[compTicks.length - 1] || 'dataMax']}
+                                            ticks={compTicks}
+                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                            axisLine={{ stroke: 'var(--border)' }}
+                                            tickLine={{ stroke: 'var(--border)' }}
+                                            tickFormatter={(ts) => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()}`; }}
+                                        />
+                                        <YAxis
+                                            tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
+                                            axisLine={{ stroke: 'var(--border)' }}
+                                            tickLine={{ stroke: 'var(--border)' }}
+                                            tickFormatter={(v) => fmtB(v)}
+                                            width={55}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--foreground)' }}
+                                            formatter={(value) => [fmtB(typeof value === 'number' ? value : 0), '']}
+                                            labelFormatter={(ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        />
+                                        <Legend formatter={(value) => value === 'angKP' ? 'ANG' : '23KK'} />
+                                        <Line type="monotone" dataKey="angKP" name="angKP" stroke="#01b574" strokeWidth={2} dot={{ fill: '#01b574', r: 3 }} />
+                                        <Line type="monotone" dataKey="kkKP" name="kkKP" stroke="#f56565" strokeWidth={2} dot={{ fill: '#f56565', r: 3 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
 
