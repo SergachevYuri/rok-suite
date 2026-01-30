@@ -2548,7 +2548,7 @@ export default function RosterPage() {
                                                                                     <td className={`px-2 py-1 text-right text-[#f97316] ${snap.t5_kills == null || t5Carry ? carryoverClass : ''}`}>
                                                                                         {t5Display != null ? formatPower(t5Display) : '-'}
                                                                                     </td>
-                                                                                    <td className={`px-2 py-1 text-right text-[#fbbf24] ${snap.honor_points == null || honorCarry ? carryoverClass : ''}`}>
+                                                                                    <td className={`px-2 py-1 text-right text-[#a78bfa] ${snap.honor_points == null || honorCarry ? carryoverClass : ''}`}>
                                                                                         {honorDisplay != null ? honorDisplay.toLocaleString() : '-'}
                                                                                     </td>
                                                                                 </tr>
@@ -2584,8 +2584,12 @@ export default function RosterPage() {
                                                                         <div className="text-center bg-[var(--background)]/50 rounded p-2">
                                                                             <div style={{ height: 45 }}>
                                                                                 <ResponsiveContainer width="100%" height="100%">
-                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                                                                                        <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={2} dot={false} />
+                                                                                    <LineChart data={memberSnapshots.map((s, i) => {
+                                                                                        let v = s.kills;
+                                                                                        if (v == null) { for (let j = i - 1; j >= 0; j--) { if (memberSnapshots[j].kills != null) { v = memberSnapshots[j].kills; break; } } }
+                                                                                        return { v };
+                                                                                    })} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                                                        <Line type="monotone" dataKey="v" stroke="#f56565" strokeWidth={2} dot={false} connectNulls />
                                                                                     </LineChart>
                                                                                 </ResponsiveContainer>
                                                                             </div>
@@ -2599,9 +2603,15 @@ export default function RosterPage() {
                                                                         <div className="text-center bg-[var(--background)]/50 rounded p-2">
                                                                             <div style={{ height: 45 }}>
                                                                                 <ResponsiveContainer width="100%" height="100%">
-                                                                                    <LineChart data={memberSnapshots.map(s => ({ t4: s.t4_kills || 0, t5: s.t5_kills || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                                                                                        <Line type="monotone" dataKey="t4" stroke="#fbbf24" strokeWidth={2} dot={false} />
-                                                                                        <Line type="monotone" dataKey="t5" stroke="#f97316" strokeWidth={2} dot={false} />
+                                                                                    <LineChart data={memberSnapshots.map((s, i) => {
+                                                                                        let t4 = s.t4_kills;
+                                                                                        let t5 = s.t5_kills;
+                                                                                        if (t4 == null) { for (let j = i - 1; j >= 0; j--) { if (memberSnapshots[j].t4_kills != null) { t4 = memberSnapshots[j].t4_kills; break; } } }
+                                                                                        if (t5 == null) { for (let j = i - 1; j >= 0; j--) { if (memberSnapshots[j].t5_kills != null) { t5 = memberSnapshots[j].t5_kills; break; } } }
+                                                                                        return { t4, t5 };
+                                                                                    })} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                                                        <Line type="monotone" dataKey="t4" stroke="#fbbf24" strokeWidth={2} dot={false} connectNulls />
+                                                                                        <Line type="monotone" dataKey="t5" stroke="#f97316" strokeWidth={2} dot={false} connectNulls />
                                                                                     </LineChart>
                                                                                 </ResponsiveContainer>
                                                                             </div>
@@ -2618,8 +2628,12 @@ export default function RosterPage() {
                                                                         <div className="text-center bg-[var(--background)]/50 rounded p-2">
                                                                             <div style={{ height: 45 }}>
                                                                                 <ResponsiveContainer width="100%" height="100%">
-                                                                                    <LineChart data={memberSnapshots.map(s => ({ v: s.honor_points || 0 }))} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-                                                                                        <Line type="monotone" dataKey="v" stroke="#a78bfa" strokeWidth={2} dot={false} />
+                                                                                    <LineChart data={memberSnapshots.map((s, i) => {
+                                                                                        let v = s.honor_points;
+                                                                                        if (v == null) { for (let j = i - 1; j >= 0; j--) { if (memberSnapshots[j].honor_points != null) { v = memberSnapshots[j].honor_points; break; } } }
+                                                                                        return { v };
+                                                                                    })} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                                                                                        <Line type="monotone" dataKey="v" stroke="#a78bfa" strokeWidth={2} dot={false} connectNulls />
                                                                                     </LineChart>
                                                                                 </ResponsiveContainer>
                                                                             </div>
