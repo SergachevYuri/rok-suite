@@ -458,9 +458,10 @@ export default function RosterPage() {
     // Fetch KP, Power, and Honor growth data when roster loads or date range changes
     useEffect(() => {
         if (roster.length > 0) {
-            getKpGrowth(roster, growthCompareDate, growthEndDate).then(setKpGrowthData).catch(console.error);
-            getPowerGrowth(roster, growthCompareDate, growthEndDate).then(setPowerGrowthData).catch(console.error);
-            getHonorGrowth(roster, growthCompareDate, growthEndDate).then(setHonorGrowthData).catch(console.error);
+            const angRoster = roster.filter(m => m.alliance === 'ANG');
+            getKpGrowth(angRoster, growthCompareDate, growthEndDate).then(setKpGrowthData).catch(console.error);
+            getPowerGrowth(angRoster, growthCompareDate, growthEndDate).then(setPowerGrowthData).catch(console.error);
+            getHonorGrowth(angRoster, growthCompareDate, growthEndDate).then(setHonorGrowthData).catch(console.error);
         }
     }, [roster, growthCompareDate, growthEndDate]);
 
@@ -2886,32 +2887,20 @@ export default function RosterPage() {
                             <>
                                 {/* Compute filtered data based on tag filter - used by both charts and overview */}
                                 {(() => {
-                                    // When no tag filter, use raw dailyTotals from DB view (complete data)
-                                    // When tag filter is set, compute filtered totals from snapshots
+                                    // Compute totals from allSnapshots filtered to ANG members (and optional tag filter)
                                     let filteredDailyTotals: { kills: number; power: number; honor: number; count: number; date: string }[];
 
-                                    if (!tagFilter) {
-                                        // Use pre-aggregated totals from DB - these are complete and accurate
-                                        filteredDailyTotals = dailyTotals.map(d => ({
-                                            kills: d.total_kills,
-                                            power: d.total_power,
-                                            honor: d.total_honor,
-                                            count: d.member_count,
-                                            date: d.snapshot_date,
-                                        }));
-                                    } else {
-                                        // Get filtered member names based on tag filter
+                                    {
+                                        // Only include ANG members, with optional tag filter
                                         const filteredMemberNames = new Set(
                                             roster
-                                                .filter(m => m.tags?.includes(tagFilter))
+                                                .filter(m => m.alliance === 'ANG' && (!tagFilter || m.tags?.includes(tagFilter)))
                                                 .map(m => m.name)
                                         );
 
-                                        // Compute totals from allSnapshots filtered by tag
                                         const snapshotsByDate = new Map<string, { kills: number; power: number; honor: number; count: number; date: string }>();
 
                                         for (const snap of allSnapshots) {
-                                            // Only include members that match the current tag filter
                                             if (!filteredMemberNames.has(snap.member_name)) continue;
 
                                             const existing = snapshotsByDate.get(snap.snapshot_date) || { kills: 0, power: 0, honor: 0, count: 0, date: snap.snapshot_date };
@@ -2924,7 +2913,6 @@ export default function RosterPage() {
                                             });
                                         }
 
-                                        // Convert to array sorted by date
                                         filteredDailyTotals = Array.from(snapshotsByDate.entries())
                                             .sort((a, b) => a[0].localeCompare(b[0]))
                                             .map(([, totals]) => totals);
@@ -4353,8 +4341,8 @@ export default function RosterPage() {
                 {activeTab === 'analytics' && (
                     <div className="space-y-6">
                         {(() => {
-                            // Apply tag filter to roster for analytics
-                            const analyticsRoster = roster.filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)));
+                            // Filter to ANG members, then apply tag filter for analytics
+                            const analyticsRoster = roster.filter(m => m.alliance === 'ANG' && (!tagFilter || (m.tags && m.tags.includes(tagFilter))));
 
                             // Calculate activity scores
                             const activityScores = calculateActivityScores(analyticsRoster, eventStats, activityWeights);
