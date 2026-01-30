@@ -5214,10 +5214,10 @@ export default function RosterPage() {
                         .map(([date, agg]) => ({
                             date,
                             timestamp: new Date(date + 'T12:00:00').getTime(),
-                            angPower: agg.angPower,
-                            kkPower: agg.kkPower,
-                            angKP: agg.angKP,
-                            kkKP: agg.kkKP,
+                            angAvgPow: agg.angCount > 0 ? agg.angPower / agg.angCount : null,
+                            kkAvgPow: agg.kkCount > 0 ? agg.kkPower / agg.kkCount : null,
+                            angAvgKP: agg.angCount > 0 ? agg.angKP / agg.angCount : null,
+                            kkAvgKP: agg.kkCount > 0 ? agg.kkKP / agg.kkCount : null,
                             angCount: agg.angCount,
                             kkCount: agg.kkCount,
                         }));
@@ -5277,7 +5277,8 @@ export default function RosterPage() {
 
                         {/* Power Comparison Chart */}
                         <div className={`${theme.card} border rounded-xl p-5`}>
-                            <div className={`text-sm font-semibold mb-4`}>Total Power Over Time</div>
+                            <div className={`text-sm font-semibold mb-1`}>Avg Power Per Member Over Time</div>
+                            <div className={`text-xs ${theme.textMuted} mb-3`}>Averaged per member to account for varying data coverage across dates</div>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={compChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
@@ -5302,12 +5303,18 @@ export default function RosterPage() {
                                         />
                                         <Tooltip
                                             contentStyle={{ backgroundColor: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--foreground)' }}
-                                            formatter={(value) => [fmtB(typeof value === 'number' ? value : 0), '']}
+                                            formatter={(value, name, props) => {
+                                                const v = typeof value === 'number' ? value : 0;
+                                                const entry = props?.payload;
+                                                const count = name === 'angAvgPow' ? entry?.angCount : entry?.kkCount;
+                                                const label = name === 'angAvgPow' ? 'ANG' : '23KK';
+                                                return [`${fmtB(v)} (${count} members)`, label];
+                                            }}
                                             labelFormatter={(ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                         />
-                                        <Legend formatter={(value) => value === 'angPower' ? 'ANG' : '23KK'} />
-                                        <Line type="monotone" dataKey="angPower" name="angPower" stroke="#01b574" strokeWidth={2} dot={{ fill: '#01b574', r: 3 }} />
-                                        <Line type="monotone" dataKey="kkPower" name="kkPower" stroke="#f56565" strokeWidth={2} dot={{ fill: '#f56565', r: 3 }} />
+                                        <Legend formatter={(value) => value === 'angAvgPow' ? 'ANG' : '23KK'} />
+                                        <Line type="monotone" dataKey="angAvgPow" name="angAvgPow" stroke="#01b574" strokeWidth={2} dot={{ fill: '#01b574', r: 3 }} connectNulls />
+                                        <Line type="monotone" dataKey="kkAvgPow" name="kkAvgPow" stroke="#f56565" strokeWidth={2} dot={{ fill: '#f56565', r: 3 }} connectNulls />
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
@@ -5315,7 +5322,8 @@ export default function RosterPage() {
 
                         {/* KP Comparison Chart */}
                         <div className={`${theme.card} border rounded-xl p-5`}>
-                            <div className={`text-sm font-semibold mb-4`}>Total Kill Points Over Time</div>
+                            <div className={`text-sm font-semibold mb-1`}>Avg Kill Points Per Member Over Time</div>
+                            <div className={`text-xs ${theme.textMuted} mb-3`}>Averaged per member to account for varying data coverage across dates</div>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <LineChart data={compChartData} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
@@ -5340,12 +5348,18 @@ export default function RosterPage() {
                                         />
                                         <Tooltip
                                             contentStyle={{ backgroundColor: 'var(--background-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--foreground)' }}
-                                            formatter={(value) => [fmtB(typeof value === 'number' ? value : 0), '']}
+                                            formatter={(value, name, props) => {
+                                                const v = typeof value === 'number' ? value : 0;
+                                                const entry = props?.payload;
+                                                const count = name === 'angAvgKP' ? entry?.angCount : entry?.kkCount;
+                                                const label = name === 'angAvgKP' ? 'ANG' : '23KK';
+                                                return [`${fmtB(v)} (${count} members)`, label];
+                                            }}
                                             labelFormatter={(ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                         />
-                                        <Legend formatter={(value) => value === 'angKP' ? 'ANG' : '23KK'} />
-                                        <Line type="monotone" dataKey="angKP" name="angKP" stroke="#01b574" strokeWidth={2} dot={{ fill: '#01b574', r: 3 }} />
-                                        <Line type="monotone" dataKey="kkKP" name="kkKP" stroke="#f56565" strokeWidth={2} dot={{ fill: '#f56565', r: 3 }} />
+                                        <Legend formatter={(value) => value === 'angAvgKP' ? 'ANG' : '23KK'} />
+                                        <Line type="monotone" dataKey="angAvgKP" name="angAvgKP" stroke="#01b574" strokeWidth={2} dot={{ fill: '#01b574', r: 3 }} connectNulls />
+                                        <Line type="monotone" dataKey="kkAvgKP" name="kkAvgKP" stroke="#f56565" strokeWidth={2} dot={{ fill: '#f56565', r: 3 }} connectNulls />
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
