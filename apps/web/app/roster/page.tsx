@@ -2139,7 +2139,7 @@ export default function RosterPage() {
                                             <span className="font-medium text-sm sm:text-base">
                                                 {member.name}
                                             </span>
-                                            {member.tags?.includes('angmar-og') && (
+                                            {isEditor && member.tags?.includes('angmar-og') && (
                                                 <span className="ml-1 sm:ml-2 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-semibold rounded bg-amber-500/20 text-amber-400" title="Angmar Core">ANG</span>
                                             )}
                                             {member.tags?.includes('inactive') && (
@@ -3540,7 +3540,7 @@ export default function RosterPage() {
                                                                         >
                                                                             {member.name}
                                                                         </span>
-                                                                        {rosterMember?.tags?.includes('angmar-og') && (
+                                                                        {isEditor && rosterMember?.tags?.includes('angmar-og') && (
                                                                             <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
                                                                         )}
                                                                     </td>
@@ -3795,7 +3795,7 @@ export default function RosterPage() {
                                                                         >
                                                                             {member.name}
                                                                         </span>
-                                                                        {rosterMember?.tags?.includes('angmar-og') && (
+                                                                        {isEditor && rosterMember?.tags?.includes('angmar-og') && (
                                                                             <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
                                                                         )}
                                                                     </td>
@@ -4030,7 +4030,7 @@ export default function RosterPage() {
                                                                 <td className={`px-2 py-2 ${theme.textMuted}`}>{idx + 1}</td>
                                                                 <td className="px-2 py-2 font-medium">
                                                                     {member.name}
-                                                                    {member.tags?.includes('angmar-og') && (
+                                                                    {isEditor && member.tags?.includes('angmar-og') && (
                                                                         <span className="ml-1.5 px-1 py-0.5 text-[9px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
                                                                     )}
                                                                     {member.tags?.includes('inactive') && (
@@ -4645,7 +4645,7 @@ export default function RosterPage() {
                                                         <span className={`text-[10px] sm:text-xs ${theme.textMuted} w-5 sm:w-6 text-right`}>{idx + 1}.</span>
                                                         <span className="w-20 sm:w-40 truncate text-xs sm:text-sm font-medium">
                                                             {member.name}
-                                                            {member.tags?.includes('angmar-og') && (
+                                                            {isEditor && member.tags?.includes('angmar-og') && (
                                                                 <span className="ml-0.5 sm:ml-1 px-0.5 sm:px-1 py-0.5 text-[6px] sm:text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400 hidden sm:inline">ANG</span>
                                                             )}
                                                             {member.tags?.includes('inactive') && (
@@ -5078,7 +5078,7 @@ export default function RosterPage() {
                                                                 <tr key={member.name} className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
                                                                     <td className="px-3 py-2 font-medium">
                                                                         {member.name}
-                                                                        {member.tags?.includes('angmar-og') && (
+                                                                        {isEditor && member.tags?.includes('angmar-og') && (
                                                                             <span className="ml-1 px-1 py-0.5 text-[8px] font-semibold rounded bg-amber-500/20 text-amber-400">ANG</span>
                                                                         )}
                                                                         {member.tags?.includes('inactive') && (
