@@ -458,7 +458,7 @@ export default function RosterPage() {
     // Fetch KP, Power, and Honor growth data when roster loads or date range changes
     useEffect(() => {
         if (roster.length > 0) {
-            const angRoster = roster.filter(m => m.alliance === 'ANG' || !m.alliance);
+            const angRoster = roster.filter(m => m.alliance === 'ANG');
             getKpGrowth(angRoster, growthCompareDate, growthEndDate).then(setKpGrowthData).catch(console.error);
             getPowerGrowth(angRoster, growthCompareDate, growthEndDate).then(setPowerGrowthData).catch(console.error);
             getHonorGrowth(angRoster, growthCompareDate, growthEndDate).then(setHonorGrowthData).catch(console.error);
@@ -2869,7 +2869,7 @@ export default function RosterPage() {
                                         // Only include ANG members, with optional tag filter
                                         const filteredMemberNames = new Set(
                                             roster
-                                                .filter(m => (m.alliance === 'ANG' || !m.alliance) && (!tagFilter || m.tags?.includes(tagFilter)))
+                                                .filter(m => m.alliance === 'ANG' && (!tagFilter || m.tags?.includes(tagFilter)))
                                                 .map(m => m.name)
                                         );
 
@@ -4317,7 +4317,7 @@ export default function RosterPage() {
                     <div className="space-y-6">
                         {(() => {
                             // Filter to ANG members, then apply tag filter for analytics
-                            const analyticsRoster = roster.filter(m => (m.alliance === 'ANG' || !m.alliance) && (!tagFilter || (m.tags && m.tags.includes(tagFilter))));
+                            const analyticsRoster = roster.filter(m => m.alliance === 'ANG' && (!tagFilter || (m.tags && m.tags.includes(tagFilter))));
 
                             // Calculate activity scores
                             const activityScores = calculateActivityScores(analyticsRoster, eventStats, activityWeights);
@@ -5117,8 +5117,7 @@ export default function RosterPage() {
                 {/* Comparison Tab (Admin Only) */}
                 {activeTab === 'comparison' && isEditor && (() => {
                     // Build alliance-grouped data from roster
-                    // Members without an explicit alliance default to ANG (pre-migration members)
-                    const angMembers = roster.filter(m => m.alliance === 'ANG' || !m.alliance);
+                    const angMembers = roster.filter(m => m.alliance === 'ANG');
                     const kkMembers = roster.filter(m => m.alliance === '23KK');
 
                     const angTotalPower = angMembers.reduce((s, m) => s + (m.power || 0), 0);
@@ -5148,10 +5147,10 @@ export default function RosterPage() {
                         return n.toLocaleString();
                     };
 
-                    // Build name → alliance map from current roster (null alliance defaults to ANG)
+                    // Build name → alliance map from current roster
                     const allianceMap = new Map<string, string>();
                     for (const m of roster) {
-                        allianceMap.set(m.name, m.alliance || 'ANG');
+                        if (m.alliance) allianceMap.set(m.name, m.alliance);
                     }
 
                     // Aggregate allSnapshots by date + alliance
