@@ -564,6 +564,7 @@ export default function RosterPage() {
         setSortDirection('asc');
         setRankFilter(null);
         setAooFilter('all');
+        setTagFilter(null);
     };
 
     const startEditing = (member: RosterMember) => {
@@ -1511,43 +1512,6 @@ export default function RosterPage() {
                         )}
                     </div>
 
-                    {/* Tag Filter - Global - Scrollable on mobile */}
-                    {availableTags.length > 0 && (
-                        <div className="flex items-center gap-2 sm:gap-3 mt-3 sm:mt-4">
-                            <span className={`text-[10px] sm:text-xs ${theme.textMuted} flex-shrink-0`}>Filter:</span>
-                            <div className="flex gap-1.5 sm:gap-2 overflow-x-auto hide-scrollbar pb-1">
-                                <button
-                                    onClick={() => setTagFilter(null)}
-                                    className={`px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
-                                        !tagFilter
-                                            ? 'bg-[#4318ff] text-white'
-                                            : `${theme.button}`
-                                    }`}
-                                >
-                                    All ({roster.length})
-                                </button>
-                                {availableTags.map(tag => {
-                                    const count = roster.filter(m => m.tags?.includes(tag)).length;
-                                    const tagConfig = {
-                                        'angmar-og': { label: 'Angmar Core', activeClass: 'bg-amber-500 text-black', inactiveClass: 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' },
-                                        'inactive': { label: 'Inactive', activeClass: 'bg-gray-500 text-white', inactiveClass: 'bg-gray-500/20 text-gray-400 hover:bg-gray-500/30' },
-                                        'quit': { label: 'Quit', activeClass: 'bg-red-500 text-white', inactiveClass: 'bg-red-500/20 text-red-400 hover:bg-red-500/30' },
-                                    }[tag] || { label: tag, activeClass: 'bg-blue-500 text-white', inactiveClass: 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' };
-                                    return (
-                                        <button
-                                            key={tag}
-                                            onClick={() => setTagFilter(tag)}
-                                            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
-                                                tagFilter === tag ? tagConfig.activeClass : tagConfig.inactiveClass
-                                            }`}
-                                        >
-                                            {tagConfig.label} ({count})
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
 
                     {/* Snapshot Status */}
                     {snapshotStatus && (
@@ -1848,7 +1812,18 @@ export default function RosterPage() {
                                 <option value="assigned">Assigned</option>
                                 <option value="unassigned">Unassigned</option>
                             </select>
-                            {(sortField !== 'default' || rankFilter || aooFilter !== 'all') && (
+                            {/* Group / Tag Filter */}
+                            <select
+                                value={tagFilter || ''}
+                                onChange={(e) => setTagFilter(e.target.value || null)}
+                                className={`px-3 py-2 rounded-lg text-sm border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
+                            >
+                                <option value="">All Groups</option>
+                                {isEditor && <option value="angmar-og">Angmar Core</option>}
+                                <option value="inactive">Inactive</option>
+                                <option value="quit">Quit</option>
+                            </select>
+                            {(sortField !== 'default' || rankFilter || aooFilter !== 'all' || tagFilter) && (
                                 <button
                                     onClick={resetToDefaultSort}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} whitespace-nowrap`}
