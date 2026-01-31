@@ -2880,7 +2880,7 @@ export default function RosterPage() {
                             <>
                                 {/* Compute filtered data based on tag filter - used by both charts and overview */}
                                 {(() => {
-                                    // Compute totals from allSnapshots filtered to ANG members (and optional tag filter)
+                                    // Compute totals from allSnapshots filtered to selected alliance members (and optional tag filter)
                                     let filteredDailyTotals: { kills: number; power: number; honor: number; count: number; date: string }[];
 
                                     {
@@ -2906,8 +2906,13 @@ export default function RosterPage() {
                                             });
                                         }
 
+                                        // Exclude dates with incomplete data (less than 50% of expected members)
+                                        const expectedCount = filteredMemberNames.size;
+                                        const minCoverage = Math.floor(expectedCount * 0.5);
+
                                         filteredDailyTotals = Array.from(snapshotsByDate.entries())
                                             .sort((a, b) => a[0].localeCompare(b[0]))
+                                            .filter(([, totals]) => totals.count >= minCoverage)
                                             .map(([, totals]) => totals);
                                     }
 
