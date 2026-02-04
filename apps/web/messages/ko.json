@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "로딩 중...",
+    "error": "오류",
+    "save": "저장",
+    "cancel": "취소",
+    "confirm": "확인",
+    "delete": "삭제",
+    "edit": "편집",
+    "close": "닫기",
+    "search": "검색",
+    "export": "내보내기",
+    "import": "가져오기",
+    "back": "뒤로",
+    "next": "다음",
+    "previous": "이전",
+    "all": "전체",
+    "none": "없음",
+    "yes": "예",
+    "no": "아니오",
+    "ok": "확인",
+    "apply": "적용",
+    "reset": "초기화",
+    "filter": "필터",
+    "sort": "정렬",
+    "theme": "테마",
+    "language": "언어"
+  },
+  "nav": {
+    "home": "홈",
+    "calendar": "캘린더",
+    "roster": "명단",
+    "events": "이벤트",
+    "aooPlanner": "AoO 플래너",
+    "guide": "가이드",
+    "betaTools": "베타 도구",
+    "wipBadge": "WIP"
+  },
+  "home": {
+    "tagline": "RoK 전략 도구",
+    "title": "Rise of Kingdoms",
+    "subtitle": "전략 도구 및 전투 계획",
+    "builtFor": "Angmar Nazgul Guards를 위해 제작",
+    "sections": {
+      "interactiveTools": "인터랙티브 도구",
+      "guides": "가이드 및 문서",
+      "experimental": "실험적 기능"
+    },
+    "tools": {
+      "calendar": {
+        "title": "연맹 캘린더",
+        "description": "예정된 이벤트, KvK 일정 및 연맹 활동",
+        "badge": "이벤트"
+      },
+      "roster": {
+        "title": "연맹 명단",
+        "description": "멤버 통계, 전투력 순위 및 KP 추적",
+        "badge": "멤버"
+      },
+      "events": {
+        "title": "연맹 이벤트",
+        "description": "이벤트 결과, 챌린지 순위 및 대회 추적",
+        "badge": "결과"
+      },
+      "aoo": {
+        "title": "AoO 전투 플래너",
+        "description": "인터랙티브 30v30 팀 배정, 드래그 앤 드롭 전투 맵 및 매치 계획",
+        "badge": "도구"
+      }
+    },
+    "guide": {
+      "title": "전략 가이드",
+      "description": "이벤트 전략, 연맹 규약, 사령관 가이드 및 체크리스트",
+      "badge": "문서"
+    },
+    "beta": {
+      "title": "베타 도구",
+      "description": "스캐너, 석양 협곡 시뮬레이터, 업그레이드 계산기 - 개발 중인 실험적 기능",
+      "badge": "WIP"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "문서",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "연맹 명단",
+    "tabs": {
+      "roster": "명단",
+      "growth": "성장",
+      "analytics": "분석",
+      "history": "기록",
+      "comparison": "비교",
+      "settings": "설정"
+    },
+    "columns": {
+      "name": "이름",
+      "power": "전투력",
+      "kills": "킬 포인트",
+      "killsShort": "KP",
+      "ratio": "전투력:KP",
+      "t4Kills": "T4 킬",
+      "t5Kills": "T5 킬",
+      "t4t5": "T4/T5 KP",
+      "honor": "명예",
+      "deads": "전사자",
+      "alliance": "연맹",
+      "role": "역할",
+      "highestPower": "최고 전투력",
+      "powerChange": "전투력 변동",
+      "kpChange": "KP 변동",
+      "honorChange": "명예 변동",
+      "t1Kills": "T1 킬",
+      "t2Kills": "T2 킬",
+      "t3Kills": "T3 킬",
+      "troopsHealed": "치료된 병력",
+      "acclaim": "명성",
+      "kvkPoints": "KvK 포인트",
+      "trades": "거래",
+      "governorId": "총독 ID",
+      "mobilization": "동원",
+      "turnedIn": "제출됨",
+      "accepted": "수락됨"
+    },
+    "tooltips": {
+      "name": "게임 내 총독 이름",
+      "power": "계정 총 전투력",
+      "kills": "킬 포인트 (모든 병종의 총 킬 수)",
+      "ratio": "킬 포인트 당 전투력 — 비율이 낮을수록 공격적인 플레이 스타일",
+      "t4Kills": "4등급 킬 포인트",
+      "t5Kills": "5등급 킬 포인트",
+      "honor": "획득한 명예 포인트",
+      "deads": "전사한 병력 수",
+      "alliance": "현재 소속 연맹",
+      "role": "연맹 역할 (R1-R5)"
+    },
+    "filters": {
+      "searchPlaceholder": "멤버 검색...",
+      "alliance": "연맹별 필터",
+      "allMembers": "전체 멤버",
+      "activeOnly": "활성 멤버만"
+    },
+    "categories": {
+      "core": "기본",
+      "combat": "전투",
+      "support": "지원",
+      "events": "이벤트",
+      "profile": "프로필"
+    },
+    "growth": {
+      "title": "성장 추적",
+      "powerGrowth": "전투력 성장",
+      "kpGrowth": "KP 성장",
+      "honorGrowth": "명예 성장",
+      "noData": "성장 데이터가 없습니다"
+    },
+    "analytics": {
+      "title": "분석",
+      "topPerformers": "최우수 플레이어",
+      "allianceBreakdown": "연맹 분석",
+      "powerDistribution": "전투력 분포"
+    }
+  },
+  "calendar": {
+    "title": "연맹 캘린더",
+    "subtitle": "예정된 이벤트, KvK 일정 및 연맹 활동",
+    "subscribe": "구독",
+    "timezone": "시간대",
+    "today": "오늘",
+    "upcoming": "예정",
+    "noEvents": "예정된 이벤트가 없습니다"
+  },
+  "events": {
+    "title": "연맹 이벤트",
+    "status": {
+      "active": "진행 중",
+      "completed": "완료",
+      "upcoming": "예정"
+    },
+    "noEvents": "이벤트를 찾을 수 없습니다"
+  },
+  "aoo": {
+    "title": "AoO 전투 플래너",
+    "description": "오시리스의 방주 팀 배정 및 전투 계획 도구",
+    "teams": "팀",
+    "unassigned": "미배정",
+    "tags": {
+      "rallyLeader": "랠리 리더",
+      "coordinator": "조정자",
+      "teleportFirst": "선발 텔레포트",
+      "garrison": "수비대",
+      "openField": "오픈 필드",
+      "support": "지원"
+    }
+  },
+  "guide": {
+    "title": "전략 가이드",
+    "subtitle": "Rise of Kingdoms 전략 가이드, 팁 및 연맹 규약",
+    "sections": {
+      "events": "이벤트",
+      "alliance": "연맹",
+      "commanders": "사령관"
+    }
+  },
+  "betaTools": {
+    "title": "베타 도구",
+    "warning": "개발 진행 중",
+    "warningDescription": "이 도구들은 실험적이며 변경되거나 오류가 발생할 수 있습니다. 사용에 따른 책임은 본인에게 있습니다.",
+    "scanners": {
+      "title": "스캐너",
+      "description": "게임 데이터 추출을 위한 스크린샷 분석 및 OCR 도구"
+    },
+    "sunsetCanyon": {
+      "title": "석양 협곡",
+      "description": "석양 협곡 방어 및 공격 시뮬레이터"
+    },
+    "upgradeCalculator": {
+      "title": "업그레이드 계산기",
+      "description": "건물 및 연구 업그레이드를 위한 자원 및 가속 계획"
+    }
+  }
+}

@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "search": "Rechercher",
+    "export": "Exporter",
+    "import": "Importer",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "all": "Tous",
+    "none": "Aucun",
+    "yes": "Oui",
+    "no": "Non",
+    "ok": "OK",
+    "apply": "Appliquer",
+    "reset": "Réinitialiser",
+    "filter": "Filtrer",
+    "sort": "Trier",
+    "theme": "Thème",
+    "language": "Langue"
+  },
+  "nav": {
+    "home": "Accueil",
+    "calendar": "Calendrier",
+    "roster": "Effectif",
+    "events": "Événements",
+    "aooPlanner": "Planificateur AoO",
+    "guide": "Guide",
+    "betaTools": "Outils bêta",
+    "wipBadge": "WIP"
+  },
+  "home": {
+    "tagline": "Outils stratégiques pour RoK",
+    "title": "Rise of Kingdoms",
+    "subtitle": "Outils stratégiques et planification de bataille",
+    "builtFor": "Conçu pour Angmar Nazgul Guards",
+    "sections": {
+      "interactiveTools": "Outils interactifs",
+      "guides": "Guides et documentation",
+      "experimental": "Expérimental"
+    },
+    "tools": {
+      "calendar": {
+        "title": "Calendrier d'alliance",
+        "description": "Événements à venir, calendrier KvK et activités d'alliance",
+        "badge": "Événements"
+      },
+      "roster": {
+        "title": "Effectif d'alliance",
+        "description": "Statistiques des membres, classements de puissance et suivi des KP",
+        "badge": "Membres"
+      },
+      "events": {
+        "title": "Événements d'alliance",
+        "description": "Résultats des événements, classements des défis et suivi des compétitions",
+        "badge": "Résultats"
+      },
+      "aoo": {
+        "title": "Planificateur de bataille AoO",
+        "description": "Affectation d'équipes 30v30, cartes de bataille glisser-déposer et planification de matchs",
+        "badge": "Outil"
+      }
+    },
+    "guide": {
+      "title": "Guide stratégique",
+      "description": "Stratégies d'événements, protocoles d'alliance, guides de commandants et listes de contrôle",
+      "badge": "Docs"
+    },
+    "beta": {
+      "title": "Outils bêta",
+      "description": "Scanners, simulateur Canyon du Crépuscule, calculateur d'améliorations — fonctionnalités expérimentales en développement",
+      "badge": "WIP"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "Documentation",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "Effectif d'alliance",
+    "tabs": {
+      "roster": "Effectif",
+      "growth": "Croissance",
+      "analytics": "Analyses",
+      "history": "Historique",
+      "comparison": "Comparaison",
+      "settings": "Paramètres"
+    },
+    "columns": {
+      "name": "Nom",
+      "power": "Puissance",
+      "kills": "Points d'élimination",
+      "killsShort": "KP",
+      "ratio": "Puissance:KP",
+      "t4Kills": "Éliminations T4",
+      "t5Kills": "Éliminations T5",
+      "t4t5": "KP T4/T5",
+      "honor": "Honneur",
+      "deads": "Morts",
+      "alliance": "Alliance",
+      "role": "Rôle",
+      "highestPower": "Puissance maximale",
+      "powerChange": "Variation de puissance",
+      "kpChange": "Variation de KP",
+      "honorChange": "Variation d'honneur",
+      "t1Kills": "Éliminations T1",
+      "t2Kills": "Éliminations T2",
+      "t3Kills": "Éliminations T3",
+      "troopsHealed": "Troupes soignées",
+      "acclaim": "Acclamation",
+      "kvkPoints": "Points KvK",
+      "trades": "Échanges",
+      "governorId": "ID du gouverneur",
+      "mobilization": "Mobilisation",
+      "turnedIn": "Remis",
+      "accepted": "Accepté"
+    },
+    "tooltips": {
+      "name": "Nom du gouverneur en jeu",
+      "power": "Puissance totale du compte",
+      "kills": "Points d'élimination (total des éliminations de tous types de troupes)",
+      "ratio": "Puissance par point d'élimination — un ratio plus bas indique un style de jeu plus agressif",
+      "t4Kills": "Points d'élimination de rang 4",
+      "t5Kills": "Points d'élimination de rang 5",
+      "honor": "Points d'honneur gagnés",
+      "deads": "Nombre de troupes mortes",
+      "alliance": "Appartenance actuelle à une alliance",
+      "role": "Rôle dans l'alliance (R1-R5)"
+    },
+    "filters": {
+      "searchPlaceholder": "Rechercher des membres...",
+      "alliance": "Filtrer par alliance",
+      "allMembers": "Tous les membres",
+      "activeOnly": "Actifs uniquement"
+    },
+    "categories": {
+      "core": "Principal",
+      "combat": "Combat",
+      "support": "Soutien",
+      "events": "Événements",
+      "profile": "Profil"
+    },
+    "growth": {
+      "title": "Suivi de croissance",
+      "powerGrowth": "Croissance de puissance",
+      "kpGrowth": "Croissance des KP",
+      "honorGrowth": "Croissance de l'honneur",
+      "noData": "Aucune donnée de croissance disponible"
+    },
+    "analytics": {
+      "title": "Analyses",
+      "topPerformers": "Meilleurs performeurs",
+      "allianceBreakdown": "Répartition par alliance",
+      "powerDistribution": "Distribution de puissance"
+    }
+  },
+  "calendar": {
+    "title": "Calendrier d'alliance",
+    "subtitle": "Événements à venir, calendrier KvK et activités d'alliance",
+    "subscribe": "S'abonner",
+    "timezone": "Fuseau horaire",
+    "today": "Aujourd'hui",
+    "upcoming": "À venir",
+    "noEvents": "Aucun événement à venir"
+  },
+  "events": {
+    "title": "Événements d'alliance",
+    "status": {
+      "active": "Actif",
+      "completed": "Terminé",
+      "upcoming": "À venir"
+    },
+    "noEvents": "Aucun événement trouvé"
+  },
+  "aoo": {
+    "title": "Planificateur de bataille AoO",
+    "description": "Outil d'affectation d'équipes et de planification de bataille pour l'Arche d'Osiris",
+    "teams": "Équipes",
+    "unassigned": "Non assigné",
+    "tags": {
+      "rallyLeader": "Meneur de ralliement",
+      "coordinator": "Coordinateur",
+      "teleportFirst": "Téléportation 1er",
+      "garrison": "Garnison",
+      "openField": "Terrain ouvert",
+      "support": "Soutien"
+    }
+  },
+  "guide": {
+    "title": "Guide stratégique",
+    "subtitle": "Guides stratégiques Rise of Kingdoms, astuces et protocoles d'alliance",
+    "sections": {
+      "events": "Événements",
+      "alliance": "Alliance",
+      "commanders": "Commandants"
+    }
+  },
+  "betaTools": {
+    "title": "Outils bêta",
+    "warning": "Travail en cours",
+    "warningDescription": "Ces outils sont expérimentaux et peuvent changer ou cesser de fonctionner. Utilisez-les à vos risques et périls.",
+    "scanners": {
+      "title": "Scanners",
+      "description": "Analyse de captures d'écran et outils OCR pour extraire les données du jeu"
+    },
+    "sunsetCanyon": {
+      "title": "Canyon du Crépuscule",
+      "description": "Simulateur de défense et d'attaque du Canyon du Crépuscule"
+    },
+    "upgradeCalculator": {
+      "title": "Calculateur d'améliorations",
+      "description": "Planification des ressources et accélérations pour les améliorations de bâtiments et de recherche"
+    }
+  }
+}

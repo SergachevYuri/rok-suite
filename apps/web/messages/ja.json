@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "delete": "削除",
+    "edit": "編集",
+    "close": "閉じる",
+    "search": "検索",
+    "export": "エクスポート",
+    "import": "インポート",
+    "back": "戻る",
+    "next": "次へ",
+    "previous": "前へ",
+    "all": "すべて",
+    "none": "なし",
+    "yes": "はい",
+    "no": "いいえ",
+    "ok": "OK",
+    "apply": "適用",
+    "reset": "リセット",
+    "filter": "フィルター",
+    "sort": "並び替え",
+    "theme": "テーマ",
+    "language": "言語"
+  },
+  "nav": {
+    "home": "ホーム",
+    "calendar": "カレンダー",
+    "roster": "メンバー一覧",
+    "events": "イベント",
+    "aooPlanner": "AoO プランナー",
+    "guide": "ガイド",
+    "betaTools": "ベータツール",
+    "wipBadge": "WIP"
+  },
+  "home": {
+    "tagline": "RoK 戦略ツール",
+    "title": "Rise of Kingdoms",
+    "subtitle": "戦略ツール＆バトルプランニング",
+    "builtFor": "Angmar Nazgul Guards のために制作",
+    "sections": {
+      "interactiveTools": "インタラクティブツール",
+      "guides": "ガイド＆ドキュメント",
+      "experimental": "実験的機能"
+    },
+    "tools": {
+      "calendar": {
+        "title": "同盟カレンダー",
+        "description": "今後のイベント、KvK スケジュール、同盟活動",
+        "badge": "イベント"
+      },
+      "roster": {
+        "title": "同盟メンバー一覧",
+        "description": "メンバー統計、戦力ランキング、KP 追跡",
+        "badge": "メンバー"
+      },
+      "events": {
+        "title": "同盟イベント",
+        "description": "イベント結果、チャレンジランキング、大会追跡",
+        "badge": "結果"
+      },
+      "aoo": {
+        "title": "AoO バトルプランナー",
+        "description": "インタラクティブ30v30チーム編成、ドラッグ＆ドロップ戦場マップ、マッチ計画",
+        "badge": "ツール"
+      }
+    },
+    "guide": {
+      "title": "戦略ガイド",
+      "description": "イベント戦略、同盟規約、指揮官ガイド、チェックリスト",
+      "badge": "文書"
+    },
+    "beta": {
+      "title": "ベータツール",
+      "description": "スキャナー、夕暮れの峡谷シミュレーター、アップグレード計算機 - 開発中の実験的機能",
+      "badge": "WIP"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "ドキュメント",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "同盟メンバー一覧",
+    "tabs": {
+      "roster": "メンバー一覧",
+      "growth": "成長",
+      "analytics": "分析",
+      "history": "履歴",
+      "comparison": "比較",
+      "settings": "設定"
+    },
+    "columns": {
+      "name": "名前",
+      "power": "戦力",
+      "kills": "キルポイント",
+      "killsShort": "KP",
+      "ratio": "戦力:KP",
+      "t4Kills": "T4 キル",
+      "t5Kills": "T5 キル",
+      "t4t5": "T4/T5 KP",
+      "honor": "名誉",
+      "deads": "戦死",
+      "alliance": "同盟",
+      "role": "役職",
+      "highestPower": "最高戦力",
+      "powerChange": "戦力変動",
+      "kpChange": "KP 変動",
+      "honorChange": "名誉変動",
+      "t1Kills": "T1 キル",
+      "t2Kills": "T2 キル",
+      "t3Kills": "T3 キル",
+      "troopsHealed": "治療済み兵力",
+      "acclaim": "栄誉",
+      "kvkPoints": "KvK ポイント",
+      "trades": "取引",
+      "governorId": "総督 ID",
+      "mobilization": "動員",
+      "turnedIn": "提出済み",
+      "accepted": "承認済み"
+    },
+    "tooltips": {
+      "name": "ゲーム内の総督名",
+      "power": "アカウントの総戦力",
+      "kills": "キルポイント（全兵種の合計キル数）",
+      "ratio": "キルポイントあたりの戦力 — 比率が低いほど攻撃的なプレイスタイル",
+      "t4Kills": "Tier 4 キルポイント",
+      "t5Kills": "Tier 5 キルポイント",
+      "honor": "獲得した名誉ポイント",
+      "deads": "戦死した兵力数",
+      "alliance": "現在の所属同盟",
+      "role": "同盟での役職 (R1-R5)"
+    },
+    "filters": {
+      "searchPlaceholder": "メンバーを検索...",
+      "alliance": "同盟でフィルター",
+      "allMembers": "全メンバー",
+      "activeOnly": "アクティブのみ"
+    },
+    "categories": {
+      "core": "基本",
+      "combat": "戦闘",
+      "support": "支援",
+      "events": "イベント",
+      "profile": "プロフィール"
+    },
+    "growth": {
+      "title": "成長追跡",
+      "powerGrowth": "戦力成長",
+      "kpGrowth": "KP 成長",
+      "honorGrowth": "名誉成長",
+      "noData": "成長データがありません"
+    },
+    "analytics": {
+      "title": "分析",
+      "topPerformers": "トッププレイヤー",
+      "allianceBreakdown": "同盟内訳",
+      "powerDistribution": "戦力分布"
+    }
+  },
+  "calendar": {
+    "title": "同盟カレンダー",
+    "subtitle": "今後のイベント、KvK スケジュール、同盟活動",
+    "subscribe": "購読",
+    "timezone": "タイムゾーン",
+    "today": "今日",
+    "upcoming": "予定",
+    "noEvents": "予定されているイベントはありません"
+  },
+  "events": {
+    "title": "同盟イベント",
+    "status": {
+      "active": "進行中",
+      "completed": "完了",
+      "upcoming": "予定"
+    },
+    "noEvents": "イベントが見つかりません"
+  },
+  "aoo": {
+    "title": "AoO バトルプランナー",
+    "description": "オシリスの方舟チーム編成＆バトルプランニングツール",
+    "teams": "チーム",
+    "unassigned": "未編成",
+    "tags": {
+      "rallyLeader": "ラリーリーダー",
+      "coordinator": "コーディネーター",
+      "teleportFirst": "先行テレポート",
+      "garrison": "駐屯",
+      "openField": "オープンフィールド",
+      "support": "支援"
+    }
+  },
+  "guide": {
+    "title": "戦略ガイド",
+    "subtitle": "Rise of Kingdoms の戦略ガイド、ヒント、同盟規約",
+    "sections": {
+      "events": "イベント",
+      "alliance": "同盟",
+      "commanders": "指揮官"
+    }
+  },
+  "betaTools": {
+    "title": "ベータツール",
+    "warning": "開発中",
+    "warningDescription": "これらのツールは実験的なものであり、変更や不具合が発生する可能性があります。自己責任でご利用ください。",
+    "scanners": {
+      "title": "スキャナー",
+      "description": "ゲームデータ抽出のためのスクリーンショット分析＆OCRツール"
+    },
+    "sunsetCanyon": {
+      "title": "夕暮れの峡谷",
+      "description": "夕暮れの峡谷の防衛＆攻撃シミュレーター"
+    },
+    "upgradeCalculator": {
+      "title": "アップグレード計算機",
+      "description": "建築＆研究アップグレードのための資源＆加速アイテム計画"
+    }
+  }
+}

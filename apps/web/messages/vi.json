@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "close": "Đóng",
+    "search": "Tìm kiếm",
+    "export": "Xuất",
+    "import": "Nhập",
+    "back": "Quay lại",
+    "next": "Tiếp theo",
+    "previous": "Trước đó",
+    "all": "Tất cả",
+    "none": "Không có",
+    "yes": "Có",
+    "no": "Không",
+    "ok": "OK",
+    "apply": "Áp dụng",
+    "reset": "Đặt lại",
+    "filter": "Bộ lọc",
+    "sort": "Sắp xếp",
+    "theme": "Giao diện",
+    "language": "Ngôn ngữ"
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "calendar": "Lịch",
+    "roster": "Danh sách",
+    "events": "Sự kiện",
+    "aooPlanner": "Kế hoạch AoO",
+    "guide": "Hướng dẫn",
+    "betaTools": "Công cụ thử nghiệm",
+    "wipBadge": "THỬ NGHIỆM"
+  },
+  "home": {
+    "tagline": "Công cụ chiến thuật cho RoK",
+    "title": "Rise of Kingdoms",
+    "subtitle": "Công cụ chiến thuật & Lập kế hoạch trận đấu",
+    "builtFor": "Được xây dựng cho Angmar Nazgul Guards",
+    "sections": {
+      "interactiveTools": "Công cụ tương tác",
+      "guides": "Hướng dẫn & Tài liệu",
+      "experimental": "Thử nghiệm"
+    },
+    "tools": {
+      "calendar": {
+        "title": "Lịch liên minh",
+        "description": "Sự kiện sắp tới, lịch trình KvK và hoạt động liên minh",
+        "badge": "Sự kiện"
+      },
+      "roster": {
+        "title": "Danh sách liên minh",
+        "description": "Thống kê thành viên, xếp hạng sức mạnh và theo dõi KP",
+        "badge": "Thành viên"
+      },
+      "events": {
+        "title": "Sự kiện liên minh",
+        "description": "Kết quả sự kiện, xếp hạng thử thách và theo dõi thi đấu",
+        "badge": "Kết quả"
+      },
+      "aoo": {
+        "title": "Kế hoạch trận AoO",
+        "description": "Phân đội 30v30 tương tác, bản đồ trận đấu kéo thả và lập kế hoạch trận đấu",
+        "badge": "Công cụ"
+      }
+    },
+    "guide": {
+      "title": "Hướng dẫn chiến thuật",
+      "description": "Chiến thuật sự kiện, quy tắc liên minh, hướng dẫn chỉ huy và danh sách kiểm tra",
+      "badge": "Tài liệu"
+    },
+    "beta": {
+      "title": "Công cụ thử nghiệm",
+      "description": "Trình quét, mô phỏng Sunset Canyon, Máy tính nâng cấp - các tính năng thử nghiệm đang phát triển",
+      "badge": "THỬ NGHIỆM"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "Tài liệu",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "Danh sách liên minh",
+    "tabs": {
+      "roster": "Danh sách",
+      "growth": "Tăng trưởng",
+      "analytics": "Phân tích",
+      "history": "Lịch sử",
+      "comparison": "So sánh",
+      "settings": "Cài đặt"
+    },
+    "columns": {
+      "name": "Tên",
+      "power": "Sức mạnh",
+      "kills": "Điểm tiêu diệt",
+      "killsShort": "KP",
+      "ratio": "Sức mạnh:KP",
+      "t4Kills": "Tiêu diệt T4",
+      "t5Kills": "Tiêu diệt T5",
+      "t4t5": "KP T4/T5",
+      "honor": "Danh dự",
+      "deads": "Tử trận",
+      "alliance": "Liên minh",
+      "role": "Vai trò",
+      "highestPower": "Sức mạnh cao nhất",
+      "powerChange": "Thay đổi sức mạnh",
+      "kpChange": "Thay đổi KP",
+      "honorChange": "Thay đổi danh dự",
+      "t1Kills": "Tiêu diệt T1",
+      "t2Kills": "Tiêu diệt T2",
+      "t3Kills": "Tiêu diệt T3",
+      "troopsHealed": "Quân được chữa trị",
+      "acclaim": "Vinh danh",
+      "kvkPoints": "Điểm KvK",
+      "trades": "Giao dịch",
+      "governorId": "ID Thống đốc",
+      "mobilization": "Huy động",
+      "turnedIn": "Đã nộp",
+      "accepted": "Đã chấp nhận"
+    },
+    "tooltips": {
+      "name": "Tên thống đốc trong trò chơi",
+      "power": "Tổng sức mạnh tài khoản",
+      "kills": "Điểm tiêu diệt (tổng tiêu diệt tất cả loại quân)",
+      "ratio": "Sức mạnh trên mỗi điểm tiêu diệt — tỷ lệ thấp hơn cho thấy phong cách chơi tích cực hơn",
+      "t4Kills": "Điểm tiêu diệt quân bậc 4",
+      "t5Kills": "Điểm tiêu diệt quân bậc 5",
+      "honor": "Điểm danh dự đã kiếm được",
+      "deads": "Số quân tử trận",
+      "alliance": "Liên minh hiện tại",
+      "role": "Vai trò trong liên minh (R1-R5)"
+    },
+    "filters": {
+      "searchPlaceholder": "Tìm thành viên...",
+      "alliance": "Lọc theo liên minh",
+      "allMembers": "Tất cả thành viên",
+      "activeOnly": "Chỉ hoạt động"
+    },
+    "categories": {
+      "core": "Cơ bản",
+      "combat": "Chiến đấu",
+      "support": "Hỗ trợ",
+      "events": "Sự kiện",
+      "profile": "Hồ sơ"
+    },
+    "growth": {
+      "title": "Theo dõi tăng trưởng",
+      "powerGrowth": "Tăng trưởng sức mạnh",
+      "kpGrowth": "Tăng trưởng KP",
+      "honorGrowth": "Tăng trưởng danh dự",
+      "noData": "Không có dữ liệu tăng trưởng"
+    },
+    "analytics": {
+      "title": "Phân tích",
+      "topPerformers": "Thành viên xuất sắc",
+      "allianceBreakdown": "Phân tích liên minh",
+      "powerDistribution": "Phân bổ sức mạnh"
+    }
+  },
+  "calendar": {
+    "title": "Lịch liên minh",
+    "subtitle": "Sự kiện sắp tới, lịch trình KvK và hoạt động liên minh",
+    "subscribe": "Đăng ký",
+    "timezone": "Múi giờ",
+    "today": "Hôm nay",
+    "upcoming": "Sắp tới",
+    "noEvents": "Không có sự kiện sắp tới"
+  },
+  "events": {
+    "title": "Sự kiện liên minh",
+    "status": {
+      "active": "Đang diễn ra",
+      "completed": "Đã hoàn thành",
+      "upcoming": "Sắp tới"
+    },
+    "noEvents": "Không tìm thấy sự kiện"
+  },
+  "aoo": {
+    "title": "Kế hoạch trận AoO",
+    "description": "Công cụ phân đội và lập kế hoạch trận Ark of Osiris",
+    "teams": "Đội",
+    "unassigned": "Chưa phân đội",
+    "tags": {
+      "rallyLeader": "Chỉ huy tập kết",
+      "coordinator": "Điều phối viên",
+      "teleportFirst": "Dịch chuyển đầu tiên",
+      "garrison": "Phòng thủ",
+      "openField": "Chiến trường mở",
+      "support": "Hỗ trợ"
+    }
+  },
+  "guide": {
+    "title": "Hướng dẫn chiến thuật",
+    "subtitle": "Hướng dẫn chiến thuật Rise of Kingdoms, mẹo và quy tắc liên minh",
+    "sections": {
+      "events": "Sự kiện",
+      "alliance": "Liên minh",
+      "commanders": "Chỉ huy"
+    }
+  },
+  "betaTools": {
+    "title": "Công cụ thử nghiệm",
+    "warning": "Đang phát triển",
+    "warningDescription": "Các công cụ này đang thử nghiệm và có thể thay đổi hoặc lỗi. Sử dụng với rủi ro của bạn.",
+    "scanners": {
+      "title": "Trình quét",
+      "description": "Phân tích ảnh chụp màn hình và công cụ OCR để trích xuất dữ liệu trò chơi"
+    },
+    "sunsetCanyon": {
+      "title": "Sunset Canyon",
+      "description": "Mô phỏng phòng thủ và tấn công Sunset Canyon"
+    },
+    "upgradeCalculator": {
+      "title": "Máy tính nâng cấp",
+      "description": "Lập kế hoạch tài nguyên và tăng tốc cho nâng cấp công trình và nghiên cứu"
+    }
+  }
+}

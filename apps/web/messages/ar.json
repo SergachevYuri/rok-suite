@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "جارٍ التحميل...",
+    "error": "خطأ",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "close": "إغلاق",
+    "search": "بحث",
+    "export": "تصدير",
+    "import": "استيراد",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "all": "الكل",
+    "none": "لا شيء",
+    "yes": "نعم",
+    "no": "لا",
+    "ok": "حسناً",
+    "apply": "تطبيق",
+    "reset": "إعادة تعيين",
+    "filter": "تصفية",
+    "sort": "ترتيب",
+    "theme": "المظهر",
+    "language": "اللغة"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "calendar": "التقويم",
+    "roster": "قائمة الأعضاء",
+    "events": "الأحداث",
+    "aooPlanner": "مخطط AoO",
+    "guide": "الدليل",
+    "betaTools": "أدوات تجريبية",
+    "wipBadge": "تجريبي"
+  },
+  "home": {
+    "tagline": "أدوات استراتيجية لـ RoK",
+    "title": "Rise of Kingdoms",
+    "subtitle": "أدوات استراتيجية وتخطيط المعارك",
+    "builtFor": "مصمم لـ Angmar Nazgul Guards",
+    "sections": {
+      "interactiveTools": "أدوات تفاعلية",
+      "guides": "أدلة ووثائق",
+      "experimental": "تجريبي"
+    },
+    "tools": {
+      "calendar": {
+        "title": "تقويم التحالف",
+        "description": "الأحداث القادمة، جدول KvK، وأنشطة التحالف",
+        "badge": "أحداث"
+      },
+      "roster": {
+        "title": "قائمة التحالف",
+        "description": "إحصائيات الأعضاء، تصنيفات القوة، وتتبع KP",
+        "badge": "أعضاء"
+      },
+      "events": {
+        "title": "أحداث التحالف",
+        "description": "نتائج الأحداث، تصنيفات التحديات، وتتبع المنافسات",
+        "badge": "نتائج"
+      },
+      "aoo": {
+        "title": "مخطط معركة AoO",
+        "description": "تعيينات فرق 30 ضد 30 تفاعلية، خرائط معارك بالسحب والإفلات، وتخطيط المباريات",
+        "badge": "أداة"
+      }
+    },
+    "guide": {
+      "title": "دليل الاستراتيجية",
+      "description": "استراتيجيات الأحداث، بروتوكولات التحالف، أدلة القادة، وقوائم المراجعة",
+      "badge": "وثائق"
+    },
+    "beta": {
+      "title": "أدوات تجريبية",
+      "description": "الماسحات، محاكي Sunset Canyon، حاسبة الترقية - ميزات تجريبية قيد التطوير",
+      "badge": "تجريبي"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "الوثائق",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "قائمة التحالف",
+    "tabs": {
+      "roster": "القائمة",
+      "growth": "النمو",
+      "analytics": "التحليلات",
+      "history": "السجل",
+      "comparison": "المقارنة",
+      "settings": "الإعدادات"
+    },
+    "columns": {
+      "name": "الاسم",
+      "power": "القوة",
+      "kills": "نقاط القتل",
+      "killsShort": "KP",
+      "ratio": "القوة:KP",
+      "t4Kills": "قتل T4",
+      "t5Kills": "قتل T5",
+      "t4t5": "KP T4/T5",
+      "honor": "الشرف",
+      "deads": "القتلى",
+      "alliance": "التحالف",
+      "role": "الدور",
+      "highestPower": "أعلى قوة",
+      "powerChange": "تغيّر القوة",
+      "kpChange": "تغيّر KP",
+      "honorChange": "تغيّر الشرف",
+      "t1Kills": "قتل T1",
+      "t2Kills": "قتل T2",
+      "t3Kills": "قتل T3",
+      "troopsHealed": "القوات المُعالَجة",
+      "acclaim": "الإشادة",
+      "kvkPoints": "نقاط KvK",
+      "trades": "التجارة",
+      "governorId": "معرّف الحاكم",
+      "mobilization": "التعبئة",
+      "turnedIn": "تم التسليم",
+      "accepted": "تم القبول"
+    },
+    "tooltips": {
+      "name": "اسم الحاكم في اللعبة",
+      "power": "إجمالي قوة الحساب",
+      "kills": "نقاط القتل (إجمالي القتل عبر جميع أنواع القوات)",
+      "ratio": "القوة لكل نقطة قتل — النسبة الأقل تشير إلى أسلوب لعب أكثر عدوانية",
+      "t4Kills": "نقاط قتل المستوى 4",
+      "t5Kills": "نقاط قتل المستوى 5",
+      "honor": "نقاط الشرف المكتسبة",
+      "deads": "عدد القوات القتيلة",
+      "alliance": "عضوية التحالف الحالية",
+      "role": "دور التحالف (R1-R5)"
+    },
+    "filters": {
+      "searchPlaceholder": "البحث عن أعضاء...",
+      "alliance": "تصفية حسب التحالف",
+      "allMembers": "جميع الأعضاء",
+      "activeOnly": "النشطون فقط"
+    },
+    "categories": {
+      "core": "أساسي",
+      "combat": "قتال",
+      "support": "دعم",
+      "events": "أحداث",
+      "profile": "الملف الشخصي"
+    },
+    "growth": {
+      "title": "تتبع النمو",
+      "powerGrowth": "نمو القوة",
+      "kpGrowth": "نمو KP",
+      "honorGrowth": "نمو الشرف",
+      "noData": "لا توجد بيانات نمو متاحة"
+    },
+    "analytics": {
+      "title": "التحليلات",
+      "topPerformers": "أفضل الأداء",
+      "allianceBreakdown": "توزيع التحالف",
+      "powerDistribution": "توزيع القوة"
+    }
+  },
+  "calendar": {
+    "title": "تقويم التحالف",
+    "subtitle": "الأحداث القادمة، جدول KvK، وأنشطة التحالف",
+    "subscribe": "اشتراك",
+    "timezone": "المنطقة الزمنية",
+    "today": "اليوم",
+    "upcoming": "قادم",
+    "noEvents": "لا توجد أحداث قادمة"
+  },
+  "events": {
+    "title": "أحداث التحالف",
+    "status": {
+      "active": "نشط",
+      "completed": "مكتمل",
+      "upcoming": "قادم"
+    },
+    "noEvents": "لم يتم العثور على أحداث"
+  },
+  "aoo": {
+    "title": "مخطط معركة AoO",
+    "description": "أداة تعيين الفرق وتخطيط المعارك لـ Ark of Osiris",
+    "teams": "الفرق",
+    "unassigned": "غير معيّن",
+    "tags": {
+      "rallyLeader": "قائد التجمع",
+      "coordinator": "المنسق",
+      "teleportFirst": "الانتقال أولاً",
+      "garrison": "الحامية",
+      "openField": "الميدان المفتوح",
+      "support": "الدعم"
+    }
+  },
+  "guide": {
+    "title": "دليل الاستراتيجية",
+    "subtitle": "أدلة استراتيجية Rise of Kingdoms، نصائح، وبروتوكولات التحالف",
+    "sections": {
+      "events": "الأحداث",
+      "alliance": "التحالف",
+      "commanders": "القادة"
+    }
+  },
+  "betaTools": {
+    "title": "أدوات تجريبية",
+    "warning": "قيد التطوير",
+    "warningDescription": "هذه الأدوات تجريبية وقد تتغير أو تتعطل. استخدمها على مسؤوليتك.",
+    "scanners": {
+      "title": "الماسحات",
+      "description": "تحليل لقطات الشاشة وأدوات التعرف الضوئي لاستخراج بيانات اللعبة"
+    },
+    "sunsetCanyon": {
+      "title": "Sunset Canyon",
+      "description": "محاكي الدفاع والهجوم في Sunset Canyon"
+    },
+    "upgradeCalculator": {
+      "title": "حاسبة الترقية",
+      "description": "تخطيط الموارد والتسريع لترقيات المباني والأبحاث"
+    }
+  }
+}

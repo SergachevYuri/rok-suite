@@ -14,44 +14,47 @@ import {
   Users,
   Trophy,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function Home() {
+  const t = useTranslations('home');
+
   const tools = [
     {
       href: '/calendar',
-      title: 'Alliance Calendar',
-      description: 'Upcoming events, KvK schedule, and alliance activities',
+      titleKey: 'tools.calendar.title',
+      descriptionKey: 'tools.calendar.description',
       icon: Calendar,
       gradient: 'from-[#f56565] to-[#ed8936]',
       shadowColor: 'shadow-[#f56565]/20',
-      badge: { text: 'Events', color: 'bg-[#f56565]/15 text-[#f56565]' },
+      badge: { textKey: 'tools.calendar.badge', color: 'bg-[#f56565]/15 text-[#f56565]' },
     },
     {
       href: '/roster',
-      title: 'Alliance Roster',
-      description: 'Member stats, power rankings, and kill points tracking',
+      titleKey: 'tools.roster.title',
+      descriptionKey: 'tools.roster.description',
       icon: Users,
       gradient: 'from-[#4318ff] to-[#9f7aea]',
       shadowColor: 'shadow-[#4318ff]/20',
-      badge: { text: 'Members', color: 'bg-[#4318ff]/15 text-[#9f7aea]' },
+      badge: { textKey: 'tools.roster.badge', color: 'bg-[#4318ff]/15 text-[#9f7aea]' },
     },
     {
       href: '/events',
-      title: 'Alliance Events',
-      description: 'Event results, challenge rankings, and competition tracking',
+      titleKey: 'tools.events.title',
+      descriptionKey: 'tools.events.description',
       icon: Trophy,
       gradient: 'from-[#f59e0b] to-[#eab308]',
       shadowColor: 'shadow-[#f59e0b]/20',
-      badge: { text: 'Results', color: 'bg-[#f59e0b]/15 text-[#f59e0b]' },
+      badge: { textKey: 'tools.events.badge', color: 'bg-[#f59e0b]/15 text-[#f59e0b]' },
     },
     {
       href: '/aoo-strategy',
-      title: 'AoO Battle Planner',
-      description: 'Interactive 30v30 team assignments, drag-drop battle maps, and match planning',
+      titleKey: 'tools.aoo.title',
+      descriptionKey: 'tools.aoo.description',
       icon: Swords,
       gradient: 'from-[var(--success)] to-[var(--success-light)]',
       shadowColor: 'shadow-[var(--success)]/20',
-      badge: { text: 'Tool', color: 'bg-[var(--success)]/15 text-[var(--success)]' },
+      badge: { textKey: 'tools.aoo.badge', color: 'bg-[var(--success)]/15 text-[var(--success)]' },
     },
   ];
 
@@ -63,16 +66,16 @@ export default function Home() {
           <section className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/20 mb-6">
               <Sparkles className="w-4 h-4 text-[var(--primary-light)]" />
-              <span className="text-sm font-medium text-[var(--primary-light)]">Strategy Tools for RoK</span>
+              <span className="text-sm font-medium text-[var(--primary-light)]">{t('tagline')}</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-[var(--foreground)] mb-4 tracking-tight">
-              Rise of Kingdoms
+              {t('title')}
             </h2>
             <p className="text-lg text-[var(--text-secondary)] mb-2">
-              Strategy Tools & Battle Planning
+              {t('subtitle')}
             </p>
             <p className="text-sm text-[var(--primary)]">
-              Built for Angmar Nazgul Guards
+              {t('builtFor')}
             </p>
           </section>
 
@@ -80,7 +83,7 @@ export default function Home() {
           <section className="mb-12">
             <div className="flex items-center gap-3 mb-6">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                Interactive Tools
+                {t('sections.interactiveTools')}
               </h3>
               <div className="h-px flex-1 bg-[var(--border)]" />
             </div>
@@ -101,13 +104,13 @@ export default function Home() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h4 className="text-sm font-semibold text-[var(--foreground)]">
-                              {tool.title}
+                              {t(tool.titleKey)}
                             </h4>
                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider ${tool.badge.color}`}>
-                              {tool.badge.text}
+                              {t(tool.badge.textKey)}
                             </span>
                           </div>
-                          <p className="text-xs text-[var(--text-secondary)]">{tool.description}</p>
+                          <p className="text-xs text-[var(--text-secondary)]">{t(tool.descriptionKey)}</p>
                         </div>
 
                         {/* Arrow */}
@@ -124,7 +127,7 @@ export default function Home() {
           <section className="mb-12">
             <div className="flex items-center gap-3 mb-6">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                Guides & Documentation
+                {t('sections.guides')}
               </h3>
               <div className="h-px flex-1 bg-[var(--border)]" />
             </div>
@@ -139,14 +142,14 @@ export default function Home() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="text-sm font-semibold text-[var(--foreground)]">
-                        Strategy Guide
+                        {t('guide.title')}
                       </h4>
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider bg-[#9f7aea]/15 text-[#9f7aea]">
-                        Docs
+                        {t('guide.badge')}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--text-secondary)]">
-                      Event strategies, alliance protocols, commander guides, and checklists
+                      {t('guide.description')}
                     </p>
                   </div>
 
@@ -160,7 +163,7 @@ export default function Home() {
           <section className="mb-16">
             <div className="flex items-center gap-3 mb-6">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                Experimental
+                {t('sections.experimental')}
               </h3>
               <div className="h-px flex-1 bg-[var(--border)]" />
             </div>
@@ -175,14 +178,14 @@ export default function Home() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="text-sm font-semibold text-[var(--foreground)]">
-                        Beta Tools
+                        {t('beta.title')}
                       </h4>
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider bg-[var(--warning)]/15 text-[var(--warning)]">
-                        WIP
+                        {t('beta.badge')}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--text-secondary)]">
-                      Scanners, Sunset Canyon simulator, Upgrade Calculator - experimental features in development
+                      {t('beta.description')}
                     </p>
                   </div>
 
@@ -202,7 +205,7 @@ export default function Home() {
                 className="text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-1.5"
               >
                 <Github className="w-3.5 h-3.5" />
-                GitHub
+                {t('footer.github')}
               </a>
               <span className="text-[var(--border)]">•</span>
               <a
@@ -212,11 +215,11 @@ export default function Home() {
                 className="text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-1.5"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                Documentation
+                {t('footer.documentation')}
               </a>
             </div>
             <p className="text-xs text-[var(--text-muted)]">
-              Angmar Nazgul Guards • Rise of Kingdoms
+              {t('footer.copyright')}
             </p>
           </footer>
         </div>

@@ -17,54 +17,16 @@ import {
   X,
 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { useTranslations } from 'next-intl';
 
 interface NavItem {
-  label: string;
+  labelKey: string;
   href: string;
   icon: React.ReactNode;
-  badge?: string;
+  badgeKey?: string;
   badgeColor?: string;
 }
-
-const navItems: NavItem[] = [
-  {
-    label: 'Home',
-    href: '/',
-    icon: <Home size={20} />,
-  },
-  {
-    label: 'Calendar',
-    href: '/calendar',
-    icon: <Calendar size={20} />,
-  },
-  {
-    label: 'Roster',
-    href: '/roster',
-    icon: <Users size={20} />,
-  },
-  {
-    label: 'Events',
-    href: '/events',
-    icon: <Trophy size={20} />,
-  },
-  {
-    label: 'AoO Planner',
-    href: '/aoo-strategy',
-    icon: <Swords size={20} />,
-  },
-  {
-    label: 'Guide',
-    href: '/guide',
-    icon: <BookOpen size={20} />,
-  },
-  {
-    label: 'Beta Tools',
-    href: '/beta-tools',
-    icon: <FlaskConical size={20} />,
-    badge: 'WIP',
-    badgeColor: 'bg-[#ffb547]/20 text-[#ffb547]',
-  },
-];
 
 interface AppSidebarProps {
   children: React.ReactNode;
@@ -74,6 +36,24 @@ export function AppSidebar({ children }: AppSidebarProps) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const t = useTranslations('nav');
+  const t2 = useTranslations('common');
+
+  const navItems: NavItem[] = [
+    { labelKey: 'home', href: '/', icon: <Home size={20} /> },
+    { labelKey: 'calendar', href: '/calendar', icon: <Calendar size={20} /> },
+    { labelKey: 'roster', href: '/roster', icon: <Users size={20} /> },
+    { labelKey: 'events', href: '/events', icon: <Trophy size={20} /> },
+    { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} /> },
+    { labelKey: 'guide', href: '/guide', icon: <BookOpen size={20} /> },
+    {
+      labelKey: 'betaTools',
+      href: '/beta-tools',
+      icon: <FlaskConical size={20} />,
+      badgeKey: 'wipBadge',
+      badgeColor: 'bg-[#ffb547]/20 text-[#ffb547]',
+    },
+  ];
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -122,17 +102,17 @@ export function AppSidebar({ children }: AppSidebarProps) {
                   ? 'bg-[#4318ff] text-white shadow-lg shadow-[#4318ff]/25'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)]'
               } ${isCollapsed ? 'justify-center' : ''}`}
-              title={isCollapsed ? item.label : undefined}
+              title={isCollapsed ? t(item.labelKey) : undefined}
             >
               <span className={`flex-shrink-0 ${active ? 'text-white' : 'text-[var(--text-muted)] group-hover:text-[var(--foreground)]'}`}>
                 {item.icon}
               </span>
               {!isCollapsed && (
                 <>
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {item.badge && (
+                  <span className="flex-1 truncate">{t(item.labelKey)}</span>
+                  {item.badgeKey && (
                     <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${item.badgeColor}`}>
-                      {item.badge}
+                      {t(item.badgeKey)}
                     </span>
                   )}
                 </>
@@ -143,10 +123,16 @@ export function AppSidebar({ children }: AppSidebarProps) {
       </nav>
 
       {/* Bottom section */}
-      <div className={`px-3 py-4 border-t border-[var(--border)] ${isCollapsed ? 'flex justify-center' : ''}`}>
+      <div className={`px-3 py-4 border-t border-[var(--border)] space-y-2 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed && (
-            <span className="text-xs text-[var(--text-muted)]">Theme</span>
+            <span className="text-xs text-[var(--text-muted)]">{t2('language')}</span>
+          )}
+          <LanguageSwitcher collapsed={isCollapsed} />
+        </div>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          {!isCollapsed && (
+            <span className="text-xs text-[var(--text-muted)]">{t2('theme')}</span>
           )}
           <ThemeToggle />
         </div>
@@ -189,7 +175,10 @@ export function AppSidebar({ children }: AppSidebarProps) {
             <span className="text-sm font-semibold text-[var(--foreground)]">RoK Suite</span>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <LanguageSwitcher collapsed />
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Mobile Sidebar Overlay */}

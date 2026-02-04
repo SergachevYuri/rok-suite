@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "delete": "删除",
+    "edit": "编辑",
+    "close": "关闭",
+    "search": "搜索",
+    "export": "导出",
+    "import": "导入",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步",
+    "all": "全部",
+    "none": "无",
+    "yes": "是",
+    "no": "否",
+    "ok": "确定",
+    "apply": "应用",
+    "reset": "重置",
+    "filter": "筛选",
+    "sort": "排序",
+    "theme": "主题",
+    "language": "语言"
+  },
+  "nav": {
+    "home": "首页",
+    "calendar": "日历",
+    "roster": "成员列表",
+    "events": "活动",
+    "aooPlanner": "AoO 规划器",
+    "guide": "攻略",
+    "betaTools": "测试工具",
+    "wipBadge": "开发中"
+  },
+  "home": {
+    "tagline": "RoK 战略工具",
+    "title": "Rise of Kingdoms",
+    "subtitle": "战略工具与战斗规划",
+    "builtFor": "为 Angmar Nazgul Guards 打造",
+    "sections": {
+      "interactiveTools": "互动工具",
+      "guides": "攻略与文档",
+      "experimental": "实验性功能"
+    },
+    "tools": {
+      "calendar": {
+        "title": "联盟日历",
+        "description": "即将到来的活动、KvK 日程和联盟活动",
+        "badge": "活动"
+      },
+      "roster": {
+        "title": "联盟成员列表",
+        "description": "成员数据、战力排名和 KP 追踪",
+        "badge": "成员"
+      },
+      "events": {
+        "title": "联盟活动",
+        "description": "活动结果、挑战排名和竞赛追踪",
+        "badge": "结果"
+      },
+      "aoo": {
+        "title": "AoO 战斗规划器",
+        "description": "互动式30v30队伍分配、拖拽战斗地图和比赛规划",
+        "badge": "工具"
+      }
+    },
+    "guide": {
+      "title": "战略攻略",
+      "description": "活动策略、联盟规程、统帅攻略和清单",
+      "badge": "文档"
+    },
+    "beta": {
+      "title": "测试工具",
+      "description": "扫描器、落日峡谷模拟器、升级计算器——开发中的实验性功能",
+      "badge": "开发中"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "文档",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "联盟成员列表",
+    "tabs": {
+      "roster": "成员列表",
+      "growth": "成长",
+      "analytics": "分析",
+      "history": "历史",
+      "comparison": "对比",
+      "settings": "设置"
+    },
+    "columns": {
+      "name": "名称",
+      "power": "战力",
+      "kills": "击杀积分",
+      "killsShort": "KP",
+      "ratio": "战力:KP",
+      "t4Kills": "T4 击杀",
+      "t5Kills": "T5 击杀",
+      "t4t5": "T4/T5 KP",
+      "honor": "荣誉",
+      "deads": "阵亡",
+      "alliance": "联盟",
+      "role": "职位",
+      "highestPower": "最高战力",
+      "powerChange": "战力变化",
+      "kpChange": "KP 变化",
+      "honorChange": "荣誉变化",
+      "t1Kills": "T1 击杀",
+      "t2Kills": "T2 击杀",
+      "t3Kills": "T3 击杀",
+      "troopsHealed": "治疗部队",
+      "acclaim": "威望",
+      "kvkPoints": "KvK 积分",
+      "trades": "交易",
+      "governorId": "总督 ID",
+      "mobilization": "动员",
+      "turnedIn": "已上交",
+      "accepted": "已接受"
+    },
+    "tooltips": {
+      "name": "游戏内总督名称",
+      "power": "账号总战力",
+      "kills": "击杀积分（所有兵种类型的总击杀数）",
+      "ratio": "每击杀积分对应战力——比值越低表示玩法越激进",
+      "t4Kills": "T4 击杀积分",
+      "t5Kills": "T5 击杀积分",
+      "honor": "已获得的荣誉积分",
+      "deads": "阵亡部队数量",
+      "alliance": "当前所属联盟",
+      "role": "联盟职位（R1-R5）"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索成员...",
+      "alliance": "按联盟筛选",
+      "allMembers": "所有成员",
+      "activeOnly": "仅活跃成员"
+    },
+    "categories": {
+      "core": "核心",
+      "combat": "战斗",
+      "support": "辅助",
+      "events": "活动",
+      "profile": "资料"
+    },
+    "growth": {
+      "title": "成长追踪",
+      "powerGrowth": "战力成长",
+      "kpGrowth": "KP 成长",
+      "honorGrowth": "荣誉成长",
+      "noData": "暂无成长数据"
+    },
+    "analytics": {
+      "title": "分析",
+      "topPerformers": "最佳表现",
+      "allianceBreakdown": "联盟构成",
+      "powerDistribution": "战力分布"
+    }
+  },
+  "calendar": {
+    "title": "联盟日历",
+    "subtitle": "即将到来的活动、KvK 日程和联盟活动",
+    "subscribe": "订阅",
+    "timezone": "时区",
+    "today": "今天",
+    "upcoming": "即将到来",
+    "noEvents": "暂无即将到来的活动"
+  },
+  "events": {
+    "title": "联盟活动",
+    "status": {
+      "active": "进行中",
+      "completed": "已结束",
+      "upcoming": "即将开始"
+    },
+    "noEvents": "未找到活动"
+  },
+  "aoo": {
+    "title": "AoO 战斗规划器",
+    "description": "万国觉醒远古遗迹队伍分配与战斗规划工具",
+    "teams": "队伍",
+    "unassigned": "未分配",
+    "tags": {
+      "rallyLeader": "集结指挥",
+      "coordinator": "协调员",
+      "teleportFirst": "先行传送",
+      "garrison": "驻防",
+      "openField": "野战",
+      "support": "辅助"
+    }
+  },
+  "guide": {
+    "title": "战略攻略",
+    "subtitle": "Rise of Kingdoms 战略攻略、技巧和联盟规程",
+    "sections": {
+      "events": "活动",
+      "alliance": "联盟",
+      "commanders": "统帅"
+    }
+  },
+  "betaTools": {
+    "title": "测试工具",
+    "warning": "开发中",
+    "warningDescription": "这些工具为实验性功能，可能会更改或出错。使用风险自负。",
+    "scanners": {
+      "title": "扫描器",
+      "description": "截图分析和 OCR 工具，用于提取游戏数据"
+    },
+    "sunsetCanyon": {
+      "title": "落日峡谷",
+      "description": "落日峡谷防守与进攻模拟器"
+    },
+    "upgradeCalculator": {
+      "title": "升级计算器",
+      "description": "建筑和研究升级的资源与加速规划"
+    }
+  }
+}

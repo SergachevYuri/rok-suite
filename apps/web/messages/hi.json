@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "error": "त्रुटि",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "confirm": "पुष्टि करें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "close": "बंद करें",
+    "search": "खोजें",
+    "export": "निर्यात",
+    "import": "आयात",
+    "back": "पीछे",
+    "next": "अगला",
+    "previous": "पिछला",
+    "all": "सभी",
+    "none": "कोई नहीं",
+    "yes": "हां",
+    "no": "नहीं",
+    "ok": "ठीक है",
+    "apply": "लागू करें",
+    "reset": "रीसेट",
+    "filter": "फ़िल्टर",
+    "sort": "क्रमबद्ध करें",
+    "theme": "थीम",
+    "language": "भाषा"
+  },
+  "nav": {
+    "home": "होम",
+    "calendar": "कैलेंडर",
+    "roster": "सदस्य सूची",
+    "events": "इवेंट",
+    "aooPlanner": "AoO प्लानर",
+    "guide": "गाइड",
+    "betaTools": "बीटा टूल्स",
+    "wipBadge": "WIP"
+  },
+  "home": {
+    "tagline": "RoK के लिए रणनीति उपकरण",
+    "title": "Rise of Kingdoms",
+    "subtitle": "रणनीति उपकरण और युद्ध योजना",
+    "builtFor": "Angmar Nazgul Guards के लिए बनाया गया",
+    "sections": {
+      "interactiveTools": "इंटरैक्टिव उपकरण",
+      "guides": "गाइड और दस्तावेज़",
+      "experimental": "प्रयोगात्मक"
+    },
+    "tools": {
+      "calendar": {
+        "title": "गठबंधन कैलेंडर",
+        "description": "आगामी इवेंट, KvK शेड्यूल, और गठबंधन गतिविधियां",
+        "badge": "इवेंट"
+      },
+      "roster": {
+        "title": "गठबंधन सदस्य सूची",
+        "description": "सदस्य आंकड़े, शक्ति रैंकिंग, और KP ट्रैकिंग",
+        "badge": "सदस्य"
+      },
+      "events": {
+        "title": "गठबंधन इवेंट",
+        "description": "इवेंट परिणाम, चुनौती रैंकिंग, और प्रतियोगिता ट्रैकिंग",
+        "badge": "परिणाम"
+      },
+      "aoo": {
+        "title": "AoO युद्ध प्लानर",
+        "description": "इंटरैक्टिव 30v30 टीम असाइनमेंट, ड्रैग-ड्रॉप युद्ध मानचित्र, और मैच प्लानिंग",
+        "badge": "उपकरण"
+      }
+    },
+    "guide": {
+      "title": "रणनीति गाइड",
+      "description": "इवेंट रणनीतियां, गठबंधन प्रोटोकॉल, कमांडर गाइड, और चेकलिस्ट",
+      "badge": "दस्तावेज़"
+    },
+    "beta": {
+      "title": "बीटा टूल्स",
+      "description": "स्कैनर, Sunset Canyon सिम्युलेटर, अपग्रेड कैलकुलेटर - विकास में प्रयोगात्मक सुविधाएं",
+      "badge": "WIP"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "दस्तावेज़",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "गठबंधन सदस्य सूची",
+    "tabs": {
+      "roster": "सदस्य सूची",
+      "growth": "विकास",
+      "analytics": "विश्लेषण",
+      "history": "इतिहास",
+      "comparison": "तुलना",
+      "settings": "सेटिंग्स"
+    },
+    "columns": {
+      "name": "नाम",
+      "power": "शक्ति",
+      "kills": "किल पॉइंट्स",
+      "killsShort": "KP",
+      "ratio": "शक्ति:KP",
+      "t4Kills": "T4 किल्स",
+      "t5Kills": "T5 किल्स",
+      "t4t5": "T4/T5 KP",
+      "honor": "सम्मान",
+      "deads": "मृत सैनिक",
+      "alliance": "गठबंधन",
+      "role": "भूमिका",
+      "highestPower": "सर्वोच्च शक्ति",
+      "powerChange": "शक्ति परिवर्तन",
+      "kpChange": "KP परिवर्तन",
+      "honorChange": "सम्मान परिवर्तन",
+      "t1Kills": "T1 किल्स",
+      "t2Kills": "T2 किल्स",
+      "t3Kills": "T3 किल्स",
+      "troopsHealed": "ठीक किए गए सैनिक",
+      "acclaim": "प्रशंसा",
+      "kvkPoints": "KvK अंक",
+      "trades": "व्यापार",
+      "governorId": "गवर्नर आईडी",
+      "mobilization": "लामबंदी",
+      "turnedIn": "जमा किया",
+      "accepted": "स्वीकृत"
+    },
+    "tooltips": {
+      "name": "इन-गेम गवर्नर नाम",
+      "power": "कुल अकाउंट शक्ति",
+      "kills": "किल पॉइंट्स (सभी सैनिक प्रकारों में कुल किल्स)",
+      "ratio": "प्रति किल पॉइंट शक्ति — कम अनुपात अधिक आक्रामक खेल शैली दर्शाता है",
+      "t4Kills": "टियर 4 किल पॉइंट्स",
+      "t5Kills": "टियर 5 किल पॉइंट्स",
+      "honor": "अर्जित सम्मान अंक",
+      "deads": "मृत सैनिकों की संख्या",
+      "alliance": "वर्तमान गठबंधन सदस्यता",
+      "role": "गठबंधन भूमिका (R1-R5)"
+    },
+    "filters": {
+      "searchPlaceholder": "सदस्य खोजें...",
+      "alliance": "गठबंधन द्वारा फ़िल्टर करें",
+      "allMembers": "सभी सदस्य",
+      "activeOnly": "केवल सक्रिय"
+    },
+    "categories": {
+      "core": "मुख्य",
+      "combat": "युद्ध",
+      "support": "सहायता",
+      "events": "इवेंट",
+      "profile": "प्रोफ़ाइल"
+    },
+    "growth": {
+      "title": "विकास ट्रैकिंग",
+      "powerGrowth": "शक्ति विकास",
+      "kpGrowth": "KP विकास",
+      "honorGrowth": "सम्मान विकास",
+      "noData": "कोई विकास डेटा उपलब्ध नहीं"
+    },
+    "analytics": {
+      "title": "विश्लेषण",
+      "topPerformers": "शीर्ष प्रदर्शनकर्ता",
+      "allianceBreakdown": "गठबंधन विवरण",
+      "powerDistribution": "शक्ति वितरण"
+    }
+  },
+  "calendar": {
+    "title": "गठबंधन कैलेंडर",
+    "subtitle": "आगामी इवेंट, KvK शेड्यूल, और गठबंधन गतिविधियां",
+    "subscribe": "सदस्यता लें",
+    "timezone": "समय क्षेत्र",
+    "today": "आज",
+    "upcoming": "आगामी",
+    "noEvents": "कोई आगामी इवेंट नहीं"
+  },
+  "events": {
+    "title": "गठबंधन इवेंट",
+    "status": {
+      "active": "सक्रिय",
+      "completed": "पूर्ण",
+      "upcoming": "आगामी"
+    },
+    "noEvents": "कोई इवेंट नहीं मिला"
+  },
+  "aoo": {
+    "title": "AoO युद्ध प्लानर",
+    "description": "Ark of Osiris टीम असाइनमेंट और युद्ध योजना उपकरण",
+    "teams": "टीमें",
+    "unassigned": "अनिर्दिष्ट",
+    "tags": {
+      "rallyLeader": "रैली लीडर",
+      "coordinator": "समन्वयक",
+      "teleportFirst": "पहले टेलीपोर्ट",
+      "garrison": "गैरीसन",
+      "openField": "खुला मैदान",
+      "support": "सहायता"
+    }
+  },
+  "guide": {
+    "title": "रणनीति गाइड",
+    "subtitle": "Rise of Kingdoms रणनीति गाइड, टिप्स, और गठबंधन प्रोटोकॉल",
+    "sections": {
+      "events": "इवेंट",
+      "alliance": "गठबंधन",
+      "commanders": "कमांडर"
+    }
+  },
+  "betaTools": {
+    "title": "बीटा टूल्स",
+    "warning": "विकास में कार्य",
+    "warningDescription": "ये उपकरण प्रयोगात्मक हैं और बदल सकते हैं या काम करना बंद कर सकते हैं। अपने जोखिम पर उपयोग करें।",
+    "scanners": {
+      "title": "स्कैनर",
+      "description": "गेम डेटा निकालने के लिए स्क्रीनशॉट विश्लेषण और OCR उपकरण"
+    },
+    "sunsetCanyon": {
+      "title": "Sunset Canyon",
+      "description": "Sunset Canyon रक्षा और आक्रमण सिम्युलेटर"
+    },
+    "upgradeCalculator": {
+      "title": "अपग्रेड कैलकुलेटर",
+      "description": "भवन और अनुसंधान अपग्रेड के लिए संसाधन और स्पीडअप योजना"
+    }
+  }
+}

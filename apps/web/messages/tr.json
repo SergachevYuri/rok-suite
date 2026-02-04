@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Hata",
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "confirm": "Onayla",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "close": "Kapat",
+    "search": "Ara",
+    "export": "Dışa Aktar",
+    "import": "İçe Aktar",
+    "back": "Geri",
+    "next": "İleri",
+    "previous": "Önceki",
+    "all": "Tümü",
+    "none": "Hiçbiri",
+    "yes": "Evet",
+    "no": "Hayır",
+    "ok": "Tamam",
+    "apply": "Uygula",
+    "reset": "Sıfırla",
+    "filter": "Filtre",
+    "sort": "Sırala",
+    "theme": "Tema",
+    "language": "Dil"
+  },
+  "nav": {
+    "home": "Ana Sayfa",
+    "calendar": "Takvim",
+    "roster": "Kadro",
+    "events": "Etkinlikler",
+    "aooPlanner": "AoO Planlayıcı",
+    "guide": "Rehber",
+    "betaTools": "Beta Araçlar",
+    "wipBadge": "DENEYSEL"
+  },
+  "home": {
+    "tagline": "RoK için Strateji Araçları",
+    "title": "Rise of Kingdoms",
+    "subtitle": "Strateji Araçları ve Savaş Planlaması",
+    "builtFor": "Angmar Nazgul Guards için geliştirildi",
+    "sections": {
+      "interactiveTools": "Etkileşimli Araçlar",
+      "guides": "Rehberler ve Belgeler",
+      "experimental": "Deneysel"
+    },
+    "tools": {
+      "calendar": {
+        "title": "İttifak Takvimi",
+        "description": "Yaklaşan etkinlikler, KvK takvimi ve ittifak faaliyetleri",
+        "badge": "Etkinlikler"
+      },
+      "roster": {
+        "title": "İttifak Kadrosu",
+        "description": "Üye istatistikleri, güç sıralamaları ve KP takibi",
+        "badge": "Üyeler"
+      },
+      "events": {
+        "title": "İttifak Etkinlikleri",
+        "description": "Etkinlik sonuçları, mücadele sıralamaları ve yarışma takibi",
+        "badge": "Sonuçlar"
+      },
+      "aoo": {
+        "title": "AoO Savaş Planlayıcı",
+        "description": "Etkileşimli 30v30 takım atamaları, sürükle-bırak savaş haritaları ve maç planlaması",
+        "badge": "Araç"
+      }
+    },
+    "guide": {
+      "title": "Strateji Rehberi",
+      "description": "Etkinlik stratejileri, ittifak protokolleri, komutan rehberleri ve kontrol listeleri",
+      "badge": "Belgeler"
+    },
+    "beta": {
+      "title": "Beta Araçlar",
+      "description": "Tarayıcılar, Sunset Canyon simülatörü, Yükseltme Hesaplayıcı - geliştirme aşamasındaki deneysel özellikler",
+      "badge": "DENEYSEL"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "Belgeler",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "İttifak Kadrosu",
+    "tabs": {
+      "roster": "Kadro",
+      "growth": "Büyüme",
+      "analytics": "Analitik",
+      "history": "Geçmiş",
+      "comparison": "Karşılaştırma",
+      "settings": "Ayarlar"
+    },
+    "columns": {
+      "name": "İsim",
+      "power": "Güç",
+      "kills": "Öldürme Puanı",
+      "killsShort": "KP",
+      "ratio": "Güç:KP",
+      "t4Kills": "T4 Öldürme",
+      "t5Kills": "T5 Öldürme",
+      "t4t5": "T4/T5 KP",
+      "honor": "Onur",
+      "deads": "Kayıplar",
+      "alliance": "İttifak",
+      "role": "Rol",
+      "highestPower": "En Yüksek Güç",
+      "powerChange": "Güç Değişimi",
+      "kpChange": "KP Değişimi",
+      "honorChange": "Onur Değişimi",
+      "t1Kills": "T1 Öldürme",
+      "t2Kills": "T2 Öldürme",
+      "t3Kills": "T3 Öldürme",
+      "troopsHealed": "İyileştirilen Askerler",
+      "acclaim": "Takdir",
+      "kvkPoints": "KvK Puanları",
+      "trades": "Ticaret",
+      "governorId": "Vali Kimliği",
+      "mobilization": "Seferberlik",
+      "turnedIn": "Teslim Edildi",
+      "accepted": "Kabul Edildi"
+    },
+    "tooltips": {
+      "name": "Oyun içi vali adı",
+      "power": "Toplam hesap gücü",
+      "kills": "Öldürme puanları (tüm asker türlerinde toplam öldürme)",
+      "ratio": "Öldürme puanı başına güç — düşük oran daha saldırgan oyun tarzını gösterir",
+      "t4Kills": "Kademe 4 öldürme puanları",
+      "t5Kills": "Kademe 5 öldürme puanları",
+      "honor": "Kazanılan onur puanları",
+      "deads": "Ölen asker sayısı",
+      "alliance": "Mevcut ittifak üyeliği",
+      "role": "İttifak rolü (R1-R5)"
+    },
+    "filters": {
+      "searchPlaceholder": "Üye ara...",
+      "alliance": "İttifaka Göre Filtrele",
+      "allMembers": "Tüm Üyeler",
+      "activeOnly": "Sadece Aktif"
+    },
+    "categories": {
+      "core": "Temel",
+      "combat": "Savaş",
+      "support": "Destek",
+      "events": "Etkinlikler",
+      "profile": "Profil"
+    },
+    "growth": {
+      "title": "Büyüme Takibi",
+      "powerGrowth": "Güç Büyümesi",
+      "kpGrowth": "KP Büyümesi",
+      "honorGrowth": "Onur Büyümesi",
+      "noData": "Büyüme verisi mevcut değil"
+    },
+    "analytics": {
+      "title": "Analitik",
+      "topPerformers": "En İyi Performanslar",
+      "allianceBreakdown": "İttifak Dağılımı",
+      "powerDistribution": "Güç Dağılımı"
+    }
+  },
+  "calendar": {
+    "title": "İttifak Takvimi",
+    "subtitle": "Yaklaşan etkinlikler, KvK takvimi ve ittifak faaliyetleri",
+    "subscribe": "Abone Ol",
+    "timezone": "Saat Dilimi",
+    "today": "Bugün",
+    "upcoming": "Yaklaşan",
+    "noEvents": "Yaklaşan etkinlik yok"
+  },
+  "events": {
+    "title": "İttifak Etkinlikleri",
+    "status": {
+      "active": "Aktif",
+      "completed": "Tamamlandı",
+      "upcoming": "Yaklaşan"
+    },
+    "noEvents": "Etkinlik bulunamadı"
+  },
+  "aoo": {
+    "title": "AoO Savaş Planlayıcı",
+    "description": "Ark of Osiris takım atama ve savaş planlama aracı",
+    "teams": "Takımlar",
+    "unassigned": "Atanmamış",
+    "tags": {
+      "rallyLeader": "Toplanma Lideri",
+      "coordinator": "Koordinatör",
+      "teleportFirst": "İlk Işınlanan",
+      "garrison": "Garnizon",
+      "openField": "Açık Alan",
+      "support": "Destek"
+    }
+  },
+  "guide": {
+    "title": "Strateji Rehberi",
+    "subtitle": "Rise of Kingdoms strateji rehberleri, ipuçları ve ittifak protokolleri",
+    "sections": {
+      "events": "Etkinlikler",
+      "alliance": "İttifak",
+      "commanders": "Komutanlar"
+    }
+  },
+  "betaTools": {
+    "title": "Beta Araçlar",
+    "warning": "Yapım Aşamasında",
+    "warningDescription": "Bu araçlar deneyseldir ve değişebilir veya bozulabilir. Riski size aittir.",
+    "scanners": {
+      "title": "Tarayıcılar",
+      "description": "Oyun verilerini çıkarmak için ekran görüntüsü analizi ve OCR araçları"
+    },
+    "sunsetCanyon": {
+      "title": "Sunset Canyon",
+      "description": "Sunset Canyon savunma ve saldırı simülatörü"
+    },
+    "upgradeCalculator": {
+      "title": "Yükseltme Hesaplayıcı",
+      "description": "Bina ve araştırma yükseltmeleri için kaynak ve hızlandırma planlaması"
+    }
+  }
+}

@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "Laden...",
+    "error": "Fehler",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "close": "Schließen",
+    "search": "Suchen",
+    "export": "Exportieren",
+    "import": "Importieren",
+    "back": "Zurück",
+    "next": "Weiter",
+    "previous": "Zurück",
+    "all": "Alle",
+    "none": "Keine",
+    "yes": "Ja",
+    "no": "Nein",
+    "ok": "OK",
+    "apply": "Anwenden",
+    "reset": "Zurücksetzen",
+    "filter": "Filtern",
+    "sort": "Sortieren",
+    "theme": "Design",
+    "language": "Sprache"
+  },
+  "nav": {
+    "home": "Startseite",
+    "calendar": "Kalender",
+    "roster": "Mitgliederliste",
+    "events": "Events",
+    "aooPlanner": "AoO-Planer",
+    "guide": "Leitfaden",
+    "betaTools": "Beta-Tools",
+    "wipBadge": "WIP"
+  },
+  "home": {
+    "tagline": "Strategie-Tools für RoK",
+    "title": "Rise of Kingdoms",
+    "subtitle": "Strategie-Tools und Schlachtplanung",
+    "builtFor": "Entwickelt für Angmar Nazgul Guards",
+    "sections": {
+      "interactiveTools": "Interaktive Tools",
+      "guides": "Leitfäden und Dokumentation",
+      "experimental": "Experimentell"
+    },
+    "tools": {
+      "calendar": {
+        "title": "Allianz-Kalender",
+        "description": "Kommende Events, KvK-Zeitplan und Allianz-Aktivitäten",
+        "badge": "Events"
+      },
+      "roster": {
+        "title": "Allianz-Mitgliederliste",
+        "description": "Mitgliederstatistiken, Macht-Ranglisten und KP-Verfolgung",
+        "badge": "Mitglieder"
+      },
+      "events": {
+        "title": "Allianz-Events",
+        "description": "Event-Ergebnisse, Herausforderungsranglisten und Wettbewerbsverfolgung",
+        "badge": "Ergebnisse"
+      },
+      "aoo": {
+        "title": "AoO-Schlachtplaner",
+        "description": "Interaktive 30v30-Teamzuweisung, Drag-and-Drop-Schlachtkarten und Spielplanung",
+        "badge": "Tool"
+      }
+    },
+    "guide": {
+      "title": "Strategieleitfaden",
+      "description": "Event-Strategien, Allianz-Protokolle, Kommandanten-Leitfäden und Checklisten",
+      "badge": "Docs"
+    },
+    "beta": {
+      "title": "Beta-Tools",
+      "description": "Scanner, Canyon der Dämmerung-Simulator, Upgrade-Rechner — experimentelle Funktionen in Entwicklung",
+      "badge": "WIP"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "Dokumentation",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "Allianz-Mitgliederliste",
+    "tabs": {
+      "roster": "Mitgliederliste",
+      "growth": "Wachstum",
+      "analytics": "Analysen",
+      "history": "Verlauf",
+      "comparison": "Vergleich",
+      "settings": "Einstellungen"
+    },
+    "columns": {
+      "name": "Name",
+      "power": "Macht",
+      "kills": "Abschusspunkte",
+      "killsShort": "KP",
+      "ratio": "Macht:KP",
+      "t4Kills": "T4-Abschüsse",
+      "t5Kills": "T5-Abschüsse",
+      "t4t5": "T4/T5 KP",
+      "honor": "Ehre",
+      "deads": "Gefallene",
+      "alliance": "Allianz",
+      "role": "Rolle",
+      "highestPower": "Höchste Macht",
+      "powerChange": "Machtänderung",
+      "kpChange": "KP-Änderung",
+      "honorChange": "Ehrenänderung",
+      "t1Kills": "T1-Abschüsse",
+      "t2Kills": "T2-Abschüsse",
+      "t3Kills": "T3-Abschüsse",
+      "troopsHealed": "Geheilte Truppen",
+      "acclaim": "Anerkennung",
+      "kvkPoints": "KvK-Punkte",
+      "trades": "Handel",
+      "governorId": "Gouverneur-ID",
+      "mobilization": "Mobilisierung",
+      "turnedIn": "Abgegeben",
+      "accepted": "Akzeptiert"
+    },
+    "tooltips": {
+      "name": "Gouverneursname im Spiel",
+      "power": "Gesamte Kontomacht",
+      "kills": "Abschusspunkte (Gesamtabschüsse aller Truppentypen)",
+      "ratio": "Macht pro Abschusspunkt — ein niedrigeres Verhältnis weist auf einen aggressiveren Spielstil hin",
+      "t4Kills": "Abschusspunkte der Stufe 4",
+      "t5Kills": "Abschusspunkte der Stufe 5",
+      "honor": "Verdiente Ehrenpunkte",
+      "deads": "Anzahl gefallener Truppen",
+      "alliance": "Aktuelle Allianz-Zugehörigkeit",
+      "role": "Allianz-Rolle (R1-R5)"
+    },
+    "filters": {
+      "searchPlaceholder": "Mitglieder suchen...",
+      "alliance": "Nach Allianz filtern",
+      "allMembers": "Alle Mitglieder",
+      "activeOnly": "Nur Aktive"
+    },
+    "categories": {
+      "core": "Kern",
+      "combat": "Kampf",
+      "support": "Unterstützung",
+      "events": "Events",
+      "profile": "Profil"
+    },
+    "growth": {
+      "title": "Wachstumsverfolgung",
+      "powerGrowth": "Machtwachstum",
+      "kpGrowth": "KP-Wachstum",
+      "honorGrowth": "Ehrenwachstum",
+      "noData": "Keine Wachstumsdaten verfügbar"
+    },
+    "analytics": {
+      "title": "Analysen",
+      "topPerformers": "Top-Performer",
+      "allianceBreakdown": "Allianz-Aufschlüsselung",
+      "powerDistribution": "Machtverteilung"
+    }
+  },
+  "calendar": {
+    "title": "Allianz-Kalender",
+    "subtitle": "Kommende Events, KvK-Zeitplan und Allianz-Aktivitäten",
+    "subscribe": "Abonnieren",
+    "timezone": "Zeitzone",
+    "today": "Heute",
+    "upcoming": "Bevorstehend",
+    "noEvents": "Keine bevorstehenden Events"
+  },
+  "events": {
+    "title": "Allianz-Events",
+    "status": {
+      "active": "Aktiv",
+      "completed": "Abgeschlossen",
+      "upcoming": "Bevorstehend"
+    },
+    "noEvents": "Keine Events gefunden"
+  },
+  "aoo": {
+    "title": "AoO-Schlachtplaner",
+    "description": "Teamzuweisungs- und Schlachtplanungstool für die Arche des Osiris",
+    "teams": "Teams",
+    "unassigned": "Nicht zugewiesen",
+    "tags": {
+      "rallyLeader": "Sammlungsanführer",
+      "coordinator": "Koordinator",
+      "teleportFirst": "Teleport 1.",
+      "garrison": "Garnison",
+      "openField": "Offenes Feld",
+      "support": "Unterstützung"
+    }
+  },
+  "guide": {
+    "title": "Strategieleitfaden",
+    "subtitle": "Rise of Kingdoms Strategieleitfäden, Tipps und Allianz-Protokolle",
+    "sections": {
+      "events": "Events",
+      "alliance": "Allianz",
+      "commanders": "Kommandanten"
+    }
+  },
+  "betaTools": {
+    "title": "Beta-Tools",
+    "warning": "In Arbeit",
+    "warningDescription": "Diese Tools sind experimentell und können sich ändern oder nicht funktionieren. Nutzung auf eigene Gefahr.",
+    "scanners": {
+      "title": "Scanner",
+      "description": "Screenshot-Analyse und OCR-Tools zur Extraktion von Spieldaten"
+    },
+    "sunsetCanyon": {
+      "title": "Canyon der Dämmerung",
+      "description": "Verteidigungs- und Angriffssimulator für den Canyon der Dämmerung"
+    },
+    "upgradeCalculator": {
+      "title": "Upgrade-Rechner",
+      "description": "Ressourcen- und Beschleunigungsplanung für Gebäude- und Forschungsupgrades"
+    }
+  }
+}

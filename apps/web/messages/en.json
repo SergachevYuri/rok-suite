@@ -1,0 +1,223 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "search": "Search",
+    "export": "Export",
+    "import": "Import",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "all": "All",
+    "none": "None",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "apply": "Apply",
+    "reset": "Reset",
+    "filter": "Filter",
+    "sort": "Sort",
+    "theme": "Theme",
+    "language": "Language"
+  },
+  "nav": {
+    "home": "Home",
+    "calendar": "Calendar",
+    "roster": "Roster",
+    "events": "Events",
+    "aooPlanner": "AoO Planner",
+    "guide": "Guide",
+    "betaTools": "Beta Tools",
+    "wipBadge": "WIP"
+  },
+  "home": {
+    "tagline": "Strategy Tools for RoK",
+    "title": "Rise of Kingdoms",
+    "subtitle": "Strategy Tools & Battle Planning",
+    "builtFor": "Built for Angmar Nazgul Guards",
+    "sections": {
+      "interactiveTools": "Interactive Tools",
+      "guides": "Guides & Documentation",
+      "experimental": "Experimental"
+    },
+    "tools": {
+      "calendar": {
+        "title": "Alliance Calendar",
+        "description": "Upcoming events, KvK schedule, and alliance activities",
+        "badge": "Events"
+      },
+      "roster": {
+        "title": "Alliance Roster",
+        "description": "Member stats, power rankings, and kill points tracking",
+        "badge": "Members"
+      },
+      "events": {
+        "title": "Alliance Events",
+        "description": "Event results, challenge rankings, and competition tracking",
+        "badge": "Results"
+      },
+      "aoo": {
+        "title": "AoO Battle Planner",
+        "description": "Interactive 30v30 team assignments, drag-drop battle maps, and match planning",
+        "badge": "Tool"
+      }
+    },
+    "guide": {
+      "title": "Strategy Guide",
+      "description": "Event strategies, alliance protocols, commander guides, and checklists",
+      "badge": "Docs"
+    },
+    "beta": {
+      "title": "Beta Tools",
+      "description": "Scanners, Sunset Canyon simulator, Upgrade Calculator - experimental features in development",
+      "badge": "WIP"
+    },
+    "footer": {
+      "github": "GitHub",
+      "documentation": "Documentation",
+      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+    }
+  },
+  "roster": {
+    "title": "Alliance Roster",
+    "tabs": {
+      "roster": "Roster",
+      "growth": "Growth",
+      "analytics": "Analytics",
+      "history": "History",
+      "comparison": "Comparison",
+      "settings": "Settings"
+    },
+    "columns": {
+      "name": "Name",
+      "power": "Power",
+      "kills": "Kill Points",
+      "killsShort": "KP",
+      "ratio": "Power:KP",
+      "t4Kills": "T4 Kills",
+      "t5Kills": "T5 Kills",
+      "t4t5": "T4/T5 KP",
+      "honor": "Honor",
+      "deads": "Deads",
+      "alliance": "Alliance",
+      "role": "Role",
+      "highestPower": "Highest Power",
+      "powerChange": "Power Change",
+      "kpChange": "KP Change",
+      "honorChange": "Honor Change",
+      "t1Kills": "T1 Kills",
+      "t2Kills": "T2 Kills",
+      "t3Kills": "T3 Kills",
+      "troopsHealed": "Troops Healed",
+      "acclaim": "Acclaim",
+      "kvkPoints": "KvK Points",
+      "trades": "Trades",
+      "governorId": "Governor ID",
+      "mobilization": "Mobilization",
+      "turnedIn": "Turned In",
+      "accepted": "Accepted"
+    },
+    "tooltips": {
+      "name": "In-game governor name",
+      "power": "Total account power",
+      "kills": "Kill points (total kills across all troop types)",
+      "ratio": "Power per kill point — lower ratio indicates more aggressive play style",
+      "t4Kills": "Tier 4 kill points",
+      "t5Kills": "Tier 5 kill points",
+      "honor": "Honor points earned",
+      "deads": "Dead troops count",
+      "alliance": "Current alliance membership",
+      "role": "Alliance role (R1-R5)"
+    },
+    "filters": {
+      "searchPlaceholder": "Search members...",
+      "alliance": "Filter by Alliance",
+      "allMembers": "All Members",
+      "activeOnly": "Active Only"
+    },
+    "categories": {
+      "core": "Core",
+      "combat": "Combat",
+      "support": "Support",
+      "events": "Events",
+      "profile": "Profile"
+    },
+    "growth": {
+      "title": "Growth Tracking",
+      "powerGrowth": "Power Growth",
+      "kpGrowth": "KP Growth",
+      "honorGrowth": "Honor Growth",
+      "noData": "No growth data available"
+    },
+    "analytics": {
+      "title": "Analytics",
+      "topPerformers": "Top Performers",
+      "allianceBreakdown": "Alliance Breakdown",
+      "powerDistribution": "Power Distribution"
+    }
+  },
+  "calendar": {
+    "title": "Alliance Calendar",
+    "subtitle": "Upcoming events, KvK schedule, and alliance activities",
+    "subscribe": "Subscribe",
+    "timezone": "Timezone",
+    "today": "Today",
+    "upcoming": "Upcoming",
+    "noEvents": "No upcoming events"
+  },
+  "events": {
+    "title": "Alliance Events",
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "upcoming": "Upcoming"
+    },
+    "noEvents": "No events found"
+  },
+  "aoo": {
+    "title": "AoO Battle Planner",
+    "description": "Ark of Osiris team assignment and battle planning tool",
+    "teams": "Teams",
+    "unassigned": "Unassigned",
+    "tags": {
+      "rallyLeader": "Rally Leader",
+      "coordinator": "Coordinator",
+      "teleportFirst": "Teleport 1st",
+      "garrison": "Garrison",
+      "openField": "Open Field",
+      "support": "Support"
+    }
+  },
+  "guide": {
+    "title": "Strategy Guide",
+    "subtitle": "Rise of Kingdoms strategy guides, tips, and alliance protocols",
+    "sections": {
+      "events": "Events",
+      "alliance": "Alliance",
+      "commanders": "Commanders"
+    }
+  },
+  "betaTools": {
+    "title": "Beta Tools",
+    "warning": "Work in Progress",
+    "warningDescription": "These tools are experimental and may change or break. Use at your own risk.",
+    "scanners": {
+      "title": "Scanners",
+      "description": "Screenshot analysis and OCR tools for extracting game data"
+    },
+    "sunsetCanyon": {
+      "title": "Sunset Canyon",
+      "description": "Sunset Canyon defense and attack simulator"
+    },
+    "upgradeCalculator": {
+      "title": "Upgrade Calculator",
+      "description": "Resource and speedup planning for building and research upgrades"
+    }
+  }
+}
