@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Globe } from 'lucide-react';
 import { useLocale } from 'next-intl';
-import { locales, localeNames, getBaseDomain, type Locale } from '@/lib/i18n/config';
+import { locales, localeNames, type Locale } from '@/lib/i18n/config';
 
 interface LanguageSwitcherProps {
   collapsed?: boolean;
@@ -30,27 +30,9 @@ export function LanguageSwitcher({ collapsed = false }: LanguageSwitcherProps) {
       return;
     }
 
-    // Store preference in cookie
+    // Store preference in cookie and reload
     document.cookie = `locale=${locale};path=/;max-age=${60 * 60 * 24 * 365}`;
-
-    // Navigate to subdomain if in production
-    const hostname = window.location.hostname;
-    const baseDomain = getBaseDomain(hostname);
-
-    if (baseDomain !== hostname || hostname === 'localhost') {
-      // We're on a subdomain-capable domain or localhost
-      // For localhost, just reload with cookie
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        window.location.reload();
-        return;
-      }
-      const newHost = `${locale}.${baseDomain}`;
-      const port = window.location.port ? `:${window.location.port}` : '';
-      window.location.href = `${window.location.protocol}//${newHost}${port}${window.location.pathname}${window.location.search}`;
-    } else {
-      // Single domain, just use cookie and reload
-      window.location.reload();
-    }
+    window.location.reload();
   };
 
   return (
