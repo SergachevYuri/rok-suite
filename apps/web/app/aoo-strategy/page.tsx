@@ -557,7 +557,7 @@ function TeamBuilderTab({
                                                         key={member.name}
                                                         onMouseDown={(e) => e.preventDefault()}
                                                         onClick={() => handleSelectSuggestion(member)}
-                                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center justify-between border-b ${theme.border}`}
+                                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-[var(--background-hover)] flex items-center justify-between border-b ${theme.border}`}
                                                     >
                                                         <span className={theme.text}>{member.name}</span>
                                                         <span className={`text-xs ${theme.textMuted}`}>
@@ -632,7 +632,7 @@ function TeamBuilderTab({
                                             status === 'confirmed' ? 'bg-green-600/20 border border-green-500/30' :
                                             status === 'maybe' ? 'bg-yellow-600/20 border border-yellow-500/30' :
                                             isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
-                                            'bg-white/5 border border-white/10 hover:bg-white/10'
+                                            'bg-[var(--background-secondary)] border border-[var(--border)] hover:bg-[var(--background-hover)]'
                                         }`}
                                     >
                                         <div className="flex items-center gap-3">
@@ -700,7 +700,7 @@ function TeamBuilderTab({
                                     {[1, 2, 3].map((zone) => {
                                         const zoneColor = zone === 1 ? 'border-blue-500' : zone === 2 ? 'border-orange-500' : 'border-purple-500';
                                         return (
-                                            <div key={zone} className={`p-3 rounded-lg border-2 ${zoneColor} bg-white/5`}>
+                                            <div key={zone} className={`p-3 rounded-lg border-2 ${zoneColor} bg-[var(--background-secondary)]`}>
                                                 <label className={`text-xs ${theme.textMuted} block mb-1`}>
                                                     Zone {zone}
                                                 </label>
@@ -711,7 +711,7 @@ function TeamBuilderTab({
                                                     value={zoneSizes[zone]}
                                                     onChange={(e) => setZoneSizes({ ...zoneSizes, [zone]: e.target.value })}
                                                     placeholder="0"
-                                                    className={`w-full px-3 py-2 rounded-lg text-center text-lg font-bold ${theme.input}`}
+                                                    className={`w-full px-3 py-2 rounded-lg text-center text-lg font-bold ${theme.input} border`}
                                                 />
                                             </div>
                                         );
@@ -765,7 +765,7 @@ function TeamBuilderTab({
                                     </div>
 
                                     {/* Rally Lead Selection */}
-                                    <div className="mb-3 p-2 rounded bg-white/5">
+                                    <div className="mb-3 p-2 rounded bg-[var(--background-secondary)]">
                                         <span className={`text-xs ${theme.textMuted}`}>Rally Lead:</span>
                                         <select
                                             value={selectedRallyLeads[zone] || ''}
@@ -784,7 +784,7 @@ function TeamBuilderTab({
                                     {/* Player List */}
                                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
                                         {zonePlayers.map((player) => (
-                                            <div key={player.name} className="flex items-center justify-between px-2 py-1.5 rounded bg-white/5">
+                                            <div key={player.name} className="flex items-center justify-between px-2 py-1.5 rounded bg-[var(--background-secondary)]">
                                                 <div className="flex items-center gap-2">
                                                     {/* Teleport First checkbox */}
                                                     <button
@@ -854,7 +854,7 @@ function TeamBuilderTab({
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 {(suggestedZones[0] || []).map((player) => (
-                                    <div key={player.name} className="flex items-center gap-2 px-3 py-1.5 rounded bg-white/5">
+                                    <div key={player.name} className="flex items-center gap-2 px-3 py-1.5 rounded bg-[var(--background-secondary)]">
                                         <span className={`text-sm ${theme.text}`}>{player.name}</span>
                                         <span className={`text-xs ${theme.textMuted}`}>{formatPower(player.power)}</span>
                                         <select
@@ -1701,7 +1701,7 @@ export default function AooStrategyPage() {
                                     <li>• Work as a unit, not individual</li>
                                 </ul>
                             </div>
-                            <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                            <div className="p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
                                 <h3 className={`font-bold ${theme.textMuted} text-sm mb-2`}>🎯 TROOP DEPLOYMENT</h3>
                                 <ul className={`text-xs space-y-1 ${theme.text}`}>
                                     <li>🐴 <strong>Cavalry</strong> → For rallies</li>
@@ -1878,7 +1878,7 @@ export default function AooStrategyPage() {
                                             <p className={`text-sm ${theme.textMuted} text-center py-6`}>No players</p>
                                         ) : (
                                             teamPlayers.map((player) => (
-                                                <div key={player.id} className="rounded-lg p-3 bg-white/5 border border-white/5">
+                                                <div key={player.id} className="rounded-lg p-3 bg-[var(--background-secondary)] border border-white/5">
                                                     <div className="flex items-center justify-between mb-2">
                                                         <div className="flex items-center gap-2">
                                                             {player.tags.includes('Confirmed') && (
@@ -1956,7 +1956,7 @@ export default function AooStrategyPage() {
                                 <p className={`text-sm ${theme.textMuted}`}>No substitutes added</p>
                             ) : (
                                 substitutes.map(sub => (
-                                    <div key={sub.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                                    <div key={sub.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
                                         <span className="text-sm">{sub.name}</span>
                                         {isEditor && (
                                             <button 
@@ -2035,7 +2035,7 @@ export default function AooStrategyPage() {
                         </div>
 
                         {/* Troop Deployment */}
-                        <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                        <div className="p-4 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
                             <h3 className={`font-bold ${theme.textMuted} mb-3`}>🎯 TROOP DEPLOYMENT</h3>
                             <div className="grid grid-cols-3 gap-3 text-center text-sm">
                                 <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
@@ -2101,7 +2101,7 @@ export default function AooStrategyPage() {
                                                         setLookupSearch(player.name);
                                                         setShowLookupDropdown(false);
                                                     }}
-                                                    className={`w-full px-4 py-3 text-left hover:bg-white/10 flex items-center justify-between border-b ${theme.border}`}
+                                                    className={`w-full px-4 py-3 text-left hover:bg-[var(--background-hover)] flex items-center justify-between border-b ${theme.border}`}
                                                 >
                                                     <span className={`font-medium ${theme.text}`}>{player.name}</span>
                                                     <span className={`text-sm ${zoneColors[player.team]}`}>Zone {player.team}</span>
@@ -2115,7 +2115,7 @@ export default function AooStrategyPage() {
                                                     setLookupSearch(sub.name);
                                                     setShowLookupDropdown(false);
                                                 }}
-                                                className={`w-full px-4 py-3 text-left hover:bg-white/10 flex items-center justify-between border-b ${theme.border}`}
+                                                className={`w-full px-4 py-3 text-left hover:bg-[var(--background-hover)] flex items-center justify-between border-b ${theme.border}`}
                                             >
                                                 <span className={`font-medium ${theme.text}`}>{sub.name}</span>
                                                 <span className={`text-sm ${theme.textMuted}`}>Substitute</span>
@@ -2145,7 +2145,7 @@ export default function AooStrategyPage() {
                                     3: 'bg-purple-500/10 border-purple-500/30'
                                 };
                                 return (
-                                    <div className="mt-6 p-6 rounded-xl bg-white/5 border border-white/10">
+                                    <div className="mt-6 p-6 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)]">
                                         {/* Print Button */}
                                         <div className="flex justify-end mb-4">
                                             <button
@@ -2239,7 +2239,7 @@ export default function AooStrategyPage() {
                                         )}
 
                                         {/* Mini Map showing assigned buildings */}
-                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-white/10">
+                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-[var(--border)]">
                                             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>🗺️ Your Buildings</h4>
                                             <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: '1275 / 891' }}>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2318,7 +2318,7 @@ export default function AooStrategyPage() {
                                         </div>
 
                                         {/* Role instructions */}
-                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-white/10">
+                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-[var(--border)]">
                                             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>💡 Role Tips</h4>
                                             <ul className={`space-y-2 text-sm ${theme.text}`}>
                                                 {foundPlayer.tags.includes('Rally Leader') && (
@@ -2348,10 +2348,10 @@ export default function AooStrategyPage() {
                                         </div>
 
                                         {/* March Deployment Guide */}
-                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-white/10">
+                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-[var(--border)]">
                                             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>🎖️ March Deployment</h4>
                                             <div className={`space-y-3 text-sm ${theme.text}`}>
-                                                <div className="p-2 rounded bg-white/5">
+                                                <div className="p-2 rounded bg-[var(--background-secondary)]">
                                                     <p className="font-medium mb-1">Recommended: 3 Marches</p>
                                                     <ul className={`text-xs ${theme.textMuted} space-y-1`}>
                                                         <li>• <strong>March 1:</strong> In a building (garrison/obelisk)</li>
@@ -2423,13 +2423,13 @@ export default function AooStrategyPage() {
                             } else if (foundSub) {
                                 const subPower = foundSub.power || powerByName[foundSub.name];
                                 return (
-                                    <div className="mt-6 p-6 rounded-xl bg-white/5 border border-white/10 text-center">
+                                    <div className="mt-6 p-6 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] text-center">
                                         <h3 className="text-2xl font-bold text-yellow-500">{foundSub.name}</h3>
                                         {subPower && (
                                             <p className={`text-sm ${theme.textMuted}`}>⚔️ {formatPower(subPower)} Power</p>
                                         )}
                                         <p className={`text-lg ${theme.textMuted} mt-2`}>📋 Substitute</p>
-                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-white/10">
+                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-[var(--border)]">
                                             <p className={theme.text}>You are on the substitute list.</p>
                                             <p className={`mt-2 text-sm ${theme.textMuted}`}>Be ready to join if a spot opens up! Make sure you:</p>
                                             <ul className={`mt-2 text-sm ${theme.textMuted} text-left max-w-xs mx-auto`}>
@@ -2442,7 +2442,7 @@ export default function AooStrategyPage() {
                                 );
                             } else {
                                 return (
-                                    <div className="mt-6 p-6 rounded-xl bg-white/5 border border-white/10 text-center">
+                                    <div className="mt-6 p-6 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] text-center">
                                         <p className={`text-lg ${theme.textMuted}`}>❌ Player not found</p>
                                         <p className={`mt-2 text-sm ${theme.textMuted}`}>Try checking the Zone Roster tab or contact your alliance leader.</p>
                                     </div>
