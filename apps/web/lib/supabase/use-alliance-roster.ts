@@ -11,6 +11,7 @@ export interface RosterMember {
   role: string | null;
   notes: string | null;
   is_active: boolean;
+  alliance: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -19,12 +20,15 @@ export interface UseAllianceRosterReturn {
   roster: RosterMember[];
   rosterNames: string[];
   powerByName: Record<string, number>;
+  killsByName: Record<string, number>;
+  allianceByName: Record<string, string | null>;
+  alliances: string[];
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
 }
 
-export function useAllianceRoster(): UseAllianceRosterReturn {
+export function useAllianceRoster(allianceFilter?: string): UseAllianceRosterReturn {
   const [roster, setRoster] = useState<RosterMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,11 +39,17 @@ export function useAllianceRoster(): UseAllianceRosterReturn {
 
     try {
       const supabase = createClient();
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('alliance_roster')
         .select('*')
-        .eq('is_active', true)
-        .order('power', { ascending: false });
+        .eq('is_active', true);
+
+      // Apply alliance filter if provided (and not 'all')
+      if (allianceFilter && allianceFilter !== 'all') {
+        query = query.eq('alliance', allianceFilter);
+      }
+
+      const { data, error: fetchError } = await query.order('power', { ascending: false });
 
       if (fetchError) {
         throw fetchError;
@@ -52,7 +62,7 @@ export function useAllianceRoster(): UseAllianceRosterReturn {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [allianceFilter]);
 
   useEffect(() => {
     fetchRoster();
@@ -71,10 +81,32 @@ export function useAllianceRoster(): UseAllianceRosterReturn {
     {} as Record<string, number>
   );
 
+  const killsByName = roster.reduce(
+    (acc, member) => {
+      acc[member.name] = member.kills;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  const allianceByName = roster.reduce(
+    (acc, member) => {
+      acc[member.name] = member.alliance;
+      return acc;
+    },
+    {} as Record<string, string | null>
+  );
+
+  // Get unique alliances from roster (for dropdown options)
+  const alliances = [...new Set(roster.map((m) => m.alliance).filter((a): a is string => a !== null))].sort();
+
   return {
     roster,
     rosterNames,
     powerByName,
+    killsByName,
+    allianceByName,
+    alliances,
     loading,
     error,
     refetch: fetchRoster,

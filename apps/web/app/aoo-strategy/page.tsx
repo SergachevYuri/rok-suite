@@ -5,8 +5,9 @@ import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
-import { useAllianceRoster, formatPower } from '@/lib/supabase/use-alliance-roster';
+import { useAllianceRoster, formatPower, RosterMember } from '@/lib/supabase/use-alliance-roster';
 import { AppSidebar } from '@/components/AppSidebar';
+import { useAuth } from '@/lib/supabase/auth-context';
 
 // Dynamic import to avoid SSR issues with the map
 const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInteractiveMap'), {
@@ -53,10 +54,502 @@ const ZONE_COLORS: Record<number, { bg: string; border: string; text: string }> 
     3: { bg: 'bg-purple-600', border: 'border-purple-500', text: 'text-purple-400' },
 };
 
+// Available alliances for team builder
+const ALLIANCES = ['ANG', '23KK', 'KNG', 'EQ'] as const;
+
+// Confirmation status for team builder
+type ConfirmationStatus = 'confirmed' | 'maybe' | 'none';
+
+// Power-balanced distribution algorithm (includes kills for tracking)
+function distributeByPowerWithKills(players: { name: string; power: number; kills: number }[]): Record<number, { name: string; power: number; kills: number }[]> {
+    // Sort by power descending
+    const sorted = [...players].sort((a, b) => b.power - a.power);
+
+    // Greedy assignment: add to zone with lowest total power
+    const zones: Record<number, { name: string; power: number; kills: number }[]> = { 1: [], 2: [], 3: [] };
+    const zonePower: Record<number, number> = { 1: 0, 2: 0, 3: 0 };
+
+    for (const player of sorted) {
+        // Find zone with minimum power
+        const minZone = Object.entries(zonePower)
+            .sort(([, a], [, b]) => a - b)[0][0];
+        const zoneNum = parseInt(minZone);
+        zones[zoneNum].push(player);
+        zonePower[zoneNum] += player.power;
+    }
+
+    return zones;
+}
+
+// Team Builder Tab Component
+interface TeamBuilderTabProps {
+    roster: { name: string; power: number; kills: number; alliance: string | null }[];
+    powerByName: Record<string, number>;
+    killsByName: Record<string, number>;
+    allianceByName: Record<string, string | null>;
+    alliances: string[];
+    builderAlliance: string;
+    setBuilderAlliance: (a: string) => void;
+    teamCount: 1 | 2 | 3;
+    setTeamCount: (c: 1 | 2 | 3) => void;
+    activeTeam: 1 | 2 | 3;
+    setActiveTeam: (t: 1 | 2 | 3) => void;
+    confirmations: Record<string, ConfirmationStatus>;
+    setConfirmations: (c: Record<string, ConfirmationStatus>) => void;
+    builderStep: 'select' | 'distribute' | 'leads' | 'done';
+    setBuilderStep: (s: 'select' | 'distribute' | 'leads' | 'done') => void;
+    suggestedZones: Record<number, { name: string; power: number; kills: number }[]>;
+    setSuggestedZones: (z: Record<number, { name: string; power: number; kills: number }[]>) => void;
+    selectedRallyLeads: Record<number, string>;
+    setSelectedRallyLeads: (r: Record<number, string>) => void;
+    selectedTeleportFirst: Set<string>;
+    setSelectedTeleportFirst: (t: Set<string>) => void;
+    onApply: (zones: Record<number, { name: string; power: number; kills: number }[]>, rallyLeads: Record<number, string>, teleportFirst: Set<string>) => void;
+    theme: Record<string, string>;
+    formatPower: (p: number | null | undefined) => string;
+    user: { id: string } | null;
+}
+
+function TeamBuilderTab({
+    roster,
+    powerByName,
+    killsByName,
+    allianceByName,
+    alliances,
+    builderAlliance,
+    setBuilderAlliance,
+    teamCount,
+    setTeamCount,
+    activeTeam,
+    setActiveTeam,
+    confirmations,
+    setConfirmations,
+    builderStep,
+    setBuilderStep,
+    suggestedZones,
+    setSuggestedZones,
+    selectedRallyLeads,
+    setSelectedRallyLeads,
+    selectedTeleportFirst,
+    setSelectedTeleportFirst,
+    onApply,
+    theme,
+    formatPower,
+    user,
+}: TeamBuilderTabProps) {
+    // Filter roster by alliance
+    const filteredRoster = builderAlliance === 'all'
+        ? roster
+        : roster.filter(m => m.alliance === builderAlliance);
+
+    // Count confirmations
+    const confirmedPlayers = filteredRoster.filter(m => confirmations[m.name] === 'confirmed');
+    const maybePlayers = filteredRoster.filter(m => confirmations[m.name] === 'maybe');
+    const confirmedPower = confirmedPlayers.reduce((sum, p) => sum + (p.power || 0), 0);
+    const maybePower = maybePlayers.reduce((sum, p) => sum + (p.power || 0), 0);
+
+    // Toggle confirmation status
+    const toggleConfirmation = (name: string) => {
+        const current = confirmations[name] || 'none';
+        const next: ConfirmationStatus = current === 'none' ? 'confirmed' : current === 'confirmed' ? 'maybe' : 'none';
+        setConfirmations({ ...confirmations, [name]: next });
+    };
+
+    // Suggest rally leads based on power AND kills (KP)
+    // Score = power * 0.4 + kills * 0.6 (weighted towards fighting capability)
+    const getRallyScore = (name: string) => {
+        const power = powerByName[name] || 0;
+        const kills = killsByName[name] || 0;
+        return power * 0.4 + kills * 0.6;
+    };
+
+    // Handle distribute button
+    const handleDistribute = () => {
+        const toDistribute = confirmedPlayers.map(p => ({
+            name: p.name,
+            power: p.power || 0,
+            kills: p.kills || killsByName[p.name] || 0,
+        }));
+        if (toDistribute.length < 3) {
+            alert('Need at least 3 confirmed players to distribute');
+            return;
+        }
+        const zones = distributeByPowerWithKills(toDistribute);
+        setSuggestedZones(zones);
+
+        // Pre-select best rally lead per zone (highest rally score)
+        const leads: Record<number, string> = {};
+        for (const [zone, players] of Object.entries(zones)) {
+            if (players.length > 0) {
+                // Sort by rally score and pick the best
+                const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+                leads[parseInt(zone)] = sorted[0].name;
+            }
+        }
+        setSelectedRallyLeads(leads);
+
+        // Pre-select rally leads + top players for teleport first
+        const teleport = new Set<string>();
+        for (const [, players] of Object.entries(zones)) {
+            // Top 3-4 players per zone teleport first (by rally score)
+            const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+            sorted.slice(0, Math.min(4, Math.ceil(players.length / 3))).forEach(p => teleport.add(p.name));
+        }
+        setSelectedTeleportFirst(teleport);
+
+        setBuilderStep('distribute');
+    };
+
+    // Move player between zones
+    const movePlayerToZone = (playerName: string, fromZone: number, toZone: number) => {
+        const newZones = { ...suggestedZones };
+        const player = newZones[fromZone].find(p => p.name === playerName);
+        if (player) {
+            newZones[fromZone] = newZones[fromZone].filter(p => p.name !== playerName);
+            newZones[toZone] = [...newZones[toZone], player];
+            setSuggestedZones(newZones);
+        }
+    };
+
+    // Calculate zone power totals
+    const getZonePower = (zone: number) => suggestedZones[zone]?.reduce((sum, p) => sum + p.power, 0) || 0;
+    const totalPower = getZonePower(1) + getZonePower(2) + getZonePower(3);
+
+    // Reset to selection step
+    const handleReset = () => {
+        setBuilderStep('select');
+        setSuggestedZones({});
+        setSelectedRallyLeads({});
+        setSelectedTeleportFirst(new Set());
+    };
+
+    return (
+        <div className="max-w-6xl mx-auto p-4 md:p-6">
+            {/* Alliance & Team Selection */}
+            <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                    <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                        🛠️ Team Builder
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-4">
+                        {/* Alliance selection */}
+                        <div className="flex items-center gap-2">
+                            <span className={`text-xs ${theme.textMuted}`}>Alliance:</span>
+                            <select
+                                value={builderAlliance}
+                                onChange={(e) => setBuilderAlliance(e.target.value)}
+                                className={`px-3 py-1.5 rounded-lg text-sm ${theme.input}`}
+                                disabled={builderStep !== 'select'}
+                            >
+                                <option value="all">All Alliances</option>
+                                {alliances.map(a => (
+                                    <option key={a} value={a}>{a}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Team count selection */}
+                        <div className="flex items-center gap-2">
+                            <span className={`text-xs ${theme.textMuted}`}>Teams:</span>
+                            <div className="flex gap-1">
+                                {[1, 2, 3].map((n) => (
+                                    <button
+                                        key={n}
+                                        onClick={() => setTeamCount(n as 1 | 2 | 3)}
+                                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                                            teamCount === n
+                                                ? 'bg-emerald-600 text-white'
+                                                : `${theme.tag} hover:opacity-80`
+                                        }`}
+                                        disabled={builderStep !== 'select'}
+                                        title={`Organize ${n} team${n > 1 ? 's' : ''}`}
+                                    >
+                                        {n}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Team tabs (only show if more than 1 team) */}
+                {teamCount > 1 && (
+                    <div className="flex gap-2 mb-4">
+                        {Array.from({ length: teamCount }, (_, i) => i + 1).map((t) => (
+                            <button
+                                key={t}
+                                onClick={() => setActiveTeam(t as 1 | 2 | 3)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    activeTeam === t
+                                        ? 'bg-emerald-600 text-white'
+                                        : `${theme.tag} hover:opacity-80`
+                                }`}
+                            >
+                                Team {t}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Step indicator */}
+                <div className="flex items-center gap-2 mb-4 text-xs">
+                    <span className={`px-2 py-1 rounded ${builderStep === 'select' ? 'bg-emerald-600 text-white' : theme.tag}`}>
+                        1. Select Players
+                    </span>
+                    <span className={theme.textMuted}>→</span>
+                    <span className={`px-2 py-1 rounded ${builderStep === 'distribute' ? 'bg-emerald-600 text-white' : theme.tag}`}>
+                        2. Distribute & Assign
+                    </span>
+                    <span className={theme.textMuted}>→</span>
+                    <span className={`px-2 py-1 rounded ${builderStep === 'done' ? 'bg-emerald-600 text-white' : theme.tag}`}>
+                        3. Apply
+                    </span>
+                </div>
+
+                {/* Instructions for coordinators */}
+                {builderStep === 'select' && (
+                    <div className={`p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs ${theme.text}`}>
+                        <strong className="text-blue-400">How to use:</strong> Select your alliance, choose how many teams to organize (1-3), then mark players as <span className="text-green-400">Confirmed</span> (definitely playing) or <span className="text-yellow-400">Maybe</span> (might join). Click <strong>Distribute to Zones</strong> to auto-balance power across 3 zones.
+                    </div>
+                )}
+                {builderStep === 'distribute' && (
+                    <div className={`p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs ${theme.text}`}>
+                        <strong className="text-blue-400">Adjust assignments:</strong> Select a <span className="text-yellow-400">Rally Lead</span> for each zone (sorted by power + KP). Toggle <span className="text-emerald-400">⚡ Teleport First</span> for early arrivals. Use the zone dropdown to move players between zones. When ready, click <strong>Apply to Strategy</strong>.
+                    </div>
+                )}
+            </section>
+
+            {builderStep === 'select' && (
+                <>
+                    {/* Player Selection List */}
+                    <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className={`text-sm font-medium ${theme.text}`}>
+                                Select Confirmed Players ({filteredRoster.length} available)
+                            </h3>
+                            <div className="flex items-center gap-4 text-xs">
+                                <span className="text-green-500">
+                                    ✓ Confirmed: {confirmedPlayers.length} ({formatPower(confirmedPower)})
+                                </span>
+                                <span className="text-yellow-500">
+                                    ? Maybe: {maybePlayers.length} ({formatPower(maybePower)})
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Quick actions */}
+                        <div className="flex gap-2 mb-4">
+                            <button
+                                onClick={() => {
+                                    const newConf: Record<string, ConfirmationStatus> = {};
+                                    filteredRoster.forEach(p => newConf[p.name] = 'confirmed');
+                                    setConfirmations({ ...confirmations, ...newConf });
+                                }}
+                                className={`px-3 py-1 text-xs rounded ${theme.tag} hover:opacity-80`}
+                            >
+                                Select All
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const newConf: Record<string, ConfirmationStatus> = {};
+                                    filteredRoster.forEach(p => newConf[p.name] = 'none');
+                                    setConfirmations({ ...confirmations, ...newConf });
+                                }}
+                                className={`px-3 py-1 text-xs rounded ${theme.tag} hover:opacity-80`}
+                            >
+                                Clear All
+                            </button>
+                        </div>
+
+                        {/* Player list */}
+                        <div className="max-h-[400px] overflow-y-auto space-y-1">
+                            {filteredRoster.map((member) => {
+                                const status = confirmations[member.name] || 'none';
+                                return (
+                                    <button
+                                        key={member.name}
+                                        onClick={() => toggleConfirmation(member.name)}
+                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                                            status === 'confirmed' ? 'bg-green-600/20 border border-green-500/30' :
+                                            status === 'maybe' ? 'bg-yellow-600/20 border border-yellow-500/30' :
+                                            'bg-white/5 border border-white/10 hover:bg-white/10'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
+                                                status === 'confirmed' ? 'bg-green-600 text-white' :
+                                                status === 'maybe' ? 'bg-yellow-600 text-white' :
+                                                'bg-white/20 text-white/50'
+                                            }`}>
+                                                {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : ''}
+                                            </span>
+                                            <span className={`font-medium ${theme.text}`}>{member.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-sm">
+                                            <span className={theme.textMuted} title="Power">
+                                                {formatPower(member.power)}
+                                            </span>
+                                            <span className={`${theme.textMuted} text-xs`} title="Kill Points">
+                                                KP: {formatPower(member.kills || killsByName[member.name] || 0)}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+
+                    {/* Distribute Button */}
+                    <div className="flex justify-center">
+                        <button
+                            onClick={handleDistribute}
+                            disabled={confirmedPlayers.length < 3}
+                            className={`px-6 py-3 rounded-lg font-medium text-white ${
+                                confirmedPlayers.length >= 3 ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-600 cursor-not-allowed'
+                            }`}
+                        >
+                            Distribute {confirmedPlayers.length} Players to Zones →
+                        </button>
+                    </div>
+                </>
+            )}
+
+            {builderStep === 'distribute' && (
+                <>
+                    {/* Zone Distribution */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {[1, 2, 3].map((zone) => {
+                            const zoneColor = ZONE_COLORS[zone as keyof typeof ZONE_COLORS];
+                            const zonePlayers = suggestedZones[zone] || [];
+                            const zonePower = getZonePower(zone);
+                            const balancePercent = totalPower > 0 ? ((zonePower / totalPower) * 100).toFixed(1) : '0';
+
+                            return (
+                                <section key={zone} className={`${theme.card} border-l-4 ${zoneColor.border} rounded-xl p-4`}>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className={`font-semibold ${zoneColor.text}`}>
+                                            Zone {zone} ({zonePlayers.length})
+                                        </h3>
+                                        <div className="text-right">
+                                            <span className={`text-sm ${theme.textAccent}`}>{formatPower(zonePower)}</span>
+                                            <span className={`text-xs ${theme.textMuted} ml-1`}>({balancePercent}%)</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Rally Lead Selection */}
+                                    <div className="mb-3 p-2 rounded bg-white/5">
+                                        <span className={`text-xs ${theme.textMuted}`}>Rally Lead:</span>
+                                        <select
+                                            value={selectedRallyLeads[zone] || ''}
+                                            onChange={(e) => setSelectedRallyLeads({ ...selectedRallyLeads, [zone]: e.target.value })}
+                                            className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
+                                        >
+                                            <option value="">Select Rally Lead...</option>
+                                            {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
+                                                <option key={p.name} value={p.name}>
+                                                    {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Player List */}
+                                    <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                                        {zonePlayers.map((player) => (
+                                            <div key={player.name} className="flex items-center justify-between px-2 py-1.5 rounded bg-white/5">
+                                                <div className="flex items-center gap-2">
+                                                    {/* Teleport First checkbox */}
+                                                    <button
+                                                        onClick={() => {
+                                                            const newSet = new Set(selectedTeleportFirst);
+                                                            if (newSet.has(player.name)) {
+                                                                newSet.delete(player.name);
+                                                            } else {
+                                                                newSet.add(player.name);
+                                                            }
+                                                            setSelectedTeleportFirst(newSet);
+                                                        }}
+                                                        className={`w-5 h-5 rounded flex items-center justify-center text-xs ${
+                                                            selectedTeleportFirst.has(player.name)
+                                                                ? 'bg-emerald-600 text-white'
+                                                                : 'bg-white/20'
+                                                        }`}
+                                                        title="Teleport First"
+                                                    >
+                                                        {selectedTeleportFirst.has(player.name) ? '⚡' : ''}
+                                                    </button>
+                                                    <span className={`text-sm ${selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400' : theme.text}`}>
+                                                        {player.name}
+                                                        {selectedRallyLeads[zone] === player.name && ' ⭐'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-xs ${theme.textMuted}`} title="Power">
+                                                        {formatPower(player.power)}
+                                                    </span>
+                                                    <span className={`text-xs text-blue-400`} title="Kill Points">
+                                                        KP: {formatPower(player.kills || killsByName[player.name] || 0)}
+                                                    </span>
+                                                    {/* Move to other zone */}
+                                                    <select
+                                                        value={zone}
+                                                        onChange={(e) => movePlayerToZone(player.name, zone, parseInt(e.target.value))}
+                                                        className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
+                                                    >
+                                                        <option value={1}>Z1</option>
+                                                        <option value={2}>Z2</option>
+                                                        <option value={3}>Z3</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            );
+                        })}
+                    </div>
+
+                    {/* Legend */}
+                    <div className={`flex items-center justify-center gap-6 mb-6 text-xs ${theme.textMuted}`}>
+                        <span>⭐ = Rally Lead</span>
+                        <span>⚡ = Teleport First</span>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-center gap-4">
+                        <button
+                            onClick={handleReset}
+                            className={`px-4 py-2 rounded-lg text-sm ${theme.tag} hover:opacity-80`}
+                        >
+                            ← Back to Selection
+                        </button>
+                        <button
+                            onClick={() => {
+                                // Validate rally leads
+                                const missingLeads = [1, 2, 3].filter(z => !selectedRallyLeads[z] && (suggestedZones[z]?.length || 0) > 0);
+                                if (missingLeads.length > 0) {
+                                    alert(`Please select rally leads for Zone ${missingLeads.join(', ')}`);
+                                    return;
+                                }
+                                onApply(suggestedZones, selectedRallyLeads, selectedTeleportFirst);
+                            }}
+                            className="px-6 py-2 rounded-lg font-medium text-white bg-emerald-600 hover:bg-emerald-500"
+                        >
+                            Apply to Strategy →
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
 export default function AooStrategyPage() {
+    // Auth for saving user selections
+    const { user } = useAuth();
+
     // Fetch roster from Supabase
-    const { rosterNames, powerByName, loading: rosterLoading } = useAllianceRoster();
-    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup'>('lookup');
+    const { roster, rosterNames, powerByName, killsByName, allianceByName, alliances: dbAlliances, loading: rosterLoading } = useAllianceRoster();
+    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'lookup' | 'builder'>('lookup');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
@@ -87,6 +580,16 @@ export default function AooStrategyPage() {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const rosterGridRef = useRef<HTMLDivElement>(null);
     const rosterCanvasRef = useRef<HTMLCanvasElement>(null);
+
+    // Team Builder state
+    const [builderAlliance, setBuilderAlliance] = useState<string>('ANG');
+    const [teamCount, setTeamCount] = useState<1 | 2 | 3>(1); // Number of AoO teams to organize
+    const [activeTeam, setActiveTeam] = useState<1 | 2 | 3>(1); // Which team is being edited
+    const [confirmations, setConfirmations] = useState<Record<string, ConfirmationStatus>>({});
+    const [builderStep, setBuilderStep] = useState<'select' | 'distribute' | 'leads' | 'done'>('select');
+    const [suggestedZones, setSuggestedZones] = useState<Record<number, { name: string; power: number; kills: number }[]>>({});
+    const [selectedRallyLeads, setSelectedRallyLeads] = useState<Record<number, string>>({});
+    const [selectedTeleportFirst, setSelectedTeleportFirst] = useState<Set<string>>(new Set());
 
     const EDITOR_PASSWORD = 'carn-dum';
 
@@ -697,12 +1200,12 @@ export default function AooStrategyPage() {
                             🔍 Find My Role
                         </button>
                         <button
-                            onClick={() => setActiveTab('map')}
+                            onClick={() => setActiveTab('builder')}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                                activeTab === 'map' ? theme.tabActive : theme.tabInactive
+                                activeTab === 'builder' ? theme.tabActive : theme.tabInactive
                             }`}
                         >
-                            🗺️ Strategy Map
+                            🛠️ Team Builder
                         </button>
                         <button
                             onClick={() => setActiveTab('roster')}
@@ -741,9 +1244,8 @@ export default function AooStrategyPage() {
                             <div>
                                 <h3 className="font-medium text-emerald-400 text-sm">Edit Mode Active</h3>
                                 <p className={`text-xs ${theme.textMuted} mt-1`}>
-                                    <strong>Strategy Map:</strong> Click structures to assign zones •
-                                    <strong> Zone Roster:</strong> Add/remove players, assign zones, toggle tags •
-                                    <strong> Substitutes:</strong> Add backup players
+                                    <strong>Team Builder:</strong> Select players, distribute to zones, assign rally leads •
+                                    <strong> Zone Roster:</strong> Fine-tune assignments and toggle tags
                                 </p>
                             </div>
                         </div>
@@ -753,11 +1255,70 @@ export default function AooStrategyPage() {
 
             {/* Tab Content */}
             {activeTab === 'map' && (
-                <AOOInteractiveMap 
+                <AOOInteractiveMap
                     initialAssignments={mapAssignments}
                     onSave={handleMapSave}
                     isEditor={isEditor}
                     players={players}
+                />
+            )}
+
+            {activeTab === 'builder' && (
+                <TeamBuilderTab
+                    roster={roster}
+                    powerByName={powerByName}
+                    killsByName={killsByName}
+                    allianceByName={allianceByName}
+                    alliances={dbAlliances.length > 0 ? dbAlliances : [...ALLIANCES]}
+                    builderAlliance={builderAlliance}
+                    setBuilderAlliance={setBuilderAlliance}
+                    teamCount={teamCount}
+                    setTeamCount={setTeamCount}
+                    activeTeam={activeTeam}
+                    setActiveTeam={setActiveTeam}
+                    confirmations={confirmations}
+                    setConfirmations={setConfirmations}
+                    builderStep={builderStep}
+                    setBuilderStep={setBuilderStep}
+                    suggestedZones={suggestedZones}
+                    setSuggestedZones={setSuggestedZones}
+                    selectedRallyLeads={selectedRallyLeads}
+                    setSelectedRallyLeads={setSelectedRallyLeads}
+                    selectedTeleportFirst={selectedTeleportFirst}
+                    setSelectedTeleportFirst={setSelectedTeleportFirst}
+                    onApply={(zonePlayers, rallyLeads, teleportFirst) => {
+                        // Apply distribution to strategy
+                        const newPlayers: Player[] = [];
+                        let idCounter = Date.now();
+
+                        for (const [zoneNum, zonePeople] of Object.entries(zonePlayers)) {
+                            const zone = parseInt(zoneNum);
+                            for (const p of zonePeople) {
+                                const tags: string[] = ['Confirmed'];
+                                if (rallyLeads[zone] === p.name) {
+                                    tags.push('Rally Leader');
+                                }
+                                if (teleportFirst.has(p.name)) {
+                                    tags.push('Teleport 1st');
+                                }
+                                newPlayers.push({
+                                    id: idCounter++,
+                                    name: p.name,
+                                    team: zone,
+                                    tags,
+                                    power: p.power,
+                                    assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
+                                });
+                            }
+                        }
+
+                        setPlayers(newPlayers);
+                        saveData({ players: newPlayers });
+                        setActiveTab('roster');
+                    }}
+                    theme={theme}
+                    formatPower={formatPower}
+                    user={user}
                 />
             )}
 
@@ -1066,52 +1627,71 @@ export default function AooStrategyPage() {
                 <div className="max-w-3xl mx-auto p-4 md:p-6">
                     {/* Key Instructions */}
                     <section className={`${theme.card} border-4 border-emerald-500 rounded-xl p-6 mb-6`}>
-                        <h2 className={`text-xl font-bold text-center mb-4 text-emerald-500`}>⚔️ Battle Instructions</h2>
+                        <h2 className={`text-xl font-bold text-center mb-4 text-emerald-500`}>⚔️ AoO Battle Guide</h2>
+
+                        {/* Pre-battle checklist */}
+                        <div className="p-4 rounded-lg bg-purple-500/10 border-2 border-purple-500 mb-4">
+                            <h3 className="font-bold text-purple-400 mb-3">⏰ BEFORE THE BATTLE</h3>
+                            <ul className={`space-y-2 text-sm ${theme.text}`}>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-purple-400">1.</span>
+                                    <span>Look up your name below to find your <strong>zone assignment</strong></span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-purple-400">2.</span>
+                                    <span>Note your <strong>phase instructions</strong> (what to do at each stage)</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-purple-400">3.</span>
+                                    <span>Prepare your troops: <strong>Cavalry</strong> for rallies, <strong>Infantry</strong> for garrisons</span>
+                                </li>
+                            </ul>
+                        </div>
 
                         {/* Important Rules */}
                         <div className="p-4 rounded-lg bg-[#01b574]/10 border-2 border-[#01b574] mb-4">
-                            <h3 className="font-bold text-emerald-500 mb-3">📌 IMPORTANT</h3>
+                            <h3 className="font-bold text-emerald-500 mb-3">📌 DURING THE BATTLE</h3>
                             <ul className={`space-y-2 ${theme.text}`}>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">•</span>
-                                    <span><strong>Pay attention to your lane assignment.</strong></span>
+                                    <span className="text-emerald-500 font-bold">1.</span>
+                                    <span><strong>Stay in your assigned lane/zone.</strong> Do not wander.</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">•</span>
-                                    <span><strong>Everyone rush their obelisk first.</strong> Rally leaders TP first.</span>
+                                    <span className="text-emerald-500 font-bold">2.</span>
+                                    <span><strong>Rush to your obelisk first.</strong> Rally leaders teleport first.</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">•</span>
-                                    <span><strong>Move down the field ONLY after fully occupying and garrisoning a building.</strong></span>
+                                    <span className="text-emerald-500 font-bold">3.</span>
+                                    <span><strong>Fully occupy + garrison before moving to next building.</strong></span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">•</span>
-                                    <span><strong>Only use rallies to overtake already occupied buildings.</strong></span>
+                                    <span className="text-emerald-500 font-bold">4.</span>
+                                    <span><strong>Only rally buildings the enemy has occupied.</strong></span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">•</span>
-                                    <span><strong>Work as a unit, not individual.</strong></span>
+                                    <span className="text-emerald-500 font-bold">5.</span>
+                                    <span><strong>Work together as a unit.</strong> Follow your zone leader.</span>
                                 </li>
                             </ul>
                         </div>
 
                         {/* Troop Deployment */}
                         <div className="p-4 rounded-lg bg-white/5 border border-white/10">
-                            <h3 className={`font-bold ${theme.textMuted} mb-3`}>🎯 IF YOU CAN</h3>
+                            <h3 className={`font-bold ${theme.textMuted} mb-3`}>🎯 TROOP DEPLOYMENT</h3>
                             <div className="grid grid-cols-3 gap-3 text-center text-sm">
                                 <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                                     <div className="text-2xl mb-1">🐴</div>
                                     <div className="font-bold text-red-500">Cavalry</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>For rallies</div>
+                                    <div className={`text-xs ${theme.textMuted}`}>Join rallies</div>
                                 </div>
                                 <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
                                     <div className="text-2xl mb-1">🛡️</div>
                                     <div className="font-bold text-blue-500">Infantry</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>To garrison</div>
+                                    <div className={`text-xs ${theme.textMuted}`}>Garrison buildings</div>
                                 </div>
                                 <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
                                     <div className="text-2xl mb-1">🌾</div>
-                                    <div className="font-bold text-yellow-500">Else</div>
+                                    <div className="font-bold text-yellow-500">Other</div>
                                     <div className={`text-xs ${theme.textMuted}`}>Gather tiles</div>
                                 </div>
                             </div>
