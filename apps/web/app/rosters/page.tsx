@@ -49,7 +49,37 @@ interface RosterMember {
     civilization: string | null;
 }
 
-type SortField = 'default' | 'name' | 'power' | 'kills' | 'role' | 'aoo';
+// Sortable field types for multi-column sorting
+type SortableField = 'name' | 'power' | 'kills' | 'role' | 'alliance' | 't4t5' | 'honor' | 'aoo' | 'acclaim' | 'kvkPts' | 'highestPower' | 'ratio' | 'deads';
+
+interface SortRule {
+    field: SortableField;
+    direction: 'asc' | 'desc';
+}
+
+// Default sort: rank (role) → power desc → name asc
+const DEFAULT_SORT_RULES: SortRule[] = [
+    { field: 'role', direction: 'asc' },
+    { field: 'power', direction: 'desc' },
+    { field: 'name', direction: 'asc' },
+];
+
+// Field labels for sort chain display
+const SORT_FIELD_LABELS: Record<SortableField, string> = {
+    name: 'Name',
+    power: 'Power',
+    kills: 'KP',
+    role: 'Rank',
+    alliance: 'Alliance',
+    t4t5: 'T4/T5',
+    honor: 'Honor',
+    aoo: 'AoO',
+    acclaim: 'Acclaim',
+    kvkPts: 'KvK Pts',
+    highestPower: 'Peak Power',
+    ratio: 'Ratio',
+    deads: 'Deaths',
+};
 
 // Column descriptions for tooltips
 const COLUMN_TOOLTIPS: Record<string, string> = {
@@ -226,8 +256,8 @@ export default function RosterPage() {
     const [growthAllianceFilter, setGrowthAllianceFilter] = useState<string>('ANG');
     const [rankFilter, setRankFilter] = useState<string | null>(null);
     const [aooFilter, setAooFilter] = useState<'all' | 'team1' | 'team2' | 'assigned' | 'unassigned'>('all');
-    const [sortField, setSortField] = useState<SortField>('default'); // Default: rank → power → name
-    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+    // Multi-column sorting: array of sort rules applied in order
+    const [sortRules, setSortRules] = useState<SortRule[]>(DEFAULT_SORT_RULES);
 
     // Editor mode
     const [isEditor, setIsEditor] = useState(false);
@@ -478,7 +508,7 @@ export default function RosterPage() {
     // Reset to first page when filters/sort change
     useEffect(() => {
         setCurrentPage(0);
-    }, [search, tagFilter, allianceFilter, rankFilter, aooFilter, sortField, sortDirection]);
+    }, [search, tagFilter, allianceFilter, rankFilter, aooFilter, sortRules]);
 
     // Initialize event entries when roster or event type changes
     useEffect(() => {
@@ -550,19 +580,44 @@ export default function RosterPage() {
         }
     };
 
-    const handleSort = (field: SortField) => {
-        if (sortField === field) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    // Handle column header click for sorting
+    // Normal click: replace with single sort on this field
+    // Shift+click: add to sort chain or toggle direction if already in chain
+    const handleSort = (field: SortableField, addToChain: boolean) => {
+        if (addToChain) {
+            // Shift+click: Add to chain or toggle if already in chain
+            const existingIdx = sortRules.findIndex(r => r.field === field);
+            if (existingIdx >= 0) {
+                // Toggle direction of existing rule
+                const updated = [...sortRules];
+                updated[existingIdx] = {
+                    ...updated[existingIdx],
+                    direction: updated[existingIdx].direction === 'asc' ? 'desc' : 'asc'
+                };
+                setSortRules(updated);
+            } else {
+                // Add new rule with appropriate default direction
+                const defaultDir = field === 'name' || field === 'role' ? 'asc' : 'desc';
+                setSortRules([...sortRules, { field, direction: defaultDir }]);
+            }
         } else {
-            setSortField(field);
-            // Default direction: name=asc, role/default=asc (R5 first), power/kills=desc (highest first)
-            setSortDirection(field === 'name' || field === 'role' || field === 'default' ? 'asc' : 'desc');
+            // Normal click: Replace with single sort
+            const existing = sortRules.find(r => r.field === field);
+            const newDir = existing
+                ? (existing.direction === 'asc' ? 'desc' : 'asc')
+                : (field === 'name' || field === 'role' ? 'asc' : 'desc');
+            setSortRules([{ field, direction: newDir }]);
         }
     };
 
+    // Remove a specific sort rule from the chain
+    const removeSortRule = (field: SortableField) => {
+        const filtered = sortRules.filter(r => r.field !== field);
+        setSortRules(filtered.length > 0 ? filtered : DEFAULT_SORT_RULES);
+    };
+
     const resetToDefaultSort = () => {
-        setSortField('default');
-        setSortDirection('asc');
+        setSortRules(DEFAULT_SORT_RULES);
         setRankFilter(null);
         setAooFilter('all');
         setTagFilter(null);
@@ -1234,7 +1289,81 @@ export default function RosterPage() {
         return (stats.aoo.participatedCount / stats.aoo.totalAssigned) * 100;
     };
 
-    // Filter and sort roster
+    // Compare two members by a specific field and direction
+    const compareByField = (a: RosterMember, b: RosterMember, field: SortableField, direction: 'asc' | 'desc'): number => {
+        let aVal: string | number;
+        let bVal: string | number;
+
+        switch (field) {
+            case 'name':
+                aVal = a.name.toLowerCase();
+                bVal = b.name.toLowerCase();
+                break;
+            case 'power':
+                aVal = a.power;
+                bVal = b.power;
+                break;
+            case 'kills':
+                aVal = a.kills || 0;
+                bVal = b.kills || 0;
+                break;
+            case 'role':
+                aVal = getRankOrder(a.role);
+                bVal = getRankOrder(b.role);
+                break;
+            case 'alliance':
+                aVal = (a.alliance || '').toLowerCase();
+                bVal = (b.alliance || '').toLowerCase();
+                break;
+            case 't4t5':
+                aVal = (a.t4_kills || 0) + (a.t5_kills || 0);
+                bVal = (b.t4_kills || 0) + (b.t5_kills || 0);
+                break;
+            case 'honor':
+                aVal = a.honor_points || 0;
+                bVal = b.honor_points || 0;
+                break;
+            case 'aoo':
+                aVal = getAooRate(a.name);
+                bVal = getAooRate(b.name);
+                // Put unassigned (-1) at the end regardless of sort direction
+                if (aVal === -1 && bVal === -1) return 0;
+                if (aVal === -1) return 1;
+                if (bVal === -1) return -1;
+                break;
+            case 'acclaim':
+                aVal = a.acclaim || 0;
+                bVal = b.acclaim || 0;
+                break;
+            case 'kvkPts':
+                aVal = a.kvk_points || 0;
+                bVal = b.kvk_points || 0;
+                break;
+            case 'highestPower':
+                aVal = a.highest_power || 0;
+                bVal = b.highest_power || 0;
+                break;
+            case 'ratio':
+                // Power:KP ratio - lower is better (more aggressive)
+                aVal = a.kills ? a.power / a.kills : Infinity;
+                bVal = b.kills ? b.power / b.kills : Infinity;
+                break;
+            case 'deads':
+                aVal = a.deads || 0;
+                bVal = b.deads || 0;
+                break;
+            default:
+                return 0;
+        }
+
+        if (direction === 'asc') {
+            return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        } else {
+            return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+        }
+    };
+
+    // Filter and sort roster using multi-column sort rules
     const filteredRoster = roster
         .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
         .filter(m => !tagFilter || (m.tags && m.tags.includes(tagFilter)))
@@ -1255,53 +1384,12 @@ export default function RosterPage() {
             }
         })
         .sort((a, b) => {
-            // When sorting by default or rank, use multi-level: rank → power (desc) → name (asc)
-            if (sortField === 'default' || sortField === 'role') {
-                const rankA = getRankOrder(a.role);
-                const rankB = getRankOrder(b.role);
-                const rankCompare = sortDirection === 'asc' ? rankA - rankB : rankB - rankA;
-                if (rankCompare !== 0) return rankCompare;
-
-                // Secondary: power descending
-                if (a.power !== b.power) return b.power - a.power;
-
-                // Tertiary: name ascending
-                return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+            // Apply sort rules in order - first non-zero result wins
+            for (const rule of sortRules) {
+                const result = compareByField(a, b, rule.field, rule.direction);
+                if (result !== 0) return result;
             }
-
-            // Single-field sorting for other columns
-            let aVal: string | number = 0;
-            let bVal: string | number = 0;
-
-            switch (sortField) {
-                case 'name':
-                    aVal = a.name.toLowerCase();
-                    bVal = b.name.toLowerCase();
-                    break;
-                case 'power':
-                    aVal = a.power;
-                    bVal = b.power;
-                    break;
-                case 'kills':
-                    aVal = a.kills || 0;
-                    bVal = b.kills || 0;
-                    break;
-                case 'aoo':
-                    // Sort by AoO participation rate; unassigned members go to the end
-                    aVal = getAooRate(a.name);
-                    bVal = getAooRate(b.name);
-                    // Put unassigned (-1) at the end regardless of sort direction
-                    if (aVal === -1 && bVal === -1) return 0;
-                    if (aVal === -1) return 1;
-                    if (bVal === -1) return -1;
-                    break;
-            }
-
-            if (sortDirection === 'asc') {
-                return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-            } else {
-                return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-            }
+            return 0;
         });
 
     // Pagination logic
@@ -1330,10 +1418,24 @@ export default function RosterPage() {
         buttonPrimary: 'bg-gradient-to-r from-[#4318ff] to-[#9f7aea] hover:opacity-90 text-white',
     };
 
-    const SortIcon = ({ field }: { field: SortField }) => {
-        const isActive = sortField === field;
-        const Icon = isActive && sortDirection === 'desc' ? ChevronDown : ChevronUp;
-        return <Icon className={`w-4 h-4 transition-opacity ${isActive ? 'opacity-100' : 'opacity-30'}`} />;
+    // Sort icon with priority badge for multi-column sorting
+    const SortIcon = ({ field }: { field: SortableField }) => {
+        const ruleIndex = sortRules.findIndex(r => r.field === field);
+        const isActive = ruleIndex >= 0;
+        const rule = isActive ? sortRules[ruleIndex] : null;
+        const Icon = rule?.direction === 'desc' ? ChevronDown : ChevronUp;
+        const showPriority = sortRules.length > 1 && isActive;
+
+        return (
+            <span className="relative inline-flex items-center">
+                <Icon className={`w-4 h-4 transition-opacity ${isActive ? 'opacity-100' : 'opacity-30'}`} />
+                {showPriority && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 text-[8px] font-bold rounded-full bg-[#4318ff] text-white flex items-center justify-center">
+                        {ruleIndex + 1}
+                    </span>
+                )}
+            </span>
+        );
     };
 
     // Tooltip component for column headers (shows below to avoid being clipped by overflow)
@@ -1824,7 +1926,7 @@ export default function RosterPage() {
                                 <option value="inactive">Inactive</option>
                                 <option value="quit">Quit</option>
                             </select>
-                            {(sortField !== 'default' || rankFilter || aooFilter !== 'all' || tagFilter) && (
+                            {(JSON.stringify(sortRules) !== JSON.stringify(DEFAULT_SORT_RULES) || rankFilter || aooFilter !== 'all' || tagFilter) && (
                                 <button
                                     onClick={resetToDefaultSort}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium ${theme.button} whitespace-nowrap`}
@@ -1882,6 +1984,27 @@ export default function RosterPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Sort Chain Indicator */}
+                    {sortRules.length > 0 && JSON.stringify(sortRules) !== JSON.stringify(DEFAULT_SORT_RULES) && (
+                        <div className="flex items-center gap-2 mt-3 flex-wrap">
+                            <span className={`text-xs ${theme.textMuted}`}>Sorted by:</span>
+                            {sortRules.map((rule, idx) => (
+                                <span key={rule.field} className="inline-flex items-center">
+                                    {idx > 0 && <span className={`mx-1 ${theme.textMuted}`}>→</span>}
+                                    <button
+                                        onClick={() => removeSortRule(rule.field)}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-[#4318ff]/20 text-[#9f7aea] hover:bg-[#4318ff]/30 transition-colors"
+                                        title={`Remove ${SORT_FIELD_LABELS[rule.field]} from sort`}
+                                    >
+                                        {SORT_FIELD_LABELS[rule.field]}
+                                        {rule.direction === 'asc' ? '↑' : '↓'}
+                                        <X className="w-3 h-3 ml-0.5" />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Error */}
@@ -1897,7 +2020,7 @@ export default function RosterPage() {
                     {!isEditor && (
                         <div className="px-3 sm:px-4 py-2 border-b border-[var(--border)] flex items-center justify-between">
                             <span className={`text-[10px] sm:text-xs ${theme.textMuted}`}>
-                                <span className="hidden sm:inline">Click column headers to sort •</span> Tap name for details
+                                <span className="hidden sm:inline">Click to sort • Shift+click for multi-sort •</span> Tap name for details
                             </span>
                             <button
                                 onClick={() => setShowPasswordPrompt(true)}
@@ -1920,7 +2043,8 @@ export default function RosterPage() {
                                     <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
                                         <ColumnTooltip text={COLUMN_TOOLTIPS.name}>
                                             <button
-                                                onClick={() => handleSort('name')}
+                                                onClick={(e) => handleSort('name', e.shiftKey)}
+                                                title="Click to sort, Shift+click to add secondary sort"
                                                 className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white`}
                                             >
                                                 Name <SortIcon field="name" />
@@ -1931,7 +2055,8 @@ export default function RosterPage() {
                                         <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
                                             <ColumnTooltip text={COLUMN_TOOLTIPS.power}>
                                                 <button
-                                                    onClick={() => handleSort('power')}
+                                                    onClick={(e) => handleSort('power', e.shiftKey)}
+                                                    title="Click to sort, Shift+click to add secondary sort"
                                                     className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
                                                 >
                                                     <span className="hidden sm:inline">Power</span>
@@ -1945,7 +2070,8 @@ export default function RosterPage() {
                                         <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
                                             <ColumnTooltip text={COLUMN_TOOLTIPS.kp}>
                                                 <button
-                                                    onClick={() => handleSort('kills')}
+                                                    onClick={(e) => handleSort('kills', e.shiftKey)}
+                                                    title="Click to sort, Shift+click to add secondary sort"
                                                     className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white ml-auto`}
                                                 >
                                                     KP <SortIcon field="kills" />
@@ -2011,7 +2137,8 @@ export default function RosterPage() {
                                         <th className="text-center px-4 py-3 hidden lg:table-cell">
                                             <ColumnTooltip text={COLUMN_TOOLTIPS.aoo}>
                                                 <button
-                                                    onClick={() => handleSort('aoo')}
+                                                    onClick={(e) => handleSort('aoo', e.shiftKey)}
+                                                    title="Click to sort, Shift+click to add secondary sort"
                                                     className={`flex items-center gap-1 mx-auto text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}
                                                 >
                                                     AoO
@@ -2078,7 +2205,8 @@ export default function RosterPage() {
                                         <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
                                             <ColumnTooltip text={COLUMN_TOOLTIPS.rank}>
                                                 <button
-                                                    onClick={() => handleSort('role')}
+                                                    onClick={(e) => handleSort('role', e.shiftKey)}
+                                                    title="Click to sort, Shift+click to add secondary sort"
                                                     className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-white mx-auto`}
                                                 >
                                                     <span className="hidden sm:inline">Rank</span>
@@ -2091,9 +2219,14 @@ export default function RosterPage() {
                                     {isColumnVisible('alliance') && (
                                         <th className="text-left px-4 py-3 hidden md:table-cell">
                                             <ColumnTooltip text={COLUMN_TOOLTIPS.alliance}>
-                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                <button
+                                                    onClick={(e) => handleSort('alliance', e.shiftKey)}
+                                                    title="Click to sort, Shift+click to add secondary sort"
+                                                    className={`flex items-center gap-1 text-xs font-semibold uppercase tracking-wider ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}
+                                                >
                                                     Alliance
-                                                </span>
+                                                    <SortIcon field="alliance" />
+                                                </button>
                                             </ColumnTooltip>
                                         </th>
                                     )}
