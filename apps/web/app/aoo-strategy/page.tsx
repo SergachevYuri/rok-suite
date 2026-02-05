@@ -14,7 +14,7 @@ const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInt
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center min-h-[400px]">
-      <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="w-5 h-5 border-2 border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
     </div>
   ),
 });
@@ -399,7 +399,7 @@ function TeamBuilderTab({
                                         onClick={() => setTeamCount(n as 1 | 2 | 3)}
                                         className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                                             teamCount === n
-                                                ? 'bg-emerald-600 text-white'
+                                                ? 'bg-[#4318ff] text-white'
                                                 : `${theme.tag} hover:opacity-80`
                                         }`}
                                         disabled={builderStep !== 'select'}
@@ -422,7 +422,7 @@ function TeamBuilderTab({
                                 onClick={() => setActiveTeam(t as 1 | 2 | 3)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                     activeTeam === t
-                                        ? 'bg-emerald-600 text-white'
+                                        ? 'bg-[#4318ff] text-white'
                                         : `${theme.tag} hover:opacity-80`
                                 }`}
                             >
@@ -434,15 +434,15 @@ function TeamBuilderTab({
 
                 {/* Step indicator */}
                 <div className="flex items-center gap-2 mb-4 text-xs">
-                    <span className={`px-2 py-1 rounded ${builderStep === 'select' ? 'bg-emerald-600 text-white' : theme.tag}`}>
+                    <span className={`px-2 py-1 rounded ${builderStep === 'select' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
                         1. Select Players
                     </span>
                     <span className={theme.textMuted}>→</span>
-                    <span className={`px-2 py-1 rounded ${builderStep === 'distribute' ? 'bg-emerald-600 text-white' : theme.tag}`}>
+                    <span className={`px-2 py-1 rounded ${builderStep === 'distribute' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
                         2. Distribute & Assign
                     </span>
                     <span className={theme.textMuted}>→</span>
-                    <span className={`px-2 py-1 rounded ${builderStep === 'done' ? 'bg-emerald-600 text-white' : theme.tag}`}>
+                    <span className={`px-2 py-1 rounded ${builderStep === 'done' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
                         3. Apply
                     </span>
                 </div>
@@ -455,7 +455,7 @@ function TeamBuilderTab({
                 )}
                 {builderStep === 'distribute' && (
                     <div className={`p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs ${theme.text}`}>
-                        <strong className="text-blue-400">Adjust assignments:</strong> Select a <span className="text-yellow-400">Rally Lead</span> for each zone (sorted by power + KP). Toggle <span className="text-emerald-400">⚡ Teleport First</span> for early arrivals. Use the zone dropdown to move players between zones. When ready, click <strong>Apply to Strategy</strong>.
+                        <strong className="text-blue-400">Adjust assignments:</strong> Select a <span className="text-yellow-400">Rally Lead</span> for each zone (sorted by power + KP). Toggle <span className="text-[#9f7aea]">⚡ Teleport First</span> for early arrivals. Use the zone dropdown to move players between zones. When ready, click <strong>Apply to Strategy</strong>.
                     </div>
                 )}
             </section>
@@ -513,7 +513,7 @@ function TeamBuilderTab({
                             </button>
                             <button
                                 onClick={() => setShowAddForm(!showAddForm)}
-                                className={`px-3 py-1 text-xs rounded ${showAddForm ? 'bg-emerald-600 text-white' : theme.tag} hover:opacity-80`}
+                                className={`px-3 py-1 text-xs rounded ${showAddForm ? 'bg-[#4318ff] text-white' : theme.tag} hover:opacity-80`}
                             >
                                 + Add New Member
                             </button>
@@ -529,8 +529,8 @@ function TeamBuilderTab({
 
                         {/* Add Member Form */}
                         {showAddForm && (
-                            <div className={`p-4 mb-4 rounded-lg border ${theme.border} bg-emerald-500/10`}>
-                                <h4 className="text-sm font-medium text-emerald-400 mb-3">Add Member to Team</h4>
+                            <div className={`p-4 mb-4 rounded-lg border ${theme.border} bg-[#4318ff]/10`}>
+                                <h4 className="text-sm font-medium text-[#9f7aea] mb-3">Add Member to Team</h4>
                                 <p className={`text-xs ${theme.textMuted} mb-3`}>
                                     Start typing to search existing roster, or enter a new name.
                                 </p>
@@ -587,7 +587,7 @@ function TeamBuilderTab({
                                     <button
                                         onClick={handleAddMember}
                                         disabled={!newMemberName.trim()}
-                                        className={`px-4 py-2 text-sm rounded-lg ${newMemberName.trim() ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
+                                        className={`px-4 py-2 text-sm rounded-lg ${newMemberName.trim() ? 'bg-[#4318ff] text-white hover:bg-[#4318ff]/80' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
                                     >
                                         Add Member
                                     </button>
@@ -612,7 +612,7 @@ function TeamBuilderTab({
                                         setNewMemberName(searchTerm);
                                         setShowAddForm(true);
                                     }}
-                                    className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
+                                    className="px-4 py-2 text-sm rounded-lg bg-[#4318ff] text-white hover:bg-[#4318ff]/80"
                                 >
                                     + Add &quot;{searchTerm}&quot; as new member
                                 </button>
@@ -732,7 +732,7 @@ function TeamBuilderTab({
                                 onClick={handleDistribute}
                                 disabled={confirmedPlayers.length < 3}
                                 className={`px-6 py-3 rounded-lg font-medium text-white ${
-                                    confirmedPlayers.length >= 3 ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-600 cursor-not-allowed'
+                                    confirmedPlayers.length >= 3 ? 'bg-[#4318ff] hover:bg-[#4318ff]/80' : 'bg-gray-600 cursor-not-allowed'
                                 }`}
                             >
                                 Distribute {confirmedPlayers.length} Players to Zones →
@@ -799,7 +799,7 @@ function TeamBuilderTab({
                                                         }}
                                                         className={`w-5 h-5 rounded flex items-center justify-center text-xs ${
                                                             selectedTeleportFirst.has(player.name)
-                                                                ? 'bg-emerald-600 text-white'
+                                                                ? 'bg-[#4318ff] text-white'
                                                                 : 'bg-white/20'
                                                         }`}
                                                         title="Teleport First"
@@ -897,7 +897,7 @@ function TeamBuilderTab({
                                 }
                                 onApply(suggestedZones, selectedRallyLeads, selectedTeleportFirst, suggestedZones[0] || []);
                             }}
-                            className="px-6 py-2 rounded-lg font-medium text-white bg-emerald-600 hover:bg-emerald-500"
+                            className="px-6 py-2 rounded-lg font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80"
                         >
                             Apply to Strategy →
                         </button>
@@ -1459,23 +1459,23 @@ export default function AooStrategyPage() {
         link.click();
     }, [players, teams, substitutes, sortPlayers, powerByName, eventMode]);
 
-    // Vision UI-inspired theme (always dark)
+    // Theme using CSS variables to match the rest of the app
     const theme = {
-        bg: 'bg-[#0f1535]',
-        card: 'bg-[rgba(6,11,40,0.94)] border-white/10 backdrop-blur-xl',
-        text: 'text-white',
-        textMuted: 'text-[#a0aec0]',
-        textAccent: 'text-[#01b574]',
-        border: 'border-white/10',
-        input: 'bg-[rgba(6,11,40,0.94)] border-white/10 text-white placeholder-[#718096]',
-        button: 'bg-white/5 hover:bg-white/10 text-white border border-white/10',
-        buttonPrimary: 'bg-gradient-to-r from-[#01b574] to-[#01b574] hover:opacity-90 text-white',
-        tag: 'bg-white/10 text-[#a0aec0]',
-        tagActive: 'bg-[#01b574] text-white',
-        dropdown: 'bg-[#1a1f37] border-white/10',
-        dropdownHover: 'hover:bg-white/5',
-        tabActive: 'bg-[rgba(6,11,40,0.94)] text-white border-b-2 border-[#01b574]',
-        tabInactive: 'text-[#718096] hover:text-white',
+        bg: 'bg-[var(--background)]',
+        card: 'bg-[var(--background-card)] border-[var(--border)] backdrop-blur-xl',
+        text: 'text-[var(--foreground)]',
+        textMuted: 'text-[var(--text-secondary)]',
+        textAccent: 'text-[#4318ff]',
+        border: 'border-[var(--border)]',
+        input: 'bg-[var(--background-card)] border-[var(--border)] text-[var(--foreground)] placeholder-[var(--text-muted)]',
+        button: 'bg-[var(--background-card)] hover:opacity-80 text-[var(--foreground)] border border-[var(--border)]',
+        buttonPrimary: 'bg-gradient-to-r from-[#4318ff] to-[#9f7aea] hover:opacity-90 text-white',
+        tag: 'bg-[var(--background-secondary)] text-[var(--text-secondary)]',
+        tagActive: 'bg-[#4318ff] text-white',
+        dropdown: 'bg-[var(--background-card)] border-[var(--border)]',
+        dropdownHover: 'hover:bg-[var(--background-hover)]',
+        tabActive: 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5',
+        tabInactive: 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]',
     };
 
     if (isLoading) {
@@ -1483,7 +1483,7 @@ export default function AooStrategyPage() {
             <AppSidebar>
                 <div className={`min-h-screen ${theme.bg} ${theme.text} flex items-center justify-center`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-5 h-5 border-2 border-[#01b574] border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-5 h-5 border-2 border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
                         <span className={theme.textMuted}>Loading...</span>
                     </div>
                 </div>
@@ -1525,27 +1525,33 @@ export default function AooStrategyPage() {
                     </div>
 
                     {/* Tabs - Find My Role first */}
-                    <div className="flex gap-1 mt-4 overflow-x-auto">
+                    <div className="flex items-center gap-2 mt-4 border-b border-[var(--border)] pb-0 overflow-x-auto hide-scrollbar">
                         <button
                             onClick={() => setActiveTab('lookup')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                                activeTab === 'lookup' ? theme.tabActive : theme.tabInactive
+                            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
+                                activeTab === 'lookup'
+                                    ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
                             🔍 Find My Role
                         </button>
                         <button
                             onClick={() => setActiveTab('builder')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                                activeTab === 'builder' ? theme.tabActive : theme.tabInactive
+                            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
+                                activeTab === 'builder'
+                                    ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
                             🛠️ Team Builder
                         </button>
                         <button
                             onClick={() => setActiveTab('roster')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                                activeTab === 'roster' ? theme.tabActive : theme.tabInactive
+                            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
+                                activeTab === 'roster'
+                                    ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
                             👥 Zone Roster
@@ -1561,7 +1567,7 @@ export default function AooStrategyPage() {
                         <h2 className="text-lg font-semibold mb-4">Enter Password</h2>
                         <input type="password" value={editorPassword} onChange={(e) => setEditorPassword(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()} placeholder="Password"
-                            className={`w-full px-3 py-2 rounded-lg border ${theme.input} mb-4 focus:outline-none focus:ring-2 focus:ring-emerald-500`} autoFocus />
+                            className={`w-full px-3 py-2 rounded-lg border ${theme.input} mb-4 focus:outline-none focus:ring-2 focus:ring-[#4318ff]`} autoFocus />
                         <div className="flex gap-2">
                             <button onClick={handlePasswordSubmit} className={`flex-1 py-2 rounded-lg font-medium ${theme.buttonPrimary}`}>Submit</button>
                             <button onClick={() => setShowPasswordPrompt(false)} className={`flex-1 py-2 rounded-lg font-medium ${theme.button}`}>Cancel</button>
@@ -1572,12 +1578,12 @@ export default function AooStrategyPage() {
 
             {/* Edit Mode Banner */}
             {isEditor && (
-                <div className="bg-emerald-500/10 border-b border-emerald-500/30">
+                <div className="bg-[#4318ff]/10 border-b border-[#4318ff]/30">
                     <div className="max-w-6xl mx-auto px-4 md:px-6 py-3">
                         <div className="flex items-start gap-3">
-                            <span className="text-emerald-400 text-lg flex-shrink-0">✏️</span>
+                            <span className="text-[#9f7aea] text-lg flex-shrink-0">✏️</span>
                             <div>
-                                <h3 className="font-medium text-emerald-400 text-sm">Edit Mode Active</h3>
+                                <h3 className="font-medium text-[#9f7aea] text-sm">Edit Mode Active</h3>
                                 <p className={`text-xs ${theme.textMuted} mt-1`}>
                                     <strong>Team Builder:</strong> Select players, distribute to zones, assign rally leads •
                                     <strong> Zone Roster:</strong> Fine-tune assignments and toggle tags
@@ -1679,13 +1685,13 @@ export default function AooStrategyPage() {
                 /* Roster Tab */
                 <div className="max-w-7xl mx-auto p-4 md:p-6">
                     {/* Strategy Overview */}
-                    <section className={`${theme.card} border-2 border-emerald-500 rounded-xl mb-6 p-4`}>
-                        <h2 className={`text-sm font-semibold uppercase tracking-wider mb-4 text-emerald-500`}>📋 Strategy Overview</h2>
+                    <section className={`${theme.card} border-2 border-[#4318ff] rounded-xl mb-6 p-4`}>
+                        <h2 className={`text-sm font-semibold uppercase tracking-wider mb-4 text-[#9f7aea]`}>📋 Strategy Overview</h2>
 
                         {/* Key Rules */}
                         <div className={`grid md:grid-cols-2 gap-4 mb-4`}>
-                            <div className="p-3 rounded-lg bg-[#01b574]/10 border border-[#01b574]/20">
-                                <h3 className="font-bold text-[#01b574] text-sm mb-2">📌 IMPORTANT</h3>
+                            <div className="p-3 rounded-lg bg-[#4318ff]/10 border border-[#4318ff]/20">
+                                <h3 className="font-bold text-[#9f7aea] text-sm mb-2">📌 IMPORTANT</h3>
                                 <ul className={`text-xs space-y-1 ${theme.text}`}>
                                     <li>• Pay attention to your lane assignment</li>
                                     <li>• Everyone rush their obelisk first</li>
@@ -1721,7 +1727,7 @@ export default function AooStrategyPage() {
                                         onChange={(e) => setNotes(e.target.value)}
                                         onBlur={() => saveData({ notes })}
                                         placeholder="Add strategy notes..."
-                                        className={`w-full min-h-[150px] px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y font-mono text-sm`}
+                                        className={`w-full min-h-[150px] px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff] resize-y font-mono text-sm`}
                                     />
                                 ) : (
                                     <div className={`whitespace-pre-wrap font-mono text-sm ${theme.text}`}>
@@ -1748,7 +1754,7 @@ export default function AooStrategyPage() {
                                     <input type="text" value={playerSearch} onChange={(e) => { setPlayerSearch(e.target.value); setShowDropdown(true); }}
                                         onFocus={() => !useCustomName && setShowDropdown(true)}
                                         placeholder={useCustomName ? "Enter custom name" : "Search roster..."}
-                                        className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`} />
+                                        className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`} />
                                     {showDropdown && !useCustomName && filteredRoster.length > 0 && (
                                         <div className={`absolute z-10 w-full mt-1 ${theme.dropdown} border rounded-lg shadow-lg max-h-48 overflow-y-auto`}>
                                             {filteredRoster.slice(0, 10).map(name => (
@@ -1765,7 +1771,7 @@ export default function AooStrategyPage() {
                                 </div>
                                 <div className="w-48">
                                     <select value={newPlayerTeam} onChange={(e) => setNewPlayerTeam(Number(e.target.value))}
-                                        className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`}>
+                                        className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}>
                                         <option value={1}>Zone 1 ({getTeamPlayers(1).length})</option>
                                         <option value={2}>Zone 2 ({getTeamPlayers(2).length})</option>
                                         <option value={3}>Zone 3 ({getTeamPlayers(3).length})</option>
@@ -1847,7 +1853,7 @@ export default function AooStrategyPage() {
                                                 <h3 className={`font-semibold ${zoneColor.text}`}>{teamInfo.name}</h3>
                                                 <button
                                                     onClick={() => copyZoneToClipboard(teamNum)}
-                                                    className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${copySuccess === teamNum ? 'bg-emerald-600 text-white' : theme.tag} hover:opacity-80`}
+                                                    className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${copySuccess === teamNum ? 'bg-[#4318ff] text-white' : theme.tag} hover:opacity-80`}
                                                     title={`Copy ${teamInfo.name} roster`}
                                                 >
                                                     {copySuccess === teamNum ? '✓' : '📋'}
@@ -1862,7 +1868,7 @@ export default function AooStrategyPage() {
                                         </div>
                                         {isEditor ? (
                                             <input type="text" value={teamInfo.description} onChange={(e) => updateTeamDescription(teamNum - 1, e.target.value)}
-                                                placeholder="Role description" className={`mt-2 w-full px-2 py-1 rounded text-sm border ${theme.input} focus:outline-none focus:ring-1 focus:ring-emerald-500`} />
+                                                placeholder="Role description" className={`mt-2 w-full px-2 py-1 rounded text-sm border ${theme.input} focus:outline-none focus:ring-1 focus:ring-[#4318ff]`} />
                                         ) : (
                                             <p className={`text-sm ${theme.textAccent} mt-1`}>{teamInfo.description || '—'}</p>
                                         )}
@@ -1929,7 +1935,7 @@ export default function AooStrategyPage() {
                                 <input 
                                     type="text" 
                                     placeholder="Add substitute name..."
-                                    className={`flex-1 px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                                    className={`flex-1 px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}
                                     onKeyPress={(e) => {
                                         if (e.key === 'Enter') {
                                             const input = e.target as HTMLInputElement;
@@ -1979,8 +1985,8 @@ export default function AooStrategyPage() {
             {activeTab === 'lookup' && (
                 <div className="max-w-3xl mx-auto p-4 md:p-6">
                     {/* Key Instructions */}
-                    <section className={`${theme.card} border-4 border-emerald-500 rounded-xl p-6 mb-6`}>
-                        <h2 className={`text-xl font-bold text-center mb-4 text-emerald-500`}>⚔️ AoO Battle Guide</h2>
+                    <section className={`${theme.card} border-4 border-[#4318ff] rounded-xl p-6 mb-6`}>
+                        <h2 className={`text-xl font-bold text-center mb-4 text-[#9f7aea]`}>⚔️ AoO Battle Guide</h2>
 
                         {/* Pre-battle checklist */}
                         <div className="p-4 rounded-lg bg-purple-500/10 border-2 border-purple-500 mb-4">
@@ -2002,27 +2008,27 @@ export default function AooStrategyPage() {
                         </div>
 
                         {/* Important Rules */}
-                        <div className="p-4 rounded-lg bg-[#01b574]/10 border-2 border-[#01b574] mb-4">
-                            <h3 className="font-bold text-emerald-500 mb-3">📌 DURING THE BATTLE</h3>
+                        <div className="p-4 rounded-lg bg-[#4318ff]/10 border-2 border-[#4318ff] mb-4">
+                            <h3 className="font-bold text-[#9f7aea] mb-3">📌 DURING THE BATTLE</h3>
                             <ul className={`space-y-2 ${theme.text}`}>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">1.</span>
+                                    <span className="text-[#9f7aea] font-bold">1.</span>
                                     <span><strong>Stay in your assigned lane/zone.</strong> Do not wander.</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">2.</span>
+                                    <span className="text-[#9f7aea] font-bold">2.</span>
                                     <span><strong>Rush to your obelisk first.</strong> Rally leaders teleport first.</span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">3.</span>
+                                    <span className="text-[#9f7aea] font-bold">3.</span>
                                     <span><strong>Fully occupy + garrison before moving to next building.</strong></span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">4.</span>
+                                    <span className="text-[#9f7aea] font-bold">4.</span>
                                     <span><strong>Only rally buildings the enemy has occupied.</strong></span>
                                 </li>
                                 <li className="flex items-start gap-2">
-                                    <span className="text-emerald-500 font-bold">5.</span>
+                                    <span className="text-[#9f7aea] font-bold">5.</span>
                                     <span><strong>Work together as a unit.</strong> Follow your zone leader.</span>
                                 </li>
                             </ul>
@@ -2067,7 +2073,7 @@ export default function AooStrategyPage() {
                                 }}
                                 onFocus={() => setShowLookupDropdown(true)}
                                 placeholder="Enter your name..."
-                                className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-emerald-500 text-lg text-center`}
+                                className={`w-full px-4 py-3 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff] text-lg text-center`}
                             />
 
                             {/* Dropdown with matching players */}
@@ -2300,7 +2306,7 @@ export default function AooStrategyPage() {
                                                 })()}
                                                 {/* START marker */}
                                                 <div
-                                                    className="absolute px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[8px] font-bold"
+                                                    className="absolute px-1.5 py-0.5 rounded bg-[#4318ff] text-white text-[8px] font-bold"
                                                     style={{ left: '12%', top: '6%', transform: 'translate(-50%, -50%)' }}
                                                 >
                                                     START
