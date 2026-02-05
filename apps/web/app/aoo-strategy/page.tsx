@@ -159,6 +159,10 @@ function TeamBuilderTab({
     const [newMemberGovId, setNewMemberGovId] = useState('');
     const [showAutoComplete, setShowAutoComplete] = useState(false);
 
+    // Zone size inputs for distribution
+    const [zoneSizes, setZoneSizes] = useState<Record<number, string>>({ 1: '', 2: '', 3: '' });
+    const [useCustomSizes, setUseCustomSizes] = useState(false);
+
     // Filter roster by alliance
     const baseRoster = builderAlliance === 'all'
         ? roster
@@ -240,6 +244,36 @@ function TeamBuilderTab({
         return power * 0.4 + kills * 0.6;
     };
 
+    // Distribute players by custom zone sizes (fills zones in order by power)
+    const distributeByZoneSizes = (
+        players: { name: string; power: number; kills: number }[],
+        sizes: { 1: number; 2: number; 3: number }
+    ): Record<number, { name: string; power: number; kills: number }[]> => {
+        // Sort by power descending
+        const sorted = [...players].sort((a, b) => b.power - a.power);
+        const zones: Record<number, { name: string; power: number; kills: number }[]> = { 1: [], 2: [], 3: [] };
+
+        let idx = 0;
+        // Fill each zone up to its size
+        for (const zone of [1, 2, 3] as const) {
+            const size = sizes[zone];
+            while (zones[zone].length < size && idx < sorted.length) {
+                zones[zone].push(sorted[idx]);
+                idx++;
+            }
+        }
+
+        // Any remaining players go to the zone with fewest (for balance)
+        while (idx < sorted.length) {
+            const minZone = [1, 2, 3].reduce((min, z) =>
+                zones[z].length < zones[min].length ? z : min, 1);
+            zones[minZone].push(sorted[idx]);
+            idx++;
+        }
+
+        return zones;
+    };
+
     // Handle distribute button
     const handleDistribute = () => {
         const toDistribute = confirmedPlayers.map(p => ({
@@ -251,7 +285,26 @@ function TeamBuilderTab({
             alert('Need at least 3 confirmed players to distribute');
             return;
         }
-        const zones = distributeByPowerWithKills(toDistribute);
+
+        let zones: Record<number, { name: string; power: number; kills: number }[]>;
+
+        if (useCustomSizes) {
+            // Use custom zone sizes
+            const sizes = {
+                1: parseInt(zoneSizes[1]) || 0,
+                2: parseInt(zoneSizes[2]) || 0,
+                3: parseInt(zoneSizes[3]) || 0,
+            };
+            const totalSize = sizes[1] + sizes[2] + sizes[3];
+            if (totalSize === 0) {
+                alert('Please enter at least one zone size');
+                return;
+            }
+            zones = distributeByZoneSizes(toDistribute, sizes);
+        } else {
+            // Auto-balance by power
+            zones = distributeByPowerWithKills(toDistribute);
+        }
 
         // Add "maybe" players as substitutes (zone 0)
         const subs = maybePlayers.map(p => ({
@@ -622,18 +675,69 @@ function TeamBuilderTab({
                         </div>
                     </section>
 
-                    {/* Distribute Button */}
-                    <div className="flex justify-center">
-                        <button
-                            onClick={handleDistribute}
-                            disabled={confirmedPlayers.length < 3}
-                            className={`px-6 py-3 rounded-lg font-medium text-white ${
-                                confirmedPlayers.length >= 3 ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-600 cursor-not-allowed'
-                            }`}
-                        >
-                            Distribute {confirmedPlayers.length} Players to Zones →
-                        </button>
-                    </div>
+                    {/* Zone Size Configuration */}
+                    <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className={`text-sm font-medium ${theme.text}`}>Zone Distribution</h3>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={useCustomSizes}
+                                    onChange={(e) => setUseCustomSizes(e.target.checked)}
+                                    className="rounded"
+                                />
+                                <span className={`text-xs ${theme.textMuted}`}>Custom zone sizes</span>
+                            </label>
+                        </div>
+
+                        {useCustomSizes ? (
+                            <>
+                                <p className={`text-xs ${theme.textMuted} mb-3`}>
+                                    Enter how many players per zone. Players are assigned by power (highest first).
+                                </p>
+                                <div className="grid grid-cols-3 gap-4 mb-4">
+                                    {[1, 2, 3].map((zone) => {
+                                        const zoneColor = zone === 1 ? 'border-blue-500' : zone === 2 ? 'border-orange-500' : 'border-purple-500';
+                                        return (
+                                            <div key={zone} className={`p-3 rounded-lg border-2 ${zoneColor} bg-white/5`}>
+                                                <label className={`text-xs ${theme.textMuted} block mb-1`}>
+                                                    Zone {zone}
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max={confirmedPlayers.length}
+                                                    value={zoneSizes[zone]}
+                                                    onChange={(e) => setZoneSizes({ ...zoneSizes, [zone]: e.target.value })}
+                                                    placeholder="0"
+                                                    className={`w-full px-3 py-2 rounded-lg text-center text-lg font-bold ${theme.input}`}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className={`text-xs ${theme.textMuted} text-center mb-4`}>
+                                    Total: {(parseInt(zoneSizes[1]) || 0) + (parseInt(zoneSizes[2]) || 0) + (parseInt(zoneSizes[3]) || 0)} / {confirmedPlayers.length} confirmed
+                                </div>
+                            </>
+                        ) : (
+                            <p className={`text-xs ${theme.textMuted} mb-4`}>
+                                Players will be auto-distributed to balance power across zones.
+                            </p>
+                        )}
+
+                        <div className="flex justify-center">
+                            <button
+                                onClick={handleDistribute}
+                                disabled={confirmedPlayers.length < 3}
+                                className={`px-6 py-3 rounded-lg font-medium text-white ${
+                                    confirmedPlayers.length >= 3 ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-600 cursor-not-allowed'
+                                }`}
+                            >
+                                Distribute {confirmedPlayers.length} Players to Zones →
+                            </button>
+                        </div>
+                    </section>
                 </>
             )}
 
