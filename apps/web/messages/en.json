@@ -68,8 +68,8 @@
         "badge": "Results"
       },
       "aoo": {
-        "title": "Angmar AoO Planner",
-        "description": "Interactive 30v30 team assignments, drag-drop battle maps, and match planning",
+        "title": "AoO Planner",
+        "description": "Interactive 30v30 team assignments, zone distribution, and match planning",
         "badge": "Tool"
       }
     },

@@ -53,14 +53,13 @@ export function AppSidebar({ children }: AppSidebarProps) {
         { labelKey: 'home', href: '/', icon: <Home size={20} /> },
         { labelKey: 'calendar', href: '/calendar', icon: <Calendar size={20} /> },
         { labelKey: 'rosters', href: '/rosters', icon: <Users size={20} /> },
+        { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} /> },
       ],
     },
     {
       titleKey: 'angmar',
       items: [
         { labelKey: 'events', href: '/events', icon: <Trophy size={20} /> },
-        { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} /> },
-        { labelKey: 'protocols', href: '/guide/alliance', icon: <ScrollText size={20} /> },
       ],
     },
     {

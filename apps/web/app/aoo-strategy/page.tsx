@@ -244,31 +244,32 @@ function TeamBuilderTab({
         return power * 0.4 + kills * 0.6;
     };
 
-    // Distribute players by custom zone sizes (fills zones in order by power)
+    // Distribute players by custom zone sizes with power balancing
     const distributeByZoneSizes = (
         players: { name: string; power: number; kills: number }[],
-        sizes: { 1: number; 2: number; 3: number }
+        sizes: Record<number, number>
     ): Record<number, { name: string; power: number; kills: number }[]> => {
         // Sort by power descending
         const sorted = [...players].sort((a, b) => b.power - a.power);
         const zones: Record<number, { name: string; power: number; kills: number }[]> = { 1: [], 2: [], 3: [] };
+        const zonePower: Record<number, number> = { 1: 0, 2: 0, 3: 0 };
 
-        let idx = 0;
-        // Fill each zone up to its size
-        for (const zone of [1, 2, 3] as const) {
-            const size = sizes[zone];
-            while (zones[zone].length < size && idx < sorted.length) {
-                zones[zone].push(sorted[idx]);
-                idx++;
+        // Greedy assignment: assign each player to the zone with lowest power that still has room
+        for (const player of sorted) {
+            // Find zones that still have room
+            const availableZones = [1, 2, 3].filter(z => zones[z].length < sizes[z]);
+
+            if (availableZones.length === 0) {
+                // All zones full, skip (or could add to overflow)
+                continue;
             }
-        }
 
-        // Any remaining players go to the zone with fewest (for balance)
-        while (idx < sorted.length) {
-            const minZone = [1, 2, 3].reduce((min, z) =>
-                zones[z].length < zones[min].length ? z : min, 1);
-            zones[minZone].push(sorted[idx]);
-            idx++;
+            // Pick the zone with lowest total power among available zones
+            const targetZone = availableZones.reduce((min, z) =>
+                zonePower[z] < zonePower[min] ? z : min, availableZones[0]);
+
+            zones[targetZone].push(player);
+            zonePower[targetZone] += player.power;
         }
 
         return zones;
