@@ -104,7 +104,7 @@ interface TeamBuilderTabProps {
     setSelectedRallyLeads: (r: Record<number, string>) => void;
     selectedTeleportFirst: Set<string>;
     setSelectedTeleportFirst: (t: Set<string>) => void;
-    onApply: (zones: Record<number, { name: string; power: number; kills: number }[]>, rallyLeads: Record<number, string>, teleportFirst: Set<string>) => void;
+    onApply: (zones: Record<number, { name: string; power: number; kills: number }[]>, rallyLeads: Record<number, string>, teleportFirst: Set<string>, substitutes: { name: string; power: number; kills: number }[]) => void;
     theme: Record<string, string>;
     formatPower: (p: number | null | undefined) => string;
     user: { id: string } | null;
@@ -175,22 +175,33 @@ function TeamBuilderTab({
             return;
         }
         const zones = distributeByPowerWithKills(toDistribute);
+
+        // Add "maybe" players as substitutes (zone 0)
+        const subs = maybePlayers.map(p => ({
+            name: p.name,
+            power: p.power || 0,
+            kills: p.kills || killsByName[p.name] || 0,
+        }));
+        zones[0] = subs;
+
         setSuggestedZones(zones);
 
         // Pre-select best rally lead per zone (highest rally score)
         const leads: Record<number, string> = {};
         for (const [zone, players] of Object.entries(zones)) {
-            if (players.length > 0) {
+            const zoneNum = parseInt(zone);
+            if (zoneNum > 0 && players.length > 0) { // Skip substitutes (zone 0)
                 // Sort by rally score and pick the best
                 const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
-                leads[parseInt(zone)] = sorted[0].name;
+                leads[zoneNum] = sorted[0].name;
             }
         }
         setSelectedRallyLeads(leads);
 
         // Pre-select rally leads + top players for teleport first
         const teleport = new Set<string>();
-        for (const [, players] of Object.entries(zones)) {
+        for (const [zone, players] of Object.entries(zones)) {
+            if (parseInt(zone) === 0) continue; // Skip substitutes
             // Top 3-4 players per zone teleport first (by rally score)
             const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
             sorted.slice(0, Math.min(4, Math.ceil(players.length / 3))).forEach(p => teleport.add(p.name));
@@ -495,6 +506,7 @@ function TeamBuilderTab({
                                                         onChange={(e) => movePlayerToZone(player.name, zone, parseInt(e.target.value))}
                                                         className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
                                                     >
+                                                        <option value={0}>Sub</option>
                                                         <option value={1}>Z1</option>
                                                         <option value={2}>Z2</option>
                                                         <option value={3}>Z3</option>
@@ -507,6 +519,41 @@ function TeamBuilderTab({
                             );
                         })}
                     </div>
+
+                    {/* Substitutes Section */}
+                    {(suggestedZones[0]?.length || 0) > 0 && (
+                        <section className={`${theme.card} border-l-4 border-gray-500 rounded-xl p-4 mb-6`}>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className={`font-semibold text-gray-400`}>
+                                    Substitutes ({suggestedZones[0]?.length || 0})
+                                </h3>
+                                <span className={`text-sm ${theme.textMuted}`}>
+                                    {formatPower(suggestedZones[0]?.reduce((sum, p) => sum + p.power, 0) || 0)}
+                                </span>
+                            </div>
+                            <p className={`text-xs ${theme.textMuted} mb-3`}>
+                                Players marked as &quot;Maybe&quot; - move to a zone if they confirm
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {(suggestedZones[0] || []).map((player) => (
+                                    <div key={player.name} className="flex items-center gap-2 px-3 py-1.5 rounded bg-white/5">
+                                        <span className={`text-sm ${theme.text}`}>{player.name}</span>
+                                        <span className={`text-xs ${theme.textMuted}`}>{formatPower(player.power)}</span>
+                                        <select
+                                            value={0}
+                                            onChange={(e) => movePlayerToZone(player.name, 0, parseInt(e.target.value))}
+                                            className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
+                                        >
+                                            <option value={0}>Sub</option>
+                                            <option value={1}>→ Z1</option>
+                                            <option value={2}>→ Z2</option>
+                                            <option value={3}>→ Z3</option>
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
                     {/* Legend */}
                     <div className={`flex items-center justify-center gap-6 mb-6 text-xs ${theme.textMuted}`}>
@@ -530,7 +577,7 @@ function TeamBuilderTab({
                                     alert(`Please select rally leads for Zone ${missingLeads.join(', ')}`);
                                     return;
                                 }
-                                onApply(suggestedZones, selectedRallyLeads, selectedTeleportFirst);
+                                onApply(suggestedZones, selectedRallyLeads, selectedTeleportFirst, suggestedZones[0] || []);
                             }}
                             className="px-6 py-2 rounded-lg font-medium text-white bg-emerald-600 hover:bg-emerald-500"
                         >
@@ -1107,71 +1154,13 @@ export default function AooStrategyPage() {
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                             <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                    <h1 className="text-lg sm:text-2xl md:text-3xl font-semibold tracking-tight">AoO Planner</h1>
-                                    <span className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded-full ${
-                                        aooTeam === 'team1' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
-                                    }`}>
-                                        {aooTeam === 'team1' ? 'T1' : 'T2'}
-                                    </span>
-                                    {eventMode === 'training' && (
-                                        <span className="px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium bg-amber-600 text-white rounded-full">
-                                            Train
-                                        </span>
-                                    )}
-                                </div>
+                                <h1 className="text-lg sm:text-2xl md:text-3xl font-semibold tracking-tight">AoO Planner</h1>
                                 <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>
-                                    {eventMode === 'training' ? 'Training Match Roster' : '30v30 Strategy Planner'}
+                                    30v30 Strategy Planner
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
-                            {/* AoO Team Selector */}
-                            <div className="flex rounded-lg p-0.5 bg-white/5 border border-white/10">
-                                <button
-                                    onClick={() => handleAooTeamChange('team1')}
-                                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-colors ${
-                                        aooTeam === 'team1'
-                                            ? 'bg-blue-600 text-white'
-                                            : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                                    }`}
-                                >
-                                    <span className="hidden sm:inline">Team </span>1
-                                </button>
-                                <button
-                                    onClick={() => handleAooTeamChange('team2')}
-                                    className={`px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium rounded-md transition-colors ${
-                                        aooTeam === 'team2'
-                                            ? 'bg-purple-600 text-white'
-                                            : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                                    }`}
-                                >
-                                    <span className="hidden sm:inline">Team </span>2
-                                </button>
-                            </div>
-                            {/* Event Mode Toggle */}
-                            <div className="hidden sm:flex rounded-lg p-0.5 bg-white/5 border border-white/10">
-                                <button
-                                    onClick={() => handleEventModeChange('main')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                        eventMode === 'main'
-                                            ? 'bg-[#01b574] text-white'
-                                            : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                                    }`}
-                                >
-                                    Main
-                                </button>
-                                <button
-                                    onClick={() => handleEventModeChange('training')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                        eventMode === 'training'
-                                            ? 'bg-amber-600 text-white'
-                                            : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                                    }`}
-                                >
-                                    Training
-                                </button>
-                            </div>
                             {!isEditor ? (
                                 <button onClick={() => setShowPasswordPrompt(true)} className={`p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-medium ${theme.button}`} title="Edit Mode">
                                     <span className="hidden sm:inline">Edit Mode</span>
@@ -1286,13 +1275,15 @@ export default function AooStrategyPage() {
                     setSelectedRallyLeads={setSelectedRallyLeads}
                     selectedTeleportFirst={selectedTeleportFirst}
                     setSelectedTeleportFirst={setSelectedTeleportFirst}
-                    onApply={(zonePlayers, rallyLeads, teleportFirst) => {
+                    onApply={(zonePlayers, rallyLeads, teleportFirst, subs) => {
                         // Apply distribution to strategy
                         const newPlayers: Player[] = [];
+                        const newSubstitutes: Player[] = [];
                         let idCounter = Date.now();
 
                         for (const [zoneNum, zonePeople] of Object.entries(zonePlayers)) {
                             const zone = parseInt(zoneNum);
+                            if (zone === 0) continue; // Skip substitutes here, handle separately
                             for (const p of zonePeople) {
                                 const tags: string[] = ['Confirmed'];
                                 if (rallyLeads[zone] === p.name) {
@@ -1312,8 +1303,21 @@ export default function AooStrategyPage() {
                             }
                         }
 
+                        // Create substitutes
+                        for (const p of subs) {
+                            newSubstitutes.push({
+                                id: idCounter++,
+                                name: p.name,
+                                team: 0,
+                                tags: ['Maybe'],
+                                power: p.power,
+                                assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
+                            });
+                        }
+
                         setPlayers(newPlayers);
-                        saveData({ players: newPlayers });
+                        setSubstitutes(newSubstitutes);
+                        saveData({ players: newPlayers, substitutes: newSubstitutes });
                         setActiveTab('roster');
                     }}
                     theme={theme}
