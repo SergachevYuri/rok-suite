@@ -7,10 +7,16 @@ import { AppSidebar } from '@/components/AppSidebar';
 // Google Calendar configuration
 const CALENDARS = [
     {
+        id: '2aed069b30c3f3501b64ef982441f597b833e3db8b855488f734efe1b9552040@group.calendar.google.com',
+        name: 'Angmar Alliance',
+        color: '#7986CB', // purple-ish blue
+        displayColor: '#9f7aea', // purple to match site theme
+    },
+    {
         id: 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com',
-        name: 'Angmar Alliance Events',
-        color: '#039BE5', // blue - shows as blue after invert
-        displayColor: '#039BE5', // blue to match calendar
+        name: 'Kingdom 23',
+        color: '#039BE5', // blue
+        displayColor: '#039BE5', // blue
     },
 ];
 
@@ -30,7 +36,7 @@ export default function CalendarPage() {
     const [timezone, setTimezone] = useState('UTC');
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showSubscribe, setShowSubscribe] = useState(false);
-    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0])); // Default to Angmar only
+    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1])); // Default to both calendars
 
     const toggleCalendar = (index: number) => {
         const newEnabled = new Set(enabledCalendars);
@@ -88,8 +94,8 @@ export default function CalendarPage() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div>
-                                <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight">Alliance Calendar</h1>
-                                <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>Upcoming events, KvK schedule, and alliance activities</p>
+                                <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight">Event Calendar</h1>
+                                <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>Kingdom 23 events and Angmar alliance activities</p>
                             </div>
                         </div>
                     </div>
@@ -234,8 +240,8 @@ export default function CalendarPage() {
                 </p>
 
                 <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
-                    <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
-                    <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>Subscribe to get event reminders</p>
+                    <p className={`text-xs ${theme.textMuted}`}>Kingdom 23 • Rise of Kingdoms</p>
+                    <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>Subscribe to get event reminders in your calendar app</p>
                 </footer>
             </div>
         </div>
