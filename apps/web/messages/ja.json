@@ -27,43 +27,48 @@
     "language": "言語"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Angmar Nazgul Guards 主導",
     "home": "ホーム",
     "calendar": "カレンダー",
-    "roster": "メンバー一覧",
+    "rosters": "メンバー一覧",
+    "angmar": "Angmar",
     "events": "イベント",
     "aooPlanner": "AoO プランナー",
+    "protocols": "プロトコル",
+    "resources": "リソース",
     "guide": "ガイド",
     "betaTools": "ベータツール",
     "wipBadge": "WIP"
   },
   "home": {
     "tagline": "RoK 戦略ツール",
-    "title": "Rise of Kingdoms",
-    "subtitle": "戦略ツール＆バトルプランニング",
-    "builtFor": "Angmar Nazgul Guards のために制作",
+    "title": "Kingdom 23",
+    "subtitle": "Rise of Kingdoms 戦略ツール",
+    "builtFor": "Angmar Nazgul Guards 主導",
     "sections": {
-      "interactiveTools": "インタラクティブツール",
+      "interactiveTools": "王国ツール",
       "guides": "ガイド＆ドキュメント",
       "experimental": "実験的機能"
     },
     "tools": {
       "calendar": {
-        "title": "同盟カレンダー",
-        "description": "今後のイベント、KvK スケジュール、同盟活動",
+        "title": "カレンダー",
+        "description": "今後のイベント、KvK スケジュール、王国活動",
         "badge": "イベント"
       },
       "roster": {
-        "title": "同盟メンバー一覧",
+        "title": "メンバー一覧",
         "description": "メンバー統計、戦力ランキング、KP 追跡",
         "badge": "メンバー"
       },
       "events": {
-        "title": "同盟イベント",
+        "title": "Angmar イベント",
         "description": "イベント結果、チャレンジランキング、大会追跡",
         "badge": "結果"
       },
       "aoo": {
-        "title": "AoO バトルプランナー",
+        "title": "Angmar AoO プランナー",
         "description": "インタラクティブ30v30チーム編成、ドラッグ＆ドロップ戦場マップ、マッチ計画",
         "badge": "ツール"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "ドキュメント",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

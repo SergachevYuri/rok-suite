@@ -27,43 +27,48 @@
     "language": "Idioma"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Liderado por Angmar Nazgul Guards",
     "home": "Início",
     "calendar": "Calendário",
-    "roster": "Elenco",
+    "rosters": "Elencos",
+    "angmar": "Angmar",
     "events": "Eventos",
     "aooPlanner": "Planejador AoO",
+    "protocols": "Protocolos",
+    "resources": "Recursos",
     "guide": "Guia",
     "betaTools": "Ferramentas Beta",
     "wipBadge": "WIP"
   },
   "home": {
     "tagline": "Ferramentas Estratégicas para RoK",
-    "title": "Rise of Kingdoms",
-    "subtitle": "Ferramentas Estratégicas e Planejamento de Batalha",
-    "builtFor": "Criado para Angmar Nazgul Guards",
+    "title": "Kingdom 23",
+    "subtitle": "Ferramentas Estratégicas Rise of Kingdoms",
+    "builtFor": "Liderado por Angmar Nazgul Guards",
     "sections": {
-      "interactiveTools": "Ferramentas Interativas",
+      "interactiveTools": "Ferramentas do Reino",
       "guides": "Guias e Documentação",
       "experimental": "Experimental"
     },
     "tools": {
       "calendar": {
-        "title": "Calendário da Aliança",
-        "description": "Próximos eventos, cronograma de KvK e atividades da aliança",
+        "title": "Calendário",
+        "description": "Próximos eventos, cronograma de KvK e atividades do reino",
         "badge": "Eventos"
       },
       "roster": {
-        "title": "Elenco da Aliança",
+        "title": "Elencos",
         "description": "Estatísticas de membros, rankings de poder e rastreamento de KP",
         "badge": "Membros"
       },
       "events": {
-        "title": "Eventos da Aliança",
+        "title": "Eventos Angmar",
         "description": "Resultados de eventos, rankings de desafios e rastreamento de competições",
         "badge": "Resultados"
       },
       "aoo": {
-        "title": "Planejador de Batalha AoO",
+        "title": "Planejador AoO Angmar",
         "description": "Atribuição interativa de equipes 30v30, mapas de batalha arrastar e soltar e planejamento de partidas",
         "badge": "Ferramenta"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "Documentação",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

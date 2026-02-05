@@ -27,43 +27,48 @@
     "language": "भाषा"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Angmar Nazgul Guards के नेतृत्व में",
     "home": "होम",
     "calendar": "कैलेंडर",
-    "roster": "सदस्य सूची",
+    "rosters": "सदस्य सूची",
+    "angmar": "Angmar",
     "events": "इवेंट",
     "aooPlanner": "AoO प्लानर",
+    "protocols": "प्रोटोकॉल",
+    "resources": "संसाधन",
     "guide": "गाइड",
     "betaTools": "बीटा टूल्स",
     "wipBadge": "WIP"
   },
   "home": {
     "tagline": "RoK के लिए रणनीति उपकरण",
-    "title": "Rise of Kingdoms",
-    "subtitle": "रणनीति उपकरण और युद्ध योजना",
-    "builtFor": "Angmar Nazgul Guards के लिए बनाया गया",
+    "title": "Kingdom 23",
+    "subtitle": "Rise of Kingdoms रणनीति उपकरण",
+    "builtFor": "Angmar Nazgul Guards के नेतृत्व में",
     "sections": {
-      "interactiveTools": "इंटरैक्टिव उपकरण",
+      "interactiveTools": "राज्य उपकरण",
       "guides": "गाइड और दस्तावेज़",
       "experimental": "प्रयोगात्मक"
     },
     "tools": {
       "calendar": {
-        "title": "गठबंधन कैलेंडर",
-        "description": "आगामी इवेंट, KvK शेड्यूल, और गठबंधन गतिविधियां",
+        "title": "कैलेंडर",
+        "description": "आगामी इवेंट, KvK शेड्यूल, और राज्य गतिविधियां",
         "badge": "इवेंट"
       },
       "roster": {
-        "title": "गठबंधन सदस्य सूची",
+        "title": "सदस्य सूची",
         "description": "सदस्य आंकड़े, शक्ति रैंकिंग, और KP ट्रैकिंग",
         "badge": "सदस्य"
       },
       "events": {
-        "title": "गठबंधन इवेंट",
+        "title": "Angmar इवेंट",
         "description": "इवेंट परिणाम, चुनौती रैंकिंग, और प्रतियोगिता ट्रैकिंग",
         "badge": "परिणाम"
       },
       "aoo": {
-        "title": "AoO युद्ध प्लानर",
+        "title": "Angmar AoO प्लानर",
         "description": "इंटरैक्टिव 30v30 टीम असाइनमेंट, ड्रैग-ड्रॉप युद्ध मानचित्र, और मैच प्लानिंग",
         "badge": "उपकरण"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "दस्तावेज़",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

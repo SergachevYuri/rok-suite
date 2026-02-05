@@ -27,43 +27,48 @@
     "language": "Dil"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Angmar Nazgul Guards liderliğinde",
     "home": "Ana Sayfa",
     "calendar": "Takvim",
-    "roster": "Kadro",
+    "rosters": "Kadrolar",
+    "angmar": "Angmar",
     "events": "Etkinlikler",
     "aooPlanner": "AoO Planlayıcı",
+    "protocols": "Protokoller",
+    "resources": "Kaynaklar",
     "guide": "Rehber",
     "betaTools": "Beta Araçlar",
     "wipBadge": "DENEYSEL"
   },
   "home": {
     "tagline": "RoK için Strateji Araçları",
-    "title": "Rise of Kingdoms",
-    "subtitle": "Strateji Araçları ve Savaş Planlaması",
-    "builtFor": "Angmar Nazgul Guards için geliştirildi",
+    "title": "Kingdom 23",
+    "subtitle": "Rise of Kingdoms Strateji Araçları",
+    "builtFor": "Angmar Nazgul Guards liderliğinde",
     "sections": {
-      "interactiveTools": "Etkileşimli Araçlar",
+      "interactiveTools": "Krallık Araçları",
       "guides": "Rehberler ve Belgeler",
       "experimental": "Deneysel"
     },
     "tools": {
       "calendar": {
-        "title": "İttifak Takvimi",
-        "description": "Yaklaşan etkinlikler, KvK takvimi ve ittifak faaliyetleri",
+        "title": "Takvim",
+        "description": "Yaklaşan etkinlikler, KvK takvimi ve krallık faaliyetleri",
         "badge": "Etkinlikler"
       },
       "roster": {
-        "title": "İttifak Kadrosu",
+        "title": "Kadrolar",
         "description": "Üye istatistikleri, güç sıralamaları ve KP takibi",
         "badge": "Üyeler"
       },
       "events": {
-        "title": "İttifak Etkinlikleri",
+        "title": "Angmar Etkinlikleri",
         "description": "Etkinlik sonuçları, mücadele sıralamaları ve yarışma takibi",
         "badge": "Sonuçlar"
       },
       "aoo": {
-        "title": "AoO Savaş Planlayıcı",
+        "title": "Angmar AoO Planlayıcı",
         "description": "Etkileşimli 30v30 takım atamaları, sürükle-bırak savaş haritaları ve maç planlaması",
         "badge": "Araç"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "Belgeler",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

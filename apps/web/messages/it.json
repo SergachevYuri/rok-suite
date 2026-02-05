@@ -27,43 +27,48 @@
     "language": "Lingua"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Guidato da Angmar Nazgul Guards",
     "home": "Home",
     "calendar": "Calendario",
-    "roster": "Organico",
+    "rosters": "Organici",
+    "angmar": "Angmar",
     "events": "Eventi",
     "aooPlanner": "Pianificatore AoO",
+    "protocols": "Protocolli",
+    "resources": "Risorse",
     "guide": "Guida",
     "betaTools": "Strumenti beta",
     "wipBadge": "WIP"
   },
   "home": {
     "tagline": "Strumenti strategici per RoK",
-    "title": "Rise of Kingdoms",
-    "subtitle": "Strumenti strategici e pianificazione di battaglia",
-    "builtFor": "Creato per Angmar Nazgul Guards",
+    "title": "Kingdom 23",
+    "subtitle": "Strumenti strategici Rise of Kingdoms",
+    "builtFor": "Guidato da Angmar Nazgul Guards",
     "sections": {
-      "interactiveTools": "Strumenti interattivi",
+      "interactiveTools": "Strumenti del regno",
       "guides": "Guide e documentazione",
       "experimental": "Sperimentale"
     },
     "tools": {
       "calendar": {
-        "title": "Calendario dell'alleanza",
-        "description": "Eventi in programma, calendario KvK e attività dell'alleanza",
+        "title": "Calendario",
+        "description": "Eventi in programma, calendario KvK e attività del regno",
         "badge": "Eventi"
       },
       "roster": {
-        "title": "Organico dell'alleanza",
+        "title": "Organici",
         "description": "Statistiche dei membri, classifiche di potenza e monitoraggio dei KP",
         "badge": "Membri"
       },
       "events": {
-        "title": "Eventi dell'alleanza",
+        "title": "Eventi Angmar",
         "description": "Risultati degli eventi, classifiche delle sfide e monitoraggio delle competizioni",
         "badge": "Risultati"
       },
       "aoo": {
-        "title": "Pianificatore di battaglia AoO",
+        "title": "Pianificatore AoO Angmar",
         "description": "Assegnazione squadre 30v30 interattiva, mappe di battaglia trascina e rilascia e pianificazione partite",
         "badge": "Strumento"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "Documentazione",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

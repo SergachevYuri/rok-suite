@@ -27,43 +27,48 @@
     "language": "Язык"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Под руководством Angmar Nazgul Guards",
     "home": "Главная",
     "calendar": "Календарь",
-    "roster": "Состав",
+    "rosters": "Составы",
+    "angmar": "Angmar",
     "events": "События",
     "aooPlanner": "Планировщик AoO",
+    "protocols": "Протоколы",
+    "resources": "Ресурсы",
     "guide": "Руководство",
     "betaTools": "Бета-инструменты",
     "wipBadge": "В разработке"
   },
   "home": {
     "tagline": "Стратегические инструменты для RoK",
-    "title": "Rise of Kingdoms",
-    "subtitle": "Стратегические инструменты и планирование сражений",
-    "builtFor": "Создано для Angmar Nazgul Guards",
+    "title": "Kingdom 23",
+    "subtitle": "Rise of Kingdoms Стратегические инструменты",
+    "builtFor": "Под руководством Angmar Nazgul Guards",
     "sections": {
-      "interactiveTools": "Интерактивные инструменты",
+      "interactiveTools": "Инструменты Королевства",
       "guides": "Руководства и документация",
       "experimental": "Экспериментальное"
     },
     "tools": {
       "calendar": {
-        "title": "Календарь альянса",
-        "description": "Предстоящие события, расписание KvK и активности альянса",
+        "title": "Календарь",
+        "description": "Предстоящие события, расписание KvK и активности королевства",
         "badge": "События"
       },
       "roster": {
-        "title": "Состав альянса",
+        "title": "Составы",
         "description": "Статистика участников, рейтинг мощи и отслеживание KP",
         "badge": "Участники"
       },
       "events": {
-        "title": "События альянса",
+        "title": "События Angmar",
         "description": "Результаты событий, рейтинги испытаний и отслеживание соревнований",
         "badge": "Результаты"
       },
       "aoo": {
-        "title": "Планировщик сражений AoO",
+        "title": "Angmar AoO Планировщик",
         "description": "Интерактивное распределение команд 30v30, карты сражений с перетаскиванием и планирование матчей",
         "badge": "Инструмент"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "Документация",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

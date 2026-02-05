@@ -27,43 +27,48 @@
     "language": "언어"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Angmar Nazgul Guards 주도",
     "home": "홈",
     "calendar": "캘린더",
-    "roster": "명단",
+    "rosters": "명단",
+    "angmar": "Angmar",
     "events": "이벤트",
     "aooPlanner": "AoO 플래너",
+    "protocols": "프로토콜",
+    "resources": "리소스",
     "guide": "가이드",
     "betaTools": "베타 도구",
     "wipBadge": "WIP"
   },
   "home": {
     "tagline": "RoK 전략 도구",
-    "title": "Rise of Kingdoms",
-    "subtitle": "전략 도구 및 전투 계획",
-    "builtFor": "Angmar Nazgul Guards를 위해 제작",
+    "title": "Kingdom 23",
+    "subtitle": "Rise of Kingdoms 전략 도구",
+    "builtFor": "Angmar Nazgul Guards 주도",
     "sections": {
-      "interactiveTools": "인터랙티브 도구",
+      "interactiveTools": "왕국 도구",
       "guides": "가이드 및 문서",
       "experimental": "실험적 기능"
     },
     "tools": {
       "calendar": {
-        "title": "연맹 캘린더",
-        "description": "예정된 이벤트, KvK 일정 및 연맹 활동",
+        "title": "캘린더",
+        "description": "예정된 이벤트, KvK 일정 및 왕국 활동",
         "badge": "이벤트"
       },
       "roster": {
-        "title": "연맹 명단",
+        "title": "명단",
         "description": "멤버 통계, 전투력 순위 및 KP 추적",
         "badge": "멤버"
       },
       "events": {
-        "title": "연맹 이벤트",
+        "title": "Angmar 이벤트",
         "description": "이벤트 결과, 챌린지 순위 및 대회 추적",
         "badge": "결과"
       },
       "aoo": {
-        "title": "AoO 전투 플래너",
+        "title": "Angmar AoO 플래너",
         "description": "인터랙티브 30v30 팀 배정, 드래그 앤 드롭 전투 맵 및 매치 계획",
         "badge": "도구"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "문서",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

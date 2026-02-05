@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Angmar Nazgul Guards - RoK Strategy Tools",
-  description: "Rise of Kingdoms strategy tools and battle planning for Angmar Nazgul Guards",
+  title: "Kingdom 23 - RoK Strategy Tools",
+  description: "Rise of Kingdoms strategy tools and battle planning for Kingdom 23, led by Angmar Nazgul Guards",
   icons: {
     icon: "/favicon.svg",
   },

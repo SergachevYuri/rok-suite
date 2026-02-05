@@ -27,43 +27,48 @@
     "language": "语言"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "由 Angmar Nazgul Guards 领导",
     "home": "首页",
     "calendar": "日历",
-    "roster": "成员列表",
+    "rosters": "成员列表",
+    "angmar": "Angmar",
     "events": "活动",
     "aooPlanner": "AoO 规划器",
+    "protocols": "规程",
+    "resources": "资源",
     "guide": "攻略",
     "betaTools": "测试工具",
     "wipBadge": "开发中"
   },
   "home": {
     "tagline": "RoK 战略工具",
-    "title": "Rise of Kingdoms",
-    "subtitle": "战略工具与战斗规划",
-    "builtFor": "为 Angmar Nazgul Guards 打造",
+    "title": "Kingdom 23",
+    "subtitle": "Rise of Kingdoms 战略工具",
+    "builtFor": "由 Angmar Nazgul Guards 领导",
     "sections": {
-      "interactiveTools": "互动工具",
+      "interactiveTools": "王国工具",
       "guides": "攻略与文档",
       "experimental": "实验性功能"
     },
     "tools": {
       "calendar": {
-        "title": "联盟日历",
-        "description": "即将到来的活动、KvK 日程和联盟活动",
+        "title": "日历",
+        "description": "即将到来的活动、KvK 日程和王国活动",
         "badge": "活动"
       },
       "roster": {
-        "title": "联盟成员列表",
+        "title": "成员列表",
         "description": "成员数据、战力排名和 KP 追踪",
         "badge": "成员"
       },
       "events": {
-        "title": "联盟活动",
+        "title": "Angmar 活动",
         "description": "活动结果、挑战排名和竞赛追踪",
         "badge": "结果"
       },
       "aoo": {
-        "title": "AoO 战斗规划器",
+        "title": "Angmar AoO 规划器",
         "description": "互动式30v30队伍分配、拖拽战斗地图和比赛规划",
         "badge": "工具"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "文档",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

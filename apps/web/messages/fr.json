@@ -27,43 +27,48 @@
     "language": "Langue"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Dirigé par Angmar Nazgul Guards",
     "home": "Accueil",
     "calendar": "Calendrier",
-    "roster": "Effectif",
+    "rosters": "Effectifs",
+    "angmar": "Angmar",
     "events": "Événements",
     "aooPlanner": "Planificateur AoO",
+    "protocols": "Protocoles",
+    "resources": "Ressources",
     "guide": "Guide",
     "betaTools": "Outils bêta",
     "wipBadge": "WIP"
   },
   "home": {
     "tagline": "Outils stratégiques pour RoK",
-    "title": "Rise of Kingdoms",
-    "subtitle": "Outils stratégiques et planification de bataille",
-    "builtFor": "Conçu pour Angmar Nazgul Guards",
+    "title": "Kingdom 23",
+    "subtitle": "Outils stratégiques Rise of Kingdoms",
+    "builtFor": "Dirigé par Angmar Nazgul Guards",
     "sections": {
-      "interactiveTools": "Outils interactifs",
+      "interactiveTools": "Outils du royaume",
       "guides": "Guides et documentation",
       "experimental": "Expérimental"
     },
     "tools": {
       "calendar": {
-        "title": "Calendrier d'alliance",
-        "description": "Événements à venir, calendrier KvK et activités d'alliance",
+        "title": "Calendrier",
+        "description": "Événements à venir, calendrier KvK et activités du royaume",
         "badge": "Événements"
       },
       "roster": {
-        "title": "Effectif d'alliance",
+        "title": "Effectifs",
         "description": "Statistiques des membres, classements de puissance et suivi des KP",
         "badge": "Membres"
       },
       "events": {
-        "title": "Événements d'alliance",
+        "title": "Événements Angmar",
         "description": "Résultats des événements, classements des défis et suivi des compétitions",
         "badge": "Résultats"
       },
       "aoo": {
-        "title": "Planificateur de bataille AoO",
+        "title": "Planificateur AoO Angmar",
         "description": "Affectation d'équipes 30v30, cartes de bataille glisser-déposer et planification de matchs",
         "badge": "Outil"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "Documentation",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

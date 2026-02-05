@@ -27,43 +27,48 @@
     "language": "Sprache"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Angeführt von Angmar Nazgul Guards",
     "home": "Startseite",
     "calendar": "Kalender",
-    "roster": "Mitgliederliste",
+    "rosters": "Mitgliederlisten",
+    "angmar": "Angmar",
     "events": "Events",
     "aooPlanner": "AoO-Planer",
+    "protocols": "Protokolle",
+    "resources": "Ressourcen",
     "guide": "Leitfaden",
     "betaTools": "Beta-Tools",
     "wipBadge": "WIP"
   },
   "home": {
     "tagline": "Strategie-Tools für RoK",
-    "title": "Rise of Kingdoms",
-    "subtitle": "Strategie-Tools und Schlachtplanung",
-    "builtFor": "Entwickelt für Angmar Nazgul Guards",
+    "title": "Kingdom 23",
+    "subtitle": "Rise of Kingdoms Strategie-Tools",
+    "builtFor": "Angeführt von Angmar Nazgul Guards",
     "sections": {
-      "interactiveTools": "Interaktive Tools",
+      "interactiveTools": "Königreich-Tools",
       "guides": "Leitfäden und Dokumentation",
       "experimental": "Experimentell"
     },
     "tools": {
       "calendar": {
-        "title": "Allianz-Kalender",
-        "description": "Kommende Events, KvK-Zeitplan und Allianz-Aktivitäten",
+        "title": "Kalender",
+        "description": "Kommende Events, KvK-Zeitplan und Königreich-Aktivitäten",
         "badge": "Events"
       },
       "roster": {
-        "title": "Allianz-Mitgliederliste",
+        "title": "Mitgliederlisten",
         "description": "Mitgliederstatistiken, Macht-Ranglisten und KP-Verfolgung",
         "badge": "Mitglieder"
       },
       "events": {
-        "title": "Allianz-Events",
+        "title": "Angmar Events",
         "description": "Event-Ergebnisse, Herausforderungsranglisten und Wettbewerbsverfolgung",
         "badge": "Ergebnisse"
       },
       "aoo": {
-        "title": "AoO-Schlachtplaner",
+        "title": "Angmar AoO-Planer",
         "description": "Interaktive 30v30-Teamzuweisung, Drag-and-Drop-Schlachtkarten und Spielplanung",
         "badge": "Tool"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "Dokumentation",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

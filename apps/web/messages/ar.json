@@ -27,43 +27,48 @@
     "language": "اللغة"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "بقيادة Angmar Nazgul Guards",
     "home": "الرئيسية",
     "calendar": "التقويم",
-    "roster": "قائمة الأعضاء",
+    "rosters": "قوائم الأعضاء",
+    "angmar": "Angmar",
     "events": "الأحداث",
     "aooPlanner": "مخطط AoO",
+    "protocols": "البروتوكولات",
+    "resources": "الموارد",
     "guide": "الدليل",
     "betaTools": "أدوات تجريبية",
     "wipBadge": "تجريبي"
   },
   "home": {
     "tagline": "أدوات استراتيجية لـ RoK",
-    "title": "Rise of Kingdoms",
-    "subtitle": "أدوات استراتيجية وتخطيط المعارك",
-    "builtFor": "مصمم لـ Angmar Nazgul Guards",
+    "title": "Kingdom 23",
+    "subtitle": "أدوات استراتيجية Rise of Kingdoms",
+    "builtFor": "بقيادة Angmar Nazgul Guards",
     "sections": {
-      "interactiveTools": "أدوات تفاعلية",
+      "interactiveTools": "أدوات المملكة",
       "guides": "أدلة ووثائق",
       "experimental": "تجريبي"
     },
     "tools": {
       "calendar": {
-        "title": "تقويم التحالف",
-        "description": "الأحداث القادمة، جدول KvK، وأنشطة التحالف",
+        "title": "التقويم",
+        "description": "الأحداث القادمة، جدول KvK، وأنشطة المملكة",
         "badge": "أحداث"
       },
       "roster": {
-        "title": "قائمة التحالف",
+        "title": "قوائم الأعضاء",
         "description": "إحصائيات الأعضاء، تصنيفات القوة، وتتبع KP",
         "badge": "أعضاء"
       },
       "events": {
-        "title": "أحداث التحالف",
+        "title": "أحداث Angmar",
         "description": "نتائج الأحداث، تصنيفات التحديات، وتتبع المنافسات",
         "badge": "نتائج"
       },
       "aoo": {
-        "title": "مخطط معركة AoO",
+        "title": "مخطط Angmar AoO",
         "description": "تعيينات فرق 30 ضد 30 تفاعلية، خرائط معارك بالسحب والإفلات، وتخطيط المباريات",
         "badge": "أداة"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "الوثائق",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

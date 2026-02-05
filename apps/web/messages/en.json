@@ -27,43 +27,48 @@
     "language": "Language"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Led by Angmar Nazgul Guards",
     "home": "Home",
     "calendar": "Calendar",
-    "roster": "Roster",
+    "rosters": "Rosters",
+    "angmar": "Angmar",
     "events": "Events",
     "aooPlanner": "AoO Planner",
+    "protocols": "Protocols",
+    "resources": "Resources",
     "guide": "Guide",
     "betaTools": "Beta Tools",
     "wipBadge": "WIP"
   },
   "home": {
     "tagline": "Strategy Tools for RoK",
-    "title": "Rise of Kingdoms",
-    "subtitle": "Strategy Tools & Battle Planning",
-    "builtFor": "Built for Angmar Nazgul Guards",
+    "title": "Kingdom 23",
+    "subtitle": "Rise of Kingdoms Strategy Tools",
+    "builtFor": "Led by Angmar Nazgul Guards",
     "sections": {
-      "interactiveTools": "Interactive Tools",
+      "interactiveTools": "Kingdom Tools",
       "guides": "Guides & Documentation",
       "experimental": "Experimental"
     },
     "tools": {
       "calendar": {
-        "title": "Alliance Calendar",
-        "description": "Upcoming events, KvK schedule, and alliance activities",
+        "title": "Calendar",
+        "description": "Upcoming events, KvK schedule, and kingdom activities",
         "badge": "Events"
       },
       "roster": {
-        "title": "Alliance Roster",
+        "title": "Rosters",
         "description": "Member stats, power rankings, and kill points tracking",
         "badge": "Members"
       },
       "events": {
-        "title": "Alliance Events",
+        "title": "Angmar Events",
         "description": "Event results, challenge rankings, and competition tracking",
         "badge": "Results"
       },
       "aoo": {
-        "title": "AoO Battle Planner",
+        "title": "Angmar AoO Planner",
         "description": "Interactive 30v30 team assignments, drag-drop battle maps, and match planning",
         "badge": "Tool"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "Documentation",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

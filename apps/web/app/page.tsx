@@ -30,7 +30,7 @@ export default function Home() {
       badge: { textKey: 'tools.calendar.badge', color: 'bg-[#f56565]/15 text-[#f56565]' },
     },
     {
-      href: '/roster',
+      href: '/rosters',
       titleKey: 'tools.roster.title',
       descriptionKey: 'tools.roster.description',
       icon: Users,

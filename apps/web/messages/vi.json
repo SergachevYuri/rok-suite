@@ -27,43 +27,48 @@
     "language": "Ngôn ngữ"
   },
   "nav": {
+    "siteTitle": "Kingdom 23",
+    "siteSubtitle": "Dẫn dắt bởi Angmar Nazgul Guards",
     "home": "Trang chủ",
     "calendar": "Lịch",
-    "roster": "Danh sách",
+    "rosters": "Danh sách",
+    "angmar": "Angmar",
     "events": "Sự kiện",
     "aooPlanner": "Kế hoạch AoO",
+    "protocols": "Quy trình",
+    "resources": "Tài nguyên",
     "guide": "Hướng dẫn",
     "betaTools": "Công cụ thử nghiệm",
     "wipBadge": "THỬ NGHIỆM"
   },
   "home": {
     "tagline": "Công cụ chiến thuật cho RoK",
-    "title": "Rise of Kingdoms",
-    "subtitle": "Công cụ chiến thuật & Lập kế hoạch trận đấu",
-    "builtFor": "Được xây dựng cho Angmar Nazgul Guards",
+    "title": "Kingdom 23",
+    "subtitle": "Công cụ chiến thuật Rise of Kingdoms",
+    "builtFor": "Dẫn dắt bởi Angmar Nazgul Guards",
     "sections": {
-      "interactiveTools": "Công cụ tương tác",
+      "interactiveTools": "Công cụ Vương quốc",
       "guides": "Hướng dẫn & Tài liệu",
       "experimental": "Thử nghiệm"
     },
     "tools": {
       "calendar": {
-        "title": "Lịch liên minh",
-        "description": "Sự kiện sắp tới, lịch trình KvK và hoạt động liên minh",
+        "title": "Lịch",
+        "description": "Sự kiện sắp tới, lịch trình KvK và hoạt động vương quốc",
         "badge": "Sự kiện"
       },
       "roster": {
-        "title": "Danh sách liên minh",
+        "title": "Danh sách",
         "description": "Thống kê thành viên, xếp hạng sức mạnh và theo dõi KP",
         "badge": "Thành viên"
       },
       "events": {
-        "title": "Sự kiện liên minh",
+        "title": "Sự kiện Angmar",
         "description": "Kết quả sự kiện, xếp hạng thử thách và theo dõi thi đấu",
         "badge": "Kết quả"
       },
       "aoo": {
-        "title": "Kế hoạch trận AoO",
+        "title": "Angmar AoO Planner",
         "description": "Phân đội 30v30 tương tác, bản đồ trận đấu kéo thả và lập kế hoạch trận đấu",
         "badge": "Công cụ"
       }
@@ -81,7 +86,7 @@
     "footer": {
       "github": "GitHub",
       "documentation": "Tài liệu",
-      "copyright": "Angmar Nazgul Guards • Rise of Kingdoms"
+      "copyright": "Kingdom 23 • Rise of Kingdoms"
     }
   },
   "roster": {

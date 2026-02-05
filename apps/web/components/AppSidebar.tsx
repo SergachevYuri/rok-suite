@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Menu,
   X,
+  Shield,
+  ScrollText,
 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -28,6 +30,11 @@ interface NavItem {
   badgeColor?: string;
 }
 
+interface NavSection {
+  titleKey?: string;
+  items: NavItem[];
+}
+
 interface AppSidebarProps {
   children: React.ReactNode;
 }
@@ -39,19 +46,35 @@ export function AppSidebar({ children }: AppSidebarProps) {
   const t = useTranslations('nav');
   const t2 = useTranslations('common');
 
-  const navItems: NavItem[] = [
-    { labelKey: 'home', href: '/', icon: <Home size={20} /> },
-    { labelKey: 'calendar', href: '/calendar', icon: <Calendar size={20} /> },
-    { labelKey: 'roster', href: '/roster', icon: <Users size={20} /> },
-    { labelKey: 'events', href: '/events', icon: <Trophy size={20} /> },
-    { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} /> },
-    { labelKey: 'guide', href: '/guide', icon: <BookOpen size={20} /> },
+  const navSections: NavSection[] = [
     {
-      labelKey: 'betaTools',
-      href: '/beta-tools',
-      icon: <FlaskConical size={20} />,
-      badgeKey: 'wipBadge',
-      badgeColor: 'bg-[#ffb547]/20 text-[#ffb547]',
+      // Kingdom section (no title, top level)
+      items: [
+        { labelKey: 'home', href: '/', icon: <Home size={20} /> },
+        { labelKey: 'calendar', href: '/calendar', icon: <Calendar size={20} /> },
+        { labelKey: 'rosters', href: '/rosters', icon: <Users size={20} /> },
+      ],
+    },
+    {
+      titleKey: 'angmar',
+      items: [
+        { labelKey: 'events', href: '/events', icon: <Trophy size={20} /> },
+        { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} /> },
+        { labelKey: 'protocols', href: '/guide/alliance', icon: <ScrollText size={20} /> },
+      ],
+    },
+    {
+      titleKey: 'resources',
+      items: [
+        { labelKey: 'guide', href: '/guide', icon: <BookOpen size={20} /> },
+        {
+          labelKey: 'betaTools',
+          href: '/beta-tools',
+          icon: <FlaskConical size={20} />,
+          badgeKey: 'wipBadge',
+          badgeColor: 'bg-[#ffb547]/20 text-[#ffb547]',
+        },
+      ],
     },
   ];
 
@@ -71,6 +94,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
+    // Special case: /guide/alliance should not highlight /guide
+    if (href === '/guide' && pathname.startsWith('/guide/alliance')) return false;
     return pathname.startsWith(href);
   };
 
@@ -79,47 +104,64 @@ export function AppSidebar({ children }: AppSidebarProps) {
       {/* Logo */}
       <div className={`flex items-center gap-3 px-4 py-5 border-b border-[var(--border)] ${isCollapsed ? 'justify-center' : ''}`}>
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#4318ff] to-[#9f7aea] flex items-center justify-center shadow-lg shadow-[#4318ff]/25 flex-shrink-0">
-          <Swords className="w-5 h-5 text-white" />
+          <Shield className="w-5 h-5 text-white" />
         </div>
         {!isCollapsed && (
           <div className="min-w-0">
-            <h1 className="text-base font-semibold text-[var(--foreground)] truncate">RoK Suite</h1>
-            <p className="text-[10px] text-[var(--text-muted)] truncate">Angmar Nazgul Guards</p>
+            <h1 className="text-base font-semibold text-[var(--foreground)] truncate">{t('siteTitle')}</h1>
+            <p className="text-[10px] text-[var(--text-muted)] truncate">{t('siteSubtitle')}</p>
           </div>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
-                active
-                  ? 'bg-[#4318ff] text-white shadow-lg shadow-[#4318ff]/25'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)]'
-              } ${isCollapsed ? 'justify-center' : ''}`}
-              title={isCollapsed ? t(item.labelKey) : undefined}
-            >
-              <span className={`flex-shrink-0 ${active ? 'text-white' : 'text-[var(--text-muted)] group-hover:text-[var(--foreground)]'}`}>
-                {item.icon}
-              </span>
-              {!isCollapsed && (
-                <>
-                  <span className="flex-1 truncate">{t(item.labelKey)}</span>
-                  {item.badgeKey && (
-                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${item.badgeColor}`}>
-                      {t(item.badgeKey)}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {navSections.map((section, sectionIndex) => (
+          <div key={sectionIndex} className={sectionIndex > 0 ? 'mt-4' : ''}>
+            {/* Section title */}
+            {section.titleKey && !isCollapsed && (
+              <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                {t(section.titleKey)}
+              </div>
+            )}
+            {section.titleKey && isCollapsed && (
+              <div className="h-px mx-3 my-2 bg-[var(--border)]" />
+            )}
+
+            {/* Section items */}
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
+                      active
+                        ? 'bg-[#4318ff] text-white shadow-lg shadow-[#4318ff]/25'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)]'
+                    } ${isCollapsed ? 'justify-center' : ''}`}
+                    title={isCollapsed ? t(item.labelKey) : undefined}
+                  >
+                    <span className={`flex-shrink-0 ${active ? 'text-white' : 'text-[var(--text-muted)] group-hover:text-[var(--foreground)]'}`}>
+                      {item.icon}
                     </span>
-                  )}
-                </>
-              )}
-            </Link>
-          );
-        })}
+                    {!isCollapsed && (
+                      <>
+                        <span className="flex-1 truncate">{t(item.labelKey)}</span>
+                        {item.badgeKey && (
+                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${item.badgeColor}`}>
+                            {t(item.badgeKey)}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Bottom section */}
@@ -170,9 +212,9 @@ export function AppSidebar({ children }: AppSidebarProps) {
           </button>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4318ff] to-[#9f7aea] flex items-center justify-center">
-              <Swords className="w-4 h-4 text-white" />
+              <Shield className="w-4 h-4 text-white" />
             </div>
-            <span className="text-sm font-semibold text-[var(--foreground)]">RoK Suite</span>
+            <span className="text-sm font-semibold text-[var(--foreground)]">{t('siteTitle')}</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
