@@ -157,6 +157,7 @@ function TeamBuilderTab({
     const [newMemberName, setNewMemberName] = useState('');
     const [newMemberPower, setNewMemberPower] = useState('');
     const [newMemberGovId, setNewMemberGovId] = useState('');
+    const [showAutoComplete, setShowAutoComplete] = useState(false);
 
     // Filter roster by alliance
     const baseRoster = builderAlliance === 'all'
@@ -168,6 +169,21 @@ function TeamBuilderTab({
         ...baseRoster.map(m => ({ ...m, isPending: false as const })),
         ...pendingAdditions.filter(p => builderAlliance === 'all' || !p.governorId), // Show pending in "all" or if no specific alliance
     ];
+
+    // Autocomplete suggestions from full roster (independent of alliance filter)
+    const autocompleteSuggestions = newMemberName.trim().length >= 2
+        ? roster.filter(m =>
+            m.name.toLowerCase().includes(newMemberName.toLowerCase()) &&
+            !combinedRoster.some(c => c.name === m.name) // Exclude already in current list
+          ).slice(0, 8)
+        : [];
+
+    // Select autocomplete suggestion
+    const handleSelectSuggestion = (member: typeof roster[0]) => {
+        setNewMemberName(member.name);
+        setNewMemberPower(member.power?.toString() || '');
+        setShowAutoComplete(false);
+    };
 
     // Apply search filter
     const filteredRoster = searchTerm.trim()
@@ -460,18 +476,44 @@ function TeamBuilderTab({
                         {/* Add Member Form */}
                         {showAddForm && (
                             <div className={`p-4 mb-4 rounded-lg border ${theme.border} bg-emerald-500/10`}>
-                                <h4 className="text-sm font-medium text-emerald-400 mb-3">Add New Member</h4>
+                                <h4 className="text-sm font-medium text-emerald-400 mb-3">Add Member to Team</h4>
                                 <p className={`text-xs ${theme.textMuted} mb-3`}>
-                                    Can&apos;t find someone? Add them here. They&apos;ll be marked as pending until approved.
+                                    Start typing to search existing roster, or enter a new name.
                                 </p>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                                    <input
-                                        type="text"
-                                        value={newMemberName}
-                                        onChange={(e) => setNewMemberName(e.target.value)}
-                                        placeholder="In-game name *"
-                                        className={`px-3 py-2 rounded-lg text-sm ${theme.input}`}
-                                    />
+                                    {/* Name input with autocomplete */}
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={newMemberName}
+                                            onChange={(e) => {
+                                                setNewMemberName(e.target.value);
+                                                setShowAutoComplete(true);
+                                            }}
+                                            onFocus={() => setShowAutoComplete(true)}
+                                            onBlur={() => setTimeout(() => setShowAutoComplete(false), 200)}
+                                            placeholder="In-game name *"
+                                            className={`w-full px-3 py-2 rounded-lg text-sm ${theme.input}`}
+                                        />
+                                        {/* Autocomplete dropdown */}
+                                        {showAutoComplete && autocompleteSuggestions.length > 0 && (
+                                            <div className={`absolute z-50 w-full mt-1 rounded-lg border ${theme.card} shadow-xl max-h-48 overflow-y-auto`}>
+                                                {autocompleteSuggestions.map((member) => (
+                                                    <button
+                                                        key={member.name}
+                                                        onMouseDown={(e) => e.preventDefault()}
+                                                        onClick={() => handleSelectSuggestion(member)}
+                                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center justify-between border-b ${theme.border}`}
+                                                    >
+                                                        <span className={theme.text}>{member.name}</span>
+                                                        <span className={`text-xs ${theme.textMuted}`}>
+                                                            {formatPower(member.power)} • {member.alliance || 'No alliance'}
+                                                        </span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                     <input
                                         type="text"
                                         value={newMemberPower}
