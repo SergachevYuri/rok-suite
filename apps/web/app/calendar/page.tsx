@@ -9,14 +9,14 @@ const CALENDARS = [
     {
         id: '2aed069b30c3f3501b64ef982441f597b833e3db8b855488f734efe1b9552040@group.calendar.google.com',
         name: 'Angmar Alliance',
-        color: '#7986CB', // purple-ish blue
+        color: '#8E24AA', // purple
         displayColor: '#9f7aea', // purple to match site theme
     },
     {
         id: 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com',
         name: 'Kingdom 23',
-        color: '#039BE5', // blue
-        displayColor: '#039BE5', // blue
+        color: '#F4511E', // orange-red
+        displayColor: '#f97316', // orange
     },
 ];
 
