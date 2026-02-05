@@ -42,10 +42,10 @@
     "wipBadge": "WIP"
   },
   "home": {
-    "tagline": "Strategy Tools for RoK",
-    "title": "Kingdom 23",
-    "subtitle": "Rise of Kingdoms Strategy Tools",
-    "builtFor": "Led by Angmar Nazgul Guards",
+    "tagline": "Kingdom 23 • Rise of Kingdoms",
+    "title": "ANGMAR",
+    "subtitle": "Nazgul Guards",
+    "builtFor": "Kingdom 23 Alliance Tools",
     "sections": {
       "interactiveTools": "Kingdom Tools",
       "guides": "Guides & Documentation",
