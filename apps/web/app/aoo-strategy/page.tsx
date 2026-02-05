@@ -82,6 +82,14 @@ function distributeByPowerWithKills(players: { name: string; power: number; kill
 }
 
 // Team Builder Tab Component
+interface PendingMember {
+    name: string;
+    power: number;
+    kills: number;
+    governorId?: string;
+    isPending: true;
+}
+
 interface TeamBuilderTabProps {
     roster: { name: string; power: number; kills: number; alliance: string | null }[];
     powerByName: Record<string, number>;
@@ -104,7 +112,10 @@ interface TeamBuilderTabProps {
     setSelectedRallyLeads: (r: Record<number, string>) => void;
     selectedTeleportFirst: Set<string>;
     setSelectedTeleportFirst: (t: Set<string>) => void;
+    pendingAdditions: PendingMember[];
+    setPendingAdditions: (p: PendingMember[]) => void;
     onApply: (zones: Record<number, { name: string; power: number; kills: number }[]>, rallyLeads: Record<number, string>, teleportFirst: Set<string>, substitutes: { name: string; power: number; kills: number }[]) => void;
+    onSavePendingAdditions: (additions: PendingMember[]) => Promise<void>;
     theme: Record<string, string>;
     formatPower: (p: number | null | undefined) => string;
     user: { id: string } | null;
@@ -132,19 +143,69 @@ function TeamBuilderTab({
     setSelectedRallyLeads,
     selectedTeleportFirst,
     setSelectedTeleportFirst,
+    pendingAdditions,
+    setPendingAdditions,
     onApply,
+    onSavePendingAdditions,
     theme,
     formatPower,
     user,
 }: TeamBuilderTabProps) {
+    // Local state for search and add member form
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [newMemberName, setNewMemberName] = useState('');
+    const [newMemberPower, setNewMemberPower] = useState('');
+    const [newMemberGovId, setNewMemberGovId] = useState('');
+
     // Filter roster by alliance
-    const filteredRoster = builderAlliance === 'all'
+    const baseRoster = builderAlliance === 'all'
         ? roster
         : roster.filter(m => m.alliance === builderAlliance);
 
-    // Count confirmations
-    const confirmedPlayers = filteredRoster.filter(m => confirmations[m.name] === 'confirmed');
-    const maybePlayers = filteredRoster.filter(m => confirmations[m.name] === 'maybe');
+    // Combine with pending additions
+    const combinedRoster = [
+        ...baseRoster.map(m => ({ ...m, isPending: false as const })),
+        ...pendingAdditions.filter(p => builderAlliance === 'all' || !p.governorId), // Show pending in "all" or if no specific alliance
+    ];
+
+    // Apply search filter
+    const filteredRoster = searchTerm.trim()
+        ? combinedRoster.filter(m =>
+            m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            ('governorId' in m && m.governorId?.includes(searchTerm))
+          )
+        : combinedRoster;
+
+    // Check if search term matches nothing in roster (for showing "add" option)
+    const noResults = searchTerm.trim().length > 0 && filteredRoster.length === 0;
+
+    // Add a new pending member
+    const handleAddMember = () => {
+        if (!newMemberName.trim()) return;
+
+        const newMember: PendingMember = {
+            name: newMemberName.trim(),
+            power: parseInt(newMemberPower) || 0,
+            kills: 0,
+            governorId: newMemberGovId.trim() || undefined,
+            isPending: true,
+        };
+
+        setPendingAdditions([...pendingAdditions, newMember]);
+        setNewMemberName('');
+        setNewMemberPower('');
+        setNewMemberGovId('');
+        setShowAddForm(false);
+        setSearchTerm('');
+
+        // Auto-confirm the new member
+        setConfirmations({ ...confirmations, [newMember.name]: 'confirmed' });
+    };
+
+    // Count confirmations (from combined roster)
+    const confirmedPlayers = combinedRoster.filter(m => confirmations[m.name] === 'confirmed');
+    const maybePlayers = combinedRoster.filter(m => confirmations[m.name] === 'maybe');
     const confirmedPower = confirmedPlayers.reduce((sum, p) => sum + (p.power || 0), 0);
     const maybePower = maybePlayers.reduce((sum, p) => sum + (p.power || 0), 0);
 
@@ -335,7 +396,7 @@ function TeamBuilderTab({
                     <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className={`text-sm font-medium ${theme.text}`}>
-                                Select Confirmed Players ({filteredRoster.length} available)
+                                Select Players ({combinedRoster.length} available{pendingAdditions.length > 0 ? `, ${pendingAdditions.length} pending` : ''})
                             </h3>
                             <div className="flex items-center gap-4 text-xs">
                                 <span className="text-green-500">
@@ -347,12 +408,23 @@ function TeamBuilderTab({
                             </div>
                         </div>
 
+                        {/* Search input */}
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search by name or governor ID..."
+                                className={`w-full px-3 py-2 rounded-lg text-sm ${theme.input}`}
+                            />
+                        </div>
+
                         {/* Quick actions */}
-                        <div className="flex gap-2 mb-4">
+                        <div className="flex flex-wrap gap-2 mb-4">
                             <button
                                 onClick={() => {
                                     const newConf: Record<string, ConfirmationStatus> = {};
-                                    filteredRoster.forEach(p => newConf[p.name] = 'confirmed');
+                                    combinedRoster.forEach(p => newConf[p.name] = 'confirmed');
                                     setConfirmations({ ...confirmations, ...newConf });
                                 }}
                                 className={`px-3 py-1 text-xs rounded ${theme.tag} hover:opacity-80`}
@@ -362,19 +434,100 @@ function TeamBuilderTab({
                             <button
                                 onClick={() => {
                                     const newConf: Record<string, ConfirmationStatus> = {};
-                                    filteredRoster.forEach(p => newConf[p.name] = 'none');
+                                    combinedRoster.forEach(p => newConf[p.name] = 'none');
                                     setConfirmations({ ...confirmations, ...newConf });
                                 }}
                                 className={`px-3 py-1 text-xs rounded ${theme.tag} hover:opacity-80`}
                             >
                                 Clear All
                             </button>
+                            <button
+                                onClick={() => setShowAddForm(!showAddForm)}
+                                className={`px-3 py-1 text-xs rounded ${showAddForm ? 'bg-emerald-600 text-white' : theme.tag} hover:opacity-80`}
+                            >
+                                + Add New Member
+                            </button>
+                            {pendingAdditions.length > 0 && (
+                                <button
+                                    onClick={() => onSavePendingAdditions(pendingAdditions)}
+                                    className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:opacity-80"
+                                >
+                                    Save {pendingAdditions.length} Pending
+                                </button>
+                            )}
                         </div>
+
+                        {/* Add Member Form */}
+                        {showAddForm && (
+                            <div className={`p-4 mb-4 rounded-lg border ${theme.border} bg-emerald-500/10`}>
+                                <h4 className="text-sm font-medium text-emerald-400 mb-3">Add New Member</h4>
+                                <p className={`text-xs ${theme.textMuted} mb-3`}>
+                                    Can&apos;t find someone? Add them here. They&apos;ll be marked as pending until approved.
+                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                                    <input
+                                        type="text"
+                                        value={newMemberName}
+                                        onChange={(e) => setNewMemberName(e.target.value)}
+                                        placeholder="In-game name *"
+                                        className={`px-3 py-2 rounded-lg text-sm ${theme.input}`}
+                                    />
+                                    <input
+                                        type="text"
+                                        value={newMemberPower}
+                                        onChange={(e) => setNewMemberPower(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="Power (optional)"
+                                        className={`px-3 py-2 rounded-lg text-sm ${theme.input}`}
+                                    />
+                                    <input
+                                        type="text"
+                                        value={newMemberGovId}
+                                        onChange={(e) => setNewMemberGovId(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="Governor ID (optional)"
+                                        className={`px-3 py-2 rounded-lg text-sm ${theme.input}`}
+                                    />
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleAddMember}
+                                        disabled={!newMemberName.trim()}
+                                        className={`px-4 py-2 text-sm rounded-lg ${newMemberName.trim() ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
+                                    >
+                                        Add Member
+                                    </button>
+                                    <button
+                                        onClick={() => setShowAddForm(false)}
+                                        className={`px-4 py-2 text-sm rounded-lg ${theme.tag} hover:opacity-80`}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* No results message */}
+                        {noResults && (
+                            <div className={`p-4 mb-4 rounded-lg text-center ${theme.card} border border-dashed ${theme.border}`}>
+                                <p className={`text-sm ${theme.textMuted} mb-2`}>
+                                    No members found matching &quot;{searchTerm}&quot;
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        setNewMemberName(searchTerm);
+                                        setShowAddForm(true);
+                                    }}
+                                    className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
+                                >
+                                    + Add &quot;{searchTerm}&quot; as new member
+                                </button>
+                            </div>
+                        )}
 
                         {/* Player list */}
                         <div className="max-h-[400px] overflow-y-auto space-y-1">
                             {filteredRoster.map((member) => {
                                 const status = confirmations[member.name] || 'none';
+                                const isPending = 'isPending' in member && member.isPending;
                                 return (
                                     <button
                                         key={member.name}
@@ -382,6 +535,7 @@ function TeamBuilderTab({
                                         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
                                             status === 'confirmed' ? 'bg-green-600/20 border border-green-500/30' :
                                             status === 'maybe' ? 'bg-yellow-600/20 border border-yellow-500/30' :
+                                            isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
                                             'bg-white/5 border border-white/10 hover:bg-white/10'
                                         }`}
                                     >
@@ -394,6 +548,11 @@ function TeamBuilderTab({
                                                 {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : ''}
                                             </span>
                                             <span className={`font-medium ${theme.text}`}>{member.name}</span>
+                                            {isPending && (
+                                                <span className="px-1.5 py-0.5 text-[10px] rounded bg-blue-600 text-white">
+                                                    NEW
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-3 text-sm">
                                             <span className={theme.textMuted} title="Power">
@@ -402,6 +561,18 @@ function TeamBuilderTab({
                                             <span className={`${theme.textMuted} text-xs`} title="Kill Points">
                                                 KP: {formatPower(member.kills || killsByName[member.name] || 0)}
                                             </span>
+                                            {isPending && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPendingAdditions(pendingAdditions.filter(p => p.name !== member.name));
+                                                    }}
+                                                    className="text-red-400 hover:text-red-300 text-xs"
+                                                    title="Remove"
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
                                         </div>
                                     </button>
                                 );
@@ -637,8 +808,36 @@ export default function AooStrategyPage() {
     const [suggestedZones, setSuggestedZones] = useState<Record<number, { name: string; power: number; kills: number }[]>>({});
     const [selectedRallyLeads, setSelectedRallyLeads] = useState<Record<number, string>>({});
     const [selectedTeleportFirst, setSelectedTeleportFirst] = useState<Set<string>>(new Set());
+    const [pendingAdditions, setPendingAdditions] = useState<PendingMember[]>([]);
 
     const EDITOR_PASSWORD = 'carn-dum';
+
+    // Save pending additions to Supabase for admin approval
+    const handleSavePendingAdditions = async (additions: PendingMember[]) => {
+        if (additions.length === 0) return;
+
+        try {
+            const supabase = (await import('@/lib/supabase/client')).createClient();
+            const { error } = await supabase
+                .from('pending_roster_additions')
+                .insert(additions.map(a => ({
+                    name: a.name,
+                    power: a.power || null,
+                    governor_id: a.governorId ? parseInt(a.governorId) : null,
+                    alliance: builderAlliance !== 'all' ? builderAlliance : null,
+                    suggested_by: user?.id || 'anonymous',
+                })));
+
+            if (error) {
+                console.error('Error saving pending additions:', error);
+                alert('Failed to save pending members. They will still be available in this session.');
+            } else {
+                alert(`${additions.length} member(s) submitted for approval!`);
+            }
+        } catch (err) {
+            console.error('Error saving pending additions:', err);
+        }
+    };
 
     useEffect(() => {
         // Load data for the initial event mode and team (check URL or localStorage)
@@ -1275,6 +1474,9 @@ export default function AooStrategyPage() {
                     setSelectedRallyLeads={setSelectedRallyLeads}
                     selectedTeleportFirst={selectedTeleportFirst}
                     setSelectedTeleportFirst={setSelectedTeleportFirst}
+                    pendingAdditions={pendingAdditions}
+                    setPendingAdditions={setPendingAdditions}
+                    onSavePendingAdditions={handleSavePendingAdditions}
                     onApply={(zonePlayers, rallyLeads, teleportFirst, subs) => {
                         // Apply distribution to strategy
                         const newPlayers: Player[] = [];
