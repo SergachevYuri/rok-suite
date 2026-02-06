@@ -227,14 +227,26 @@ function TeamBuilderTab({
                     const aKp = a.kills || killsByName[a.name] || 0;
                     const bKp = b.kills || killsByName[b.name] || 0;
                     return bKp - aKp;
-                case 't1':
+                case 't1': {
+                    // Sort by: rate desc, then total assignments desc (2/2 > 1/1), then participated desc
                     const aT1Rate = aStats && aStats.team1Count > 0 ? aStats.team1Participated / aStats.team1Count : -1;
                     const bT1Rate = bStats && bStats.team1Count > 0 ? bStats.team1Participated / bStats.team1Count : -1;
-                    return bT1Rate - aT1Rate;
-                case 't2':
+                    if (bT1Rate !== aT1Rate) return bT1Rate - aT1Rate;
+                    // Same rate - prefer more assignments (2/2 > 1/1)
+                    const aT1Count = aStats?.team1Count || 0;
+                    const bT1Count = bStats?.team1Count || 0;
+                    if (bT1Count !== aT1Count) return bT1Count - aT1Count;
+                    return (bStats?.team1Participated || 0) - (aStats?.team1Participated || 0);
+                }
+                case 't2': {
                     const aT2Rate = aStats && aStats.team2Count > 0 ? aStats.team2Participated / aStats.team2Count : -1;
                     const bT2Rate = bStats && bStats.team2Count > 0 ? bStats.team2Participated / bStats.team2Count : -1;
-                    return bT2Rate - aT2Rate;
+                    if (bT2Rate !== aT2Rate) return bT2Rate - aT2Rate;
+                    const aT2Count = aStats?.team2Count || 0;
+                    const bT2Count = bStats?.team2Count || 0;
+                    if (bT2Count !== aT2Count) return bT2Count - aT2Count;
+                    return (bStats?.team2Participated || 0) - (aStats?.team2Participated || 0);
+                }
                 case 'name':
                     return a.name.localeCompare(b.name);
                 default:
