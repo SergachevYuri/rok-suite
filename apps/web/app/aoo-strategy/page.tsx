@@ -14,7 +14,7 @@ const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInt
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center min-h-[400px]">
-      <div className="w-5 h-5 border-2 border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
+      <div className="w-5 h-5 border border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
     </div>
   ),
 });
@@ -688,7 +688,7 @@ function TeamBuilderTab({
                     </section>
 
                     {/* Zone Size Configuration - Prominent */}
-                    <section className={`${theme.card} border-2 border-[#4318ff] rounded-xl mb-6 p-5`}>
+                    <section className={`${theme.card} border border-[#4318ff] rounded-xl mb-6 p-5`}>
                         <h3 className={`text-lg font-semibold ${theme.text} mb-2`}>⚔️ Zone Distribution</h3>
                         <p className={`text-sm ${theme.textMuted} mb-4`}>
                             Enter how many players you want in each zone. Power will be balanced automatically within your specified sizes.
@@ -697,7 +697,7 @@ function TeamBuilderTab({
                         {/* Zone inputs in a row */}
                         <div className="grid grid-cols-4 gap-3 mb-4">
                             {/* Zone 1 */}
-                            <div className="p-3 rounded-lg border-2 border-blue-500 bg-[var(--background-secondary)]">
+                            <div className="p-3 rounded-lg border border-blue-500 bg-[var(--background-secondary)]">
                                 <label className="text-xs text-blue-400 font-semibold block mb-1">
                                     Zone 1 (Ark)
                                 </label>
@@ -711,7 +711,7 @@ function TeamBuilderTab({
                                 />
                             </div>
                             {/* Zone 2 */}
-                            <div className="p-3 rounded-lg border-2 border-orange-500 bg-[var(--background-secondary)]">
+                            <div className="p-3 rounded-lg border border-orange-500 bg-[var(--background-secondary)]">
                                 <label className="text-xs text-orange-400 font-semibold block mb-1">
                                     Zone 2 (Upper)
                                 </label>
@@ -725,7 +725,7 @@ function TeamBuilderTab({
                                 />
                             </div>
                             {/* Zone 3 */}
-                            <div className="p-3 rounded-lg border-2 border-purple-500 bg-[var(--background-secondary)]">
+                            <div className="p-3 rounded-lg border border-purple-500 bg-[var(--background-secondary)]">
                                 <label className="text-xs text-purple-400 font-semibold block mb-1">
                                     Zone 3 (Lower)
                                 </label>
@@ -739,7 +739,7 @@ function TeamBuilderTab({
                                 />
                             </div>
                             {/* Subs */}
-                            <div className="p-3 rounded-lg border-2 border-gray-500 bg-[var(--background-secondary)]">
+                            <div className="p-3 rounded-lg border border-gray-500 bg-[var(--background-secondary)]">
                                 <label className="text-xs text-gray-400 font-semibold block mb-1">
                                     Substitutes
                                 </label>
@@ -1538,7 +1538,7 @@ export default function AooStrategyPage() {
             <AppSidebar>
                 <div className={`min-h-screen ${theme.bg} ${theme.text} flex items-center justify-center`}>
                     <div className="flex items-center gap-3">
-                        <div className="w-5 h-5 border-2 border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-5 h-5 border border-[#4318ff] border-t-transparent rounded-full animate-spin"></div>
                         <span className={theme.textMuted}>Loading...</span>
                     </div>
                 </div>
@@ -1740,7 +1740,7 @@ export default function AooStrategyPage() {
                 /* Roster Tab */
                 <div className="max-w-7xl mx-auto p-4 md:p-6">
                     {/* Strategy Overview */}
-                    <section className={`${theme.card} border-2 border-[#4318ff] rounded-xl mb-6 p-4`}>
+                    <section className={`${theme.card} border border-[#4318ff] rounded-xl mb-6 p-4`}>
                         <h2 className={`text-sm font-semibold uppercase tracking-wider mb-4 text-[#9f7aea]`}>📋 Strategy Overview</h2>
 
                         {/* Key Rules */}
@@ -2039,83 +2039,10 @@ export default function AooStrategyPage() {
             {/* Lookup Tab */}
             {activeTab === 'lookup' && (
                 <div className="max-w-3xl mx-auto p-4 md:p-6">
-                    {/* Key Instructions */}
-                    <section className={`${theme.card} border-4 border-[#4318ff] rounded-xl p-6 mb-6`}>
-                        <h2 className={`text-xl font-bold text-center mb-4 text-[#9f7aea]`}>⚔️ AoO Battle Guide</h2>
-
-                        {/* Pre-battle checklist */}
-                        <div className="p-4 rounded-lg bg-purple-500/10 border-2 border-purple-500 mb-4">
-                            <h3 className="font-bold text-purple-400 mb-3">⏰ BEFORE THE BATTLE</h3>
-                            <ul className={`space-y-2 text-sm ${theme.text}`}>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-purple-400">1.</span>
-                                    <span>Look up your name below to find your <strong>zone assignment</strong></span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-purple-400">2.</span>
-                                    <span>Note your <strong>phase instructions</strong> (what to do at each stage)</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-purple-400">3.</span>
-                                    <span>Prepare your troops: <strong>Cavalry</strong> for rallies, <strong>Infantry</strong> for garrisons</span>
-                                </li>
-                            </ul>
-                        </div>
-
-                        {/* Important Rules */}
-                        <div className="p-4 rounded-lg bg-[#4318ff]/10 border-2 border-[#4318ff] mb-4">
-                            <h3 className="font-bold text-[#9f7aea] mb-3">📌 DURING THE BATTLE</h3>
-                            <ul className={`space-y-2 ${theme.text}`}>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-[#9f7aea] font-bold">1.</span>
-                                    <span><strong>Stay in your assigned lane/zone.</strong> Do not wander.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-[#9f7aea] font-bold">2.</span>
-                                    <span><strong>Rush to your obelisk first.</strong> Rally leaders teleport first.</span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-[#9f7aea] font-bold">3.</span>
-                                    <span><strong>Fully occupy + garrison before moving to next building.</strong></span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-[#9f7aea] font-bold">4.</span>
-                                    <span><strong>Only rally buildings the enemy has occupied.</strong></span>
-                                </li>
-                                <li className="flex items-start gap-2">
-                                    <span className="text-[#9f7aea] font-bold">5.</span>
-                                    <span><strong>Work together as a unit.</strong> Follow your zone leader.</span>
-                                </li>
-                            </ul>
-                        </div>
-
-                        {/* Troop Deployment */}
-                        <div className="p-4 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
-                            <h3 className={`font-bold ${theme.textMuted} mb-3`}>🎯 TROOP DEPLOYMENT</h3>
-                            <div className="grid grid-cols-3 gap-3 text-center text-sm">
-                                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                                    <div className="text-2xl mb-1">🐴</div>
-                                    <div className="font-bold text-red-500">Cavalry</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Join rallies</div>
-                                </div>
-                                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                                    <div className="text-2xl mb-1">🛡️</div>
-                                    <div className="font-bold text-blue-500">Infantry</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Garrison buildings</div>
-                                </div>
-                                <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-                                    <div className="text-2xl mb-1">🌾</div>
-                                    <div className="font-bold text-yellow-500">Other</div>
-                                    <div className={`text-xs ${theme.textMuted}`}>Gather tiles</div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* Player Lookup */}
-                    <section className={`${theme.card} border rounded-xl p-6`}>
-                        <h2 className={`text-xl font-semibold mb-4 text-center`}>🔍 Find Your Role</h2>
-                        <p className={`text-sm ${theme.textMuted} text-center mb-6`}>Enter your in-game name to see your assignments for each phase</p>
+                    {/* Player Lookup - NOW FIRST */}
+                    <section className={`${theme.card} border rounded-xl p-6 mb-6`}>
+                        <h2 className={`text-lg font-semibold mb-2 text-center`}>Find Your Assignment</h2>
+                        <p className={`text-sm ${theme.textMuted} text-center mb-4`}>Enter your name to see your zone and phase instructions</p>
 
                         <div className="relative">
                             <input
@@ -2236,65 +2163,65 @@ export default function AooStrategyPage() {
 
                                         {/* Phase-by-phase assignments - ENHANCED */}
                                         {foundPlayer.assignments && (
-                                            <div className={`p-6 rounded-xl border-4 ${zoneBgColors[foundPlayer.team]} mb-6`}>
-                                                <h4 className={`text-lg font-bold uppercase tracking-wider mb-6 text-center ${zoneColors[foundPlayer.team]}`}>
-                                                    📋 YOUR BATTLE PLAN
+                                            <div className="mb-6">
+                                                <h4 className={`text-sm font-medium uppercase tracking-wider mb-3 ${theme.textMuted}`}>
+                                                    Phase Instructions
                                                 </h4>
-                                                <div className="grid gap-4">
-                                                    <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.94)] border-4 border-yellow-500 shadow-lg">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-3xl">🏃</span>
-                                                                <div>
-                                                                    <div className="text-yellow-500 font-bold text-lg">PHASE 1</div>
-                                                                    <div className={`text-xs ${theme.textMuted}`}>RUSH • 0:00</div>
+                                                <div className="grid gap-3">
+                                                    <div className="p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-500 font-bold text-sm">1</div>
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-yellow-500 font-medium text-sm">Rush</span>
+                                                                    <span className={`text-xs ${theme.textMuted}`}>0:00</span>
                                                                 </div>
+                                                                <p className={`text-sm ${theme.text}`}>{foundPlayer.assignments.phase1}</p>
                                                             </div>
                                                         </div>
-                                                        <p className={`font-semibold text-base ${theme.text}`}>{foundPlayer.assignments.phase1}</p>
                                                     </div>
-                                                    <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.94)] border-4 border-yellow-600 shadow-lg">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-3xl">📍</span>
-                                                                <div>
-                                                                    <div className="text-yellow-600 font-bold text-lg">PHASE 2</div>
-                                                                    <div className={`text-xs ${theme.textMuted}`}>SECURE • ~5:00</div>
+                                                    <div className="p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-yellow-600/20 flex items-center justify-center text-yellow-600 font-bold text-sm">2</div>
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-yellow-600 font-medium text-sm">Secure</span>
+                                                                    <span className={`text-xs ${theme.textMuted}`}>~5:00</span>
                                                                 </div>
+                                                                <p className={`text-sm ${theme.text}`}>{foundPlayer.assignments.phase2}</p>
                                                             </div>
                                                         </div>
-                                                        <p className={`font-semibold text-base ${theme.text}`}>{foundPlayer.assignments.phase2}</p>
                                                     </div>
-                                                    <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.94)] border-4 border-orange-500 shadow-lg">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-3xl">⚔️</span>
-                                                                <div>
-                                                                    <div className="text-orange-500 font-bold text-lg">PHASE 3</div>
-                                                                    <div className={`text-xs ${theme.textMuted}`}>EXPAND • ~15:00</div>
+                                                    <div className="p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-500 font-bold text-sm">3</div>
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-orange-500 font-medium text-sm">Expand</span>
+                                                                    <span className={`text-xs ${theme.textMuted}`}>~15:00</span>
                                                                 </div>
+                                                                <p className={`text-sm ${theme.text}`}>{foundPlayer.assignments.phase3}</p>
                                                             </div>
                                                         </div>
-                                                        <p className={`font-semibold text-base ${theme.text}`}>{foundPlayer.assignments.phase3}</p>
                                                     </div>
-                                                    <div className="p-4 rounded-xl bg-[rgba(6,11,40,0.94)] border-4 border-red-500 shadow-lg">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-3xl">💥</span>
-                                                                <div>
-                                                                    <div className="text-red-500 font-bold text-lg">PHASE 4</div>
-                                                                    <div className={`text-xs ${theme.textMuted}`}>CONTEST • ~45:00</div>
+                                                    <div className="p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 font-bold text-sm">4</div>
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-red-500 font-medium text-sm">Contest</span>
+                                                                    <span className={`text-xs ${theme.textMuted}`}>~45:00</span>
                                                                 </div>
+                                                                <p className={`text-sm ${theme.text}`}>{foundPlayer.assignments.phase4}</p>
                                                             </div>
                                                         </div>
-                                                        <p className={`font-semibold text-base ${theme.text}`}>{foundPlayer.assignments.phase4}</p>
                                                     </div>
                                                 </div>
                                             </div>
                                         )}
 
                                         {/* Mini Map showing assigned buildings */}
-                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-[var(--border)]">
+                                        <div className="mt-4 p-4 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
                                             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>🗺️ Your Buildings</h4>
                                             <div className="relative w-full rounded-lg overflow-hidden" style={{ aspectRatio: '1275 / 891' }}>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2350,7 +2277,7 @@ export default function AooStrategyPage() {
                                                             }}
                                                         >
                                                             <div 
-                                                                className="w-6 h-6 rounded-full border-2 border-white shadow-lg flex items-center justify-center animate-pulse"
+                                                                className="w-6 h-6 rounded-full border border-white shadow-lg flex items-center justify-center animate-pulse"
                                                                 style={{ backgroundColor: zoneMarkerColors[foundPlayer.team] }}
                                                             >
                                                                 <span className="text-white text-[8px] font-bold">★</span>
@@ -2373,7 +2300,7 @@ export default function AooStrategyPage() {
                                         </div>
 
                                         {/* Role instructions */}
-                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-[var(--border)]">
+                                        <div className="mt-4 p-4 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
                                             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>💡 Role Tips</h4>
                                             <ul className={`space-y-2 text-sm ${theme.text}`}>
                                                 {foundPlayer.tags.includes('Rally Leader') && (
@@ -2403,7 +2330,7 @@ export default function AooStrategyPage() {
                                         </div>
 
                                         {/* March Deployment Guide */}
-                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-[var(--border)]">
+                                        <div className="mt-4 p-4 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
                                             <h4 className={`text-sm font-semibold uppercase tracking-wider mb-3 ${theme.textMuted}`}>🎖️ March Deployment</h4>
                                             <div className={`space-y-3 text-sm ${theme.text}`}>
                                                 <div className="p-2 rounded bg-[var(--background-secondary)]">
@@ -2484,7 +2411,7 @@ export default function AooStrategyPage() {
                                             <p className={`text-sm ${theme.textMuted}`}>⚔️ {formatPower(subPower)} Power</p>
                                         )}
                                         <p className={`text-lg ${theme.textMuted} mt-2`}>📋 Substitute</p>
-                                        <div className="mt-4 p-4 rounded-lg bg-[rgba(6,11,40,0.94)] border border-[var(--border)]">
+                                        <div className="mt-4 p-4 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
                                             <p className={theme.text}>You are on the substitute list.</p>
                                             <p className={`mt-2 text-sm ${theme.textMuted}`}>Be ready to join if a spot opens up! Make sure you:</p>
                                             <ul className={`mt-2 text-sm ${theme.textMuted} text-left max-w-xs mx-auto`}>
@@ -2506,9 +2433,50 @@ export default function AooStrategyPage() {
                         })()}
                     </section>
 
-                    <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
-                        <p className={`text-xs ${theme.textMuted}`}>Angmar • Rise of Kingdoms</p>
-                        <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>Led by Fluffy • Suntzu is charming the enemy (again)</p>
+                    {/* Collapsible Battle Guide */}
+                    <details className={`${theme.card} border rounded-xl overflow-hidden`}>
+                        <summary className={`px-4 py-3 cursor-pointer hover:bg-[var(--background-secondary)] transition-colors flex items-center justify-between`}>
+                            <span className={`font-medium ${theme.textMuted}`}>Battle Guide</span>
+                            <span className={`text-xs ${theme.textMuted}`}>Tips for AoO</span>
+                        </summary>
+                        <div className="p-4 border-t border-[var(--border)] space-y-4">
+                            {/* Pre-battle */}
+                            <div>
+                                <h4 className={`text-sm font-medium ${theme.textMuted} mb-2`}>Before the Battle</h4>
+                                <ul className={`text-sm ${theme.text} space-y-1 ml-4`}>
+                                    <li>• Find your zone assignment above</li>
+                                    <li>• Note your phase instructions</li>
+                                    <li>• Prepare: Cavalry for rallies, Infantry for garrisons</li>
+                                </ul>
+                            </div>
+                            {/* During battle */}
+                            <div>
+                                <h4 className={`text-sm font-medium ${theme.textMuted} mb-2`}>During the Battle</h4>
+                                <ul className={`text-sm ${theme.text} space-y-1 ml-4`}>
+                                    <li>• Stay in your assigned zone</li>
+                                    <li>• Rush to your obelisk first</li>
+                                    <li>• Fully occupy + garrison before moving on</li>
+                                    <li>• Only rally enemy-occupied buildings</li>
+                                    <li>• Follow your zone leader</li>
+                                </ul>
+                            </div>
+                            {/* Troop types */}
+                            <div className="flex gap-4 text-sm pt-2">
+                                <div className={`flex items-center gap-2 ${theme.textMuted}`}>
+                                    <span>Cavalry:</span> <span className={theme.text}>Rallies</span>
+                                </div>
+                                <div className={`flex items-center gap-2 ${theme.textMuted}`}>
+                                    <span>Infantry:</span> <span className={theme.text}>Garrisons</span>
+                                </div>
+                                <div className={`flex items-center gap-2 ${theme.textMuted}`}>
+                                    <span>Other:</span> <span className={theme.text}>Gather</span>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <footer className={`mt-6 pt-4 border-t ${theme.border} text-center`}>
+                        <p className={`text-xs ${theme.textMuted}`}>Kingdom 23 • Rise of Kingdoms</p>
                     </footer>
                 </div>
             )}
