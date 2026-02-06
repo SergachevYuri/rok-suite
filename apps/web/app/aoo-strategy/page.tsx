@@ -2433,47 +2433,49 @@ export default function AooStrategyPage() {
                         })()}
                     </section>
 
-                    {/* Collapsible Battle Guide */}
-                    <details className={`${theme.card} border rounded-xl overflow-hidden`}>
-                        <summary className={`px-4 py-3 cursor-pointer hover:bg-[var(--background-secondary)] transition-colors flex items-center justify-between`}>
-                            <span className={`font-medium ${theme.textMuted}`}>Battle Guide</span>
-                            <span className={`text-xs ${theme.textMuted}`}>Tips for AoO</span>
-                        </summary>
-                        <div className="p-4 border-t border-[var(--border)] space-y-4">
-                            {/* Pre-battle */}
-                            <div>
-                                <h4 className={`text-sm font-medium ${theme.textMuted} mb-2`}>Before the Battle</h4>
-                                <ul className={`text-sm ${theme.text} space-y-1 ml-4`}>
+                    {/* Battle Guide - Visible but compact */}
+                    <section className={`${theme.card} border rounded-xl p-4`}>
+                        <h3 className={`text-sm font-semibold mb-3 ${theme.textMuted}`}>Quick Reference</h3>
+                        <div className="grid md:grid-cols-2 gap-3">
+                            {/* Before */}
+                            <div className="p-3 rounded-lg border-l-2 border-purple-500 bg-purple-500/5">
+                                <h4 className="text-sm font-medium text-purple-400 mb-2">Before Battle</h4>
+                                <ul className={`text-xs ${theme.text} space-y-1`}>
                                     <li>• Find your zone assignment above</li>
-                                    <li>• Note your phase instructions</li>
-                                    <li>• Prepare: Cavalry for rallies, Infantry for garrisons</li>
+                                    <li>• Note phase instructions</li>
+                                    <li>• Cavalry for rallies, Infantry for garrisons</li>
                                 </ul>
                             </div>
-                            {/* During battle */}
-                            <div>
-                                <h4 className={`text-sm font-medium ${theme.textMuted} mb-2`}>During the Battle</h4>
-                                <ul className={`text-sm ${theme.text} space-y-1 ml-4`}>
+                            {/* During */}
+                            <div className="p-3 rounded-lg border-l-2 border-blue-500 bg-blue-500/5">
+                                <h4 className="text-sm font-medium text-blue-400 mb-2">During Battle</h4>
+                                <ul className={`text-xs ${theme.text} space-y-1`}>
                                     <li>• Stay in your assigned zone</li>
-                                    <li>• Rush to your obelisk first</li>
-                                    <li>• Fully occupy + garrison before moving on</li>
-                                    <li>• Only rally enemy-occupied buildings</li>
+                                    <li>• Rush to obelisk first</li>
+                                    <li>• Occupy + garrison before moving</li>
                                     <li>• Follow your zone leader</li>
                                 </ul>
                             </div>
-                            {/* Troop types */}
-                            <div className="flex gap-4 text-sm pt-2">
-                                <div className={`flex items-center gap-2 ${theme.textMuted}`}>
-                                    <span>Cavalry:</span> <span className={theme.text}>Rallies</span>
-                                </div>
-                                <div className={`flex items-center gap-2 ${theme.textMuted}`}>
-                                    <span>Infantry:</span> <span className={theme.text}>Garrisons</span>
-                                </div>
-                                <div className={`flex items-center gap-2 ${theme.textMuted}`}>
-                                    <span>Other:</span> <span className={theme.text}>Gather</span>
-                                </div>
+                        </div>
+                        {/* Troop types - compact row */}
+                        <div className="flex flex-wrap gap-3 mt-3 pt-3 border-t border-[var(--border)]">
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                <span className={theme.textMuted}>Cavalry:</span>
+                                <span className={theme.text}>Rallies</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                <span className={theme.textMuted}>Infantry:</span>
+                                <span className={theme.text}>Garrisons</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs">
+                                <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                                <span className={theme.textMuted}>Other:</span>
+                                <span className={theme.text}>Gather tiles</span>
                             </div>
                         </div>
-                    </details>
+                    </section>
 
                     <footer className={`mt-6 pt-4 border-t ${theme.border} text-center`}>
                         <p className={`text-xs ${theme.textMuted}`}>Kingdom 23 • Rise of Kingdoms</p>
