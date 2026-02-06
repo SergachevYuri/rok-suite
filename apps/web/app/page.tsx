@@ -73,14 +73,14 @@ export default function Home() {
                 const Icon = tool.icon;
                 return (
                   <Link key={tool.href} href={tool.href}>
-                    <div className="group p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/60 transition-all duration-200 cursor-pointer h-full">
+                    <div className="group p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 hover:border-teal-500/30 hover:bg-slate-800/60 transition-all duration-200 cursor-pointer h-full">
                       <div className="flex items-start gap-4">
-                        <div className="p-2.5 rounded-lg bg-slate-700/50 flex-shrink-0">
-                          <Icon className="w-5 h-5 text-slate-400" />
+                        <div className="p-2.5 rounded-lg bg-slate-700/50 group-hover:bg-teal-500/10 transition-colors duration-200 flex-shrink-0">
+                          <Icon className="w-5 h-5 text-slate-400 group-hover:text-teal-400 transition-colors duration-200" />
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-medium text-white mb-1 group-hover:text-white">
+                          <h3 className="text-base font-medium text-slate-200 mb-1 group-hover:text-white transition-colors duration-200">
                             {t(tool.titleKey)}
                           </h3>
                           <p className="text-sm text-slate-500 leading-relaxed">
@@ -88,7 +88,7 @@ export default function Home() {
                           </p>
                         </div>
 
-                        <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all duration-200 flex-shrink-0 mt-1" />
+                        <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-teal-400 group-hover:translate-x-0.5 transition-all duration-200 flex-shrink-0 mt-1" />
                       </div>
                     </div>
                   </Link>
@@ -104,14 +104,14 @@ export default function Home() {
             </h2>
 
             <Link href="/guide">
-              <div className="group p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 hover:border-slate-600/50 hover:bg-slate-800/60 transition-all duration-200 cursor-pointer">
+              <div className="group p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 hover:border-teal-500/30 hover:bg-slate-800/60 transition-all duration-200 cursor-pointer">
                 <div className="flex items-start gap-4">
-                  <div className="p-2.5 rounded-lg bg-slate-700/50 flex-shrink-0">
-                    <BookOpen className="w-5 h-5 text-slate-400" />
+                  <div className="p-2.5 rounded-lg bg-slate-700/50 group-hover:bg-teal-500/10 transition-colors duration-200 flex-shrink-0">
+                    <BookOpen className="w-5 h-5 text-slate-400 group-hover:text-teal-400 transition-colors duration-200" />
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-medium text-white mb-1">
+                    <h3 className="text-base font-medium text-slate-200 mb-1 group-hover:text-white transition-colors duration-200">
                       {t('guide.title')}
                     </h3>
                     <p className="text-sm text-slate-500 leading-relaxed">
@@ -119,7 +119,7 @@ export default function Home() {
                     </p>
                   </div>
 
-                  <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all duration-200 flex-shrink-0 mt-1" />
+                  <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-teal-400 group-hover:translate-x-0.5 transition-all duration-200 flex-shrink-0 mt-1" />
                 </div>
               </div>
             </Link>
