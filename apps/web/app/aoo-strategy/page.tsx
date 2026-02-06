@@ -539,12 +539,12 @@ function TeamBuilderTab({
 
                 {/* Instructions for coordinators */}
                 {builderStep === 'select' && (
-                    <div className={`p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs ${theme.text}`}>
+                    <div className={`p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-base ${theme.text}`}>
                         <strong className="text-blue-400">How to use:</strong> Select your alliance, choose how many teams to organize (1-3), then mark players as <span className="text-green-400">Confirmed</span> (definitely playing) or <span className="text-yellow-400">Maybe</span> (might join). Click <strong>Distribute to Zones</strong> to auto-balance power across 3 zones.
                     </div>
                 )}
                 {builderStep === 'distribute' && (
-                    <div className={`p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-xs ${theme.text}`}>
+                    <div className={`p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-base ${theme.text}`}>
                         <strong className="text-blue-400">Adjust assignments:</strong> Select a <span className="text-yellow-400">Rally Lead</span> for each zone (sorted by power + KP). Toggle <span className="text-[#9f7aea]">⚡ Teleport First</span> for early arrivals. Use the zone dropdown to move players between zones. When ready, click <strong>Apply to Strategy</strong>.
                     </div>
                 )}
