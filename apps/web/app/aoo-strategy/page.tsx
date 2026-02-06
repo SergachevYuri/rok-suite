@@ -159,6 +159,8 @@ function TeamBuilderTab({
     const [newMemberPower, setNewMemberPower] = useState('');
     const [newMemberGovId, setNewMemberGovId] = useState('');
     const [showAutoComplete, setShowAutoComplete] = useState(false);
+    const [builderSort, setBuilderSort] = useState<'power' | 'kp' | 't1' | 't2' | 'name'>('power');
+    const [builderFilter, setBuilderFilter] = useState<'all' | 'confirmed' | 'maybe' | 'none'>('all');
 
     // Zone size inputs for distribution (0 = subs)
     const [zoneSizes, setZoneSizes] = useState<Record<number, string>>({ 0: '', 1: '', 2: '', 3: '' });
@@ -198,13 +200,47 @@ function TeamBuilderTab({
         setShowAutoComplete(false);
     };
 
-    // Apply search filter
-    const filteredRoster = searchTerm.trim()
-        ? combinedRoster.filter(m =>
-            m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            ('governorId' in m && m.governorId?.includes(searchTerm))
-          )
-        : combinedRoster;
+    // Apply search and confirmation status filter
+    const filteredRoster = combinedRoster
+        .filter(m => {
+            // Search filter
+            if (searchTerm.trim()) {
+                const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    ('governorId' in m && m.governorId?.includes(searchTerm));
+                if (!matchesSearch) return false;
+            }
+            // Confirmation status filter
+            if (builderFilter !== 'all') {
+                const status = confirmations[m.name] || 'none';
+                if (builderFilter !== status) return false;
+            }
+            return true;
+        })
+        .sort((a, b) => {
+            // Sort logic
+            const aStats = eventStats.get(a.name)?.aoo;
+            const bStats = eventStats.get(b.name)?.aoo;
+            switch (builderSort) {
+                case 'power':
+                    return (b.power || 0) - (a.power || 0);
+                case 'kp':
+                    const aKp = a.kills || killsByName[a.name] || 0;
+                    const bKp = b.kills || killsByName[b.name] || 0;
+                    return bKp - aKp;
+                case 't1':
+                    const aT1Rate = aStats && aStats.team1Count > 0 ? aStats.team1Participated / aStats.team1Count : -1;
+                    const bT1Rate = bStats && bStats.team1Count > 0 ? bStats.team1Participated / bStats.team1Count : -1;
+                    return bT1Rate - aT1Rate;
+                case 't2':
+                    const aT2Rate = aStats && aStats.team2Count > 0 ? aStats.team2Participated / aStats.team2Count : -1;
+                    const bT2Rate = bStats && bStats.team2Count > 0 ? bStats.team2Participated / bStats.team2Count : -1;
+                    return bT2Rate - aT2Rate;
+                case 'name':
+                    return a.name.localeCompare(b.name);
+                default:
+                    return 0;
+            }
+        });
 
     // Check if search term matches nothing in roster (for showing "add" option)
     const noResults = searchTerm.trim().length > 0 && filteredRoster.length === 0;
@@ -661,15 +697,81 @@ function TeamBuilderTab({
                             </div>
                         )}
 
+                        {/* Sort & Filter Controls */}
+                        <div className="flex items-center justify-between mb-3 gap-4">
+                            {/* Filter by status */}
+                            <div className="flex items-center gap-2">
+                                <span className={`text-sm ${theme.textMuted}`}>Show:</span>
+                                <div className="flex gap-1">
+                                    {(['all', 'confirmed', 'maybe', 'none'] as const).map((filter) => (
+                                        <button
+                                            key={filter}
+                                            onClick={() => setBuilderFilter(filter)}
+                                            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                                                builderFilter === filter
+                                                    ? filter === 'confirmed' ? 'bg-green-600 text-white'
+                                                    : filter === 'maybe' ? 'bg-yellow-600 text-white'
+                                                    : filter === 'none' ? 'bg-gray-600 text-white'
+                                                    : 'bg-[#4318ff] text-white'
+                                                    : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:bg-[var(--background-hover)]'
+                                            }`}
+                                        >
+                                            {filter === 'all' ? 'All' : filter === 'confirmed' ? 'Confirmed' : filter === 'maybe' ? 'Maybe' : 'Unconfirmed'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* Sort dropdown */}
+                            <div className="flex items-center gap-2">
+                                <span className={`text-sm ${theme.textMuted}`}>Sort:</span>
+                                <select
+                                    value={builderSort}
+                                    onChange={(e) => setBuilderSort(e.target.value as typeof builderSort)}
+                                    className={`px-3 py-1.5 text-sm rounded-lg ${theme.input} cursor-pointer`}
+                                >
+                                    <option value="power">Power (High to Low)</option>
+                                    <option value="kp">Kill Points (High to Low)</option>
+                                    <option value="t1">T1 Participation</option>
+                                    <option value="t2">T2 Participation</option>
+                                    <option value="name">Name (A-Z)</option>
+                                </select>
+                            </div>
+                        </div>
+
                         {/* Player list */}
-                        {/* Column headers */}
-                        <div className={`grid grid-cols-[auto_1fr_70px_90px_36px_36px_24px] gap-2 px-3 py-2 text-xs ${theme.textMuted} border-b border-[var(--border)]`}>
-                            <div className="w-6"></div>
-                            <div>Name</div>
-                            <div className="text-right">Power</div>
-                            <div className="text-right">KP</div>
-                            <div className="text-center text-blue-400">T1</div>
-                            <div className="text-center text-orange-400">T2</div>
+                        {/* Column headers - clickable for sorting */}
+                        <div className={`grid grid-cols-[auto_1fr_80px_100px_50px_50px_28px] gap-3 px-3 py-2 text-sm font-medium ${theme.textMuted} border-b border-[var(--border)]`}>
+                            <div className="w-7"></div>
+                            <button
+                                onClick={() => setBuilderSort('name')}
+                                className={`text-left hover:text-white transition-colors ${builderSort === 'name' ? 'text-white' : ''}`}
+                            >
+                                Name {builderSort === 'name' && '↑'}
+                            </button>
+                            <button
+                                onClick={() => setBuilderSort('power')}
+                                className={`text-right hover:text-white transition-colors ${builderSort === 'power' ? 'text-white' : ''}`}
+                            >
+                                Power {builderSort === 'power' && '↓'}
+                            </button>
+                            <button
+                                onClick={() => setBuilderSort('kp')}
+                                className={`text-right hover:text-white transition-colors ${builderSort === 'kp' ? 'text-white' : ''}`}
+                            >
+                                KP {builderSort === 'kp' && '↓'}
+                            </button>
+                            <button
+                                onClick={() => setBuilderSort('t1')}
+                                className={`text-center hover:text-blue-300 transition-colors ${builderSort === 't1' ? 'text-blue-300' : 'text-blue-400'}`}
+                            >
+                                T1 {builderSort === 't1' && '↓'}
+                            </button>
+                            <button
+                                onClick={() => setBuilderSort('t2')}
+                                className={`text-center hover:text-orange-300 transition-colors ${builderSort === 't2' ? 'text-orange-300' : 'text-orange-400'}`}
+                            >
+                                T2 {builderSort === 't2' && '↓'}
+                            </button>
                             <div></div>
                         </div>
 
@@ -683,7 +785,7 @@ function TeamBuilderTab({
                                     <button
                                         key={member.name}
                                         onClick={() => toggleConfirmation(member.name)}
-                                        className={`w-full grid grid-cols-[auto_1fr_70px_90px_36px_36px_24px] gap-2 items-center px-3 py-2 rounded-lg transition-colors ${
+                                        className={`w-full grid grid-cols-[auto_1fr_80px_100px_50px_50px_28px] gap-3 items-center px-3 py-2.5 rounded-lg transition-colors ${
                                             status === 'confirmed' ? 'bg-green-600/20 border border-green-500/30' :
                                             status === 'maybe' ? 'bg-yellow-600/20 border border-yellow-500/30' :
                                             isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
@@ -691,7 +793,7 @@ function TeamBuilderTab({
                                         }`}
                                     >
                                         {/* Status icon */}
-                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
+                                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
                                             status === 'confirmed' ? 'bg-green-600 text-white' :
                                             status === 'maybe' ? 'bg-yellow-600 text-white' :
                                             'bg-white/20 text-white/50'
@@ -701,27 +803,27 @@ function TeamBuilderTab({
 
                                         {/* Name */}
                                         <div className="flex items-center gap-2 min-w-0">
-                                            <span className={`font-medium ${theme.text} truncate`}>{member.name}</span>
+                                            <span className={`font-medium text-base ${theme.text} truncate`}>{member.name}</span>
                                             {isPending && (
-                                                <span className="px-1.5 py-0.5 text-[10px] rounded bg-blue-600 text-white shrink-0">
+                                                <span className="px-1.5 py-0.5 text-xs rounded bg-blue-600 text-white shrink-0">
                                                     NEW
                                                 </span>
                                             )}
                                         </div>
 
                                         {/* Power */}
-                                        <span className={`${theme.textMuted} text-sm text-right`}>
+                                        <span className={`${theme.text} text-base text-right font-medium`}>
                                             {formatPower(member.power)}
                                         </span>
 
                                         {/* KP */}
-                                        <span className={`${theme.textMuted} text-xs text-right`}>
+                                        <span className={`${theme.textMuted} text-sm text-right`}>
                                             {formatPower(member.kills || killsByName[member.name] || 0)}
                                         </span>
 
                                         {/* T1 History */}
                                         <span
-                                            className={`text-xs text-center ${aooStats && aooStats.team1Count > 0 ? 'text-blue-400' : theme.textMuted}`}
+                                            className={`text-sm text-center font-medium ${aooStats && aooStats.team1Count > 0 ? 'text-blue-400' : theme.textMuted}`}
                                             title={aooStats && aooStats.team1Count > 0 ? `Team 1: ${aooStats.team1Participated}/${aooStats.team1Count} participated` : 'No Team 1 history'}
                                         >
                                             {aooStats && aooStats.team1Count > 0
@@ -731,7 +833,7 @@ function TeamBuilderTab({
 
                                         {/* T2 History */}
                                         <span
-                                            className={`text-xs text-center ${aooStats && aooStats.team2Count > 0 ? 'text-orange-400' : theme.textMuted}`}
+                                            className={`text-sm text-center font-medium ${aooStats && aooStats.team2Count > 0 ? 'text-orange-400' : theme.textMuted}`}
                                             title={aooStats && aooStats.team2Count > 0 ? `Team 2: ${aooStats.team2Participated}/${aooStats.team2Count} participated` : 'No Team 2 history'}
                                         >
                                             {aooStats && aooStats.team2Count > 0
