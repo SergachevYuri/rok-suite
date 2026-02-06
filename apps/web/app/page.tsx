@@ -24,24 +24,36 @@ export default function Home() {
       titleKey: 'tools.calendar.title',
       descriptionKey: 'tools.calendar.description',
       icon: Calendar,
+      hoverColor: 'hover:border-rose-500/40 group-hover:shadow-rose-500/5',
+      iconHoverBg: 'group-hover:bg-rose-500/15',
+      iconHoverColor: 'group-hover:text-rose-400',
     },
     {
       href: '/rosters',
       titleKey: 'tools.roster.title',
       descriptionKey: 'tools.roster.description',
       icon: Users,
+      hoverColor: 'hover:border-sky-500/40 group-hover:shadow-sky-500/5',
+      iconHoverBg: 'group-hover:bg-sky-500/15',
+      iconHoverColor: 'group-hover:text-sky-400',
     },
     {
       href: '/events',
       titleKey: 'tools.events.title',
       descriptionKey: 'tools.events.description',
       icon: Trophy,
+      hoverColor: 'hover:border-amber-500/40 group-hover:shadow-amber-500/5',
+      iconHoverBg: 'group-hover:bg-amber-500/15',
+      iconHoverColor: 'group-hover:text-amber-400',
     },
     {
       href: '/aoo-strategy',
       titleKey: 'tools.aoo.title',
       descriptionKey: 'tools.aoo.description',
       icon: Swords,
+      hoverColor: 'hover:border-emerald-500/40 group-hover:shadow-emerald-500/5',
+      iconHoverBg: 'group-hover:bg-emerald-500/15',
+      iconHoverColor: 'group-hover:text-emerald-400',
     },
   ];
 
@@ -73,10 +85,10 @@ export default function Home() {
                 const Icon = tool.icon;
                 return (
                   <Link key={tool.href} href={tool.href}>
-                    <div className="group p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 hover:border-teal-500/30 hover:bg-slate-800/60 transition-all duration-200 cursor-pointer h-full">
+                    <div className={`group p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 ${tool.hoverColor} hover:bg-slate-800/70 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 cursor-pointer h-full`}>
                       <div className="flex items-start gap-4">
-                        <div className="p-2.5 rounded-lg bg-slate-700/50 group-hover:bg-teal-500/10 transition-colors duration-200 flex-shrink-0">
-                          <Icon className="w-5 h-5 text-slate-400 group-hover:text-teal-400 transition-colors duration-200" />
+                        <div className={`p-2.5 rounded-lg bg-slate-700/50 ${tool.iconHoverBg} transition-colors duration-200 flex-shrink-0`}>
+                          <Icon className={`w-5 h-5 text-slate-400 ${tool.iconHoverColor} transition-colors duration-200`} />
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -88,7 +100,7 @@ export default function Home() {
                           </p>
                         </div>
 
-                        <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-teal-400 group-hover:translate-x-0.5 transition-all duration-200 flex-shrink-0 mt-1" />
+                        <ArrowRight className={`w-4 h-4 text-slate-600 ${tool.iconHoverColor} group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1`} />
                       </div>
                     </div>
                   </Link>
@@ -104,10 +116,10 @@ export default function Home() {
             </h2>
 
             <Link href="/guide">
-              <div className="group p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 hover:border-teal-500/30 hover:bg-slate-800/60 transition-all duration-200 cursor-pointer">
+              <div className="group p-5 rounded-xl bg-slate-800/40 border border-slate-700/50 hover:border-cyan-500/40 hover:bg-slate-800/70 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/5 transition-all duration-200 cursor-pointer">
                 <div className="flex items-start gap-4">
-                  <div className="p-2.5 rounded-lg bg-slate-700/50 group-hover:bg-teal-500/10 transition-colors duration-200 flex-shrink-0">
-                    <BookOpen className="w-5 h-5 text-slate-400 group-hover:text-teal-400 transition-colors duration-200" />
+                  <div className="p-2.5 rounded-lg bg-slate-700/50 group-hover:bg-cyan-500/15 transition-colors duration-200 flex-shrink-0">
+                    <BookOpen className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors duration-200" />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -119,7 +131,7 @@ export default function Home() {
                     </p>
                   </div>
 
-                  <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-teal-400 group-hover:translate-x-0.5 transition-all duration-200 flex-shrink-0 mt-1" />
+                  <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
                 </div>
               </div>
             </Link>
