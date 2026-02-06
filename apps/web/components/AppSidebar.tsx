@@ -29,6 +29,8 @@ interface NavItem {
   icon: React.ReactNode;
   badgeKey?: string;
   badgeColor?: string;
+  hoverColor?: string;
+  hoverBg?: string;
 }
 
 interface NavSection {
@@ -51,29 +53,31 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       // Kingdom section (no title, top level)
       items: [
-        { labelKey: 'home', href: '/', icon: <Home size={20} /> },
-        { labelKey: 'calendar', href: '/calendar', icon: <Calendar size={20} /> },
-        { labelKey: 'rosters', href: '/rosters', icon: <Users size={20} /> },
-        { labelKey: 'recognition', href: '/recognition', icon: <Crown size={20} /> },
-        { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} /> },
+        { labelKey: 'home', href: '/', icon: <Home size={20} />, hoverColor: 'group-hover:text-sky-500', hoverBg: 'hover:bg-sky-500/10' },
+        { labelKey: 'calendar', href: '/calendar', icon: <Calendar size={20} />, hoverColor: 'group-hover:text-rose-500', hoverBg: 'hover:bg-rose-500/10' },
+        { labelKey: 'rosters', href: '/rosters', icon: <Users size={20} />, hoverColor: 'group-hover:text-sky-500', hoverBg: 'hover:bg-sky-500/10' },
+        { labelKey: 'recognition', href: '/recognition', icon: <Crown size={20} />, hoverColor: 'group-hover:text-violet-500', hoverBg: 'hover:bg-violet-500/10' },
+        { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} />, hoverColor: 'group-hover:text-emerald-500', hoverBg: 'hover:bg-emerald-500/10' },
       ],
     },
     {
       titleKey: 'angmar',
       items: [
-        { labelKey: 'events', href: '/events', icon: <Trophy size={20} /> },
+        { labelKey: 'events', href: '/events', icon: <Trophy size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10' },
       ],
     },
     {
       titleKey: 'resources',
       items: [
-        { labelKey: 'guide', href: '/guide', icon: <BookOpen size={20} /> },
+        { labelKey: 'guide', href: '/guide', icon: <BookOpen size={20} />, hoverColor: 'group-hover:text-cyan-500', hoverBg: 'hover:bg-cyan-500/10' },
         {
           labelKey: 'betaTools',
           href: '/beta-tools',
           icon: <FlaskConical size={20} />,
           badgeKey: 'wipBadge',
           badgeColor: 'bg-[#ffb547]/20 text-[#ffb547]',
+          hoverColor: 'group-hover:text-orange-500',
+          hoverBg: 'hover:bg-orange-500/10',
         },
       ],
     },
@@ -140,16 +144,16 @@ export function AppSidebar({ children }: AppSidebarProps) {
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
                       active
                         ? 'bg-[#4318ff] text-white shadow-lg shadow-[#4318ff]/25'
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)]'
+                        : `text-[var(--text-secondary)] ${item.hoverBg || 'hover:bg-[var(--background-secondary)]'}`
                     } ${isCollapsed ? 'justify-center' : ''}`}
                     title={isCollapsed ? t(item.labelKey) : undefined}
                   >
-                    <span className={`flex-shrink-0 ${active ? 'text-white' : 'text-[var(--text-muted)] group-hover:text-[var(--foreground)]'}`}>
+                    <span className={`flex-shrink-0 ${active ? 'text-white' : `text-[var(--text-muted)] ${item.hoverColor || 'group-hover:text-[var(--foreground)]'}`}`}>
                       {item.icon}
                     </span>
                     {!isCollapsed && (
                       <>
-                        <span className="flex-1 truncate">{t(item.labelKey)}</span>
+                        <span className={`flex-1 truncate ${!active && item.hoverColor ? item.hoverColor : ''}`}>{t(item.labelKey)}</span>
                         {item.badgeKey && (
                           <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wider ${item.badgeColor}`}>
                             {t(item.badgeKey)}
