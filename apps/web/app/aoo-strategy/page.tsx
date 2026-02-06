@@ -663,12 +663,13 @@ function TeamBuilderTab({
 
                         {/* Player list */}
                         {/* Column headers */}
-                        <div className={`grid grid-cols-[auto_1fr_70px_90px_60px_24px] gap-2 px-3 py-2 text-xs ${theme.textMuted} border-b border-[var(--border)]`}>
+                        <div className={`grid grid-cols-[auto_1fr_70px_90px_36px_36px_24px] gap-2 px-3 py-2 text-xs ${theme.textMuted} border-b border-[var(--border)]`}>
                             <div className="w-6"></div>
                             <div>Name</div>
                             <div className="text-right">Power</div>
                             <div className="text-right">KP</div>
-                            <div className="text-center">AoO</div>
+                            <div className="text-center text-blue-400">T1</div>
+                            <div className="text-center text-orange-400">T2</div>
                             <div></div>
                         </div>
 
@@ -682,7 +683,7 @@ function TeamBuilderTab({
                                     <button
                                         key={member.name}
                                         onClick={() => toggleConfirmation(member.name)}
-                                        className={`w-full grid grid-cols-[auto_1fr_70px_90px_60px_24px] gap-2 items-center px-3 py-2 rounded-lg transition-colors ${
+                                        className={`w-full grid grid-cols-[auto_1fr_70px_90px_36px_36px_24px] gap-2 items-center px-3 py-2 rounded-lg transition-colors ${
                                             status === 'confirmed' ? 'bg-green-600/20 border border-green-500/30' :
                                             status === 'maybe' ? 'bg-yellow-600/20 border border-yellow-500/30' :
                                             isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
@@ -718,19 +719,23 @@ function TeamBuilderTab({
                                             {formatPower(member.kills || killsByName[member.name] || 0)}
                                         </span>
 
-                                        {/* AoO History */}
+                                        {/* T1 History */}
                                         <span
-                                            className={`text-xs text-center ${
-                                                aooStats && aooStats.totalAssigned > 0
-                                                    ? aooStats.lastTeam === 'Team 1'
-                                                        ? 'text-blue-400'
-                                                        : 'text-orange-400'
-                                                    : theme.textMuted
-                                            }`}
-                                            title={aooStats && aooStats.totalAssigned > 0 ? `${aooStats.participatedCount}/${aooStats.totalAssigned} participated` : 'No AoO history'}
+                                            className={`text-xs text-center ${aooStats && aooStats.team1Count > 0 ? 'text-blue-400' : theme.textMuted}`}
+                                            title={aooStats && aooStats.team1Count > 0 ? `Team 1: ${aooStats.team1Participated}/${aooStats.team1Count} participated` : 'No Team 1 history'}
                                         >
-                                            {aooStats && aooStats.totalAssigned > 0
-                                                ? `${aooStats.lastTeam === 'Team 1' ? 'T1' : 'T2'}×${aooStats.totalAssigned}`
+                                            {aooStats && aooStats.team1Count > 0
+                                                ? `${aooStats.team1Participated}/${aooStats.team1Count}`
+                                                : '—'}
+                                        </span>
+
+                                        {/* T2 History */}
+                                        <span
+                                            className={`text-xs text-center ${aooStats && aooStats.team2Count > 0 ? 'text-orange-400' : theme.textMuted}`}
+                                            title={aooStats && aooStats.team2Count > 0 ? `Team 2: ${aooStats.team2Participated}/${aooStats.team2Count} participated` : 'No Team 2 history'}
+                                        >
+                                            {aooStats && aooStats.team2Count > 0
+                                                ? `${aooStats.team2Participated}/${aooStats.team2Count}`
                                                 : '—'}
                                         </span>
 

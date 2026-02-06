@@ -18,8 +18,10 @@ export interface EventParticipation {
 export interface MemberEventStats {
   aoo: {
     lastTeam: 'Team 1' | 'Team 2' | null;
-    team1Count: number;
-    team2Count: number;
+    team1Count: number;        // Times assigned to Team 1
+    team2Count: number;        // Times assigned to Team 2
+    team1Participated: number; // Times participated when on Team 1
+    team2Participated: number; // Times participated when on Team 2
     participatedCount: number;
     totalAssigned: number;
   };
@@ -248,6 +250,8 @@ function getEmptyStats(): MemberEventStats {
       lastTeam: null,
       team1Count: 0,
       team2Count: 0,
+      team1Participated: 0,
+      team2Participated: 0,
       participatedCount: 0,
       totalAssigned: 0,
     },
@@ -282,8 +286,14 @@ function calculateStats(events: EventParticipation[]): MemberEventStats {
     // For participated count, count dates where they participated
     const participatedDates = new Set(aooEvents.filter(e => e.participated).map(e => e.event_date));
     stats.aoo.participatedCount = participatedDates.size;
-    stats.aoo.team1Count = aooEvents.filter(e => e.team === 'Team 1').length;
-    stats.aoo.team2Count = aooEvents.filter(e => e.team === 'Team 2').length;
+
+    // Team-specific stats
+    const team1Events = aooEvents.filter(e => e.team === 'Team 1');
+    const team2Events = aooEvents.filter(e => e.team === 'Team 2');
+    stats.aoo.team1Count = team1Events.length;
+    stats.aoo.team2Count = team2Events.length;
+    stats.aoo.team1Participated = team1Events.filter(e => e.participated).length;
+    stats.aoo.team2Participated = team2Events.filter(e => e.participated).length;
   }
 
   // Mobilization stats
