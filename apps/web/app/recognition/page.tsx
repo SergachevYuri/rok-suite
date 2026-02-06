@@ -210,10 +210,12 @@ export default function RecognitionPage() {
                     <div className="max-w-5xl mx-auto px-4 md:px-6 py-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <Crown className="w-8 h-8 text-amber-400" />
+                                <div className="p-2.5 rounded-lg bg-violet-500/15">
+                                    <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-violet-500" />
+                                </div>
                                 <div>
-                                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight">King&apos;s Recognition</h1>
-                                    <p className={`text-sm ${theme.textMuted}`}>Celebrating excellence in Kingdom 23</p>
+                                    <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">King&apos;s Recognition</h1>
+                                    <p className="text-sm text-[var(--text-secondary)]">Celebrating excellence in Kingdom 23</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -243,7 +245,7 @@ export default function RecognitionPage() {
                     {/* Password Prompt Modal */}
                     {showPasswordPrompt && (
                         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                            <div className={`${theme.card} p-6 rounded-xl border max-w-sm w-full mx-4`}>
+                            <div className="bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-6 rounded-xl max-w-sm w-full mx-4">
                                 <h3 className="text-lg font-semibold mb-4">Editor Access</h3>
                                 <input
                                     type="password"
@@ -274,7 +276,7 @@ export default function RecognitionPage() {
 
                     {/* Award Form */}
                     {showAwardForm && isEditor && (
-                        <div className={`${theme.card} p-6 rounded-xl border`}>
+                        <div className="bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-6 rounded-xl">
                             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                 <Trophy className="w-5 h-5 text-amber-400" />
                                 Award Trophy
@@ -354,7 +356,7 @@ export default function RecognitionPage() {
                     )}
 
                     {/* Trophy Type Legend */}
-                    <div className={`${theme.card} p-4 rounded-xl border`}>
+                    <div className="bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-4 rounded-xl">
                         <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8">
                             {TROPHY_ORDER.map(type => (
                                 <div key={type} className="flex items-center gap-2">
@@ -400,7 +402,7 @@ export default function RecognitionPage() {
                             <p className={theme.textMuted}>Loading trophies...</p>
                         </div>
                     ) : trophies.length === 0 ? (
-                        <div className={`${theme.card} p-12 rounded-xl border text-center`}>
+                        <div className="bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-12 rounded-xl text-center">
                             <Trophy className="w-16 h-16 mx-auto mb-4 text-amber-400/30" />
                             <h3 className="text-xl font-semibold mb-2">No Trophies Yet</h3>
                             <p className={theme.textMuted}>The King hasn&apos;t awarded any recognition trophies yet.</p>
@@ -415,7 +417,7 @@ export default function RecognitionPage() {
                         </div>
                     ) : viewMode === 'winners' ? (
                         /* Trophy Winners View */
-                        <div className={`${theme.card} rounded-xl border overflow-hidden`}>
+                        <div className="bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] rounded-xl overflow-hidden">
                             <div className="p-4 border-b border-[var(--border)]">
                                 <h2 className="text-lg font-semibold flex items-center gap-2">
                                     <Trophy className="w-5 h-5 text-amber-400" />
@@ -482,7 +484,7 @@ export default function RecognitionPage() {
                                 const isExpanded = expandedWeeks.has(week) || sortedWeeks.indexOf(week) === 0;
 
                                 return (
-                                    <div key={week} className={`${theme.card} rounded-xl border overflow-hidden`}>
+                                    <div key={week} className="bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] rounded-xl overflow-hidden">
                                         <button
                                             onClick={() => toggleWeek(week)}
                                             className="w-full flex items-center justify-between p-4 hover:bg-[var(--background-secondary)] transition-colors"

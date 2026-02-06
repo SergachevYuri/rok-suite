@@ -47,21 +47,21 @@ export default function BetaToolsPage() {
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Header */}
         <header className="flex items-center gap-3 mb-6 sm:mb-8 pb-4 sm:pb-6 border-b border-[var(--border)]">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#ffb547] to-[#ffd97a] flex items-center justify-center shadow-lg shadow-[#ffb547]/25 flex-shrink-0">
-            <FlaskConical className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          <div className="p-2.5 rounded-lg bg-orange-500/15">
+            <FlaskConical className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-semibold">Beta Tools</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold">Beta Tools</h1>
             <p className="text-xs sm:text-sm text-[var(--text-secondary)]">Experimental features</p>
           </div>
         </header>
 
         {/* Warning Banner */}
-        <div className="mb-8 p-4 rounded-xl bg-[#ffb547]/10 border border-[#ffb547]/30">
+        <div className="mb-8 p-4 rounded-xl bg-orange-500/10 border border-orange-500/30">
           <div className="flex items-start gap-3">
-            <FlaskConical className="w-5 h-5 text-[#ffb547] mt-0.5 flex-shrink-0" />
+            <FlaskConical className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-[#ffb547] mb-1">Work in Progress</h3>
+              <h3 className="text-sm font-semibold text-orange-500 mb-1">Work in Progress</h3>
               <p className="text-sm text-[var(--text-secondary)]">
                 These tools are experimental and may have bugs or incomplete features.
                 They&apos;re shared for testing and feedback purposes.
@@ -77,7 +77,7 @@ export default function BetaToolsPage() {
               const Icon = tool.icon;
               return (
                 <Link key={tool.href} href={tool.href}>
-                  <div className={`group relative p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] ${tool.hoverBorder} backdrop-blur-xl transition-all duration-300 cursor-pointer overflow-hidden`}>
+                  <div className={`group relative p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] ${tool.hoverBorder} hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] transition-all duration-200 cursor-pointer overflow-hidden`}>
                     <div className="relative flex items-center gap-5">
                       {/* Icon */}
                       <div className={`p-3 rounded-xl bg-gradient-to-br ${tool.gradient} shadow-lg ${tool.shadowColor}`}>
@@ -87,10 +87,10 @@ export default function BetaToolsPage() {
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-1">
-                          <h4 className="text-base font-semibold group-hover:text-[var(--primary)] transition-colors">
+                          <h4 className="text-base font-semibold group-hover:text-orange-500 transition-colors duration-200">
                             {tool.title}
                           </h4>
-                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider bg-[#ffb547]/20 text-[#ffb547]">
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider bg-orange-500/20 text-orange-500">
                             Beta
                           </span>
                         </div>
@@ -98,7 +98,7 @@ export default function BetaToolsPage() {
                       </div>
 
                       {/* Arrow */}
-                      <ArrowRight className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--foreground)] group-hover:translate-x-1 transition-all" />
+                      <ArrowRight className="w-5 h-5 text-[var(--text-muted)] group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-200" />
                     </div>
                   </div>
                 </Link>

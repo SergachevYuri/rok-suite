@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { Trophy, Calendar, ArrowRight, Target } from 'lucide-react';
-import { getTheme } from '@/lib/guide/theme';
 import { AppSidebar } from '@/components/AppSidebar';
 
 interface AllianceEvent {
@@ -24,7 +23,6 @@ const allianceEvents: AllianceEvent[] = [
 ];
 
 export default function EventsPage() {
-  const theme = getTheme();
 
   const statusColors = {
     active: 'bg-green-500/20 text-green-400',
@@ -39,12 +37,12 @@ export default function EventsPage() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg bg-emerald-500/10">
-                <Trophy size={24} className="text-emerald-400" />
+              <div className="p-2.5 rounded-lg bg-amber-500/15">
+                <Trophy size={24} className="text-amber-500" />
               </div>
               <h1 className="text-3xl font-bold">Alliance Events</h1>
             </div>
-            <p className={theme.textMuted}>
+            <p className="text-[var(--text-secondary)]">
               Track results and rankings from alliance challenges and events.
             </p>
           </div>
@@ -53,26 +51,26 @@ export default function EventsPage() {
           <div className="space-y-4">
             {allianceEvents.map((event) => (
               <Link key={event.slug} href={`/events/${event.slug}`}>
-                <div className={`${theme.card} border rounded-lg p-6 transition-all hover:border-emerald-500/50 cursor-pointer group`}>
+                <div className="group p-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-amber-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-amber-500/10 transition-all duration-200 cursor-pointer">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h2 className="text-xl font-semibold group-hover:text-emerald-400 transition-colors">
+                        <h2 className="text-xl font-semibold group-hover:text-amber-500 transition-colors">
                           {event.name}
                         </h2>
                         <span className={`text-xs px-2 py-1 rounded-full ${statusColors[event.status]}`}>
                           {event.status}
                         </span>
                       </div>
-                      <p className={`text-sm ${theme.textMuted} mb-3`}>{event.description}</p>
+                      <p className="text-sm text-[var(--text-secondary)] mb-3">{event.description}</p>
                       <div className="flex items-center gap-2 text-sm">
-                        <Calendar size={14} className={theme.textMuted} />
-                        <span className={theme.textMuted}>{event.dates}</span>
+                        <Calendar size={14} className="text-[var(--text-muted)]" />
+                        <span className="text-[var(--text-muted)]">{event.dates}</span>
                       </div>
                     </div>
                     <ArrowRight
                       size={20}
-                      className={`${theme.textMuted} group-hover:text-emerald-400 transition-colors mt-1`}
+                      className="text-[var(--text-muted)] group-hover:text-amber-500 group-hover:translate-x-1 transition-all duration-200 mt-1"
                     />
                   </div>
                 </div>
@@ -82,10 +80,10 @@ export default function EventsPage() {
 
           {/* Empty state for future */}
           {allianceEvents.length === 0 && (
-            <div className={`${theme.card} border rounded-lg p-12 text-center`}>
-              <Target size={48} className={`${theme.textMuted} mx-auto mb-4`} />
+            <div className="p-12 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] text-center">
+              <Target size={48} className="text-[var(--text-muted)] mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">No Events Yet</h3>
-              <p className={theme.textMuted}>Alliance events will appear here once created.</p>
+              <p className="text-[var(--text-secondary)]">Alliance events will appear here once created.</p>
             </div>
           )}
         </div>
