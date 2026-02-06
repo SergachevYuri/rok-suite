@@ -35,11 +35,11 @@ export default function Home() {
       titleKey: 'tools.roster.title',
       descriptionKey: 'tools.roster.description',
       icon: Users,
-      color: 'indigo',
-      iconBg: 'bg-indigo-500/15 group-hover:bg-indigo-500/25',
-      iconColor: 'text-indigo-400',
-      hoverBorder: 'group-hover:border-indigo-500/30',
-      hoverGlow: 'group-hover:shadow-indigo-500/10',
+      color: 'sky',
+      iconBg: 'bg-sky-500/15 group-hover:bg-sky-500/25',
+      iconColor: 'text-sky-400',
+      hoverBorder: 'group-hover:border-sky-500/30',
+      hoverGlow: 'group-hover:shadow-sky-500/10',
     },
     {
       href: '/events',
@@ -68,13 +68,13 @@ export default function Home() {
   return (
     <AppSidebar>
       <div className="min-h-screen">
-        {/* Subtle gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/[0.03] via-transparent to-transparent pointer-events-none" />
+        {/* Subtle gradient background - neutral */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-500/[0.02] via-transparent to-transparent pointer-events-none" />
 
         <div className="relative max-w-4xl mx-auto px-6 py-20">
           {/* Hero - bold and confident */}
           <section className="mb-16">
-            <p className="text-sm font-semibold text-indigo-400 mb-4 tracking-wider uppercase">
+            <p className="text-sm font-semibold text-sky-400 mb-4 tracking-wider uppercase">
               {t('tagline')}
             </p>
             <h1 className="text-5xl md:text-6xl font-bold mb-6 tracking-tight leading-[1.1]">
@@ -139,12 +139,12 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Guide */}
               <Link href="/guide">
-                <div className="group relative p-6 rounded-2xl bg-slate-900/50 border border-slate-800/50 group-hover:border-violet-500/30 hover:bg-slate-800/30 hover:-translate-y-0.5 hover:shadow-xl group-hover:shadow-violet-500/10 transition-all duration-300 cursor-pointer overflow-hidden">
+                <div className="group relative p-6 rounded-2xl bg-slate-900/50 border border-slate-800/50 group-hover:border-cyan-500/30 hover:bg-slate-800/30 hover:-translate-y-0.5 hover:shadow-xl group-hover:shadow-cyan-500/10 transition-all duration-300 cursor-pointer overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                   <div className="relative flex items-start gap-4">
-                    <div className="p-3 rounded-xl bg-violet-500/15 group-hover:bg-violet-500/25 transition-colors duration-300 flex-shrink-0">
-                      <BookOpen className="w-6 h-6 text-violet-400" />
+                    <div className="p-3 rounded-xl bg-cyan-500/15 group-hover:bg-cyan-500/25 transition-colors duration-300 flex-shrink-0">
+                      <BookOpen className="w-6 h-6 text-cyan-400" />
                     </div>
 
                     <div className="flex-1 min-w-0 pt-0.5">
