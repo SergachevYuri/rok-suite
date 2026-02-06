@@ -12,6 +12,7 @@ import {
   FlaskConical,
   Users,
   Trophy,
+  Crown,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -38,6 +39,16 @@ export default function Home() {
       hoverShadow: 'hover:shadow-sky-500/10',
       iconHoverBg: 'group-hover:bg-sky-500/15',
       iconHoverColor: 'group-hover:text-sky-500',
+    },
+    {
+      href: '/recognition',
+      titleKey: 'tools.recognition.title',
+      descriptionKey: 'tools.recognition.description',
+      icon: Crown,
+      hoverBorder: 'hover:border-violet-500/40',
+      hoverShadow: 'hover:shadow-violet-500/10',
+      iconHoverBg: 'group-hover:bg-violet-500/15',
+      iconHoverColor: 'group-hover:text-violet-500',
     },
     {
       href: '/events',

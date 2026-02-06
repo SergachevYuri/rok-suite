@@ -63,6 +63,11 @@
         "description": "Member stats, power rankings, and kill points tracking",
         "badge": "Members"
       },
+      "recognition": {
+        "title": "Recognition",
+        "description": "Honor roll, top performers, and member achievements",
+        "badge": "Awards"
+      },
       "events": {
         "title": "Angmar Events",
         "description": "Event results, challenge rankings, and competition tracking",
