@@ -229,6 +229,28 @@ function TeamBuilderTab({
     const confirmedPower = confirmedPlayers.reduce((sum, p) => sum + (p.power || 0), 0);
     const maybePower = maybePlayers.reduce((sum, p) => sum + (p.power || 0), 0);
 
+    // Auto-calculate zone sizes when player count changes
+    useEffect(() => {
+        const totalPlayers = confirmedPlayers.length + maybePlayers.length;
+        if (totalPlayers === 0) return;
+
+        // Calculate base size per zone
+        const basePerZone = Math.floor(totalPlayers / 3);
+        const remainder = totalPlayers % 3;
+
+        // Distribute evenly with remainder going to zones 1, 2, 3 in order
+        const newSizes = {
+            0: zoneSizes[0] || '0', // Keep subs as-is or default to 0
+            1: String(basePerZone + (remainder >= 1 ? 1 : 0)),
+            2: String(basePerZone + (remainder >= 2 ? 1 : 0)),
+            3: String(basePerZone),
+        };
+
+        setZoneSizes(newSizes);
+    // Only recalculate when player counts change, not when zoneSizes changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [confirmedPlayers.length, maybePlayers.length]);
+
     // Toggle confirmation status
     const toggleConfirmation = (name: string) => {
         const current = confirmations[name] || 'none';
