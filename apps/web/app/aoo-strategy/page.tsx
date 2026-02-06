@@ -356,14 +356,19 @@ function TeamBuilderTab({
 
     // Handle distribute button
     const handleDistribute = () => {
-        // Combine confirmed + maybe players for distribution
-        const allPlayers = [...confirmedPlayers, ...maybePlayers].map(p => ({
+        // Separate confirmed and maybe players
+        const confirmedList = confirmedPlayers.map(p => ({
+            name: p.name,
+            power: p.power || 0,
+            kills: p.kills || killsByName[p.name] || 0,
+        }));
+        const maybeList = maybePlayers.map(p => ({
             name: p.name,
             power: p.power || 0,
             kills: p.kills || killsByName[p.name] || 0,
         }));
 
-        if (allPlayers.length < 1) {
+        if (confirmedList.length + maybeList.length < 1) {
             alert('Need at least 1 player to distribute');
             return;
         }
@@ -385,22 +390,48 @@ function TeamBuilderTab({
                 return;
             }
 
-            // Distribute to zones 1-3 first (power balanced)
-            zones = distributeByZoneSizes(allPlayers, sizes);
+            // First, distribute CONFIRMED players to zones 1-3 (power balanced)
+            zones = distributeByZoneSizes(confirmedList, sizes);
 
-            // Players not assigned to zones 1-3 become subs
+            // Calculate remaining slots in each zone
+            const remainingSlots = {
+                1: sizes[1] - zones[1].length,
+                2: sizes[2] - zones[2].length,
+                3: sizes[3] - zones[3].length,
+            };
+            const totalRemainingSlots = remainingSlots[1] + remainingSlots[2] + remainingSlots[3];
+
+            // Maybe players go to subs first, overflow fills remaining zone slots
+            const sortedMaybe = [...maybeList].sort((a, b) => b.power - a.power);
+
+            if (totalRemainingSlots > 0 && sortedMaybe.length > subsSize) {
+                // More maybe players than sub slots - fill zone slots with extras
+                const forZones = sortedMaybe.slice(0, sortedMaybe.length - subsSize);
+                const forSubs = sortedMaybe.slice(sortedMaybe.length - subsSize);
+
+                // Distribute extras to zones (power balanced)
+                const extraZones = distributeByZoneSizes(forZones, remainingSlots);
+                zones[1].push(...extraZones[1]);
+                zones[2].push(...extraZones[2]);
+                zones[3].push(...extraZones[3]);
+                zones[0] = forSubs;
+            } else {
+                // All maybe players become subs
+                zones[0] = sortedMaybe.slice(0, subsSize > 0 ? subsSize : sortedMaybe.length);
+            }
+
+            // Any unassigned confirmed players also go to subs
             const assignedNames = new Set([
                 ...zones[1].map(p => p.name),
                 ...zones[2].map(p => p.name),
                 ...zones[3].map(p => p.name),
+                ...zones[0].map(p => p.name),
             ]);
-            const remainingPlayers = allPlayers.filter(p => !assignedNames.has(p.name));
-
-            // Take up to subsSize as subs (sorted by power)
-            const sortedRemaining = [...remainingPlayers].sort((a, b) => b.power - a.power);
-            zones[0] = subsSize > 0 ? sortedRemaining.slice(0, subsSize) : sortedRemaining;
+            const unassignedConfirmed = confirmedList.filter(p => !assignedNames.has(p.name));
+            zones[0].push(...unassignedConfirmed);
         } else {
-            // Auto-balance by power (equal distribution)
+            // Auto-balance by power (equal distribution) - include all players
+            const allPlayers = [...confirmedList, ...maybeList];
             zones = distributeByPowerWithKills(allPlayers);
             zones[0] = []; // No subs in auto mode
         }
@@ -458,19 +489,19 @@ function TeamBuilderTab({
     return (
         <div className="max-w-6xl mx-auto p-4 md:p-6">
             {/* Alliance & Team Selection */}
-            <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                    <h2 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+            <section className={`${theme.card} border rounded-xl mb-6 p-5`}>
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
+                    <h2 className={`text-base font-semibold uppercase tracking-wider ${theme.textMuted}`}>
                         🛠️ Team Builder
                     </h2>
-                    <div className="flex flex-wrap items-center gap-4">
-                        {/* Alliance selection */}
-                        <div className="flex items-center gap-2">
-                            <span className={`text-xs ${theme.textMuted}`}>Alliance:</span>
+                    <div className="flex flex-wrap items-center gap-6">
+                        {/* Alliance selection - prominent */}
+                        <div className="flex items-center gap-3">
+                            <span className={`text-base font-medium ${theme.text}`}>Alliance:</span>
                             <select
                                 value={builderAlliance}
                                 onChange={(e) => setBuilderAlliance(e.target.value)}
-                                className={`px-3 py-1.5 rounded-lg text-sm ${theme.input}`}
+                                className={`px-4 py-2 rounded-lg text-base font-medium ${theme.input} min-w-[140px] border-2 border-[#4318ff]/50`}
                                 disabled={builderStep !== 'select'}
                             >
                                 <option value="all">All Alliances</option>
@@ -479,21 +510,21 @@ function TeamBuilderTab({
                                 ))}
                             </select>
                         </div>
-                        {/* Team count selection */}
-                        <div className="flex items-center gap-2">
-                            <span className={`text-xs ${theme.textMuted}`}>Teams:</span>
-                            <div className="flex gap-1">
+                        {/* Team count selection - clearer labeling */}
+                        <div className="flex items-center gap-3">
+                            <span className={`text-base font-medium ${theme.text}`}>AoO Teams:</span>
+                            <div className="flex gap-1.5">
                                 {[1, 2, 3].map((n) => (
                                     <button
                                         key={n}
                                         onClick={() => setTeamCount(n as 1 | 2 | 3)}
-                                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                                        className={`w-10 h-10 rounded-lg text-base font-semibold transition-colors ${
                                             teamCount === n
-                                                ? 'bg-[#4318ff] text-white'
+                                                ? 'bg-[#4318ff] text-white ring-2 ring-[#4318ff]/50'
                                                 : `${theme.tag} hover:opacity-80`
                                         }`}
                                         disabled={builderStep !== 'select'}
-                                        title={`Organize ${n} team${n > 1 ? 's' : ''}`}
+                                        title={`Organize ${n} AoO team${n > 1 ? 's' : ''} for this week`}
                                     >
                                         {n}
                                     </button>
@@ -523,16 +554,16 @@ function TeamBuilderTab({
                 )}
 
                 {/* Step indicator */}
-                <div className="flex items-center gap-2 mb-4 text-xs">
-                    <span className={`px-2 py-1 rounded ${builderStep === 'select' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
+                <div className="flex items-center gap-3 mb-5 text-sm">
+                    <span className={`px-4 py-2 rounded-lg font-medium ${builderStep === 'select' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
                         1. Select Players
                     </span>
-                    <span className={theme.textMuted}>→</span>
-                    <span className={`px-2 py-1 rounded ${builderStep === 'distribute' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
+                    <span className={`text-lg ${theme.textMuted}`}>→</span>
+                    <span className={`px-4 py-2 rounded-lg font-medium ${builderStep === 'distribute' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
                         2. Distribute & Assign
                     </span>
-                    <span className={theme.textMuted}>→</span>
-                    <span className={`px-2 py-1 rounded ${builderStep === 'done' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
+                    <span className={`text-lg ${theme.textMuted}`}>→</span>
+                    <span className={`px-4 py-2 rounded-lg font-medium ${builderStep === 'done' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
                         3. Apply
                     </span>
                 </div>
@@ -553,16 +584,16 @@ function TeamBuilderTab({
             {builderStep === 'select' && (
                 <>
                     {/* Player Selection List */}
-                    <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
+                    <section className={`${theme.card} border rounded-xl mb-6 p-5`}>
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className={`text-sm font-medium ${theme.text}`}>
-                                Select Players ({combinedRoster.length} available{pendingAdditions.length > 0 ? `, ${pendingAdditions.length} pending` : ''})
+                            <h3 className={`text-lg font-semibold ${theme.text}`}>
+                                Select Players <span className={`text-base font-normal ${theme.textMuted}`}>({combinedRoster.length} available{pendingAdditions.length > 0 ? `, ${pendingAdditions.length} pending` : ''})</span>
                             </h3>
-                            <div className="flex items-center gap-4 text-xs">
-                                <span className="text-green-500">
+                            <div className="flex items-center gap-6 text-base font-medium">
+                                <span className="text-green-400">
                                     ✓ Confirmed: {confirmedPlayers.length} ({formatPower(confirmedPower)})
                                 </span>
-                                <span className="text-yellow-500">
+                                <span className="text-yellow-400">
                                     ? Maybe: {maybePlayers.length} ({formatPower(maybePower)})
                                 </span>
                             </div>
@@ -575,19 +606,19 @@ function TeamBuilderTab({
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Search by name or governor ID..."
-                                className={`w-full px-3 py-2 rounded-lg text-sm ${theme.input}`}
+                                className={`w-full px-4 py-3 rounded-lg text-base ${theme.input}`}
                             />
                         </div>
 
                         {/* Quick actions */}
-                        <div className="flex flex-wrap gap-2 mb-4">
+                        <div className="flex flex-wrap items-center gap-3 mb-4">
                             <button
                                 onClick={() => {
                                     const newConf: Record<string, ConfirmationStatus> = {};
                                     combinedRoster.forEach(p => newConf[p.name] = 'confirmed');
                                     setConfirmations({ ...confirmations, ...newConf });
                                 }}
-                                className={`px-3 py-1 text-xs rounded ${theme.tag} hover:opacity-80`}
+                                className={`px-4 py-2 text-sm rounded-lg ${theme.tag} hover:opacity-80`}
                             >
                                 Select All
                             </button>
@@ -597,20 +628,24 @@ function TeamBuilderTab({
                                     combinedRoster.forEach(p => newConf[p.name] = 'none');
                                     setConfirmations({ ...confirmations, ...newConf });
                                 }}
-                                className={`px-3 py-1 text-xs rounded ${theme.tag} hover:opacity-80`}
+                                className={`px-4 py-2 text-sm rounded-lg ${theme.tag} hover:opacity-80`}
                             >
                                 Clear All
                             </button>
                             <button
                                 onClick={() => setShowAddForm(!showAddForm)}
-                                className={`px-3 py-1 text-xs rounded ${showAddForm ? 'bg-[#4318ff] text-white' : theme.tag} hover:opacity-80`}
+                                className={`px-5 py-2.5 text-base font-semibold rounded-lg transition-colors ${
+                                    showAddForm
+                                        ? 'bg-[#4318ff] text-white'
+                                        : 'bg-green-600 text-white hover:bg-green-500'
+                                }`}
                             >
                                 + Add New Member
                             </button>
                             {pendingAdditions.length > 0 && (
                                 <button
                                     onClick={() => onSavePendingAdditions(pendingAdditions)}
-                                    className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:opacity-80"
+                                    className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:opacity-80"
                                 >
                                     Save {pendingAdditions.length} Pending
                                 </button>
