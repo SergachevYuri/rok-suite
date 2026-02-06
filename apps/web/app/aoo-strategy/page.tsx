@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 import { useAllianceRoster, formatPower, RosterMember } from '@/lib/supabase/use-alliance-roster';
+import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-participation';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/lib/supabase/auth-context';
 
@@ -162,6 +163,14 @@ function TeamBuilderTab({
     // Zone size inputs for distribution (0 = subs)
     const [zoneSizes, setZoneSizes] = useState<Record<number, string>>({ 0: '', 1: '', 2: '', 3: '' });
     const [useCustomSizes, setUseCustomSizes] = useState(true); // Default to custom sizes
+
+    // Event participation stats for AoO history
+    const [eventStats, setEventStats] = useState<Map<string, MemberEventStats>>(new Map());
+
+    // Load event stats on mount
+    useEffect(() => {
+        getAllMemberStats().then(stats => setEventStats(stats));
+    }, []);
 
     // Filter roster by alliance
     const baseRoster = builderAlliance === 'all'
@@ -690,6 +699,24 @@ function TeamBuilderTab({
                                             <span className={`${theme.textMuted} text-xs`} title="Kill Points">
                                                 KP: {formatPower(member.kills || killsByName[member.name] || 0)}
                                             </span>
+                                            {/* AoO History */}
+                                            {(() => {
+                                                const aooStats = eventStats.get(member.name)?.aoo;
+                                                if (!aooStats || aooStats.totalAssigned === 0) return null;
+                                                return (
+                                                    <span
+                                                        className={`text-xs px-1.5 py-0.5 rounded ${
+                                                            aooStats.lastTeam === 'Team 1'
+                                                                ? 'bg-blue-500/20 text-blue-400'
+                                                                : 'bg-orange-500/20 text-orange-400'
+                                                        }`}
+                                                        title={`AoO: ${aooStats.participatedCount}/${aooStats.totalAssigned} participated`}
+                                                    >
+                                                        {aooStats.lastTeam === 'Team 1' ? 'T1' : 'T2'}
+                                                        ×{aooStats.totalAssigned}
+                                                    </span>
+                                                );
+                                            })()}
                                             {isPending && (
                                                 <button
                                                     onClick={(e) => {
