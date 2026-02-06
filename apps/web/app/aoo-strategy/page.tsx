@@ -62,6 +62,16 @@ const ALLIANCES = ['ANG', '23KK', 'KNG', 'EQ'] as const;
 // Confirmation status for team builder
 type ConfirmationStatus = 'confirmed' | 'maybe' | 'none';
 
+// Team number type
+type TeamNumber = 1 | 2 | 3;
+
+// Per-team state types
+type ConfirmationsByTeam = Record<TeamNumber, Record<string, ConfirmationStatus>>;
+type ZonesByTeam = Record<TeamNumber, Record<number, { name: string; power: number; kills: number }[]>>;
+type RallyLeadsByTeam = Record<TeamNumber, Record<number, string>>;
+type TeleportFirstByTeam = Record<TeamNumber, Set<string>>;
+type ZoneSizesByTeam = Record<TeamNumber, Record<number, string>>;
+
 // Power-balanced distribution algorithm (includes kills for tracking)
 function distributeByPowerWithKills(players: { name: string; power: number; kills: number }[]): Record<number, { name: string; power: number; kills: number }[]> {
     // Sort by power descending
@@ -100,23 +110,26 @@ interface TeamBuilderTabProps {
     alliances: string[];
     builderAlliance: string;
     setBuilderAlliance: (a: string) => void;
-    teamCount: 1 | 2 | 3;
-    setTeamCount: (c: 1 | 2 | 3) => void;
-    activeTeam: 1 | 2 | 3;
-    setActiveTeam: (t: 1 | 2 | 3) => void;
-    confirmations: Record<string, ConfirmationStatus>;
-    setConfirmations: (c: Record<string, ConfirmationStatus>) => void;
+    teamCount: TeamNumber;
+    setTeamCount: (c: TeamNumber) => void;
+    activeTeam: TeamNumber;
+    setActiveTeam: (t: TeamNumber) => void;
+    // Per-team state
+    confirmationsByTeam: ConfirmationsByTeam;
+    setConfirmationsByTeam: (c: ConfirmationsByTeam) => void;
     builderStep: 'select' | 'distribute' | 'leads' | 'done';
     setBuilderStep: (s: 'select' | 'distribute' | 'leads' | 'done') => void;
-    suggestedZones: Record<number, { name: string; power: number; kills: number }[]>;
-    setSuggestedZones: (z: Record<number, { name: string; power: number; kills: number }[]>) => void;
-    selectedRallyLeads: Record<number, string>;
-    setSelectedRallyLeads: (r: Record<number, string>) => void;
-    selectedTeleportFirst: Set<string>;
-    setSelectedTeleportFirst: (t: Set<string>) => void;
+    suggestedZonesByTeam: ZonesByTeam;
+    setSuggestedZonesByTeam: (z: ZonesByTeam) => void;
+    selectedRallyLeadsByTeam: RallyLeadsByTeam;
+    setSelectedRallyLeadsByTeam: (r: RallyLeadsByTeam) => void;
+    selectedTeleportFirstByTeam: TeleportFirstByTeam;
+    setSelectedTeleportFirstByTeam: (t: TeleportFirstByTeam) => void;
+    zoneSizesByTeam: ZoneSizesByTeam;
+    setZoneSizesByTeam: (z: ZoneSizesByTeam) => void;
     pendingAdditions: PendingMember[];
     setPendingAdditions: (p: PendingMember[]) => void;
-    onApply: (zones: Record<number, { name: string; power: number; kills: number }[]>, rallyLeads: Record<number, string>, teleportFirst: Set<string>, substitutes: { name: string; power: number; kills: number }[]) => void;
+    onApply: (allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>) => void;
     onSavePendingAdditions: (additions: PendingMember[]) => Promise<void>;
     theme: Record<string, string>;
     formatPower: (p: number | null | undefined) => string;
@@ -135,16 +148,18 @@ function TeamBuilderTab({
     setTeamCount,
     activeTeam,
     setActiveTeam,
-    confirmations,
-    setConfirmations,
+    confirmationsByTeam,
+    setConfirmationsByTeam,
     builderStep,
     setBuilderStep,
-    suggestedZones,
-    setSuggestedZones,
-    selectedRallyLeads,
-    setSelectedRallyLeads,
-    selectedTeleportFirst,
-    setSelectedTeleportFirst,
+    suggestedZonesByTeam,
+    setSuggestedZonesByTeam,
+    selectedRallyLeadsByTeam,
+    setSelectedRallyLeadsByTeam,
+    selectedTeleportFirstByTeam,
+    setSelectedTeleportFirstByTeam,
+    zoneSizesByTeam,
+    setZoneSizesByTeam,
     pendingAdditions,
     setPendingAdditions,
     onApply,
@@ -162,10 +177,62 @@ function TeamBuilderTab({
     const [showAutoComplete, setShowAutoComplete] = useState(false);
     const [builderSort, setBuilderSort] = useState<'power' | 'kp' | 't1' | 't2' | 'name'>('power');
     const [builderFilter, setBuilderFilter] = useState<'all' | 'confirmed' | 'maybe' | 'none'>('all');
-
-    // Zone size inputs for distribution (0 = subs)
-    const [zoneSizes, setZoneSizes] = useState<Record<number, string>>({ 0: '', 1: '', 2: '', 3: '' });
     const [useCustomSizes, setUseCustomSizes] = useState(true); // Default to custom sizes
+
+    // Helper to get a player's team assignment
+    const getPlayerTeamAssignment = (name: string): { team: TeamNumber; status: ConfirmationStatus } | null => {
+        for (const team of [1, 2, 3] as TeamNumber[]) {
+            const status = confirmationsByTeam[team]?.[name];
+            if (status && status !== 'none') {
+                return { team, status };
+            }
+        }
+        return null;
+    };
+
+    // Get player's overall status for filtering (confirmed/maybe/none across any team)
+    const getPlayerOverallStatus = (name: string): ConfirmationStatus => {
+        const assignment = getPlayerTeamAssignment(name);
+        return assignment?.status || 'none';
+    };
+
+    // Set player's team assignment (clears from other teams)
+    const setPlayerTeamAssignment = (name: string, team: TeamNumber, status: ConfirmationStatus) => {
+        const newConfirmations = { ...confirmationsByTeam };
+        // Clear from all teams first
+        for (const t of [1, 2, 3] as TeamNumber[]) {
+            if (newConfirmations[t]?.[name]) {
+                newConfirmations[t] = { ...newConfirmations[t] };
+                delete newConfirmations[t][name];
+            }
+        }
+        // Set on the specified team if not 'none'
+        if (status !== 'none') {
+            newConfirmations[team] = { ...newConfirmations[team], [name]: status };
+        }
+        setConfirmationsByTeam(newConfirmations);
+    };
+
+    // Current team's data (for distribute step)
+    const currentTeamConfirmations = confirmationsByTeam[activeTeam] || {};
+    const suggestedZones = suggestedZonesByTeam[activeTeam] || {};
+    const selectedRallyLeads = selectedRallyLeadsByTeam[activeTeam] || {};
+    const selectedTeleportFirst = selectedTeleportFirstByTeam[activeTeam] || new Set<string>();
+    const zoneSizes = zoneSizesByTeam[activeTeam] || { 0: '', 1: '', 2: '', 3: '' };
+
+    // Setters for current team
+    const setSuggestedZones = (zones: Record<number, { name: string; power: number; kills: number }[]>) => {
+        setSuggestedZonesByTeam({ ...suggestedZonesByTeam, [activeTeam]: zones });
+    };
+    const setSelectedRallyLeads = (leads: Record<number, string>) => {
+        setSelectedRallyLeadsByTeam({ ...selectedRallyLeadsByTeam, [activeTeam]: leads });
+    };
+    const setSelectedTeleportFirst = (first: Set<string>) => {
+        setSelectedTeleportFirstByTeam({ ...selectedTeleportFirstByTeam, [activeTeam]: first });
+    };
+    const setZoneSizes = (sizes: Record<number, string>) => {
+        setZoneSizesByTeam({ ...zoneSizesByTeam, [activeTeam]: sizes });
+    };
 
     // Event participation stats for AoO history
     const [eventStats, setEventStats] = useState<Map<string, MemberEventStats>>(new Map());
@@ -210,9 +277,9 @@ function TeamBuilderTab({
                     ('governorId' in m && m.governorId?.includes(searchTerm));
                 if (!matchesSearch) return false;
             }
-            // Confirmation status filter
+            // Confirmation status filter (across all teams)
             if (builderFilter !== 'all') {
-                const status = confirmations[m.name] || 'none';
+                const status = getPlayerOverallStatus(m.name);
                 if (builderFilter !== status) return false;
             }
             return true;
@@ -277,17 +344,25 @@ function TeamBuilderTab({
         setShowAddForm(false);
         setSearchTerm('');
 
-        // Auto-confirm the new member
-        setConfirmations({ ...confirmations, [newMember.name]: 'confirmed' });
+        // Auto-confirm the new member on team 1
+        setPlayerTeamAssignment(newMember.name, 1, 'confirmed');
     };
 
-    // Count confirmations (from combined roster)
-    const confirmedPlayers = combinedRoster.filter(m => confirmations[m.name] === 'confirmed');
-    const maybePlayers = combinedRoster.filter(m => confirmations[m.name] === 'maybe');
-    const confirmedPower = confirmedPlayers.reduce((sum, p) => sum + (p.power || 0), 0);
-    const maybePower = maybePlayers.reduce((sum, p) => sum + (p.power || 0), 0);
+    // Count confirmations for CURRENT team (used in distribute step)
+    const confirmedPlayers = combinedRoster.filter(m => currentTeamConfirmations[m.name] === 'confirmed');
+    const maybePlayers = combinedRoster.filter(m => currentTeamConfirmations[m.name] === 'maybe');
+    const confirmedPower = confirmedPlayers.reduce((sum: number, p) => sum + (p.power || 0), 0);
+    const maybePower = maybePlayers.reduce((sum: number, p) => sum + (p.power || 0), 0);
 
-    // Auto-calculate zone sizes when player count changes
+    // Count per team (for display in select step)
+    const getTeamCounts = (team: TeamNumber) => {
+        const teamConf = confirmationsByTeam[team] || {};
+        const confirmed = combinedRoster.filter(m => teamConf[m.name] === 'confirmed').length;
+        const maybe = combinedRoster.filter(m => teamConf[m.name] === 'maybe').length;
+        return { confirmed, maybe, total: confirmed + maybe };
+    };
+
+    // Auto-calculate zone sizes when player count changes (for current team)
     useEffect(() => {
         const totalPlayers = confirmedPlayers.length + maybePlayers.length;
         if (totalPlayers === 0) return;
@@ -307,13 +382,15 @@ function TeamBuilderTab({
         setZoneSizes(newSizes);
     // Only recalculate when player counts change, not when zoneSizes changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [confirmedPlayers.length, maybePlayers.length]);
+    }, [confirmedPlayers.length, maybePlayers.length, activeTeam]);
 
-    // Toggle confirmation status
-    const toggleConfirmation = (name: string) => {
-        const current = confirmations[name] || 'none';
+    // Toggle confirmation status for a specific team
+    const toggleTeamConfirmation = (name: string, team: TeamNumber) => {
+        const teamConf = confirmationsByTeam[team] || {};
+        const current = teamConf[name] || 'none';
+        // Cycle: none -> confirmed -> maybe -> none
         const next: ConfirmationStatus = current === 'none' ? 'confirmed' : current === 'confirmed' ? 'maybe' : 'none';
-        setConfirmations({ ...confirmations, [name]: next });
+        setPlayerTeamAssignment(name, team, next);
     };
 
     // Suggest rally leads based on power AND kills (KP)
@@ -535,24 +612,37 @@ function TeamBuilderTab({
                     </div>
                 </div>
 
-                {/* Team tabs (only show if more than 1 team) */}
-                {teamCount > 1 && (
-                    <div className="flex gap-2 mb-4">
-                        {Array.from({ length: teamCount }, (_, i) => i + 1).map((t) => (
+                {/* Team summary with colored badges */}
+                <div className="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
+                    <span className={`text-sm font-medium ${theme.textMuted}`}>Team Summary:</span>
+                    {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map((t) => {
+                        const counts = getTeamCounts(t);
+                        const colors = {
+                            1: { bg: 'bg-blue-600', text: 'text-blue-400', border: 'border-blue-500' },
+                            2: { bg: 'bg-orange-600', text: 'text-orange-400', border: 'border-orange-500' },
+                            3: { bg: 'bg-purple-600', text: 'text-purple-400', border: 'border-purple-500' },
+                        }[t];
+                        return (
                             <button
                                 key={t}
-                                onClick={() => setActiveTeam(t as 1 | 2 | 3)}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                    activeTeam === t
-                                        ? 'bg-[#4318ff] text-white'
-                                        : `${theme.tag} hover:opacity-80`
+                                onClick={() => setActiveTeam(t)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                                    builderStep === 'distribute' && activeTeam === t
+                                        ? `${colors.bg} text-white shadow-md`
+                                        : `${colors.bg}/20 ${colors.text} border ${colors.border}/50 hover:${colors.bg}/30`
                                 }`}
                             >
-                                Team {t}
+                                <span className="font-bold">T{t}</span>
+                                <span className="text-xs opacity-80">
+                                    {counts.confirmed}✓ {counts.maybe > 0 && `+ ${counts.maybe}?`}
+                                </span>
                             </button>
-                        ))}
-                    </div>
-                )}
+                        );
+                    })}
+                    {teamCount === 1 && (
+                        <span className={`text-xs ${theme.textMuted}`}>(Use team count buttons to add more teams)</span>
+                    )}
+                </div>
 
                 {/* Step indicator */}
                 <div className="flex items-center gap-3 mb-5 text-sm">
@@ -615,23 +705,12 @@ function TeamBuilderTab({
                         <div className="flex flex-wrap items-center gap-3 mb-4">
                             <button
                                 onClick={() => {
-                                    const newConf: Record<string, ConfirmationStatus> = {};
-                                    combinedRoster.forEach(p => newConf[p.name] = 'confirmed');
-                                    setConfirmations({ ...confirmations, ...newConf });
+                                    // Clear all team assignments
+                                    setConfirmationsByTeam({ 1: {}, 2: {}, 3: {} });
                                 }}
                                 className={`px-4 py-2 text-sm rounded-lg ${theme.tag} hover:opacity-80`}
                             >
-                                Select All
-                            </button>
-                            <button
-                                onClick={() => {
-                                    const newConf: Record<string, ConfirmationStatus> = {};
-                                    combinedRoster.forEach(p => newConf[p.name] = 'none');
-                                    setConfirmations({ ...confirmations, ...newConf });
-                                }}
-                                className={`px-4 py-2 text-sm rounded-lg ${theme.tag} hover:opacity-80`}
-                            >
-                                Clear All
+                                Clear All Teams
                             </button>
                             <button
                                 onClick={() => setShowAddForm(!showAddForm)}
@@ -788,8 +867,7 @@ function TeamBuilderTab({
 
                         {/* Player list */}
                         {/* Column headers - clickable for sorting */}
-                        <div className={`grid grid-cols-[auto_1fr_90px_110px_55px_55px_28px] gap-3 px-3 py-2.5 text-base font-medium ${theme.textMuted} border-b border-[var(--border)]`}>
-                            <div className="w-8"></div>
+                        <div className={`grid grid-cols-[1fr_90px_110px_55px_55px_auto_28px] gap-3 px-3 py-2.5 text-base font-medium ${theme.textMuted} border-b border-[var(--border)]`}>
                             <button
                                 onClick={() => setBuilderSort('name')}
                                 className={`text-left hover:text-white transition-colors ${builderSort === 'name' ? 'text-white' : ''}`}
@@ -820,35 +898,33 @@ function TeamBuilderTab({
                             >
                                 T2 {builderSort === 't2' && '↓'}
                             </button>
+                            <span className="text-center">Team</span>
                             <div></div>
                         </div>
 
                         {/* Player list */}
                         <div className="max-h-[400px] overflow-y-auto space-y-1.5 pt-1">
                             {filteredRoster.map((member) => {
-                                const status = confirmations[member.name] || 'none';
+                                const assignment = getPlayerTeamAssignment(member.name);
                                 const isPending = 'isPending' in member && member.isPending;
                                 const aooStats = eventStats.get(member.name)?.aoo;
+
+                                // Team colors matching in-game: T1=blue, T2=orange, T3=purple
+                                const teamColors: Record<TeamNumber, { bg: string; border: string; text: string }> = {
+                                    1: { bg: 'bg-blue-600', border: 'border-blue-500', text: 'text-blue-400' },
+                                    2: { bg: 'bg-orange-600', border: 'border-orange-500', text: 'text-orange-400' },
+                                    3: { bg: 'bg-purple-600', border: 'border-purple-500', text: 'text-purple-400' },
+                                };
+
                                 return (
-                                    <button
+                                    <div
                                         key={member.name}
-                                        onClick={() => toggleConfirmation(member.name)}
-                                        className={`w-full grid grid-cols-[auto_1fr_90px_110px_55px_55px_28px] gap-3 items-center px-3 py-3 rounded-lg transition-colors ${
-                                            status === 'confirmed' ? 'bg-green-600/20 border border-green-500/30' :
-                                            status === 'maybe' ? 'bg-yellow-600/20 border border-yellow-500/30' :
+                                        className={`w-full grid grid-cols-[1fr_90px_110px_55px_55px_auto_28px] gap-3 items-center px-3 py-3 rounded-lg transition-colors ${
+                                            assignment ? `${teamColors[assignment.team].bg}/20 border ${teamColors[assignment.team].border}/30` :
                                             isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
-                                            'bg-[var(--background-secondary)] border border-[var(--border)] hover:bg-[var(--background-hover)]'
+                                            'bg-[var(--background-secondary)] border border-[var(--border)]'
                                         }`}
                                     >
-                                        {/* Status icon */}
-                                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-base ${
-                                            status === 'confirmed' ? 'bg-green-600 text-white' :
-                                            status === 'maybe' ? 'bg-yellow-600 text-white' :
-                                            'bg-white/20 text-white/50'
-                                        }`}>
-                                            {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : ''}
-                                        </span>
-
                                         {/* Name */}
                                         <div className="flex items-center gap-2 min-w-0">
                                             <span className={`font-medium text-lg ${theme.text} truncate`}>{member.name}</span>
@@ -889,6 +965,31 @@ function TeamBuilderTab({
                                                 : '—'}
                                         </span>
 
+                                        {/* Team assignment buttons */}
+                                        <div className="flex items-center gap-1">
+                                            {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map((team) => {
+                                                const teamConf = confirmationsByTeam[team] || {};
+                                                const status = teamConf[member.name] || 'none';
+                                                const colors = teamColors[team];
+                                                return (
+                                                    <button
+                                                        key={team}
+                                                        onClick={() => toggleTeamConfirmation(member.name, team)}
+                                                        className={`w-8 h-8 rounded-md text-sm font-bold transition-all ${
+                                                            status === 'confirmed'
+                                                                ? `${colors.bg} text-white shadow-md`
+                                                                : status === 'maybe'
+                                                                    ? `${colors.bg}/40 ${colors.text} border-2 ${colors.border}`
+                                                                    : `bg-white/10 text-white/40 border border-white/20 hover:border-white/40`
+                                                        }`}
+                                                        title={`Team ${team}: ${status === 'confirmed' ? 'Confirmed' : status === 'maybe' ? 'Maybe' : 'Click to add'}`}
+                                                    >
+                                                        {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : team}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
                                         {/* Actions */}
                                         <div className="flex justify-center">
                                             {isPending && (
@@ -904,7 +1005,7 @@ function TeamBuilderTab({
                                                 </button>
                                             )}
                                         </div>
-                                    </button>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -1167,17 +1268,36 @@ function TeamBuilderTab({
                         </button>
                         <button
                             onClick={() => {
-                                // Validate rally leads
-                                const missingLeads = [1, 2, 3].filter(z => !selectedRallyLeads[z] && (suggestedZones[z]?.length || 0) > 0);
-                                if (missingLeads.length > 0) {
-                                    alert(`Please select rally leads for Zone ${missingLeads.join(', ')}`);
-                                    return;
+                                // Build all team data for apply
+                                const allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }> = {} as Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>;
+
+                                for (const team of [1, 2, 3] as TeamNumber[]) {
+                                    if (team > teamCount) continue;
+                                    const zones = suggestedZonesByTeam[team] || {};
+                                    const rallyLeads = selectedRallyLeadsByTeam[team] || {};
+                                    const teleportFirst = selectedTeleportFirstByTeam[team] || new Set<string>();
+
+                                    // Validate rally leads for this team
+                                    const missingLeads = [1, 2, 3].filter(z => !rallyLeads[z] && (zones[z]?.length || 0) > 0);
+                                    if (missingLeads.length > 0) {
+                                        alert(`Team ${team}: Please select rally leads for Zone ${missingLeads.join(', ')}`);
+                                        setActiveTeam(team);
+                                        return;
+                                    }
+
+                                    allTeamData[team] = {
+                                        zones,
+                                        rallyLeads,
+                                        teleportFirst,
+                                        substitutes: zones[0] || []
+                                    };
                                 }
-                                onApply(suggestedZones, selectedRallyLeads, selectedTeleportFirst, suggestedZones[0] || []);
+
+                                onApply(allTeamData);
                             }}
                             className="px-6 py-2 rounded-lg font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80"
                         >
-                            Apply to Strategy →
+                            Apply All Teams →
                         </button>
                     </div>
                 </>
@@ -1223,14 +1343,22 @@ export default function AooStrategyPage() {
 
     // Team Builder state
     const [builderAlliance, setBuilderAlliance] = useState<string>('ANG');
-    const [teamCount, setTeamCount] = useState<1 | 2 | 3>(1); // Number of AoO teams to organize
-    const [activeTeam, setActiveTeam] = useState<1 | 2 | 3>(1); // Which team is being edited
-    const [confirmations, setConfirmations] = useState<Record<string, ConfirmationStatus>>({});
+    const [teamCount, setTeamCount] = useState<TeamNumber>(1); // Number of AoO teams to organize
+    const [activeTeam, setActiveTeam] = useState<TeamNumber>(1); // Which team is being edited/distributed
     const [builderStep, setBuilderStep] = useState<'select' | 'distribute' | 'leads' | 'done'>('select');
-    const [suggestedZones, setSuggestedZones] = useState<Record<number, { name: string; power: number; kills: number }[]>>({});
-    const [selectedRallyLeads, setSelectedRallyLeads] = useState<Record<number, string>>({});
-    const [selectedTeleportFirst, setSelectedTeleportFirst] = useState<Set<string>>(new Set());
     const [pendingAdditions, setPendingAdditions] = useState<PendingMember[]>([]);
+
+    // Per-team state
+    const emptyTeamState = { 1: {}, 2: {}, 3: {} };
+    const [confirmationsByTeam, setConfirmationsByTeam] = useState<ConfirmationsByTeam>({ 1: {}, 2: {}, 3: {} });
+    const [suggestedZonesByTeam, setSuggestedZonesByTeam] = useState<ZonesByTeam>({ 1: {}, 2: {}, 3: {} });
+    const [selectedRallyLeadsByTeam, setSelectedRallyLeadsByTeam] = useState<RallyLeadsByTeam>({ 1: {}, 2: {}, 3: {} });
+    const [selectedTeleportFirstByTeam, setSelectedTeleportFirstByTeam] = useState<TeleportFirstByTeam>({ 1: new Set(), 2: new Set(), 3: new Set() });
+    const [zoneSizesByTeam, setZoneSizesByTeam] = useState<ZoneSizesByTeam>({
+        1: { 0: '', 1: '', 2: '', 3: '' },
+        2: { 0: '', 1: '', 2: '', 3: '' },
+        3: { 0: '', 1: '', 2: '', 3: '' }
+    });
 
     const EDITOR_PASSWORD = 'carn-dum';
 
@@ -1885,57 +2013,67 @@ export default function AooStrategyPage() {
                     setTeamCount={setTeamCount}
                     activeTeam={activeTeam}
                     setActiveTeam={setActiveTeam}
-                    confirmations={confirmations}
-                    setConfirmations={setConfirmations}
+                    confirmationsByTeam={confirmationsByTeam}
+                    setConfirmationsByTeam={setConfirmationsByTeam}
                     builderStep={builderStep}
                     setBuilderStep={setBuilderStep}
-                    suggestedZones={suggestedZones}
-                    setSuggestedZones={setSuggestedZones}
-                    selectedRallyLeads={selectedRallyLeads}
-                    setSelectedRallyLeads={setSelectedRallyLeads}
-                    selectedTeleportFirst={selectedTeleportFirst}
-                    setSelectedTeleportFirst={setSelectedTeleportFirst}
+                    suggestedZonesByTeam={suggestedZonesByTeam}
+                    setSuggestedZonesByTeam={setSuggestedZonesByTeam}
+                    selectedRallyLeadsByTeam={selectedRallyLeadsByTeam}
+                    setSelectedRallyLeadsByTeam={setSelectedRallyLeadsByTeam}
+                    selectedTeleportFirstByTeam={selectedTeleportFirstByTeam}
+                    setSelectedTeleportFirstByTeam={setSelectedTeleportFirstByTeam}
+                    zoneSizesByTeam={zoneSizesByTeam}
+                    setZoneSizesByTeam={setZoneSizesByTeam}
                     pendingAdditions={pendingAdditions}
                     setPendingAdditions={setPendingAdditions}
                     onSavePendingAdditions={handleSavePendingAdditions}
-                    onApply={(zonePlayers, rallyLeads, teleportFirst, subs) => {
-                        // Apply distribution to strategy
+                    onApply={(allTeamData) => {
+                        // Apply distribution to strategy for all teams
                         const newPlayers: Player[] = [];
                         const newSubstitutes: Player[] = [];
                         let idCounter = Date.now();
 
-                        for (const [zoneNum, zonePeople] of Object.entries(zonePlayers)) {
-                            const zone = parseInt(zoneNum);
-                            if (zone === 0) continue; // Skip substitutes here, handle separately
-                            for (const p of zonePeople) {
-                                const tags: string[] = ['Confirmed'];
-                                if (rallyLeads[zone] === p.name) {
-                                    tags.push('Rally Leader');
+                        // Process each team
+                        for (const teamNum of [1, 2, 3] as TeamNumber[]) {
+                            const teamData = allTeamData[teamNum];
+                            if (!teamData) continue;
+
+                            const { zones, rallyLeads, teleportFirst, substitutes } = teamData;
+
+                            for (const [zoneNum, zonePeople] of Object.entries(zones)) {
+                                const zone = parseInt(zoneNum);
+                                if (zone === 0) continue; // Skip substitutes here
+                                for (const p of zonePeople as { name: string; power: number; kills: number }[]) {
+                                    const tags: string[] = ['Confirmed', `T${teamNum}`];
+                                    if (rallyLeads[zone] === p.name) {
+                                        tags.push('Rally Leader');
+                                    }
+                                    if (teleportFirst.has(p.name)) {
+                                        tags.push('Teleport 1st');
+                                    }
+                                    newPlayers.push({
+                                        id: idCounter++,
+                                        name: p.name,
+                                        team: zone,
+                                        tags,
+                                        power: p.power,
+                                        assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
+                                    });
                                 }
-                                if (teleportFirst.has(p.name)) {
-                                    tags.push('Teleport 1st');
-                                }
-                                newPlayers.push({
+                            }
+
+                            // Create substitutes for this team
+                            for (const p of substitutes) {
+                                newSubstitutes.push({
                                     id: idCounter++,
                                     name: p.name,
-                                    team: zone,
-                                    tags,
+                                    team: 0,
+                                    tags: ['Maybe', `T${teamNum}`],
                                     power: p.power,
                                     assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
                                 });
                             }
-                        }
-
-                        // Create substitutes
-                        for (const p of subs) {
-                            newSubstitutes.push({
-                                id: idCounter++,
-                                name: p.name,
-                                team: 0,
-                                tags: ['Maybe'],
-                                power: p.power,
-                                assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
-                            });
                         }
 
                         setPlayers(newPlayers);
