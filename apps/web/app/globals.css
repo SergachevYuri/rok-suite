@@ -5,7 +5,8 @@
  * Clean, professional design inspired by ROKstats
  */
 
-:root, .dark {
+/* Default to dark theme, then override with .light class */
+.dark {
   /* Background colors - deeper, more sophisticated */
   --background: #0a0e1a;
   --background-secondary: #111827;
