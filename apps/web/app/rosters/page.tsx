@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, getLatestValuesForAllMembers, getSnapshotDates, getFilteredSnapshotDates, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
+import { useMemberTrophyCounts, getTrophyBadgeInfo, type MemberTrophyCounts } from '@/lib/supabase/use-king-trophies';
 import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -101,10 +102,11 @@ const COLUMN_TOOLTIPS: Record<string, string> = {
     highestPower: 'Highest recorded power',
     ch: 'Castle Hall level',
     civilization: 'In-game civilization',
+    trophies: 'King\'s Recognition trophies received',
 };
 
 // Column configuration for View Options
-type ColumnId = 'power' | 'kp' | 'ratio' | 't4t5' | 't1t2t3' | 'deads' | 'healed' | 'honor' | 'aoo' | 'mob' | 'rank' | 'alliance' | 'acclaim' | 'kvkPts' | 'highestPower' | 'ch' | 'civilization';
+type ColumnId = 'power' | 'kp' | 'ratio' | 't4t5' | 't1t2t3' | 'deads' | 'healed' | 'honor' | 'aoo' | 'mob' | 'rank' | 'alliance' | 'trophies' | 'acclaim' | 'kvkPts' | 'highestPower' | 'ch' | 'civilization';
 
 interface ColumnConfig {
     id: ColumnId;
@@ -121,6 +123,7 @@ const COLUMN_CONFIG: ColumnConfig[] = [
     { id: 'ratio', label: 'Power:KP', tooltip: COLUMN_TOOLTIPS.ratio, defaultVisible: true, category: 'core' },
     { id: 'rank', label: 'Rank', tooltip: COLUMN_TOOLTIPS.rank, defaultVisible: false, category: 'core' },
     { id: 'alliance', label: 'Alliance', tooltip: COLUMN_TOOLTIPS.alliance, defaultVisible: true, category: 'core' },
+    { id: 'trophies', label: 'Trophies', tooltip: COLUMN_TOOLTIPS.trophies, defaultVisible: true, category: 'core' },
     // Combat columns
     { id: 't4t5', label: 'T4/T5 KP', tooltip: COLUMN_TOOLTIPS.t4t5, defaultVisible: true, category: 'combat' },
     { id: 't1t2t3', label: 'T1/T2/T3 KP', tooltip: COLUMN_TOOLTIPS.t1t2t3, defaultVisible: false, category: 'combat' },
@@ -285,6 +288,9 @@ export default function RosterPage() {
 
     // Event participation stats
     const [eventStats, setEventStats] = useState<Map<string, MemberEventStats>>(new Map());
+
+    // Trophy counts for King's Recognition
+    const { counts: trophyCounts, refetch: refetchTrophies } = useMemberTrophyCounts();
 
     // Events tab state
     const [eventType, setEventType] = useState<'aoo' | 'mobilization'>('aoo');
@@ -2230,6 +2236,15 @@ export default function RosterPage() {
                                             </ColumnTooltip>
                                         </th>
                                     )}
+                                    {isColumnVisible('trophies') && (
+                                        <th className="text-center px-4 py-3 hidden sm:table-cell">
+                                            <ColumnTooltip text={COLUMN_TOOLTIPS.trophies}>
+                                                <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                                    Trophies
+                                                </span>
+                                            </ColumnTooltip>
+                                        </th>
+                                    )}
                                     {isEditor && (
                                         <th className="text-left px-4 py-3">
                                             <span className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted}`}>
@@ -2505,6 +2520,24 @@ export default function RosterPage() {
                                                         {member.alliance || '-'}
                                                     </span>
                                                 )}
+                                            </td>
+                                        )}
+                                        {isColumnVisible('trophies') && (
+                                            <td className="px-4 py-3 hidden sm:table-cell text-center">
+                                                {(() => {
+                                                    const badgeInfo = getTrophyBadgeInfo(trophyCounts.get(member.id));
+                                                    return badgeInfo.hasAny ? (
+                                                        <Link
+                                                            href="/recognition"
+                                                            className="hover:opacity-80 transition-opacity"
+                                                            title={badgeInfo.tooltip}
+                                                        >
+                                                            <span className="text-base">{badgeInfo.display}</span>
+                                                        </Link>
+                                                    ) : (
+                                                        <span className={theme.textMuted}>-</span>
+                                                    );
+                                                })()}
                                             </td>
                                         )}
                                         {isEditor && (
