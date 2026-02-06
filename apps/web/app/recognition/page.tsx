@@ -57,7 +57,7 @@ export default function RecognitionPage() {
     const [memberSearch, setMemberSearch] = useState('');
 
     // View mode
-    const [viewMode, setViewMode] = useState<'leaderboard' | 'history'>('leaderboard');
+    const [viewMode, setViewMode] = useState<'hallOfFame' | 'history'>('hallOfFame');
     const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set());
 
     // Theme
@@ -371,15 +371,15 @@ export default function RecognitionPage() {
                     {/* View Toggle */}
                     <div className="flex gap-2">
                         <button
-                            onClick={() => setViewMode('leaderboard')}
+                            onClick={() => setViewMode('hallOfFame')}
                             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${
-                                viewMode === 'leaderboard'
+                                viewMode === 'hallOfFame'
                                     ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
                                     : `${theme.card} hover:bg-[var(--background-secondary)]`
                             }`}
                         >
                             <Users size={18} />
-                            Leaderboard
+                            Hall of Fame
                         </button>
                         <button
                             onClick={() => setViewMode('history')}
@@ -413,13 +413,13 @@ export default function RecognitionPage() {
                                 </button>
                             )}
                         </div>
-                    ) : viewMode === 'leaderboard' ? (
-                        /* Leaderboard View */
+                    ) : viewMode === 'hallOfFame' ? (
+                        /* Hall of Fame View */
                         <div className={`${theme.card} rounded-xl border overflow-hidden`}>
                             <div className="p-4 border-b border-[var(--border)]">
                                 <h2 className="text-lg font-semibold flex items-center gap-2">
                                     <Trophy className="w-5 h-5 text-amber-400" />
-                                    All-Time Leaderboard
+                                    Hall of Fame
                                 </h2>
                             </div>
                             <div className="divide-y divide-[var(--border)]">
