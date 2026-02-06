@@ -1475,10 +1475,13 @@ export default function RosterPage() {
                 <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <div className="p-2.5 rounded-lg bg-sky-500/15 flex-shrink-0">
+                                <Users className="w-5 h-5 sm:w-6 sm:h-6 text-sky-500" />
+                            </div>
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight truncate">Alliance Roster</h1>
-                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-[#4318ff]/20 text-[#9f7aea] flex-shrink-0">
+                                    <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">Alliance Roster</h1>
+                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-sky-500/20 text-sky-400 flex-shrink-0">
                                         {statsRoster.length} members
                                     </span>
                                 </div>

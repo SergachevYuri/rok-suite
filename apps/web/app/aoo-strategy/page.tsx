@@ -9,6 +9,7 @@ import { useAllianceRoster, formatPower, RosterMember } from '@/lib/supabase/use
 import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-participation';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/lib/supabase/auth-context';
+import { Swords } from 'lucide-react';
 
 // Dynamic import to avoid SSR issues with the map
 const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInteractiveMap'), {
@@ -1773,8 +1774,11 @@ export default function AooStrategyPage() {
                 <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <div className="p-2.5 rounded-lg bg-emerald-500/15 flex-shrink-0">
+                                <Swords className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />
+                            </div>
                             <div className="min-w-0">
-                                <h1 className="text-lg sm:text-2xl md:text-3xl font-semibold tracking-tight">AoO Planner</h1>
+                                <h1 className="text-lg sm:text-2xl font-semibold tracking-tight">AoO Planner</h1>
                                 <p className={`text-xs sm:text-sm ${theme.textMuted} hidden sm:block`}>
                                     30v30 Strategy Planner
                                 </p>
