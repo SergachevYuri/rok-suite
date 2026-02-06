@@ -698,16 +698,16 @@ function TeamBuilderTab({
                         )}
 
                         {/* Sort & Filter Controls */}
-                        <div className="flex items-center justify-between mb-3 gap-4">
+                        <div className="flex items-center justify-between mb-4 gap-4">
                             {/* Filter by status */}
-                            <div className="flex items-center gap-2">
-                                <span className={`text-sm ${theme.textMuted}`}>Show:</span>
-                                <div className="flex gap-1">
+                            <div className="flex items-center gap-3">
+                                <span className={`text-base ${theme.textMuted}`}>Show:</span>
+                                <div className="flex gap-1.5">
                                     {(['all', 'confirmed', 'maybe', 'none'] as const).map((filter) => (
                                         <button
                                             key={filter}
                                             onClick={() => setBuilderFilter(filter)}
-                                            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                                            className={`px-4 py-2 text-base rounded-lg transition-colors ${
                                                 builderFilter === filter
                                                     ? filter === 'confirmed' ? 'bg-green-600 text-white'
                                                     : filter === 'maybe' ? 'bg-yellow-600 text-white'
@@ -722,12 +722,12 @@ function TeamBuilderTab({
                                 </div>
                             </div>
                             {/* Sort dropdown */}
-                            <div className="flex items-center gap-2">
-                                <span className={`text-sm ${theme.textMuted}`}>Sort:</span>
+                            <div className="flex items-center gap-3">
+                                <span className={`text-base ${theme.textMuted}`}>Sort:</span>
                                 <select
                                     value={builderSort}
                                     onChange={(e) => setBuilderSort(e.target.value as typeof builderSort)}
-                                    className={`px-3 py-1.5 text-sm rounded-lg ${theme.input} cursor-pointer`}
+                                    className={`px-4 py-2 text-base rounded-lg ${theme.input} cursor-pointer`}
                                 >
                                     <option value="power">Power (High to Low)</option>
                                     <option value="kp">Kill Points (High to Low)</option>
@@ -740,8 +740,8 @@ function TeamBuilderTab({
 
                         {/* Player list */}
                         {/* Column headers - clickable for sorting */}
-                        <div className={`grid grid-cols-[auto_1fr_80px_100px_50px_50px_28px] gap-3 px-3 py-2 text-sm font-medium ${theme.textMuted} border-b border-[var(--border)]`}>
-                            <div className="w-7"></div>
+                        <div className={`grid grid-cols-[auto_1fr_90px_110px_55px_55px_28px] gap-3 px-3 py-2.5 text-base font-medium ${theme.textMuted} border-b border-[var(--border)]`}>
+                            <div className="w-8"></div>
                             <button
                                 onClick={() => setBuilderSort('name')}
                                 className={`text-left hover:text-white transition-colors ${builderSort === 'name' ? 'text-white' : ''}`}
@@ -776,7 +776,7 @@ function TeamBuilderTab({
                         </div>
 
                         {/* Player list */}
-                        <div className="max-h-[400px] overflow-y-auto space-y-1 pt-1">
+                        <div className="max-h-[400px] overflow-y-auto space-y-1.5 pt-1">
                             {filteredRoster.map((member) => {
                                 const status = confirmations[member.name] || 'none';
                                 const isPending = 'isPending' in member && member.isPending;
@@ -785,7 +785,7 @@ function TeamBuilderTab({
                                     <button
                                         key={member.name}
                                         onClick={() => toggleConfirmation(member.name)}
-                                        className={`w-full grid grid-cols-[auto_1fr_80px_100px_50px_50px_28px] gap-3 items-center px-3 py-2.5 rounded-lg transition-colors ${
+                                        className={`w-full grid grid-cols-[auto_1fr_90px_110px_55px_55px_28px] gap-3 items-center px-3 py-3 rounded-lg transition-colors ${
                                             status === 'confirmed' ? 'bg-green-600/20 border border-green-500/30' :
                                             status === 'maybe' ? 'bg-yellow-600/20 border border-yellow-500/30' :
                                             isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
@@ -793,7 +793,7 @@ function TeamBuilderTab({
                                         }`}
                                     >
                                         {/* Status icon */}
-                                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
+                                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-base ${
                                             status === 'confirmed' ? 'bg-green-600 text-white' :
                                             status === 'maybe' ? 'bg-yellow-600 text-white' :
                                             'bg-white/20 text-white/50'
@@ -803,27 +803,27 @@ function TeamBuilderTab({
 
                                         {/* Name */}
                                         <div className="flex items-center gap-2 min-w-0">
-                                            <span className={`font-medium text-base ${theme.text} truncate`}>{member.name}</span>
+                                            <span className={`font-medium text-lg ${theme.text} truncate`}>{member.name}</span>
                                             {isPending && (
-                                                <span className="px-1.5 py-0.5 text-xs rounded bg-blue-600 text-white shrink-0">
+                                                <span className="px-2 py-0.5 text-sm rounded bg-blue-600 text-white shrink-0">
                                                     NEW
                                                 </span>
                                             )}
                                         </div>
 
                                         {/* Power */}
-                                        <span className={`${theme.text} text-base text-right font-medium`}>
+                                        <span className={`${theme.text} text-lg text-right font-semibold`}>
                                             {formatPower(member.power)}
                                         </span>
 
                                         {/* KP */}
-                                        <span className={`${theme.textMuted} text-sm text-right`}>
+                                        <span className={`${theme.textMuted} text-base text-right`}>
                                             {formatPower(member.kills || killsByName[member.name] || 0)}
                                         </span>
 
                                         {/* T1 History */}
                                         <span
-                                            className={`text-sm text-center font-medium ${aooStats && aooStats.team1Count > 0 ? 'text-blue-400' : theme.textMuted}`}
+                                            className={`text-base text-center font-medium ${aooStats && aooStats.team1Count > 0 ? 'text-blue-400' : theme.textMuted}`}
                                             title={aooStats && aooStats.team1Count > 0 ? `Team 1: ${aooStats.team1Participated}/${aooStats.team1Count} participated` : 'No Team 1 history'}
                                         >
                                             {aooStats && aooStats.team1Count > 0
@@ -833,7 +833,7 @@ function TeamBuilderTab({
 
                                         {/* T2 History */}
                                         <span
-                                            className={`text-sm text-center font-medium ${aooStats && aooStats.team2Count > 0 ? 'text-orange-400' : theme.textMuted}`}
+                                            className={`text-base text-center font-medium ${aooStats && aooStats.team2Count > 0 ? 'text-orange-400' : theme.textMuted}`}
                                             title={aooStats && aooStats.team2Count > 0 ? `Team 2: ${aooStats.team2Participated}/${aooStats.team2Count} participated` : 'No Team 2 history'}
                                         >
                                             {aooStats && aooStats.team2Count > 0
