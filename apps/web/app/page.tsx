@@ -69,8 +69,9 @@ export default function Home() {
       hoverShadow: 'hover:shadow-emerald-500/10',
       iconHoverBg: 'group-hover:bg-emerald-500/15',
       iconHoverColor: 'group-hover:text-emerald-500',
+      fullWidth: true,
     },
-  ];
+  ] as const;
 
   return (
     <AppSidebar>
@@ -98,9 +99,10 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {tools.map((tool) => {
                 const Icon = tool.icon;
+                const fullWidth = 'fullWidth' in tool && tool.fullWidth;
                 return (
-                  <Link key={tool.href} href={tool.href}>
-                    <div className={`group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] ${tool.hoverBorder} hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-lg ${tool.hoverShadow} transition-all duration-200 cursor-pointer h-full`}>
+                  <Link key={tool.href} href={tool.href} className={fullWidth ? 'md:col-span-2' : ''}>
+                    <div className={`group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] ${tool.hoverBorder} hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] ${tool.hoverShadow} transition-all duration-200 cursor-pointer h-full`}>
                       <div className="flex items-start gap-4">
                         <div className={`p-2.5 rounded-lg bg-[var(--background-secondary)] ${tool.iconHoverBg} transition-colors duration-200 flex-shrink-0`}>
                           <Icon className={`w-5 h-5 text-[var(--text-muted)] ${tool.iconHoverColor} transition-colors duration-200`} />
@@ -131,7 +133,7 @@ export default function Home() {
             </h2>
 
             <Link href="/guide">
-              <div className="group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-cyan-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-200 cursor-pointer">
+              <div className="group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-cyan-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-cyan-500/10 transition-all duration-200 cursor-pointer">
                 <div className="flex items-start gap-4">
                   <div className="p-2.5 rounded-lg bg-[var(--background-secondary)] group-hover:bg-cyan-500/15 transition-colors duration-200 flex-shrink-0">
                     <BookOpen className="w-5 h-5 text-[var(--text-muted)] group-hover:text-cyan-500 transition-colors duration-200" />
