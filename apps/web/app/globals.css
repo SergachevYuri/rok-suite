@@ -39,14 +39,18 @@
   /* Border */
   --border: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.15);
+
+  /* Card shadow - minimal for dark mode */
+  --card-shadow: none;
+  --card-shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .light {
-  /* Background colors - clean, professional light theme */
-  --background: #f8fafc;
-  --background-secondary: #f1f5f9;
-  --background-card: rgba(255, 255, 255, 0.98);
-  --background-hover: rgba(241, 245, 249, 0.9);
+  /* Background colors - slightly gray for better contrast */
+  --background: #e9ecef;
+  --background-secondary: #dee2e6;
+  --background-card: #ffffff;
+  --background-hover: #f8f9fa;
 
   /* Primary gradient colors */
   --primary: #4318ff;
@@ -69,11 +73,15 @@
   /* Text colors */
   --foreground: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
 
-  /* Border */
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.15);
+  /* Border - stronger for light mode */
+  --border: rgba(0, 0, 0, 0.12);
+  --border-hover: rgba(0, 0, 0, 0.2);
+
+  /* Card shadow for light mode */
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 @theme inline {
@@ -130,11 +138,13 @@ html {
   background: var(--background-card);
   border: 1px solid var(--border);
   border-radius: 12px;
+  box-shadow: var(--card-shadow);
 }
 
 .card-hover:hover {
   background: var(--background-hover);
   border-color: var(--border-hover);
+  box-shadow: var(--card-shadow-hover);
 }
 
 /* Glassmorphism - now more subtle */

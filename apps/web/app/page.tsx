@@ -89,7 +89,7 @@ export default function Home() {
                 const Icon = tool.icon;
                 return (
                   <Link key={tool.href} href={tool.href}>
-                    <div className={`group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] ${tool.hoverBorder} hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-lg ${tool.hoverShadow} transition-all duration-200 cursor-pointer h-full`}>
+                    <div className={`group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] ${tool.hoverBorder} hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-lg ${tool.hoverShadow} transition-all duration-200 cursor-pointer h-full`}>
                       <div className="flex items-start gap-4">
                         <div className={`p-2.5 rounded-lg bg-[var(--background-secondary)] ${tool.iconHoverBg} transition-colors duration-200 flex-shrink-0`}>
                           <Icon className={`w-5 h-5 text-[var(--text-muted)] ${tool.iconHoverColor} transition-colors duration-200`} />
@@ -120,7 +120,7 @@ export default function Home() {
             </h2>
 
             <Link href="/guide">
-              <div className="group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] hover:border-cyan-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-200 cursor-pointer">
+              <div className="group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-cyan-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10 transition-all duration-200 cursor-pointer">
                 <div className="flex items-start gap-4">
                   <div className="p-2.5 rounded-lg bg-[var(--background-secondary)] group-hover:bg-cyan-500/15 transition-colors duration-200 flex-shrink-0">
                     <BookOpen className="w-5 h-5 text-[var(--text-muted)] group-hover:text-cyan-500 transition-colors duration-200" />
