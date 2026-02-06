@@ -31,10 +31,13 @@ interface NavItem {
   badgeColor?: string;
   hoverColor?: string;
   hoverBg?: string;
+  activeColor?: string;
+  activeBg?: string;
 }
 
 interface NavSection {
   titleKey?: string;
+  titleColor?: string;
   items: NavItem[];
 }
 
@@ -53,23 +56,25 @@ export function AppSidebar({ children }: AppSidebarProps) {
     {
       // Kingdom section (no title, top level)
       items: [
-        { labelKey: 'home', href: '/', icon: <Home size={20} />, hoverColor: 'group-hover:text-sky-500', hoverBg: 'hover:bg-sky-500/10' },
-        { labelKey: 'calendar', href: '/calendar', icon: <Calendar size={20} />, hoverColor: 'group-hover:text-rose-500', hoverBg: 'hover:bg-rose-500/10' },
-        { labelKey: 'rosters', href: '/rosters', icon: <Users size={20} />, hoverColor: 'group-hover:text-sky-500', hoverBg: 'hover:bg-sky-500/10' },
-        { labelKey: 'recognition', href: '/recognition', icon: <Crown size={20} />, hoverColor: 'group-hover:text-violet-500', hoverBg: 'hover:bg-violet-500/10' },
-        { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} />, hoverColor: 'group-hover:text-emerald-500', hoverBg: 'hover:bg-emerald-500/10' },
+        { labelKey: 'home', href: '/', icon: <Home size={20} />, hoverColor: 'group-hover:text-violet-400', hoverBg: 'hover:bg-violet-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-[#4318ff] to-[#7c3aed]' },
+        { labelKey: 'calendar', href: '/calendar', icon: <Calendar size={20} />, hoverColor: 'group-hover:text-rose-500', hoverBg: 'hover:bg-rose-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-rose-500 to-pink-500' },
+        { labelKey: 'rosters', href: '/rosters', icon: <Users size={20} />, hoverColor: 'group-hover:text-sky-500', hoverBg: 'hover:bg-sky-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-sky-500 to-blue-500' },
+        { labelKey: 'recognition', href: '/recognition', icon: <Crown size={20} />, hoverColor: 'group-hover:text-violet-500', hoverBg: 'hover:bg-violet-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-violet-500 to-purple-500' },
+        { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} />, hoverColor: 'group-hover:text-emerald-500', hoverBg: 'hover:bg-emerald-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-500' },
       ],
     },
     {
       titleKey: 'angmar',
+      titleColor: 'text-amber-500',
       items: [
-        { labelKey: 'events', href: '/events', icon: <Trophy size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10' },
+        { labelKey: 'events', href: '/events', icon: <Trophy size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500' },
       ],
     },
     {
       titleKey: 'resources',
+      titleColor: 'text-cyan-500',
       items: [
-        { labelKey: 'guide', href: '/guide', icon: <BookOpen size={20} />, hoverColor: 'group-hover:text-cyan-500', hoverBg: 'hover:bg-cyan-500/10' },
+        { labelKey: 'guide', href: '/guide', icon: <BookOpen size={20} />, hoverColor: 'group-hover:text-cyan-500', hoverBg: 'hover:bg-cyan-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-cyan-500 to-blue-500' },
         {
           labelKey: 'betaTools',
           href: '/beta-tools',
@@ -78,6 +83,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
           badgeColor: 'bg-[#ffb547]/20 text-[#ffb547]',
           hoverColor: 'group-hover:text-orange-500',
           hoverBg: 'hover:bg-orange-500/10',
+          activeColor: 'text-white',
+          activeBg: 'bg-gradient-to-r from-orange-500 to-amber-500',
         },
       ],
     },
@@ -125,7 +132,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           <div key={sectionIndex} className={sectionIndex > 0 ? 'mt-4' : ''}>
             {/* Section title */}
             {section.titleKey && !isCollapsed && (
-              <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <div className={`px-3 py-2 text-[10px] font-semibold uppercase tracking-wider ${section.titleColor || 'text-[var(--text-muted)]'}`}>
                 {t(section.titleKey)}
               </div>
             )}
@@ -143,12 +150,12 @@ export function AppSidebar({ children }: AppSidebarProps) {
                     href={item.href}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
                       active
-                        ? 'bg-[#4318ff] text-white shadow-lg shadow-[#4318ff]/25'
+                        ? `${item.activeBg || 'bg-[#4318ff]'} ${item.activeColor || 'text-white'} shadow-lg`
                         : `text-[var(--text-secondary)] ${item.hoverBg || 'hover:bg-[var(--background-secondary)]'}`
                     } ${isCollapsed ? 'justify-center' : ''}`}
                     title={isCollapsed ? t(item.labelKey) : undefined}
                   >
-                    <span className={`flex-shrink-0 ${active ? 'text-white' : `text-[var(--text-muted)] ${item.hoverColor || 'group-hover:text-[var(--foreground)]'}`}`}>
+                    <span className={`flex-shrink-0 ${active ? (item.activeColor || 'text-white') : `text-[var(--text-muted)] ${item.hoverColor || 'group-hover:text-[var(--foreground)]'}`}`}>
                       {item.icon}
                     </span>
                     {!isCollapsed && (
