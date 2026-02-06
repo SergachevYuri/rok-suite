@@ -662,61 +662,80 @@ function TeamBuilderTab({
                         )}
 
                         {/* Player list */}
-                        <div className="max-h-[400px] overflow-y-auto space-y-1">
+                        {/* Column headers */}
+                        <div className={`grid grid-cols-[auto_1fr_70px_90px_60px_24px] gap-2 px-3 py-2 text-xs ${theme.textMuted} border-b border-[var(--border)]`}>
+                            <div className="w-6"></div>
+                            <div>Name</div>
+                            <div className="text-right">Power</div>
+                            <div className="text-right">KP</div>
+                            <div className="text-center">AoO</div>
+                            <div></div>
+                        </div>
+
+                        {/* Player list */}
+                        <div className="max-h-[400px] overflow-y-auto space-y-1 pt-1">
                             {filteredRoster.map((member) => {
                                 const status = confirmations[member.name] || 'none';
                                 const isPending = 'isPending' in member && member.isPending;
+                                const aooStats = eventStats.get(member.name)?.aoo;
                                 return (
                                     <button
                                         key={member.name}
                                         onClick={() => toggleConfirmation(member.name)}
-                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                                        className={`w-full grid grid-cols-[auto_1fr_70px_90px_60px_24px] gap-2 items-center px-3 py-2 rounded-lg transition-colors ${
                                             status === 'confirmed' ? 'bg-green-600/20 border border-green-500/30' :
                                             status === 'maybe' ? 'bg-yellow-600/20 border border-yellow-500/30' :
                                             isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
                                             'bg-[var(--background-secondary)] border border-[var(--border)] hover:bg-[var(--background-hover)]'
                                         }`}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
-                                                status === 'confirmed' ? 'bg-green-600 text-white' :
-                                                status === 'maybe' ? 'bg-yellow-600 text-white' :
-                                                'bg-white/20 text-white/50'
-                                            }`}>
-                                                {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : ''}
-                                            </span>
-                                            <span className={`font-medium ${theme.text}`}>{member.name}</span>
+                                        {/* Status icon */}
+                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
+                                            status === 'confirmed' ? 'bg-green-600 text-white' :
+                                            status === 'maybe' ? 'bg-yellow-600 text-white' :
+                                            'bg-white/20 text-white/50'
+                                        }`}>
+                                            {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : ''}
+                                        </span>
+
+                                        {/* Name */}
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className={`font-medium ${theme.text} truncate`}>{member.name}</span>
                                             {isPending && (
-                                                <span className="px-1.5 py-0.5 text-[10px] rounded bg-blue-600 text-white">
+                                                <span className="px-1.5 py-0.5 text-[10px] rounded bg-blue-600 text-white shrink-0">
                                                     NEW
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-3 text-sm">
-                                            <span className={theme.textMuted} title="Power">
-                                                {formatPower(member.power)}
-                                            </span>
-                                            <span className={`${theme.textMuted} text-xs`} title="Kill Points">
-                                                KP: {formatPower(member.kills || killsByName[member.name] || 0)}
-                                            </span>
-                                            {/* AoO History */}
-                                            {(() => {
-                                                const aooStats = eventStats.get(member.name)?.aoo;
-                                                if (!aooStats || aooStats.totalAssigned === 0) return null;
-                                                return (
-                                                    <span
-                                                        className={`text-xs px-1.5 py-0.5 rounded ${
-                                                            aooStats.lastTeam === 'Team 1'
-                                                                ? 'bg-blue-500/20 text-blue-400'
-                                                                : 'bg-orange-500/20 text-orange-400'
-                                                        }`}
-                                                        title={`AoO: ${aooStats.participatedCount}/${aooStats.totalAssigned} participated`}
-                                                    >
-                                                        {aooStats.lastTeam === 'Team 1' ? 'T1' : 'T2'}
-                                                        ×{aooStats.totalAssigned}
-                                                    </span>
-                                                );
-                                            })()}
+
+                                        {/* Power */}
+                                        <span className={`${theme.textMuted} text-sm text-right`}>
+                                            {formatPower(member.power)}
+                                        </span>
+
+                                        {/* KP */}
+                                        <span className={`${theme.textMuted} text-xs text-right`}>
+                                            {formatPower(member.kills || killsByName[member.name] || 0)}
+                                        </span>
+
+                                        {/* AoO History */}
+                                        <span
+                                            className={`text-xs text-center ${
+                                                aooStats && aooStats.totalAssigned > 0
+                                                    ? aooStats.lastTeam === 'Team 1'
+                                                        ? 'text-blue-400'
+                                                        : 'text-orange-400'
+                                                    : theme.textMuted
+                                            }`}
+                                            title={aooStats && aooStats.totalAssigned > 0 ? `${aooStats.participatedCount}/${aooStats.totalAssigned} participated` : 'No AoO history'}
+                                        >
+                                            {aooStats && aooStats.totalAssigned > 0
+                                                ? `${aooStats.lastTeam === 'Team 1' ? 'T1' : 'T2'}×${aooStats.totalAssigned}`
+                                                : '—'}
+                                        </span>
+
+                                        {/* Actions */}
+                                        <div className="flex justify-center">
                                             {isPending && (
                                                 <button
                                                     onClick={(e) => {
