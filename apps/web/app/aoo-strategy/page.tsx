@@ -1800,15 +1800,22 @@ export default function AooStrategyPage() {
             return tags.length > 0 ? ` (${tags.join(', ')})` : '';
         };
 
-        const zonePlayers = sortPlayers(players.filter(p => p.team === zoneNum));
+        // Filter by team if filter is active
+        let zonePlayers = players.filter(p => p.team === zoneNum);
+        if (rosterTeamFilter !== 'all') {
+            zonePlayers = zonePlayers.filter(p => p.tags.includes(rosterTeamFilter));
+        }
+        zonePlayers = sortPlayers(zonePlayers);
+
         const zoneName = teams[zoneNum - 1]?.name || `Zone ${zoneNum}`;
         const zoneDesc = teams[zoneNum - 1]?.description || '';
+        const teamLabel = rosterTeamFilter !== 'all' ? ` (Team ${rosterTeamFilter.slice(1)})` : '';
 
-        const header = `${zoneName} - ${zoneDesc}`;
+        const header = `${zoneName} - ${zoneDesc}${teamLabel}`;
         const playerLines = zonePlayers.map(p => `${p.name}${formatPlayerTags(p)}`);
 
         return `${header}\n${playerLines.join('\n')}`;
-    }, [players, teams, sortPlayers]);
+    }, [players, teams, sortPlayers, rosterTeamFilter]);
 
     const copyZoneToClipboard = useCallback(async (zoneNum: number) => {
         const text = generateZoneText(zoneNum);
