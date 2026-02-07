@@ -11,6 +11,7 @@ import {
   Code,
   Eye,
   Columns2,
+  Type,
 } from 'lucide-react';
 import { RokMailToolbar } from '@/components/rok-mail/RokMailToolbar';
 import { RokMailPreview } from '@/components/rok-mail/RokMailPreview';
@@ -20,6 +21,7 @@ import { GradientPicker, generateGradientMarkup } from '@/components/rok-mail/Gr
 import { SymbolPicker } from '@/components/rok-mail/SymbolPicker';
 import { TemplateSelector } from '@/components/rok-mail/TemplateSelector';
 import { AiAssistant } from '@/components/rok-mail/AiAssistant';
+import { stripRokMarkup } from '@/lib/rok-mail/parser';
 
 type EditorMode = 'edit' | 'split' | 'preview';
 
@@ -32,6 +34,7 @@ export default function RokMailPage() {
   const [showGradientPicker, setShowGradientPicker] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAi, setShowAi] = useState(false);
+  const [editTab, setEditTab] = useState<'source' | 'text'>('source');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { toolbar, handleKeyDown, applyAction } = RokMailToolbar({
@@ -246,43 +249,94 @@ export default function RokMailPage() {
           {/* Editor Panel */}
           {(editorMode === 'edit' || editorMode === 'split') && (
             <div
-              className="rounded-lg border overflow-hidden flex flex-col"
+              className="rounded-lg border flex flex-col"
               style={{
                 backgroundColor: 'var(--background-card)',
                 borderColor: 'var(--border)',
               }}
             >
-              <div className="relative">
-                {toolbar}
-                <ColorPicker
-                  isOpen={showColorPicker}
-                  onClose={() => setShowColorPicker(false)}
-                  onSelectColor={handleColorSelect}
-                />
-                <GradientPicker
-                  isOpen={showGradientPicker}
-                  onClose={() => setShowGradientPicker(false)}
-                  onApplyGradient={handleGradientApply}
-                />
-                <SymbolPicker
-                  isOpen={showSymbolPicker}
-                  onClose={() => setShowSymbolPicker(false)}
-                  onSelectSymbol={handleSymbolSelect}
-                />
+              {/* Source / Text toggle */}
+              <div className="flex items-center px-2 py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                <div className="flex items-center rounded-md border p-0.5" style={{ borderColor: 'var(--border)' }}>
+                  {([
+                    { key: 'source' as const, label: 'Source', icon: Code },
+                    { key: 'text' as const, label: 'Text', icon: Type },
+                  ]).map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = editTab === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => {
+                          setEditTab(tab.key);
+                          if (tab.key === 'text') {
+                            setShowColorPicker(false);
+                            setShowGradientPicker(false);
+                            setShowSymbolPicker(false);
+                          }
+                        }}
+                        className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded-sm transition-fast ${
+                          isActive
+                            ? 'bg-pink-500/20 text-pink-400 font-medium'
+                            : 'hover:bg-pink-500/5'
+                        }`}
+                        style={!isActive ? { color: 'var(--text-secondary)' } : undefined}
+                      >
+                        <Icon size={12} />
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {editTab === 'text' && content !== stripRokMarkup(content) && (
+                  <p className="text-[10px] ml-2" style={{ color: 'var(--text-muted)' }}>
+                    Edits will remove formatting tags
+                  </p>
+                )}
               </div>
+
+              {/* Toolbar (source mode only) */}
+              {editTab === 'source' && (
+                <div className="relative">
+                  {toolbar}
+                  <ColorPicker
+                    isOpen={showColorPicker}
+                    onClose={() => setShowColorPicker(false)}
+                    onSelectColor={handleColorSelect}
+                  />
+                  <GradientPicker
+                    isOpen={showGradientPicker}
+                    onClose={() => setShowGradientPicker(false)}
+                    onApplyGradient={handleGradientApply}
+                  />
+                  <SymbolPicker
+                    isOpen={showSymbolPicker}
+                    onClose={() => setShowSymbolPicker(false)}
+                    onSelectSymbol={handleSymbolSelect}
+                  />
+                </div>
+              )}
+
               <textarea
                 ref={textareaRef}
-                value={content}
+                value={editTab === 'source' ? content : stripRokMarkup(content)}
                 onChange={(e) => setContent(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type your mail here... Use the toolbar to add formatting.&#10;&#10;Supported tags:&#10;<b>bold text</b>&#10;<i>italic text</i>&#10;<color=&quot;red&quot;>colored text</color>"
-                className="flex-1 w-full p-4 resize-none font-mono text-sm focus:outline-none"
+                onKeyDown={editTab === 'source' ? handleKeyDown : undefined}
+                placeholder={
+                  editTab === 'source'
+                    ? "Type your mail here... Use the toolbar to add formatting.\n\nSupported tags:\n<b>bold text</b>\n<i>italic text</i>\n<color=\"red\">colored text</color>"
+                    : "Type your message here...\nSwitch to Source to add formatting."
+                }
+                className={`flex-1 w-full p-4 resize-none text-sm focus:outline-none ${
+                  editTab === 'source' ? 'font-mono' : ''
+                }`}
                 style={{
                   backgroundColor: 'transparent',
                   color: 'var(--foreground)',
                   minHeight: '400px',
                 }}
-                spellCheck={false}
+                spellCheck={editTab === 'text'}
               />
             </div>
           )}

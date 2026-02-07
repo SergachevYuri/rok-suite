@@ -166,7 +166,7 @@ export function RokMailToolbar({
             >
               {btn.icon}
             </button>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 rounded-md text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
               style={{ backgroundColor: 'var(--foreground)', color: 'var(--background)' }}
             >
               {btn.tooltip}

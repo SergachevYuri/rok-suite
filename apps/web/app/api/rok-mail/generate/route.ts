@@ -12,6 +12,7 @@ Rules:
 - Use decorative borders and headers to make messages visually appealing
 - Be concise - RoK players skim mail quickly
 - Match the tone requested (formal for kingdom announcements, urgent for war, friendly for recruitment)
+- When improving an existing draft, preserve the template structure (header, borders, signature) and only change the message body
 - Output ONLY the formatted mail content, no explanations or surrounding text`;
 
 export async function POST(request: NextRequest) {
