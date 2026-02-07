@@ -240,28 +240,42 @@ export function applyTextEdit(originalMarkup: string, newStripped: string): stri
   }
 
   const insertText = newStripped.slice(prefix, newStripped.length - suffix);
-
-  // Map stripped positions → markup positions
-  let markupStart: number;
-  if (prefix < positions.length) {
-    markupStart = positions[prefix];
-  } else {
-    markupStart = positions[positions.length - 1] + 1;
-  }
-
-  let markupEnd: number;
   const oldEnd = oldStripped.length - suffix;
+
   if (oldEnd <= prefix) {
-    // Pure insertion (no old text removed)
-    markupEnd = markupStart;
-  } else if (oldEnd < positions.length) {
-    markupEnd = positions[oldEnd];
-  } else {
-    // Changed region extends to end — preserve trailing tags
-    markupEnd = positions[positions.length - 1] + 1;
+    // Pure insertion — no text removed, insert at the prefix position
+    let insertPos: number;
+    if (prefix < positions.length) {
+      insertPos = positions[prefix];
+    } else {
+      insertPos = positions[positions.length - 1] + 1;
+    }
+    const result = originalMarkup.slice(0, insertPos) + insertText + originalMarkup.slice(insertPos);
+    const { stripped: verify } = stripWithPositions(result);
+    if (verify !== newStripped) return newStripped;
+    return result;
   }
 
-  const result = originalMarkup.slice(0, markupStart) + insertText + originalMarkup.slice(markupEnd);
+  // Remove individual text characters while preserving all tags between them.
+  // Insert the new text at the position of the first removed character.
+  const removedPositions = positions.slice(prefix, oldEnd);
+
+  let result = '';
+  let lastCopied = 0;
+  let inserted = false;
+
+  for (const pos of removedPositions) {
+    // Copy everything from lastCopied up to this char (preserves tags)
+    result += originalMarkup.slice(lastCopied, pos);
+    if (!inserted) {
+      result += insertText;
+      inserted = true;
+    }
+    lastCopied = pos + 1; // skip the removed text char
+  }
+
+  // Copy the rest of the markup (preserves trailing tags)
+  result += originalMarkup.slice(lastCopied);
 
   // Safety check: verify the result strips to what the user typed
   const { stripped: verify } = stripWithPositions(result);
