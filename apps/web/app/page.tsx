@@ -70,7 +70,6 @@ export default function Home() {
       hoverShadow: 'hover:shadow-emerald-500/10',
       iconHoverBg: 'group-hover:bg-emerald-500/15',
       iconHoverColor: 'group-hover:text-emerald-500',
-      fullWidth: true,
     },
     {
       href: '/rok-mail',
@@ -110,9 +109,8 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {tools.map((tool) => {
                 const Icon = tool.icon;
-                const fullWidth = 'fullWidth' in tool && tool.fullWidth;
                 return (
-                  <Link key={tool.href} href={tool.href} className={fullWidth ? 'md:col-span-2' : ''}>
+                  <Link key={tool.href} href={tool.href}>
                     <div className={`group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] ${tool.hoverBorder} hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] ${tool.hoverShadow} transition-all duration-200 cursor-pointer h-full`}>
                       <div className="flex items-start gap-4">
                         <div className={`p-2.5 rounded-lg bg-[var(--background-secondary)] ${tool.iconHoverBg} transition-colors duration-200 flex-shrink-0`}>
