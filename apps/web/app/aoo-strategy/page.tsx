@@ -1568,7 +1568,7 @@ export default function AooStrategyPage() {
 
             if (error) {
                 console.error('Error creating plan:', error);
-                alert('Failed to create plan. Please try again.');
+                alert(`Failed to create plan: ${error.message || error.code || 'Unknown error'}`);
                 setIsLoading(false);
                 return;
             }
