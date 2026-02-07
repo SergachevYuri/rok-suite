@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
@@ -9,7 +10,17 @@ import { useAllianceRoster, formatPower, RosterMember } from '@/lib/supabase/use
 import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-participation';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/lib/supabase/auth-context';
-import { Swords } from 'lucide-react';
+import { Swords, Plus, Link as LinkIcon, Copy, Check } from 'lucide-react';
+
+// Generate a random 8-character share ID
+function generateShareId(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
 
 // Dynamic import to avoid SSR issues with the map
 const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInteractiveMap'), {
@@ -178,6 +189,86 @@ function TeamBuilderTab({
     const [builderSort, setBuilderSort] = useState<'power' | 'kp' | 't1' | 't2' | 'name'>('power');
     const [builderFilter, setBuilderFilter] = useState<'all' | 'confirmed' | 'maybe' | 'none'>('all');
     const [useCustomSizes, setUseCustomSizes] = useState(true); // Default to custom sizes
+    const [copiedSummary, setCopiedSummary] = useState(false);
+
+    // Generate exportable summary text for all teams (no emojis for in-game compatibility)
+    const generateSummary = () => {
+        const lines: string[] = [];
+        lines.push('=========================================');
+        lines.push('         AoO TEAM ASSIGNMENTS');
+        lines.push('=========================================');
+        lines.push('');
+
+        for (const team of [1, 2, 3] as TeamNumber[]) {
+            if (team > teamCount) continue;
+
+            const zones = suggestedZonesByTeam[team] || {};
+            const rallyLeads = selectedRallyLeadsByTeam[team] || {};
+            const teleportFirst = selectedTeleportFirstByTeam[team] || new Set<string>();
+
+            // Check if this team has any players
+            const totalPlayers = (zones[1]?.length || 0) + (zones[2]?.length || 0) + (zones[3]?.length || 0);
+            if (totalPlayers === 0) continue;
+
+            lines.push(`>> TEAM ${team}`);
+            lines.push('-----------------------------------------');
+
+            for (const zoneNum of [1, 2, 3]) {
+                const zonePlayers = zones[zoneNum] || [];
+                if (zonePlayers.length === 0) continue;
+
+                const zoneName = zoneNum === 1 ? 'Zone 1 (Ark)' : zoneNum === 2 ? 'Zone 2 (Upper)' : 'Zone 3 (Lower)';
+                lines.push(`\n[${zoneName}] - ${zonePlayers.length} players`);
+
+                // Sort by power descending
+                const sorted = [...zonePlayers].sort((a, b) => b.power - a.power);
+                for (const p of sorted) {
+                    const isLead = rallyLeads[zoneNum] === p.name;
+                    const isTeleport = teleportFirst.has(p.name);
+                    const badges = [];
+                    if (isLead) badges.push('Rally Lead');
+                    if (isTeleport) badges.push('TP First');
+                    const badgeStr = badges.length > 0 ? ` [${badges.join(', ')}]` : '';
+                    lines.push(`  - ${p.name} (${formatPower(p.power)})${badgeStr}`);
+                }
+            }
+
+            // Substitutes
+            const subs = zones[0] || [];
+            if (subs.length > 0) {
+                lines.push(`\n[Substitutes] - ${subs.length}`);
+                for (const p of subs) {
+                    lines.push(`  - ${p.name} (${formatPower(p.power)})`);
+                }
+            }
+
+            lines.push('');
+        }
+
+        lines.push('=========================================');
+
+        return lines.join('\n');
+    };
+
+    // Copy summary to clipboard
+    const copySummaryToClipboard = async () => {
+        try {
+            const summary = generateSummary();
+            await navigator.clipboard.writeText(summary);
+            setCopiedSummary(true);
+            setTimeout(() => setCopiedSummary(false), 2000);
+        } catch {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = generateSummary();
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setCopiedSummary(true);
+            setTimeout(() => setCopiedSummary(false), 2000);
+        }
+    };
 
     // Helper to get a player's team assignment
     const getPlayerTeamAssignment = (name: string): { team: TeamNumber; status: ConfirmationStatus } | null => {
@@ -432,111 +523,135 @@ function TeamBuilderTab({
         return zones;
     };
 
-    // Handle distribute button
+    // Handle distribute button - processes ALL teams at once
     const handleDistribute = () => {
-        // Separate confirmed and maybe players
-        const confirmedList = confirmedPlayers.map(p => ({
-            name: p.name,
-            power: p.power || 0,
-            kills: p.kills || killsByName[p.name] || 0,
-        }));
-        const maybeList = maybePlayers.map(p => ({
-            name: p.name,
-            power: p.power || 0,
-            kills: p.kills || killsByName[p.name] || 0,
-        }));
+        // Process each team from 1 to teamCount
+        const newZonesByTeam: ZonesByTeam = { 1: {}, 2: {}, 3: {} };
+        const newRallyLeadsByTeam: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
+        const newTeleportFirstByTeam: TeleportFirstByTeam = { 1: new Set(), 2: new Set(), 3: new Set() };
 
-        if (confirmedList.length + maybeList.length < 1) {
-            alert('Need at least 1 player to distribute');
+        let totalPlayers = 0;
+
+        for (const team of [1, 2, 3] as TeamNumber[]) {
+            if (team > teamCount) continue;
+
+            const teamConf = confirmationsByTeam[team] || {};
+            const teamConfirmedPlayers = combinedRoster.filter(m => teamConf[m.name] === 'confirmed');
+            const teamMaybePlayers = combinedRoster.filter(m => teamConf[m.name] === 'maybe');
+
+            const confirmedList = teamConfirmedPlayers.map(p => ({
+                name: p.name,
+                power: p.power || 0,
+                kills: p.kills || killsByName[p.name] || 0,
+            }));
+            const maybeList = teamMaybePlayers.map(p => ({
+                name: p.name,
+                power: p.power || 0,
+                kills: p.kills || killsByName[p.name] || 0,
+            }));
+
+            totalPlayers += confirmedList.length + maybeList.length;
+
+            if (confirmedList.length + maybeList.length < 1) {
+                // No players for this team, skip
+                newZonesByTeam[team] = { 0: [], 1: [], 2: [], 3: [] };
+                continue;
+            }
+
+            let zones: Record<number, { name: string; power: number; kills: number }[]>;
+            const teamZoneSizes = zoneSizesByTeam[team] || { 0: '', 1: '', 2: '', 3: '' };
+
+            if (useCustomSizes) {
+                // Use custom zone sizes (including subs as zone 0)
+                const sizes = {
+                    1: parseInt(teamZoneSizes[1]) || 0,
+                    2: parseInt(teamZoneSizes[2]) || 0,
+                    3: parseInt(teamZoneSizes[3]) || 0,
+                };
+                const subsSize = parseInt(teamZoneSizes[0]) || 0;
+                const totalSize = sizes[1] + sizes[2] + sizes[3] + subsSize;
+
+                if (totalSize === 0) {
+                    // Fall back to auto-balance if no sizes set
+                    const allPlayers = [...confirmedList, ...maybeList];
+                    zones = distributeByPowerWithKills(allPlayers);
+                    zones[0] = [];
+                } else {
+                    // First, distribute CONFIRMED players to zones 1-3 (power balanced)
+                    zones = distributeByZoneSizes(confirmedList, sizes);
+
+                    // Calculate remaining slots in each zone
+                    const remainingSlots = {
+                        1: sizes[1] - zones[1].length,
+                        2: sizes[2] - zones[2].length,
+                        3: sizes[3] - zones[3].length,
+                    };
+                    const totalRemainingSlots = remainingSlots[1] + remainingSlots[2] + remainingSlots[3];
+
+                    // Maybe players go to subs first, overflow fills remaining zone slots
+                    const sortedMaybe = [...maybeList].sort((a, b) => b.power - a.power);
+
+                    if (totalRemainingSlots > 0 && sortedMaybe.length > subsSize) {
+                        const forZones = sortedMaybe.slice(0, sortedMaybe.length - subsSize);
+                        const forSubs = sortedMaybe.slice(sortedMaybe.length - subsSize);
+                        const extraZones = distributeByZoneSizes(forZones, remainingSlots);
+                        zones[1].push(...extraZones[1]);
+                        zones[2].push(...extraZones[2]);
+                        zones[3].push(...extraZones[3]);
+                        zones[0] = forSubs;
+                    } else {
+                        zones[0] = sortedMaybe.slice(0, subsSize > 0 ? subsSize : sortedMaybe.length);
+                    }
+
+                    // Any unassigned confirmed players also go to subs
+                    const assignedNames = new Set([
+                        ...zones[1].map(p => p.name),
+                        ...zones[2].map(p => p.name),
+                        ...zones[3].map(p => p.name),
+                        ...zones[0].map(p => p.name),
+                    ]);
+                    const unassignedConfirmed = confirmedList.filter(p => !assignedNames.has(p.name));
+                    zones[0].push(...unassignedConfirmed);
+                }
+            } else {
+                // Auto-balance by power (equal distribution) - include all players
+                const allPlayers = [...confirmedList, ...maybeList];
+                zones = distributeByPowerWithKills(allPlayers);
+                zones[0] = []; // No subs in auto mode
+            }
+
+            newZonesByTeam[team] = zones;
+
+            // Pre-select best rally lead per zone (highest rally score)
+            const leads: Record<number, string> = {};
+            for (const [zone, players] of Object.entries(zones)) {
+                const zoneNum = parseInt(zone);
+                if (zoneNum > 0 && players.length > 0) {
+                    const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+                    leads[zoneNum] = sorted[0].name;
+                }
+            }
+            newRallyLeadsByTeam[team] = leads;
+
+            // Pre-select rally leads + top players for teleport first
+            const teleport = new Set<string>();
+            for (const [zone, players] of Object.entries(zones)) {
+                if (parseInt(zone) === 0) continue;
+                const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+                sorted.slice(0, Math.min(4, Math.ceil(players.length / 3))).forEach(p => teleport.add(p.name));
+            }
+            newTeleportFirstByTeam[team] = teleport;
+        }
+
+        if (totalPlayers < 1) {
+            alert('Need at least 1 player to distribute across all teams');
             return;
         }
 
-        let zones: Record<number, { name: string; power: number; kills: number }[]>;
-
-        if (useCustomSizes) {
-            // Use custom zone sizes (including subs as zone 0)
-            const sizes = {
-                1: parseInt(zoneSizes[1]) || 0,
-                2: parseInt(zoneSizes[2]) || 0,
-                3: parseInt(zoneSizes[3]) || 0,
-            };
-            const subsSize = parseInt(zoneSizes[0]) || 0;
-            const totalSize = sizes[1] + sizes[2] + sizes[3] + subsSize;
-
-            if (totalSize === 0) {
-                alert('Please enter zone sizes');
-                return;
-            }
-
-            // First, distribute CONFIRMED players to zones 1-3 (power balanced)
-            zones = distributeByZoneSizes(confirmedList, sizes);
-
-            // Calculate remaining slots in each zone
-            const remainingSlots = {
-                1: sizes[1] - zones[1].length,
-                2: sizes[2] - zones[2].length,
-                3: sizes[3] - zones[3].length,
-            };
-            const totalRemainingSlots = remainingSlots[1] + remainingSlots[2] + remainingSlots[3];
-
-            // Maybe players go to subs first, overflow fills remaining zone slots
-            const sortedMaybe = [...maybeList].sort((a, b) => b.power - a.power);
-
-            if (totalRemainingSlots > 0 && sortedMaybe.length > subsSize) {
-                // More maybe players than sub slots - fill zone slots with extras
-                const forZones = sortedMaybe.slice(0, sortedMaybe.length - subsSize);
-                const forSubs = sortedMaybe.slice(sortedMaybe.length - subsSize);
-
-                // Distribute extras to zones (power balanced)
-                const extraZones = distributeByZoneSizes(forZones, remainingSlots);
-                zones[1].push(...extraZones[1]);
-                zones[2].push(...extraZones[2]);
-                zones[3].push(...extraZones[3]);
-                zones[0] = forSubs;
-            } else {
-                // All maybe players become subs
-                zones[0] = sortedMaybe.slice(0, subsSize > 0 ? subsSize : sortedMaybe.length);
-            }
-
-            // Any unassigned confirmed players also go to subs
-            const assignedNames = new Set([
-                ...zones[1].map(p => p.name),
-                ...zones[2].map(p => p.name),
-                ...zones[3].map(p => p.name),
-                ...zones[0].map(p => p.name),
-            ]);
-            const unassignedConfirmed = confirmedList.filter(p => !assignedNames.has(p.name));
-            zones[0].push(...unassignedConfirmed);
-        } else {
-            // Auto-balance by power (equal distribution) - include all players
-            const allPlayers = [...confirmedList, ...maybeList];
-            zones = distributeByPowerWithKills(allPlayers);
-            zones[0] = []; // No subs in auto mode
-        }
-
-        setSuggestedZones(zones);
-
-        // Pre-select best rally lead per zone (highest rally score)
-        const leads: Record<number, string> = {};
-        for (const [zone, players] of Object.entries(zones)) {
-            const zoneNum = parseInt(zone);
-            if (zoneNum > 0 && players.length > 0) { // Skip substitutes (zone 0)
-                // Sort by rally score and pick the best
-                const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
-                leads[zoneNum] = sorted[0].name;
-            }
-        }
-        setSelectedRallyLeads(leads);
-
-        // Pre-select rally leads + top players for teleport first
-        const teleport = new Set<string>();
-        for (const [zone, players] of Object.entries(zones)) {
-            if (parseInt(zone) === 0) continue; // Skip substitutes
-            // Top 3-4 players per zone teleport first (by rally score)
-            const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
-            sorted.slice(0, Math.min(4, Math.ceil(players.length / 3))).forEach(p => teleport.add(p.name));
-        }
-        setSelectedTeleportFirst(teleport);
+        // Update all teams at once
+        setSuggestedZonesByTeam(newZonesByTeam);
+        setSelectedRallyLeadsByTeam(newRallyLeadsByTeam);
+        setSelectedTeleportFirstByTeam(newTeleportFirstByTeam);
 
         setBuilderStep('distribute');
     };
@@ -1267,6 +1382,16 @@ function TeamBuilderTab({
                             ← Back to Selection
                         </button>
                         <button
+                            onClick={copySummaryToClipboard}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                copiedSummary
+                                    ? 'bg-green-600 text-white'
+                                    : 'bg-[var(--background-secondary)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--background-hover)]'
+                            }`}
+                        >
+                            {copiedSummary ? '✓ Copied!' : '📋 Copy Summary'}
+                        </button>
+                        <button
                             onClick={() => {
                                 // Build all team data for apply
                                 const allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }> = {} as Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>;
@@ -1307,6 +1432,11 @@ function TeamBuilderTab({
 }
 
 export default function AooStrategyPage() {
+    // URL params and router for shareable plans
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const planIdFromUrl = searchParams.get('plan');
+
     // Auth for saving user selections
     const { user } = useAuth();
 
@@ -1320,15 +1450,21 @@ export default function AooStrategyPage() {
     const [notes, setNotes] = useState('');
     const [mapAssignments, setMapAssignments] = useState<MapAssignments | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
-    const [isEditor, setIsEditor] = useState(false);
-    const [editorPassword, setEditorPassword] = useState('');
-    const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
     const [strategyId, setStrategyId] = useState<number | null>(null);
     const strategyIdRef = useRef<number | null>(null);
     // Vision UI theme is always dark - no toggle needed
     const [strategyExpanded, setStrategyExpanded] = useState(false);
     const [eventMode, setEventMode] = useState<EventMode>('main');
     const [aooTeam, setAooTeam] = useState<AooTeam>('team1');
+
+    // Shareable plan state
+    const [shareId, setShareId] = useState<string | null>(null);
+    const shareIdRef = useRef<string | null>(null);
+    const [planName, setPlanName] = useState<string>('');
+    const [linkCopied, setLinkCopied] = useState(false);
+
+    // Everyone can edit shared plans (no password needed)
+    const isEditor = !!shareId;
 
     const [playerSearch, setPlayerSearch] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
@@ -1360,8 +1496,6 @@ export default function AooStrategyPage() {
         3: { 0: '', 1: '', 2: '', 3: '' }
     });
 
-    const EDITOR_PASSWORD = 'carn-dum';
-
     // Save pending additions to Supabase for admin approval
     const handleSavePendingAdditions = async (additions: PendingMember[]) => {
         if (additions.length === 0) return;
@@ -1389,32 +1523,15 @@ export default function AooStrategyPage() {
         }
     };
 
+    // Load plan by share_id from URL
     useEffect(() => {
-        // Load data for the initial event mode and team (check URL or localStorage)
-        const savedMode = localStorage.getItem('aoo-event-mode') as EventMode | null;
-        const savedTeam = localStorage.getItem('aoo-team') as AooTeam | null;
-        const initialMode = savedMode || 'main';
-        const initialTeam = savedTeam || 'team1';
-        setEventMode(initialMode);
-        setAooTeam(initialTeam);
-        loadData(initialMode, initialTeam);
-    }, []);
-
-    // Handle event mode changes
-    const handleEventModeChange = (newMode: EventMode) => {
-        if (newMode === eventMode) return;
-        setEventMode(newMode);
-        localStorage.setItem('aoo-event-mode', newMode);
-        loadData(newMode, aooTeam);
-    };
-
-    // Handle AoO team changes (Team 1 / Team 2)
-    const handleAooTeamChange = (newTeam: AooTeam) => {
-        if (newTeam === aooTeam) return;
-        setAooTeam(newTeam);
-        localStorage.setItem('aoo-team', newTeam);
-        loadData(eventMode, newTeam);
-    };
+        if (planIdFromUrl) {
+            loadPlanByShareId(planIdFromUrl);
+        } else {
+            // No plan in URL - show landing page
+            setIsLoading(false);
+        }
+    }, [planIdFromUrl]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -1426,33 +1543,77 @@ export default function AooStrategyPage() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-
-    const loadData = async (mode: EventMode = eventMode, team: AooTeam = aooTeam) => {
+    // Create a new plan with a unique share_id
+    const createNewPlan = async () => {
+        const newShareId = generateShareId();
         setIsLoading(true);
-        console.log('loadData called', { mode, team });
+
         try {
-            // Query for the specific event mode and team
+            const { data: newData, error } = await supabase
+                .from('aoo_strategy')
+                .insert([{
+                    share_id: newShareId,
+                    name: 'New AoO Plan',
+                    event_mode: 'main',
+                    aoo_team: 'team1',
+                    data: {
+                        players: [],
+                        substitutes: [],
+                        teams: DEFAULT_TEAMS,
+                        mapImage: null,
+                        notes: '',
+                        mapAssignments: {}
+                    }
+                }])
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Error creating plan:', error);
+                alert('Failed to create plan. Please try again.');
+                setIsLoading(false);
+                return;
+            }
+
+            if (newData) {
+                // Update URL without reload
+                router.push(`/aoo-strategy?plan=${newShareId}`);
+            }
+        } catch (err) {
+            console.error('Error creating plan:', err);
+            alert('Failed to create plan. Please try again.');
+            setIsLoading(false);
+        }
+    };
+
+    // Load plan by share_id
+    const loadPlanByShareId = async (planShareId: string) => {
+        setIsLoading(true);
+        console.log('Loading plan by share_id:', planShareId);
+
+        try {
             const { data, error } = await supabase
                 .from('aoo_strategy')
                 .select('*')
-                .eq('event_mode', mode)
-                .eq('aoo_team', team)
+                .eq('share_id', planShareId)
                 .limit(1)
                 .maybeSingle();
 
-            console.log('Supabase query result', { data, error, hasData: !!data, dataId: data?.id });
-
-            if (error && error.code !== 'PGRST116') {
-                // PGRST116 = column doesn't exist (migration not run yet)
-                console.error('Error loading data:', error);
+            if (error) {
+                console.error('Error loading plan:', error);
+                setIsLoading(false);
+                return;
             }
 
             if (data) {
-                console.log('Loading from Supabase, setting strategyId to:', data.id);
+                console.log('Loaded plan:', data.id, data.share_id);
                 setStrategyId(data.id);
                 strategyIdRef.current = data.id;
+                setShareId(data.share_id);
+                shareIdRef.current = data.share_id;
+                setPlanName(data.name || 'Untitled Plan');
+
                 const strategyData = data.data as StrategyData;
-                console.log('Strategy data mapAssignments:', strategyData?.mapAssignments);
                 setPlayers(strategyData?.players || []);
                 setSubstitutes(strategyData?.substitutes || []);
                 setTeams(strategyData?.teams || DEFAULT_TEAMS);
@@ -1460,42 +1621,10 @@ export default function AooStrategyPage() {
                 setNotes(strategyData?.notes || '');
                 setMapAssignments(strategyData?.mapAssignments || undefined);
             } else {
-                // No data in Supabase - try to load from JSON files
-                console.log('No Supabase data, trying JSON fallback');
-                setStrategyId(null);
-                strategyIdRef.current = null;
-                try {
-                    const jsonFile = team === 'team1' ? '/data/aoo-team1.json' : '/data/aoo-team2.json';
-                    const response = await fetch(jsonFile);
-                    if (response.ok) {
-                        const jsonData = await response.json() as StrategyData;
-                        console.log('Loaded from JSON:', jsonFile);
-                        setPlayers(jsonData?.players || []);
-                        setSubstitutes(jsonData?.substitutes || []);
-                        setTeams(jsonData?.teams || DEFAULT_TEAMS);
-                        setMapImage(jsonData?.mapImage || null);
-                        setNotes(jsonData?.notes || '');
-                        setMapAssignments(jsonData?.mapAssignments || undefined);
-                    } else {
-                        // JSON file not found - use empty defaults
-                        console.log('JSON file not found, using defaults');
-                        setPlayers([]);
-                        setSubstitutes([]);
-                        setTeams(DEFAULT_TEAMS);
-                        setMapImage(null);
-                        setNotes('');
-                        setMapAssignments(undefined);
-                    }
-                } catch {
-                    // Error loading JSON - use empty defaults
-                    console.log('Error loading JSON, using defaults');
-                    setPlayers([]);
-                    setSubstitutes([]);
-                    setTeams(DEFAULT_TEAMS);
-                    setMapImage(null);
-                    setNotes('');
-                    setMapAssignments(undefined);
-                }
+                // Plan not found
+                console.log('Plan not found:', planShareId);
+                alert('Plan not found. It may have been deleted.');
+                router.push('/aoo-strategy');
             }
         } catch (error) {
             console.error('Error loading data:', error);
@@ -1504,6 +1633,13 @@ export default function AooStrategyPage() {
     };
 
     const saveData = async (updatedData: Partial<StrategyData>) => {
+        // Only save if we have a valid plan loaded
+        const currentShareId = shareIdRef.current;
+        if (!currentShareId) {
+            console.log('No plan loaded, skipping save');
+            return;
+        }
+
         const data: StrategyData = {
             players: updatedData.players ?? players,
             teams: updatedData.teams ?? teams,
@@ -1512,32 +1648,17 @@ export default function AooStrategyPage() {
             mapAssignments: updatedData.mapAssignments ?? mapAssignments ?? {},
             substitutes: updatedData.substitutes ?? substitutes,
         };
-        // Use ref to get the latest strategyId (avoids stale closure issues)
-        const currentStrategyId = strategyIdRef.current;
+
         try {
-            console.log('saveData called', { currentStrategyId, strategyId, eventMode, aooTeam, dataKeys: Object.keys(data) });
-            if (currentStrategyId) {
-                console.log('Updating existing row:', currentStrategyId);
-                const { error } = await supabase.from('aoo_strategy').update({ data }).eq('id', currentStrategyId);
-                if (error) throw error;
-                console.log('Update successful');
-            } else {
-                console.log('Inserting new row for', eventMode, aooTeam);
-                const { data: newData, error } = await supabase
-                    .from('aoo_strategy')
-                    .insert([{ data, event_mode: eventMode, aoo_team: aooTeam }])
-                    .select()
-                    .single();
-                if (error) throw error;
-                if (newData) {
-                    console.log('Insert successful, new id:', newData.id);
-                    setStrategyId(newData.id);
-                    strategyIdRef.current = newData.id;
-                }
-            }
+            console.log('saveData called', { currentShareId, dataKeys: Object.keys(data) });
+            const { error } = await supabase
+                .from('aoo_strategy')
+                .update({ data, updated_at: new Date().toISOString() })
+                .eq('share_id', currentShareId);
+            if (error) throw error;
+            console.log('Update successful');
         } catch (error) {
             console.error('Error saving data:', error);
-            alert('Error saving data: ' + (error instanceof Error ? error.message : String(error)));
         }
     };
 
@@ -1619,17 +1740,6 @@ export default function AooStrategyPage() {
         const updatedPlayers = players.map(p => p.id === playerId ? { ...p, team: newTeam } : p);
         setPlayers(updatedPlayers);
         saveData({ players: updatedPlayers });
-    };
-
-    const handlePasswordSubmit = () => {
-        if (editorPassword === EDITOR_PASSWORD) {
-            setIsEditor(true);
-            setShowPasswordPrompt(false);
-            setEditorPassword('');
-        } else {
-            alert('Incorrect password');
-            setEditorPassword('');
-        }
     };
 
     const getTeamPlayers = (teamNum: number) => {
@@ -1894,6 +2004,76 @@ export default function AooStrategyPage() {
         );
     }
 
+    // Landing page - no plan selected
+    if (!shareId) {
+        return (
+            <AppSidebar>
+                <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
+                    <div className="max-w-2xl mx-auto px-6 py-20">
+                        {/* Header */}
+                        <div className="text-center mb-12">
+                            <div className="inline-flex p-4 rounded-2xl bg-emerald-500/15 mb-6">
+                                <Swords className="w-12 h-12 text-emerald-500" />
+                            </div>
+                            <h1 className="text-3xl font-bold mb-3">AoO Team Planner</h1>
+                            <p className={`text-lg ${theme.textMuted}`}>
+                                Build and share team assignments for Ark of Osiris
+                            </p>
+                        </div>
+
+                        {/* Create New Plan */}
+                        <div className={`${theme.card} border rounded-xl p-8 text-center mb-8`}>
+                            <h2 className="text-xl font-semibold mb-3">Create a New Plan</h2>
+                            <p className={`${theme.textMuted} mb-6`}>
+                                Start fresh with a new team plan. You&apos;ll get a shareable link that anyone can use to view and edit.
+                            </p>
+                            <button
+                                onClick={createNewPlan}
+                                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors"
+                            >
+                                <Plus size={20} />
+                                Create New Plan
+                            </button>
+                        </div>
+
+                        {/* How it works */}
+                        <div className={`${theme.card} border rounded-xl p-6`}>
+                            <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted} mb-4`}>
+                                How it works
+                            </h3>
+                            <div className="space-y-4 text-sm">
+                                <div className="flex gap-3">
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-semibold text-xs">1</span>
+                                    <div>
+                                        <strong>Create a plan</strong> - Click the button above to start a new team plan
+                                    </div>
+                                </div>
+                                <div className="flex gap-3">
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-semibold text-xs">2</span>
+                                    <div>
+                                        <strong>Build your teams</strong> - Select players, distribute to zones, assign rally leads
+                                    </div>
+                                </div>
+                                <div className="flex gap-3">
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-semibold text-xs">3</span>
+                                    <div>
+                                        <strong>Share the link</strong> - Copy the URL and share with your team leaders
+                                    </div>
+                                </div>
+                                <div className="flex gap-3">
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-semibold text-xs">4</span>
+                                    <div>
+                                        <strong>Collaborate</strong> - Anyone with the link can view and edit the plan
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </AppSidebar>
+        );
+    }
+
     return (
         <AppSidebar>
         <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
@@ -1913,18 +2093,21 @@ export default function AooStrategyPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
-                            {!isEditor ? (
-                                <button onClick={() => setShowPasswordPrompt(true)} className={`p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-medium ${theme.button}`} title="Edit Mode">
-                                    <span className="hidden sm:inline">Edit Mode</span>
-                                    <span className="sm:hidden text-xs">Edit</span>
-                                </button>
-                            ) : (
+                            {shareId && (
                                 <button
-                                    onClick={() => setIsEditor(false)}
-                                    className={`p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-medium ${theme.tagActive} hover:opacity-80 transition-opacity`}
+                                    onClick={async () => {
+                                        const url = `${window.location.origin}/aoo-strategy?plan=${shareId}`;
+                                        await navigator.clipboard.writeText(url);
+                                        setLinkCopied(true);
+                                        setTimeout(() => setLinkCopied(false), 2000);
+                                    }}
+                                    className={`p-2 sm:px-4 sm:py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                                        linkCopied ? 'bg-green-600 text-white' : theme.button
+                                    }`}
+                                    title="Copy shareable link"
                                 >
-                                    <span className="hidden sm:inline">Exit Edit</span>
-                                    <span className="sm:hidden text-xs">Exit</span>
+                                    {linkCopied ? <Check size={16} /> : <Copy size={16} />}
+                                    <span className="hidden sm:inline">{linkCopied ? 'Copied!' : 'Copy Link'}</span>
                                 </button>
                             )}
                         </div>
@@ -1956,35 +2139,22 @@ export default function AooStrategyPage() {
                 </div>
             </header>
 
-            {/* Password Prompt Modal */}
-            {showPasswordPrompt && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className={`${theme.card} border rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl`}>
-                        <h2 className="text-lg font-semibold mb-4">Enter Password</h2>
-                        <input type="password" value={editorPassword} onChange={(e) => setEditorPassword(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()} placeholder="Password"
-                            className={`w-full px-3 py-2 rounded-lg border ${theme.input} mb-4 focus:outline-none focus:ring-2 focus:ring-[#4318ff]`} autoFocus />
-                        <div className="flex gap-2">
-                            <button onClick={handlePasswordSubmit} className={`flex-1 py-2 rounded-lg font-medium ${theme.buttonPrimary}`}>Submit</button>
-                            <button onClick={() => setShowPasswordPrompt(false)} className={`flex-1 py-2 rounded-lg font-medium ${theme.button}`}>Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Edit Mode Banner */}
-            {isEditor && (
-                <div className="bg-[#4318ff]/10 border-b border-[#4318ff]/30">
+            {/* Collaborative Banner */}
+            {shareId && (
+                <div className="bg-emerald-500/10 border-b border-emerald-500/30">
                     <div className="max-w-6xl mx-auto px-4 md:px-6 py-3">
-                        <div className="flex items-start gap-3">
-                            <span className="text-[#9f7aea] text-lg flex-shrink-0">✏️</span>
-                            <div>
-                                <h3 className="font-medium text-[#9f7aea] text-sm">Edit Mode Active</h3>
-                                <p className={`text-xs ${theme.textMuted} mt-1`}>
-                                    <strong>Team Builder:</strong> Select players, distribute to zones, assign rally leads •
-                                    <strong> Zone Roster:</strong> Fine-tune assignments and toggle tags
-                                </p>
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <LinkIcon className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                <div>
+                                    <p className={`text-xs ${theme.textMuted}`}>
+                                        <strong className="text-emerald-400">Collaborative Plan</strong> - Anyone with this link can view and edit
+                                    </p>
+                                </div>
                             </div>
+                            <code className={`text-xs px-2 py-1 rounded bg-[var(--background-secondary)] ${theme.textMuted} hidden sm:block`}>
+                                ?plan={shareId}
+                            </code>
                         </div>
                     </div>
                 </div>
