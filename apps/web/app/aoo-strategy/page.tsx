@@ -1554,8 +1554,6 @@ export default function AooStrategyPage() {
                 .insert([{
                     share_id: newShareId,
                     name: 'New AoO Plan',
-                    event_mode: 'main',
-                    aoo_team: 'team1',
                     data: {
                         players: [],
                         substitutes: [],

@@ -25,6 +25,14 @@ UPDATE public.aoo_strategy
 SET share_id = substr(md5(random()::text), 1, 8)
 WHERE share_id IS NULL;
 
--- Make share_id required for future records
--- (Commenting out to allow gradual migration)
--- ALTER TABLE public.aoo_strategy ALTER COLUMN share_id SET NOT NULL;
+-- Drop the old unique constraint on (event_mode, aoo_team)
+-- since we're now using share_id as the unique identifier for plans
+ALTER TABLE public.aoo_strategy DROP CONSTRAINT IF EXISTS aoo_strategy_mode_team_unique;
+
+-- Remove CHECK constraints to allow any values (or NULL) for shareable plans
+ALTER TABLE public.aoo_strategy DROP CONSTRAINT IF EXISTS aoo_strategy_event_mode_check;
+ALTER TABLE public.aoo_strategy DROP CONSTRAINT IF EXISTS aoo_strategy_aoo_team_check;
+
+-- Make event_mode and aoo_team nullable for new shareable plans
+ALTER TABLE public.aoo_strategy ALTER COLUMN event_mode DROP NOT NULL;
+ALTER TABLE public.aoo_strategy ALTER COLUMN aoo_team DROP NOT NULL;
