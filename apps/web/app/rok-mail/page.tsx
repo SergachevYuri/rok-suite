@@ -8,13 +8,15 @@ import {
   Check,
   LayoutTemplate,
   Bot,
-  PanelLeftClose,
-  PanelLeft,
+  Code,
+  Eye,
+  Columns2,
 } from 'lucide-react';
 import { RokMailToolbar } from '@/components/rok-mail/RokMailToolbar';
 import { RokMailPreview } from '@/components/rok-mail/RokMailPreview';
 import { CharCounter } from '@/components/rok-mail/CharCounter';
 import { ColorPicker } from '@/components/rok-mail/ColorPicker';
+import { GradientPicker, generateGradientMarkup } from '@/components/rok-mail/GradientPicker';
 import { SymbolPicker } from '@/components/rok-mail/SymbolPicker';
 import { TemplateSelector } from '@/components/rok-mail/TemplateSelector';
 import { AiAssistant } from '@/components/rok-mail/AiAssistant';
@@ -27,6 +29,7 @@ export default function RokMailPage() {
   const [copied, setCopied] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
+  const [showGradientPicker, setShowGradientPicker] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -35,8 +38,9 @@ export default function RokMailPage() {
     textareaRef,
     content,
     onContentChange: setContent,
-    onColorClick: () => setShowColorPicker(!showColorPicker),
-    onSymbolClick: () => setShowSymbolPicker(!showSymbolPicker),
+    onColorClick: () => { setShowColorPicker(!showColorPicker); setShowGradientPicker(false); },
+    onGradientClick: () => { setShowGradientPicker(!showGradientPicker); setShowColorPicker(false); },
+    onSymbolClick: () => { setShowSymbolPicker(!showSymbolPicker); },
   });
 
   const handleColorSelect = useCallback(
@@ -53,6 +57,26 @@ export default function RokMailPage() {
       const cursorPos = selected
         ? start + before.length + selected.length + after.length
         : start + before.length;
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(cursorPos, cursorPos);
+      }, 0);
+    },
+    [content]
+  );
+
+  const handleGradientApply = useCallback(
+    (startColor: string, endColor: string) => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      if (start === end) return; // need selected text
+      const selected = content.slice(start, end);
+      const gradientMarkup = generateGradientMarkup(selected, startColor, endColor);
+      const newText = content.slice(0, start) + gradientMarkup + content.slice(end);
+      setContent(newText);
+      const cursorPos = start + gradientMarkup.length;
       setTimeout(() => {
         textarea.focus();
         textarea.setSelectionRange(cursorPos, cursorPos);
@@ -120,10 +144,10 @@ export default function RokMailPage() {
     setShowAi(false);
   }, []);
 
-  const modes: { key: EditorMode; label: string }[] = [
-    { key: 'edit', label: 'Edit' },
-    { key: 'split', label: 'Split' },
-    { key: 'preview', label: 'Preview' },
+  const modes: { key: EditorMode; label: string; icon: typeof Code }[] = [
+    { key: 'edit', label: 'Code', icon: Code },
+    { key: 'split', label: 'Split', icon: Columns2 },
+    { key: 'preview', label: 'Preview', icon: Eye },
   ];
 
   return (
@@ -169,36 +193,32 @@ export default function RokMailPage() {
 
           {/* Mode Toggle */}
           <div
-            className="hidden md:flex items-center rounded-lg border p-0.5"
+            className="flex items-center rounded-lg border p-0.5"
             style={{ borderColor: 'var(--border)' }}
           >
-            {modes.map((mode) => (
-              <button
-                key={mode.key}
-                type="button"
-                onClick={() => setEditorMode(mode.key)}
-                className={`px-3 py-1.5 text-xs rounded-md transition-fast ${
-                  editorMode === mode.key
-                    ? 'bg-pink-500/20 text-pink-400 font-medium'
-                    : ''
-                }`}
-                style={editorMode !== mode.key ? { color: 'var(--text-secondary)' } : undefined}
-              >
-                {mode.label}
-              </button>
-            ))}
+            {modes.map((mode) => {
+              const Icon = mode.icon;
+              const isActive = editorMode === mode.key;
+              // On mobile, hide the Split option
+              const hideOnMobile = mode.key === 'split' ? 'hidden md:flex' : 'flex';
+              return (
+                <button
+                  key={mode.key}
+                  type="button"
+                  onClick={() => setEditorMode(mode.key)}
+                  className={`${hideOnMobile} items-center gap-1.5 px-3 py-1.5 text-xs rounded-md transition-fast ${
+                    isActive
+                      ? 'bg-pink-500/20 text-pink-400 font-medium'
+                      : 'hover:bg-pink-500/5'
+                  }`}
+                  style={!isActive ? { color: 'var(--text-secondary)' } : undefined}
+                >
+                  <Icon size={14} />
+                  {mode.label}
+                </button>
+              );
+            })}
           </div>
-
-          {/* Mobile mode toggle */}
-          <button
-            type="button"
-            onClick={() => setEditorMode(editorMode === 'edit' ? 'preview' : 'edit')}
-            className="md:hidden flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {editorMode === 'edit' ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
-            {editorMode === 'edit' ? 'Preview' : 'Editor'}
-          </button>
 
           <CharCounter content={content} />
 
@@ -238,6 +258,11 @@ export default function RokMailPage() {
                   isOpen={showColorPicker}
                   onClose={() => setShowColorPicker(false)}
                   onSelectColor={handleColorSelect}
+                />
+                <GradientPicker
+                  isOpen={showGradientPicker}
+                  onClose={() => setShowGradientPicker(false)}
+                  onApplyGradient={handleGradientApply}
                 />
                 <SymbolPicker
                   isOpen={showSymbolPicker}
