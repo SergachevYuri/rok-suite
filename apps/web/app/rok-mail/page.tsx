@@ -21,7 +21,7 @@ import { GradientPicker, generateGradientMarkup } from '@/components/rok-mail/Gr
 import { SymbolPicker } from '@/components/rok-mail/SymbolPicker';
 import { TemplateSelector } from '@/components/rok-mail/TemplateSelector';
 import { AiAssistant } from '@/components/rok-mail/AiAssistant';
-import { stripRokMarkup } from '@/lib/rok-mail/parser';
+import { stripRokMarkup, applyTextEdit } from '@/lib/rok-mail/parser';
 
 type EditorMode = 'edit' | 'split' | 'preview';
 
@@ -289,9 +289,9 @@ export default function RokMailPage() {
                     );
                   })}
                 </div>
-                {editTab === 'text' && (
+                {editTab === 'text' && content !== stripRokMarkup(content) && (
                   <p className="text-[10px] ml-2" style={{ color: 'var(--text-muted)' }}>
-                    Read-only — edit in Source mode
+                    Formatting preserved
                   </p>
                 )}
               </div>
@@ -321,24 +321,28 @@ export default function RokMailPage() {
               <textarea
                 ref={textareaRef}
                 value={editTab === 'source' ? content : stripRokMarkup(content)}
-                onChange={editTab === 'source' ? (e) => setContent(e.target.value) : undefined}
+                onChange={(e) => {
+                  if (editTab === 'source') {
+                    setContent(e.target.value);
+                  } else {
+                    setContent(applyTextEdit(content, e.target.value));
+                  }
+                }}
                 onKeyDown={editTab === 'source' ? handleKeyDown : undefined}
-                readOnly={editTab === 'text'}
                 placeholder={
                   editTab === 'source'
                     ? "Type your mail here... Use the toolbar to add formatting.\n\nSupported tags:\n<b>bold text</b>\n<i>italic text</i>\n<color=\"red\">colored text</color>"
-                    : "Plain text view of your message..."
+                    : "Type your message here...\nFormatting tags are preserved automatically."
                 }
                 className={`flex-1 w-full p-4 resize-none text-sm focus:outline-none ${
                   editTab === 'source' ? 'font-mono' : ''
                 }`}
                 style={{
-                  backgroundColor: editTab === 'text' ? 'var(--background-secondary, transparent)' : 'transparent',
+                  backgroundColor: 'transparent',
                   color: 'var(--foreground)',
                   minHeight: '400px',
-                  cursor: editTab === 'text' ? 'default' : undefined,
                 }}
-                spellCheck={false}
+                spellCheck={editTab === 'text'}
               />
             </div>
           )}

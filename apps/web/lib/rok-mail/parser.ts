@@ -181,3 +181,93 @@ export function stripRokMarkup(input: string): string {
     .replace(/<size=["']?[^"'>]*["']?>/gi, '')
     .replace(/<\/size>/gi, '');
 }
+
+/**
+ * Strip markup but also return a position map:
+ * positions[i] = index in the original markup where stripped character i lives.
+ */
+export function stripWithPositions(markup: string): { stripped: string; positions: number[] } {
+  const tagPattern = /(<\/?b>|<\/?i>|<color=["']?[^"'>]*["']?>|<\/color>|<size=["']?[^"'>]*["']?>|<\/size>)/gi;
+
+  let stripped = '';
+  const positions: number[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = tagPattern.exec(markup)) !== null) {
+    for (let i = lastIndex; i < match.index; i++) {
+      positions.push(i);
+      stripped += markup[i];
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  for (let i = lastIndex; i < markup.length; i++) {
+    positions.push(i);
+    stripped += markup[i];
+  }
+
+  return { stripped, positions };
+}
+
+/**
+ * Apply a plain-text edit back to the markup, preserving surrounding tags.
+ * Finds the changed region via common prefix/suffix, maps it to markup
+ * positions, and replaces only the text characters while keeping tags intact.
+ * Falls back to plain text if the mapping produces inconsistent results.
+ */
+export function applyTextEdit(originalMarkup: string, newStripped: string): string {
+  const { stripped: oldStripped, positions } = stripWithPositions(originalMarkup);
+
+  if (oldStripped === newStripped) return originalMarkup;
+  if (positions.length === 0) return newStripped;
+
+  // Find common prefix
+  let prefix = 0;
+  const minLen = Math.min(oldStripped.length, newStripped.length);
+  while (prefix < minLen && oldStripped[prefix] === newStripped[prefix]) {
+    prefix++;
+  }
+
+  // Find common suffix (don't overlap with prefix)
+  let suffix = 0;
+  const maxSuffix = Math.min(oldStripped.length - prefix, newStripped.length - prefix);
+  while (
+    suffix < maxSuffix &&
+    oldStripped[oldStripped.length - 1 - suffix] === newStripped[newStripped.length - 1 - suffix]
+  ) {
+    suffix++;
+  }
+
+  const insertText = newStripped.slice(prefix, newStripped.length - suffix);
+
+  // Map stripped positions → markup positions
+  let markupStart: number;
+  if (prefix < positions.length) {
+    markupStart = positions[prefix];
+  } else {
+    markupStart = positions[positions.length - 1] + 1;
+  }
+
+  let markupEnd: number;
+  const oldEnd = oldStripped.length - suffix;
+  if (oldEnd <= prefix) {
+    // Pure insertion (no old text removed)
+    markupEnd = markupStart;
+  } else if (oldEnd < positions.length) {
+    markupEnd = positions[oldEnd];
+  } else {
+    // Changed region extends to end — preserve trailing tags
+    markupEnd = positions[positions.length - 1] + 1;
+  }
+
+  const result = originalMarkup.slice(0, markupStart) + insertText + originalMarkup.slice(markupEnd);
+
+  // Safety check: verify the result strips to what the user typed
+  const { stripped: verify } = stripWithPositions(result);
+  if (verify !== newStripped) {
+    return newStripped; // fallback to plain text
+  }
+
+  return result;
+}
