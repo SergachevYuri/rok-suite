@@ -1472,6 +1472,7 @@ export default function AooStrategyPage() {
     const [newPlayerTags, setNewPlayerTags] = useState<string[]>([]);
     const [useCustomName, setUseCustomName] = useState(false);
     const [rosterSort, setRosterSort] = useState<'power' | 'teleport' | 'name'>('teleport');
+    const [rosterTeamFilter, setRosterTeamFilter] = useState<'all' | 'T1' | 'T2' | 'T3'>('all');
     const [copySuccess, setCopySuccess] = useState<number | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const rosterGridRef = useRef<HTMLDivElement>(null);
@@ -1740,9 +1741,13 @@ export default function AooStrategyPage() {
         saveData({ players: updatedPlayers });
     };
 
-    const getTeamPlayers = (teamNum: number) => {
-        const teamPlayers = players.filter(p => p.team === teamNum);
-        return sortPlayers(teamPlayers);
+    const getTeamPlayers = (zoneNum: number) => {
+        let zonePlayers = players.filter(p => p.team === zoneNum);
+        // Filter by AoO team (T1, T2, T3) if a filter is selected
+        if (rosterTeamFilter !== 'all') {
+            zonePlayers = zonePlayers.filter(p => p.tags.includes(rosterTeamFilter));
+        }
+        return sortPlayers(zonePlayers);
     };
 
     const sortPlayers = (playerList: Player[]) => {
@@ -2378,6 +2383,37 @@ export default function AooStrategyPage() {
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
                             {/* Sort options */}
+                            {/* Team filter */}
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs ${theme.textMuted}`}>Team:</span>
+                                <div className="flex gap-1">
+                                    <button
+                                        onClick={() => setRosterTeamFilter('all')}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterTeamFilter === 'all' ? theme.tagActive : theme.tag}`}
+                                    >
+                                        All
+                                    </button>
+                                    <button
+                                        onClick={() => setRosterTeamFilter('T1')}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterTeamFilter === 'T1' ? 'bg-blue-600 text-white' : theme.tag}`}
+                                    >
+                                        T1
+                                    </button>
+                                    <button
+                                        onClick={() => setRosterTeamFilter('T2')}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterTeamFilter === 'T2' ? 'bg-orange-600 text-white' : theme.tag}`}
+                                    >
+                                        T2
+                                    </button>
+                                    <button
+                                        onClick={() => setRosterTeamFilter('T3')}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${rosterTeamFilter === 'T3' ? 'bg-purple-600 text-white' : theme.tag}`}
+                                    >
+                                        T3
+                                    </button>
+                                </div>
+                            </div>
+                            {/* Sort */}
                             <div className="flex items-center gap-2">
                                 <span className={`text-xs ${theme.textMuted}`}>Sort:</span>
                                 <div className="flex gap-1">
