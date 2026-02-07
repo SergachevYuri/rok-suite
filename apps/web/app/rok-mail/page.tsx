@@ -289,9 +289,9 @@ export default function RokMailPage() {
                     );
                   })}
                 </div>
-                {editTab === 'text' && content !== stripRokMarkup(content) && (
+                {editTab === 'text' && (
                   <p className="text-[10px] ml-2" style={{ color: 'var(--text-muted)' }}>
-                    Edits will remove formatting tags
+                    Read-only — edit in Source mode
                   </p>
                 )}
               </div>
@@ -321,22 +321,24 @@ export default function RokMailPage() {
               <textarea
                 ref={textareaRef}
                 value={editTab === 'source' ? content : stripRokMarkup(content)}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={editTab === 'source' ? (e) => setContent(e.target.value) : undefined}
                 onKeyDown={editTab === 'source' ? handleKeyDown : undefined}
+                readOnly={editTab === 'text'}
                 placeholder={
                   editTab === 'source'
                     ? "Type your mail here... Use the toolbar to add formatting.\n\nSupported tags:\n<b>bold text</b>\n<i>italic text</i>\n<color=\"red\">colored text</color>"
-                    : "Type your message here...\nSwitch to Source to add formatting."
+                    : "Plain text view of your message..."
                 }
                 className={`flex-1 w-full p-4 resize-none text-sm focus:outline-none ${
                   editTab === 'source' ? 'font-mono' : ''
                 }`}
                 style={{
-                  backgroundColor: 'transparent',
+                  backgroundColor: editTab === 'text' ? 'var(--background-secondary, transparent)' : 'transparent',
                   color: 'var(--foreground)',
                   minHeight: '400px',
+                  cursor: editTab === 'text' ? 'default' : undefined,
                 }}
-                spellCheck={editTab === 'text'}
+                spellCheck={false}
               />
             </div>
           )}
