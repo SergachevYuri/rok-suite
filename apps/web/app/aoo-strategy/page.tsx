@@ -1834,10 +1834,21 @@ export default function AooStrategyPage() {
         const playerHeight = 28;
         const headerHeight = 50;
         const zoneGap = 30;
-        const subsHeight = substitutes.length > 0 ? 60 + Math.ceil(substitutes.length / 6) * 24 : 0;
 
-        // Calculate dimensions
-        const zonePlayers = [1, 2, 3].map(z => sortPlayers(players.filter(p => p.team === z)));
+        // Calculate dimensions - filter by team if filter is active
+        const zonePlayers = [1, 2, 3].map(z => {
+            let zPlayers = players.filter(p => p.team === z);
+            if (rosterTeamFilter !== 'all') {
+                zPlayers = zPlayers.filter(p => p.tags.includes(rosterTeamFilter));
+            }
+            return sortPlayers(zPlayers);
+        });
+
+        // Calculate subs for this team filter
+        const exportSubs = rosterTeamFilter !== 'all'
+            ? substitutes.filter(s => s.tags.includes(rosterTeamFilter))
+            : substitutes;
+        const subsHeight = exportSubs.length > 0 ? 60 + Math.ceil(exportSubs.length / 6) * 24 : 0;
         const maxPlayers = Math.max(...zonePlayers.map(z => z.length));
         const canvasWidth = (zoneWidth * 3) + (zoneGap * 2) + (padding * 2);
         const canvasHeight = headerHeight + (maxPlayers * playerHeight) + (padding * 2) + 60 + subsHeight;
@@ -1849,13 +1860,14 @@ export default function AooStrategyPage() {
         ctx.fillStyle = '#18181b';
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-        // Title
+        // Title - include team if filtered
         ctx.fillStyle = '#fafafa';
         ctx.font = 'bold 24px system-ui, sans-serif';
         ctx.textAlign = 'center';
+        const teamLabel = rosterTeamFilter !== 'all' ? ` - Team ${rosterTeamFilter.slice(1)}` : '';
         const titleText = eventMode === 'training'
-            ? 'Ark of Osiris - Training Match'
-            : 'Ark of Osiris - Zone Assignments';
+            ? `Ark of Osiris - Training Match${teamLabel}`
+            : `Ark of Osiris - Zone Assignments${teamLabel}`;
         ctx.fillText(titleText, canvasWidth / 2, padding + 10);
 
         // Zone colors matching in-game (Z1=blue, Z2=orange, Z3=purple)
@@ -1940,20 +1952,20 @@ export default function AooStrategyPage() {
             });
         });
 
-        // Substitutes section
-        if (substitutes.length > 0) {
+        // Substitutes section (already filtered as exportSubs)
+        if (exportSubs.length > 0) {
             const subsY = padding + headerHeight + (maxPlayers * playerHeight) + 60;
 
             // Subs header
             ctx.fillStyle = '#a1a1aa';
             ctx.font = 'bold 12px system-ui, sans-serif';
             ctx.textAlign = 'left';
-            ctx.fillText(`SUBSTITUTES (${substitutes.length})`, padding, subsY);
+            ctx.fillText(`SUBSTITUTES (${exportSubs.length})`, padding, subsY);
 
             // Draw subs in a grid (6 per row)
             const subsPerRow = 6;
             const subWidth = (canvasWidth - padding * 2) / subsPerRow;
-            substitutes.forEach((sub, idx) => {
+            exportSubs.forEach((sub, idx) => {
                 const row = Math.floor(idx / subsPerRow);
                 const col = idx % subsPerRow;
                 const sx = padding + (col * subWidth);
@@ -1968,12 +1980,13 @@ export default function AooStrategyPage() {
             });
         }
 
-        // Download
+        // Download with team in filename if filtered
         const link = document.createElement('a');
-        link.download = eventMode === 'training' ? 'aoo-training-roster.png' : 'aoo-roster.png';
+        const teamSuffix = rosterTeamFilter !== 'all' ? `-${rosterTeamFilter.toLowerCase()}` : '';
+        link.download = eventMode === 'training' ? `aoo-training-roster${teamSuffix}.png` : `aoo-roster${teamSuffix}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
-    }, [players, teams, substitutes, sortPlayers, powerByName, eventMode]);
+    }, [players, teams, substitutes, sortPlayers, powerByName, eventMode, rosterTeamFilter]);
 
     // Theme using CSS variables to match the rest of the app
     const theme = {
