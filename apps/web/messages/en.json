@@ -35,6 +35,7 @@
     "recognition": "Recognition",
     "angmar": "Angmar",
     "events": "Events",
+    "rokMail": "RoK Mail",
     "aooPlanner": "AoO Planner",
     "protocols": "Protocols",
     "resources": "Resources",
@@ -77,6 +78,10 @@
         "title": "AoO Planner",
         "description": "Interactive 30v30 team assignments, zone distribution, and match planning",
         "badge": "Tool"
+      },
+      "rokMail": {
+        "title": "RoK Mail",
+        "description": "Format in-game mail with bold, italic, colors, symbols, and AI assistance"
       }
     },
     "guide": {

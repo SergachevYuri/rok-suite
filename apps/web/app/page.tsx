@@ -13,6 +13,7 @@ import {
   Users,
   Trophy,
   Crown,
+  ScrollText,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -70,6 +71,16 @@ export default function Home() {
       iconHoverBg: 'group-hover:bg-emerald-500/15',
       iconHoverColor: 'group-hover:text-emerald-500',
       fullWidth: true,
+    },
+    {
+      href: '/rok-mail',
+      titleKey: 'tools.rokMail.title',
+      descriptionKey: 'tools.rokMail.description',
+      icon: ScrollText,
+      hoverBorder: 'hover:border-pink-500/40',
+      hoverShadow: 'hover:shadow-pink-500/10',
+      iconHoverBg: 'group-hover:bg-pink-500/15',
+      iconHoverColor: 'group-hover:text-pink-500',
     },
   ] as const;
 
