@@ -2,15 +2,15 @@ import React from 'react';
 import { resolveColor } from './colors';
 
 export interface RokNode {
-  type: 'text' | 'bold' | 'italic' | 'color';
+  type: 'text' | 'bold' | 'italic' | 'color' | 'size';
   content?: string;
   children?: RokNode[];
   color?: string;
+  size?: string;
 }
 
 export function parseRokMarkup(input: string): RokNode[] {
   let pos = 0;
-  const nodes: RokNode[] = [];
 
   function parseNodes(stopTag?: string): RokNode[] {
     const result: RokNode[] = [];
@@ -36,6 +36,7 @@ export function parseRokMarkup(input: string): RokNode[] {
         const boldOpen = matchTag(input, pos, 'b');
         const italicOpen = matchTag(input, pos, 'i');
         const colorOpen = matchColorTag(input, pos);
+        const sizeOpen = matchSizeTag(input, pos);
 
         if (boldOpen) {
           flushText();
@@ -52,6 +53,11 @@ export function parseRokMarkup(input: string): RokNode[] {
           pos = colorOpen.end;
           const children = parseNodes('</color>');
           result.push({ type: 'color', color: colorOpen.color, children });
+        } else if (sizeOpen) {
+          flushText();
+          pos = sizeOpen.end;
+          const children = parseNodes('</size>');
+          result.push({ type: 'size', size: sizeOpen.size, children });
         } else {
           // Not a recognized tag, treat as literal text
           textBuf += input[pos];
@@ -67,8 +73,7 @@ export function parseRokMarkup(input: string): RokNode[] {
     return result;
   }
 
-  nodes.push(...parseNodes());
-  return nodes;
+  return parseNodes();
 }
 
 function matchTag(
@@ -87,12 +92,26 @@ function matchColorTag(
   input: string,
   pos: number
 ): { end: number; color: string } | null {
-  // Match <color="..."> or <color='...'>
-  const regex = /^<color=["']([^"']+)["']>/i;
+  // Match <color="...">, <color='...'>, or <color=#hex>
+  const regex = /^<color=["']?([^"'>]+)["']?>/i;
   const slice = input.slice(pos);
   const match = regex.exec(slice);
   if (match) {
     return { end: pos + match[0].length, color: match[1] };
+  }
+  return null;
+}
+
+function matchSizeTag(
+  input: string,
+  pos: number
+): { end: number; size: string } | null {
+  // Match <size=30px> or <size="30px">
+  const regex = /^<size=["']?([^"'>]+)["']?>/i;
+  const slice = input.slice(pos);
+  const match = regex.exec(slice);
+  if (match) {
+    return { end: pos + match[0].length, size: match[1] };
   }
   return null;
 }
@@ -135,6 +154,12 @@ export function renderRokNodes(nodes: RokNode[]): React.ReactNode[] {
           { key, style: { color: resolveColor(node.color || 'white') } },
           ...renderRokNodes(node.children || [])
         );
+      case 'size':
+        return React.createElement(
+          'span',
+          { key, style: { fontSize: node.size } },
+          ...renderRokNodes(node.children || [])
+        );
       default:
         return null;
     }
@@ -151,6 +176,8 @@ export function stripRokMarkup(input: string): string {
   return input
     .replace(/<\/?b>/gi, '')
     .replace(/<\/?i>/gi, '')
-    .replace(/<color=["'][^"']*["']>/gi, '')
-    .replace(/<\/color>/gi, '');
+    .replace(/<color=["']?[^"'>]*["']?>/gi, '')
+    .replace(/<\/color>/gi, '')
+    .replace(/<size=["']?[^"'>]*["']?>/gi, '')
+    .replace(/<\/size>/gi, '');
 }

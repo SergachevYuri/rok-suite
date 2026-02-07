@@ -1,7 +1,6 @@
 export type TemplateCategory =
   | 'angmar'
   | 'kingdom'
-  | 'recruitment'
   | 'war'
   | 'events'
   | 'general';
@@ -17,7 +16,6 @@ export interface MailTemplate {
 export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
   angmar: 'Angmar',
   kingdom: 'Kingdom',
-  recruitment: 'Recruitment',
   war: 'War',
   events: 'Events',
   general: 'General',
@@ -26,143 +24,36 @@ export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
 export const MAIL_TEMPLATES: MailTemplate[] = [
   // ── Angmar Templates ──
   {
-    id: 'ang-daily-orders',
-    name: 'Daily Orders',
+    id: 'ang-mail',
+    name: 'Angmar Mail',
     category: 'angmar',
-    description: 'Standard daily alliance orders format',
-    content: `<b><color="gold">━━━ ANGMAR DAILY ORDERS ━━━</color></b>
+    description: 'Standard Angmar alliance mail format',
+    content: `<size=30px><color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff3333>A</color><color=#ff6666>R</color><color=#ff9999>D</color><color=#ffcccc>S</color></size>
+►═════════❂❂❂═════════◄
 
-<b><color="cyan">📢 Announcements</color></b>
-▸ [Your announcement here]
+<b><color=#ff3333>SUBJECT TITLE HERE</color></b>
 
-<b><color="cyan">⚔ Tasks</color></b>
-▸ [Task 1]
-▸ [Task 2]
+Your message here.
 
-<b><color="cyan">⚠ Reminders</color></b>
-▸ [Reminder]
-
-<color="gold">━━━━━━━━━━━━━━━━━━━━━━━━</color>
-<i>~ Angmar Leadership</i>`,
-  },
-  {
-    id: 'ang-kvk-briefing',
-    name: 'KvK Briefing',
-    category: 'angmar',
-    description: 'KvK battle briefing for Angmar',
-    content: `<b><color="red">⚔ KVK BATTLE BRIEFING ⚔</color></b>
-<color="gold">═══════════════════════</color>
-
-<b><color="cyan">📋 Overview</color></b>
-▸ Enemy: [Kingdom]
-▸ Time: [UTC time]
-
-<b><color="cyan">🎯 Objectives</color></b>
-① [Primary objective]
-② [Secondary objective]
-
-<b><color="cyan">📍 Rally Points</color></b>
-▸ Zone 1: [Leader] at [Location]
-▸ Zone 2: [Leader] at [Location]
-
-<b><color="red">⚠ IMPORTANT</color></b>
-▸ [Critical instruction]
-
-<color="gold">═══════════════════════</color>
-<b>Glory to Angmar! ⚔</b>`,
-  },
-  {
-    id: 'ang-aoo-orders',
-    name: 'AoO Orders',
-    category: 'angmar',
-    description: 'Ark of Osiris team orders',
-    content: `<b><color="gold">🏆 ARK OF OSIRIS ORDERS 🏆</color></b>
-<color="gold">━━━━━━━━━━━━━━━━━━━━━━━━</color>
-
-<b><color="cyan">📅 Date:</color></b> [Date/Time UTC]
-<b><color="cyan">👥 Team:</color></b> [Team name]
-
-<b><color="cyan">📍 Zone Assignments</color></b>
-▸ Ark: [Players]
-▸ Zone 2: [Players]
-▸ Zone 3: [Players]
-
-<b><color="cyan">⚔ Rally Leaders</color></b>
-▸ [Leader 1] - [Target]
-▸ [Leader 2] - [Target]
-
-<b><color="yellow">📋 Rules</color></b>
-▸ Teleport to assigned zone at start
-▸ Follow rally leader calls
-▸ Do NOT go rogue
-
-<color="gold">━━━━━━━━━━━━━━━━━━━━━━━━</color>`,
+►═════════❂❂❂═════════◄
+<b><color=#800000>— King Fluffy</color></b>`,
   },
 
   // ── Kingdom Templates ──
   {
-    id: 'kingdom-announcement',
-    name: 'Kingdom Announcement',
+    id: 'kingdom-mail',
+    name: 'Kingdom Mail',
     category: 'kingdom',
-    description: 'Official kingdom-wide announcement',
-    content: `<b><color="gold">👑 KINGDOM ANNOUNCEMENT 👑</color></b>
-<color="gold">━━━━━━━━━━━━━━━━━━━━━━━━</color>
+    description: 'Standard Kingdom 3923 mail format',
+    content: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff3333>A</color><color=#ff6666>R</color><color=#ff9999>D</color><color=#ffcccc>S</color></size>
+►═════════❂❂❂═════════◄
 
-[Your message here]
+<b><color=#ff3333>SUBJECT TITLE HERE</color></b>
 
-<color="gold">━━━━━━━━━━━━━━━━━━━━━━━━</color>
-<i>Kingdom Leadership</i>`,
-  },
-  {
-    id: 'kingdom-kvk-strategy',
-    name: 'KvK Strategy',
-    category: 'kingdom',
-    description: 'Kingdom-wide KvK strategy announcement',
-    content: `<b><color="red">⚔ KVK STRATEGY UPDATE ⚔</color></b>
-<color="gold">═══════════════════════</color>
+Your message here.
 
-<b><color="cyan">📋 Current Phase:</color></b> [Phase]
-<b><color="cyan">🎯 Priority:</color></b> [Target/Objective]
-
-<b><color="yellow">📍 Key Positions</color></b>
-▸ [Alliance 1] - [Zone/Task]
-▸ [Alliance 2] - [Zone/Task]
-▸ [Alliance 3] - [Zone/Task]
-
-<b><color="red">⚠ Rules of Engagement</color></b>
-▸ [Rule 1]
-▸ [Rule 2]
-
-<b><color="green">✅ Remember</color></b>
-▸ [Important reminder]
-
-<color="gold">═══════════════════════</color>
-<i>Fight as one kingdom!</i>`,
-  },
-
-  // ── Recruitment Templates ──
-  {
-    id: 'recruitment-post',
-    name: 'Alliance Recruitment',
-    category: 'recruitment',
-    description: 'Alliance recruitment mail template',
-    content: `<b><color="cyan">★ [ALLIANCE] is recruiting! ★</color></b>
-<color="gold">━━━━━━━━━━━━━━━━━━━━━━━━</color>
-
-<b>Requirements:</b>
-▸ Power: [minimum]M+
-▸ Kill Points: [minimum]M+
-▸ Active daily
-
-<b>We offer:</b>
-▸ [Benefit 1]
-▸ [Benefit 2]
-▸ [Benefit 3]
-
-<b><color="green">How to apply:</color></b>
-▸ [Instructions]
-
-<color="gold">━━━━━━━━━━━━━━━━━━━━━━━━</color>`,
+►═════════❂❂❂═════════◄
+<b><color=#800000>— King Fluffy</color></b>`,
   },
 
   // ── War Templates ──
