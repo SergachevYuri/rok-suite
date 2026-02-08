@@ -1,6 +1,7 @@
 'use client';
 
 import { Bold, Italic, Palette, Minus, Sparkles, Eraser, Blend } from 'lucide-react';
+import { stripWithPositions } from '@/lib/rok-mail/parser';
 
 interface RokMailToolbarProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -9,6 +10,7 @@ interface RokMailToolbarProps {
   onColorClick: () => void;
   onGradientClick: () => void;
   onSymbolClick: () => void;
+  editMode: 'source' | 'text';
 }
 
 type ToolbarAction =
@@ -30,7 +32,27 @@ export function RokMailToolbar({
   onColorClick,
   onGradientClick,
   onSymbolClick,
+  editMode,
 }: RokMailToolbarProps) {
+  /** Map a stripped-text selection range to markup positions */
+  function toMarkup(sStart: number, sEnd: number): { mStart: number; mEnd: number } {
+    const { positions } = stripWithPositions(content);
+    if (positions.length === 0) return { mStart: content.length, mEnd: content.length };
+    const mStart = sStart < positions.length ? positions[sStart] : content.length;
+    const mEnd = sEnd > 0
+      ? (sEnd <= positions.length ? positions[sEnd - 1] + 1 : content.length)
+      : positions[0];
+    return { mStart, mEnd };
+  }
+
+  /** Get markup insertion position (after previous char, staying inside formatting) */
+  function toMarkupInsert(sPos: number): number {
+    const { positions } = stripWithPositions(content);
+    if (positions.length === 0) return content.length;
+    if (sPos > 0) return positions[Math.min(sPos - 1, positions.length - 1)] + 1;
+    return positions[0];
+  }
+
   function applyAction(action: ToolbarAction) {
     if (action.type === 'custom') {
       action.handler();
@@ -40,34 +62,61 @@ export function RokMailToolbar({
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = content.slice(start, end);
+    const tStart = textarea.selectionStart;
+    const tEnd = textarea.selectionEnd;
 
-    if (action.type === 'wrap') {
-      const newText =
-        content.slice(0, start) +
-        action.before +
-        selected +
-        action.after +
-        content.slice(end);
-      onContentChange(newText);
-      const cursorPos = selected
-        ? start + action.before.length + selected.length + action.after.length
-        : start + action.before.length;
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(cursorPos, cursorPos);
-      }, 0);
-    } else if (action.type === 'insert') {
-      const newText =
-        content.slice(0, start) + action.text + content.slice(end);
-      onContentChange(newText);
-      const cursorPos = start + action.text.length;
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(cursorPos, cursorPos);
-      }, 0);
+    if (editMode === 'text') {
+      if (action.type === 'wrap') {
+        if (tStart === tEnd) {
+          // No selection — insert empty tags at insertion point
+          const mPos = toMarkupInsert(tStart);
+          const newText = content.slice(0, mPos) + action.before + action.after + content.slice(mPos);
+          onContentChange(newText);
+          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tStart); }, 0);
+        } else {
+          const { mStart, mEnd } = toMarkup(tStart, tEnd);
+          const selected = content.slice(mStart, mEnd);
+          const newText = content.slice(0, mStart) + action.before + selected + action.after + content.slice(mEnd);
+          onContentChange(newText);
+          // Stripped text unchanged, cursor at end of selection
+          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
+        }
+      } else if (action.type === 'insert') {
+        const mPos = toMarkupInsert(tStart);
+        const newText = content.slice(0, mPos) + action.text + content.slice(mPos);
+        onContentChange(newText);
+        const cursorPos = tStart + action.text.length;
+        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(cursorPos, cursorPos); }, 0);
+      }
+    } else {
+      // Source mode — operate directly on markup
+      const selected = content.slice(tStart, tEnd);
+
+      if (action.type === 'wrap') {
+        const newText =
+          content.slice(0, tStart) +
+          action.before +
+          selected +
+          action.after +
+          content.slice(tEnd);
+        onContentChange(newText);
+        const cursorPos = selected
+          ? tStart + action.before.length + selected.length + action.after.length
+          : tStart + action.before.length;
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(cursorPos, cursorPos);
+        }, 0);
+      } else if (action.type === 'insert') {
+        const newText =
+          content.slice(0, tStart) + action.text + content.slice(tEnd);
+        onContentChange(newText);
+        const cursorPos = tStart + action.text.length;
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(cursorPos, cursorPos);
+        }, 0);
+      }
     }
   }
 
@@ -120,26 +169,41 @@ export function RokMailToolbar({
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    const tStart = textarea.selectionStart;
+    const tEnd = textarea.selectionEnd;
 
-    if (start === end) return;
+    if (tStart === tEnd) return;
 
-    const selected = content.slice(start, end);
-    const stripped = selected
-      .replace(/<\/?b>/gi, '')
-      .replace(/<\/?i>/gi, '')
-      .replace(/<color=["']?[^"'>]*["']?>/gi, '')
-      .replace(/<\/color>/gi, '')
-      .replace(/<size=["']?[^"'>]*["']?>/gi, '')
-      .replace(/<\/size>/gi, '');
-
-    const newText = content.slice(0, start) + stripped + content.slice(end);
-    onContentChange(newText);
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start, start + stripped.length);
-    }, 0);
+    if (editMode === 'text') {
+      const { mStart, mEnd } = toMarkup(tStart, tEnd);
+      const selected = content.slice(mStart, mEnd);
+      const stripped = selected
+        .replace(/<\/?b>/gi, '')
+        .replace(/<\/?i>/gi, '')
+        .replace(/<color=["']?[^"'>]*["']?>/gi, '')
+        .replace(/<\/color>/gi, '')
+        .replace(/<size=["']?[^"'>]*["']?>/gi, '')
+        .replace(/<\/size>/gi, '');
+      const newText = content.slice(0, mStart) + stripped + content.slice(mEnd);
+      onContentChange(newText);
+      // Stripped text unchanged, keep same selection
+      setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+    } else {
+      const selected = content.slice(tStart, tEnd);
+      const stripped = selected
+        .replace(/<\/?b>/gi, '')
+        .replace(/<\/?i>/gi, '')
+        .replace(/<color=["']?[^"'>]*["']?>/gi, '')
+        .replace(/<\/color>/gi, '')
+        .replace(/<size=["']?[^"'>]*["']?>/gi, '')
+        .replace(/<\/size>/gi, '');
+      const newText = content.slice(0, tStart) + stripped + content.slice(tEnd);
+      onContentChange(newText);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(tStart, tStart + stripped.length);
+      }, 0);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

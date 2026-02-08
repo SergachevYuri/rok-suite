@@ -21,7 +21,7 @@ import { GradientPicker, generateGradientMarkup } from '@/components/rok-mail/Gr
 import { SymbolPicker } from '@/components/rok-mail/SymbolPicker';
 import { TemplateSelector } from '@/components/rok-mail/TemplateSelector';
 import { AiAssistant } from '@/components/rok-mail/AiAssistant';
-import { stripRokMarkup, applyTextEdit } from '@/lib/rok-mail/parser';
+import { stripRokMarkup, stripWithPositions, applyTextEdit } from '@/lib/rok-mail/parser';
 
 type EditorMode = 'edit' | 'split' | 'preview';
 
@@ -44,65 +44,112 @@ export default function RokMailPage() {
     onColorClick: () => { setShowColorPicker(!showColorPicker); setShowGradientPicker(false); },
     onGradientClick: () => { setShowGradientPicker(!showGradientPicker); setShowColorPicker(false); },
     onSymbolClick: () => { setShowSymbolPicker(!showSymbolPicker); },
+    editMode: editTab,
   });
 
   const handleColorSelect = useCallback(
     (color: string) => {
       const textarea = textareaRef.current;
       if (!textarea) return;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const selected = content.slice(start, end);
+      const tStart = textarea.selectionStart;
+      const tEnd = textarea.selectionEnd;
       const before = `<color="${color}">`;
       const after = '</color>';
-      const newText = content.slice(0, start) + before + selected + after + content.slice(end);
-      setContent(newText);
-      const cursorPos = selected
-        ? start + before.length + selected.length + after.length
-        : start + before.length;
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(cursorPos, cursorPos);
-      }, 0);
+
+      if (editTab === 'text') {
+        const { positions } = stripWithPositions(content);
+        if (tStart === tEnd) {
+          // No selection — insert empty color tags at insertion point
+          const mPos = tStart > 0 && positions.length > 0
+            ? positions[Math.min(tStart - 1, positions.length - 1)] + 1
+            : positions.length > 0 ? positions[0] : content.length;
+          const newText = content.slice(0, mPos) + before + after + content.slice(mPos);
+          setContent(newText);
+          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tStart); }, 0);
+        } else {
+          const mStart = tStart < positions.length ? positions[tStart] : content.length;
+          const mEnd = tEnd > 0 && tEnd <= positions.length ? positions[tEnd - 1] + 1 : content.length;
+          const selected = content.slice(mStart, mEnd);
+          const newText = content.slice(0, mStart) + before + selected + after + content.slice(mEnd);
+          setContent(newText);
+          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
+        }
+      } else {
+        const selected = content.slice(tStart, tEnd);
+        const newText = content.slice(0, tStart) + before + selected + after + content.slice(tEnd);
+        setContent(newText);
+        const cursorPos = selected
+          ? tStart + before.length + selected.length + after.length
+          : tStart + before.length;
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(cursorPos, cursorPos);
+        }, 0);
+      }
     },
-    [content]
+    [content, editTab]
   );
 
   const handleGradientApply = useCallback(
     (startColor: string, endColor: string) => {
       const textarea = textareaRef.current;
       if (!textarea) return;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      if (start === end) return; // need selected text
-      const selected = content.slice(start, end);
-      const gradientMarkup = generateGradientMarkup(selected, startColor, endColor);
-      const newText = content.slice(0, start) + gradientMarkup + content.slice(end);
-      setContent(newText);
-      const cursorPos = start + gradientMarkup.length;
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(cursorPos, cursorPos);
-      }, 0);
+      const tStart = textarea.selectionStart;
+      const tEnd = textarea.selectionEnd;
+      if (tStart === tEnd) return; // need selected text
+
+      if (editTab === 'text') {
+        const { stripped, positions } = stripWithPositions(content);
+        const selectedText = stripped.slice(tStart, tEnd);
+        const gradientMarkup = generateGradientMarkup(selectedText, startColor, endColor);
+        const mStart = tStart < positions.length ? positions[tStart] : content.length;
+        const mEnd = tEnd > 0 && tEnd <= positions.length ? positions[tEnd - 1] + 1 : content.length;
+        const newText = content.slice(0, mStart) + gradientMarkup + content.slice(mEnd);
+        setContent(newText);
+        // Stripped text unchanged (gradient wraps same chars), cursor at end
+        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
+      } else {
+        const selected = content.slice(tStart, tEnd);
+        const gradientMarkup = generateGradientMarkup(selected, startColor, endColor);
+        const newText = content.slice(0, tStart) + gradientMarkup + content.slice(tEnd);
+        setContent(newText);
+        const cursorPos = tStart + gradientMarkup.length;
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(cursorPos, cursorPos);
+        }, 0);
+      }
     },
-    [content]
+    [content, editTab]
   );
 
   const handleSymbolSelect = useCallback(
     (symbol: string) => {
       const textarea = textareaRef.current;
       if (!textarea) return;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newText = content.slice(0, start) + symbol + content.slice(end);
-      setContent(newText);
-      const cursorPos = start + symbol.length;
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(cursorPos, cursorPos);
-      }, 0);
+      const tStart = textarea.selectionStart;
+      const tEnd = textarea.selectionEnd;
+
+      if (editTab === 'text') {
+        const { positions } = stripWithPositions(content);
+        const mPos = tStart > 0 && positions.length > 0
+          ? positions[Math.min(tStart - 1, positions.length - 1)] + 1
+          : positions.length > 0 ? positions[0] : content.length;
+        const newText = content.slice(0, mPos) + symbol + content.slice(mPos);
+        setContent(newText);
+        const cursorPos = tStart + symbol.length;
+        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(cursorPos, cursorPos); }, 0);
+      } else {
+        const newText = content.slice(0, tStart) + symbol + content.slice(tEnd);
+        setContent(newText);
+        const cursorPos = tStart + symbol.length;
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(cursorPos, cursorPos);
+        }, 0);
+      }
     },
-    [content]
+    [content, editTab]
   );
 
   const copyToClipboard = async () => {
@@ -268,14 +315,7 @@ export default function RokMailPage() {
                       <button
                         key={tab.key}
                         type="button"
-                        onClick={() => {
-                          setEditTab(tab.key);
-                          if (tab.key === 'text') {
-                            setShowColorPicker(false);
-                            setShowGradientPicker(false);
-                            setShowSymbolPicker(false);
-                          }
-                        }}
+                        onClick={() => setEditTab(tab.key)}
                         className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded-sm transition-fast ${
                           isActive
                             ? 'bg-pink-500/20 text-pink-400 font-medium'
@@ -296,27 +336,25 @@ export default function RokMailPage() {
                 )}
               </div>
 
-              {/* Toolbar (source mode only) */}
-              {editTab === 'source' && (
-                <div className="relative">
-                  {toolbar}
-                  <ColorPicker
-                    isOpen={showColorPicker}
-                    onClose={() => setShowColorPicker(false)}
-                    onSelectColor={handleColorSelect}
-                  />
-                  <GradientPicker
-                    isOpen={showGradientPicker}
-                    onClose={() => setShowGradientPicker(false)}
-                    onApplyGradient={handleGradientApply}
-                  />
-                  <SymbolPicker
-                    isOpen={showSymbolPicker}
-                    onClose={() => setShowSymbolPicker(false)}
-                    onSelectSymbol={handleSymbolSelect}
-                  />
-                </div>
-              )}
+              {/* Toolbar */}
+              <div className="relative">
+                {toolbar}
+                <ColorPicker
+                  isOpen={showColorPicker}
+                  onClose={() => setShowColorPicker(false)}
+                  onSelectColor={handleColorSelect}
+                />
+                <GradientPicker
+                  isOpen={showGradientPicker}
+                  onClose={() => setShowGradientPicker(false)}
+                  onApplyGradient={handleGradientApply}
+                />
+                <SymbolPicker
+                  isOpen={showSymbolPicker}
+                  onClose={() => setShowSymbolPicker(false)}
+                  onSelectSymbol={handleSymbolSelect}
+                />
+              </div>
 
               <textarea
                 ref={textareaRef}
@@ -328,7 +366,7 @@ export default function RokMailPage() {
                     setContent(applyTextEdit(content, e.target.value));
                   }
                 }}
-                onKeyDown={editTab === 'source' ? handleKeyDown : undefined}
+                onKeyDown={handleKeyDown}
                 placeholder={
                   editTab === 'source'
                     ? "Type your mail here... Use the toolbar to add formatting.\n\nSupported tags:\n<b>bold text</b>\n<i>italic text</i>\n<color=\"red\">colored text</color>"

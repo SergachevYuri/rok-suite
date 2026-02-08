@@ -243,12 +243,17 @@ export function applyTextEdit(originalMarkup: string, newStripped: string): stri
   const oldEnd = oldStripped.length - suffix;
 
   if (oldEnd <= prefix) {
-    // Pure insertion — no text removed, insert at the prefix position
+    // Pure insertion — insert right after the previous text character so
+    // new text stays inside the same formatting tags (e.g. <b><color>t|</color></b>
+    // rather than <b><color>t</color></b>| )
     let insertPos: number;
-    if (prefix < positions.length) {
-      insertPos = positions[prefix];
+    if (prefix > 0) {
+      const prevIdx = Math.min(prefix - 1, positions.length - 1);
+      insertPos = positions[prevIdx] + 1;
+    } else if (prefix < positions.length) {
+      insertPos = positions[0];
     } else {
-      insertPos = positions[positions.length - 1] + 1;
+      insertPos = originalMarkup.length;
     }
     const result = originalMarkup.slice(0, insertPos) + insertText + originalMarkup.slice(insertPos);
     const { stripped: verify } = stripWithPositions(result);
