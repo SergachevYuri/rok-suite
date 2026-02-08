@@ -69,10 +69,22 @@
         "description": "이벤트 결과, 챌린지 순위 및 대회 추적",
         "badge": "결과"
       },
+      "recognition": {
+        "title": "표창",
+        "description": "명예의 전당, 우수 멤버 및 멤버 업적"
+      },
       "aoo": {
         "title": "Angmar AoO 플래너",
         "description": "인터랙티브 30v30 팀 배정, 드래그 앤 드롭 전투 맵 및 매치 계획",
         "badge": "도구"
+      },
+      "rokMail": {
+        "title": "RoK 메일",
+        "description": "굵게, 기울임꼴, 색상, 기호 및 AI 지원으로 인게임 메일 작성"
+      },
+      "mge": {
+        "title": "MGE",
+        "description": "최강의 총독 이벤트 순위 및 배정 계획 및 추적"
       }
     },
     "guide": {

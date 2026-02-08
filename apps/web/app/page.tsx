@@ -14,6 +14,7 @@ import {
   Trophy,
   Crown,
   ScrollText,
+  Shield,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -81,6 +82,16 @@ export default function Home() {
       iconHoverBg: 'group-hover:bg-pink-500/15',
       iconHoverColor: 'group-hover:text-pink-500',
     },
+    {
+      href: '/mge',
+      titleKey: 'tools.mge.title',
+      descriptionKey: 'tools.mge.description',
+      icon: Shield,
+      hoverBorder: 'hover:border-amber-500/40',
+      hoverShadow: 'hover:shadow-amber-500/10',
+      iconHoverBg: 'group-hover:bg-amber-500/15',
+      iconHoverColor: 'group-hover:text-amber-500',
+    },
   ] as const;
 
   return (
@@ -135,32 +146,55 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Guide */}
+          {/* Resources */}
           <section className="mb-14">
             <h2 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)] mb-5">
               {t('sections.guides')}
             </h2>
 
-            <Link href="/guide">
-              <div className="group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-cyan-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-cyan-500/10 transition-all duration-200 cursor-pointer">
-                <div className="flex items-start gap-4">
-                  <div className="p-2.5 rounded-lg bg-[var(--background-secondary)] group-hover:bg-cyan-500/15 transition-colors duration-200 flex-shrink-0">
-                    <BookOpen className="w-5 h-5 text-[var(--text-muted)] group-hover:text-cyan-500 transition-colors duration-200" />
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Link href="/guide">
+                <div className="group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-cyan-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-cyan-500/10 transition-all duration-200 cursor-pointer h-full">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2.5 rounded-lg bg-[var(--background-secondary)] group-hover:bg-cyan-500/15 transition-colors duration-200 flex-shrink-0">
+                      <BookOpen className="w-5 h-5 text-[var(--text-muted)] group-hover:text-cyan-500 transition-colors duration-200" />
+                    </div>
 
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-medium text-[var(--foreground)] mb-1 transition-colors duration-200">
-                      {t('guide.title')}
-                    </h3>
-                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                      {t('guide.description')}
-                    </p>
-                  </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-medium text-[var(--foreground)] mb-1 transition-colors duration-200">
+                        {t('guide.title')}
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                        {t('guide.description')}
+                      </p>
+                    </div>
 
-                  <ArrowRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-cyan-500 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
+                    <ArrowRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-cyan-500 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+
+              <Link href="/beta-tools">
+                <div className="group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-orange-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-orange-500/10 transition-all duration-200 cursor-pointer h-full">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2.5 rounded-lg bg-[var(--background-secondary)] group-hover:bg-orange-500/15 transition-colors duration-200 flex-shrink-0">
+                      <FlaskConical className="w-5 h-5 text-[var(--text-muted)] group-hover:text-orange-500 transition-colors duration-200" />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-medium text-[var(--foreground)] mb-1 transition-colors duration-200">
+                        {t('beta.title')}
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                        {t('beta.description')}
+                      </p>
+                    </div>
+
+                    <ArrowRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
+                  </div>
+                </div>
+              </Link>
+            </div>
           </section>
 
           {/* Footer */}
@@ -170,13 +204,6 @@ export default function Home() {
                 {t('footer.copyright')}
               </p>
               <div className="flex items-center gap-5 text-sm">
-                <Link
-                  href="/beta-tools"
-                  className="text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-1.5"
-                >
-                  <FlaskConical className="w-3.5 h-3.5" />
-                  Beta
-                </Link>
                 <a
                   href="https://github.com/avweigel/rok-suite"
                   target="_blank"

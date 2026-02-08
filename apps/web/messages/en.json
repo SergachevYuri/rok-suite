@@ -83,6 +83,10 @@
       "rokMail": {
         "title": "RoK Mail",
         "description": "Format in-game mail with bold, italic, colors, symbols, and AI assistance"
+      },
+      "mge": {
+        "title": "MGE",
+        "description": "Plan and track Mightiest Governor Event rankings and assignments"
       }
     },
     "guide": {
