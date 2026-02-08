@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.mge_events (
   event_date date NOT NULL,
   focused_commander text NOT NULL,
   notes text,
+  is_published boolean NOT NULL DEFAULT false,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

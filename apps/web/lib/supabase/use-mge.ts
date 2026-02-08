@@ -21,6 +21,7 @@ export interface MgeEvent {
   event_date: string;
   focused_commander: string;
   notes: string | null;
+  is_published: boolean;
   created_at: string;
   updated_at: string;
   mge_selections: MgeSelection[];
@@ -82,12 +83,12 @@ export async function createMgeEvent(
     console.error('Failed to create MGE event:', error.message);
     return null;
   }
-  return { ...data, mge_selections: [] };
+  return { ...data, is_published: false, mge_selections: [] };
 }
 
 export async function updateMgeEvent(
   id: number,
-  fields: Partial<Pick<MgeEvent, 'event_date' | 'focused_commander' | 'notes'>>
+  fields: Partial<Pick<MgeEvent, 'event_date' | 'focused_commander' | 'notes' | 'is_published'>>
 ): Promise<boolean> {
   const { error } = await supabase
     .from('mge_events')

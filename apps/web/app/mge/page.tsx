@@ -15,7 +15,7 @@ import {
   type MgeSelection,
 } from '@/lib/supabase/use-mge';
 import {
-  Shield, Lock, Unlock, Plus, Trash2, Pencil, X, Check, ChevronDown, ChevronUp, Search, Crown,
+  Shield, Lock, Unlock, Plus, Trash2, Pencil, X, Check, ChevronDown, ChevronUp, Search, Crown, Eye, EyeOff,
 } from 'lucide-react';
 import { commanderReferences } from '@/lib/sunset-canyon/commander-reference';
 
@@ -171,6 +171,11 @@ export default function MgePage() {
     }
   }, [events, expandedEvents.size]);
 
+  // Admin sees all events; public only sees published
+  const visibleEvents = useMemo(() =>
+    isAdmin ? events : events.filter(e => e.is_published),
+  [events, isAdmin]);
+
   const filteredRoster = useMemo(() => {
     if (!selMemberSearch) return roster.slice(0, 15);
     const search = selMemberSearch.toLowerCase();
@@ -220,12 +225,20 @@ export default function MgePage() {
     if (ok) refetch();
   };
 
+  const handleTogglePublish = async (evt: MgeEvent) => {
+    const ok = await updateMgeEvent(evt.id, { is_published: !evt.is_published });
+    if (ok) refetch();
+  };
+
+  const isFreeForAll = selTier === 'Free for All';
+
   const handleAddSelection = async (eventId: number) => {
-    if (!selMemberName.trim()) return;
+    const memberName = isFreeForAll ? 'Free for All' : selMemberName.trim();
+    if (!memberName) return;
     const pointsValue = selPointsLimit ? parseFloat(selPointsLimit) * 1_000_000 : null;
     const result = await addSelection(
       eventId,
-      selMemberName.trim(),
+      memberName,
       selTier,
       pointsValue,
       selReason.trim() || null
@@ -423,7 +436,7 @@ export default function MgePage() {
         )}
 
         {/* Empty state */}
-        {!loading && !error && events.length === 0 && (
+        {!loading && !error && visibleEvents.length === 0 && (
           <div className="text-center py-16 rounded-lg border"
             style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
             <Crown size={48} className="mx-auto mb-4 text-amber-500/30" />
@@ -438,7 +451,7 @@ export default function MgePage() {
 
         {/* Event list */}
         <div className="space-y-4">
-          {events.map(evt => {
+          {visibleEvents.map(evt => {
             const isExpanded = expandedEvents.has(evt.id);
             const isEditing = editingEventId === evt.id;
             const isAddingHere = addingToEventId === evt.id;
@@ -483,6 +496,11 @@ export default function MgePage() {
                       </div>
                     )}
                   </div>
+                  {isAdmin && !evt.is_published && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-500/20 text-zinc-400 shrink-0">
+                      Draft
+                    </span>
+                  )}
                   <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 shrink-0">
                     {evt.mge_selections.length} selected
                   </span>
@@ -518,6 +536,14 @@ export default function MgePage() {
                           <Plus size={12} /> Add Member
                         </button>
                         <div className="flex-1" />
+                        <button onClick={() => handleTogglePublish(evt)}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-fast ${evt.is_published
+                            ? 'text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/10'
+                            : 'text-zinc-400/70 hover:text-zinc-400 hover:bg-zinc-500/10'
+                          }`}
+                          title={evt.is_published ? 'Unpublish' : 'Publish'}>
+                          {evt.is_published ? <><Eye size={12} /> Published</> : <><EyeOff size={12} /> Publish</>}
+                        </button>
                         <button onClick={() => handleDeleteEvent(evt.id)} className={btnDanger} title="Delete event">
                           <Trash2 size={14} />
                         </button>
@@ -528,7 +554,13 @@ export default function MgePage() {
                     {isAddingHere && isAdmin && (
                       <div className="px-4 py-3 border-b bg-amber-500/5" style={{ borderColor: 'var(--border)' }}>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
-                          {/* Member search */}
+                          {/* Member search (hidden for Free for All) */}
+                          {isFreeForAll ? (
+                            <div className="md:col-span-2 flex items-center px-3 py-2 rounded-md text-sm"
+                              style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)' }}>
+                              Open to all members
+                            </div>
+                          ) : (
                           <div className="relative md:col-span-2">
                             <div className="relative">
                               <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-muted)' }} />
@@ -564,6 +596,7 @@ export default function MgePage() {
                               </div>
                             )}
                           </div>
+                          )}
                           {/* Tier */}
                           <select value={selTier} onChange={e => setSelTier(e.target.value)}
                             className={inputClass} style={inputStyle}>
@@ -582,7 +615,7 @@ export default function MgePage() {
                             onChange={e => setSelReason(e.target.value)}
                             className={inputClass + ' flex-1'} style={inputStyle} />
                           <button onClick={() => handleAddSelection(evt.id)}
-                            disabled={!selMemberName.trim()}
+                            disabled={!isFreeForAll && !selMemberName.trim()}
                             className={btnPrimary + ' disabled:opacity-40'}>Add</button>
                           <button onClick={() => setAddingToEventId(null)} className={btnMuted}
                             style={{ color: 'var(--text-secondary)' }}>Cancel</button>
@@ -603,8 +636,9 @@ export default function MgePage() {
                             <span className="text-xs font-semibold w-20 shrink-0 text-amber-400">
                               {sel.ranking_tier}
                             </span>
-                            <span className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: 'var(--foreground)' }}>
-                              {sel.member_name}
+                            <span className={`font-medium text-sm flex-1 min-w-0 truncate ${sel.ranking_tier === 'Free for All' ? 'italic' : ''}`}
+                              style={{ color: sel.ranking_tier === 'Free for All' ? 'var(--text-secondary)' : 'var(--foreground)' }}>
+                              {sel.ranking_tier === 'Free for All' ? 'Open to all' : sel.member_name}
                             </span>
                             {sel.power_cap && (
                               <span className="text-xs px-2 py-0.5 rounded-full shrink-0"
