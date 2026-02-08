@@ -55,6 +55,7 @@ export default function RokMailPage() {
   const [editTab, setEditTab] = useState<'source' | 'text'>('source');
   const [shareId, setShareId] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const shareIdRef = useRef<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -141,33 +142,47 @@ export default function RokMailPage() {
   }, [content]);
 
   async function handleShare() {
-    if (shareId) {
-      // Already shared — copy link
-      const url = `${window.location.origin}/rok-mail?mail=${shareId}`;
-      await navigator.clipboard.writeText(url);
+    setShareError(null);
+
+    try {
+      if (shareId) {
+        const url = `${window.location.origin}/rok-mail?mail=${shareId}`;
+        await navigator.clipboard.writeText(url);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+        return;
+      }
+
+      const newId = generateShareId();
+      const { error } = await supabase
+        .from('rok_mail')
+        .insert([{ share_id: newId, content }]);
+
+      if (error) {
+        console.error('Failed to create share link:', error);
+        setShareError('Failed to create share link. Is the database set up?');
+        setTimeout(() => setShareError(null), 5000);
+        return;
+      }
+
+      shareIdRef.current = newId;
+      setShareId(newId);
+
+      const url = `${window.location.origin}/rok-mail?mail=${newId}`;
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        // clipboard may fail after async gap — still show link
+      }
+
+      router.push(`/rok-mail?mail=${newId}`);
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
-      return;
+    } catch (err) {
+      console.error('Share error:', err);
+      setShareError('Something went wrong. Please try again.');
+      setTimeout(() => setShareError(null), 5000);
     }
-
-    const newId = generateShareId();
-    const { error } = await supabase
-      .from('rok_mail')
-      .insert([{ share_id: newId, content }]);
-
-    if (error) {
-      console.error('Failed to create share link:', error);
-      return;
-    }
-
-    shareIdRef.current = newId;
-    setShareId(newId);
-    router.push(`/rok-mail?mail=${newId}`);
-
-    const url = `${window.location.origin}/rok-mail?mail=${newId}`;
-    await navigator.clipboard.writeText(url);
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
   }
 
   const { toolbar, handleKeyDown, applyAction } = RokMailToolbar({
@@ -409,6 +424,12 @@ export default function RokMailPage() {
             {linkCopied ? 'Link copied!' : shareId ? 'Copy Link' : 'Share'}
           </button>
         </div>
+
+        {shareError && (
+          <div className="mb-4 px-3 py-2 rounded-lg text-sm text-red-400 bg-red-500/10 border border-red-500/20">
+            {shareError}
+          </div>
+        )}
 
         {/* Main Content */}
         <div
