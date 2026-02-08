@@ -218,18 +218,22 @@ export function splitMailContent(rawMarkup: string, maxChars = 2000): string[] {
   // If no breaks and content fits, return as-is
   if (!manualBreaks && rawMarkup.length <= maxChars) return [rawMarkup];
 
-  // Character budget per part: max minus label and repeated header
+  // Character budget per part: max minus label, header, and continuation note
   const labelReserve = 20;
-  const budget = maxChars - labelReserve - header.length;
+  const continuationReserve = 45; // "\n\n<i>(Continued in Part NN...)</i>"
+  const budget = maxChars - labelReserve - header.length - continuationReserve;
 
   // If header is too large to repeat, fall back to no-header splitting
   if (budget <= 100) {
-    const fallbackBudget = maxChars - labelReserve;
+    const fallbackBudget = maxChars - labelReserve - continuationReserve;
     const chunks = autoSplitSection(rawMarkup, fallbackBudget);
     if (chunks.length <= 1) return [rawMarkup];
     return chunks.map((chunk, i) => {
       const label = `(Part ${i + 1}/${chunks.length})\n`;
-      return label + chunk;
+      const cont = i < chunks.length - 1
+        ? `\n\n<i>(Continued in Part ${i + 2}...)</i>`
+        : '';
+      return label + chunk + cont;
     });
   }
 
@@ -246,10 +250,13 @@ export function splitMailContent(rawMarkup: string, maxChars = 2000): string[] {
   // If still just 1 chunk and no manual breaks, return original
   if (allChunks.length <= 1 && !manualBreaks) return [rawMarkup];
 
-  // Assemble: label + header + body chunk
+  // Assemble: label + header + body chunk + continuation note
   const total = allChunks.length;
   return allChunks.map((chunk, i) => {
     const label = `(Part ${i + 1}/${total})\n`;
-    return label + header + chunk;
+    const cont = i < total - 1
+      ? `\n\n<i>(Continued in Part ${i + 2}...)</i>`
+      : '';
+    return label + header + chunk + cont;
   });
 }
