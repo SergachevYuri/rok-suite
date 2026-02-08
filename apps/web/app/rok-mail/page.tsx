@@ -19,6 +19,7 @@ import { CharCounter } from '@/components/rok-mail/CharCounter';
 import { ColorPicker } from '@/components/rok-mail/ColorPicker';
 import { GradientPicker, generateGradientMarkup } from '@/components/rok-mail/GradientPicker';
 import { SymbolPicker } from '@/components/rok-mail/SymbolPicker';
+import { SizePicker } from '@/components/rok-mail/SizePicker';
 import { TemplateSelector } from '@/components/rok-mail/TemplateSelector';
 import { AiAssistant } from '@/components/rok-mail/AiAssistant';
 import { stripRokMarkup, stripWithPositions, applyTextEdit } from '@/lib/rok-mail/parser';
@@ -32,6 +33,7 @@ export default function RokMailPage() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
   const [showGradientPicker, setShowGradientPicker] = useState(false);
+  const [showSizePicker, setShowSizePicker] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const [editTab, setEditTab] = useState<'source' | 'text'>('source');
@@ -85,9 +87,10 @@ export default function RokMailPage() {
     textareaRef,
     content,
     onContentChange: setContent,
-    onColorClick: () => { setShowColorPicker(!showColorPicker); setShowGradientPicker(false); },
-    onGradientClick: () => { setShowGradientPicker(!showGradientPicker); setShowColorPicker(false); },
+    onColorClick: () => { setShowColorPicker(!showColorPicker); setShowGradientPicker(false); setShowSizePicker(false); },
+    onGradientClick: () => { setShowGradientPicker(!showGradientPicker); setShowColorPicker(false); setShowSizePicker(false); },
     onSymbolClick: () => { setShowSymbolPicker(!showSymbolPicker); },
+    onSizeClick: () => { setShowSizePicker(!showSizePicker); setShowColorPicker(false); setShowGradientPicker(false); },
     editMode: editTab,
     onUndo: handleUndo,
     onRedo: handleRedo,
@@ -195,6 +198,49 @@ export default function RokMailPage() {
         const newText = content.slice(0, tStart) + symbol + content.slice(tEnd);
         setContent(newText);
         const cursorPos = tStart + symbol.length;
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(cursorPos, cursorPos);
+        }, 0);
+      }
+    },
+    [content, editTab]
+  );
+
+  const handleSizeSelect = useCallback(
+    (size: string) => {
+      saveSnapshot();
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const tStart = textarea.selectionStart;
+      const tEnd = textarea.selectionEnd;
+      const before = `<size=${size}>`;
+      const after = '</size>';
+
+      if (editTab === 'text') {
+        const { positions } = stripWithPositions(content);
+        if (tStart === tEnd) {
+          const mPos = tStart > 0 && positions.length > 0
+            ? positions[Math.min(tStart - 1, positions.length - 1)] + 1
+            : positions.length > 0 ? positions[0] : content.length;
+          const newText = content.slice(0, mPos) + before + after + content.slice(mPos);
+          setContent(newText);
+          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tStart); }, 0);
+        } else {
+          const mStart = tStart < positions.length ? positions[tStart] : content.length;
+          const mEnd = tEnd > 0 && tEnd <= positions.length ? positions[tEnd - 1] + 1 : content.length;
+          const selected = content.slice(mStart, mEnd);
+          const newText = content.slice(0, mStart) + before + selected + after + content.slice(mEnd);
+          setContent(newText);
+          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
+        }
+      } else {
+        const selected = content.slice(tStart, tEnd);
+        const newText = content.slice(0, tStart) + before + selected + after + content.slice(tEnd);
+        setContent(newText);
+        const cursorPos = selected
+          ? tStart + before.length + selected.length + after.length
+          : tStart + before.length;
         setTimeout(() => {
           textarea.focus();
           textarea.setSelectionRange(cursorPos, cursorPos);
@@ -408,6 +454,11 @@ export default function RokMailPage() {
                   isOpen={showSymbolPicker}
                   onClose={() => setShowSymbolPicker(false)}
                   onSelectSymbol={handleSymbolSelect}
+                />
+                <SizePicker
+                  isOpen={showSizePicker}
+                  onClose={() => setShowSizePicker(false)}
+                  onSelectSize={handleSizeSelect}
                 />
               </div>
 

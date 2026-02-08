@@ -1,6 +1,6 @@
 'use client';
 
-import { Bold, Italic, Palette, Minus, Sparkles, Eraser, Blend, Undo2, Redo2 } from 'lucide-react';
+import { Bold, Italic, Palette, Minus, Sparkles, Eraser, Blend, Undo2, Redo2, ALargeSmall } from 'lucide-react';
 import { stripWithPositions } from '@/lib/rok-mail/parser';
 
 interface RokMailToolbarProps {
@@ -10,6 +10,7 @@ interface RokMailToolbarProps {
   onColorClick: () => void;
   onGradientClick: () => void;
   onSymbolClick: () => void;
+  onSizeClick: () => void;
   editMode: 'source' | 'text';
   onUndo: () => void;
   onRedo: () => void;
@@ -37,6 +38,7 @@ export function RokMailToolbar({
   onColorClick,
   onGradientClick,
   onSymbolClick,
+  onSizeClick,
   editMode,
   onUndo,
   onRedo,
@@ -248,6 +250,12 @@ export function RokMailToolbar({
       label: 'Gradient',
       tooltip: 'Color Gradient — select text first',
       action: { type: 'custom', handler: onGradientClick },
+    },
+    {
+      icon: <ALargeSmall size={16} />,
+      label: 'Size',
+      tooltip: 'Font Size',
+      action: { type: 'custom', handler: onSizeClick },
     },
     {
       icon: <Minus size={16} />,
