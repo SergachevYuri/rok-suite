@@ -1,6 +1,6 @@
 'use client';
 
-import { Bold, Italic, Palette, Minus, Sparkles, Eraser, Blend } from 'lucide-react';
+import { Bold, Italic, Palette, Minus, Sparkles, Eraser, Blend, Undo2, Redo2 } from 'lucide-react';
 import { stripWithPositions } from '@/lib/rok-mail/parser';
 
 interface RokMailToolbarProps {
@@ -11,6 +11,11 @@ interface RokMailToolbarProps {
   onGradientClick: () => void;
   onSymbolClick: () => void;
   editMode: 'source' | 'text';
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onSaveSnapshot: () => void;
 }
 
 type ToolbarAction =
@@ -33,6 +38,11 @@ export function RokMailToolbar({
   onGradientClick,
   onSymbolClick,
   editMode,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+  onSaveSnapshot,
 }: RokMailToolbarProps) {
   /** Map a stripped-text selection range to markup positions */
   function toMarkup(sStart: number, sEnd: number): { mStart: number; mEnd: number } {
@@ -55,10 +65,12 @@ export function RokMailToolbar({
 
   function applyAction(action: ToolbarAction) {
     if (action.type === 'custom') {
+      onSaveSnapshot();
       action.handler();
       return;
     }
 
+    onSaveSnapshot();
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -174,6 +186,7 @@ export function RokMailToolbar({
 
     if (tStart === tEnd) return;
 
+    onSaveSnapshot();
     if (editMode === 'text') {
       const { mStart, mEnd } = toMarkup(tStart, tEnd);
       const selected = content.slice(mStart, mEnd);
@@ -208,7 +221,13 @@ export function RokMailToolbar({
 
   function handleKeyDown(e: React.KeyboardEvent) {
     const isMod = e.metaKey || e.ctrlKey;
-    if (isMod && e.key === 'b') {
+    if (isMod && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      onUndo();
+    } else if (isMod && e.key === 'z' && e.shiftKey) {
+      e.preventDefault();
+      onRedo();
+    } else if (isMod && e.key === 'b') {
       e.preventDefault();
       applyAction({ type: 'wrap', before: '<b>', after: '</b>' });
     } else if (isMod && e.key === 'i') {
@@ -217,10 +236,34 @@ export function RokMailToolbar({
     }
   }
 
+  const undoRedoButtons = [
+    { icon: <Undo2 size={16} />, label: 'Undo', tooltip: 'Undo (⌘Z)', handler: onUndo, disabled: !canUndo },
+    { icon: <Redo2 size={16} />, label: 'Redo', tooltip: 'Redo (⌘⇧Z)', handler: onRedo, disabled: !canRedo },
+  ];
+
   return {
     toolbar: (
       <div className="flex items-center gap-0.5 p-2 border-b" style={{ borderColor: 'var(--border)' }}>
-        {buttons.map((btn, i) => (
+        {undoRedoButtons.map((btn) => (
+          <div key={btn.label} className="relative group">
+            <button
+              type="button"
+              onClick={btn.handler}
+              disabled={btn.disabled}
+              className="p-2 rounded-md transition-fast hover:bg-pink-500/10 hover:text-pink-400 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-[var(--text-secondary)]"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {btn.icon}
+            </button>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 rounded-md text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+              style={{ backgroundColor: 'var(--foreground)', color: 'var(--background)' }}
+            >
+              {btn.tooltip}
+            </div>
+          </div>
+        ))}
+        <div className="w-px h-5 mx-1" style={{ backgroundColor: 'var(--border)' }} />
+        {buttons.map((btn) => (
           <div key={btn.label} className="relative group">
             <button
               type="button"

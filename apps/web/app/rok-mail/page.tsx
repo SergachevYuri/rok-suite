@@ -37,6 +37,50 @@ export default function RokMailPage() {
   const [editTab, setEditTab] = useState<'source' | 'text'>('source');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Undo/redo history
+  const historyRef = useRef<string[]>([]);
+  const redoRef = useRef<string[]>([]);
+  const isTypingRef = useRef(false);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const contentRef = useRef(content);
+  contentRef.current = content;
+
+  function pushUndo(before: string) {
+    const last = historyRef.current[historyRef.current.length - 1];
+    if (before !== last) {
+      historyRef.current.push(before);
+      if (historyRef.current.length > 100) historyRef.current.shift();
+    }
+    redoRef.current = [];
+  }
+
+  function saveSnapshot() {
+    pushUndo(contentRef.current);
+    isTypingRef.current = false;
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = undefined;
+    }
+  }
+
+  function handleUndo() {
+    if (historyRef.current.length === 0) return;
+    const prev = historyRef.current.pop()!;
+    redoRef.current.push(contentRef.current);
+    setContent(prev);
+    isTypingRef.current = false;
+  }
+
+  function handleRedo() {
+    if (redoRef.current.length === 0) return;
+    const next = redoRef.current.pop()!;
+    historyRef.current.push(contentRef.current);
+    setContent(next);
+  }
+
+  const canUndo = historyRef.current.length > 0;
+  const canRedo = redoRef.current.length > 0;
+
   const { toolbar, handleKeyDown, applyAction } = RokMailToolbar({
     textareaRef,
     content,
@@ -45,10 +89,16 @@ export default function RokMailPage() {
     onGradientClick: () => { setShowGradientPicker(!showGradientPicker); setShowColorPicker(false); },
     onSymbolClick: () => { setShowSymbolPicker(!showSymbolPicker); },
     editMode: editTab,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    canUndo,
+    canRedo,
+    onSaveSnapshot: saveSnapshot,
   });
 
   const handleColorSelect = useCallback(
     (color: string) => {
+      saveSnapshot();
       const textarea = textareaRef.current;
       if (!textarea) return;
       const tStart = textarea.selectionStart;
@@ -92,6 +142,7 @@ export default function RokMailPage() {
 
   const handleGradientApply = useCallback(
     (startColor: string, endColor: string) => {
+      saveSnapshot();
       const textarea = textareaRef.current;
       if (!textarea) return;
       const tStart = textarea.selectionStart;
@@ -125,6 +176,7 @@ export default function RokMailPage() {
 
   const handleSymbolSelect = useCallback(
     (symbol: string) => {
+      saveSnapshot();
       const textarea = textareaRef.current;
       if (!textarea) return;
       const tStart = textarea.selectionStart;
@@ -170,12 +222,14 @@ export default function RokMailPage() {
   };
 
   const handleTemplateLoad = useCallback((templateContent: string) => {
+    saveSnapshot();
     setContent(templateContent);
     setShowTemplates(false);
   }, []);
 
   const handleAiInsert = useCallback(
     (generatedContent: string) => {
+      saveSnapshot();
       const textarea = textareaRef.current;
       if (!textarea) {
         setContent(generatedContent);
@@ -190,6 +244,7 @@ export default function RokMailPage() {
   );
 
   const handleAiReplace = useCallback((generatedContent: string) => {
+    saveSnapshot();
     setContent(generatedContent);
     setShowAi(false);
   }, []);
@@ -360,6 +415,14 @@ export default function RokMailPage() {
                 ref={textareaRef}
                 value={editTab === 'source' ? content : stripRokMarkup(content)}
                 onChange={(e) => {
+                  // Save undo snapshot at the start of each typing batch
+                  if (!isTypingRef.current) {
+                    pushUndo(content);
+                    isTypingRef.current = true;
+                  }
+                  if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+                  typingTimerRef.current = setTimeout(() => { isTypingRef.current = false; }, 2000);
+
                   if (editTab === 'source') {
                     setContent(e.target.value);
                   } else {
