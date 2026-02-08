@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/AppSidebar';
 import { supabase } from '@/lib/supabase';
 import {
@@ -15,7 +16,7 @@ import {
   type MgeSelection,
 } from '@/lib/supabase/use-mge';
 import {
-  Shield, Lock, Unlock, Plus, Trash2, Pencil, X, Check, ChevronDown, ChevronUp, Search, Crown, Eye, EyeOff,
+  Shield, Lock, Unlock, Plus, Trash2, Pencil, X, Check, ChevronDown, ChevronUp, Search, Crown, Eye, EyeOff, ScrollText,
 } from 'lucide-react';
 import { commanderReferences } from '@/lib/sunset-canyon/commander-reference';
 
@@ -116,8 +117,39 @@ interface RosterMember {
   power: number;
 }
 
+function generateMailContent(evt: MgeEvent, formatDate: (d: string) => string, formatPower: (p: number) => string): string {
+  const commanders = evt.focused_commander.split(',').map(c => c.trim());
+  const commanderText = commanders.join(', ');
+
+  const lines: string[] = [];
+  lines.push(`<b><size=35px><color="#FFD700">⚔ MGE — Mightiest Governor ⚔</color></size></b>`);
+  lines.push('');
+  lines.push(`<b><color="#FFD700">Commander:</color></b> ${commanderText}`);
+  lines.push(`<b><color="#FFD700">Date:</color></b> ${formatDate(evt.event_date)}`);
+  if (evt.notes) {
+    lines.push(`<i>${evt.notes}</i>`);
+  }
+  lines.push('');
+  lines.push(`<b><color="#FF6B6B">━━━━━━ Rankings ━━━━━━</color></b>`);
+  lines.push('');
+
+  for (const sel of evt.mge_selections) {
+    const isFfa = sel.member_name === 'Free for All';
+    const tier = isFfa ? sel.ranking_tier.replace(' Place', '+') : sel.ranking_tier;
+    const name = isFfa ? '<i>Free for all</i>' : sel.member_name;
+    const pts = sel.power_cap ? ` (${formatPower(sel.power_cap)} pts)` : '';
+    lines.push(`<b>${tier}</b> — ${name}${pts}`);
+  }
+
+  lines.push('');
+  lines.push(`<b><color="#FFD700">━━━━━━━━━━━━━━━━━━━━━━</color></b>`);
+
+  return lines.join('\n');
+}
+
 export default function MgePage() {
   const { events, loading, error, refetch } = useMgeEvents();
+  const router = useRouter();
 
   // Admin mode
   const [isAdmin, setIsAdmin] = useState(false);
@@ -229,6 +261,12 @@ export default function MgePage() {
   const handleTogglePublish = async (evt: MgeEvent) => {
     const ok = await updateMgeEvent(evt.id, { is_published: !evt.is_published });
     if (ok) refetch();
+  };
+
+  const handleGenerateMail = (evt: MgeEvent) => {
+    const content = generateMailContent(evt, formatDate, formatPower);
+    localStorage.setItem('rok-mail-draft', content);
+    router.push('/rok-mail');
   };
 
   const handleAddSelection = async (eventId: number) => {
@@ -535,6 +573,10 @@ export default function MgePage() {
                         <button onClick={() => startAddSelection(evt.id)}
                           className="flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-amber-500/10 text-amber-400/70 hover:text-amber-400 transition-fast">
                           <Plus size={12} /> Add Member
+                        </button>
+                        <button onClick={() => handleGenerateMail(evt)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-pink-500/10 text-pink-400/70 hover:text-pink-400 transition-fast">
+                          <ScrollText size={12} /> Mail
                         </button>
                         <div className="flex-1" />
                         <button onClick={() => handleTogglePublish(evt)}

@@ -114,7 +114,7 @@ export default function RokMailPage() {
   const canUndo = historyRef.current.length > 0;
   const canRedo = redoRef.current.length > 0;
 
-  // Load shared mail from URL
+  // Load shared mail from URL or localStorage draft
   useEffect(() => {
     const mailId = searchParams.get('mail');
     if (mailId && !loadedRef.current) {
@@ -129,6 +129,13 @@ export default function RokMailPage() {
           .maybeSingle();
         if (data) setContent(data.content || '');
       })();
+    } else if (!loadedRef.current) {
+      const draft = localStorage.getItem('rok-mail-draft');
+      if (draft) {
+        loadedRef.current = true;
+        setContent(draft);
+        localStorage.removeItem('rok-mail-draft');
+      }
     }
   }, [searchParams]);
 
