@@ -222,19 +222,26 @@ export default function MgePage() {
 
   const handleAddSelection = async (eventId: number) => {
     if (!selMemberName.trim()) return;
+    const pointsValue = selPointsLimit ? parseFloat(selPointsLimit) * 1_000_000 : null;
     const result = await addSelection(
       eventId,
       selMemberName.trim(),
       selTier,
-      selPointsLimit ? parseInt(selPointsLimit) : null,
+      pointsValue,
       selReason.trim() || null
     );
     if (result) {
-      setAddingToEventId(null);
+      // Auto-advance tier and suggest next points limit
+      const tierIdx = RANKING_TIERS.indexOf(selTier as typeof RANKING_TIERS[number]);
+      const nextTier = tierIdx >= 0 && tierIdx < RANKING_TIERS.length - 1
+        ? RANKING_TIERS[tierIdx + 1] : selTier;
+      const nextPoints = selPointsLimit
+        ? Math.max(0, parseFloat(selPointsLimit) - 1) : '';
+
       setSelMemberSearch('');
       setSelMemberName('');
-      setSelTier('1st Place');
-      setSelPointsLimit('');
+      setSelTier(nextTier);
+      setSelPointsLimit(nextPoints ? nextPoints.toString() : '');
       setSelReason('');
       refetch();
     }
@@ -261,11 +268,30 @@ export default function MgePage() {
   };
 
   const startAddSelection = (eventId: number) => {
+    const evt = events.find(e => e.id === eventId);
+    const selections = evt?.mge_selections || [];
+
+    // Auto-default to next tier & points based on existing selections
+    let nextTier = '1st Place';
+    let nextPoints = '';
+
+    if (selections.length > 0) {
+      const lastSel = selections[selections.length - 1];
+      const lastTierIdx = RANKING_TIERS.indexOf(lastSel.ranking_tier as typeof RANKING_TIERS[number]);
+      if (lastTierIdx >= 0 && lastTierIdx < RANKING_TIERS.length - 1) {
+        nextTier = RANKING_TIERS[lastTierIdx + 1];
+      }
+      if (lastSel.power_cap) {
+        const pts = lastSel.power_cap / 1_000_000 - 1;
+        if (pts > 0) nextPoints = pts.toString();
+      }
+    }
+
     setAddingToEventId(eventId);
     setSelMemberSearch('');
     setSelMemberName('');
-    setSelTier('1st Place');
-    setSelPointsLimit('');
+    setSelTier(nextTier);
+    setSelPointsLimit(nextPoints);
     setSelReason('');
   };
 
@@ -543,10 +569,13 @@ export default function MgePage() {
                             className={inputClass} style={inputStyle}>
                             {RANKING_TIERS.map(t => <option key={t} value={t}>{t}</option>)}
                           </select>
-                          {/* Points limit */}
-                          <input type="number" placeholder="Points limit (opt.)" value={selPointsLimit}
-                            onChange={e => setSelPointsLimit(e.target.value)}
-                            className={inputClass} style={inputStyle} />
+                          {/* Points limit (in millions) */}
+                          <div className="relative">
+                            <input type="number" placeholder="Points (M)" value={selPointsLimit}
+                              onChange={e => setSelPointsLimit(e.target.value)}
+                              className={inputClass + ' w-full pr-8'} style={inputStyle} />
+                            <span className="absolute right-3 top-2 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>M</span>
+                          </div>
                         </div>
                         <div className="flex gap-2 items-center">
                           <input type="text" placeholder="Reason (optional)" value={selReason}
