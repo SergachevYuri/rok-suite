@@ -101,46 +101,9 @@ export default function RokMailPage() {
 
   const handleColorSelect = useCallback(
     (color: string) => {
-      saveSnapshot();
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-      const tStart = textarea.selectionStart;
-      const tEnd = textarea.selectionEnd;
-      const before = `<color="${color}">`;
-      const after = '</color>';
-
-      if (editTab === 'text') {
-        const { positions } = stripWithPositions(content);
-        if (tStart === tEnd) {
-          // No selection — insert empty color tags at insertion point
-          const mPos = tStart > 0 && positions.length > 0
-            ? positions[Math.min(tStart - 1, positions.length - 1)] + 1
-            : positions.length > 0 ? positions[0] : content.length;
-          const newText = content.slice(0, mPos) + before + after + content.slice(mPos);
-          setContent(newText);
-          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tStart); }, 0);
-        } else {
-          const mStart = tStart < positions.length ? positions[tStart] : content.length;
-          const mEnd = tEnd > 0 && tEnd <= positions.length ? positions[tEnd - 1] + 1 : content.length;
-          const selected = content.slice(mStart, mEnd);
-          const newText = content.slice(0, mStart) + before + selected + after + content.slice(mEnd);
-          setContent(newText);
-          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
-        }
-      } else {
-        const selected = content.slice(tStart, tEnd);
-        const newText = content.slice(0, tStart) + before + selected + after + content.slice(tEnd);
-        setContent(newText);
-        const cursorPos = selected
-          ? tStart + before.length + selected.length + after.length
-          : tStart + before.length;
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(cursorPos, cursorPos);
-        }, 0);
-      }
+      applyAction({ type: 'wrap', before: `<color="${color}">`, after: '</color>' });
     },
-    [content, editTab]
+    [applyAction]
   );
 
   const handleGradientApply = useCallback(
@@ -209,45 +172,9 @@ export default function RokMailPage() {
 
   const handleSizeSelect = useCallback(
     (size: string) => {
-      saveSnapshot();
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-      const tStart = textarea.selectionStart;
-      const tEnd = textarea.selectionEnd;
-      const before = `<size=${size}>`;
-      const after = '</size>';
-
-      if (editTab === 'text') {
-        const { positions } = stripWithPositions(content);
-        if (tStart === tEnd) {
-          const mPos = tStart > 0 && positions.length > 0
-            ? positions[Math.min(tStart - 1, positions.length - 1)] + 1
-            : positions.length > 0 ? positions[0] : content.length;
-          const newText = content.slice(0, mPos) + before + after + content.slice(mPos);
-          setContent(newText);
-          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tStart); }, 0);
-        } else {
-          const mStart = tStart < positions.length ? positions[tStart] : content.length;
-          const mEnd = tEnd > 0 && tEnd <= positions.length ? positions[tEnd - 1] + 1 : content.length;
-          const selected = content.slice(mStart, mEnd);
-          const newText = content.slice(0, mStart) + before + selected + after + content.slice(mEnd);
-          setContent(newText);
-          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
-        }
-      } else {
-        const selected = content.slice(tStart, tEnd);
-        const newText = content.slice(0, tStart) + before + selected + after + content.slice(tEnd);
-        setContent(newText);
-        const cursorPos = selected
-          ? tStart + before.length + selected.length + after.length
-          : tStart + before.length;
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(cursorPos, cursorPos);
-        }, 0);
-      }
+      applyAction({ type: 'wrap', before: `<size=${size}>`, after: '</size>' });
     },
-    [content, editTab]
+    [applyAction]
   );
 
   const copyToClipboard = async () => {

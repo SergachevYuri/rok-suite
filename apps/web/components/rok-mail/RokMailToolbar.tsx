@@ -163,8 +163,10 @@ export function RokMailToolbar({
             onContentChange(newText);
             setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
           } else {
-            const selected = content.slice(mStart, mEnd);
-            const newText = content.slice(0, mStart) + action.before + selected + action.after + content.slice(mEnd);
+            // Expand range to include adjacent tags so new wrapper nests outside them
+            const { start: wrapStart, end: wrapEnd } = expandToTags(mStart, mEnd);
+            const selected = content.slice(wrapStart, wrapEnd);
+            const newText = content.slice(0, wrapStart) + action.before + selected + action.after + content.slice(wrapEnd);
             onContentChange(newText);
             setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
           }

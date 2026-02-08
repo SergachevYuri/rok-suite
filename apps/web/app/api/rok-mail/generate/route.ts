@@ -51,9 +51,21 @@ export async function POST(request: NextRequest) {
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', errorText);
-      return NextResponse.json({ error: 'AI generation failed' }, { status: 502 });
+      const errorData = await response.json().catch(() => null);
+      const geminiMsg = errorData?.error?.message || '';
+      console.error('Gemini API error:', response.status, geminiMsg);
+
+      if (response.status === 429) {
+        return NextResponse.json(
+          { error: 'Gemini API quota exceeded. The free tier limit has been reached — try again later or upgrade your Google AI plan.' },
+          { status: 429 }
+        );
+      }
+
+      return NextResponse.json(
+        { error: geminiMsg ? `Gemini API error: ${geminiMsg}` : 'AI generation failed' },
+        { status: 502 }
+      );
     }
 
     const data = await response.json();

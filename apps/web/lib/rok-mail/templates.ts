@@ -47,6 +47,6 @@ Your message here.
 Your message here.
 
 ►═════════❂❂❂═════════◄
-<b><color=#800000>— Angmar Leadership</color></b>`,
+<b><color=#800000>— King Fluffy</color></b>`,
   },
 ];
