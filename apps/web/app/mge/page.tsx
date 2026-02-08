@@ -144,6 +144,7 @@ export default function MgePage() {
   const [selTier, setSelTier] = useState('1st Place');
   const [selPointsLimit, setSelPointsLimit] = useState('');
   const [selReason, setSelReason] = useState('');
+  const [selFreeForAll, setSelFreeForAll] = useState(false);
 
   // Roster for member search
   const [roster, setRoster] = useState<RosterMember[]>([]);
@@ -230,10 +231,8 @@ export default function MgePage() {
     if (ok) refetch();
   };
 
-  const isFreeForAll = selTier === 'Free for All';
-
   const handleAddSelection = async (eventId: number) => {
-    const memberName = isFreeForAll ? 'Free for All' : selMemberName.trim();
+    const memberName = selFreeForAll ? 'Free for All' : selMemberName.trim();
     if (!memberName) return;
     const pointsValue = selPointsLimit ? parseFloat(selPointsLimit) * 1_000_000 : null;
     const result = await addSelection(
@@ -256,6 +255,7 @@ export default function MgePage() {
       setSelTier(nextTier);
       setSelPointsLimit(nextPoints ? nextPoints.toString() : '');
       setSelReason('');
+      setSelFreeForAll(false);
       refetch();
     }
   };
@@ -306,6 +306,7 @@ export default function MgePage() {
     setSelTier(nextTier);
     setSelPointsLimit(nextPoints);
     setSelReason('');
+    setSelFreeForAll(false);
   };
 
   const formatDate = (dateStr: string) => {
@@ -555,10 +556,10 @@ export default function MgePage() {
                       <div className="px-4 py-3 border-b bg-amber-500/5" style={{ borderColor: 'var(--border)' }}>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
                           {/* Member search (hidden for Free for All) */}
-                          {isFreeForAll ? (
-                            <div className="md:col-span-2 flex items-center px-3 py-2 rounded-md text-sm"
+                          {selFreeForAll ? (
+                            <div className="md:col-span-2 flex items-center px-3 py-2 rounded-md text-sm italic"
                               style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)' }}>
-                              Open to all members
+                              {selTier.replace(' Place', '')}+ &mdash; Free for all
                             </div>
                           ) : (
                           <div className="relative md:col-span-2">
@@ -611,11 +612,18 @@ export default function MgePage() {
                           </div>
                         </div>
                         <div className="flex gap-2 items-center">
+                          <label className="flex items-center gap-1.5 text-xs cursor-pointer shrink-0"
+                            style={{ color: 'var(--text-secondary)' }}>
+                            <input type="checkbox" checked={selFreeForAll}
+                              onChange={e => setSelFreeForAll(e.target.checked)}
+                              className="rounded" />
+                            Free for All
+                          </label>
                           <input type="text" placeholder="Reason (optional)" value={selReason}
                             onChange={e => setSelReason(e.target.value)}
                             className={inputClass + ' flex-1'} style={inputStyle} />
                           <button onClick={() => handleAddSelection(evt.id)}
-                            disabled={!isFreeForAll && !selMemberName.trim()}
+                            disabled={!selFreeForAll && !selMemberName.trim()}
                             className={btnPrimary + ' disabled:opacity-40'}>Add</button>
                           <button onClick={() => setAddingToEventId(null)} className={btnMuted}
                             style={{ color: 'var(--text-secondary)' }}>Cancel</button>
@@ -634,11 +642,13 @@ export default function MgePage() {
                           <div key={sel.id}
                             className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--background-secondary)] transition-fast">
                             <span className="text-xs font-semibold w-20 shrink-0 text-amber-400">
-                              {sel.ranking_tier}
+                              {sel.member_name === 'Free for All'
+                                ? sel.ranking_tier.replace(' Place', '+')
+                                : sel.ranking_tier}
                             </span>
-                            <span className={`font-medium text-sm flex-1 min-w-0 truncate ${sel.ranking_tier === 'Free for All' ? 'italic' : ''}`}
-                              style={{ color: sel.ranking_tier === 'Free for All' ? 'var(--text-secondary)' : 'var(--foreground)' }}>
-                              {sel.ranking_tier === 'Free for All' ? 'Open to all' : sel.member_name}
+                            <span className={`font-medium text-sm flex-1 min-w-0 truncate ${sel.member_name === 'Free for All' ? 'italic' : ''}`}
+                              style={{ color: sel.member_name === 'Free for All' ? 'var(--text-secondary)' : 'var(--foreground)' }}>
+                              {sel.member_name === 'Free for All' ? 'Free for all' : sel.member_name}
                             </span>
                             {sel.power_cap && (
                               <span className="text-xs px-2 py-0.5 rounded-full shrink-0"
