@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { AppSidebar } from '@/components/AppSidebar';
 import {
   ScrollText,
@@ -21,7 +21,9 @@ import { GradientPicker, generateGradientMarkup } from '@/components/rok-mail/Gr
 import { SymbolPicker } from '@/components/rok-mail/SymbolPicker';
 import { TemplateSelector } from '@/components/rok-mail/TemplateSelector';
 import { AiAssistant } from '@/components/rok-mail/AiAssistant';
+import { MailParts } from '@/components/rok-mail/MailParts';
 import { stripRokMarkup, stripWithPositions, applyTextEdit } from '@/lib/rok-mail/parser';
+import { splitMailContent } from '@/lib/rok-mail/splitter';
 
 type EditorMode = 'edit' | 'split' | 'preview';
 
@@ -37,6 +39,11 @@ export default function RokMailPage() {
   const [showAi, setShowAi] = useState(false);
   const [editTab, setEditTab] = useState<'source' | 'text'>('source');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const mailParts = useMemo(
+    () => content.length > 2000 ? splitMailContent(content) : null,
+    [content]
+  );
 
   // Undo/redo history
   const historyRef = useRef<string[]>([]);
@@ -291,7 +298,7 @@ export default function RokMailPage() {
             })}
           </div>
 
-          <CharCounter content={content} />
+          <CharCounter content={content} partCount={mailParts?.length} />
 
           <button
             type="button"
@@ -424,6 +431,13 @@ export default function RokMailPage() {
             </div>
           )}
         </div>
+
+        {/* Mail Parts (when over limit) */}
+        {mailParts && mailParts.length > 1 && (
+          <div className="mt-4">
+            <MailParts parts={mailParts} />
+          </div>
+        )}
       </div>
 
       {/* Template Selector Modal */}

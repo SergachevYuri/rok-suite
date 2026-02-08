@@ -5,9 +5,10 @@ import { stripRokMarkup } from '@/lib/rok-mail/parser';
 interface CharCounterProps {
   content: string;
   maxChars?: number;
+  partCount?: number;
 }
 
-export function CharCounter({ content, maxChars = 2000 }: CharCounterProps) {
+export function CharCounter({ content, maxChars = 2000, partCount }: CharCounterProps) {
   const rawLen = content.length;
   const plainLen = stripRokMarkup(content).length;
 
@@ -29,7 +30,11 @@ export function CharCounter({ content, maxChars = 2000 }: CharCounterProps) {
         </span>
       )}
       {rawLen > maxChars && (
-        <span className="text-red-400 font-medium animate-pulse">Over limit!</span>
+        partCount && partCount > 1 ? (
+          <span className="text-amber-400 font-medium">→ {partCount} parts</span>
+        ) : (
+          <span className="text-red-400 font-medium animate-pulse">Over limit!</span>
+        )
       )}
     </div>
   );
