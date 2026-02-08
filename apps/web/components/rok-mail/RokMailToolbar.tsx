@@ -63,6 +63,72 @@ export function RokMailToolbar({
     return positions[0];
   }
 
+  /**
+   * Check if text at markup [mStart, mEnd) is wrapped by open/close tags,
+   * allowing other formatting tags in between. Returns wrapping tag positions or null.
+   */
+  function findWrapping(
+    before: string,
+    after: string,
+    mStart: number,
+    mEnd: number
+  ): { tagStart: number; afterEnd: number } | null {
+    // Scan backwards from mStart, skipping opening tags, looking for `before`
+    let pos = mStart;
+    while (pos > 0) {
+      if (content.slice(pos - before.length, pos) === before) {
+        const tagStart = pos - before.length;
+        // Scan forwards from mEnd, skipping closing tags, looking for `after`
+        let endPos = mEnd;
+        while (endPos < content.length) {
+          if (content.startsWith(after, endPos)) {
+            return { tagStart, afterEnd: endPos + after.length };
+          }
+          const closeMatch = content.slice(endPos).match(/^<\/[^>]+>/);
+          if (closeMatch) {
+            endPos += closeMatch[0].length;
+          } else {
+            break;
+          }
+        }
+        return null;
+      }
+      const tagMatch = content.slice(0, pos).match(/<[^/][^>]*>$/);
+      if (tagMatch) {
+        pos -= tagMatch[0].length;
+      } else {
+        break;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Expand a markup range to include adjacent opening tags before mStart
+   * and adjacent closing tags after mEnd.
+   */
+  function expandToTags(mStart: number, mEnd: number): { start: number; end: number } {
+    let start = mStart;
+    let end = mEnd;
+    while (start > 0) {
+      const tagMatch = content.slice(0, start).match(/<[^>]+>$/);
+      if (tagMatch) {
+        start -= tagMatch[0].length;
+      } else {
+        break;
+      }
+    }
+    while (end < content.length) {
+      const tagMatch = content.slice(end).match(/^<[^>]+>/);
+      if (tagMatch) {
+        end += tagMatch[0].length;
+      } else {
+        break;
+      }
+    }
+    return { start, end };
+  }
+
   function applyAction(action: ToolbarAction) {
     if (action.type === 'custom') {
       onSaveSnapshot();
@@ -80,18 +146,26 @@ export function RokMailToolbar({
     if (editMode === 'text') {
       if (action.type === 'wrap') {
         if (tStart === tEnd) {
-          // No selection — insert empty tags at insertion point
           const mPos = toMarkupInsert(tStart);
           const newText = content.slice(0, mPos) + action.before + action.after + content.slice(mPos);
           onContentChange(newText);
           setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tStart); }, 0);
         } else {
           const { mStart, mEnd } = toMarkup(tStart, tEnd);
-          const selected = content.slice(mStart, mEnd);
-          const newText = content.slice(0, mStart) + action.before + selected + action.after + content.slice(mEnd);
-          onContentChange(newText);
-          // Stripped text unchanged, cursor at end of selection
-          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
+          // Toggle: if already wrapped, remove the tags instead
+          const wrapping = findWrapping(action.before, action.after, mStart, mEnd);
+          if (wrapping) {
+            const newText = content.slice(0, wrapping.tagStart)
+              + content.slice(wrapping.tagStart + action.before.length, wrapping.afterEnd - action.after.length)
+              + content.slice(wrapping.afterEnd);
+            onContentChange(newText);
+            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+          } else {
+            const selected = content.slice(mStart, mEnd);
+            const newText = content.slice(0, mStart) + action.before + selected + action.after + content.slice(mEnd);
+            onContentChange(newText);
+            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
+          }
         }
       } else if (action.type === 'insert') {
         const mPos = toMarkupInsert(tStart);
@@ -105,20 +179,38 @@ export function RokMailToolbar({
       const selected = content.slice(tStart, tEnd);
 
       if (action.type === 'wrap') {
-        const newText =
-          content.slice(0, tStart) +
-          action.before +
-          selected +
-          action.after +
-          content.slice(tEnd);
-        onContentChange(newText);
-        const cursorPos = selected
-          ? tStart + action.before.length + selected.length + action.after.length
-          : tStart + action.before.length;
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(cursorPos, cursorPos);
-        }, 0);
+        // Toggle: check if selection includes the tags, or is wrapped by them
+        if (selected.startsWith(action.before) && selected.endsWith(action.after)) {
+          const inner = selected.slice(action.before.length, selected.length - action.after.length);
+          const newText = content.slice(0, tStart) + inner + content.slice(tEnd);
+          onContentChange(newText);
+          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tStart + inner.length); }, 0);
+        } else {
+          const wrapping = findWrapping(action.before, action.after, tStart, tEnd);
+          if (wrapping) {
+            const newText = content.slice(0, wrapping.tagStart)
+              + content.slice(wrapping.tagStart + action.before.length, wrapping.afterEnd - action.after.length)
+              + content.slice(wrapping.afterEnd);
+            onContentChange(newText);
+            const newStart = tStart - action.before.length;
+            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(newStart, newStart + selected.length); }, 0);
+          } else {
+            const newText =
+              content.slice(0, tStart) +
+              action.before +
+              selected +
+              action.after +
+              content.slice(tEnd);
+            onContentChange(newText);
+            const cursorPos = selected
+              ? tStart + action.before.length + selected.length + action.after.length
+              : tStart + action.before.length;
+            setTimeout(() => {
+              textarea.focus();
+              textarea.setSelectionRange(cursorPos, cursorPos);
+            }, 0);
+          }
+        }
       } else if (action.type === 'insert') {
         const newText =
           content.slice(0, tStart) + action.text + content.slice(tEnd);
@@ -189,7 +281,9 @@ export function RokMailToolbar({
     onSaveSnapshot();
     if (editMode === 'text') {
       const { mStart, mEnd } = toMarkup(tStart, tEnd);
-      const selected = content.slice(mStart, mEnd);
+      // Expand range to include wrapping tags (e.g. <b><color>text</color></b>)
+      const { start: expStart, end: expEnd } = expandToTags(mStart, mEnd);
+      const selected = content.slice(expStart, expEnd);
       const stripped = selected
         .replace(/<\/?b>/gi, '')
         .replace(/<\/?i>/gi, '')
@@ -197,9 +291,8 @@ export function RokMailToolbar({
         .replace(/<\/color>/gi, '')
         .replace(/<size=["']?[^"'>]*["']?>/gi, '')
         .replace(/<\/size>/gi, '');
-      const newText = content.slice(0, mStart) + stripped + content.slice(mEnd);
+      const newText = content.slice(0, expStart) + stripped + content.slice(expEnd);
       onContentChange(newText);
-      // Stripped text unchanged, keep same selection
       setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
     } else {
       const selected = content.slice(tStart, tEnd);
