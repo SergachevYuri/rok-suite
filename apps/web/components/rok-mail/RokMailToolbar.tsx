@@ -177,6 +177,15 @@ export function RokMailToolbar({
     return { start, end };
   }
 
+  /** Restore cursor position and scroll after a content change */
+  function restoreCursor(textarea: HTMLTextAreaElement, selStart: number, selEnd: number, scroll: number) {
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(selStart, selEnd);
+      textarea.scrollTop = scroll;
+    }, 0);
+  }
+
   function applyAction(action: ToolbarAction) {
     if (action.type === 'custom') {
       onSaveSnapshot();
@@ -190,6 +199,7 @@ export function RokMailToolbar({
 
     const tStart = textarea.selectionStart;
     const tEnd = textarea.selectionEnd;
+    const scroll = textarea.scrollTop;
 
     if (editMode === 'text') {
       if (action.type === 'wrap') {
@@ -197,7 +207,7 @@ export function RokMailToolbar({
           const mPos = toMarkupInsert(tStart);
           const newText = content.slice(0, mPos) + action.before + action.after + content.slice(mPos);
           onContentChange(newText);
-          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tStart); }, 0);
+          restoreCursor(textarea, tStart, tStart, scroll);
         } else {
           const { mStart, mEnd } = toMarkup(tStart, tEnd);
           // Toggle: if already wrapped, remove the tags instead
@@ -207,14 +217,14 @@ export function RokMailToolbar({
               + content.slice(wrapping.tagStart + action.before.length, wrapping.afterEnd - action.after.length)
               + content.slice(wrapping.afterEnd);
             onContentChange(newText);
-            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+            restoreCursor(textarea, tStart, tEnd, scroll);
           } else {
             // Expand range to include adjacent tags so new wrapper nests outside them
             const { start: wrapStart, end: wrapEnd } = expandToTags(mStart, mEnd);
             const selected = content.slice(wrapStart, wrapEnd);
             const newText = content.slice(0, wrapStart) + action.before + selected + action.after + content.slice(wrapEnd);
             onContentChange(newText);
-            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+            restoreCursor(textarea, tStart, tEnd, scroll);
           }
         }
       } else if (action.type === 'insert') {
@@ -222,7 +232,7 @@ export function RokMailToolbar({
         const newText = content.slice(0, mPos) + action.text + content.slice(mPos);
         onContentChange(newText);
         const cursorPos = tStart + action.text.length;
-        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(cursorPos, cursorPos); }, 0);
+        restoreCursor(textarea, cursorPos, cursorPos, scroll);
       }
     } else {
       // Source mode — operate directly on markup
@@ -233,7 +243,7 @@ export function RokMailToolbar({
           const inner = selected.slice(action.before.length, selected.length - action.after.length);
           const newText = content.slice(0, tStart) + inner + content.slice(tEnd);
           onContentChange(newText);
-          setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tStart + inner.length); }, 0);
+          restoreCursor(textarea, tStart, tStart + inner.length, scroll);
         } else {
           const wrapping = findWrapping(action.before, action.after, tStart, tEnd);
           if (wrapping) {
@@ -242,7 +252,7 @@ export function RokMailToolbar({
               + content.slice(wrapping.afterEnd);
             onContentChange(newText);
             const newStart = tStart - action.before.length;
-            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(newStart, newStart + selected.length); }, 0);
+            restoreCursor(textarea, newStart, newStart + selected.length, scroll);
           } else {
             const newText =
               content.slice(0, tStart) +
@@ -254,10 +264,7 @@ export function RokMailToolbar({
             const cursorPos = selected
               ? tStart + action.before.length + selected.length + action.after.length
               : tStart + action.before.length;
-            setTimeout(() => {
-              textarea.focus();
-              textarea.setSelectionRange(cursorPos, cursorPos);
-            }, 0);
+            restoreCursor(textarea, cursorPos, cursorPos, scroll);
           }
         }
       } else if (action.type === 'insert') {
@@ -265,10 +272,7 @@ export function RokMailToolbar({
           content.slice(0, tStart) + action.text + content.slice(tEnd);
         onContentChange(newText);
         const cursorPos = tStart + action.text.length;
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(cursorPos, cursorPos);
-        }, 0);
+        restoreCursor(textarea, cursorPos, cursorPos, scroll);
       }
     }
   }
@@ -284,6 +288,7 @@ export function RokMailToolbar({
 
     const tStart = textarea.selectionStart;
     const tEnd = textarea.selectionEnd;
+    const scroll = textarea.scrollTop;
 
     const newSize = Math.max(SIZE_MIN, Math.min(SIZE_MAX, fontSize + direction * SIZE_STEP));
     if (newSize === fontSize) return;
@@ -296,22 +301,19 @@ export function RokMailToolbar({
 
       const existing = findAnySizeWrapping(mStart, mEnd);
       if (existing) {
-        // Replace the size value in the existing tag
         const newTag = `<size=${newSize}px>`;
         const newText = content.slice(0, existing.tagStart) + newTag
           + content.slice(existing.tagStart + existing.openTag.length);
         onContentChange(newText);
-        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+        restoreCursor(textarea, tStart, tEnd, scroll);
       } else if (tStart !== tEnd) {
-        // No existing size — wrap the selection
         const { start: wrapStart, end: wrapEnd } = expandToTags(mStart, mEnd);
         const selected = content.slice(wrapStart, wrapEnd);
         const newText = content.slice(0, wrapStart) + `<size=${newSize}px>` + selected + '</size>' + content.slice(wrapEnd);
         onContentChange(newText);
-        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+        restoreCursor(textarea, tStart, tEnd, scroll);
       }
     } else {
-      // Source mode
       const existing = findAnySizeWrapping(tStart, tEnd);
       if (existing) {
         const newTag = `<size=${newSize}px>`;
@@ -319,17 +321,14 @@ export function RokMailToolbar({
           + content.slice(existing.tagStart + existing.openTag.length);
         onContentChange(newText);
         const offset = newTag.length - existing.openTag.length;
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(tStart + offset, tEnd + offset);
-        }, 0);
+        restoreCursor(textarea, tStart + offset, tEnd + offset, scroll);
       } else if (tStart !== tEnd) {
         const selected = content.slice(tStart, tEnd);
         const before = `<size=${newSize}px>`;
         const newText = content.slice(0, tStart) + before + selected + '</size>' + content.slice(tEnd);
         onContentChange(newText);
         const cursorPos = tStart + before.length + selected.length + 7;
-        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(cursorPos, cursorPos); }, 0);
+        restoreCursor(textarea, cursorPos, cursorPos, scroll);
       }
     }
   }
@@ -338,11 +337,11 @@ export function RokMailToolbar({
     const num = parseInt(value, 10);
     if (!isNaN(num) && num >= SIZE_MIN && num <= SIZE_MAX) {
       onFontSizeChange(num);
-      // Apply the size
       const textarea = textareaRef.current;
       if (!textarea) return;
       const tStart = textarea.selectionStart;
       const tEnd = textarea.selectionEnd;
+      const scroll = textarea.scrollTop;
 
       if (tStart !== tEnd) {
         onSaveSnapshot();
@@ -354,13 +353,13 @@ export function RokMailToolbar({
             const newText = content.slice(0, existing.tagStart) + newTag
               + content.slice(existing.tagStart + existing.openTag.length);
             onContentChange(newText);
-            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+            restoreCursor(textarea, tStart, tEnd, scroll);
           } else {
             const { start: wrapStart, end: wrapEnd } = expandToTags(mStart, mEnd);
             const selected = content.slice(wrapStart, wrapEnd);
             const newText = content.slice(0, wrapStart) + `<size=${num}px>` + selected + '</size>' + content.slice(wrapEnd);
             onContentChange(newText);
-            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+            restoreCursor(textarea, tStart, tEnd, scroll);
           }
         } else {
           const existing = findAnySizeWrapping(tStart, tEnd);
@@ -433,6 +432,7 @@ export function RokMailToolbar({
 
     const tStart = textarea.selectionStart;
     const tEnd = textarea.selectionEnd;
+    const scroll = textarea.scrollTop;
 
     if (tStart === tEnd) return;
 
@@ -450,7 +450,7 @@ export function RokMailToolbar({
         .replace(/<\/size>/gi, '');
       const newText = content.slice(0, expStart) + stripped + content.slice(expEnd);
       onContentChange(newText);
-      setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+      restoreCursor(textarea, tStart, tEnd, scroll);
     } else {
       const selected = content.slice(tStart, tEnd);
       const stripped = selected
@@ -462,10 +462,7 @@ export function RokMailToolbar({
         .replace(/<\/size>/gi, '');
       const newText = content.slice(0, tStart) + stripped + content.slice(tEnd);
       onContentChange(newText);
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(tStart, tStart + stripped.length);
-      }, 0);
+      restoreCursor(textarea, tStart, tStart + stripped.length, scroll);
     }
   }
 

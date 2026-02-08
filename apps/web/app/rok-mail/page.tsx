@@ -576,23 +576,20 @@ export default function RokMailPage() {
             </div>
           )}
 
-          {/* Preview Panel */}
+          {/* Preview Panel — shows multi-part tabs when split, otherwise single preview */}
           {(editorMode === 'preview' || editorMode === 'split') && (
-            <div
-              className="rounded-lg border overflow-hidden"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              <RokMailPreview content={content} />
-            </div>
+            mailParts && mailParts.length > 1 ? (
+              <MailParts parts={mailParts} />
+            ) : (
+              <div
+                className="rounded-lg border overflow-hidden"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                <RokMailPreview content={content} />
+              </div>
+            )
           )}
         </div>
-
-        {/* Mail Parts (when over limit) */}
-        {mailParts && mailParts.length > 1 && (
-          <div className="mt-4">
-            <MailParts parts={mailParts} />
-          </div>
-        )}
       </div>
 
       {/* Template Selector Modal */}
