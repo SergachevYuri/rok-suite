@@ -1,7 +1,11 @@
 'use client';
 
-import { Bold, Italic, Palette, Minus, Sparkles, Eraser, Blend, Undo2, Redo2, ALargeSmall } from 'lucide-react';
+import { Bold, Italic, Palette, Minus, Plus, Sparkles, Eraser, Blend, Undo2, Redo2 } from 'lucide-react';
 import { stripWithPositions } from '@/lib/rok-mail/parser';
+
+const SIZE_STEP = 5;
+const SIZE_MIN = 10;
+const SIZE_MAX = 80;
 
 interface RokMailToolbarProps {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -10,7 +14,8 @@ interface RokMailToolbarProps {
   onColorClick: () => void;
   onGradientClick: () => void;
   onSymbolClick: () => void;
-  onSizeClick: () => void;
+  fontSize: number;
+  onFontSizeChange: (size: number) => void;
   editMode: 'source' | 'text';
   onUndo: () => void;
   onRedo: () => void;
@@ -38,7 +43,8 @@ export function RokMailToolbar({
   onColorClick,
   onGradientClick,
   onSymbolClick,
-  onSizeClick,
+  fontSize,
+  onFontSizeChange,
   editMode,
   onUndo,
   onRedo,
@@ -75,16 +81,56 @@ export function RokMailToolbar({
     mStart: number,
     mEnd: number
   ): { tagStart: number; afterEnd: number } | null {
-    // Scan backwards from mStart, skipping opening tags, looking for `before`
     let pos = mStart;
     while (pos > 0) {
       if (content.slice(pos - before.length, pos) === before) {
         const tagStart = pos - before.length;
-        // Scan forwards from mEnd, skipping closing tags, looking for `after`
         let endPos = mEnd;
         while (endPos < content.length) {
           if (content.startsWith(after, endPos)) {
             return { tagStart, afterEnd: endPos + after.length };
+          }
+          const closeMatch = content.slice(endPos).match(/^<\/[^>]+>/);
+          if (closeMatch) {
+            endPos += closeMatch[0].length;
+          } else {
+            break;
+          }
+        }
+        return null;
+      }
+      const tagMatch = content.slice(0, pos).match(/<[^/][^>]*>$/);
+      if (tagMatch) {
+        pos -= tagMatch[0].length;
+      } else {
+        break;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find any <size=NNpx> wrapping around the markup range.
+   * Returns the tag info or null.
+   */
+  function findAnySizeWrapping(
+    mStart: number,
+    mEnd: number
+  ): { tagStart: number; afterEnd: number; size: number; openTag: string } | null {
+    let pos = mStart;
+    while (pos > 0) {
+      const sizeMatch = content.slice(0, pos).match(/<size=(\d+)px>$/i);
+      if (sizeMatch) {
+        const tagStart = pos - sizeMatch[0].length;
+        let endPos = mEnd;
+        while (endPos < content.length) {
+          if (content.startsWith('</size>', endPos)) {
+            return {
+              tagStart,
+              afterEnd: endPos + 7,
+              size: parseInt(sizeMatch[1], 10),
+              openTag: sizeMatch[0],
+            };
           }
           const closeMatch = content.slice(endPos).match(/^<\/[^>]+>/);
           if (closeMatch) {
@@ -168,7 +214,7 @@ export function RokMailToolbar({
             const selected = content.slice(wrapStart, wrapEnd);
             const newText = content.slice(0, wrapStart) + action.before + selected + action.after + content.slice(wrapEnd);
             onContentChange(newText);
-            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tEnd, tEnd); }, 0);
+            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
           }
         }
       } else if (action.type === 'insert') {
@@ -183,7 +229,6 @@ export function RokMailToolbar({
       const selected = content.slice(tStart, tEnd);
 
       if (action.type === 'wrap') {
-        // Toggle: check if selection includes the tags, or is wrapped by them
         if (selected.startsWith(action.before) && selected.endsWith(action.after)) {
           const inner = selected.slice(action.before.length, selected.length - action.after.length);
           const newText = content.slice(0, tStart) + inner + content.slice(tEnd);
@@ -228,7 +273,113 @@ export function RokMailToolbar({
     }
   }
 
-  const buttons: ToolbarButton[] = [
+  /**
+   * Change font size: detects existing <size> wrapping and replaces the value,
+   * or wraps with a new tag if none exists. Preserves selection.
+   */
+  function handleSizeChange(direction: 1 | -1) {
+    onSaveSnapshot();
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const tStart = textarea.selectionStart;
+    const tEnd = textarea.selectionEnd;
+
+    const newSize = Math.max(SIZE_MIN, Math.min(SIZE_MAX, fontSize + direction * SIZE_STEP));
+    if (newSize === fontSize) return;
+    onFontSizeChange(newSize);
+
+    if (editMode === 'text') {
+      const { mStart, mEnd } = tStart !== tEnd
+        ? toMarkup(tStart, tEnd)
+        : { mStart: toMarkupInsert(tStart), mEnd: toMarkupInsert(tStart) };
+
+      const existing = findAnySizeWrapping(mStart, mEnd);
+      if (existing) {
+        // Replace the size value in the existing tag
+        const newTag = `<size=${newSize}px>`;
+        const newText = content.slice(0, existing.tagStart) + newTag
+          + content.slice(existing.tagStart + existing.openTag.length);
+        onContentChange(newText);
+        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+      } else if (tStart !== tEnd) {
+        // No existing size — wrap the selection
+        const { start: wrapStart, end: wrapEnd } = expandToTags(mStart, mEnd);
+        const selected = content.slice(wrapStart, wrapEnd);
+        const newText = content.slice(0, wrapStart) + `<size=${newSize}px>` + selected + '</size>' + content.slice(wrapEnd);
+        onContentChange(newText);
+        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+      }
+    } else {
+      // Source mode
+      const existing = findAnySizeWrapping(tStart, tEnd);
+      if (existing) {
+        const newTag = `<size=${newSize}px>`;
+        const newText = content.slice(0, existing.tagStart) + newTag
+          + content.slice(existing.tagStart + existing.openTag.length);
+        onContentChange(newText);
+        const offset = newTag.length - existing.openTag.length;
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(tStart + offset, tEnd + offset);
+        }, 0);
+      } else if (tStart !== tEnd) {
+        const selected = content.slice(tStart, tEnd);
+        const before = `<size=${newSize}px>`;
+        const newText = content.slice(0, tStart) + before + selected + '</size>' + content.slice(tEnd);
+        onContentChange(newText);
+        const cursorPos = tStart + before.length + selected.length + 7;
+        setTimeout(() => { textarea.focus(); textarea.setSelectionRange(cursorPos, cursorPos); }, 0);
+      }
+    }
+  }
+
+  function handleFontSizeInput(value: string) {
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= SIZE_MIN && num <= SIZE_MAX) {
+      onFontSizeChange(num);
+      // Apply the size
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const tStart = textarea.selectionStart;
+      const tEnd = textarea.selectionEnd;
+
+      if (tStart !== tEnd) {
+        onSaveSnapshot();
+        if (editMode === 'text') {
+          const { mStart, mEnd } = toMarkup(tStart, tEnd);
+          const existing = findAnySizeWrapping(mStart, mEnd);
+          if (existing) {
+            const newTag = `<size=${num}px>`;
+            const newText = content.slice(0, existing.tagStart) + newTag
+              + content.slice(existing.tagStart + existing.openTag.length);
+            onContentChange(newText);
+            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+          } else {
+            const { start: wrapStart, end: wrapEnd } = expandToTags(mStart, mEnd);
+            const selected = content.slice(wrapStart, wrapEnd);
+            const newText = content.slice(0, wrapStart) + `<size=${num}px>` + selected + '</size>' + content.slice(wrapEnd);
+            onContentChange(newText);
+            setTimeout(() => { textarea.focus(); textarea.setSelectionRange(tStart, tEnd); }, 0);
+          }
+        } else {
+          const existing = findAnySizeWrapping(tStart, tEnd);
+          if (existing) {
+            const newTag = `<size=${num}px>`;
+            const newText = content.slice(0, existing.tagStart) + newTag
+              + content.slice(existing.tagStart + existing.openTag.length);
+            onContentChange(newText);
+          } else {
+            const selected = content.slice(tStart, tEnd);
+            const newText = content.slice(0, tStart) + `<size=${num}px>` + selected + '</size>' + content.slice(tEnd);
+            onContentChange(newText);
+          }
+        }
+      }
+    }
+  }
+
+  const formatButtons: ToolbarButton[] = [
     {
       icon: <Bold size={16} />,
       label: 'B',
@@ -253,12 +404,9 @@ export function RokMailToolbar({
       tooltip: 'Color Gradient — select text first',
       action: { type: 'custom', handler: onGradientClick },
     },
-    {
-      icon: <ALargeSmall size={16} />,
-      label: 'Size',
-      tooltip: 'Font Size',
-      action: { type: 'custom', handler: onSizeClick },
-    },
+  ];
+
+  const insertButtons: ToolbarButton[] = [
     {
       icon: <Minus size={16} />,
       label: 'Divider',
@@ -291,7 +439,6 @@ export function RokMailToolbar({
     onSaveSnapshot();
     if (editMode === 'text') {
       const { mStart, mEnd } = toMarkup(tStart, tEnd);
-      // Expand range to include wrapping tags (e.g. <b><color>text</color></b>)
       const { start: expStart, end: expEnd } = expandToTags(mStart, mEnd);
       const selected = content.slice(expStart, expEnd);
       const stripped = selected
@@ -344,6 +491,26 @@ export function RokMailToolbar({
     { icon: <Redo2 size={16} />, label: 'Redo', tooltip: 'Redo (⌘⇧Z)', handler: onRedo, disabled: !canRedo },
   ];
 
+  function renderButton(btn: ToolbarButton) {
+    return (
+      <div key={btn.label} className="relative group">
+        <button
+          type="button"
+          onClick={() => applyAction(btn.action)}
+          className="p-2 rounded-md transition-fast hover:bg-pink-500/10 hover:text-pink-400"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          {btn.icon}
+        </button>
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 rounded-md text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+          style={{ backgroundColor: 'var(--foreground)', color: 'var(--background)' }}
+        >
+          {btn.tooltip}
+        </div>
+      </div>
+    );
+  }
+
   return {
     toolbar: (
       <div className="flex items-center gap-0.5 p-2 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -366,23 +533,45 @@ export function RokMailToolbar({
           </div>
         ))}
         <div className="w-px h-5 mx-1" style={{ backgroundColor: 'var(--border)' }} />
-        {buttons.map((btn) => (
-          <div key={btn.label} className="relative group">
-            <button
-              type="button"
-              onClick={() => applyAction(btn.action)}
-              className="p-2 rounded-md transition-fast hover:bg-pink-500/10 hover:text-pink-400"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              {btn.icon}
-            </button>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 rounded-md text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
-              style={{ backgroundColor: 'var(--foreground)', color: 'var(--background)' }}
-            >
-              {btn.tooltip}
-            </div>
+        {formatButtons.map(renderButton)}
+        {/* Inline font size: − [value] + */}
+        <div className="flex items-center mx-0.5 relative group">
+          <button
+            type="button"
+            onClick={() => handleSizeChange(-1)}
+            className="p-1.5 rounded-l-md border border-r-0 transition-fast hover:bg-pink-500/10 hover:text-pink-400"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          >
+            <Minus size={12} />
+          </button>
+          <input
+            type="number"
+            value={fontSize}
+            onChange={(e) => handleFontSizeInput(e.target.value)}
+            className="w-9 text-center text-[11px] font-medium py-1.5 border-y focus:outline-none"
+            style={{
+              borderColor: 'var(--border)',
+              backgroundColor: 'transparent',
+              color: 'var(--foreground)',
+            }}
+            min={SIZE_MIN}
+            max={SIZE_MAX}
+          />
+          <button
+            type="button"
+            onClick={() => handleSizeChange(1)}
+            className="p-1.5 rounded-r-md border border-l-0 transition-fast hover:bg-pink-500/10 hover:text-pink-400"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          >
+            <Plus size={12} />
+          </button>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 px-2 py-1 rounded-md text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
+            style={{ backgroundColor: 'var(--foreground)', color: 'var(--background)' }}
+          >
+            Font Size (px)
           </div>
-        ))}
+        </div>
+        {insertButtons.map(renderButton)}
       </div>
     ),
     handleKeyDown,

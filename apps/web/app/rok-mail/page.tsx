@@ -19,7 +19,6 @@ import { CharCounter } from '@/components/rok-mail/CharCounter';
 import { ColorPicker } from '@/components/rok-mail/ColorPicker';
 import { GradientPicker, generateGradientMarkup } from '@/components/rok-mail/GradientPicker';
 import { SymbolPicker } from '@/components/rok-mail/SymbolPicker';
-import { SizePicker } from '@/components/rok-mail/SizePicker';
 import { TemplateSelector } from '@/components/rok-mail/TemplateSelector';
 import { AiAssistant } from '@/components/rok-mail/AiAssistant';
 import { stripRokMarkup, stripWithPositions, applyTextEdit } from '@/lib/rok-mail/parser';
@@ -33,7 +32,7 @@ export default function RokMailPage() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSymbolPicker, setShowSymbolPicker] = useState(false);
   const [showGradientPicker, setShowGradientPicker] = useState(false);
-  const [showSizePicker, setShowSizePicker] = useState(false);
+  const [fontSize, setFontSize] = useState(30);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const [editTab, setEditTab] = useState<'source' | 'text'>('source');
@@ -87,10 +86,11 @@ export default function RokMailPage() {
     textareaRef,
     content,
     onContentChange: setContent,
-    onColorClick: () => { setShowColorPicker(!showColorPicker); setShowGradientPicker(false); setShowSizePicker(false); },
-    onGradientClick: () => { setShowGradientPicker(!showGradientPicker); setShowColorPicker(false); setShowSizePicker(false); },
+    onColorClick: () => { setShowColorPicker(!showColorPicker); setShowGradientPicker(false); },
+    onGradientClick: () => { setShowGradientPicker(!showGradientPicker); setShowColorPicker(false); },
     onSymbolClick: () => { setShowSymbolPicker(!showSymbolPicker); },
-    onSizeClick: () => { setShowSizePicker(!showSizePicker); setShowColorPicker(false); setShowGradientPicker(false); },
+    fontSize,
+    onFontSizeChange: setFontSize,
     editMode: editTab,
     onUndo: handleUndo,
     onRedo: handleRedo,
@@ -168,13 +168,6 @@ export default function RokMailPage() {
       }
     },
     [content, editTab]
-  );
-
-  const handleSizeSelect = useCallback(
-    (size: string) => {
-      applyAction({ type: 'wrap', before: `<size=${size}>`, after: '</size>' });
-    },
-    [applyAction]
   );
 
   const copyToClipboard = async () => {
@@ -381,11 +374,6 @@ export default function RokMailPage() {
                   isOpen={showSymbolPicker}
                   onClose={() => setShowSymbolPicker(false)}
                   onSelectSymbol={handleSymbolSelect}
-                />
-                <SizePicker
-                  isOpen={showSizePicker}
-                  onClose={() => setShowSizePicker(false)}
-                  onSelectSize={handleSizeSelect}
                 />
               </div>
 

@@ -1,5 +1,6 @@
 export type TemplateCategory =
   | 'angmar'
+  | 'mng'
   | 'kingdom';
 
 export interface MailTemplate {
@@ -12,6 +13,7 @@ export interface MailTemplate {
 
 export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
   angmar: 'Angmar',
+  mng: 'MNG',
   kingdom: 'Kingdom',
 };
 
@@ -31,6 +33,23 @@ Your message here.
 
 ►═════════❂❂❂═════════◄
 <b><color=#800000>— Angmar Leadership</color></b>`,
+  },
+
+  // ── MNG Templates ──
+  {
+    id: 'mng-mail',
+    name: 'MNG Mail',
+    category: 'mng',
+    description: 'Standard MNG alliance mail format',
+    content: `<size=30px><color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff3333>A</color><color=#ff6666>R</color><color=#ff9999>D</color><color=#ffcccc>S</color></size>
+►═════════❂❂❂═════════◄
+
+<b><color=#ff3333>SUBJECT TITLE HERE</color></b>
+
+Your message here.
+
+►═════════❂❂❂═════════◄
+<b><color=#800000>— MNG Leadership</color></b>`,
   },
 
   // ── Kingdom Templates ──
