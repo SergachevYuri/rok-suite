@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/AppSidebar';
 import {
   ScrollText,
@@ -12,7 +13,10 @@ import {
   Eye,
   Columns2,
   Type,
+  Share2,
+  Link,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { RokMailToolbar } from '@/components/rok-mail/RokMailToolbar';
 import { RokMailPreview } from '@/components/rok-mail/RokMailPreview';
 import { CharCounter } from '@/components/rok-mail/CharCounter';
@@ -27,7 +31,18 @@ import { splitMailContent } from '@/lib/rok-mail/splitter';
 
 type EditorMode = 'edit' | 'split' | 'preview';
 
+function generateShareId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 export default function RokMailPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [content, setContent] = useState('');
   const [editorMode, setEditorMode] = useState<EditorMode>('split');
   const [copied, setCopied] = useState(false);
@@ -38,7 +53,12 @@ export default function RokMailPage() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const [editTab, setEditTab] = useState<'source' | 'text'>('source');
+  const [shareId, setShareId] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const shareIdRef = useRef<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const loadedRef = useRef(false);
 
   const mailParts = useMemo(
     () => content.length > 2000 ? splitMailContent(content) : null,
@@ -88,6 +108,67 @@ export default function RokMailPage() {
 
   const canUndo = historyRef.current.length > 0;
   const canRedo = redoRef.current.length > 0;
+
+  // Load shared mail from URL
+  useEffect(() => {
+    const mailId = searchParams.get('mail');
+    if (mailId && !loadedRef.current) {
+      loadedRef.current = true;
+      shareIdRef.current = mailId;
+      setShareId(mailId);
+      (async () => {
+        const { data } = await supabase
+          .from('rok_mail')
+          .select('content')
+          .eq('share_id', mailId)
+          .maybeSingle();
+        if (data) setContent(data.content || '');
+      })();
+    }
+  }, [searchParams]);
+
+  // Auto-save when content changes (debounced)
+  useEffect(() => {
+    if (!shareIdRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      await supabase
+        .from('rok_mail')
+        .update({ content })
+        .eq('share_id', shareIdRef.current);
+    }, 1000);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [content]);
+
+  async function handleShare() {
+    if (shareId) {
+      // Already shared — copy link
+      const url = `${window.location.origin}/rok-mail?mail=${shareId}`;
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+      return;
+    }
+
+    const newId = generateShareId();
+    const { error } = await supabase
+      .from('rok_mail')
+      .insert([{ share_id: newId, content }]);
+
+    if (error) {
+      console.error('Failed to create share link:', error);
+      return;
+    }
+
+    shareIdRef.current = newId;
+    setShareId(newId);
+    router.push(`/rok-mail?mail=${newId}`);
+
+    const url = `${window.location.origin}/rok-mail?mail=${newId}`;
+    await navigator.clipboard.writeText(url);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  }
 
   const { toolbar, handleKeyDown, applyAction } = RokMailToolbar({
     textareaRef,
@@ -311,6 +392,21 @@ export default function RokMailPage() {
           >
             {copied ? <Check size={16} /> : <Copy size={16} />}
             {copied ? 'Copied!' : 'Copy'}
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-fast ${
+              linkCopied
+                ? 'bg-emerald-500/20 text-emerald-400'
+                : shareId
+                  ? 'bg-fuchsia-500/20 text-fuchsia-400 hover:bg-fuchsia-500/30'
+                  : 'hover:bg-pink-500/10'
+            }`}
+            style={!shareId && !linkCopied ? { color: 'var(--text-secondary)' } : undefined}
+          >
+            {linkCopied ? <Check size={16} /> : shareId ? <Link size={16} /> : <Share2 size={16} />}
+            {linkCopied ? 'Link copied!' : shareId ? 'Copy Link' : 'Share'}
           </button>
         </div>
 
