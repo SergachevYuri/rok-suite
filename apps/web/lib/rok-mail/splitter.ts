@@ -10,6 +10,11 @@ interface OpenTag {
   close: string;
 }
 
+/** Check if content contains manual --- break markers */
+export function hasManualBreaks(content: string): boolean {
+  return /(?:^|\n)---(?:\n|$)/.test(content);
+}
+
 /** Find all tag spans (positions occupied by markup tags) */
 function findTagSpans(markup: string): TagSpan[] {
   const spans: TagSpan[] = [];
@@ -44,7 +49,6 @@ function getOpenTagsAt(markup: string, endPos: number): OpenTag[] {
     if (match.index >= endPos) break;
     const tag = match[0];
     if (tag.startsWith('</')) {
-      // Close tag — pop matching open tag from stack
       for (let i = stack.length - 1; i >= 0; i--) {
         if (stack[i].close.toLowerCase() === tag.toLowerCase()) {
           stack.splice(i, 1);
@@ -75,7 +79,7 @@ function findBestSplit(
   let best = -1;
   let idx = region.lastIndexOf('\n\n');
   while (idx >= 0) {
-    const absPos = start + idx + 2; // after the \n\n
+    const absPos = start + idx + 2;
     if (!isInsideTag(absPos, tagSpans)) {
       best = absPos;
       break;
@@ -116,63 +120,136 @@ function findBestSplit(
   return fallback > start ? fallback : maxEnd;
 }
 
-/**
- * Split mail content into parts that each fit within the character limit.
- * Each part is valid self-contained markup with proper tag nesting.
- * Parts are prefixed with "(Part X/N)\n".
- */
-export function splitMailContent(rawMarkup: string, maxChars = 2000): string[] {
-  if (rawMarkup.length <= maxChars) return [rawMarkup];
+/** Extract header (first paragraph before \n\n) and body */
+function extractHeader(markup: string): { header: string; body: string } {
+  const idx = markup.indexOf('\n\n');
+  if (idx < 0) return { header: '', body: markup };
+  return { header: markup.slice(0, idx + 2), body: markup.slice(idx + 2) };
+}
 
-  const tagSpans = findTagSpans(rawMarkup);
+/** Split body text at manual --- break markers, fixing tag nesting at each split */
+function splitBodyAtBreaks(body: string): string[] {
+  const regex = /(?:^|\n)---(?:\n|$)/g;
+  const breaks: { start: number; end: number }[] = [];
+  let m;
+  while ((m = regex.exec(body)) !== null) {
+    breaks.push({ start: m.index, end: m.index + m[0].length });
+  }
 
-  // First pass: split without labels to determine part count
-  const rawParts: { content: string; reopenPrefix: string }[] = [];
+  if (breaks.length === 0) return [body];
+
+  const sections: string[] = [];
+  let prevEnd = 0;
+
+  for (const bp of breaks) {
+    const raw = body.slice(prevEnd, bp.start);
+
+    // Reopen tags from previous break point
+    const reopenPrefix = prevEnd > 0
+      ? getOpenTagsAt(body, prevEnd).map((t) => t.open).join('')
+      : '';
+
+    // Close tags that are open at this break point
+    const openTags = getOpenTagsAt(body, bp.start);
+    const closeSuffix = openTags.slice().reverse().map((t) => t.close).join('');
+
+    sections.push(reopenPrefix + raw + closeSuffix);
+    prevEnd = bp.end;
+  }
+
+  // Last section after final break
+  const lastRaw = body.slice(prevEnd);
+  const reopenPrefix = getOpenTagsAt(body, prevEnd).map((t) => t.open).join('');
+  sections.push(reopenPrefix + lastRaw);
+
+  // Filter out sections that have no visible text
+  return sections.filter((s) => s.replace(/<[^>]*>/g, '').trim().length > 0);
+}
+
+/** Auto-split a section into chunks that fit within the character budget */
+function autoSplitSection(section: string, budget: number): string[] {
+  if (section.length <= budget) return [section];
+
+  const tagSpans = findTagSpans(section);
+  const chunks: string[] = [];
   let pos = 0;
   let reopenTags = '';
 
-  // Reserve generous space for labels + tag re-opening
-  const labelReserve = 20;
-
-  while (pos < rawMarkup.length) {
-    const openTags = getOpenTagsAt(rawMarkup, pos);
-    const reopenOverhead = openTags.reduce((sum, t) => sum + t.open.length + t.close.length, 0);
-    const effectiveMax = maxChars - labelReserve - reopenTags.length - reopenOverhead;
-
-    const remaining = rawMarkup.length - pos;
-    if (reopenTags.length + remaining + labelReserve <= maxChars) {
-      // Everything fits in the last part
-      rawParts.push({ content: rawMarkup.slice(pos), reopenPrefix: reopenTags });
+  while (pos < section.length) {
+    const remaining = section.length - pos;
+    if (reopenTags.length + remaining <= budget) {
+      chunks.push(reopenTags + section.slice(pos));
       break;
     }
 
-    const splitAt = findBestSplit(rawMarkup, pos, pos + Math.max(effectiveMax, 100), tagSpans);
-    const chunk = rawMarkup.slice(pos, splitAt);
+    // Reserve space for close tags at split point
+    const currentOpenTags = getOpenTagsAt(section, pos);
+    const closeOverhead = currentOpenTags.reduce((sum, t) => sum + t.close.length, 0);
+    const effectiveBudget = Math.max(budget - reopenTags.length - closeOverhead, 100);
 
-    // Close any open tags at the split point
-    const openAtSplit = getOpenTagsAt(rawMarkup, splitAt);
-    const closeSuffix = openAtSplit
-      .slice()
-      .reverse()
-      .map((t) => t.close)
-      .join('');
+    const splitAt = findBestSplit(section, pos, pos + effectiveBudget, tagSpans);
+    const chunk = section.slice(pos, splitAt);
+
+    const openAtSplit = getOpenTagsAt(section, splitAt);
+    const closeSuffix = openAtSplit.slice().reverse().map((t) => t.close).join('');
     const nextReopenPrefix = openAtSplit.map((t) => t.open).join('');
 
-    rawParts.push({
-      content: chunk + closeSuffix,
-      reopenPrefix: reopenTags,
-    });
-
+    chunks.push(reopenTags + chunk + closeSuffix);
     reopenTags = nextReopenPrefix;
     pos = splitAt;
   }
 
-  // Second pass: add part labels
-  const totalParts = rawParts.length;
-  if (totalParts <= 1) return [rawMarkup];
+  return chunks;
+}
 
-  return rawParts.map((part, i) => {
-    const label = `(Part ${i + 1}/${totalParts})\n`;
-    return label + part.reopenPrefix + part.content;
+/**
+ * Split mail content into parts that each fit within the character limit.
+ * Supports manual --- break markers and preserves the header in each part.
+ * Each part is valid self-contained markup with proper tag nesting.
+ * Parts are prefixed with "(Part X/N)\n".
+ */
+export function splitMailContent(rawMarkup: string, maxChars = 2000): string[] {
+  const { header, body } = extractHeader(rawMarkup);
+  const manualBreaks = hasManualBreaks(body);
+
+  // Split body at manual breaks (returns [body] if no breaks)
+  const bodySections = splitBodyAtBreaks(body);
+
+  // If no breaks and content fits, return as-is
+  if (!manualBreaks && rawMarkup.length <= maxChars) return [rawMarkup];
+
+  // Character budget per part: max minus label and repeated header
+  const labelReserve = 20;
+  const budget = maxChars - labelReserve - header.length;
+
+  // If header is too large to repeat, fall back to no-header splitting
+  if (budget <= 100) {
+    const fallbackBudget = maxChars - labelReserve;
+    const chunks = autoSplitSection(rawMarkup, fallbackBudget);
+    if (chunks.length <= 1) return [rawMarkup];
+    return chunks.map((chunk, i) => {
+      const label = `(Part ${i + 1}/${chunks.length})\n`;
+      return label + chunk;
+    });
+  }
+
+  // Auto-split any oversized body sections
+  const allChunks: string[] = [];
+  for (const section of bodySections) {
+    if (section.length <= budget) {
+      allChunks.push(section);
+    } else {
+      allChunks.push(...autoSplitSection(section, budget));
+    }
+  }
+
+  // If still just 1 chunk and no manual breaks, return original
+  if (allChunks.length <= 1 && !manualBreaks) return [rawMarkup];
+
+  // Assemble: label + header + body chunk
+  const total = allChunks.length;
+  return allChunks.map((chunk, i) => {
+    const label = `(Part ${i + 1}/${total})\n`;
+    return label + header + chunk;
   });
 }

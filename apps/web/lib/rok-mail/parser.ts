@@ -118,6 +118,27 @@ function matchSizeTag(
 
 let keyCounter = 0;
 
+function createBreakDivider(key: string): React.ReactNode {
+  return React.createElement(
+    'span',
+    {
+      key,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        margin: '6px 0',
+        fontSize: '10px',
+        color: '#a08a6c',
+        opacity: 0.5,
+      },
+    },
+    React.createElement('span', { style: { flex: 1, borderTop: '1px dashed currentColor' } }),
+    '\u2702',
+    React.createElement('span', { style: { flex: 1, borderTop: '1px dashed currentColor' } })
+  );
+}
+
 export function renderRokNodes(nodes: RokNode[]): React.ReactNode[] {
   return nodes.map((node) => {
     const key = `rok-${keyCounter++}`;
@@ -126,15 +147,21 @@ export function renderRokNodes(nodes: RokNode[]): React.ReactNode[] {
         // Split by newlines and insert <br /> elements
         if (!node.content) return null;
         const parts = node.content.split('\n');
-        if (parts.length === 1) return React.createElement(React.Fragment, { key }, node.content);
+        if (parts.length === 1) {
+          if (parts[0].trim() === '---') return createBreakDivider(key);
+          return React.createElement(React.Fragment, { key }, node.content);
+        }
         return React.createElement(
           React.Fragment,
           { key },
-          ...parts.flatMap((part, i) =>
-            i === 0
+          ...parts.flatMap((part, i) => {
+            if (part.trim() === '---') {
+              return [createBreakDivider(`${key}-break-${i}`)];
+            }
+            return i === 0
               ? [part]
-              : [React.createElement('br', { key: `${key}-br-${i}` }), part]
-          )
+              : [React.createElement('br', { key: `${key}-br-${i}` }), part];
+          })
         );
       case 'bold':
         return React.createElement(

@@ -15,6 +15,7 @@ import {
   Type,
   Share2,
   Link,
+  Scissors,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { RokMailToolbar } from '@/components/rok-mail/RokMailToolbar';
@@ -27,7 +28,7 @@ import { TemplateSelector } from '@/components/rok-mail/TemplateSelector';
 import { AiAssistant } from '@/components/rok-mail/AiAssistant';
 import { MailParts } from '@/components/rok-mail/MailParts';
 import { stripRokMarkup, stripWithPositions, applyTextEdit } from '@/lib/rok-mail/parser';
-import { splitMailContent } from '@/lib/rok-mail/splitter';
+import { splitMailContent, hasManualBreaks } from '@/lib/rok-mail/splitter';
 
 type EditorMode = 'edit' | 'split' | 'preview';
 
@@ -61,10 +62,13 @@ export default function RokMailPage() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const loadedRef = useRef(false);
 
-  const mailParts = useMemo(
-    () => content.length > 2000 ? splitMailContent(content) : null,
-    [content]
-  );
+  const mailParts = useMemo(() => {
+    if (content.length > 2000 || hasManualBreaks(content)) {
+      const parts = splitMailContent(content);
+      return parts.length > 1 ? parts : null;
+    }
+    return null;
+  }, [content]);
 
   // Undo/redo history
   const historyRef = useRef<string[]>([]);
@@ -182,6 +186,30 @@ export default function RokMailPage() {
       console.error('Share error:', err);
       setShareError('Something went wrong. Please try again.');
       setTimeout(() => setShareError(null), 5000);
+    }
+  }
+
+  function handleInsertBreak() {
+    saveSnapshot();
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const pos = textarea.selectionStart;
+    const marker = '\n---\n';
+
+    if (editTab === 'text') {
+      const { positions } = stripWithPositions(content);
+      const mPos = pos > 0 && positions.length > 0
+        ? positions[Math.min(pos - 1, positions.length - 1)] + 1
+        : positions.length > 0 ? positions[0] : content.length;
+      const newContent = content.slice(0, mPos) + marker + content.slice(mPos);
+      setContent(newContent);
+      const cursorPos = pos + marker.length;
+      setTimeout(() => { textarea.focus(); textarea.setSelectionRange(cursorPos, cursorPos); }, 0);
+    } else {
+      const newContent = content.slice(0, pos) + marker + content.slice(pos);
+      setContent(newContent);
+      const cursorPos = pos + marker.length;
+      setTimeout(() => { textarea.focus(); textarea.setSelectionRange(cursorPos, cursorPos); }, 0);
     }
   }
 
@@ -361,6 +389,16 @@ export default function RokMailPage() {
           >
             <Bot size={16} />
             AI Assistant
+          </button>
+          <button
+            type="button"
+            onClick={handleInsertBreak}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
+            style={{ color: 'var(--text-secondary)' }}
+            title="Insert a break marker to split mail into parts"
+          >
+            <Scissors size={16} />
+            Break
           </button>
 
           <div className="flex-1" />
