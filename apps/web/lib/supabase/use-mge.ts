@@ -26,7 +26,11 @@ export interface MgeEvent {
   mge_selections: MgeSelection[];
 }
 
-export const RANKING_TIERS = ['Top 3', 'Top 5', 'Top 10'] as const;
+export const RANKING_TIERS = [
+  '1st Place', '2nd Place', '3rd Place', '4th Place', '5th Place',
+  '6th Place', '7th Place', '8th Place', '9th Place', '10th Place',
+  'Free for All',
+] as const;
 
 export function useMgeEvents() {
   const [events, setEvents] = useState<MgeEvent[]>([]);

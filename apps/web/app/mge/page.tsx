@@ -141,8 +141,8 @@ export default function MgePage() {
   const [addingToEventId, setAddingToEventId] = useState<number | null>(null);
   const [selMemberSearch, setSelMemberSearch] = useState('');
   const [selMemberName, setSelMemberName] = useState('');
-  const [selTier, setSelTier] = useState('Top 10');
-  const [selPowerCap, setSelPowerCap] = useState('');
+  const [selTier, setSelTier] = useState('1st Place');
+  const [selPointsLimit, setSelPointsLimit] = useState('');
   const [selReason, setSelReason] = useState('');
 
   // Roster for member search
@@ -226,15 +226,15 @@ export default function MgePage() {
       eventId,
       selMemberName.trim(),
       selTier,
-      selPowerCap ? parseInt(selPowerCap) : null,
+      selPointsLimit ? parseInt(selPointsLimit) : null,
       selReason.trim() || null
     );
     if (result) {
       setAddingToEventId(null);
       setSelMemberSearch('');
       setSelMemberName('');
-      setSelTier('Top 10');
-      setSelPowerCap('');
+      setSelTier('1st Place');
+      setSelPointsLimit('');
       setSelReason('');
       refetch();
     }
@@ -264,20 +264,10 @@ export default function MgePage() {
     setAddingToEventId(eventId);
     setSelMemberSearch('');
     setSelMemberName('');
-    setSelTier('Top 10');
-    setSelPowerCap('');
+    setSelTier('1st Place');
+    setSelPointsLimit('');
     setSelReason('');
   };
-
-  // Group selections by tier
-  function groupByTier(selections: MgeSelection[]): Map<string, MgeSelection[]> {
-    const groups = new Map<string, MgeSelection[]>();
-    for (const sel of selections) {
-      if (!groups.has(sel.ranking_tier)) groups.set(sel.ranking_tier, []);
-      groups.get(sel.ranking_tier)!.push(sel);
-    }
-    return groups;
-  }
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00');
@@ -425,7 +415,6 @@ export default function MgePage() {
           {events.map(evt => {
             const isExpanded = expandedEvents.has(evt.id);
             const isEditing = editingEventId === evt.id;
-            const tierGroups = groupByTier(evt.mge_selections);
             const isAddingHere = addingToEventId === evt.id;
 
             return (
@@ -554,9 +543,9 @@ export default function MgePage() {
                             className={inputClass} style={inputStyle}>
                             {RANKING_TIERS.map(t => <option key={t} value={t}>{t}</option>)}
                           </select>
-                          {/* Power cap */}
-                          <input type="number" placeholder="Power cap (opt.)" value={selPowerCap}
-                            onChange={e => setSelPowerCap(e.target.value)}
+                          {/* Points limit */}
+                          <input type="number" placeholder="Points limit (opt.)" value={selPointsLimit}
+                            onChange={e => setSelPointsLimit(e.target.value)}
                             className={inputClass} style={inputStyle} />
                         </div>
                         <div className="flex gap-2 items-center">
@@ -572,48 +561,38 @@ export default function MgePage() {
                       </div>
                     )}
 
-                    {/* Selections grouped by tier */}
+                    {/* Selections list */}
                     {evt.mge_selections.length === 0 ? (
                       <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
                         No members selected yet
                       </div>
                     ) : (
                       <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                        {[...tierGroups.entries()].map(([tier, selections]) => (
-                          <div key={tier}>
-                            <div className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider"
-                              style={{ color: 'var(--text-muted)', backgroundColor: 'var(--background-secondary)' }}>
-                              {tier}
-                              {selections[0]?.power_cap && (
-                                <span className="ml-2 font-normal normal-case">
-                                  (cap: {formatPower(selections[0].power_cap)})
-                                </span>
-                              )}
-                            </div>
-                            {selections.map(sel => (
-                              <div key={sel.id}
-                                className="flex items-center gap-3 px-4 py-2 hover:bg-[var(--background-secondary)] transition-fast">
-                                <span className="font-medium text-sm flex-1" style={{ color: 'var(--foreground)' }}>
-                                  {sel.member_name}
-                                </span>
-                                {sel.power_cap && (
-                                  <span className="text-xs px-2 py-0.5 rounded-full"
-                                    style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)' }}>
-                                    {formatPower(sel.power_cap)}
-                                  </span>
-                                )}
-                                {sel.reason && (
-                                  <span className="text-xs hidden md:inline" style={{ color: 'var(--text-muted)' }}>
-                                    {sel.reason}
-                                  </span>
-                                )}
-                                {isAdmin && (
-                                  <button onClick={() => handleRemoveSelection(sel.id)} className={btnDanger}>
-                                    <Trash2 size={14} />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
+                        {evt.mge_selections.map(sel => (
+                          <div key={sel.id}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--background-secondary)] transition-fast">
+                            <span className="text-xs font-semibold w-20 shrink-0 text-amber-400">
+                              {sel.ranking_tier}
+                            </span>
+                            <span className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: 'var(--foreground)' }}>
+                              {sel.member_name}
+                            </span>
+                            {sel.power_cap && (
+                              <span className="text-xs px-2 py-0.5 rounded-full shrink-0"
+                                style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)' }}>
+                                {formatPower(sel.power_cap)} pts
+                              </span>
+                            )}
+                            {sel.reason && (
+                              <span className="text-xs hidden md:inline shrink-0" style={{ color: 'var(--text-muted)' }}>
+                                {sel.reason}
+                              </span>
+                            )}
+                            {isAdmin && (
+                              <button onClick={() => handleRemoveSelection(sel.id)} className={btnDanger}>
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
