@@ -283,8 +283,8 @@ export default function MgePage() {
                   className={inputClass + ' w-full'} style={inputStyle} />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Focused Commander</label>
-                <input type="text" placeholder="e.g. Boudica Prime" value={newCommander}
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Focused Commander(s)</label>
+                <input type="text" placeholder="e.g. Boudica Prime, Sun Tzu Prime" value={newCommander}
                   onChange={e => setNewCommander(e.target.value)}
                   className={inputClass + ' w-full'} style={inputStyle} />
               </div>
@@ -357,7 +357,7 @@ export default function MgePage() {
                         <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
                           className={inputClass + ' w-36'} style={inputStyle} />
                         <input type="text" value={editCommander} onChange={e => setEditCommander(e.target.value)}
-                          className={inputClass + ' flex-1'} style={inputStyle} placeholder="Commander" />
+                          className={inputClass + ' flex-1'} style={inputStyle} placeholder="Commander(s), comma-separated" />
                         <button onClick={() => handleUpdateEvent(evt.id)}
                           className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-500/10"><Check size={16} /></button>
                         <button onClick={() => setEditingEventId(null)}
@@ -365,14 +365,16 @@ export default function MgePage() {
                           style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
                       </div>
                     ) : (
-                      <>
-                        <span className="font-semibold" style={{ color: 'var(--foreground)' }}>
-                          {evt.focused_commander}
-                        </span>
-                        <span className="ml-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {evt.focused_commander.split(',').map((cmd, i) => (
+                          <span key={i} className="font-semibold text-sm px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300">
+                            {cmd.trim()}
+                          </span>
+                        ))}
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                           {formatDate(evt.event_date)}
                         </span>
-                      </>
+                      </div>
                     )}
                   </div>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 shrink-0">
