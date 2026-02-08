@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/AppSidebar';
 import { supabase } from '@/lib/supabase';
 import {
@@ -153,7 +152,6 @@ function generateMailContent(evt: MgeEvent, formatDate: (d: string) => string, f
 
 export default function MgePage() {
   const { events, loading, error, refetch } = useMgeEvents();
-  const router = useRouter();
 
   // Admin mode
   const [isAdmin, setIsAdmin] = useState(false);
@@ -270,7 +268,7 @@ export default function MgePage() {
   const handleGenerateMail = (evt: MgeEvent) => {
     const content = generateMailContent(evt, formatDate, formatPower);
     localStorage.setItem('rok-mail-draft', content);
-    router.push('/rok-mail');
+    window.location.href = '/rok-mail';
   };
 
   const handleAddSelection = async (eventId: number) => {
