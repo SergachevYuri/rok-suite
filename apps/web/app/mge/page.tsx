@@ -17,8 +17,97 @@ import {
 import {
   Shield, Lock, Unlock, Plus, Trash2, Pencil, X, Check, ChevronDown, ChevronUp, Search, Crown,
 } from 'lucide-react';
+import { commanderReferences } from '@/lib/sunset-canyon/commander-reference';
 
 const EDITOR_PASSWORD = 'carn-dum';
+
+// Commander names sorted alphabetically for the picker
+const COMMANDER_NAMES = commanderReferences
+  .filter(c => c.rarity === 'legendary')
+  .map(c => c.name)
+  .sort();
+
+function CommanderPicker({
+  value,
+  onChange,
+  inputClass,
+  inputStyle,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  inputClass: string;
+  inputStyle: React.CSSProperties;
+}) {
+  const [search, setSearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const selected = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  const filtered = useMemo(() => {
+    if (!search) return COMMANDER_NAMES.filter(n => !selected.includes(n)).slice(0, 12);
+    const q = search.toLowerCase();
+    return COMMANDER_NAMES.filter(n => n.toLowerCase().includes(q) && !selected.includes(n)).slice(0, 12);
+  }, [search, selected]);
+
+  const addCommander = (name: string) => {
+    const next = [...selected, name].join(', ');
+    onChange(next);
+    setSearch('');
+    setShowDropdown(false);
+  };
+
+  const removeCommander = (name: string) => {
+    const next = selected.filter(n => n !== name).join(', ');
+    onChange(next);
+  };
+
+  return (
+    <div className="relative">
+      {/* Selected chips */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1.5">
+          {selected.map(name => (
+            <span key={name} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300">
+              {name}
+              <button type="button" onClick={() => removeCommander(name)} className="hover:text-amber-100">
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {/* Search input */}
+      <div className="relative">
+        <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-muted)' }} />
+        <input
+          type="text"
+          placeholder={selected.length ? 'Add another commander...' : 'Search commanders...'}
+          value={search}
+          onChange={e => { setSearch(e.target.value); setShowDropdown(true); }}
+          onFocus={() => setShowDropdown(true)}
+          onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+          className={inputClass + ' w-full pl-8'}
+          style={inputStyle}
+        />
+      </div>
+      {/* Dropdown */}
+      {showDropdown && filtered.length > 0 && (
+        <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border shadow-lg"
+          style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
+          {filtered.map(name => (
+            <button key={name} type="button"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => addCommander(name)}
+              className="w-full text-left px-3 py-1.5 text-sm hover:bg-amber-500/10 transition-fast"
+              style={{ color: 'var(--foreground)' }}>
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface RosterMember {
   id: string;
@@ -284,9 +373,8 @@ export default function MgePage() {
               </div>
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Focused Commander(s)</label>
-                <input type="text" placeholder="e.g. Boudica Prime, Sun Tzu Prime" value={newCommander}
-                  onChange={e => setNewCommander(e.target.value)}
-                  className={inputClass + ' w-full'} style={inputStyle} />
+                <CommanderPicker value={newCommander} onChange={setNewCommander}
+                  inputClass={inputClass} inputStyle={inputStyle} />
               </div>
             </div>
             <div className="mb-4">
@@ -353,16 +441,19 @@ export default function MgePage() {
                   <Crown size={18} className="text-amber-500 shrink-0" />
                   <div className="flex-1 min-w-0">
                     {isEditing ? (
-                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-                          className={inputClass + ' w-36'} style={inputStyle} />
-                        <input type="text" value={editCommander} onChange={e => setEditCommander(e.target.value)}
-                          className={inputClass + ' flex-1'} style={inputStyle} placeholder="Commander(s), comma-separated" />
-                        <button onClick={() => handleUpdateEvent(evt.id)}
-                          className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-500/10"><Check size={16} /></button>
-                        <button onClick={() => setEditingEventId(null)}
-                          className="p-1.5 rounded-md hover:bg-[var(--background-secondary)]"
-                          style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+                      <div className="space-y-2" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-2">
+                          <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
+                            className={inputClass + ' w-36'} style={inputStyle} />
+                          <div className="flex-1" />
+                          <button onClick={() => handleUpdateEvent(evt.id)}
+                            className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-500/10"><Check size={16} /></button>
+                          <button onClick={() => setEditingEventId(null)}
+                            className="p-1.5 rounded-md hover:bg-[var(--background-secondary)]"
+                            style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+                        </div>
+                        <CommanderPicker value={editCommander} onChange={setEditCommander}
+                          inputClass={inputClass} inputStyle={inputStyle} />
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 flex-wrap">
