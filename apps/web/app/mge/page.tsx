@@ -117,20 +117,23 @@ interface RosterMember {
   power: number;
 }
 
+const KINGDOM_HEADER = `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>`;
+const KINGDOM_DIVIDER = '►═════════❂❂❂═════════◄';
+
 function generateMailContent(evt: MgeEvent, formatDate: (d: string) => string, formatPower: (p: number) => string): string {
   const commanders = evt.focused_commander.split(',').map(c => c.trim());
   const commanderText = commanders.join(', ');
 
   const lines: string[] = [];
-  lines.push(`<b><size=35px><color="#FFD700">⚔ MGE — Mightiest Governor ⚔</color></size></b>`);
+  lines.push(KINGDOM_HEADER);
+  lines.push(KINGDOM_DIVIDER);
   lines.push('');
-  lines.push(`<b><color="#FFD700">Commander:</color></b> ${commanderText}`);
-  lines.push(`<b><color="#FFD700">Date:</color></b> ${formatDate(evt.event_date)}`);
+  lines.push(`<b><color=#ff3333>MGE — Mightiest Governor</color></b>`);
+  lines.push(`<b>Commander:</b> ${commanderText}`);
+  lines.push(`<b>Date:</b> ${formatDate(evt.event_date)}`);
   if (evt.notes) {
     lines.push(`<i>${evt.notes}</i>`);
   }
-  lines.push('');
-  lines.push(`<b><color="#FF6B6B">━━━━━━ Rankings ━━━━━━</color></b>`);
   lines.push('');
 
   for (const sel of evt.mge_selections) {
@@ -142,7 +145,8 @@ function generateMailContent(evt: MgeEvent, formatDate: (d: string) => string, f
   }
 
   lines.push('');
-  lines.push(`<b><color="#FFD700">━━━━━━━━━━━━━━━━━━━━━━</color></b>`);
+  lines.push(KINGDOM_DIVIDER);
+  lines.push(`<b><color=#800000>— King Fluffy</color></b>`);
 
   return lines.join('\n');
 }
