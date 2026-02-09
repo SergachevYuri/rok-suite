@@ -23,7 +23,7 @@ export const MAIL_TEMPLATES: MailTemplate[] = [
     id: 'ang-mail',
     name: 'Angmar Mail',
     category: 'angmar',
-    description: 'Standard Angmar alliance mail format',
+    description: 'Standard Angmar Nazgul Guards alliance mail format',
     content: `<size=30px><color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>
 ►═════════❂❂❂═════════◄
 
