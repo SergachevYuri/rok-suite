@@ -12,7 +12,7 @@ export interface MailTemplate {
 }
 
 export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
-  angmar: 'Angmar',
+  angmar: 'ANG',
   mng: 'MNG',
   kingdom: 'Kingdom',
 };
@@ -38,9 +38,9 @@ Your message here.
   // ── MNG Templates ──
   {
     id: 'mng-mail',
-    name: 'MNG Mail',
+    name: 'Mithril Mail',
     category: 'mng',
-    description: 'Standard MNG alliance mail format',
+    description: 'Standard Mithril Noble Guard alliance mail format',
     content: `<size=30px><color=#004d1a>M</color><color=#006622>I</color><color=#008030>T</color><color=#009939>H</color><color=#00b342>R</color><color=#00cc4d>I</color><color=#00e659>L</color> <color=#004d1a>N</color><color=#006622>O</color><color=#008030>B</color><color=#009939>L</color><color=#00b342>E</color> <color=#00cc4d>G</color><color=#00e659>U</color><color=#00b342>A</color><color=#009939>R</color><color=#008030>D</color></size>
 ►═════════❂❂❂═════════◄
 
@@ -49,7 +49,7 @@ Your message here.
 Your message here.
 
 ►═════════❂❂❂═════════◄
-<b><color=#008030>— MNG Leadership</color></b>`,
+<b><color=#008030>— Mithril Leadership</color></b>`,
   },
 
   // ── Kingdom Templates ──
