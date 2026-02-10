@@ -7,6 +7,7 @@ import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, getLatestValuesForAllMembers, getSnapshotDates, getFilteredSnapshotDates, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { useMemberTrophyCounts, getTrophyBadgeInfo, type MemberTrophyCounts } from '@/lib/supabase/use-king-trophies';
+import { allianceDisplay } from '@/lib/alliances';
 import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy, Download } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -1427,7 +1428,7 @@ export default function RosterPage() {
                     case 'kp': columns.push({ header: 'Kill Points', getValue: m => m.kills || 0 }); break;
                     case 'ratio': columns.push({ header: 'Power:KP', getValue: m => m.kills ? +(m.power / m.kills).toFixed(1) : 0 }); break;
                     case 'rank': columns.push({ header: 'Rank', getValue: m => m.role || '' }); break;
-                    case 'alliance': columns.push({ header: 'Alliance', getValue: m => m.alliance || '' }); break;
+                    case 'alliance': columns.push({ header: 'Alliance', getValue: m => allianceDisplay(m.alliance) }); break;
                     case 'trophies': columns.push({ header: 'Trophies', getValue: m => {
                         const info = getTrophyBadgeInfo(trophyCounts.get(m.id));
                         return info.hasAny ? info.tooltip : '';
@@ -1480,7 +1481,7 @@ export default function RosterPage() {
             XLSX.utils.book_append_sheet(wb, ws, 'Roster');
 
             const date = new Date().toISOString().slice(0, 10);
-            const filterSuffix = allianceFilter ? `_${allianceFilter}` : '';
+            const filterSuffix = allianceFilter ? `_${allianceDisplay(allianceFilter)}` : '';
             const filename = `roster${filterSuffix}_${date}`;
 
             XLSX.writeFile(wb, `${filename}.${format}`, { bookType: format });
@@ -1985,7 +1986,7 @@ export default function RosterPage() {
                                 >
                                     <option value="">All Alliances</option>
                                     {alliances.map(a => (
-                                        <option key={a} value={a}>{a}</option>
+                                        <option key={a} value={a}>{allianceDisplay(a)}</option>
                                     ))}
                                 </select>
                             )}
@@ -2634,15 +2635,16 @@ export default function RosterPage() {
                                                         onKeyDown={handleEditKeyDown}
                                                         className={`w-20 px-2 py-1 rounded border ${theme.input}`}
                                                     >
-                                                        <option value="ANG">ANG</option>
-                                                        <option value="23KK">23KK</option>
+                                                        {alliances.map(a => (
+                                                            <option key={a} value={a}>{allianceDisplay(a)}</option>
+                                                        ))}
                                                     </select>
                                                 ) : (
                                                     <span
                                                         className={`text-sm ${member.alliance ? 'text-[#9f7aea] cursor-pointer hover:underline' : theme.textMuted}`}
                                                         onClick={() => member.alliance && setAllianceFilter(member.alliance)}
                                                     >
-                                                        {member.alliance || '-'}
+                                                        {allianceDisplay(member.alliance)}
                                                     </span>
                                                 )}
                                             </td>
@@ -3000,7 +3002,7 @@ export default function RosterPage() {
                                                     : `${theme.textMuted} hover:text-[var(--foreground)]`
                                             }`}
                                         >
-                                            {a}
+                                            {allianceDisplay(a)}
                                         </button>
                                     ))}
                                 </div>
@@ -5624,12 +5626,12 @@ export default function RosterPage() {
                                                 const count = isAng ? entry?.angCount : entry?.kkCount;
                                                 const total = isAng ? angMembers.length : kkMembers.length;
                                                 const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                                                const label = isAng ? 'ANG' : '23KK';
+                                                const label = isAng ? allianceDisplay('ANG') : allianceDisplay('23KK');
                                                 return [`${fmtB(v)} (${count}/${total} members, ${pct}%)`, label];
                                             }}
                                             labelFormatter={(ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                         />
-                                        <Legend formatter={(value) => value === 'angAvgPow' ? 'ANG' : '23KK'} />
+                                        <Legend formatter={(value) => value === 'angAvgPow' ? allianceDisplay('ANG') : allianceDisplay('23KK')} />
                                         <Line type="monotone" dataKey="angAvgPow" name="angAvgPow" stroke="#01b574" strokeWidth={2} dot={{ fill: '#01b574', r: 3 }} connectNulls />
                                         <Line type="monotone" dataKey="kkAvgPow" name="kkAvgPow" stroke="#f56565" strokeWidth={2} dot={{ fill: '#f56565', r: 3 }} connectNulls />
                                     </LineChart>
@@ -5672,12 +5674,12 @@ export default function RosterPage() {
                                                 const count = isAng ? entry?.angCount : entry?.kkCount;
                                                 const total = isAng ? angMembers.length : kkMembers.length;
                                                 const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                                                const label = isAng ? 'ANG' : '23KK';
+                                                const label = isAng ? allianceDisplay('ANG') : allianceDisplay('23KK');
                                                 return [`${fmtB(v)} (${count}/${total} members, ${pct}%)`, label];
                                             }}
                                             labelFormatter={(ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                         />
-                                        <Legend formatter={(value) => value === 'angAvgKP' ? 'ANG' : '23KK'} />
+                                        <Legend formatter={(value) => value === 'angAvgKP' ? allianceDisplay('ANG') : allianceDisplay('23KK')} />
                                         <Line type="monotone" dataKey="angAvgKP" name="angAvgKP" stroke="#01b574" strokeWidth={2} dot={{ fill: '#01b574', r: 3 }} connectNulls />
                                         <Line type="monotone" dataKey="kkAvgKP" name="kkAvgKP" stroke="#f56565" strokeWidth={2} dot={{ fill: '#f56565', r: 3 }} connectNulls />
                                     </LineChart>

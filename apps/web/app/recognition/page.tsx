@@ -21,6 +21,7 @@ import {
     type MemberTrophyCounts,
 } from '@/lib/supabase/use-king-trophies';
 import { Crown, Trophy, Award, Medal, Star, ChevronDown, ChevronUp, Plus, Trash2, Lock, Calendar, Users } from 'lucide-react';
+import { allianceDisplay } from '@/lib/alliances';
 
 const EDITOR_PASSWORD = 'carn-dum';
 
@@ -299,7 +300,7 @@ export default function RecognitionPage() {
                                                     onClick={() => { setAwardMemberId(m.id); setMemberSearch(m.name); }}
                                                     className={`w-full text-left px-3 py-2 hover:bg-[var(--background-secondary)] ${awardMemberId === m.id ? 'bg-amber-500/20' : ''}`}
                                                 >
-                                                    {m.name} <span className={theme.textMuted}>({m.alliance || '-'})</span>
+                                                    {m.name} <span className={theme.textMuted}>({allianceDisplay(m.alliance)})</span>
                                                 </button>
                                             ))}
                                         </div>

@@ -18,6 +18,7 @@ import {
   Shield, Lock, Unlock, Plus, Trash2, Pencil, X, Check, ChevronDown, ChevronUp, Search, Crown, Eye, EyeOff, ScrollText,
 } from 'lucide-react';
 import { commanderReferences } from '@/lib/sunset-canyon/commander-reference';
+import { allianceDisplay } from '@/lib/alliances';
 
 const EDITOR_PASSWORD = 'carn-dum';
 
@@ -631,7 +632,7 @@ export default function MgePage() {
                                     className="w-full text-left px-3 py-1.5 text-sm hover:bg-amber-500/10 transition-fast flex justify-between">
                                     <span style={{ color: 'var(--foreground)' }}>{m.name}</span>
                                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                      {m.alliance || ''} {formatPower(m.power)}
+                                      {m.alliance ? allianceDisplay(m.alliance) : ''} {formatPower(m.power)}
                                     </span>
                                   </button>
                                 ))}

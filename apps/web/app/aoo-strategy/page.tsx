@@ -11,6 +11,7 @@ import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-pa
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { Swords, Plus, Link as LinkIcon, Copy, Check } from 'lucide-react';
+import { allianceDisplay } from '@/lib/alliances';
 
 // Generate a random 8-character share ID
 function generateShareId(): string {
@@ -699,7 +700,7 @@ function TeamBuilderTab({
                             >
                                 <option value="all">All Alliances</option>
                                 {alliances.map(a => (
-                                    <option key={a} value={a}>{a}</option>
+                                    <option key={a} value={a}>{allianceDisplay(a)}</option>
                                 ))}
                             </select>
                         </div>
@@ -881,7 +882,7 @@ function TeamBuilderTab({
                                                     >
                                                         <span className={theme.text}>{member.name}</span>
                                                         <span className={`text-xs ${theme.textMuted}`}>
-                                                            {formatPower(member.power)} • {member.alliance || 'No alliance'}
+                                                            {formatPower(member.power)} • {allianceDisplay(member.alliance)}
                                                         </span>
                                                     </button>
                                                 ))}
