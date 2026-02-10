@@ -7,7 +7,7 @@ import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, getLatestValuesForAllMembers, getSnapshotDates, getFilteredSnapshotDates, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { useMemberTrophyCounts, getTrophyBadgeInfo, type MemberTrophyCounts } from '@/lib/supabase/use-king-trophies';
-import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy } from 'lucide-react';
+import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, Users, History, Lock, TrendingUp, UserPlus, UserMinus, Calendar, Trophy, BarChart3, AlertTriangle, Eye, Settings2, Check, ExternalLink, Info, GitMerge, Copy, Download } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -388,6 +388,7 @@ export default function RosterPage() {
         return DEFAULT_VISIBLE_COLUMNS;
     });
     const [showViewOptions, setShowViewOptions] = useState(false);
+    const [showExportMenu, setShowExportMenu] = useState(false);
 
     // Save column visibility to localStorage when it changes
     useEffect(() => {
@@ -408,6 +409,19 @@ export default function RosterPage() {
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
     }, [showViewOptions]);
+
+    // Close Export dropdown when clicking outside
+    useEffect(() => {
+        if (!showExportMenu) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('[data-export-menu]')) {
+                setShowExportMenu(false);
+            }
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [showExportMenu]);
 
     const toggleColumn = (columnId: ColumnId) => {
         setVisibleColumns(prev =>
@@ -1398,6 +1412,82 @@ export default function RosterPage() {
             return 0;
         });
 
+    // Export roster data as CSV or XLSX
+    const exportRoster = useCallback((format: 'csv' | 'xlsx') => {
+        import('xlsx').then((XLSX) => {
+            type ExportCol = { header: string; getValue: (m: RosterMember) => string | number | null };
+
+            const columns: ExportCol[] = [
+                { header: 'Name', getValue: m => m.name },
+            ];
+
+            for (const colId of visibleColumns) {
+                switch (colId) {
+                    case 'power': columns.push({ header: 'Power', getValue: m => m.power || 0 }); break;
+                    case 'kp': columns.push({ header: 'Kill Points', getValue: m => m.kills || 0 }); break;
+                    case 'ratio': columns.push({ header: 'Power:KP', getValue: m => m.kills ? +(m.power / m.kills).toFixed(1) : 0 }); break;
+                    case 'rank': columns.push({ header: 'Rank', getValue: m => m.role || '' }); break;
+                    case 'alliance': columns.push({ header: 'Alliance', getValue: m => m.alliance || '' }); break;
+                    case 'trophies': columns.push({ header: 'Trophies', getValue: m => {
+                        const info = getTrophyBadgeInfo(trophyCounts.get(m.id));
+                        return info.hasAny ? info.tooltip : '';
+                    }}); break;
+                    case 't4t5':
+                        columns.push({ header: 'T4 Kills', getValue: m => m.t4_kills || 0 });
+                        columns.push({ header: 'T5 Kills', getValue: m => m.t5_kills || 0 });
+                        break;
+                    case 't1t2t3':
+                        columns.push({ header: 'T1 Kills', getValue: m => m.t1_kills || 0 });
+                        columns.push({ header: 'T2 Kills', getValue: m => m.t2_kills || 0 });
+                        columns.push({ header: 'T3 Kills', getValue: m => m.t3_kills || 0 });
+                        break;
+                    case 'deads': columns.push({ header: 'Deaths', getValue: m => m.deads || 0 }); break;
+                    case 'healed': columns.push({ header: 'Healed', getValue: m => m.troops_healed || 0 }); break;
+                    case 'honor': columns.push({ header: 'Honor', getValue: m => m.honor_points || 0 }); break;
+                    case 'aoo': columns.push({ header: 'AoO Team', getValue: m => {
+                        const stats = eventStats.get(m.name);
+                        if (!stats || stats.aoo.totalAssigned === 0) return '';
+                        const team = stats.aoo.lastTeam === 'Team 1' ? 'T1' : stats.aoo.lastTeam === 'Team 2' ? 'T2' : '';
+                        return `${team} (${stats.aoo.participatedCount}/${stats.aoo.totalAssigned})`;
+                    }}); break;
+                    case 'mob':
+                        columns.push({ header: 'Mob Score', getValue: m => {
+                            const stats = eventStats.get(m.name);
+                            return stats?.mobilization.lastScore ?? 0;
+                        }});
+                        columns.push({ header: 'Mob Turned In', getValue: m => {
+                            const stats = eventStats.get(m.name);
+                            return stats?.mobilization.lastTurnedIn ?? '';
+                        }});
+                        columns.push({ header: 'Mob Accepted', getValue: m => {
+                            const stats = eventStats.get(m.name);
+                            return stats?.mobilization.lastAccepted ?? '';
+                        }});
+                        break;
+                    case 'acclaim': columns.push({ header: 'Acclaim', getValue: m => m.acclaim || 0 }); break;
+                    case 'kvkPts': columns.push({ header: 'KvK Points', getValue: m => m.kvk_points || 0 }); break;
+                    case 'highestPower': columns.push({ header: 'Peak Power', getValue: m => m.highest_power || 0 }); break;
+                    case 'ch': columns.push({ header: 'Castle Hall', getValue: m => m.castle_hall || '' }); break;
+                    case 'civilization': columns.push({ header: 'Civilization', getValue: m => m.civilization || '' }); break;
+                }
+            }
+
+            const headers = columns.map(c => c.header);
+            const rows = filteredRoster.map(member => columns.map(c => c.getValue(member)));
+
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Roster');
+
+            const date = new Date().toISOString().slice(0, 10);
+            const filterSuffix = allianceFilter ? `_${allianceFilter}` : '';
+            const filename = `roster${filterSuffix}_${date}`;
+
+            XLSX.writeFile(wb, `${filename}.${format}`, { bookType: format });
+        });
+        setShowExportMenu(false);
+    }, [filteredRoster, visibleColumns, eventStats, trophyCounts, allianceFilter]);
+
     // Pagination logic
     const totalPages = rowsPerPage === -1 ? 1 : Math.ceil(filteredRoster.length / rowsPerPage);
     const paginatedRoster = rowsPerPage === -1
@@ -1873,7 +1963,7 @@ export default function RosterPage() {
                 </div>
 
                 {/* Search and Sort Controls */}
-                <div className={`${theme.card} border rounded-xl p-4 mb-6 ${showViewOptions ? 'relative z-[100]' : ''}`}>
+                <div className={`${theme.card} border rounded-xl p-4 mb-6 ${(showViewOptions || showExportMenu) ? 'relative z-[100]' : ''}`}>
                     <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
                             <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${theme.textMuted}`} />
@@ -1987,6 +2077,38 @@ export default function RosterPage() {
                                                     ))}
                                                 </div>
                                             ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            {/* Export Button */}
+                            <div className="relative" data-export-menu>
+                                <button
+                                    onClick={() => setShowExportMenu(!showExportMenu)}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} flex items-center gap-2 ${showExportMenu ? 'ring-2 ring-[#4318ff]' : ''}`}
+                                    title="Export roster data"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Export</span>
+                                </button>
+                                {showExportMenu && (
+                                    <div className={`absolute right-0 top-full mt-2 w-52 ${theme.card} border rounded-xl shadow-2xl z-[9999]`}>
+                                        <div className="p-2">
+                                            <button
+                                                onClick={() => exportRoster('csv')}
+                                                className={`w-full text-left px-3 py-2 rounded-lg text-sm ${theme.textMuted} hover:bg-[var(--background-secondary)] transition-colors`}
+                                            >
+                                                Export as CSV
+                                            </button>
+                                            <button
+                                                onClick={() => exportRoster('xlsx')}
+                                                className={`w-full text-left px-3 py-2 rounded-lg text-sm ${theme.textMuted} hover:bg-[var(--background-secondary)] transition-colors`}
+                                            >
+                                                Export as Excel (.xlsx)
+                                            </button>
+                                        </div>
+                                        <div className={`px-3 pb-2 text-[10px] ${theme.textMuted}`}>
+                                            {filteredRoster.length} rows, {visibleColumns.length + 1} columns
                                         </div>
                                     </div>
                                 )}

@@ -40,25 +40,10 @@ CREATE POLICY "Allow public read access on king_trophies"
     FOR SELECT
     USING (true);
 
--- Allow authenticated users to insert/update/delete
-CREATE POLICY "Allow authenticated insert on king_trophies"
-    ON public.king_trophies
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (true);
-
-CREATE POLICY "Allow authenticated update on king_trophies"
-    ON public.king_trophies
-    FOR UPDATE
-    TO authenticated
-    USING (true)
-    WITH CHECK (true);
-
-CREATE POLICY "Allow authenticated delete on king_trophies"
-    ON public.king_trophies
-    FOR DELETE
-    TO authenticated
-    USING (true);
+-- Allow public insert/update/delete
+CREATE POLICY "Allow public insert" ON public.king_trophies FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update" ON public.king_trophies FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete" ON public.king_trophies FOR DELETE USING (true);
 
 -- =============================================================================
 -- HELPER VIEW: Trophy counts per member
