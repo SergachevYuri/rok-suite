@@ -16,6 +16,7 @@ import {
   Share2,
   Link,
   Scissors,
+  RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { RokMailToolbar } from '@/components/rok-mail/RokMailToolbar';
@@ -29,6 +30,7 @@ import { AiAssistant } from '@/components/rok-mail/AiAssistant';
 import { MailParts } from '@/components/rok-mail/MailParts';
 import { stripRokMarkup, stripWithPositions, applyTextEdit } from '@/lib/rok-mail/parser';
 import { splitMailContent, hasManualBreaks } from '@/lib/rok-mail/splitter';
+import { ALLIANCE_DESCRIPTIONS, ALLIANCE_KEYS, ALLIANCE_COLORS, type AllianceKey } from '@/lib/rok-mail/alliance-descriptions';
 
 type EditorMode = 'edit' | 'split' | 'preview';
 
@@ -57,6 +59,14 @@ export default function RokMailPage() {
   const [shareId, setShareId] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [contentMode, setContentMode] = useState<'mail' | 'alliance'>('mail');
+  const [selectedAlliance, setSelectedAlliance] = useState<AllianceKey>('ANG');
+  const mailContentRef = useRef('');
+  const [allianceContents, setAllianceContents] = useState<Record<AllianceKey, string>>({ ...ALLIANCE_DESCRIPTIONS });
+  const contentModeRef = useRef<'mail' | 'alliance'>('mail');
+  contentModeRef.current = contentMode;
+  const selectedAllianceRef = useRef<AllianceKey>('ANG');
+  selectedAllianceRef.current = selectedAlliance;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const shareIdRef = useRef<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -114,6 +124,41 @@ export default function RokMailPage() {
   const canUndo = historyRef.current.length > 0;
   const canRedo = redoRef.current.length > 0;
 
+  function clearUndoRedo() {
+    historyRef.current = [];
+    redoRef.current = [];
+    isTypingRef.current = false;
+    if (typingTimerRef.current) { clearTimeout(typingTimerRef.current); typingTimerRef.current = undefined; }
+  }
+
+  function handleModeSwitch(mode: 'mail' | 'alliance') {
+    if (mode === contentModeRef.current) return;
+    if (contentModeRef.current === 'mail') {
+      mailContentRef.current = contentRef.current;
+      setContent(allianceContents[selectedAllianceRef.current]);
+    } else {
+      setAllianceContents(prev => ({ ...prev, [selectedAllianceRef.current]: contentRef.current }));
+      setContent(mailContentRef.current);
+    }
+    clearUndoRedo();
+    setContentMode(mode);
+  }
+
+  function handleAllianceSwitch(key: AllianceKey) {
+    if (key === selectedAllianceRef.current) return;
+    const updated = { ...allianceContents, [selectedAllianceRef.current]: contentRef.current };
+    setAllianceContents(updated);
+    setContent(updated[key]);
+    clearUndoRedo();
+    setSelectedAlliance(key);
+  }
+
+  function handleResetAlliance() {
+    saveSnapshot();
+    setContent(ALLIANCE_DESCRIPTIONS[selectedAllianceRef.current]);
+    setAllianceContents(prev => ({ ...prev, [selectedAllianceRef.current]: ALLIANCE_DESCRIPTIONS[selectedAllianceRef.current] }));
+  }
+
   // Load shared mail from URL or localStorage draft
   useEffect(() => {
     const mailId = searchParams.get('mail');
@@ -139,9 +184,9 @@ export default function RokMailPage() {
     }
   }, [searchParams]);
 
-  // Auto-save when content changes (debounced)
+  // Auto-save when content changes (debounced) — only in mail mode
   useEffect(() => {
-    if (!shareIdRef.current) return;
+    if (!shareIdRef.current || contentModeRef.current !== 'mail') return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       await supabase
@@ -372,41 +417,109 @@ export default function RokMailPage() {
               RoK Mail
             </h1>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Format and preview in-game mail messages
+              {contentMode === 'mail' ? 'Format and preview in-game mail messages' : 'Edit in-game alliance descriptions'}
             </p>
+          </div>
+        </div>
+
+        {/* Mode Tabs */}
+        <div className="flex items-center gap-2 mb-4">
+          <div
+            className="flex items-center rounded-lg border p-0.5"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            {([
+              { key: 'mail' as const, label: 'Mail' },
+              { key: 'alliance' as const, label: 'Alliance Description' },
+            ] as const).map((mode) => {
+              const isActive = contentMode === mode.key;
+              return (
+                <button
+                  key={mode.key}
+                  type="button"
+                  onClick={() => handleModeSwitch(mode.key)}
+                  className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-md transition-fast ${
+                    isActive
+                      ? 'bg-pink-500/20 text-pink-400 font-medium'
+                      : 'hover:bg-pink-500/5'
+                  }`}
+                  style={!isActive ? { color: 'var(--text-secondary)' } : undefined}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Top Bar */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => setShowTemplates(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
-            style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
-          >
-            <LayoutTemplate size={16} />
-            Templates
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAi(!showAi)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            <Bot size={16} />
-            AI Assistant
-          </button>
-          <button
-            type="button"
-            onClick={handleInsertBreak}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
-            style={{ color: 'var(--text-secondary)' }}
-            title="Insert a break marker to split mail into parts"
-          >
-            <Scissors size={16} />
-            Break
-          </button>
+          {contentMode === 'mail' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowTemplates(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
+                style={{ color: 'var(--text-secondary)', borderColor: 'var(--border)' }}
+              >
+                <LayoutTemplate size={16} />
+                Templates
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAi(!showAi)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <Bot size={16} />
+                AI Assistant
+              </button>
+              <button
+                type="button"
+                onClick={handleInsertBreak}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
+                style={{ color: 'var(--text-secondary)' }}
+                title="Insert a break marker to split mail into parts"
+              >
+                <Scissors size={16} />
+                Break
+              </button>
+            </>
+          ) : (
+            <>
+              {ALLIANCE_KEYS.map((key) => {
+                const isActive = selectedAlliance === key;
+                const color = ALLIANCE_COLORS[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleAllianceSwitch(key)}
+                    className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-fast ${
+                      isActive ? 'shadow-lg' : 'hover:opacity-80'
+                    }`}
+                    style={{
+                      backgroundColor: isActive ? `${color}20` : 'transparent',
+                      color,
+                      border: `2px solid ${color}${isActive ? '' : '40'}`,
+                    }}
+                  >
+                    {key}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={handleResetAlliance}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
+                style={{ color: 'var(--text-secondary)' }}
+                title="Reset to default template"
+              >
+                <RotateCcw size={14} />
+                Reset
+              </button>
+            </>
+          )}
 
           <div className="flex-1" />
 
@@ -453,21 +566,23 @@ export default function RokMailPage() {
             {copied ? <Check size={16} /> : <Copy size={16} />}
             {copied ? 'Copied!' : 'Copy'}
           </button>
-          <button
-            type="button"
-            onClick={handleShare}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-fast ${
-              linkCopied
-                ? 'bg-emerald-500/20 text-emerald-400'
-                : shareId
-                  ? 'bg-fuchsia-500/20 text-fuchsia-400 hover:bg-fuchsia-500/30'
-                  : 'hover:bg-pink-500/10'
-            }`}
-            style={!shareId && !linkCopied ? { color: 'var(--text-secondary)' } : undefined}
-          >
-            {linkCopied ? <Check size={16} /> : shareId ? <Link size={16} /> : <Share2 size={16} />}
-            {linkCopied ? 'Link copied!' : shareId ? 'Copy Link' : 'Share'}
-          </button>
+          {contentMode === 'mail' && (
+            <button
+              type="button"
+              onClick={handleShare}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-fast ${
+                linkCopied
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : shareId
+                    ? 'bg-fuchsia-500/20 text-fuchsia-400 hover:bg-fuchsia-500/30'
+                    : 'hover:bg-pink-500/10'
+              }`}
+              style={!shareId && !linkCopied ? { color: 'var(--text-secondary)' } : undefined}
+            >
+              {linkCopied ? <Check size={16} /> : shareId ? <Link size={16} /> : <Share2 size={16} />}
+              {linkCopied ? 'Link copied!' : shareId ? 'Copy Link' : 'Share'}
+            </button>
+          )}
         </div>
 
         {shareError && (

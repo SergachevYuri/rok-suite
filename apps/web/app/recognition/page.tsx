@@ -20,7 +20,7 @@ import {
     type TrophyWithMember,
     type MemberTrophyCounts,
 } from '@/lib/supabase/use-king-trophies';
-import { Crown, Trophy, Award, Medal, Star, ChevronDown, ChevronUp, Plus, Trash2, Lock, Calendar, Users } from 'lucide-react';
+import { Crown, Trophy, Award, Medal, Star, ChevronDown, ChevronUp, Plus, Trash2, Lock, Calendar, Users, ScrollText } from 'lucide-react';
 import { allianceDisplay } from '@/lib/alliances';
 
 const EDITOR_PASSWORD = 'carn-dum';
@@ -201,6 +201,37 @@ export default function RecognitionPage() {
         const end = new Date(start);
         end.setDate(end.getDate() + 6);
         return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    };
+
+    const generateTrophyMail = (weekOf: string, weekTrophies: TrophyWithMember[]) => {
+        const header = `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>`;
+        const divider = '►═════════❂❂❂═════════◄';
+
+        const lines: string[] = [];
+        lines.push(header);
+        lines.push(divider);
+        lines.push('');
+        lines.push(`<b><color=#ff3333>King's Recognition — ${formatWeekLabel(weekOf)}</color></b>`);
+        lines.push('');
+
+        for (const type of TROPHY_ORDER) {
+            const typeTrophies = weekTrophies.filter(t => t.trophy_type === type);
+            if (typeTrophies.length === 0) continue;
+
+            const cfg = TROPHY_CONFIG[type];
+            lines.push(`<b>${cfg.label}</b>`);
+            for (const t of typeTrophies) {
+                const reason = t.reason ? ` — <i>${t.reason}</i>` : '';
+                lines.push(`${t.member_name}${reason}`);
+            }
+            lines.push('');
+        }
+
+        lines.push(divider);
+        lines.push(`<b><color=#800000>— King Fluffy</color></b>`);
+
+        localStorage.setItem('rok-mail-draft', lines.join('\n'));
+        window.location.href = '/rok-mail';
     };
 
     return (
@@ -500,6 +531,18 @@ export default function RecognitionPage() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
+                                                {isEditor && (
+                                                    <span
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onClick={(e) => { e.stopPropagation(); generateTrophyMail(week, weekTrophies); }}
+                                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); generateTrophyMail(week, weekTrophies); } }}
+                                                        className="p-1.5 rounded-md hover:bg-pink-500/10 text-pink-400/70 hover:text-pink-400 transition-colors"
+                                                        title="Generate mail"
+                                                    >
+                                                        <ScrollText size={16} />
+                                                    </span>
+                                                )}
                                                 <div className="flex gap-1">
                                                     {TROPHY_ORDER.map(type => {
                                                         const count = weekTrophies.filter(t => t.trophy_type === type).length;
