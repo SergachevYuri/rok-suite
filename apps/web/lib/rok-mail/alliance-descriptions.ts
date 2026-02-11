@@ -17,20 +17,18 @@ export const ALLIANCE_DESCRIPTIONS: Record<AllianceKey, string> = {
 ►═════════❂❂❂═════════◄
 <b>KvK 1 Winner. Allied :3922</b>
 
-MIGRATION https://discord.gg/tSexQec28T
+<b>MIGRATION:</b> https://discord.gg/tSexQec28T
 
-<b>ACADEMIES:</b> K23S, EQng, Ar
+<b>ACADEMIES:</b> K23S, EQng, wAr
 <b>FARMS:</b> ANGF
 
 <b>LEADERSHIP ROLES</b>
 ✯<b>LEADER</b>✯ – Fluffy
-✯<b>WARLORD</b>✯ – Fluffy, Thor
+✯<b>WARLORD</b>✯ – Fluffy, Ares
 ✯<b>DIPLOMACY</b>✯ – Fluffy, Fluffy Queen, BBQSGE
 ✯<b>MEMBER MANAGEMENT</b>✯ – Fluffy, BBQSGE
 ✯<b>EVENTS</b>✯ – Fluffy Queen
 ✯<b>TERRITORY</b>✯ – Cain
-
-<b></b>
 
 <b>No drama. Team > ego.</b>`,
 
@@ -39,7 +37,7 @@ MIGRATION https://discord.gg/tSexQec28T
 ►═════════❂❂❂═════════◄
 <b>KvK 1 Winner. Allied :3922</b>
 
-MIGRATION https://discord.gg/tSexQec28T
+<b>MIGRATION:</b> https://discord.gg/tSexQec28T
 
 <b>ACADEMIES:</b>
 <b>FARMS:</b>
@@ -51,8 +49,6 @@ MIGRATION https://discord.gg/tSexQec28T
 ✯<b>MEMBER MANAGEMENT</b>✯ –
 ✯<b>EVENTS</b>✯ –
 ✯<b>TERRITORY</b>✯ –
-
-<b></b>
 
 <b>No drama. Team > ego.</b>`,
 
@@ -61,7 +57,7 @@ MIGRATION https://discord.gg/tSexQec28T
 ►═════════❂❂❂═════════◄
 <b>KvK 1 Winner. Allied :3922</b>
 
-MIGRATION https://discord.gg/tSexQec28T
+<b>MIGRATION:</b> https://discord.gg/tSexQec28T
 
 <b>ACADEMIES:</b>
 <b>FARMS:</b>
@@ -73,8 +69,6 @@ MIGRATION https://discord.gg/tSexQec28T
 ✯<b>MEMBER MANAGEMENT</b>✯ –
 ✯<b>EVENTS</b>✯ –
 ✯<b>TERRITORY</b>✯ –
-
-<b></b>
 
 <b>No drama. Team > ego.</b>`,
 
@@ -83,7 +77,7 @@ MIGRATION https://discord.gg/tSexQec28T
 ►═════════❂❂❂═════════◄
 <b>KvK 1 Winner. Allied :3922</b>
 
-MIGRATION https://discord.gg/tSexQec28T
+<b>MIGRATION:</b> https://discord.gg/tSexQec28T
 
 <b>ACADEMIES:</b>
 <b>FARMS:</b>
@@ -95,8 +89,6 @@ MIGRATION https://discord.gg/tSexQec28T
 ✯<b>MEMBER MANAGEMENT</b>✯ –
 ✯<b>EVENTS</b>✯ –
 ✯<b>TERRITORY</b>✯ –
-
-<b></b>
 
 <b>No drama. Team > ego.</b>`,
 
@@ -105,7 +97,7 @@ MIGRATION https://discord.gg/tSexQec28T
 ►═════════❂❂❂═════════◄
 <b>KvK 1 Winner. Allied :3922</b>
 
-MIGRATION https://discord.gg/tSexQec28T
+<b>MIGRATION:</b> https://discord.gg/tSexQec28T
 
 <b>ACADEMIES:</b>
 <b>FARMS:</b>
@@ -117,8 +109,6 @@ MIGRATION https://discord.gg/tSexQec28T
 ✯<b>MEMBER MANAGEMENT</b>✯ –
 ✯<b>EVENTS</b>✯ –
 ✯<b>TERRITORY</b>✯ –
-
-<b></b>
 
 <b>No drama. Team > ego.</b>`,
 
@@ -127,7 +117,7 @@ MIGRATION https://discord.gg/tSexQec28T
 ►═════════❂❂❂═════════◄
 <b>KvK 1 Winner. Allied :3922</b>
 
-MIGRATION https://discord.gg/tSexQec28T
+<b>MIGRATION:</b> https://discord.gg/tSexQec28T
 
 <b>ACADEMIES:</b>
 <b>FARMS:</b>
@@ -139,8 +129,6 @@ MIGRATION https://discord.gg/tSexQec28T
 ✯<b>MEMBER MANAGEMENT</b>✯ –
 ✯<b>EVENTS</b>✯ –
 ✯<b>TERRITORY</b>✯ –
-
-<b></b>
 
 <b>No drama. Team > ego.</b>`,
 };

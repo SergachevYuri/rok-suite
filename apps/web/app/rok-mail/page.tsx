@@ -707,7 +707,7 @@ export default function RokMailPage() {
                 className="rounded-lg border overflow-hidden"
                 style={{ borderColor: 'var(--border)' }}
               >
-                <RokMailPreview content={content} />
+                <RokMailPreview content={content} variant={contentMode === 'alliance' ? 'alliance' : 'mail'} />
               </div>
             )
           )}
