@@ -55,7 +55,7 @@ export default function RokMailPage() {
   const [fontSize, setFontSize] = useState(30);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAi, setShowAi] = useState(false);
-  const [editTab, setEditTab] = useState<'source' | 'text'>('source');
+  const [editTab, setEditTab] = useState<'source' | 'text' | 'preview'>('source');
   const [shareId, setShareId] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -274,7 +274,7 @@ export default function RokMailPage() {
     onSymbolClick: () => { setShowSymbolPicker(!showSymbolPicker); },
     fontSize,
     onFontSizeChange: setFontSize,
-    editMode: editTab,
+    editMode: editTab === 'preview' ? 'source' : editTab,
     onUndo: handleUndo,
     onRedo: handleRedo,
     canUndo,
@@ -527,9 +527,9 @@ export default function RokMailPage() {
 
           <div className="flex-1" />
 
-          {/* Mode Toggle */}
+          {/* Mode Toggle — desktop only (mobile uses Source/Text/Preview tabs) */}
           <div
-            className="flex items-center rounded-lg border p-0.5"
+            className="hidden md:flex items-center rounded-lg border p-0.5"
             style={{ borderColor: 'var(--border)' }}
           >
             {modes.map((mode) => {
@@ -610,118 +610,134 @@ export default function RokMailPage() {
           }`}
           style={{ minHeight: '500px' }}
         >
-          {/* Editor Panel */}
-          {(editorMode === 'edit' || editorMode === 'split') && (
-            <div
-              className="rounded-lg border flex flex-col"
-              style={{
-                backgroundColor: 'var(--background-card)',
-                borderColor: 'var(--border)',
-              }}
-            >
-              {/* Source / Text toggle */}
-              <div className="flex items-center px-2 py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
-                <div className="flex items-center rounded-md border p-0.5" style={{ borderColor: 'var(--border)' }}>
-                  {([
-                    { key: 'source' as const, label: 'Source', icon: Code },
-                    { key: 'text' as const, label: 'Text', icon: Type },
-                  ]).map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = editTab === tab.key;
-                    return (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setEditTab(tab.key)}
-                        className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded-sm transition-fast ${
-                          isActive
-                            ? 'bg-pink-500/20 text-pink-400 font-medium'
-                            : 'hover:bg-pink-500/5'
-                        }`}
-                        style={!isActive ? { color: 'var(--text-secondary)' } : undefined}
-                      >
-                        <Icon size={12} />
-                        {tab.label}
-                      </button>
-                    );
-                  })}
+          {/* Editor Panel — always visible on mobile, hidden on desktop in preview mode */}
+          <div
+            className={`rounded-lg border flex flex-col ${editorMode === 'preview' ? 'md:hidden' : ''}`}
+            style={{
+              backgroundColor: 'var(--background-card)',
+              borderColor: 'var(--border)',
+            }}
+          >
+              {/* Sticky editor header on mobile */}
+              <div className="sticky top-[6.5rem] md:static z-20 rounded-t-lg" style={{ backgroundColor: 'var(--background-card)' }}>
+                {/* Source / Text / Preview toggle */}
+                <div className="flex items-center px-2 py-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-center rounded-md border p-0.5" style={{ borderColor: 'var(--border)' }}>
+                    {([
+                      { key: 'source' as const, label: 'Source', icon: Code, hide: '' },
+                      { key: 'text' as const, label: 'Text', icon: Type, hide: '' },
+                      { key: 'preview' as const, label: 'Preview', icon: Eye, hide: 'md:hidden' },
+                    ]).map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = editTab === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => setEditTab(tab.key)}
+                          className={`${tab.hide} flex items-center gap-1 px-2 py-1 text-[11px] rounded-sm transition-fast ${
+                            isActive
+                              ? 'bg-pink-500/20 text-pink-400 font-medium'
+                              : 'hover:bg-pink-500/5'
+                          }`}
+                          style={!isActive ? { color: 'var(--text-secondary)' } : undefined}
+                        >
+                          <Icon size={12} />
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {editTab === 'text' && content !== stripRokMarkup(content) && (
+                    <p className="text-[10px] ml-2" style={{ color: 'var(--text-muted)' }}>
+                      Formatting preserved
+                    </p>
+                  )}
                 </div>
-                {editTab === 'text' && content !== stripRokMarkup(content) && (
-                  <p className="text-[10px] ml-2" style={{ color: 'var(--text-muted)' }}>
-                    Formatting preserved
-                  </p>
+
+                {/* Toolbar — hidden when viewing preview */}
+                {editTab !== 'preview' && (
+                  <div className="relative">
+                    {toolbar}
+                    <ColorPicker
+                      isOpen={showColorPicker}
+                      onClose={() => setShowColorPicker(false)}
+                      onSelectColor={handleColorSelect}
+                    />
+                    <GradientPicker
+                      isOpen={showGradientPicker}
+                      onClose={() => setShowGradientPicker(false)}
+                      onApplyGradient={handleGradientApply}
+                    />
+                    <SymbolPicker
+                      isOpen={showSymbolPicker}
+                      onClose={() => setShowSymbolPicker(false)}
+                      onSelectSymbol={handleSymbolSelect}
+                    />
+                  </div>
                 )}
               </div>
 
-              {/* Toolbar */}
-              <div className="relative">
-                {toolbar}
-                <ColorPicker
-                  isOpen={showColorPicker}
-                  onClose={() => setShowColorPicker(false)}
-                  onSelectColor={handleColorSelect}
-                />
-                <GradientPicker
-                  isOpen={showGradientPicker}
-                  onClose={() => setShowGradientPicker(false)}
-                  onApplyGradient={handleGradientApply}
-                />
-                <SymbolPicker
-                  isOpen={showSymbolPicker}
-                  onClose={() => setShowSymbolPicker(false)}
-                  onSelectSymbol={handleSymbolSelect}
-                />
-              </div>
+              {/* Content: preview or editor */}
+              {editTab === 'preview' ? (
+                <div className="flex-1">
+                  {mailParts && mailParts.length > 1 ? (
+                    <MailParts parts={mailParts} />
+                  ) : (
+                    <RokMailPreview content={content} variant={contentMode === 'alliance' ? 'alliance' : 'mail'} />
+                  )}
+                </div>
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  value={editTab === 'source' ? content : stripRokMarkup(content)}
+                  onChange={(e) => {
+                    if (!isTypingRef.current) {
+                      pushUndo(content);
+                      isTypingRef.current = true;
+                    }
+                    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+                    typingTimerRef.current = setTimeout(() => { isTypingRef.current = false; }, 2000);
 
-              <textarea
-                ref={textareaRef}
-                value={editTab === 'source' ? content : stripRokMarkup(content)}
-                onChange={(e) => {
-                  // Save undo snapshot at the start of each typing batch
-                  if (!isTypingRef.current) {
-                    pushUndo(content);
-                    isTypingRef.current = true;
+                    if (editTab === 'source') {
+                      setContent(e.target.value);
+                    } else {
+                      setContent(applyTextEdit(content, e.target.value));
+                    }
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    editTab === 'source'
+                      ? "Type your mail here... Use the toolbar to add formatting.\n\nSupported tags:\n<b>bold text</b>\n<i>italic text</i>\n<color=\"red\">colored text</color>"
+                      : "Type your message here...\nFormatting tags are preserved automatically."
                   }
-                  if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-                  typingTimerRef.current = setTimeout(() => { isTypingRef.current = false; }, 2000);
+                  className={`flex-1 w-full p-4 resize-none text-sm focus:outline-none ${
+                    editTab === 'source' ? 'font-mono' : ''
+                  }`}
+                  style={{
+                    backgroundColor: 'transparent',
+                    color: 'var(--foreground)',
+                    minHeight: '400px',
+                  }}
+                  spellCheck={editTab === 'text'}
+                />
+              )}
+          </div>
 
-                  if (editTab === 'source') {
-                    setContent(e.target.value);
-                  } else {
-                    setContent(applyTextEdit(content, e.target.value));
-                  }
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder={
-                  editTab === 'source'
-                    ? "Type your mail here... Use the toolbar to add formatting.\n\nSupported tags:\n<b>bold text</b>\n<i>italic text</i>\n<color=\"red\">colored text</color>"
-                    : "Type your message here...\nFormatting tags are preserved automatically."
-                }
-                className={`flex-1 w-full p-4 resize-none text-sm focus:outline-none ${
-                  editTab === 'source' ? 'font-mono' : ''
-                }`}
-                style={{
-                  backgroundColor: 'transparent',
-                  color: 'var(--foreground)',
-                  minHeight: '400px',
-                }}
-                spellCheck={editTab === 'text'}
-              />
-            </div>
-          )}
-
-          {/* Preview Panel — shows multi-part tabs when split, otherwise single preview */}
+          {/* Preview Panel — desktop only (mobile uses Preview tab in editor) */}
           {(editorMode === 'preview' || editorMode === 'split') && (
-            mailParts && mailParts.length > 1 ? (
-              <MailParts parts={mailParts} />
-            ) : (
-              <div
-                className="rounded-lg border overflow-hidden"
-                style={{ borderColor: 'var(--border)' }}
-              >
-                <RokMailPreview content={content} variant={contentMode === 'alliance' ? 'alliance' : 'mail'} />
-              </div>
-            )
+            <div className="hidden md:block">
+              {mailParts && mailParts.length > 1 ? (
+                <MailParts parts={mailParts} />
+              ) : (
+                <div
+                  className="rounded-lg border overflow-hidden"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <RokMailPreview content={content} variant={contentMode === 'alliance' ? 'alliance' : 'mail'} />
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
