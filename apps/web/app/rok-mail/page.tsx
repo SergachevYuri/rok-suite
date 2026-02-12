@@ -466,7 +466,7 @@ export default function RokMailPage() {
                 title="Templates"
               >
                 <LayoutTemplate size={16} />
-                <span className="hidden sm:inline">Templates</span>
+                Templates
               </button>
               <button
                 type="button"

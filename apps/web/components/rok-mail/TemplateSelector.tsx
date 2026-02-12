@@ -78,10 +78,10 @@ export function TemplateSelector({ onClose, onLoadTemplate }: TemplateSelectorPr
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex">
+        <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
           {/* Template List */}
           <div
-            className="w-1/3 border-r overflow-y-auto p-2"
+            className="md:w-1/3 border-b md:border-b-0 md:border-r overflow-y-auto p-2 shrink-0 max-h-[25vh] md:max-h-none"
             style={{ borderColor: 'var(--border)' }}
           >
             {filteredTemplates.map((template) => (
@@ -108,21 +108,27 @@ export function TemplateSelector({ onClose, onLoadTemplate }: TemplateSelectorPr
             ))}
           </div>
 
-          {/* Preview */}
-          <div className="flex-1 overflow-y-auto p-4">
+          {/* Preview + Button */}
+          <div className="flex-1 flex flex-col min-h-0">
             {previewTemplate ? (
-              <div>
-                <div className="rounded-lg overflow-hidden mb-4 border" style={{ borderColor: 'var(--border)' }}>
-                  <RokMailPreview content={previewTemplate.content} />
+              <>
+                {/* Scrollable preview area */}
+                <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                  <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
+                    <RokMailPreview content={previewTemplate.content} />
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onLoadTemplate(previewTemplate.content)}
-                  className="w-full py-2.5 rounded-lg text-sm font-medium bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white hover:opacity-90 transition-fast"
-                >
-                  Load Template
-                </button>
-              </div>
+                {/* Button pinned at bottom */}
+                <div className="shrink-0 px-4 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <button
+                    type="button"
+                    onClick={() => onLoadTemplate(previewTemplate.content)}
+                    className="w-full py-2.5 rounded-lg text-sm font-medium bg-gradient-to-r from-pink-500 to-fuchsia-500 text-white hover:opacity-90 transition-fast"
+                  >
+                    Load Template
+                  </button>
+                </div>
+              </>
             ) : (
               <div className="flex items-center justify-center h-full">
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
