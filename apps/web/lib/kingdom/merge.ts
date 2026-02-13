@@ -94,8 +94,13 @@ export function mergePlayers(
     }
     if (target) {
       target.isMigrant = true;
-      target.migrantAccepted = migrant.accepted.toLowerCase() === 'yes' ||
-                                migrant.accepted.toLowerCase() === 'y';
+      const acceptedVal = migrant.accepted.toLowerCase().trim();
+      target.migrantAccepted = acceptedVal === 'yes' || acceptedVal === 'y';
+      // Pre-tag pending migrants so computeMigrationStatus can distinguish
+      // "pending" (awaiting decision) from "no"/blank (not approved → illegal)
+      if (acceptedVal === 'pending') {
+        target.migrationStatus = 'PENDING';
+      }
       target.migrantGroup = migrant.group || null;
       target.migrantRecruiter = migrant.recruiter || null;
       target.startingKd = migrant.startingKd || null;
@@ -132,22 +137,22 @@ function computeMigrationStatus(player: MergedPlayer, hasPreMigrationData: boole
     return 'ORIGINAL';
   }
 
-  // On migrant list and accepted
+  // On migrant list and accepted → ACCEPTED
   if (player.isMigrant && player.migrantAccepted) {
     return 'ACCEPTED';
   }
 
-  // On migrant list but not accepted
-  if (player.isMigrant && !player.migrantAccepted) {
+  // On migrant list, accepted = "pending" → PENDING (awaiting decision)
+  if (player.isMigrant && player.migrationStatus === 'PENDING') {
     return 'PENDING';
   }
 
-  // New arrival (not in pre-migration, not on migrant list) in a kingdom alliance
-  if (hasPreMigrationData && !player.existedPreMigration && isKingdomAlliance(player.currentAlliance)) {
+  // On migrant list, accepted = "no" or blank → ILLEGAL
+  if (player.isMigrant) {
     return 'ILLEGAL';
   }
 
-  // New arrival not in a kingdom alliance — not really illegal, just unknown
+  // Not on migrant list, not original → ILLEGAL
   if (hasPreMigrationData && !player.existedPreMigration) {
     return 'ILLEGAL';
   }
