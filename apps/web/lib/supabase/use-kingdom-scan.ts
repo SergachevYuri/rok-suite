@@ -157,3 +157,66 @@ export async function saveAssignments(
 
   return true;
 }
+
+/**
+ * Fetch all stored pre-migration governor IDs from Supabase.
+ */
+export async function fetchPreMigrationIds(): Promise<Set<number>> {
+  const ids = new Set<number>();
+  let from = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('pre_migration_governors')
+      .select('governor_id')
+      .range(from, from + 999);
+
+    if (!data || data.length === 0) break;
+    for (const row of data) ids.add(row.governor_id);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+  return ids;
+}
+
+/**
+ * Replace all stored pre-migration governor IDs with a new set.
+ */
+export async function savePreMigrationIds(ids: Set<number>): Promise<boolean> {
+  // Delete all existing
+  const { error: delError } = await supabase
+    .from('pre_migration_governors')
+    .delete()
+    .gte('governor_id', 0);
+
+  if (delError) {
+    console.error('Failed to clear pre_migration_governors:', delError);
+    return false;
+  }
+
+  // Batch insert
+  const rows = Array.from(ids).map(id => ({ governor_id: id }));
+  for (let i = 0; i < rows.length; i += 500) {
+    const batch = rows.slice(i, i + 500);
+    const { error } = await supabase
+      .from('pre_migration_governors')
+      .insert(batch);
+
+    if (error) {
+      console.error(`Failed to insert pre_migration batch ${i}:`, error);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Get the count of stored pre-migration governor IDs without fetching all rows.
+ */
+export async function getPreMigrationCount(): Promise<number> {
+  const { count } = await supabase
+    .from('pre_migration_governors')
+    .select('*', { count: 'exact', head: true });
+
+  return count ?? 0;
+}

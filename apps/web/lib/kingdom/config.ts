@@ -15,7 +15,7 @@ export const MIGRANT_SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1VoYEGLmM4H1HQ-uHSwgI_8SrQM4wryGH/export?format=csv&gid=443630646';
 
 /** Alliance tags that belong to this kingdom */
-export const KINGDOM_ALLIANCE_TAGS = ['ANG', '23KK', 'KNG', 'K23S', '23A', 'EQ', '23SP', 'GNG'];
+export const KINGDOM_ALLIANCE_TAGS = ['ANG', '23KK', 'KNG', 'K23S', '23A', '23-A', 'EQ', '23SP', 'GNG'];
 
 /** Map in-game alliance tags → sorter display tags */
 export const ALLIANCE_TAG_TO_SORTER: Record<string, string> = {
@@ -24,6 +24,7 @@ export const ALLIANCE_TAG_TO_SORTER: Record<string, string> = {
   'KNG': 'KNG',
   'K23S': 'SNG',
   '23A': '23A',
+  '23-A': '23A',
   'EQ': 'ENG',
   '23SP': '23SP',
   'GNG': 'GNG',

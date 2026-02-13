@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Upload,
   Lock,
@@ -21,7 +21,7 @@ import {
   ChevronUp,
   ArrowUpDown,
 } from 'lucide-react';
-import { useLatestScan, uploadScan } from '@/lib/supabase/use-kingdom-scan';
+import { useLatestScan, uploadScan, getPreMigrationCount, fetchPreMigrationIds, savePreMigrationIds } from '@/lib/supabase/use-kingdom-scan';
 import { parseSnapshotCSV, parseKingdomXLSX, fetchMigrantSheet } from '@/lib/kingdom/parse';
 import { mergePlayers } from '@/lib/kingdom/merge';
 import { MIGRANT_SHEET_URL, formatNumber, toSorterTag } from '@/lib/kingdom/config';
@@ -64,6 +64,7 @@ export default function MigrationTracker() {
   const [uploadLabel, setUploadLabel] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [storedPreMigCount, setStoredPreMigCount] = useState<number | null>(null);
 
   // View state
   const [search, setSearch] = useState('');
@@ -72,6 +73,11 @@ export default function MigrationTracker() {
   const [sortField, setSortField] = useState<SortField>('power');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [cardFilter, setCardFilter] = useState<MigrationStatus | null>(null);
+
+  // Load stored pre-migration count on mount
+  useEffect(() => {
+    getPreMigrationCount().then(setStoredPreMigCount);
+  }, []);
 
   // Derived data
   const alliances = useMemo(() => {
@@ -172,17 +178,22 @@ export default function MigrationTracker() {
         kingdom = await parseKingdomXLSX(buf);
       }
 
-      // Parse pre-migration XLSX
+      // Parse pre-migration XLSX or load stored IDs
       let preMigration: KingdomExportRow[] = [];
+      let storedIds: Set<number> | null = null;
       if (preMigrationFile) {
         setUploadProgress('Parsing pre-migration data...');
         const buf = await preMigrationFile.arrayBuffer();
         preMigration = await parseKingdomXLSX(buf);
+      } else if (storedPreMigCount && storedPreMigCount > 0) {
+        setUploadProgress(`Loading stored pre-migration data (${storedPreMigCount.toLocaleString()} governors)...`);
+        storedIds = await fetchPreMigrationIds();
       }
 
       // Merge
       setUploadProgress('Merging player data...');
-      const merged = mergePlayers(snapshot, kingdom, migrantData, preMigration);
+      const preMigrationData = storedIds ?? preMigration;
+      const merged = mergePlayers(snapshot, kingdom, migrantData, preMigrationData);
 
       // Upload
       setUploadProgress(`Uploading ${merged.length} players to database...`);
@@ -191,10 +202,18 @@ export default function MigrationTracker() {
         snapshot: snapshot.length,
         kingdom: kingdom.length,
         migrant: migrantData.length,
-        preMigration: preMigration.length,
+        preMigration: storedIds ? storedIds.size : preMigration.length,
       });
 
       if (scanId) {
+        // Save pre-migration IDs if a new file was uploaded
+        if (preMigrationFile && preMigration.length > 0) {
+          setUploadProgress('Saving pre-migration data for future scans...');
+          const ids = new Set(preMigration.map(r => r.governorId));
+          await savePreMigrationIds(ids);
+          setStoredPreMigCount(ids.size);
+        }
+
         setUploadProgress('Done! Refreshing data...');
         await refetch();
         // Reset upload form
@@ -240,12 +259,13 @@ export default function MigrationTracker() {
     URL.revokeObjectURL(url);
   };
 
-  const FileDropZone = ({ label, accepted, file, onFile, icon }: {
+  const FileDropZone = ({ label, accepted, file, onFile, icon, hint }: {
     label: string;
     accepted: string;
     file: File | null;
     onFile: (f: File) => void;
     icon: React.ReactNode;
+    hint?: React.ReactNode;
   }) => {
     const [dragActive, setDragActive] = useState(false);
 
@@ -287,6 +307,7 @@ export default function MigrationTracker() {
           ) : (
             <div className="text-xs text-[var(--text-muted)]">Drop file or click to browse</div>
           )}
+          {hint && !file && <div className="mt-1">{hint}</div>}
         </div>
       </div>
     );
@@ -409,6 +430,14 @@ export default function MigrationTracker() {
                 file={preMigrationFile}
                 onFile={setPreMigrationFile}
                 icon={<FileSpreadsheet size={24} />}
+                hint={storedPreMigCount != null && storedPreMigCount > 0 ? (
+                  <div className="text-xs text-emerald-500 flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {storedPreMigCount.toLocaleString()} IDs stored — upload new file to replace
+                  </div>
+                ) : storedPreMigCount === 0 ? (
+                  <div className="text-xs text-[var(--text-muted)]">No stored data</div>
+                ) : null}
               />
 
               {/* Migrant sheet fetch */}

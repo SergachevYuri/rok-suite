@@ -5,7 +5,7 @@ export function mergePlayers(
   snapshot: SnapshotRow[],
   kingdom: KingdomExportRow[],
   migrants: MigrantRow[],
-  preMigration: KingdomExportRow[],
+  preMigration: KingdomExportRow[] | Set<number>,
 ): MergedPlayer[] {
   const byId = new Map<number, MergedPlayer>();
 
@@ -120,7 +120,9 @@ export function mergePlayers(
   }
 
   // 4. Mark pre-migration members
-  const preMigrationIds = new Set(preMigration.map(r => r.governorId));
+  const preMigrationIds = preMigration instanceof Set
+    ? preMigration
+    : new Set(preMigration.map(r => r.governorId));
   for (const player of byId.values()) {
     if (preMigrationIds.has(player.governorId)) {
       player.existedPreMigration = true;
@@ -130,7 +132,10 @@ export function mergePlayers(
 
   // 5. Compute migration status
   for (const player of byId.values()) {
-    player.migrationStatus = computeMigrationStatus(player, preMigration.length > 0);
+    const hasPreMigrationData = preMigration instanceof Set
+      ? preMigration.size > 0
+      : preMigration.length > 0;
+    player.migrationStatus = computeMigrationStatus(player, hasPreMigrationData);
   }
 
   return Array.from(byId.values());
