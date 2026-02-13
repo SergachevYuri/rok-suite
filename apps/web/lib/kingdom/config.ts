@@ -8,13 +8,14 @@ export const DEFAULT_ALLIANCE_CONFIGS: AllianceConfig[] = [
   { tag: 'SNG', rank: 5, cap: 88,  minPower: 10_000_000, minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
   { tag: '23A', rank: 6, cap: 97,  minPower: 8_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
   { tag: '23SP', rank: 7, cap: 110, minPower: 8_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
+  { tag: 'GNG',  rank: 8, cap: 100, minPower: 1_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
 ];
 
 export const MIGRANT_SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1VoYEGLmM4H1HQ-uHSwgI_8SrQM4wryGH/export?format=csv&gid=443630646';
 
 /** Alliance tags that belong to this kingdom */
-export const KINGDOM_ALLIANCE_TAGS = ['ANG', '23KK', 'KNG', 'K23S', '23A', 'EQ'];
+export const KINGDOM_ALLIANCE_TAGS = ['ANG', '23KK', 'KNG', 'K23S', '23A', 'EQ', '23SP', 'GNG'];
 
 /** Map in-game alliance tags → sorter display tags */
 export const ALLIANCE_TAG_TO_SORTER: Record<string, string> = {
@@ -24,6 +25,8 @@ export const ALLIANCE_TAG_TO_SORTER: Record<string, string> = {
   'K23S': 'SNG',
   '23A': '23A',
   'EQ': 'ENG',
+  '23SP': '23SP',
+  'GNG': 'GNG',
 };
 
 /** Alliance colors for UI display */
@@ -35,6 +38,7 @@ export const SORTER_ALLIANCE_COLORS: Record<string, string> = {
   SNG: '#999999',
   '23A': '#ff9933',
   '23SP': '#66cccc',
+  GNG: '#cc6699',
 };
 
 /**

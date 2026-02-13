@@ -278,6 +278,18 @@ export default function AllianceSorter() {
     });
   };
 
+  const moveConfig = (index: number, direction: -1 | 1) => {
+    setConfigs(prev => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      // Swap entries
+      [next[index], next[target]] = [next[target], next[index]];
+      // Re-assign ranks based on new positions
+      return next.map((cfg, i) => ({ ...cfg, rank: i + 1 }));
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -376,6 +388,24 @@ export default function AllianceSorter() {
                         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                         <span className="font-semibold text-sm text-[var(--foreground)]">{cfg.tag}</span>
                         <span className="text-xs text-[var(--text-muted)] bg-[var(--background-secondary)] px-1.5 py-0.5 rounded">#{cfg.rank}</span>
+                        <div className="flex flex-col -my-1">
+                          <button
+                            onClick={() => moveConfig(i, -1)}
+                            disabled={i === 0}
+                            className="text-[var(--text-muted)] hover:text-[var(--foreground)] disabled:opacity-20 disabled:cursor-default transition-colors"
+                            title="Move up"
+                          >
+                            <ChevronUp size={14} />
+                          </button>
+                          <button
+                            onClick={() => moveConfig(i, 1)}
+                            disabled={i === configs.length - 1}
+                            className="text-[var(--text-muted)] hover:text-[var(--foreground)] disabled:opacity-20 disabled:cursor-default transition-colors -mt-1"
+                            title="Move down"
+                          >
+                            <ChevronDown size={14} />
+                          </button>
+                        </div>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs text-[var(--text-muted)]">Cap</span>
