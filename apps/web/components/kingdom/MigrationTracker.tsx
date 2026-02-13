@@ -21,7 +21,7 @@ import {
   ChevronUp,
   ArrowUpDown,
 } from 'lucide-react';
-import { useLatestScan, uploadScan, getPreMigrationCount, fetchPreMigrationIds, savePreMigrationIds } from '@/lib/supabase/use-kingdom-scan';
+import { useLatestScan, uploadScan, updateRosterFromScan, getPreMigrationCount, fetchPreMigrationIds, savePreMigrationIds } from '@/lib/supabase/use-kingdom-scan';
 import { parseSnapshotCSV, parseKingdomXLSX, fetchMigrantSheet } from '@/lib/kingdom/parse';
 import { mergePlayers } from '@/lib/kingdom/merge';
 import { MIGRANT_SHEET_URL, formatNumber, toSorterTag } from '@/lib/kingdom/config';
@@ -212,6 +212,13 @@ export default function MigrationTracker() {
           const ids = new Set(preMigration.map(r => r.governorId));
           await savePreMigrationIds(ids);
           setStoredPreMigCount(ids.size);
+        }
+
+        // Update alliance roster with power data (not KP — kingdom exports give cumulative KP)
+        setUploadProgress('Updating roster with latest power data...');
+        const rosterResult = await updateRosterFromScan(merged);
+        if (rosterResult) {
+          console.log(`Roster updated: ${rosterResult.updated} updated, ${rosterResult.added} added`);
         }
 
         setUploadProgress('Done! Refreshing data...');

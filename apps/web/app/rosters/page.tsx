@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
-import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, getLatestValuesForAllMembers, getSnapshotDates, getFilteredSnapshotDates, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
+import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, getLatestValuesForAllMembers, getSnapshotDates, getFilteredSnapshotDates, detectAfkMembers, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot, type ActivityStatus, type AfkScore } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { useMemberTrophyCounts, getTrophyBadgeInfo, type MemberTrophyCounts } from '@/lib/supabase/use-king-trophies';
 import { allianceDisplay } from '@/lib/alliances';
@@ -333,6 +333,13 @@ export default function RosterPage() {
     const [playerSearchQuery, setPlayerSearchQuery] = useState<string>('');
     const [playerDropdownOpen, setPlayerDropdownOpen] = useState(false);
 
+    // Activity / AFK detection state
+    const [afkData, setAfkData] = useState<ActivityStatus[]>([]);
+    const [afkWindowDays, setAfkWindowDays] = useState(3);
+    const [afkSort, setAfkSort] = useState<{ field: 'name' | 'powerDelta' | 'daysSinceChange' | 'status'; direction: 'asc' | 'desc' }>({ field: 'daysSinceChange', direction: 'desc' });
+    const [afkPage, setAfkPage] = useState(0);
+    const [afkFilter, setAfkFilter] = useState<AfkScore | 'all'>('all');
+
     // Pagination state
     const [rowsPerPage, setRowsPerPage] = useState<number>(25);
     const [currentPage, setCurrentPage] = useState(0);
@@ -514,8 +521,9 @@ export default function RosterPage() {
             getKpGrowth(growthRoster, growthCompareDate, growthEndDate).then(setKpGrowthData).catch(console.error);
             getPowerGrowth(growthRoster, growthCompareDate, growthEndDate).then(setPowerGrowthData).catch(console.error);
             getHonorGrowth(growthRoster, growthCompareDate, growthEndDate).then(setHonorGrowthData).catch(console.error);
+            detectAfkMembers(growthRoster, afkWindowDays).then(setAfkData).catch(console.error);
         }
-    }, [roster, growthCompareDate, growthEndDate, growthAllianceFilter]);
+    }, [roster, growthCompareDate, growthEndDate, growthAllianceFilter, afkWindowDays]);
 
     // Fetch individual player history when selected
     useEffect(() => {
@@ -1383,6 +1391,13 @@ export default function RosterPage() {
             return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
         }
     };
+
+    // AFK status lookup for roster badges
+    const afkByName = useMemo(() => {
+        const map = new Map<string, ActivityStatus>();
+        for (const a of afkData) map.set(a.name, a);
+        return map;
+    }, [afkData]);
 
     // Filter and sort roster using multi-column sort rules
     const filteredRoster = roster
@@ -2423,6 +2438,15 @@ export default function RosterPage() {
                                             {member.tags?.includes('quit') && (
                                                 <span className="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-semibold rounded bg-red-500/20 text-red-400" title="Quit">QUIT</span>
                                             )}
+                                            {!member.tags?.includes('inactive') && !member.tags?.includes('quit') && (() => {
+                                                const afk = afkByName.get(member.name);
+                                                if (!afk || afk.status === 'active') return null;
+                                                const colors = afk.status === 'afk' ? 'bg-red-500/20 text-red-400'
+                                                    : afk.status === 'likely_afk' ? 'bg-orange-500/20 text-orange-400'
+                                                    : 'bg-yellow-500/20 text-yellow-400';
+                                                const label = afk.status === 'afk' ? 'AFK?' : afk.status === 'likely_afk' ? 'AFK?' : 'LOW';
+                                                return <span className={`ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-semibold rounded ${colors}`} title={`No power change for ${afk.daysSinceChange} days`}>{label}</span>;
+                                            })()}
                                         </td>
                                         {isColumnVisible('power') && (
                                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-right">
@@ -5445,6 +5469,199 @@ export default function RosterPage() {
                                         </div>
                                     )}
                                 </>
+                            );
+                        })()}
+
+                        {/* Activity Monitor / AFK Detection */}
+                        {afkData.length > 0 && (() => {
+                            const STATUS_COLORS: Record<AfkScore, { bg: string; text: string; label: string }> = {
+                                active: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Active' },
+                                low: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Low' },
+                                likely_afk: { bg: 'bg-orange-500/20', text: 'text-orange-400', label: 'Likely AFK' },
+                                afk: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'AFK' },
+                            };
+                            const activeCount = afkData.filter(d => d.status === 'active').length;
+                            const lowCount = afkData.filter(d => d.status === 'low').length;
+                            const likelyAfkCount = afkData.filter(d => d.status === 'likely_afk').length;
+                            const afkCount = afkData.filter(d => d.status === 'afk').length;
+
+                            const filtered = afkFilter === 'all' ? afkData : afkData.filter(d => d.status === afkFilter);
+
+                            const sorted = [...filtered].sort((a, b) => {
+                                const dir = afkSort.direction === 'asc' ? 1 : -1;
+                                if (afkSort.field === 'name') return dir * a.name.localeCompare(b.name);
+                                if (afkSort.field === 'powerDelta') return dir * (a.powerDelta - b.powerDelta);
+                                if (afkSort.field === 'daysSinceChange') return dir * (a.daysSinceChange - b.daysSinceChange);
+                                if (afkSort.field === 'status') {
+                                    const order: Record<AfkScore, number> = { active: 0, low: 1, likely_afk: 2, afk: 3 };
+                                    return dir * (order[a.status] - order[b.status]);
+                                }
+                                return 0;
+                            });
+
+                            const pageSize = 15;
+                            const totalPages = Math.ceil(sorted.length / pageSize);
+                            const paged = sorted.slice(afkPage * pageSize, (afkPage + 1) * pageSize);
+
+                            const handleAfkSort = (field: typeof afkSort.field) => {
+                                setAfkSort(prev => ({
+                                    field,
+                                    direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc',
+                                }));
+                                setAfkPage(0);
+                            };
+
+                            const AfkSortIcon = ({ field }: { field: typeof afkSort.field }) => (
+                                afkSort.field === field
+                                    ? afkSort.direction === 'asc' ? <ChevronUp className="w-3 h-3 inline" /> : <ChevronDown className="w-3 h-3 inline" />
+                                    : <ChevronDown className="w-3 h-3 inline opacity-30" />
+                            );
+
+                            return (
+                                <div className={`${theme.card} border rounded-xl p-4`}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-semibold flex items-center gap-2">
+                                            <Eye className="w-4 h-4" />
+                                            Activity Monitor
+                                            <span className={`text-xs ${theme.textMuted} font-normal`}>({afkData.length} members)</span>
+                                        </h3>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs ${theme.textMuted}`}>Window:</span>
+                                            {[2, 3, 5, 7].map(d => (
+                                                <button
+                                                    key={d}
+                                                    onClick={() => { setAfkWindowDays(d); setAfkPage(0); }}
+                                                    className={`px-2 py-0.5 text-xs rounded ${afkWindowDays === d ? 'bg-[#4318ff] text-white' : `${theme.textMuted} hover:text-[var(--foreground)]`}`}
+                                                >
+                                                    {d}d
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Summary cards */}
+                                    <div className="grid grid-cols-4 gap-3 mb-4">
+                                        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 text-center">
+                                            <div className="text-2xl font-bold text-emerald-400">{activeCount}</div>
+                                            <div className="text-xs text-emerald-400">Active</div>
+                                        </div>
+                                        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 text-center">
+                                            <div className="text-2xl font-bold text-yellow-400">{lowCount}</div>
+                                            <div className="text-xs text-yellow-400">Low</div>
+                                        </div>
+                                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 text-center">
+                                            <div className="text-2xl font-bold text-orange-400">{likelyAfkCount}</div>
+                                            <div className="text-xs text-orange-400">Likely AFK</div>
+                                        </div>
+                                        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-center">
+                                            <div className="text-2xl font-bold text-red-400">{afkCount}</div>
+                                            <div className="text-xs text-red-400">AFK</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Filter buttons */}
+                                    <div className="flex gap-1 mb-4">
+                                        {(['all', 'low', 'likely_afk', 'afk'] as const).map(f => (
+                                            <button
+                                                key={f}
+                                                onClick={() => { setAfkFilter(f); setAfkPage(0); }}
+                                                className={`px-3 py-1 text-xs rounded-full ${afkFilter === f ? 'bg-[#4318ff] text-white' : `bg-[var(--background-secondary)] ${theme.textMuted} hover:text-[var(--foreground)]`}`}
+                                            >
+                                                {f === 'all' ? 'All' : f === 'low' ? 'Low' : f === 'likely_afk' ? 'Likely AFK' : 'AFK'}
+                                                {f !== 'all' && ` (${f === 'low' ? lowCount : f === 'likely_afk' ? likelyAfkCount : afkCount})`}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Table */}
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full">
+                                            <thead>
+                                                <tr className="border-b border-[var(--border)]">
+                                                    <th className={`text-left px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
+                                                    <th className={`text-left px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted} cursor-pointer`} onClick={() => handleAfkSort('name')}>
+                                                        Name <AfkSortIcon field="name" />
+                                                    </th>
+                                                    <th className={`text-right px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Power</th>
+                                                    <th className={`text-right px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted} cursor-pointer`} onClick={() => handleAfkSort('powerDelta')}>
+                                                        Power Δ <AfkSortIcon field="powerDelta" />
+                                                    </th>
+                                                    <th className={`text-right px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Gathered Δ</th>
+                                                    <th className={`text-right px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>Helps Δ</th>
+                                                    <th className={`text-center px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted} cursor-pointer`} onClick={() => handleAfkSort('daysSinceChange')}>
+                                                        Days <AfkSortIcon field="daysSinceChange" />
+                                                    </th>
+                                                    <th className={`text-center px-3 py-2 text-xs font-semibold uppercase ${theme.textMuted} cursor-pointer`} onClick={() => handleAfkSort('status')}>
+                                                        Status <AfkSortIcon field="status" />
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {paged.map((row, idx) => {
+                                                    const sc = STATUS_COLORS[row.status];
+                                                    const globalIdx = afkPage * pageSize + idx + 1;
+                                                    return (
+                                                        <tr key={row.name} className={`border-b border-[var(--border)] ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
+                                                            <td className={`px-3 py-2 text-xs ${theme.textMuted}`}>{globalIdx}</td>
+                                                            <td className="px-3 py-2 font-medium text-sm">{row.name}</td>
+                                                            <td className="px-3 py-2 text-right text-sm">{formatPower(row.currentPower)}</td>
+                                                            <td className={`px-3 py-2 text-right text-sm font-medium ${row.powerDelta > 0 ? 'text-emerald-400' : row.powerDelta < 0 ? 'text-red-400' : theme.textMuted}`}>
+                                                                {row.powerDelta > 0 ? '+' : ''}{formatPower(row.powerDelta)}
+                                                                {row.powerDeltaPercent !== 0 && (
+                                                                    <span className={`ml-1 text-xs ${theme.textMuted}`}>
+                                                                        ({row.powerDeltaPercent > 0 ? '+' : ''}{row.powerDeltaPercent.toFixed(1)}%)
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className={`px-3 py-2 text-right text-sm ${!row.hasGatheredData ? theme.textMuted : row.gatheredDelta > 0 ? 'text-emerald-400' : theme.textMuted}`}>
+                                                                {row.hasGatheredData ? (row.gatheredDelta > 0 ? `+${row.gatheredDelta.toLocaleString()}` : '0') : '--'}
+                                                            </td>
+                                                            <td className={`px-3 py-2 text-right text-sm ${!row.hasHelpsData ? theme.textMuted : row.helpsDelta > 0 ? 'text-emerald-400' : theme.textMuted}`}>
+                                                                {row.hasHelpsData ? (row.helpsDelta > 0 ? `+${row.helpsDelta.toLocaleString()}` : '0') : '--'}
+                                                            </td>
+                                                            <td className={`px-3 py-2 text-center text-sm font-medium ${row.daysSinceChange >= 5 ? 'text-red-400' : row.daysSinceChange >= 2 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                                                                {row.daysSinceChange}
+                                                            </td>
+                                                            <td className="px-3 py-2 text-center">
+                                                                <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${sc.bg} ${sc.text}`}>
+                                                                    {sc.label}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Pagination */}
+                                    {totalPages > 1 && (
+                                        <div className="flex items-center justify-between mt-3">
+                                            <span className={`text-xs ${theme.textMuted}`}>
+                                                {sorted.length} members
+                                            </span>
+                                            <div className="flex gap-1">
+                                                <button
+                                                    onClick={() => setAfkPage(p => Math.max(0, p - 1))}
+                                                    disabled={afkPage === 0}
+                                                    className={`px-2 py-1 text-xs rounded ${afkPage === 0 ? 'opacity-30' : 'hover:bg-[var(--background-hover)]'}`}
+                                                >
+                                                    Prev
+                                                </button>
+                                                <span className={`px-2 py-1 text-xs ${theme.textMuted}`}>
+                                                    {afkPage + 1} / {totalPages}
+                                                </span>
+                                                <button
+                                                    onClick={() => setAfkPage(p => Math.min(totalPages - 1, p + 1))}
+                                                    disabled={afkPage >= totalPages - 1}
+                                                    className={`px-2 py-1 text-xs rounded ${afkPage >= totalPages - 1 ? 'opacity-30' : 'hover:bg-[var(--background-hover)]'}`}
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             );
                         })()}
                     </div>

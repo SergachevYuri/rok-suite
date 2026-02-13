@@ -10,6 +10,8 @@ export interface RosterSnapshot {
   t4_kills: number;
   t5_kills: number;
   honor_points: number;
+  gathered: number;
+  alliance_helps: number;
   role: string | null;
   is_active: boolean;
   created_at: string;
@@ -55,6 +57,8 @@ export async function updateMemberSnapshot(member: {
   t4_kills?: number;
   t5_kills?: number;
   honor_points?: number;
+  gathered?: number;
+  alliance_helps?: number;
   role: string | null;
   is_active?: boolean;
 }) {
@@ -71,6 +75,8 @@ export async function updateMemberSnapshot(member: {
       t4_kills: member.t4_kills || 0,
       t5_kills: member.t5_kills || 0,
       honor_points: member.honor_points || 0,
+      gathered: member.gathered || 0,
+      alliance_helps: member.alliance_helps || 0,
       role: member.role,
       is_active: member.is_active ?? true,
     }, { onConflict: 'snapshot_date,member_name' });
@@ -87,7 +93,7 @@ export async function updateMemberSnapshot(member: {
  * Create a snapshot of the current roster for today
  * Uses upsert to allow updating today's snapshot if called multiple times
  */
-export async function createSnapshot(roster: Array<{ name: string; power: number; kills: number; t4_kills?: number; t5_kills?: number; honor_points?: number; role: string | null; is_active?: boolean }>) {
+export async function createSnapshot(roster: Array<{ name: string; power: number; kills: number; t4_kills?: number; t5_kills?: number; honor_points?: number; gathered?: number; alliance_helps?: number; role: string | null; is_active?: boolean }>) {
   const supabase = createClient();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -99,6 +105,8 @@ export async function createSnapshot(roster: Array<{ name: string; power: number
     t4_kills: member.t4_kills || 0,
     t5_kills: member.t5_kills || 0,
     honor_points: member.honor_points || 0,
+    gathered: member.gathered || 0,
+    alliance_helps: member.alliance_helps || 0,
     role: member.role,
     is_active: member.is_active ?? true,
   }));
@@ -1173,6 +1181,193 @@ export async function getLatestValuesForAllMembers(): Promise<Map<string, {
   }
 
   return latestValues;
+}
+
+// --- Activity / AFK Detection ---
+
+export type AfkScore = 'active' | 'low' | 'likely_afk' | 'afk';
+
+export interface ActivityStatus {
+  name: string;
+  currentPower: number;
+  powerDelta: number;
+  powerDeltaPercent: number;
+  gatheredDelta: number;
+  helpsDelta: number;
+  hasGatheredData: boolean;
+  hasHelpsData: boolean;
+  daysSinceChange: number;
+  status: AfkScore;
+}
+
+/**
+ * Detect AFK members by comparing snapshots over a window.
+ * Uses power change as primary signal, gathered and alliance_helps as supplementary.
+ */
+export async function detectAfkMembers(
+  currentRoster: Array<{ name: string; power: number }>,
+  windowDays = 3,
+): Promise<ActivityStatus[]> {
+  const supabase = createClient();
+  const nameMapping = await getNameVariantMapping();
+  const getKey = (name: string): string => nameMapping.get(name) || normalizeName(name);
+
+  // Get available snapshot dates
+  const allDates = await getSnapshotDates();
+  const dates = getFilteredSnapshotDates(allDates);
+  if (dates.length < 2) return [];
+
+  const endDate = dates[0]; // most recent
+
+  // Find a start date ~windowDays ago
+  const targetStart = new Date(endDate);
+  targetStart.setDate(targetStart.getDate() - windowDays);
+  const targetStr = targetStart.toISOString().split('T')[0];
+  const startDate = dates.find(d => d <= targetStr) || dates[dates.length - 1];
+
+  // Fetch end-date snapshots (power, gathered, alliance_helps)
+  const { data: endData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, power, gathered, alliance_helps')
+    .eq('snapshot_date', endDate)
+    .eq('is_active', true)
+    .limit(2000);
+
+  // Fetch start-date snapshots
+  const { data: startData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, power, gathered, alliance_helps')
+    .eq('snapshot_date', startDate)
+    .eq('is_active', true)
+    .limit(2000);
+
+  if (!endData || !startData) return [];
+
+  // Build start-date lookup by canonical name
+  const startMap = new Map<string, { power: number; gathered: number; helps: number }>();
+  for (const s of startData) {
+    startMap.set(getKey(s.member_name), {
+      power: s.power || 0,
+      gathered: s.gathered || 0,
+      helps: s.alliance_helps || 0,
+    });
+  }
+
+  // Build end-date lookup
+  const endMap = new Map<string, { power: number; gathered: number; helps: number }>();
+  for (const e of endData) {
+    endMap.set(getKey(e.member_name), {
+      power: e.power || 0,
+      gathered: e.gathered || 0,
+      helps: e.alliance_helps || 0,
+    });
+  }
+
+  // For daysSinceChange, fetch all snapshot dates' power for members with zero delta
+  // We'll do this selectively after initial classification
+  const zeroPowerKeys = new Set<string>();
+
+  const results: ActivityStatus[] = [];
+
+  for (const member of currentRoster) {
+    const key = getKey(member.name);
+    const end = endMap.get(key);
+    const start = startMap.get(key);
+
+    if (!end) continue; // No snapshot data for this member
+
+    const currentPower = end.power;
+    const startPower = start?.power ?? end.power;
+    const powerDelta = currentPower - startPower;
+    const powerDeltaPercent = startPower > 0 ? (powerDelta / startPower) * 100 : 0;
+
+    const endGathered = end.gathered;
+    const startGathered = start?.gathered ?? 0;
+    const gatheredDelta = endGathered - startGathered;
+    const hasGatheredData = endGathered > 0 || startGathered > 0;
+
+    const endHelps = end.helps;
+    const startHelps = start?.helps ?? 0;
+    const helpsDelta = endHelps - startHelps;
+    const hasHelpsData = endHelps > 0 || startHelps > 0;
+
+    // Classify
+    let status: AfkScore;
+    if (powerDelta !== 0 || gatheredDelta > 0 || helpsDelta > 0) {
+      status = 'active';
+    } else if (!hasGatheredData && !hasHelpsData) {
+      // No supplementary data to confirm — uncertain
+      status = powerDelta === 0 ? 'low' : 'active';
+    } else if (hasGatheredData && hasHelpsData && gatheredDelta === 0 && helpsDelta === 0) {
+      status = 'afk';
+    } else {
+      status = 'likely_afk';
+    }
+
+    if (powerDelta === 0) zeroPowerKeys.add(key);
+
+    results.push({
+      name: member.name,
+      currentPower,
+      powerDelta,
+      powerDeltaPercent,
+      gatheredDelta,
+      helpsDelta,
+      hasGatheredData,
+      hasHelpsData,
+      daysSinceChange: 0, // will be computed below for zero-delta members
+      status,
+    });
+  }
+
+  // Compute daysSinceChange for members with zero power delta
+  // Walk backward through available dates
+  if (zeroPowerKeys.size > 0 && dates.length >= 2) {
+    // Get up to 14 recent dates for backward walk
+    const recentDates = dates.slice(0, Math.min(14, dates.length));
+
+    // Fetch power snapshots for all recent dates
+    const { data: recentSnaps } = await supabase
+      .from('roster_snapshots')
+      .select('member_name, snapshot_date, power')
+      .in('snapshot_date', recentDates)
+      .eq('is_active', true)
+      .limit(recentDates.length * 2000);
+
+    if (recentSnaps) {
+      // Build: canonical_name -> date -> power
+      const history = new Map<string, Map<string, number>>();
+      for (const s of recentSnaps) {
+        const k = getKey(s.member_name);
+        if (!zeroPowerKeys.has(k)) continue;
+        if (!history.has(k)) history.set(k, new Map());
+        history.get(k)!.set(s.snapshot_date, s.power || 0);
+      }
+
+      // For each member, walk backward and count consecutive zero-change days
+      for (const result of results) {
+        if (result.powerDelta !== 0) continue;
+        const k = getKey(result.name);
+        const memberHistory = history.get(k);
+        if (!memberHistory) continue;
+
+        let days = 0;
+        const latestPower = result.currentPower;
+        for (let i = 1; i < recentDates.length; i++) {
+          const datePower = memberHistory.get(recentDates[i]);
+          if (datePower === undefined) continue;
+          if (datePower === latestPower) {
+            days++;
+          } else {
+            break;
+          }
+        }
+        result.daysSinceChange = days;
+      }
+    }
+  }
+
+  return results;
 }
 
 // Utility to format power with M suffix

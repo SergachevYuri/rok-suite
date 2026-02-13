@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Scan, ScanPlayer, MergedPlayer, PlayerAssignment } from '@/lib/kingdom/types';
+import { isKingdomAlliance, toSorterTag, normalizeName } from '@/lib/kingdom/config';
 
 export function useLatestScan() {
   const [scan, setScan] = useState<Scan | null>(null);
@@ -219,4 +220,149 @@ export async function getPreMigrationCount(): Promise<number> {
     .select('*', { count: 'exact', head: true });
 
   return count ?? 0;
+}
+
+/**
+ * Update the alliance_roster table from scan data.
+ * Updates power, alliance, governor_id, castle_hall for kingdom alliance members.
+ * Does NOT update kills/KP (kingdom exports give cumulative KP between dates).
+ * Adds new kingdom alliance members. Creates a roster snapshot afterward.
+ */
+export async function updateRosterFromScan(
+  mergedPlayers: MergedPlayer[],
+): Promise<{ updated: number; added: number } | null> {
+  // Filter to kingdom alliance members and map to sorter tags
+  const kingdomPlayers = mergedPlayers
+    .filter(p => p.currentAlliance && isKingdomAlliance(p.currentAlliance))
+    .map(p => ({ ...p, sorterAlliance: toSorterTag(p.currentAlliance) }));
+
+  if (kingdomPlayers.length === 0) return { updated: 0, added: 0 };
+
+  // Fetch existing active roster in batches
+  type RosterRow = { id: string; name: string; governor_id: number | null; alternate_names: string[] | null };
+  let existing: RosterRow[] = [];
+  let from = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('alliance_roster')
+      .select('id, name, governor_id, alternate_names')
+      .eq('is_active', true)
+      .range(from, from + 999);
+    if (!data || data.length === 0) break;
+    existing = existing.concat(data as RosterRow[]);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+
+  // Build lookup maps
+  const govIdToRow = new Map<number, RosterRow>();
+  const nameToRow = new Map<string, RosterRow>();
+  const normalizedToRow = new Map<string, RosterRow>();
+
+  for (const r of existing) {
+    if (r.governor_id) govIdToRow.set(r.governor_id, r);
+    nameToRow.set(r.name.toLowerCase(), r);
+    const norm = normalizeName(r.name);
+    if (norm.length >= 2) normalizedToRow.set(norm, r);
+    if (r.alternate_names) {
+      for (const alt of r.alternate_names) {
+        nameToRow.set(alt.toLowerCase(), r);
+        const normAlt = normalizeName(alt);
+        if (normAlt.length >= 2) normalizedToRow.set(normAlt, r);
+      }
+    }
+  }
+
+  let updated = 0;
+  let added = 0;
+
+  for (const p of kingdomPlayers) {
+    // Match: governor_id → exact name → normalized name
+    let match: RosterRow | undefined;
+    if (p.governorId && govIdToRow.has(p.governorId)) {
+      match = govIdToRow.get(p.governorId);
+    } else if (nameToRow.has(p.name.toLowerCase())) {
+      match = nameToRow.get(p.name.toLowerCase());
+    } else {
+      const norm = normalizeName(p.name);
+      if (norm.length >= 2) match = normalizedToRow.get(norm);
+    }
+
+    if (match) {
+      // Update power, alliance, governor_id, castle_hall — NOT kills
+      const updateData: Record<string, unknown> = {
+        power: p.power,
+        alliance: p.sorterAlliance,
+      };
+      if (p.governorId) updateData.governor_id = p.governorId;
+      if (p.castleHall) updateData.castle_hall = p.castleHall;
+      // Only update gathered/alliance_helps when non-zero (avoids overwriting when no kingdom XLSX)
+      if (p.gathered > 0) updateData.gathered = p.gathered;
+      if (p.allianceHelps > 0) updateData.alliance_helps = p.allianceHelps;
+
+      const { error } = await supabase
+        .from('alliance_roster')
+        .update(updateData)
+        .eq('id', match.id);
+
+      if (!error) updated++;
+    } else {
+      // New member
+      const { error } = await supabase
+        .from('alliance_roster')
+        .upsert({
+          name: p.name,
+          power: p.power,
+          kills: 0,
+          deads: 0,
+          governor_id: p.governorId || null,
+          castle_hall: p.castleHall,
+          alliance: p.sorterAlliance,
+          gathered: p.gathered || 0,
+          alliance_helps: p.allianceHelps || 0,
+          is_active: true,
+        }, { onConflict: 'name' });
+
+      if (!error) added++;
+    }
+  }
+
+  // Create roster snapshot
+  let snapshotMembers: { name: string; power: number; kills: number; t4_kills: number; t5_kills: number; honor_points: number; gathered: number; alliance_helps: number; role: string | null }[] = [];
+  from = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('alliance_roster')
+      .select('name, power, kills, t4_kills, t5_kills, honor_points, gathered, alliance_helps, role')
+      .eq('is_active', true)
+      .range(from, from + 999);
+    if (!data || data.length === 0) break;
+    snapshotMembers = snapshotMembers.concat(data);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const snapshotRows = snapshotMembers.map(m => ({
+    snapshot_date: today,
+    member_name: m.name,
+    power: m.power || 0,
+    kills: m.kills || 0,
+    t4_kills: m.t4_kills || 0,
+    t5_kills: m.t5_kills || 0,
+    honor_points: m.honor_points || 0,
+    gathered: m.gathered || 0,
+    alliance_helps: m.alliance_helps || 0,
+    role: m.role || null,
+    is_active: true,
+  }));
+
+  for (let i = 0; i < snapshotRows.length; i += 500) {
+    const batch = snapshotRows.slice(i, i + 500);
+    await supabase
+      .from('roster_snapshots')
+      .upsert(batch, { onConflict: 'snapshot_date,member_name' });
+  }
+
+  return { updated, added };
 }
