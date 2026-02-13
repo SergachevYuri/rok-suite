@@ -261,7 +261,7 @@ export default function AllianceSorter() {
       if (field === 'minKp') {
         cfg.minKp = cfg.minKp === null ? 5_000_000 : null;
       } else {
-        cfg.maxPowerKpRatio = cfg.maxPowerKpRatio === null ? 3 : null;
+        cfg.maxPowerKpRatio = cfg.maxPowerKpRatio === null ? 2 : null;
       }
       next[index] = cfg;
       return next;
@@ -375,10 +375,10 @@ export default function AllianceSorter() {
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                         <span className="font-semibold text-sm text-[var(--foreground)]">{cfg.tag}</span>
-                        <span className="text-[10px] text-[var(--text-muted)] bg-[var(--background-secondary)] px-1.5 py-0.5 rounded">#{cfg.rank}</span>
+                        <span className="text-xs text-[var(--text-muted)] bg-[var(--background-secondary)] px-1.5 py-0.5 rounded">#{cfg.rank}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-[var(--text-muted)]">Cap</span>
+                        <span className="text-xs text-[var(--text-muted)]">Cap</span>
                         <input
                           type="number"
                           value={cfg.cap}
@@ -394,7 +394,7 @@ export default function AllianceSorter() {
                         <div className="flex rounded-md overflow-hidden border border-[var(--border)]">
                           <button
                             onClick={() => setThresholdMode(i, 'all')}
-                            className={`px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                            className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
                               cfg.thresholdMode === 'all'
                                 ? 'bg-amber-500 text-white'
                                 : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
@@ -404,7 +404,7 @@ export default function AllianceSorter() {
                           </button>
                           <button
                             onClick={() => setThresholdMode(i, 'any')}
-                            className={`px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                            className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
                               cfg.thresholdMode === 'any'
                                 ? 'bg-sky-500 text-white'
                                 : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
@@ -413,7 +413,7 @@ export default function AllianceSorter() {
                             ANY
                           </button>
                         </div>
-                        <span className="text-[10px] text-[var(--text-muted)]">
+                        <span className="text-xs text-[var(--text-muted)]">
                           {cfg.thresholdMode === 'all' ? 'all criteria required' : 'any criteria qualifies'}
                         </span>
                       </div>
@@ -424,8 +424,8 @@ export default function AllianceSorter() {
                       {/* Min Power (always on) */}
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-medium text-[var(--text-secondary)]">Min Power</span>
-                          <span className="text-[10px] font-mono font-semibold text-[var(--foreground)]">
+                          <span className="text-xs font-medium text-[var(--text-secondary)]">Min Power</span>
+                          <span className="text-xs font-mono font-semibold text-[var(--foreground)]">
                             {(cfg.minPower / 1_000_000).toFixed(0)}M
                           </span>
                         </div>
@@ -442,20 +442,20 @@ export default function AllianceSorter() {
                       {/* Min KP (toggleable) */}
                       <div className={cfg.minKp === null ? 'opacity-40' : ''}>
                         <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => toggleThreshold(i, 'minKp')}
-                              className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                                 cfg.minKp !== null
                                   ? 'bg-amber-500 border-amber-500'
-                                  : 'bg-transparent border-[var(--border)] hover:border-[var(--text-muted)]'
+                                  : 'bg-transparent border-[var(--text-muted)] hover:border-[var(--foreground)]'
                               }`}
                             >
-                              {cfg.minKp !== null && <Check size={8} className="text-white" />}
+                              {cfg.minKp !== null && <Check size={12} className="text-white" strokeWidth={3} />}
                             </button>
-                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">Min KP</span>
+                            <span className="text-xs font-medium text-[var(--text-secondary)]">Min KP</span>
                           </div>
-                          <span className="text-[10px] font-mono font-semibold text-[var(--foreground)]">
+                          <span className="text-xs font-mono font-semibold text-[var(--foreground)]">
                             {cfg.minKp !== null ? `${(cfg.minKp / 1_000_000).toFixed(1)}M` : '—'}
                           </span>
                         </div>
@@ -473,27 +473,27 @@ export default function AllianceSorter() {
                       {/* Max P:KP Ratio (toggleable) */}
                       <div className={cfg.maxPowerKpRatio === null ? 'opacity-40' : ''}>
                         <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => toggleThreshold(i, 'maxPowerKpRatio')}
-                              className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                                 cfg.maxPowerKpRatio !== null
                                   ? 'bg-amber-500 border-amber-500'
-                                  : 'bg-transparent border-[var(--border)] hover:border-[var(--text-muted)]'
+                                  : 'bg-transparent border-[var(--text-muted)] hover:border-[var(--foreground)]'
                               }`}
                             >
-                              {cfg.maxPowerKpRatio !== null && <Check size={8} className="text-white" />}
+                              {cfg.maxPowerKpRatio !== null && <Check size={12} className="text-white" strokeWidth={3} />}
                             </button>
-                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">Max P:KP</span>
+                            <span className="text-xs font-medium text-[var(--text-secondary)]">Max P:KP</span>
                           </div>
-                          <span className="text-[10px] font-mono font-semibold text-[var(--foreground)]">
+                          <span className="text-xs font-mono font-semibold text-[var(--foreground)]">
                             {cfg.maxPowerKpRatio !== null ? cfg.maxPowerKpRatio.toFixed(1) : '—'}
                           </span>
                         </div>
                         <input
                           type="range"
-                          min={1} max={10} step={0.1}
-                          value={cfg.maxPowerKpRatio ?? 3}
+                          min={0.5} max={3} step={0.1}
+                          value={cfg.maxPowerKpRatio ?? 2}
                           onChange={(e) => updateConfig(i, 'maxPowerKpRatio', e.target.value)}
                           disabled={cfg.maxPowerKpRatio === null}
                           className="w-full h-1.5 rounded-full cursor-pointer disabled:cursor-default"
