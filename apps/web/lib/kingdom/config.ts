@@ -1,13 +1,13 @@
 import type { AllianceConfig } from './types';
 
 export const DEFAULT_ALLIANCE_CONFIGS: AllianceConfig[] = [
-  { tag: 'ANG', rank: 1, cap: 114, minPower: 21_000_000, minKp: 10_000_000, maxPowerKpRatio: null, thresholdMode: 'all' },
-  { tag: 'MNG', rank: 2, cap: 119, minPower: 16_000_000, minKp: 3_000_000,  maxPowerKpRatio: null, thresholdMode: 'all' },
-  { tag: 'KNG', rank: 3, cap: 91,  minPower: 12_000_000, minKp: 500_000,    maxPowerKpRatio: null, thresholdMode: 'all' },
-  { tag: 'ENG', rank: 4, cap: 96,  minPower: 8_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
-  { tag: 'SNG', rank: 5, cap: 88,  minPower: 5_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
-  { tag: '23A', rank: 6, cap: 97,  minPower: 2_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
-  { tag: '23SP', rank: 7, cap: 110, minPower: 0,          minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
+  { tag: 'ANG', rank: 1, cap: 114, minPower: 20_000_000, minKp: 10_000_000, maxPowerKpRatio: 1.0, thresholdMode: 'any' },
+  { tag: 'MNG', rank: 2, cap: 119, minPower: 18_000_000, minKp: 10_000_000, maxPowerKpRatio: 1.0, thresholdMode: 'all' },
+  { tag: 'KNG', rank: 3, cap: 91,  minPower: 16_000_000, minKp: 10_000_000, maxPowerKpRatio: 1.0, thresholdMode: 'all' },
+  { tag: 'ENG', rank: 4, cap: 96,  minPower: 14_000_000, minKp: 5_000_000,  maxPowerKpRatio: 1.0, thresholdMode: 'all' },
+  { tag: 'SNG', rank: 5, cap: 88,  minPower: 10_000_000, minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
+  { tag: '23A', rank: 6, cap: 97,  minPower: 8_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
+  { tag: '23SP', rank: 7, cap: 110, minPower: 8_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
 ];
 
 export const MIGRANT_SHEET_URL =
