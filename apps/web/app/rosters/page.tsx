@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
-import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getMemberHistory, getLatestValuesForAllMembers, getSnapshotDates, getFilteredSnapshotDates, detectAfkMembers, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type RosterSnapshot, type ActivityStatus, type AfkScore } from '@/lib/supabase/use-roster-snapshots';
+import { createSnapshot, updateMemberSnapshot, useRosterSnapshots, formatDate, getKpGrowth, getPowerGrowth, getHonorGrowth, getGatheredGrowth, getHelpsGrowth, getMemberHistory, getLatestValuesForAllMembers, getSnapshotDates, getFilteredSnapshotDates, detectAfkMembers, type DailyTotals, type MemberChange, type KpGrowth, type PowerGrowth, type HonorGrowth, type GatheredGrowth, type HelpsGrowth, type RosterSnapshot, type ActivityStatus, type AfkScore } from '@/lib/supabase/use-roster-snapshots';
 import { getAllMemberStats, getMemberEventHistory, recordEvent, deleteEvent, bulkRecordAoO, bulkRecordMobilization, type MemberEventStats, type EventParticipation } from '@/lib/supabase/use-event-participation';
 import { useMemberTrophyCounts, getTrophyBadgeInfo, type MemberTrophyCounts } from '@/lib/supabase/use-king-trophies';
 import { allianceDisplay } from '@/lib/alliances';
@@ -317,6 +317,20 @@ export default function RosterPage() {
     const [honorGrowthPage, setHonorGrowthPage] = useState(0);
     const [honorGrowthRowsPerPage, setHonorGrowthRowsPerPage] = useState(10);
     const [honorGrowthSort, setHonorGrowthSort] = useState<{ field: 'name' | 'allTimeGrowth' | 'compareGrowth'; direction: 'asc' | 'desc' }>({ field: 'allTimeGrowth', direction: 'desc' });
+    // Power growth pagination and sorting
+    const [powerGrowthPage, setPowerGrowthPage] = useState(0);
+    const [powerGrowthRowsPerPage, setPowerGrowthRowsPerPage] = useState(10);
+    const [powerGrowthSort, setPowerGrowthSort] = useState<{ field: 'name' | 'allTimeGrowth' | 'compareGrowth'; direction: 'asc' | 'desc' }>({ field: 'compareGrowth', direction: 'desc' });
+    // Gathered growth
+    const [gatheredGrowthData, setGatheredGrowthData] = useState<GatheredGrowth[]>([]);
+    const [gatheredGrowthPage, setGatheredGrowthPage] = useState(0);
+    const [gatheredGrowthRowsPerPage, setGatheredGrowthRowsPerPage] = useState(10);
+    const [gatheredGrowthSort, setGatheredGrowthSort] = useState<{ field: 'name' | 'allTimeGrowth' | 'compareGrowth'; direction: 'asc' | 'desc' }>({ field: 'compareGrowth', direction: 'desc' });
+    // Alliance helps growth
+    const [helpsGrowthData, setHelpsGrowthData] = useState<HelpsGrowth[]>([]);
+    const [helpsGrowthPage, setHelpsGrowthPage] = useState(0);
+    const [helpsGrowthRowsPerPage, setHelpsGrowthRowsPerPage] = useState(10);
+    const [helpsGrowthSort, setHelpsGrowthSort] = useState<{ field: 'name' | 'allTimeGrowth' | 'compareGrowth'; direction: 'asc' | 'desc' }>({ field: 'compareGrowth', direction: 'desc' });
     // Growth comparison date selection
     const [availableSnapshotDates, setAvailableSnapshotDates] = useState<string[]>([]);
     const [growthCompareDate, setGrowthCompareDate] = useState<string | null>(null); // null = default (past week)
@@ -521,6 +535,8 @@ export default function RosterPage() {
             getKpGrowth(growthRoster, growthCompareDate, growthEndDate).then(setKpGrowthData).catch(console.error);
             getPowerGrowth(growthRoster, growthCompareDate, growthEndDate).then(setPowerGrowthData).catch(console.error);
             getHonorGrowth(growthRoster, growthCompareDate, growthEndDate).then(setHonorGrowthData).catch(console.error);
+            getGatheredGrowth(growthRoster, growthCompareDate, growthEndDate).then(setGatheredGrowthData).catch(console.error);
+            getHelpsGrowth(growthRoster, growthCompareDate, growthEndDate).then(setHelpsGrowthData).catch(console.error);
             detectAfkMembers(growthRoster, afkWindowDays).then(setAfkData).catch(console.error);
         }
     }, [roster, growthCompareDate, growthEndDate, growthAllianceFilter, afkWindowDays]);
@@ -4257,6 +4273,630 @@ export default function RosterPage() {
                                                             >
                                                                 »»
                                                             </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Power Growth Table */}
+                                {(() => {
+                                    if (powerGrowthData.length === 0) return null;
+
+                                    const powerAllianceNames = new Set(roster.filter(r => r.alliance === growthAllianceFilter).map(r => r.name));
+                                    const sortedPowerGrowth = [...powerGrowthData]
+                                        .filter(m => powerAllianceNames.has(m.name))
+                                        .filter(m => !tagFilter || roster.find(r => r.name === m.name)?.tags?.includes(tagFilter))
+                                        .sort((a, b) => {
+                                            const { field, direction } = powerGrowthSort;
+                                            const multiplier = direction === 'asc' ? 1 : -1;
+                                            if (field === 'name') return multiplier * a.name.localeCompare(b.name);
+                                            return multiplier * ((a[field] ?? 0) - (b[field] ?? 0));
+                                        });
+
+                                    const powerTotalPages = Math.ceil(sortedPowerGrowth.length / powerGrowthRowsPerPage);
+                                    const displayPowerMembers = sortedPowerGrowth.slice(
+                                        powerGrowthPage * powerGrowthRowsPerPage,
+                                        (powerGrowthPage + 1) * powerGrowthRowsPerPage
+                                    );
+                                    const powerCurrentDate = powerGrowthData[0]?.currentDate ? formatDate(powerGrowthData[0].currentDate) : 'Current';
+
+                                    const handlePowerSort = (field: typeof powerGrowthSort.field) => {
+                                        setPowerGrowthSort(prev => ({
+                                            field,
+                                            direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
+                                        }));
+                                    };
+
+                                    const PowerSortIcon = ({ field }: { field: typeof powerGrowthSort.field }) => {
+                                        if (powerGrowthSort.field !== field) return <span className="opacity-30">↕</span>;
+                                        return powerGrowthSort.direction === 'asc' ? <span>↑</span> : <span>↓</span>;
+                                    };
+
+                                    return (
+                                        <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                            <div className="flex items-center justify-between mb-2 sm:mb-4">
+                                                <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
+                                                    <TrendingUp className="w-4 h-4 text-[#4318ff]" />
+                                                    <span className="hidden sm:inline">Power Growth</span>
+                                                    <span className="sm:hidden">Power</span>
+                                                    <span className={`text-xs font-normal ${theme.textMuted}`}>({sortedPowerGrowth.length})</span>
+                                                </h3>
+                                            </div>
+                                            <div className="overflow-x-auto mobile-scroll">
+                                                <table className="w-full text-xs sm:text-sm min-w-[700px]" style={{ tableLayout: 'fixed' }}>
+                                                    <colgroup>
+                                                        <col style={{ width: '4%' }} />
+                                                        <col style={{ width: '18%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '27%' }} />
+                                                        <col style={{ width: '27%' }} />
+                                                    </colgroup>
+                                                    <thead className="sticky top-0 bg-[var(--background-card)]">
+                                                        <tr className="border-b border-[var(--border)]">
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handlePowerSort('name')} className="flex items-center gap-1 hover:text-white">
+                                                                    Name <PowerSortIcon field="name" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>First</th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>{powerCurrentDate}</th>
+                                                            <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handlePowerSort('allTimeGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    All-Time <PowerSortIcon field="allTimeGrowth" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <button onClick={() => handlePowerSort('compareGrowth')} className="flex items-center gap-1 hover:text-white">
+                                                                        Growth <PowerSortIcon field="compareGrowth" />
+                                                                    </button>
+                                                                    <div className="flex items-center gap-1 text-[10px] font-normal normal-case">
+                                                                        <select
+                                                                            value={growthCompareDate || ''}
+                                                                            onChange={(e) => setGrowthCompareDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">From...</option>
+                                                                            {availableSnapshotDates.slice(1).map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                        <span>→</span>
+                                                                        <select
+                                                                            value={growthEndDate || ''}
+                                                                            onChange={(e) => setGrowthEndDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">Latest</option>
+                                                                            {availableSnapshotDates.map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {displayPowerMembers.map((member, idx) => {
+                                                            const globalIdx = powerGrowthPage * powerGrowthRowsPerPage + idx;
+                                                            const maxAllTime = Math.max(...sortedPowerGrowth.map(m => Math.abs(m.allTimeGrowth)));
+                                                            const maxCompare = Math.max(...sortedPowerGrowth.filter(m => m.compareGrowth !== null).map(m => Math.abs(m.compareGrowth!)));
+                                                            return (
+                                                                <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
+                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
+                                                                    <td className="px-2 py-2 font-medium">
+                                                                        <span
+                                                                            className="cursor-pointer hover:text-[#4318ff] hover:underline"
+                                                                            onClick={() => {
+                                                                                setSelectedPlayer(member.name);
+                                                                                setChartMode('individual');
+                                                                                setChartMetric('power');
+                                                                                setShowCharts(true);
+                                                                            }}
+                                                                        >
+                                                                            {member.name}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right text-[#9f7aea]">
+                                                                        {formatPower(member.firstPower)}
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right text-[#01b574]">
+                                                                        {formatPower(member.currentPower)}
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        {(() => {
+                                                                            const pct = maxAllTime > 0 ? (Math.abs(member.allTimeGrowth) / maxAllTime) * 100 : 0;
+                                                                            const isPositive = member.allTimeGrowth >= 0;
+                                                                            return (
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#4318ff] to-[#4318ff]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="text-right min-w-[80px]">
+                                                                                        <span className={`font-medium ${isPositive ? 'text-[#4318ff]' : 'text-gray-400'}`}>
+                                                                                            {member.allTimeGrowth >= 0 ? '+' : ''}{formatPower(member.allTimeGrowth)}
+                                                                                        </span>
+                                                                                        <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                            ({member.allTimeGrowthPercent.toFixed(1)}%)
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })()}
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        {member.compareGrowth !== null ? (() => {
+                                                                            const pct = maxCompare > 0 ? (Math.abs(member.compareGrowth!) / maxCompare) * 100 : 0;
+                                                                            const isPositive = member.compareGrowth! >= 0;
+                                                                            return (
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#01b574] to-[#01b574]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="text-right min-w-[80px]">
+                                                                                        <span className={`font-medium ${isPositive ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                                                            {member.compareGrowth! >= 0 ? '+' : ''}{formatPower(member.compareGrowth!)}
+                                                                                        </span>
+                                                                                        {member.compareGrowthPercent !== null && (
+                                                                                            <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                                ({member.compareGrowthPercent.toFixed(1)}%)
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })() : <span className={theme.textMuted}>—</span>}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {powerTotalPages > 1 && (
+                                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--border)]">
+                                                    <div className={`text-xs ${theme.textMuted}`}>
+                                                        Showing {powerGrowthPage * powerGrowthRowsPerPage + 1}-{Math.min((powerGrowthPage + 1) * powerGrowthRowsPerPage, sortedPowerGrowth.length)} of {sortedPowerGrowth.length}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={powerGrowthRowsPerPage}
+                                                            onChange={(e) => { setPowerGrowthRowsPerPage(Number(e.target.value)); setPowerGrowthPage(0); }}
+                                                            className={`text-xs ${theme.card} border rounded px-2 py-1`}
+                                                        >
+                                                            <option value={10}>10</option>
+                                                            <option value={25}>25</option>
+                                                            <option value={50}>50</option>
+                                                            <option value={100}>100</option>
+                                                        </select>
+                                                        <div className="flex gap-1">
+                                                            <button onClick={() => setPowerGrowthPage(0)} disabled={powerGrowthPage === 0} className={`px-2 py-1 text-xs rounded ${powerGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>««</button>
+                                                            <button onClick={() => setPowerGrowthPage(p => Math.max(0, p - 1))} disabled={powerGrowthPage === 0} className={`px-2 py-1 text-xs rounded ${powerGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>«</button>
+                                                            <span className={`px-2 py-1 text-xs ${theme.textMuted}`}>{powerGrowthPage + 1} / {powerTotalPages}</span>
+                                                            <button onClick={() => setPowerGrowthPage(p => Math.min(powerTotalPages - 1, p + 1))} disabled={powerGrowthPage >= powerTotalPages - 1} className={`px-2 py-1 text-xs rounded ${powerGrowthPage >= powerTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>»</button>
+                                                            <button onClick={() => setPowerGrowthPage(powerTotalPages - 1)} disabled={powerGrowthPage >= powerTotalPages - 1} className={`px-2 py-1 text-xs rounded ${powerGrowthPage >= powerTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>»»</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Gathered Growth Table */}
+                                {(() => {
+                                    if (gatheredGrowthData.length === 0) return null;
+
+                                    const gatheredAllianceNames = new Set(roster.filter(r => r.alliance === growthAllianceFilter).map(r => r.name));
+                                    const sortedGatheredGrowth = [...gatheredGrowthData]
+                                        .filter(m => gatheredAllianceNames.has(m.name))
+                                        .filter(m => !tagFilter || roster.find(r => r.name === m.name)?.tags?.includes(tagFilter))
+                                        .sort((a, b) => {
+                                            const { field, direction } = gatheredGrowthSort;
+                                            const multiplier = direction === 'asc' ? 1 : -1;
+                                            if (field === 'name') return multiplier * a.name.localeCompare(b.name);
+                                            return multiplier * ((a[field] ?? 0) - (b[field] ?? 0));
+                                        });
+
+                                    const gatheredTotalPages = Math.ceil(sortedGatheredGrowth.length / gatheredGrowthRowsPerPage);
+                                    const displayGatheredMembers = sortedGatheredGrowth.slice(
+                                        gatheredGrowthPage * gatheredGrowthRowsPerPage,
+                                        (gatheredGrowthPage + 1) * gatheredGrowthRowsPerPage
+                                    );
+                                    const gatheredCurrentDate = gatheredGrowthData[0]?.currentDate ? formatDate(gatheredGrowthData[0].currentDate) : 'Current';
+
+                                    const handleGatheredSort = (field: typeof gatheredGrowthSort.field) => {
+                                        setGatheredGrowthSort(prev => ({
+                                            field,
+                                            direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
+                                        }));
+                                    };
+
+                                    const GatheredSortIcon = ({ field }: { field: typeof gatheredGrowthSort.field }) => {
+                                        if (gatheredGrowthSort.field !== field) return <span className="opacity-30">↕</span>;
+                                        return gatheredGrowthSort.direction === 'asc' ? <span>↑</span> : <span>↓</span>;
+                                    };
+
+                                    return (
+                                        <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                            <div className="flex items-center justify-between mb-2 sm:mb-4">
+                                                <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
+                                                    <TrendingUp className="w-4 h-4 text-[#38bdf8]" />
+                                                    <span className="hidden sm:inline">Gathering Growth</span>
+                                                    <span className="sm:hidden">Gathering</span>
+                                                    <span className={`text-xs font-normal ${theme.textMuted}`}>({sortedGatheredGrowth.length})</span>
+                                                </h3>
+                                            </div>
+                                            <div className="overflow-x-auto mobile-scroll">
+                                                <table className="w-full text-xs sm:text-sm min-w-[700px]" style={{ tableLayout: 'fixed' }}>
+                                                    <colgroup>
+                                                        <col style={{ width: '4%' }} />
+                                                        <col style={{ width: '18%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '27%' }} />
+                                                        <col style={{ width: '27%' }} />
+                                                    </colgroup>
+                                                    <thead className="sticky top-0 bg-[var(--background-card)]">
+                                                        <tr className="border-b border-[var(--border)]">
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleGatheredSort('name')} className="flex items-center gap-1 hover:text-white">
+                                                                    Name <GatheredSortIcon field="name" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>First</th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>{gatheredCurrentDate}</th>
+                                                            <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleGatheredSort('allTimeGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    All-Time <GatheredSortIcon field="allTimeGrowth" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <button onClick={() => handleGatheredSort('compareGrowth')} className="flex items-center gap-1 hover:text-white">
+                                                                        Growth <GatheredSortIcon field="compareGrowth" />
+                                                                    </button>
+                                                                    <div className="flex items-center gap-1 text-[10px] font-normal normal-case">
+                                                                        <select
+                                                                            value={growthCompareDate || ''}
+                                                                            onChange={(e) => setGrowthCompareDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">From...</option>
+                                                                            {availableSnapshotDates.slice(1).map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                        <span>→</span>
+                                                                        <select
+                                                                            value={growthEndDate || ''}
+                                                                            onChange={(e) => setGrowthEndDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">Latest</option>
+                                                                            {availableSnapshotDates.map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {displayGatheredMembers.map((member, idx) => {
+                                                            const globalIdx = gatheredGrowthPage * gatheredGrowthRowsPerPage + idx;
+                                                            const maxAllTime = Math.max(...sortedGatheredGrowth.map(m => Math.abs(m.allTimeGrowth)));
+                                                            const maxCompare = Math.max(...sortedGatheredGrowth.filter(m => m.compareGrowth !== null).map(m => Math.abs(m.compareGrowth!)));
+                                                            return (
+                                                                <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
+                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
+                                                                    <td className="px-2 py-2 font-medium">{member.name}</td>
+                                                                    <td className="px-2 py-2 text-right text-[#9f7aea]">
+                                                                        {formatPower(member.firstGathered)}
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right text-[#01b574]">
+                                                                        {formatPower(member.currentGathered)}
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        {(() => {
+                                                                            const pct = maxAllTime > 0 ? (Math.abs(member.allTimeGrowth) / maxAllTime) * 100 : 0;
+                                                                            const isPositive = member.allTimeGrowth >= 0;
+                                                                            return (
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#38bdf8] to-[#38bdf8]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="text-right min-w-[80px]">
+                                                                                        <span className={`font-medium ${isPositive ? 'text-[#38bdf8]' : 'text-gray-400'}`}>
+                                                                                            {member.allTimeGrowth >= 0 ? '+' : ''}{formatPower(member.allTimeGrowth)}
+                                                                                        </span>
+                                                                                        <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                            ({member.allTimeGrowthPercent.toFixed(1)}%)
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })()}
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        {member.compareGrowth !== null ? (() => {
+                                                                            const pct = maxCompare > 0 ? (Math.abs(member.compareGrowth!) / maxCompare) * 100 : 0;
+                                                                            const isPositive = member.compareGrowth! >= 0;
+                                                                            return (
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#01b574] to-[#01b574]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="text-right min-w-[80px]">
+                                                                                        <span className={`font-medium ${isPositive ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                                                            {member.compareGrowth! >= 0 ? '+' : ''}{formatPower(member.compareGrowth!)}
+                                                                                        </span>
+                                                                                        {member.compareGrowthPercent !== null && (
+                                                                                            <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                                ({member.compareGrowthPercent.toFixed(1)}%)
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })() : <span className={theme.textMuted}>—</span>}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {gatheredTotalPages > 1 && (
+                                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--border)]">
+                                                    <div className={`text-xs ${theme.textMuted}`}>
+                                                        Showing {gatheredGrowthPage * gatheredGrowthRowsPerPage + 1}-{Math.min((gatheredGrowthPage + 1) * gatheredGrowthRowsPerPage, sortedGatheredGrowth.length)} of {sortedGatheredGrowth.length}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={gatheredGrowthRowsPerPage}
+                                                            onChange={(e) => { setGatheredGrowthRowsPerPage(Number(e.target.value)); setGatheredGrowthPage(0); }}
+                                                            className={`text-xs ${theme.card} border rounded px-2 py-1`}
+                                                        >
+                                                            <option value={10}>10</option>
+                                                            <option value={25}>25</option>
+                                                            <option value={50}>50</option>
+                                                            <option value={100}>100</option>
+                                                        </select>
+                                                        <div className="flex gap-1">
+                                                            <button onClick={() => setGatheredGrowthPage(0)} disabled={gatheredGrowthPage === 0} className={`px-2 py-1 text-xs rounded ${gatheredGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>««</button>
+                                                            <button onClick={() => setGatheredGrowthPage(p => Math.max(0, p - 1))} disabled={gatheredGrowthPage === 0} className={`px-2 py-1 text-xs rounded ${gatheredGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>«</button>
+                                                            <span className={`px-2 py-1 text-xs ${theme.textMuted}`}>{gatheredGrowthPage + 1} / {gatheredTotalPages}</span>
+                                                            <button onClick={() => setGatheredGrowthPage(p => Math.min(gatheredTotalPages - 1, p + 1))} disabled={gatheredGrowthPage >= gatheredTotalPages - 1} className={`px-2 py-1 text-xs rounded ${gatheredGrowthPage >= gatheredTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>»</button>
+                                                            <button onClick={() => setGatheredGrowthPage(gatheredTotalPages - 1)} disabled={gatheredGrowthPage >= gatheredTotalPages - 1} className={`px-2 py-1 text-xs rounded ${gatheredGrowthPage >= gatheredTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>»»</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Alliance Helps Growth Table */}
+                                {(() => {
+                                    if (helpsGrowthData.length === 0) return null;
+
+                                    const helpsAllianceNames = new Set(roster.filter(r => r.alliance === growthAllianceFilter).map(r => r.name));
+                                    const sortedHelpsGrowth = [...helpsGrowthData]
+                                        .filter(m => helpsAllianceNames.has(m.name))
+                                        .filter(m => !tagFilter || roster.find(r => r.name === m.name)?.tags?.includes(tagFilter))
+                                        .sort((a, b) => {
+                                            const { field, direction } = helpsGrowthSort;
+                                            const multiplier = direction === 'asc' ? 1 : -1;
+                                            if (field === 'name') return multiplier * a.name.localeCompare(b.name);
+                                            return multiplier * ((a[field] ?? 0) - (b[field] ?? 0));
+                                        });
+
+                                    const helpsTotalPages = Math.ceil(sortedHelpsGrowth.length / helpsGrowthRowsPerPage);
+                                    const displayHelpsMembers = sortedHelpsGrowth.slice(
+                                        helpsGrowthPage * helpsGrowthRowsPerPage,
+                                        (helpsGrowthPage + 1) * helpsGrowthRowsPerPage
+                                    );
+                                    const helpsCurrentDate = helpsGrowthData[0]?.currentDate ? formatDate(helpsGrowthData[0].currentDate) : 'Current';
+
+                                    const handleHelpsSort = (field: typeof helpsGrowthSort.field) => {
+                                        setHelpsGrowthSort(prev => ({
+                                            field,
+                                            direction: prev.field === field && prev.direction === 'desc' ? 'asc' : 'desc'
+                                        }));
+                                    };
+
+                                    const HelpsSortIcon = ({ field }: { field: typeof helpsGrowthSort.field }) => {
+                                        if (helpsGrowthSort.field !== field) return <span className="opacity-30">↕</span>;
+                                        return helpsGrowthSort.direction === 'asc' ? <span>↑</span> : <span>↓</span>;
+                                    };
+
+                                    return (
+                                        <div className={`${theme.card} border rounded-xl p-2 sm:p-4`}>
+                                            <div className="flex items-center justify-between mb-2 sm:mb-4">
+                                                <h3 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
+                                                    <Users className="w-4 h-4 text-[#a78bfa]" />
+                                                    <span className="hidden sm:inline">Alliance Helps Growth</span>
+                                                    <span className="sm:hidden">Helps</span>
+                                                    <span className={`text-xs font-normal ${theme.textMuted}`}>({sortedHelpsGrowth.length})</span>
+                                                </h3>
+                                            </div>
+                                            <div className="overflow-x-auto mobile-scroll">
+                                                <table className="w-full text-xs sm:text-sm min-w-[700px]" style={{ tableLayout: 'fixed' }}>
+                                                    <colgroup>
+                                                        <col style={{ width: '4%' }} />
+                                                        <col style={{ width: '18%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '12%' }} />
+                                                        <col style={{ width: '27%' }} />
+                                                        <col style={{ width: '27%' }} />
+                                                    </colgroup>
+                                                    <thead className="sticky top-0 bg-[var(--background-card)]">
+                                                        <tr className="border-b border-[var(--border)]">
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>#</th>
+                                                            <th className={`text-left px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleHelpsSort('name')} className="flex items-center gap-1 hover:text-white">
+                                                                    Name <HelpsSortIcon field="name" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>First</th>
+                                                            <th className={`text-right px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>{helpsCurrentDate}</th>
+                                                            <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <button onClick={() => handleHelpsSort('allTimeGrowth')} className="flex items-center gap-1 hover:text-white ml-auto">
+                                                                    All-Time <HelpsSortIcon field="allTimeGrowth" />
+                                                                </button>
+                                                            </th>
+                                                            <th className={`px-2 py-2 text-xs font-semibold uppercase ${theme.textMuted}`}>
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <button onClick={() => handleHelpsSort('compareGrowth')} className="flex items-center gap-1 hover:text-white">
+                                                                        Growth <HelpsSortIcon field="compareGrowth" />
+                                                                    </button>
+                                                                    <div className="flex items-center gap-1 text-[10px] font-normal normal-case">
+                                                                        <select
+                                                                            value={growthCompareDate || ''}
+                                                                            onChange={(e) => setGrowthCompareDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">From...</option>
+                                                                            {availableSnapshotDates.slice(1).map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                        <span>→</span>
+                                                                        <select
+                                                                            value={growthEndDate || ''}
+                                                                            onChange={(e) => setGrowthEndDate(e.target.value || null)}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className={`${theme.card} border rounded px-1 py-0.5`}
+                                                                        >
+                                                                            <option value="">Latest</option>
+                                                                            {availableSnapshotDates.map(date => (
+                                                                                <option key={date} value={date}>{formatDate(date)}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {displayHelpsMembers.map((member, idx) => {
+                                                            const globalIdx = helpsGrowthPage * helpsGrowthRowsPerPage + idx;
+                                                            const maxAllTime = Math.max(...sortedHelpsGrowth.map(m => Math.abs(m.allTimeGrowth)));
+                                                            const maxCompare = Math.max(...sortedHelpsGrowth.filter(m => m.compareGrowth !== null).map(m => Math.abs(m.compareGrowth!)));
+                                                            return (
+                                                                <tr key={member.name} className={`border-b border-[var(--border)]/50 ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''}`}>
+                                                                    <td className={`px-2 py-2 ${theme.textMuted}`}>{globalIdx + 1}</td>
+                                                                    <td className="px-2 py-2 font-medium">{member.name}</td>
+                                                                    <td className="px-2 py-2 text-right text-[#9f7aea]">
+                                                                        {member.firstHelps.toLocaleString()}
+                                                                    </td>
+                                                                    <td className="px-2 py-2 text-right text-[#01b574]">
+                                                                        {member.currentHelps.toLocaleString()}
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        {(() => {
+                                                                            const pct = maxAllTime > 0 ? (Math.abs(member.allTimeGrowth) / maxAllTime) * 100 : 0;
+                                                                            const isPositive = member.allTimeGrowth >= 0;
+                                                                            return (
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#a78bfa] to-[#a78bfa]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="text-right min-w-[80px]">
+                                                                                        <span className={`font-medium ${isPositive ? 'text-[#a78bfa]' : 'text-gray-400'}`}>
+                                                                                            {member.allTimeGrowth >= 0 ? '+' : ''}{member.allTimeGrowth.toLocaleString()}
+                                                                                        </span>
+                                                                                        <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                            ({member.allTimeGrowthPercent.toFixed(1)}%)
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })()}
+                                                                    </td>
+                                                                    <td className="px-2 py-2">
+                                                                        {member.compareGrowth !== null ? (() => {
+                                                                            const pct = maxCompare > 0 ? (Math.abs(member.compareGrowth!) / maxCompare) * 100 : 0;
+                                                                            const isPositive = member.compareGrowth! >= 0;
+                                                                            return (
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex-1 h-4 bg-[var(--background-secondary)] rounded overflow-hidden min-w-[60px]">
+                                                                                        <div
+                                                                                            className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-[#01b574] to-[#01b574]/50' : 'bg-gradient-to-r from-gray-500 to-gray-400'}`}
+                                                                                            style={{ width: `${pct}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="text-right min-w-[80px]">
+                                                                                        <span className={`font-medium ${isPositive ? 'text-[#01b574]' : 'text-gray-400'}`}>
+                                                                                            {member.compareGrowth! >= 0 ? '+' : ''}{member.compareGrowth!.toLocaleString()}
+                                                                                        </span>
+                                                                                        {member.compareGrowthPercent !== null && (
+                                                                                            <span className={`text-[10px] ${theme.textMuted} ml-1`}>
+                                                                                                ({member.compareGrowthPercent.toFixed(1)}%)
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })() : <span className={theme.textMuted}>—</span>}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {helpsTotalPages > 1 && (
+                                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--border)]">
+                                                    <div className={`text-xs ${theme.textMuted}`}>
+                                                        Showing {helpsGrowthPage * helpsGrowthRowsPerPage + 1}-{Math.min((helpsGrowthPage + 1) * helpsGrowthRowsPerPage, sortedHelpsGrowth.length)} of {sortedHelpsGrowth.length}
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={helpsGrowthRowsPerPage}
+                                                            onChange={(e) => { setHelpsGrowthRowsPerPage(Number(e.target.value)); setHelpsGrowthPage(0); }}
+                                                            className={`text-xs ${theme.card} border rounded px-2 py-1`}
+                                                        >
+                                                            <option value={10}>10</option>
+                                                            <option value={25}>25</option>
+                                                            <option value={50}>50</option>
+                                                            <option value={100}>100</option>
+                                                        </select>
+                                                        <div className="flex gap-1">
+                                                            <button onClick={() => setHelpsGrowthPage(0)} disabled={helpsGrowthPage === 0} className={`px-2 py-1 text-xs rounded ${helpsGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>««</button>
+                                                            <button onClick={() => setHelpsGrowthPage(p => Math.max(0, p - 1))} disabled={helpsGrowthPage === 0} className={`px-2 py-1 text-xs rounded ${helpsGrowthPage === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>«</button>
+                                                            <span className={`px-2 py-1 text-xs ${theme.textMuted}`}>{helpsGrowthPage + 1} / {helpsTotalPages}</span>
+                                                            <button onClick={() => setHelpsGrowthPage(p => Math.min(helpsTotalPages - 1, p + 1))} disabled={helpsGrowthPage >= helpsTotalPages - 1} className={`px-2 py-1 text-xs rounded ${helpsGrowthPage >= helpsTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>»</button>
+                                                            <button onClick={() => setHelpsGrowthPage(helpsTotalPages - 1)} disabled={helpsGrowthPage >= helpsTotalPages - 1} className={`px-2 py-1 text-xs rounded ${helpsGrowthPage >= helpsTotalPages - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[var(--background-secondary)]'}`}>»»</button>
                                                         </div>
                                                     </div>
                                                 </div>

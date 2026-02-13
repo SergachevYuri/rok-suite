@@ -945,6 +945,220 @@ export async function getHonorGrowth(
   return growth;
 }
 
+export interface GatheredGrowth {
+  name: string;
+  firstGathered: number;
+  firstDate: string | null;
+  currentGathered: number;
+  currentDate: string | null;
+  allTimeGrowth: number;
+  allTimeGrowthPercent: number;
+  compareGathered: number | null;
+  compareDate: string | null;
+  compareGrowth: number | null;
+  compareGrowthPercent: number | null;
+}
+
+/**
+ * Get Gathered growth - both all-time (from first entry) and comparison between dates
+ */
+export async function getGatheredGrowth(
+  currentRoster: Array<{ name: string }>,
+  compareDate?: string | null,
+  endDate?: string | null
+): Promise<GatheredGrowth[]> {
+  const supabase = createClient();
+  const nameMapping = await getNameVariantMapping();
+  const getKey = (name: string): string => nameMapping.get(name) || normalizeName(name);
+
+  const allDates = await getSnapshotDates();
+  const dates = getFilteredSnapshotDates(allDates);
+  if (dates.length < 1) return [];
+
+  const currentDate = endDate && dates.includes(endDate) ? endDate : dates[0];
+
+  let effectiveCompareDate: string | null = compareDate ?? null;
+  if (!effectiveCompareDate) {
+    const weekAgoTarget = new Date(currentDate);
+    weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
+    const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
+    effectiveCompareDate = dates.find(d => d <= weekAgoStr) || null;
+  }
+
+  const { data: allSnapshots } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, snapshot_date, gathered')
+    .gt('gathered', 0)
+    .order('snapshot_date', { ascending: true })
+    .limit(5000);
+
+  if (!allSnapshots) return [];
+
+  const firstEntryMap = new Map<string, { date: string; value: number }>();
+  for (const snap of allSnapshots) {
+    const key = getKey(snap.member_name);
+    if (!firstEntryMap.has(key)) {
+      firstEntryMap.set(key, { date: snap.snapshot_date, value: snap.gathered });
+    }
+  }
+
+  const { data: currentData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, gathered')
+    .eq('snapshot_date', currentDate)
+    .eq('is_active', true)
+    .gt('gathered', 0)
+    .limit(2000);
+
+  if (!currentData) return [];
+
+  let compareMap = new Map<string, number>();
+  if (effectiveCompareDate) {
+    const { data: compareData } = await supabase
+      .from('roster_snapshots')
+      .select('member_name, gathered')
+      .eq('snapshot_date', effectiveCompareDate)
+      .gt('gathered', 0)
+      .limit(2000);
+
+    if (compareData) {
+      compareMap = new Map(compareData.map(d => [getKey(d.member_name), d.gathered || 0]));
+    }
+  }
+
+  return currentData
+    .filter(m => firstEntryMap.has(getKey(m.member_name)))
+    .map(m => {
+      const key = getKey(m.member_name);
+      const firstEntry = firstEntryMap.get(key)!;
+      const currentGathered = m.gathered || 0;
+      const compareGathered = compareMap.get(key) ?? null;
+      const allTimeGrowth = currentGathered - firstEntry.value;
+      const compareGrowth = compareGathered !== null ? currentGathered - compareGathered : null;
+
+      return {
+        name: m.member_name,
+        firstGathered: firstEntry.value,
+        firstDate: firstEntry.date,
+        currentGathered,
+        currentDate,
+        allTimeGrowth,
+        allTimeGrowthPercent: firstEntry.value > 0 ? (allTimeGrowth / firstEntry.value) * 100 : 0,
+        compareGathered,
+        compareDate: effectiveCompareDate,
+        compareGrowth,
+        compareGrowthPercent: compareGathered !== null && compareGathered > 0 ? (compareGrowth! / compareGathered) * 100 : null,
+      };
+    });
+}
+
+export interface HelpsGrowth {
+  name: string;
+  firstHelps: number;
+  firstDate: string | null;
+  currentHelps: number;
+  currentDate: string | null;
+  allTimeGrowth: number;
+  allTimeGrowthPercent: number;
+  compareHelps: number | null;
+  compareDate: string | null;
+  compareGrowth: number | null;
+  compareGrowthPercent: number | null;
+}
+
+/**
+ * Get Alliance Helps growth - both all-time (from first entry) and comparison between dates
+ */
+export async function getHelpsGrowth(
+  currentRoster: Array<{ name: string }>,
+  compareDate?: string | null,
+  endDate?: string | null
+): Promise<HelpsGrowth[]> {
+  const supabase = createClient();
+  const nameMapping = await getNameVariantMapping();
+  const getKey = (name: string): string => nameMapping.get(name) || normalizeName(name);
+
+  const allDates = await getSnapshotDates();
+  const dates = getFilteredSnapshotDates(allDates);
+  if (dates.length < 1) return [];
+
+  const currentDate = endDate && dates.includes(endDate) ? endDate : dates[0];
+
+  let effectiveCompareDate: string | null = compareDate ?? null;
+  if (!effectiveCompareDate) {
+    const weekAgoTarget = new Date(currentDate);
+    weekAgoTarget.setDate(weekAgoTarget.getDate() - 7);
+    const weekAgoStr = weekAgoTarget.toISOString().split('T')[0];
+    effectiveCompareDate = dates.find(d => d <= weekAgoStr) || null;
+  }
+
+  const { data: allSnapshots } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, snapshot_date, alliance_helps')
+    .gt('alliance_helps', 0)
+    .order('snapshot_date', { ascending: true })
+    .limit(5000);
+
+  if (!allSnapshots) return [];
+
+  const firstEntryMap = new Map<string, { date: string; value: number }>();
+  for (const snap of allSnapshots) {
+    const key = getKey(snap.member_name);
+    if (!firstEntryMap.has(key)) {
+      firstEntryMap.set(key, { date: snap.snapshot_date, value: snap.alliance_helps });
+    }
+  }
+
+  const { data: currentData } = await supabase
+    .from('roster_snapshots')
+    .select('member_name, alliance_helps')
+    .eq('snapshot_date', currentDate)
+    .eq('is_active', true)
+    .gt('alliance_helps', 0)
+    .limit(2000);
+
+  if (!currentData) return [];
+
+  let compareMap = new Map<string, number>();
+  if (effectiveCompareDate) {
+    const { data: compareData } = await supabase
+      .from('roster_snapshots')
+      .select('member_name, alliance_helps')
+      .eq('snapshot_date', effectiveCompareDate)
+      .gt('alliance_helps', 0)
+      .limit(2000);
+
+    if (compareData) {
+      compareMap = new Map(compareData.map(d => [getKey(d.member_name), d.alliance_helps || 0]));
+    }
+  }
+
+  return currentData
+    .filter(m => firstEntryMap.has(getKey(m.member_name)))
+    .map(m => {
+      const key = getKey(m.member_name);
+      const firstEntry = firstEntryMap.get(key)!;
+      const currentHelps = m.alliance_helps || 0;
+      const compareHelps = compareMap.get(key) ?? null;
+      const allTimeGrowth = currentHelps - firstEntry.value;
+      const compareGrowth = compareHelps !== null ? currentHelps - compareHelps : null;
+
+      return {
+        name: m.member_name,
+        firstHelps: firstEntry.value,
+        firstDate: firstEntry.date,
+        currentHelps,
+        currentDate,
+        allTimeGrowth,
+        allTimeGrowthPercent: firstEntry.value > 0 ? (allTimeGrowth / firstEntry.value) * 100 : 0,
+        compareHelps,
+        compareDate: effectiveCompareDate,
+        compareGrowth,
+        compareGrowthPercent: compareHelps !== null && compareHelps > 0 ? (compareGrowth! / compareHelps) * 100 : null,
+      };
+    });
+}
+
 /**
  * Detect membership changes (joins/leaves) between snapshots
  */
