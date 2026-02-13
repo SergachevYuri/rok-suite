@@ -36,6 +36,9 @@
     "events": "活动",
     "rokMail": "RoK Mail",
     "mge": "MGE",
+    "kingdom": "王国",
+    "migrationTracker": "迁移追踪器",
+    "allianceSorter": "联盟分配器",
     "aooPlanner": "AoO 规划器",
     "protocols": "规程",
     "resources": "资源",
@@ -73,6 +76,14 @@
         "title": "Angmar AoO 规划器",
         "description": "互动式30v30队伍分配、拖拽战斗地图和比赛规划",
         "badge": "工具"
+      },
+      "migrationTracker": {
+        "title": "迁移追踪器",
+        "description": "追踪王国迁移，检测非法移民，监控玩家状态"
+      },
+      "allianceSorter": {
+        "title": "联盟分配器",
+        "description": "根据战力和击杀积分阈值自动分配成员到联盟"
       }
     },
     "guide": {

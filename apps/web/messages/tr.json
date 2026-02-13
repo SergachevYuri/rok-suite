@@ -36,6 +36,9 @@
     "events": "Etkinlikler",
     "rokMail": "RoK Mail",
     "mge": "MGE",
+    "kingdom": "Krallık",
+    "migrationTracker": "Göç Takipçisi",
+    "allianceSorter": "İttifak Sıralayıcı",
     "aooPlanner": "AoO Planlayıcı",
     "protocols": "Protokoller",
     "resources": "Kaynaklar",
@@ -73,6 +76,14 @@
         "title": "Angmar AoO Planlayıcı",
         "description": "Etkileşimli 30v30 takım atamaları, sürükle-bırak savaş haritaları ve maç planlaması",
         "badge": "Araç"
+      },
+      "migrationTracker": {
+        "title": "Göç Takipçisi",
+        "description": "Krallık göçlerini takip edin, yasadışı göçmenleri tespit edin ve oyuncu durumunu izleyin"
+      },
+      "allianceSorter": {
+        "title": "İttifak Sıralayıcı",
+        "description": "Güç ve öldürme puanı eşiklerine göre üyeleri otomatik olarak ittifaklara atayın"
       }
     },
     "guide": {

@@ -36,6 +36,9 @@
     "events": "Eventos",
     "rokMail": "RoK Mail",
     "mge": "MGE",
+    "kingdom": "Reino",
+    "migrationTracker": "Rastreador de Migración",
+    "allianceSorter": "Clasificador de Alianzas",
     "aooPlanner": "Planificador AoO",
     "protocols": "Protocolos",
     "resources": "Recursos",
@@ -73,6 +76,14 @@
         "title": "Planificador AoO de Angmar",
         "description": "Asignaciones de equipo 30v30 interactivas, mapas de batalla con arrastrar y soltar, y planificación de partidas",
         "badge": "Herramienta"
+      },
+      "migrationTracker": {
+        "title": "Rastreador de Migración",
+        "description": "Rastrea migraciones del reino, detecta migrantes ilegales y monitorea el estado de los jugadores"
+      },
+      "allianceSorter": {
+        "title": "Clasificador de Alianzas",
+        "description": "Asigna automáticamente miembros a alianzas según umbrales de poder y puntos de muerte"
       }
     },
     "guide": {

@@ -36,6 +36,9 @@
     "events": "Events",
     "rokMail": "RoK Mail",
     "mge": "MGE",
+    "kingdom": "Königreich",
+    "migrationTracker": "Migrations-Tracker",
+    "allianceSorter": "Allianz-Sortierer",
     "aooPlanner": "AoO-Planer",
     "protocols": "Protokolle",
     "resources": "Ressourcen",
@@ -73,6 +76,14 @@
         "title": "Angmar AoO-Planer",
         "description": "Interaktive 30v30-Teamzuweisung, Drag-and-Drop-Schlachtkarten und Spielplanung",
         "badge": "Tool"
+      },
+      "migrationTracker": {
+        "title": "Migrations-Tracker",
+        "description": "Verfolge Königreich-Migrationen, erkenne illegale Migranten und überwache Spielerstatus"
+      },
+      "allianceSorter": {
+        "title": "Allianz-Sortierer",
+        "description": "Weise Mitglieder automatisch Allianzen basierend auf Macht- und Kill-Punkt-Schwellen zu"
       }
     },
     "guide": {

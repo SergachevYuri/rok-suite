@@ -36,6 +36,9 @@
     "events": "イベント",
     "rokMail": "RoK Mail",
     "mge": "MGE",
+    "kingdom": "王国",
+    "migrationTracker": "移住トラッカー",
+    "allianceSorter": "同盟ソーター",
     "aooPlanner": "AoO プランナー",
     "protocols": "プロトコル",
     "resources": "リソース",
@@ -73,6 +76,14 @@
         "title": "Angmar AoO プランナー",
         "description": "インタラクティブ30v30チーム編成、ドラッグ＆ドロップ戦場マップ、マッチ計画",
         "badge": "ツール"
+      },
+      "migrationTracker": {
+        "title": "移住トラッカー",
+        "description": "王国の移住を追跡し、不正移民を検出し、プレイヤーのステータスを監視"
+      },
+      "allianceSorter": {
+        "title": "同盟ソーター",
+        "description": "戦力とキルポイントの閾値に基づいてメンバーを同盟に自動割り当て"
       }
     },
     "guide": {

@@ -15,7 +15,6 @@ import {
   Type,
   Share2,
   Link,
-  Scissors,
   RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -241,30 +240,6 @@ export default function RokMailPage() {
     }
   }
 
-  function handleInsertBreak() {
-    saveSnapshot();
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const pos = textarea.selectionStart;
-    const marker = '\n---\n';
-
-    if (editTab === 'text') {
-      const { positions } = stripWithPositions(content);
-      const mPos = pos > 0 && positions.length > 0
-        ? positions[Math.min(pos - 1, positions.length - 1)] + 1
-        : positions.length > 0 ? positions[0] : content.length;
-      const newContent = content.slice(0, mPos) + marker + content.slice(mPos);
-      setContent(newContent);
-      const cursorPos = pos + marker.length;
-      setTimeout(() => { textarea.focus(); textarea.setSelectionRange(cursorPos, cursorPos); }, 0);
-    } else {
-      const newContent = content.slice(0, pos) + marker + content.slice(pos);
-      setContent(newContent);
-      const cursorPos = pos + marker.length;
-      setTimeout(() => { textarea.focus(); textarea.setSelectionRange(cursorPos, cursorPos); }, 0);
-    }
-  }
-
   const { toolbar, handleKeyDown, applyAction } = RokMailToolbar({
     textareaRef,
     content,
@@ -477,16 +452,6 @@ export default function RokMailPage() {
               >
                 <Bot size={16} />
                 <span className="hidden sm:inline">AI Assistant</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleInsertBreak}
-                className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-sm transition-fast hover:bg-pink-500/10"
-                style={{ color: 'var(--text-secondary)' }}
-                title="Insert a break marker to split mail into parts"
-              >
-                <Scissors size={16} />
-                <span className="hidden sm:inline">Break</span>
               </button>
             </>
           ) : (

@@ -36,6 +36,9 @@
     "events": "Sự kiện",
     "rokMail": "RoK Mail",
     "mge": "MGE",
+    "kingdom": "Vương quốc",
+    "migrationTracker": "Theo dõi Di cư",
+    "allianceSorter": "Phân loại Liên minh",
     "aooPlanner": "Kế hoạch AoO",
     "protocols": "Quy trình",
     "resources": "Tài nguyên",
@@ -73,6 +76,14 @@
         "title": "Angmar AoO Planner",
         "description": "Phân đội 30v30 tương tác, bản đồ trận đấu kéo thả và lập kế hoạch trận đấu",
         "badge": "Công cụ"
+      },
+      "migrationTracker": {
+        "title": "Theo dõi Di cư",
+        "description": "Theo dõi di cư vương quốc, phát hiện di dân bất hợp pháp và giám sát trạng thái người chơi"
+      },
+      "allianceSorter": {
+        "title": "Phân loại Liên minh",
+        "description": "Tự động phân công thành viên vào liên minh dựa trên ngưỡng sức mạnh và điểm tiêu diệt"
       }
     },
     "guide": {

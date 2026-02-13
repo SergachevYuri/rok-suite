@@ -15,6 +15,8 @@ import {
   Crown,
   ScrollText,
   Shield,
+  Radar,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -87,6 +89,26 @@ export default function Home() {
       titleKey: 'tools.mge.title',
       descriptionKey: 'tools.mge.description',
       icon: Shield,
+      hoverBorder: 'hover:border-amber-500/40',
+      hoverShadow: 'hover:shadow-amber-500/10',
+      iconHoverBg: 'group-hover:bg-amber-500/15',
+      iconHoverColor: 'group-hover:text-amber-500',
+    },
+    {
+      href: '/kingdom/migration-tracker',
+      titleKey: 'tools.migrationTracker.title',
+      descriptionKey: 'tools.migrationTracker.description',
+      icon: Radar,
+      hoverBorder: 'hover:border-amber-500/40',
+      hoverShadow: 'hover:shadow-amber-500/10',
+      iconHoverBg: 'group-hover:bg-amber-500/15',
+      iconHoverColor: 'group-hover:text-amber-500',
+    },
+    {
+      href: '/kingdom/alliance-sorter',
+      titleKey: 'tools.allianceSorter.title',
+      descriptionKey: 'tools.allianceSorter.description',
+      icon: ArrowUpDown,
       hoverBorder: 'hover:border-amber-500/40',
       hoverShadow: 'hover:shadow-amber-500/10',
       iconHoverBg: 'group-hover:bg-amber-500/15',

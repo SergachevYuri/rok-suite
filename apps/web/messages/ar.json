@@ -36,6 +36,9 @@
     "events": "الأحداث",
     "rokMail": "RoK Mail",
     "mge": "MGE",
+    "kingdom": "المملكة",
+    "migrationTracker": "متتبع الهجرة",
+    "allianceSorter": "مصنف التحالفات",
     "aooPlanner": "مخطط AoO",
     "protocols": "البروتوكولات",
     "resources": "الموارد",
@@ -73,6 +76,14 @@
         "title": "مخطط Angmar AoO",
         "description": "تعيينات فرق 30 ضد 30 تفاعلية، خرائط معارك بالسحب والإفلات، وتخطيط المباريات",
         "badge": "أداة"
+      },
+      "migrationTracker": {
+        "title": "متتبع الهجرة",
+        "description": "تتبع هجرات المملكة واكتشف المهاجرين غير الشرعيين وراقب حالة اللاعبين"
+      },
+      "allianceSorter": {
+        "title": "مصنف التحالفات",
+        "description": "تعيين الأعضاء تلقائياً للتحالفات بناءً على عتبات القوة ونقاط القتل"
       }
     },
     "guide": {

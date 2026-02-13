@@ -37,6 +37,9 @@
     "events": "Events",
     "rokMail": "RoK Mail",
     "mge": "MGE",
+    "kingdom": "Kingdom",
+    "migrationTracker": "Migration Tracker",
+    "allianceSorter": "Alliance Sorter",
     "aooPlanner": "AoO Planner",
     "protocols": "Protocols",
     "resources": "Resources",
@@ -87,6 +90,14 @@
       "mge": {
         "title": "MGE",
         "description": "Plan and track Mightiest Governor Event rankings and assignments"
+      },
+      "migrationTracker": {
+        "title": "Migration Tracker",
+        "description": "Track kingdom migrations, detect illegal migrants, and monitor player status"
+      },
+      "allianceSorter": {
+        "title": "Alliance Sorter",
+        "description": "Auto-assign members to alliances based on power and kill point thresholds"
       }
     },
     "guide": {

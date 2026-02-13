@@ -1,6 +1,6 @@
 'use client';
 
-import { Bold, Italic, Palette, Minus, Plus, Sparkles, Eraser, Blend, Undo2, Redo2 } from 'lucide-react';
+import { Bold, Italic, Palette, Minus, Plus, Sparkles, Eraser, Blend, Undo2, Redo2, Scissors } from 'lucide-react';
 import { stripWithPositions } from '@/lib/rok-mail/parser';
 
 const SIZE_STEP = 5;
@@ -411,6 +411,12 @@ export function RokMailToolbar({
       label: 'Divider',
       tooltip: 'Insert Divider Line',
       action: { type: 'insert', text: '━━━━━━━━━━━━━━━━━━━━' },
+    },
+    {
+      icon: <Scissors size={16} />,
+      label: 'Break',
+      tooltip: 'Insert Break — splits mail into parts',
+      action: { type: 'insert', text: '\n---\n' },
     },
     {
       icon: <Sparkles size={16} />,

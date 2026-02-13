@@ -36,6 +36,9 @@
     "events": "กิจกรรม",
     "rokMail": "RoK Mail",
     "mge": "MGE",
+    "kingdom": "อาณาจักร",
+    "migrationTracker": "ติดตามการอพยพ",
+    "allianceSorter": "จัดเรียงพันธมิตร",
     "aooPlanner": "วางแผน AoO",
     "protocols": "โปรโตคอล",
     "resources": "ทรัพยากร",
@@ -73,6 +76,14 @@
         "title": "Angmar AoO Planner",
         "description": "จัดทีม 30v30 แบบโต้ตอบ, ลากวางแผนที่การรบ, และวางแผนแมตช์",
         "badge": "เครื่องมือ"
+      },
+      "migrationTracker": {
+        "title": "ติดตามการอพยพ",
+        "description": "ติดตามการอพยพในอาณาจักร ตรวจจับผู้อพยพผิดกฎหมาย และตรวจสอบสถานะผู้เล่น"
+      },
+      "allianceSorter": {
+        "title": "จัดเรียงพันธมิตร",
+        "description": "จัดสมาชิกเข้าพันธมิตรอัตโนมัติตามเกณฑ์พลังและคะแนนสังหาร"
       }
     },
     "guide": {
