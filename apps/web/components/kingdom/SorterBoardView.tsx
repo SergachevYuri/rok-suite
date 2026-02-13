@@ -13,6 +13,7 @@ import {
 } from '@dnd-kit/core';
 import { useDroppable } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
+import { matchesSearch } from '@/lib/search';
 import { Search, Eye, EyeOff } from 'lucide-react';
 import type { AllianceConfig, PlayerAssignment, ScanPlayer } from '@/lib/kingdom/types';
 import { SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
@@ -68,11 +69,8 @@ export default function SorterBoardView({
       if (!player) continue;
 
       // Search filter
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        if (!player.name.toLowerCase().includes(q) && !player.governor_id.toString().includes(q)) {
-          continue;
-        }
+      if (search.trim() && !matchesSearch(search, player.name, player.governor_id)) {
+        continue;
       }
 
       // Moves only filter

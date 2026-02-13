@@ -12,6 +12,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/lib/supabase/auth-context';
 import { Swords, Plus, Link as LinkIcon, Copy, Check } from 'lucide-react';
 import { allianceDisplay } from '@/lib/alliances';
+import { matchesSearch as matchesSearchUtil } from '@/lib/search';
 
 // Generate a random 8-character share ID
 function generateShareId(): string {
@@ -365,9 +366,7 @@ function TeamBuilderTab({
         .filter(m => {
             // Search filter
             if (searchTerm.trim()) {
-                const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    ('governorId' in m && m.governorId?.includes(searchTerm));
-                if (!matchesSearch) return false;
+                if (!matchesSearchUtil(searchTerm, m.name, 'governorId' in m && m.governorId ? parseInt(m.governorId) : null)) return false;
             }
             // Confirmation status filter (across all teams)
             if (builderFilter !== 'all') {

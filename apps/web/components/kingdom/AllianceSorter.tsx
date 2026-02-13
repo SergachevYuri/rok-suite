@@ -45,6 +45,7 @@ import { useLatestScan, saveAssignments } from '@/lib/supabase/use-kingdom-scan'
 import { useR4R5Members } from '@/lib/supabase/use-alliance-roster';
 import { assignAlliances } from '@/lib/kingdom/assign';
 import { DEFAULT_ALLIANCE_CONFIGS, SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
+import { matchesSearch } from '@/lib/search';
 import type { AllianceConfig, PlayerAssignment, AssignmentStatus, ScanPlayer } from '@/lib/kingdom/types';
 import SorterBoardView from './SorterBoardView';
 
@@ -163,11 +164,7 @@ export default function AllianceSorter() {
     }));
 
     if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(r =>
-        r.player.name.toLowerCase().includes(q) ||
-        r.player.governor_id.toString().includes(q)
-      );
+      result = result.filter(r => matchesSearch(search, r.player.name, r.player.governor_id));
     }
 
     if (statusFilter !== 'ALL') {

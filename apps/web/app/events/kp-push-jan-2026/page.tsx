@@ -8,6 +8,7 @@ import { createClient, fetchAllRows } from '@/lib/supabase/client';
 import { formatPower, formatDate, getMemberHistory, type RosterSnapshot } from '@/lib/supabase/use-roster-snapshots';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, ScatterChart, Scatter, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { AppSidebar } from '@/components/AppSidebar';
+import { matchesSearch as matchesSearchUtil } from '@/lib/search';
 
 // Event configuration
 const EVENT_CONFIG = {
@@ -313,11 +314,8 @@ export default function KpPushEventPage() {
     }
   };
 
-  // Search filter helper
-  const matchesSearch = (name: string) => {
-    if (!searchQuery.trim()) return true;
-    return name.toLowerCase().includes(searchQuery.toLowerCase().trim());
-  };
+  // Search filter helper (uses shared utility with normalized/fuzzy matching)
+  const matchesSearch = (name: string) => matchesSearchUtil(searchQuery, name);
 
   // Separate results into categories (with search filter applied)
   // Base order is always by KP gain desc (used for rank badges)

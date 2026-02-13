@@ -25,6 +25,7 @@ import { useLatestScan, uploadScan, updateRosterFromScan, getPreMigrationCount, 
 import { parseSnapshotCSV, parseKingdomXLSX, fetchMigrantSheet } from '@/lib/kingdom/parse';
 import { mergePlayers } from '@/lib/kingdom/merge';
 import { MIGRANT_SHEET_URL, formatNumber, toSorterTag } from '@/lib/kingdom/config';
+import { matchesSearch } from '@/lib/search';
 import type { MigrationStatus, ScanPlayer, SnapshotRow, KingdomExportRow, MigrantRow } from '@/lib/kingdom/types';
 
 const EDITOR_PASSWORD = 'carn-dum';
@@ -109,11 +110,7 @@ export default function MigrationTracker() {
     }
 
     if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.governor_id.toString().includes(q)
-      );
+      result = result.filter(p => matchesSearch(search, p.name, p.governor_id));
     }
 
     result.sort((a, b) => {
