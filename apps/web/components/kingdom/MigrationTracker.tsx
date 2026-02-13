@@ -469,6 +469,7 @@ export default function MigrationTracker() {
               active={cardFilter === null}
               activeColor="border-[var(--foreground)]/50"
               className="col-span-2 sm:col-span-1"
+              description="All players in scan"
             />
             <SummaryCard
               label="Originals"
@@ -480,6 +481,7 @@ export default function MigrationTracker() {
               active={cardFilter === 'ORIGINAL'}
               activeColor="border-emerald-500/50"
               ringColor="ring-emerald-500/20"
+              description="Existed before migration"
             />
             <SummaryCard
               label="Accepted"
@@ -491,6 +493,7 @@ export default function MigrationTracker() {
               active={cardFilter === 'ACCEPTED'}
               activeColor="border-sky-500/50"
               ringColor="ring-sky-500/20"
+              description="Approved on migrant sheet"
             />
             <SummaryCard
               label="Pending"
@@ -502,6 +505,7 @@ export default function MigrationTracker() {
               active={cardFilter === 'PENDING'}
               activeColor="border-amber-500/50"
               ringColor="ring-amber-500/20"
+              description="On sheet, not yet approved"
             />
             <SummaryCard
               label="Illegals"
@@ -513,6 +517,7 @@ export default function MigrationTracker() {
               active={cardFilter === 'ILLEGAL'}
               activeColor="border-red-500/50"
               ringColor="ring-red-500/20"
+              description="Not on sheet or marked illegal"
             />
           </div>
         )}
@@ -628,7 +633,7 @@ export default function MigrationTracker() {
   );
 }
 
-function SummaryCard({ label, count, icon, color, bg, onClick, active, activeColor, ringColor, className }: {
+function SummaryCard({ label, count, icon, color, bg, onClick, active, activeColor, ringColor, className, description }: {
   label: string;
   count: number;
   icon: React.ReactNode;
@@ -639,6 +644,7 @@ function SummaryCard({ label, count, icon, color, bg, onClick, active, activeCol
   activeColor?: string;
   ringColor?: string;
   className?: string;
+  description?: string;
 }) {
   return (
     <div
@@ -652,6 +658,9 @@ function SummaryCard({ label, count, icon, color, bg, onClick, active, activeCol
         <span className="text-xs text-[var(--text-muted)] font-medium uppercase">{label}</span>
       </div>
       <div className={`text-xl sm:text-2xl font-semibold ${color}`}>{count.toLocaleString()}</div>
+      {description && (
+        <div className="text-[10px] text-[var(--text-muted)] mt-1 leading-tight">{description}</div>
+      )}
     </div>
   );
 }
