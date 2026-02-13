@@ -8,6 +8,7 @@ import { toSorterTag, formatNumber } from './config';
 export function assignAlliances(
   players: PlayerInput[],
   configs: AllianceConfig[],
+  exemptIds?: Set<number>,
 ): PlayerAssignment[] {
   const sortedConfigs = [...configs].sort((a, b) => a.rank - b.rank);
   const remaining = new Map<string, number>();
@@ -17,6 +18,24 @@ export function assignAlliances(
 
   const assignments: PlayerAssignment[] = [];
   const assigned = new Set<number>();
+
+  // Pass 0: Exempt players (R4/R5) stay in their current alliance
+  if (exemptIds && exemptIds.size > 0) {
+    for (const player of players) {
+      if (!exemptIds.has(getId(player))) continue;
+      const currentTag = toSorterTag(getAlliance(player));
+      if (remaining.has(currentTag) && (remaining.get(currentTag) ?? 0) > 0) {
+        assignments.push({
+          governorId: getId(player),
+          assignedAlliance: currentTag,
+          status: 'STAY',
+          reason: 'R4/R5 — exempt from sorting',
+        });
+        assigned.add(getId(player));
+        remaining.set(currentTag, remaining.get(currentTag)! - 1);
+      }
+    }
+  }
 
   // Pass 1: Original kingdom members by power desc
   const originals = players
@@ -100,12 +119,23 @@ function findBestAlliance(
       continue; // demote to next tier
     }
 
+    // Ratio check: power/kp must be <= maxPowerKpRatio
+    if (cfg.maxPowerKpRatio !== null && kp > 0) {
+      const ratio = power / kp;
+      if (ratio > cfg.maxPowerKpRatio) {
+        continue; // too few kills relative to power, demote
+      }
+    }
+
     const currentSorterTag = toSorterTag(getAlliance(player));
     const status: AssignmentStatus = currentSorterTag === cfg.tag ? 'STAY' : 'MOVE';
 
     const parts: string[] = [`Power ${formatNumber(power)} meets ${cfg.tag} floor ${formatNumber(cfg.minPower)}`];
     if (cfg.minKp !== null && kp > 0) {
       parts.push(`KP ${formatNumber(kp)} meets floor ${formatNumber(cfg.minKp)}`);
+    }
+    if (cfg.maxPowerKpRatio !== null && kp > 0) {
+      parts.push(`P:KP ${(power / kp).toFixed(1)} ≤ ${cfg.maxPowerKpRatio}`);
     }
 
     return {

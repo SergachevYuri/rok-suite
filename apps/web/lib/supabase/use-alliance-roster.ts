@@ -12,6 +12,7 @@ export interface RosterMember {
   notes: string | null;
   is_active: boolean;
   alliance: string | null;
+  governor_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -122,3 +123,40 @@ export const formatPower = (power: number | null | undefined): string => {
   }
   return power.toLocaleString();
 };
+
+export interface R4R5Member {
+  governorId: number;
+  name: string;
+  role: string;
+  alliance: string;
+}
+
+export function useR4R5Members() {
+  const [members, setMembers] = useState<R4R5Member[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetch() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('alliance_roster')
+        .select('name, governor_id, role, alliance')
+        .eq('is_active', true)
+        .in('role', ['R4', 'R5'])
+        .not('governor_id', 'is', null);
+
+      setMembers(
+        (data || []).map(d => ({
+          governorId: d.governor_id!,
+          name: d.name,
+          role: d.role!,
+          alliance: d.alliance || '',
+        }))
+      );
+      setLoading(false);
+    }
+    fetch();
+  }, []);
+
+  return { members, loading };
+}

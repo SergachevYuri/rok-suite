@@ -1,13 +1,13 @@
 import type { AllianceConfig } from './types';
 
 export const DEFAULT_ALLIANCE_CONFIGS: AllianceConfig[] = [
-  { tag: 'ANG', rank: 1, cap: 114, minPower: 21_000_000, minKp: 10_000_000 },
-  { tag: 'MNG', rank: 2, cap: 119, minPower: 16_000_000, minKp: 3_000_000 },
-  { tag: 'KNG', rank: 3, cap: 91,  minPower: 12_000_000, minKp: 500_000 },
-  { tag: 'ENG', rank: 4, cap: 96,  minPower: 8_000_000,  minKp: null },
-  { tag: 'SNG', rank: 5, cap: 88,  minPower: 5_000_000,  minKp: null },
-  { tag: '23A', rank: 6, cap: 97,  minPower: 2_000_000,  minKp: null },
-  { tag: '23SP', rank: 7, cap: 110, minPower: 0,          minKp: null },
+  { tag: 'ANG', rank: 1, cap: 114, minPower: 21_000_000, minKp: 10_000_000, maxPowerKpRatio: null },
+  { tag: 'MNG', rank: 2, cap: 119, minPower: 16_000_000, minKp: 3_000_000,  maxPowerKpRatio: null },
+  { tag: 'KNG', rank: 3, cap: 91,  minPower: 12_000_000, minKp: 500_000,    maxPowerKpRatio: null },
+  { tag: 'ENG', rank: 4, cap: 96,  minPower: 8_000_000,  minKp: null,       maxPowerKpRatio: null },
+  { tag: 'SNG', rank: 5, cap: 88,  minPower: 5_000_000,  minKp: null,       maxPowerKpRatio: null },
+  { tag: '23A', rank: 6, cap: 97,  minPower: 2_000_000,  minKp: null,       maxPowerKpRatio: null },
+  { tag: '23SP', rank: 7, cap: 110, minPower: 0,          minKp: null,       maxPowerKpRatio: null },
 ];
 
 export const MIGRANT_SHEET_URL =

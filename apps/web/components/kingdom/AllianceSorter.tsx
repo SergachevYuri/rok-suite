@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Lock,
   Unlock,
@@ -19,11 +19,18 @@ import {
   AlertTriangle,
   ShieldX,
   HelpCircle,
+  Shield,
+  Plus,
+  X,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { useLatestScan, saveAssignments } from '@/lib/supabase/use-kingdom-scan';
+import { useR4R5Members } from '@/lib/supabase/use-alliance-roster';
 import { assignAlliances } from '@/lib/kingdom/assign';
 import { DEFAULT_ALLIANCE_CONFIGS, SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
 import type { AllianceConfig, PlayerAssignment, AssignmentStatus, ScanPlayer } from '@/lib/kingdom/types';
+import SorterBoardView from './SorterBoardView';
 
 const EDITOR_PASSWORD = 'carn-dum';
 
@@ -38,8 +45,11 @@ const STATUS_STYLES: Record<AssignmentStatus, { bg: string; text: string; icon: 
 type SortField = 'name' | 'power' | 'kill_points' | 'current' | 'assigned' | 'status';
 type SortDir = 'asc' | 'desc';
 
+type ViewMode = 'table' | 'board';
+
 export default function AllianceSorter() {
   const { scan, players, loading, refetch } = useLatestScan();
+  const { members: r4r5Members } = useR4R5Members();
 
   // Admin
   const [isAdmin, setIsAdmin] = useState(false);
@@ -55,12 +65,32 @@ export default function AllianceSorter() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
+  // Exempt R4/R5
+  const [exemptIds, setExemptIds] = useState<Set<number>>(new Set());
+  const [showExemptSection, setShowExemptSection] = useState(false);
+  const [manualExemptInput, setManualExemptInput] = useState('');
+
   // View
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<AssignmentStatus | 'ALL'>('ALL');
   const [allianceFilter, setAllianceFilter] = useState('ALL');
   const [sortField, setSortField] = useState<SortField>('power');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  // Auto-populate exempt list from R4/R5 roster data
+  useEffect(() => {
+    if (r4r5Members.length > 0 && players.length > 0) {
+      const scanGovIds = new Set(players.map(p => p.governor_id));
+      const autoExempt = new Set<number>();
+      for (const m of r4r5Members) {
+        if (scanGovIds.has(m.governorId)) {
+          autoExempt.add(m.governorId);
+        }
+      }
+      setExemptIds(autoExempt);
+    }
+  }, [r4r5Members, players]);
 
   // Assignment index
   const assignmentMap = useMemo(() => {
@@ -166,7 +196,7 @@ export default function AllianceSorter() {
   };
 
   const handleRunSorter = () => {
-    const result = assignAlliances(players, configs);
+    const result = assignAlliances(players, configs, exemptIds.size > 0 ? exemptIds : undefined);
     setAssignments(result);
     setHasRun(true);
     setSaveStatus(null);
@@ -214,6 +244,8 @@ export default function AllianceSorter() {
         cfg.minPower = parseFloat(value) * 1_000_000;
       } else if (field === 'minKp') {
         cfg.minKp = value ? parseFloat(value) * 1_000_000 : null;
+      } else if (field === 'maxPowerKpRatio') {
+        cfg.maxPowerKpRatio = value ? parseFloat(value) : null;
       } else if (field === 'tag') {
         cfg.tag = value;
       }
@@ -317,6 +349,7 @@ export default function AllianceSorter() {
                     <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Cap</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Min Power (M)</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Min KP (M)</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Max P:KP</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -364,10 +397,107 @@ export default function AllianceSorter() {
                           className="w-20 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
                         />
                       </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={cfg.maxPowerKpRatio !== null ? cfg.maxPowerKpRatio : ''}
+                          onChange={(e) => updateConfig(i, 'maxPowerKpRatio', e.target.value)}
+                          placeholder="—"
+                          className="w-20 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Exempt R4/R5 Section */}
+            <div className="mb-4">
+              <button
+                onClick={() => setShowExemptSection(!showExemptSection)}
+                className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
+              >
+                <Shield size={16} className="text-amber-500" />
+                Exempt Players (R4/R5)
+                <span className="text-xs text-[var(--text-muted)]">({exemptIds.size})</span>
+                {showExemptSection ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {showExemptSection && (
+                <div className="mt-3 p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
+                  <p className="text-xs text-[var(--text-muted)] mb-3">
+                    Exempt players stay in their current alliance regardless of thresholds. R4/R5 from roster are auto-added.
+                  </p>
+
+                  {/* Auto-populated R4/R5 list */}
+                  {r4r5Members.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {r4r5Members
+                        .filter(m => players.some(p => p.governor_id === m.governorId))
+                        .map(m => {
+                          const isExempt = exemptIds.has(m.governorId);
+                          return (
+                            <button
+                              key={m.governorId}
+                              onClick={() => {
+                                setExemptIds(prev => {
+                                  const next = new Set(prev);
+                                  if (isExempt) next.delete(m.governorId);
+                                  else next.add(m.governorId);
+                                  return next;
+                                });
+                              }}
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                                isExempt
+                                  ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                                  : 'bg-[var(--background-card)] text-[var(--text-muted)] border border-[var(--border)] line-through'
+                              }`}
+                              title={`${m.name} (${m.role}) — ${m.alliance}`}
+                            >
+                              <Shield size={10} />
+                              {m.name}
+                              <span className="opacity-60">{m.role}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  )}
+
+                  {/* Manual add */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={manualExemptInput}
+                      onChange={(e) => setManualExemptInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const id = parseInt(manualExemptInput);
+                          if (id && players.some(p => p.governor_id === id)) {
+                            setExemptIds(prev => new Set(prev).add(id));
+                            setManualExemptInput('');
+                          }
+                        }
+                      }}
+                      placeholder="Add Governor ID..."
+                      className="flex-1 px-2 py-1 rounded bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-xs focus:outline-none focus:border-amber-500/50"
+                    />
+                    <button
+                      onClick={() => {
+                        const id = parseInt(manualExemptInput);
+                        if (id && players.some(p => p.governor_id === id)) {
+                          setExemptIds(prev => new Set(prev).add(id));
+                          setManualExemptInput('');
+                        }
+                      }}
+                      className="px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-xs font-medium hover:bg-amber-500/20 transition-colors"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3">
@@ -441,8 +571,38 @@ export default function AllianceSorter() {
           </div>
         )}
 
-        {/* Filters */}
-        {players.length > 0 && (
+        {/* View toggle + Filters */}
+        {players.length > 0 && effectiveAssignments.size > 0 && (
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex rounded-lg border border-[var(--border)] overflow-hidden">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                  viewMode === 'table'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                }`}
+              >
+                <List size={14} />
+                Table
+              </button>
+              <button
+                onClick={() => setViewMode('board')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+                  viewMode === 'board'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                }`}
+              >
+                <LayoutGrid size={14} />
+                Board
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Filters (table view only) */}
+        {players.length > 0 && viewMode === 'table' && (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -479,38 +639,50 @@ export default function AllianceSorter() {
           </div>
         )}
 
-        {/* Count + mobile sort */}
-        {players.length > 0 && (
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-xs text-[var(--text-muted)]">
-              Showing {tableData.length} of {players.length} players
-            </div>
-            <div className="flex items-center gap-2 md:hidden">
-              <select
-                value={sortField}
-                onChange={(e) => setSortField(e.target.value as SortField)}
-                className="px-2 py-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-xs focus:outline-none"
-              >
-                <option value="power">Power</option>
-                <option value="kill_points">KP</option>
-                <option value="name">Name</option>
-                <option value="current">Current</option>
-                <option value="assigned">Assigned</option>
-                <option value="status">Status</option>
-              </select>
-              <button
-                onClick={() => setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
-                className="p-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)]"
-              >
-                {sortDir === 'desc' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-              </button>
-            </div>
-          </div>
+        {/* Board View */}
+        {players.length > 0 && viewMode === 'board' && effectiveAssignments.size > 0 && (
+          <SorterBoardView
+            players={players}
+            assignments={[...effectiveAssignments.values()]}
+            configs={configs}
+            onAssignmentsChange={(updated) => {
+              setAssignments(updated);
+              setHasRun(true);
+              setSaveStatus(null);
+            }}
+          />
         )}
 
-        {/* Assignment Table (desktop) / Cards (mobile) */}
-        {players.length > 0 ? (
+        {/* Table View */}
+        {players.length > 0 && viewMode === 'table' ? (
           <>
+            {/* Count + mobile sort */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs text-[var(--text-muted)]">
+                Showing {tableData.length} of {players.length} players
+              </div>
+              <div className="flex items-center gap-2 md:hidden">
+                <select
+                  value={sortField}
+                  onChange={(e) => setSortField(e.target.value as SortField)}
+                  className="px-2 py-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-xs focus:outline-none"
+                >
+                  <option value="power">Power</option>
+                  <option value="kill_points">KP</option>
+                  <option value="name">Name</option>
+                  <option value="current">Current</option>
+                  <option value="assigned">Assigned</option>
+                  <option value="status">Status</option>
+                </select>
+                <button
+                  onClick={() => setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  className="p-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)]"
+                >
+                  {sortDir === 'desc' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                </button>
+              </div>
+            </div>
+
             {/* Mobile card view */}
             <div className="md:hidden space-y-2">
               {tableData.map(({ player, assignment }) => (
@@ -542,13 +714,13 @@ export default function AllianceSorter() {
               </div>
             </div>
           </>
-        ) : (
+        ) : players.length === 0 ? (
           <div className="text-center py-20 text-[var(--text-muted)]">
             <ArrowUpDown size={40} className="mx-auto mb-4 opacity-40" />
             <p className="text-lg font-medium">No scan data available</p>
             <p className="text-sm mt-1">Upload scan data in the Migration Tracker first.</p>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

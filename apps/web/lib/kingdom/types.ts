@@ -94,6 +94,7 @@ export interface AllianceConfig {
   cap: number;
   minPower: number;
   minKp: number | null;
+  maxPowerKpRatio: number | null;
 }
 
 /** Result of the alliance assignment for one player */
