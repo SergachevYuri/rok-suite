@@ -114,28 +114,39 @@ function findBestAlliance(
     if ((remaining.get(cfg.tag) ?? 0) <= 0) continue;
     if (power < cfg.minPower) continue;
 
-    // KP check: only enforce when player has KP data and config has a KP floor
-    if (cfg.minKp !== null && kp > 0 && kp < cfg.minKp) {
-      continue; // demote to next tier
+    // Evaluate secondary criteria (KP and ratio)
+    const checks: { passed: boolean; reason: string }[] = [];
+
+    if (cfg.minKp !== null && kp > 0) {
+      checks.push({
+        passed: kp >= cfg.minKp,
+        reason: `KP ${formatNumber(kp)} ${kp >= cfg.minKp ? '≥' : '<'} floor ${formatNumber(cfg.minKp)}`,
+      });
     }
 
-    // Ratio check: power/kp must be <= maxPowerKpRatio
     if (cfg.maxPowerKpRatio !== null && kp > 0) {
       const ratio = power / kp;
-      if (ratio > cfg.maxPowerKpRatio) {
-        continue; // too few kills relative to power, demote
-      }
+      checks.push({
+        passed: ratio <= cfg.maxPowerKpRatio,
+        reason: `P:KP ${ratio.toFixed(1)} ${ratio <= cfg.maxPowerKpRatio ? '≤' : '>'} ${cfg.maxPowerKpRatio}`,
+      });
+    }
+
+    // Apply threshold mode: 'all' = every check must pass, 'any' = at least one
+    if (checks.length > 0) {
+      const mode = cfg.thresholdMode || 'all';
+      const pass = mode === 'any'
+        ? checks.some(c => c.passed)
+        : checks.every(c => c.passed);
+      if (!pass) continue;
     }
 
     const currentSorterTag = toSorterTag(getAlliance(player));
     const status: AssignmentStatus = currentSorterTag === cfg.tag ? 'STAY' : 'MOVE';
 
     const parts: string[] = [`Power ${formatNumber(power)} meets ${cfg.tag} floor ${formatNumber(cfg.minPower)}`];
-    if (cfg.minKp !== null && kp > 0) {
-      parts.push(`KP ${formatNumber(kp)} meets floor ${formatNumber(cfg.minKp)}`);
-    }
-    if (cfg.maxPowerKpRatio !== null && kp > 0) {
-      parts.push(`P:KP ${(power / kp).toFixed(1)} ≤ ${cfg.maxPowerKpRatio}`);
+    for (const c of checks) {
+      if (c.passed) parts.push(c.reason);
     }
 
     return {

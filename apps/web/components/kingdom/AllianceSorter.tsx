@@ -254,6 +254,30 @@ export default function AllianceSorter() {
     });
   };
 
+  const toggleThreshold = (index: number, field: 'minKp' | 'maxPowerKpRatio') => {
+    setConfigs(prev => {
+      const next = [...prev];
+      const cfg = { ...next[index] };
+      if (field === 'minKp') {
+        cfg.minKp = cfg.minKp === null ? 5_000_000 : null;
+      } else {
+        cfg.maxPowerKpRatio = cfg.maxPowerKpRatio === null ? 3 : null;
+      }
+      next[index] = cfg;
+      return next;
+    });
+  };
+
+  const setThresholdMode = (index: number, mode: 'all' | 'any') => {
+    setConfigs(prev => {
+      const next = [...prev];
+      const cfg = { ...next[index] };
+      cfg.thresholdMode = mode;
+      next[index] = cfg;
+      return next;
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -334,83 +358,152 @@ export default function AllianceSorter() {
 
         {/* Admin: Config Editor */}
         {isAdmin && players.length > 0 && (
-          <div className="mb-8 p-5 rounded-xl bg-[var(--background-card)] border border-amber-500/30">
+          <div className="mb-8">
             <h2 className="text-lg font-medium text-[var(--foreground)] mb-4 flex items-center gap-2">
               <ArrowUpDown size={18} className="text-amber-500" />
               Alliance Thresholds
             </h2>
 
-            <div className="overflow-x-auto mb-4">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Alliance</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Rank</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Cap</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Min Power (M)</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Min KP (M)</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Max P:KP</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {configs.map((cfg, i) => (
-                    <tr key={cfg.tag} className="border-b border-[var(--border)]">
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: SORTER_ALLIANCE_COLORS[cfg.tag] || '#666' }}
-                          />
-                          <span className="font-medium text-[var(--foreground)]">{cfg.tag}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="number"
-                          value={cfg.rank}
-                          onChange={(e) => updateConfig(i, 'rank', e.target.value)}
-                          className="w-16 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
+              {configs.map((cfg, i) => {
+                const color = SORTER_ALLIANCE_COLORS[cfg.tag] || '#666';
+                const hasSecondary = cfg.minKp !== null || cfg.maxPowerKpRatio !== null;
+                return (
+                  <div key={cfg.tag} className="p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+                    {/* Card header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                        <span className="font-semibold text-sm text-[var(--foreground)]">{cfg.tag}</span>
+                        <span className="text-[10px] text-[var(--text-muted)] bg-[var(--background-secondary)] px-1.5 py-0.5 rounded">#{cfg.rank}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-[var(--text-muted)]">Cap</span>
                         <input
                           type="number"
                           value={cfg.cap}
                           onChange={(e) => updateConfig(i, 'cap', e.target.value)}
-                          className="w-16 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+                          className="w-12 px-1.5 py-0.5 rounded text-xs text-center bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
                         />
-                      </td>
-                      <td className="px-3 py-2">
+                      </div>
+                    </div>
+
+                    {/* Mode toggle */}
+                    {hasSecondary && (
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <div className="flex rounded-md overflow-hidden border border-[var(--border)]">
+                          <button
+                            onClick={() => setThresholdMode(i, 'all')}
+                            className={`px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                              cfg.thresholdMode === 'all'
+                                ? 'bg-amber-500 text-white'
+                                : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                            }`}
+                          >
+                            ALL
+                          </button>
+                          <button
+                            onClick={() => setThresholdMode(i, 'any')}
+                            className={`px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                              cfg.thresholdMode === 'any'
+                                ? 'bg-sky-500 text-white'
+                                : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                            }`}
+                          >
+                            ANY
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-[var(--text-muted)]">
+                          {cfg.thresholdMode === 'all' ? 'all criteria required' : 'any criteria qualifies'}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Threshold sliders */}
+                    <div className="space-y-2.5">
+                      {/* Min Power (always on) */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)]">Min Power</span>
+                          <span className="text-[10px] font-mono font-semibold text-[var(--foreground)]">
+                            {(cfg.minPower / 1_000_000).toFixed(0)}M
+                          </span>
+                        </div>
                         <input
-                          type="number"
-                          value={(cfg.minPower / 1_000_000).toFixed(0)}
+                          type="range"
+                          min={0} max={60} step={1}
+                          value={cfg.minPower / 1_000_000}
                           onChange={(e) => updateConfig(i, 'minPower', e.target.value)}
-                          className="w-20 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+                          className="w-full h-1.5 rounded-full cursor-pointer"
+                          style={{ accentColor: color }}
                         />
-                      </td>
-                      <td className="px-3 py-2">
+                      </div>
+
+                      {/* Min KP (toggleable) */}
+                      <div className={cfg.minKp === null ? 'opacity-40' : ''}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => toggleThreshold(i, 'minKp')}
+                              className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
+                                cfg.minKp !== null
+                                  ? 'bg-amber-500 border-amber-500'
+                                  : 'bg-transparent border-[var(--border)] hover:border-[var(--text-muted)]'
+                              }`}
+                            >
+                              {cfg.minKp !== null && <Check size={8} className="text-white" />}
+                            </button>
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">Min KP</span>
+                          </div>
+                          <span className="text-[10px] font-mono font-semibold text-[var(--foreground)]">
+                            {cfg.minKp !== null ? `${(cfg.minKp / 1_000_000).toFixed(1)}M` : '—'}
+                          </span>
+                        </div>
                         <input
-                          type="number"
-                          value={cfg.minKp !== null ? (cfg.minKp / 1_000_000).toFixed(1) : ''}
+                          type="range"
+                          min={0} max={30} step={0.5}
+                          value={cfg.minKp !== null ? cfg.minKp / 1_000_000 : 0}
                           onChange={(e) => updateConfig(i, 'minKp', e.target.value)}
-                          placeholder="—"
-                          className="w-20 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
+                          disabled={cfg.minKp === null}
+                          className="w-full h-1.5 rounded-full cursor-pointer disabled:cursor-default"
+                          style={{ accentColor: cfg.minKp !== null ? color : undefined }}
                         />
-                      </td>
-                      <td className="px-3 py-2">
+                      </div>
+
+                      {/* Max P:KP Ratio (toggleable) */}
+                      <div className={cfg.maxPowerKpRatio === null ? 'opacity-40' : ''}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => toggleThreshold(i, 'maxPowerKpRatio')}
+                              className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
+                                cfg.maxPowerKpRatio !== null
+                                  ? 'bg-amber-500 border-amber-500'
+                                  : 'bg-transparent border-[var(--border)] hover:border-[var(--text-muted)]'
+                              }`}
+                            >
+                              {cfg.maxPowerKpRatio !== null && <Check size={8} className="text-white" />}
+                            </button>
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">Max P:KP</span>
+                          </div>
+                          <span className="text-[10px] font-mono font-semibold text-[var(--foreground)]">
+                            {cfg.maxPowerKpRatio !== null ? cfg.maxPowerKpRatio.toFixed(1) : '—'}
+                          </span>
+                        </div>
                         <input
-                          type="number"
-                          step="0.1"
-                          value={cfg.maxPowerKpRatio !== null ? cfg.maxPowerKpRatio : ''}
+                          type="range"
+                          min={1} max={10} step={0.1}
+                          value={cfg.maxPowerKpRatio ?? 3}
                           onChange={(e) => updateConfig(i, 'maxPowerKpRatio', e.target.value)}
-                          placeholder="—"
-                          className="w-20 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
+                          disabled={cfg.maxPowerKpRatio === null}
+                          className="w-full h-1.5 rounded-full cursor-pointer disabled:cursor-default"
+                          style={{ accentColor: cfg.maxPowerKpRatio !== null ? color : undefined }}
                         />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Exempt R4/R5 Section */}
@@ -500,7 +593,7 @@ export default function AllianceSorter() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={handleRunSorter}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors"

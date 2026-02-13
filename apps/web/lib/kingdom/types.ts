@@ -95,6 +95,7 @@ export interface AllianceConfig {
   minPower: number;
   minKp: number | null;
   maxPowerKpRatio: number | null;
+  thresholdMode: 'all' | 'any';
 }
 
 /** Result of the alliance assignment for one player */
