@@ -95,12 +95,22 @@ export function mergePlayers(
     if (target) {
       target.isMigrant = true;
       const acceptedVal = migrant.accepted.toLowerCase().trim();
+      const illegalVal = migrant.illegalMigrant.toLowerCase().trim();
       target.migrantAccepted = acceptedVal === 'yes' || acceptedVal === 'y';
-      // Pre-tag pending migrants so computeMigrationStatus can distinguish
-      // "pending" (awaiting decision) from "no"/blank (not approved → illegal)
-      if (acceptedVal === 'pending') {
+
+      // "Illegal Migrant" column = Yes → known illegal
+      if (illegalVal === 'yes' || illegalVal === 'y') {
+        target.migrationStatus = 'ILLEGAL';
+      }
+      // "Accepted" column = Yes → approved migrant
+      else if (target.migrantAccepted) {
+        target.migrationStatus = 'ACCEPTED';
+      }
+      // On the list but not accepted and not marked illegal → pending
+      else {
         target.migrationStatus = 'PENDING';
       }
+
       target.migrantGroup = migrant.group || null;
       target.migrantRecruiter = migrant.recruiter || null;
       target.startingKd = migrant.startingKd || null;
@@ -137,19 +147,9 @@ function computeMigrationStatus(player: MergedPlayer, hasPreMigrationData: boole
     return 'ORIGINAL';
   }
 
-  // On migrant list and accepted → ACCEPTED
-  if (player.isMigrant && player.migrantAccepted) {
-    return 'ACCEPTED';
-  }
-
-  // On migrant list, accepted = "pending" → PENDING (awaiting decision)
-  if (player.isMigrant && player.migrationStatus === 'PENDING') {
-    return 'PENDING';
-  }
-
-  // On migrant list, accepted = "no" or blank → ILLEGAL
+  // Migrants: status was already set in the merge loop from Accepted + Illegal Migrant columns
   if (player.isMigrant) {
-    return 'ILLEGAL';
+    return player.migrationStatus;
   }
 
   // Not on migrant list, not original → ILLEGAL

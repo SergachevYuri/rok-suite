@@ -45,6 +45,7 @@ export interface MigrantRow {
   deads: number;
   startingKd: string;
   alliance: string;
+  illegalMigrant: string;
   accepted: string;
   group: string;
   recruiter: string;

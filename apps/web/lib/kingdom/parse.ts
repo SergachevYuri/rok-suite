@@ -105,9 +105,14 @@ export async function fetchMigrantSheet(url: string): Promise<MigrantRow[]> {
   const text = await response.text();
   const { headers, rows } = parseCSV(text);
 
+  // Fuzzy match for most columns
   const idx = (name: string) => {
     const i = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
     return i;
+  };
+  // Exact match for "Accepted" to avoid hitting "Accepted by Slut" (col N)
+  const exactIdx = (name: string) => {
+    return headers.findIndex(h => h.toLowerCase().trim() === name.toLowerCase());
   };
 
   const iName = idx('name');
@@ -119,7 +124,8 @@ export async function fetchMigrantSheet(url: string): Promise<MigrantRow[]> {
   const iDeads = idx('dead');
   const iKd = idx('starting kd');
   const iAlliance = idx('alliance');
-  const iAccepted = idx('accepted');
+  const iIllegal = exactIdx('illegal migrant');
+  const iAccepted = exactIdx('accepted');
   const iGroup = idx('group');
   const iRecruiter = idx('recruiter');
 
@@ -134,6 +140,7 @@ export async function fetchMigrantSheet(url: string): Promise<MigrantRow[]> {
       deads: parseInt(cols[iDeads]) || 0,
       startingKd: (cols[iKd] || '').trim(),
       alliance: (cols[iAlliance] || '').trim(),
+      illegalMigrant: (cols[iIllegal] || '').trim(),
       accepted: (cols[iAccepted] || '').trim(),
       group: (cols[iGroup] || '').trim(),
       recruiter: (cols[iRecruiter] || '').trim(),
