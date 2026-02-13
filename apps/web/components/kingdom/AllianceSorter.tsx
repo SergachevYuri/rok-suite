@@ -24,7 +24,23 @@ import {
   X,
   LayoutGrid,
   List,
+  GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useLatestScan, saveAssignments } from '@/lib/supabase/use-kingdom-scan';
 import { useR4R5Members } from '@/lib/supabase/use-alliance-roster';
 import { assignAlliances } from '@/lib/kingdom/assign';
@@ -278,14 +294,21 @@ export default function AllianceSorter() {
     });
   };
 
-  const moveConfig = (index: number, direction: -1 | 1) => {
+  const configSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  const handleConfigDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
     setConfigs(prev => {
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
+      const oldIndex = prev.findIndex(c => c.tag === active.id);
+      const newIndex = prev.findIndex(c => c.tag === over.id);
+      if (oldIndex === -1 || newIndex === -1) return prev;
       const next = [...prev];
-      // Swap entries
-      [next[index], next[target]] = [next[target], next[index]];
-      // Re-assign ranks based on new positions
+      const [moved] = next.splice(oldIndex, 1);
+      next.splice(newIndex, 0, moved);
       return next.map((cfg, i) => ({ ...cfg, rank: i + 1 }));
     });
   };
@@ -376,165 +399,22 @@ export default function AllianceSorter() {
               Alliance Thresholds
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
-              {configs.map((cfg, i) => {
-                const color = SORTER_ALLIANCE_COLORS[cfg.tag] || '#666';
-                const hasSecondary = cfg.minKp !== null || cfg.maxPowerKpRatio !== null;
-                return (
-                  <div key={cfg.tag} className="p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
-                    {/* Card header */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                        <span className="font-semibold text-sm text-[var(--foreground)]">{cfg.tag}</span>
-                        <span className="text-xs text-[var(--text-muted)] bg-[var(--background-secondary)] px-1.5 py-0.5 rounded">#{cfg.rank}</span>
-                        <div className="flex flex-col -my-1">
-                          <button
-                            onClick={() => moveConfig(i, -1)}
-                            disabled={i === 0}
-                            className="text-[var(--text-muted)] hover:text-[var(--foreground)] disabled:opacity-20 disabled:cursor-default transition-colors"
-                            title="Move up"
-                          >
-                            <ChevronUp size={14} />
-                          </button>
-                          <button
-                            onClick={() => moveConfig(i, 1)}
-                            disabled={i === configs.length - 1}
-                            className="text-[var(--text-muted)] hover:text-[var(--foreground)] disabled:opacity-20 disabled:cursor-default transition-colors -mt-1"
-                            title="Move down"
-                          >
-                            <ChevronDown size={14} />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-[var(--text-muted)]">Cap</span>
-                        <input
-                          type="number"
-                          value={cfg.cap}
-                          onChange={(e) => updateConfig(i, 'cap', e.target.value)}
-                          className="w-12 px-1.5 py-0.5 rounded text-xs text-center bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Mode toggle */}
-                    {hasSecondary && (
-                      <div className="flex items-center gap-1.5 mb-3">
-                        <div className="flex rounded-md overflow-hidden border border-[var(--border)]">
-                          <button
-                            onClick={() => setThresholdMode(i, 'all')}
-                            className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
-                              cfg.thresholdMode === 'all'
-                                ? 'bg-amber-500 text-white'
-                                : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                            }`}
-                          >
-                            ALL
-                          </button>
-                          <button
-                            onClick={() => setThresholdMode(i, 'any')}
-                            className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
-                              cfg.thresholdMode === 'any'
-                                ? 'bg-sky-500 text-white'
-                                : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                            }`}
-                          >
-                            ANY
-                          </button>
-                        </div>
-                        <span className="text-xs text-[var(--text-muted)]">
-                          {cfg.thresholdMode === 'all' ? 'all criteria required' : 'any criteria qualifies'}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Threshold sliders */}
-                    <div className="space-y-2.5">
-                      {/* Min Power (always on) */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-[var(--text-secondary)]">Min Power</span>
-                          <span className="text-xs font-mono font-semibold text-[var(--foreground)]">
-                            {(cfg.minPower / 1_000_000).toFixed(0)}M
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0} max={60} step={1}
-                          value={cfg.minPower / 1_000_000}
-                          onChange={(e) => updateConfig(i, 'minPower', e.target.value)}
-                          className="w-full h-1.5 rounded-full cursor-pointer"
-                          style={{ accentColor: color }}
-                        />
-                      </div>
-
-                      {/* Min KP (toggleable) */}
-                      <div className={cfg.minKp === null ? 'opacity-40' : ''}>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => toggleThreshold(i, 'minKp')}
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                                cfg.minKp !== null
-                                  ? 'bg-amber-500 border-amber-500'
-                                  : 'bg-transparent border-[var(--text-muted)] hover:border-[var(--foreground)]'
-                              }`}
-                            >
-                              {cfg.minKp !== null && <Check size={12} className="text-white" strokeWidth={3} />}
-                            </button>
-                            <span className="text-xs font-medium text-[var(--text-secondary)]">Min KP</span>
-                          </div>
-                          <span className="text-xs font-mono font-semibold text-[var(--foreground)]">
-                            {cfg.minKp !== null ? `${(cfg.minKp / 1_000_000).toFixed(1)}M` : '—'}
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0} max={30} step={0.5}
-                          value={cfg.minKp !== null ? cfg.minKp / 1_000_000 : 0}
-                          onChange={(e) => updateConfig(i, 'minKp', e.target.value)}
-                          disabled={cfg.minKp === null}
-                          className="w-full h-1.5 rounded-full cursor-pointer disabled:cursor-default"
-                          style={{ accentColor: cfg.minKp !== null ? color : undefined }}
-                        />
-                      </div>
-
-                      {/* Max P:KP Ratio (toggleable) */}
-                      <div className={cfg.maxPowerKpRatio === null ? 'opacity-40' : ''}>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => toggleThreshold(i, 'maxPowerKpRatio')}
-                              className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                                cfg.maxPowerKpRatio !== null
-                                  ? 'bg-amber-500 border-amber-500'
-                                  : 'bg-transparent border-[var(--text-muted)] hover:border-[var(--foreground)]'
-                              }`}
-                            >
-                              {cfg.maxPowerKpRatio !== null && <Check size={12} className="text-white" strokeWidth={3} />}
-                            </button>
-                            <span className="text-xs font-medium text-[var(--text-secondary)]">Max P:KP</span>
-                          </div>
-                          <span className="text-xs font-mono font-semibold text-[var(--foreground)]">
-                            {cfg.maxPowerKpRatio !== null ? cfg.maxPowerKpRatio.toFixed(1) : '—'}
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0.5} max={3} step={0.1}
-                          value={cfg.maxPowerKpRatio ?? 2}
-                          onChange={(e) => updateConfig(i, 'maxPowerKpRatio', e.target.value)}
-                          disabled={cfg.maxPowerKpRatio === null}
-                          className="w-full h-1.5 rounded-full cursor-pointer disabled:cursor-default"
-                          style={{ accentColor: cfg.maxPowerKpRatio !== null ? color : undefined }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <DndContext sensors={configSensors} collisionDetection={closestCenter} onDragEnd={handleConfigDragEnd}>
+              <SortableContext items={configs.map(c => c.tag)} strategy={rectSortingStrategy}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-4">
+                  {configs.map((cfg, i) => (
+                    <SortableConfigCard
+                      key={cfg.tag}
+                      cfg={cfg}
+                      index={i}
+                      updateConfig={updateConfig}
+                      toggleThreshold={toggleThreshold}
+                      setThresholdMode={setThresholdMode}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
 
             {/* Exempt R4/R5 Section */}
             <div className="mb-4">
@@ -972,5 +852,182 @@ function AssignmentRow({ player, assignment }: { player: ScanPlayer; assignment?
         {assignment?.reason || '-'}
       </td>
     </tr>
+  );
+}
+
+function SortableConfigCard({
+  cfg,
+  index,
+  updateConfig,
+  toggleThreshold,
+  setThresholdMode,
+}: {
+  cfg: AllianceConfig;
+  index: number;
+  updateConfig: (index: number, field: keyof AllianceConfig, value: string) => void;
+  toggleThreshold: (index: number, field: 'minKp' | 'maxPowerKpRatio') => void;
+  setThresholdMode: (index: number, mode: 'all' | 'any') => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: cfg.tag });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  const color = SORTER_ALLIANCE_COLORS[cfg.tag] || '#666';
+  const hasSecondary = cfg.minKp !== null || cfg.maxPowerKpRatio !== null;
+
+  return (
+    <div ref={setNodeRef} style={style} className="p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+      {/* Card header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors touch-none"
+            title="Drag to reorder"
+          >
+            <GripVertical size={14} />
+          </button>
+          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+          <span className="font-semibold text-sm text-[var(--foreground)]">{cfg.tag}</span>
+          <span className="text-xs text-[var(--text-muted)] bg-[var(--background-secondary)] px-1.5 py-0.5 rounded">#{cfg.rank}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-[var(--text-muted)]">Cap</span>
+          <input
+            type="number"
+            value={cfg.cap}
+            onChange={(e) => updateConfig(index, 'cap', e.target.value)}
+            className="w-12 px-1.5 py-0.5 rounded text-xs text-center bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Mode toggle */}
+      {hasSecondary && (
+        <div className="flex items-center gap-1.5 mb-3">
+          <div className="flex rounded-md overflow-hidden border border-[var(--border)]">
+            <button
+              onClick={() => setThresholdMode(index, 'all')}
+              className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
+                cfg.thresholdMode === 'all'
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              ALL
+            </button>
+            <button
+              onClick={() => setThresholdMode(index, 'any')}
+              className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
+                cfg.thresholdMode === 'any'
+                  ? 'bg-sky-500 text-white'
+                  : 'bg-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              ANY
+            </button>
+          </div>
+          <span className="text-xs text-[var(--text-muted)]">
+            {cfg.thresholdMode === 'all' ? 'all criteria required' : 'any criteria qualifies'}
+          </span>
+        </div>
+      )}
+
+      {/* Threshold sliders */}
+      <div className="space-y-2.5">
+        {/* Min Power (always on) */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-[var(--text-secondary)]">Min Power</span>
+            <span className="text-xs font-mono font-semibold text-[var(--foreground)]">
+              {(cfg.minPower / 1_000_000).toFixed(0)}M
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0} max={60} step={1}
+            value={cfg.minPower / 1_000_000}
+            onChange={(e) => updateConfig(index, 'minPower', e.target.value)}
+            className="w-full h-1.5 rounded-full cursor-pointer"
+            style={{ accentColor: color }}
+          />
+        </div>
+
+        {/* Min KP (toggleable) */}
+        <div className={cfg.minKp === null ? 'opacity-40' : ''}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleThreshold(index, 'minKp')}
+                className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                  cfg.minKp !== null
+                    ? 'bg-amber-500 border-amber-500'
+                    : 'bg-transparent border-[var(--text-muted)] hover:border-[var(--foreground)]'
+                }`}
+              >
+                {cfg.minKp !== null && <Check size={12} className="text-white" strokeWidth={3} />}
+              </button>
+              <span className="text-xs font-medium text-[var(--text-secondary)]">Min KP</span>
+            </div>
+            <span className="text-xs font-mono font-semibold text-[var(--foreground)]">
+              {cfg.minKp !== null ? `${(cfg.minKp / 1_000_000).toFixed(1)}M` : '—'}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0} max={30} step={0.5}
+            value={cfg.minKp !== null ? cfg.minKp / 1_000_000 : 0}
+            onChange={(e) => updateConfig(index, 'minKp', e.target.value)}
+            disabled={cfg.minKp === null}
+            className="w-full h-1.5 rounded-full cursor-pointer disabled:cursor-default"
+            style={{ accentColor: cfg.minKp !== null ? color : undefined }}
+          />
+        </div>
+
+        {/* Max P:KP Ratio (toggleable) */}
+        <div className={cfg.maxPowerKpRatio === null ? 'opacity-40' : ''}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => toggleThreshold(index, 'maxPowerKpRatio')}
+                className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                  cfg.maxPowerKpRatio !== null
+                    ? 'bg-amber-500 border-amber-500'
+                    : 'bg-transparent border-[var(--text-muted)] hover:border-[var(--foreground)]'
+                }`}
+              >
+                {cfg.maxPowerKpRatio !== null && <Check size={12} className="text-white" strokeWidth={3} />}
+              </button>
+              <span className="text-xs font-medium text-[var(--text-secondary)]">Max P:KP</span>
+            </div>
+            <span className="text-xs font-mono font-semibold text-[var(--foreground)]">
+              {cfg.maxPowerKpRatio !== null ? cfg.maxPowerKpRatio.toFixed(1) : '—'}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0.5} max={3} step={0.1}
+            value={cfg.maxPowerKpRatio ?? 2}
+            onChange={(e) => updateConfig(index, 'maxPowerKpRatio', e.target.value)}
+            disabled={cfg.maxPowerKpRatio === null}
+            className="w-full h-1.5 rounded-full cursor-pointer disabled:cursor-default"
+            style={{ accentColor: cfg.maxPowerKpRatio !== null ? color : undefined }}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
