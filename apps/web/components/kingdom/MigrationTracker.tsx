@@ -71,7 +71,7 @@ export default function MigrationTracker() {
   const [allianceFilter, setAllianceFilter] = useState('ALL');
   const [sortField, setSortField] = useState<SortField>('power');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [showIllegalsOnly, setShowIllegalsOnly] = useState(false);
+  const [cardFilter, setCardFilter] = useState<MigrationStatus | null>(null);
 
   // Derived data
   const alliances = useMemo(() => {
@@ -92,12 +92,10 @@ export default function MigrationTracker() {
   const filteredPlayers = useMemo(() => {
     let result = [...players];
 
-    if (showIllegalsOnly) {
-      result = result.filter(p => p.migration_status === 'ILLEGAL');
-    } else {
-      if (statusFilter !== 'ALL') {
-        result = result.filter(p => p.migration_status === statusFilter);
-      }
+    if (cardFilter) {
+      result = result.filter(p => p.migration_status === cardFilter);
+    } else if (statusFilter !== 'ALL') {
+      result = result.filter(p => p.migration_status === statusFilter);
     }
 
     if (allianceFilter !== 'ALL') {
@@ -125,7 +123,7 @@ export default function MigrationTracker() {
     });
 
     return result;
-  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, showIllegalsOnly]);
+  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, cardFilter]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -467,6 +465,9 @@ export default function MigrationTracker() {
               icon={<Users size={18} />}
               color="text-[var(--foreground)]"
               bg="bg-[var(--background-secondary)]"
+              onClick={() => setCardFilter(null)}
+              active={cardFilter === null}
+              activeColor="border-[var(--foreground)]/50"
             />
             <SummaryCard
               label="Originals"
@@ -474,6 +475,10 @@ export default function MigrationTracker() {
               icon={<ShieldCheck size={18} />}
               color="text-emerald-500"
               bg="bg-emerald-500/10"
+              onClick={() => setCardFilter(cardFilter === 'ORIGINAL' ? null : 'ORIGINAL')}
+              active={cardFilter === 'ORIGINAL'}
+              activeColor="border-emerald-500/50"
+              ringColor="ring-emerald-500/20"
             />
             <SummaryCard
               label="Accepted"
@@ -481,6 +486,10 @@ export default function MigrationTracker() {
               icon={<ShieldCheck size={18} />}
               color="text-sky-500"
               bg="bg-sky-500/10"
+              onClick={() => setCardFilter(cardFilter === 'ACCEPTED' ? null : 'ACCEPTED')}
+              active={cardFilter === 'ACCEPTED'}
+              activeColor="border-sky-500/50"
+              ringColor="ring-sky-500/20"
             />
             <SummaryCard
               label="Pending"
@@ -488,6 +497,10 @@ export default function MigrationTracker() {
               icon={<ShieldQuestion size={18} />}
               color="text-amber-500"
               bg="bg-amber-500/10"
+              onClick={() => setCardFilter(cardFilter === 'PENDING' ? null : 'PENDING')}
+              active={cardFilter === 'PENDING'}
+              activeColor="border-amber-500/50"
+              ringColor="ring-amber-500/20"
             />
             <SummaryCard
               label="Illegals"
@@ -495,8 +508,10 @@ export default function MigrationTracker() {
               icon={<ShieldX size={18} />}
               color="text-red-500"
               bg="bg-red-500/10"
-              onClick={() => setShowIllegalsOnly(!showIllegalsOnly)}
-              active={showIllegalsOnly}
+              onClick={() => setCardFilter(cardFilter === 'ILLEGAL' ? null : 'ILLEGAL')}
+              active={cardFilter === 'ILLEGAL'}
+              activeColor="border-red-500/50"
+              ringColor="ring-red-500/20"
             />
           </div>
         )}
@@ -516,7 +531,7 @@ export default function MigrationTracker() {
             </div>
             <select
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value as MigrationStatus | 'ALL'); setShowIllegalsOnly(false); }}
+              onChange={(e) => { setStatusFilter(e.target.value as MigrationStatus | 'ALL'); setCardFilter(null); }}
               className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none"
             >
               <option value="ALL">All Statuses</option>
@@ -581,7 +596,7 @@ export default function MigrationTracker() {
   );
 }
 
-function SummaryCard({ label, count, icon, color, bg, onClick, active }: {
+function SummaryCard({ label, count, icon, color, bg, onClick, active, activeColor, ringColor }: {
   label: string;
   count: number;
   icon: React.ReactNode;
@@ -589,12 +604,14 @@ function SummaryCard({ label, count, icon, color, bg, onClick, active }: {
   bg: string;
   onClick?: () => void;
   active?: boolean;
+  activeColor?: string;
+  ringColor?: string;
 }) {
   return (
     <div
-      className={`p-4 rounded-xl bg-[var(--background-card)] border transition-all ${
-        active ? 'border-red-500/50 ring-1 ring-red-500/20' : 'border-[var(--border)]'
-      } ${onClick ? 'cursor-pointer hover:border-red-500/40' : ''}`}
+      className={`p-4 rounded-xl bg-[var(--background-card)] border transition-all cursor-pointer ${
+        active ? `${activeColor || 'border-[var(--foreground)]/30'} ring-1 ${ringColor || 'ring-[var(--foreground)]/10'}` : 'border-[var(--border)] hover:border-[var(--text-muted)]'
+      }`}
       onClick={onClick}
     >
       <div className="flex items-center gap-2 mb-2">

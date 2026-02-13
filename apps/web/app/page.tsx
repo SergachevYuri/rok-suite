@@ -5,7 +5,6 @@ import { AppSidebar } from '@/components/AppSidebar';
 import {
   Swords,
   BookOpen,
-  ArrowRight,
   Github,
   ExternalLink,
   Calendar,
@@ -99,27 +98,27 @@ export default function Home() {
       titleKey: 'tools.migrationTracker.title',
       descriptionKey: 'tools.migrationTracker.description',
       icon: Radar,
-      hoverBorder: 'hover:border-amber-500/40',
-      hoverShadow: 'hover:shadow-amber-500/10',
-      iconHoverBg: 'group-hover:bg-amber-500/15',
-      iconHoverColor: 'group-hover:text-amber-500',
+      hoverBorder: 'hover:border-teal-500/40',
+      hoverShadow: 'hover:shadow-teal-500/10',
+      iconHoverBg: 'group-hover:bg-teal-500/15',
+      iconHoverColor: 'group-hover:text-teal-500',
     },
     {
       href: '/kingdom/alliance-sorter',
       titleKey: 'tools.allianceSorter.title',
       descriptionKey: 'tools.allianceSorter.description',
       icon: ArrowUpDown,
-      hoverBorder: 'hover:border-amber-500/40',
-      hoverShadow: 'hover:shadow-amber-500/10',
-      iconHoverBg: 'group-hover:bg-amber-500/15',
-      iconHoverColor: 'group-hover:text-amber-500',
+      hoverBorder: 'hover:border-indigo-500/40',
+      hoverShadow: 'hover:shadow-indigo-500/10',
+      iconHoverBg: 'group-hover:bg-indigo-500/15',
+      iconHoverColor: 'group-hover:text-indigo-500',
     },
   ] as const;
 
   return (
     <AppSidebar>
       <div className="min-h-screen">
-        <div className="max-w-3xl mx-auto px-6 py-20">
+        <div className="max-w-5xl mx-auto px-6 py-20">
           {/* Hero */}
           <section className="mb-16">
             <p className="text-sm font-medium text-[var(--text-muted)] mb-3 tracking-wide uppercase">
@@ -139,27 +138,25 @@ export default function Home() {
               {t('sections.interactiveTools')}
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {tools.map((tool) => {
                 const Icon = tool.icon;
                 return (
                   <Link key={tool.href} href={tool.href}>
-                    <div className={`group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] ${tool.hoverBorder} hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] ${tool.hoverShadow} transition-all duration-200 cursor-pointer h-full`}>
-                      <div className="flex items-start gap-4">
-                        <div className={`p-2.5 rounded-lg bg-[var(--background-secondary)] ${tool.iconHoverBg} transition-colors duration-200 flex-shrink-0`}>
-                          <Icon className={`w-5 h-5 text-[var(--text-muted)] ${tool.iconHoverColor} transition-colors duration-200`} />
+                    <div className={`group p-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] ${tool.hoverBorder} hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] ${tool.hoverShadow} transition-all duration-200 cursor-pointer h-full`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg bg-[var(--background-secondary)] ${tool.iconHoverBg} transition-colors duration-200 flex-shrink-0`}>
+                          <Icon className={`w-4 h-4 text-[var(--text-muted)] ${tool.iconHoverColor} transition-colors duration-200`} />
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-medium text-[var(--foreground)] mb-1 transition-colors duration-200">
+                          <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5 transition-colors duration-200">
                             {t(tool.titleKey)}
                           </h3>
-                          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                             {t(tool.descriptionKey)}
                           </p>
                         </div>
-
-                        <ArrowRight className={`w-4 h-4 text-[var(--text-muted)] ${tool.iconHoverColor} group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1`} />
                       </div>
                     </div>
                   </Link>
@@ -174,45 +171,41 @@ export default function Home() {
               {t('sections.guides')}
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Link href="/guide">
-                <div className="group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-cyan-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-cyan-500/10 transition-all duration-200 cursor-pointer h-full">
-                  <div className="flex items-start gap-4">
-                    <div className="p-2.5 rounded-lg bg-[var(--background-secondary)] group-hover:bg-cyan-500/15 transition-colors duration-200 flex-shrink-0">
-                      <BookOpen className="w-5 h-5 text-[var(--text-muted)] group-hover:text-cyan-500 transition-colors duration-200" />
+                <div className="group p-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-cyan-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-cyan-500/10 transition-all duration-200 cursor-pointer h-full">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-[var(--background-secondary)] group-hover:bg-cyan-500/15 transition-colors duration-200 flex-shrink-0">
+                      <BookOpen className="w-4 h-4 text-[var(--text-muted)] group-hover:text-cyan-500 transition-colors duration-200" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-medium text-[var(--foreground)] mb-1 transition-colors duration-200">
+                      <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5 transition-colors duration-200">
                         {t('guide.title')}
                       </h3>
-                      <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                         {t('guide.description')}
                       </p>
                     </div>
-
-                    <ArrowRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-cyan-500 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
                   </div>
                 </div>
               </Link>
 
               <Link href="/beta-tools">
-                <div className="group p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-orange-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-orange-500/10 transition-all duration-200 cursor-pointer h-full">
-                  <div className="flex items-start gap-4">
-                    <div className="p-2.5 rounded-lg bg-[var(--background-secondary)] group-hover:bg-orange-500/15 transition-colors duration-200 flex-shrink-0">
-                      <FlaskConical className="w-5 h-5 text-[var(--text-muted)] group-hover:text-orange-500 transition-colors duration-200" />
+                <div className="group p-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-orange-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-orange-500/10 transition-all duration-200 cursor-pointer h-full">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-[var(--background-secondary)] group-hover:bg-orange-500/15 transition-colors duration-200 flex-shrink-0">
+                      <FlaskConical className="w-4 h-4 text-[var(--text-muted)] group-hover:text-orange-500 transition-colors duration-200" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-medium text-[var(--foreground)] mb-1 transition-colors duration-200">
+                      <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5 transition-colors duration-200">
                         {t('beta.title')}
                       </h3>
-                      <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                         {t('beta.description')}
                       </p>
                     </div>
-
-                    <ArrowRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-orange-500 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
                   </div>
                 </div>
               </Link>
