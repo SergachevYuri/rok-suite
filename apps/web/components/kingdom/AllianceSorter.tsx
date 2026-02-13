@@ -479,37 +479,69 @@ export default function AllianceSorter() {
           </div>
         )}
 
-        {/* Count */}
+        {/* Count + mobile sort */}
         {players.length > 0 && (
-          <div className="text-xs text-[var(--text-muted)] mb-3">
-            Showing {tableData.length} of {players.length} players
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs text-[var(--text-muted)]">
+              Showing {tableData.length} of {players.length} players
+            </div>
+            <div className="flex items-center gap-2 md:hidden">
+              <select
+                value={sortField}
+                onChange={(e) => setSortField(e.target.value as SortField)}
+                className="px-2 py-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-xs focus:outline-none"
+              >
+                <option value="power">Power</option>
+                <option value="kill_points">KP</option>
+                <option value="name">Name</option>
+                <option value="current">Current</option>
+                <option value="assigned">Assigned</option>
+                <option value="status">Status</option>
+              </select>
+              <button
+                onClick={() => setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
+                className="p-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)]"
+              >
+                {sortDir === 'desc' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Assignment Table */}
+        {/* Assignment Table (desktop) / Cards (mobile) */}
         {players.length > 0 ? (
-          <div className="rounded-xl border border-[var(--border)] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-[var(--background-secondary)] border-b border-[var(--border)]">
-                    <SortableHeader field="name" label="Name" current={sortField} dir={sortDir} onSort={handleSort} />
-                    <SortableHeader field="power" label="Power" current={sortField} dir={sortDir} onSort={handleSort} align="right" />
-                    <SortableHeader field="kill_points" label="KP" current={sortField} dir={sortDir} onSort={handleSort} align="right" />
-                    <SortableHeader field="current" label="Current" current={sortField} dir={sortDir} onSort={handleSort} />
-                    <SortableHeader field="assigned" label="Assigned" current={sortField} dir={sortDir} onSort={handleSort} />
-                    <SortableHeader field="status" label="Status" current={sortField} dir={sortDir} onSort={handleSort} />
-                    <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Reason</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.map(({ player, assignment }) => (
-                    <AssignmentRow key={player.governor_id} player={player} assignment={assignment} />
-                  ))}
-                </tbody>
-              </table>
+          <>
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-2">
+              {tableData.map(({ player, assignment }) => (
+                <AssignmentCard key={player.governor_id} player={player} assignment={assignment} />
+              ))}
             </div>
-          </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block rounded-xl border border-[var(--border)] overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[var(--background-secondary)] border-b border-[var(--border)]">
+                      <SortableHeader field="name" label="Name" current={sortField} dir={sortDir} onSort={handleSort} />
+                      <SortableHeader field="power" label="Power" current={sortField} dir={sortDir} onSort={handleSort} align="right" />
+                      <SortableHeader field="kill_points" label="KP" current={sortField} dir={sortDir} onSort={handleSort} align="right" />
+                      <SortableHeader field="current" label="Current" current={sortField} dir={sortDir} onSort={handleSort} />
+                      <SortableHeader field="assigned" label="Assigned" current={sortField} dir={sortDir} onSort={handleSort} />
+                      <SortableHeader field="status" label="Status" current={sortField} dir={sortDir} onSort={handleSort} />
+                      <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableData.map(({ player, assignment }) => (
+                      <AssignmentRow key={player.governor_id} player={player} assignment={assignment} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="text-center py-20 text-[var(--text-muted)]">
             <ArrowUpDown size={40} className="mx-auto mb-4 opacity-40" />
@@ -518,6 +550,58 @@ export default function AllianceSorter() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function AssignmentCard({ player, assignment }: { player: ScanPlayer; assignment?: PlayerAssignment }) {
+  const status = assignment?.status;
+  const style = status ? STATUS_STYLES[status] : null;
+  const assignedTag = assignment?.assignedAlliance || '';
+  const assignedColor = SORTER_ALLIANCE_COLORS[assignedTag] || undefined;
+
+  return (
+    <div className={`p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)] ${
+      status === 'ILLEGAL' ? 'border-red-500/20 bg-red-500/[0.03]' : ''
+    }`}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <div className="font-medium text-sm text-[var(--foreground)] truncate">{player.name}</div>
+          <div className="text-xs text-[var(--text-muted)]">#{player.governor_id}</div>
+        </div>
+        {style && (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${style.bg} ${style.text}`}>
+            {style.icon}
+            {status}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <div className="text-[var(--text-muted)]">Power</div>
+          <div className="font-mono text-[var(--foreground)]">{formatNumber(player.power)}</div>
+        </div>
+        <div>
+          <div className="text-[var(--text-muted)]">KP</div>
+          <div className="font-mono text-[var(--foreground)]">{player.kill_points > 0 ? formatNumber(player.kill_points) : '-'}</div>
+        </div>
+        <div>
+          <div className="text-[var(--text-muted)]">Current</div>
+          <div className="text-[var(--text-secondary)]">{toSorterTag(player.current_alliance) || '-'}</div>
+        </div>
+        <div>
+          <div className="text-[var(--text-muted)]">Assigned</div>
+          {assignedTag ? (
+            <span className="inline-flex items-center gap-1 font-medium text-[var(--foreground)]">
+              <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: assignedColor }} />
+              {assignedTag}
+            </span>
+          ) : <span className="text-[var(--text-muted)]">-</span>}
+        </div>
+      </div>
+      {assignment?.reason && (
+        <div className="mt-2 text-xs text-[var(--text-muted)] truncate">{assignment.reason}</div>
+      )}
     </div>
   );
 }

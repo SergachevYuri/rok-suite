@@ -458,7 +458,7 @@ export default function MigrationTracker() {
 
         {/* Summary Cards */}
         {players.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-6">
             <SummaryCard
               label="Total"
               count={players.length}
@@ -468,6 +468,7 @@ export default function MigrationTracker() {
               onClick={() => setCardFilter(null)}
               active={cardFilter === null}
               activeColor="border-[var(--foreground)]/50"
+              className="col-span-2 sm:col-span-1"
             />
             <SummaryCard
               label="Originals"
@@ -553,37 +554,68 @@ export default function MigrationTracker() {
           </div>
         )}
 
-        {/* Player count */}
+        {/* Player count + mobile sort */}
         {players.length > 0 && (
-          <div className="text-xs text-[var(--text-muted)] mb-3">
-            Showing {filteredPlayers.length} of {players.length} players
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs text-[var(--text-muted)]">
+              Showing {filteredPlayers.length} of {players.length} players
+            </div>
+            <div className="flex items-center gap-2 md:hidden">
+              <select
+                value={sortField}
+                onChange={(e) => setSortField(e.target.value as SortField)}
+                className="px-2 py-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-xs focus:outline-none"
+              >
+                <option value="power">Power</option>
+                <option value="kill_points">KP</option>
+                <option value="name">Name</option>
+                <option value="current_alliance">Alliance</option>
+                <option value="migration_status">Status</option>
+              </select>
+              <button
+                onClick={() => setSortDir(prev => prev === 'asc' ? 'desc' : 'asc')}
+                className="p-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)]"
+              >
+                {sortDir === 'desc' ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Player Table */}
+        {/* Player Table (desktop) / Cards (mobile) */}
         {players.length > 0 ? (
-          <div className="rounded-xl border border-[var(--border)] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-[var(--background-secondary)] border-b border-[var(--border)]">
-                    <SortableHeader field="name" label="Name" current={sortField} dir={sortDir} onSort={handleSort} />
-                    <SortableHeader field="power" label="Power" current={sortField} dir={sortDir} onSort={handleSort} align="right" />
-                    <SortableHeader field="kill_points" label="KP" current={sortField} dir={sortDir} onSort={handleSort} align="right" />
-                    <SortableHeader field="current_alliance" label="Alliance" current={sortField} dir={sortDir} onSort={handleSort} />
-                    <SortableHeader field="migration_status" label="Status" current={sortField} dir={sortDir} onSort={handleSort} />
-                    <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Location</th>
-                    <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Info</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPlayers.map((player) => (
-                    <PlayerRow key={player.governor_id} player={player} />
-                  ))}
-                </tbody>
-              </table>
+          <>
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-2">
+              {filteredPlayers.map((player) => (
+                <PlayerCard key={player.governor_id} player={player} />
+              ))}
             </div>
-          </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block rounded-xl border border-[var(--border)] overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[var(--background-secondary)] border-b border-[var(--border)]">
+                      <SortableHeader field="name" label="Name" current={sortField} dir={sortDir} onSort={handleSort} />
+                      <SortableHeader field="power" label="Power" current={sortField} dir={sortDir} onSort={handleSort} align="right" />
+                      <SortableHeader field="kill_points" label="KP" current={sortField} dir={sortDir} onSort={handleSort} align="right" />
+                      <SortableHeader field="current_alliance" label="Alliance" current={sortField} dir={sortDir} onSort={handleSort} />
+                      <SortableHeader field="migration_status" label="Status" current={sortField} dir={sortDir} onSort={handleSort} />
+                      <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Location</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Info</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPlayers.map((player) => (
+                      <PlayerRow key={player.governor_id} player={player} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         ) : !scan ? (
           <div className="text-center py-20 text-[var(--text-muted)]">
             <ShieldAlert size={40} className="mx-auto mb-4 opacity-40" />
@@ -596,7 +628,7 @@ export default function MigrationTracker() {
   );
 }
 
-function SummaryCard({ label, count, icon, color, bg, onClick, active, activeColor, ringColor }: {
+function SummaryCard({ label, count, icon, color, bg, onClick, active, activeColor, ringColor, className }: {
   label: string;
   count: number;
   icon: React.ReactNode;
@@ -606,19 +638,69 @@ function SummaryCard({ label, count, icon, color, bg, onClick, active, activeCol
   active?: boolean;
   activeColor?: string;
   ringColor?: string;
+  className?: string;
 }) {
   return (
     <div
-      className={`p-4 rounded-xl bg-[var(--background-card)] border transition-all cursor-pointer ${
+      className={`p-3 sm:p-4 rounded-xl bg-[var(--background-card)] border transition-all cursor-pointer ${
         active ? `${activeColor || 'border-[var(--foreground)]/30'} ring-1 ${ringColor || 'ring-[var(--foreground)]/10'}` : 'border-[var(--border)] hover:border-[var(--text-muted)]'
-      }`}
+      } ${className || ''}`}
       onClick={onClick}
     >
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-1 sm:mb-2">
         <div className={`p-1.5 rounded-lg ${bg} ${color}`}>{icon}</div>
         <span className="text-xs text-[var(--text-muted)] font-medium uppercase">{label}</span>
       </div>
-      <div className={`text-2xl font-semibold ${color}`}>{count.toLocaleString()}</div>
+      <div className={`text-xl sm:text-2xl font-semibold ${color}`}>{count.toLocaleString()}</div>
+    </div>
+  );
+}
+
+function PlayerCard({ player }: { player: ScanPlayer }) {
+  const status = player.migration_status as MigrationStatus;
+  const colors = STATUS_COLORS[status] || STATUS_COLORS.ORIGINAL;
+  const icon = STATUS_ICONS[status];
+
+  return (
+    <div className={`p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)] ${
+      status === 'ILLEGAL' ? 'border-red-500/20 bg-red-500/[0.03]' : ''
+    }`}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <div className="font-medium text-sm text-[var(--foreground)] truncate">{player.name}</div>
+          <div className="text-xs text-[var(--text-muted)]">#{player.governor_id}</div>
+        </div>
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${colors.bg} ${colors.text} border ${colors.border}`}>
+          {icon}
+          {status}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        <div>
+          <div className="text-[var(--text-muted)]">Power</div>
+          <div className="font-mono text-[var(--foreground)]">{formatNumber(player.power)}</div>
+        </div>
+        <div>
+          <div className="text-[var(--text-muted)]">KP</div>
+          <div className="font-mono text-[var(--foreground)]">{player.kill_points > 0 ? formatNumber(player.kill_points) : '-'}</div>
+        </div>
+        <div>
+          <div className="text-[var(--text-muted)]">Alliance</div>
+          <div className="text-[var(--text-secondary)]">{toSorterTag(player.current_alliance) || '-'}</div>
+        </div>
+      </div>
+      {(player.x != null || player.starting_kd || player.migrant_group) && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-[var(--text-muted)]">
+          {player.x != null && player.y != null && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin size={10} />
+              {player.x}, {player.y}
+            </span>
+          )}
+          {player.starting_kd && <span>KD: {player.starting_kd}</span>}
+          {player.migrant_group && <span>G: {player.migrant_group}</span>}
+        </div>
+      )}
     </div>
   );
 }
