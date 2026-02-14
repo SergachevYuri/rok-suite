@@ -13,7 +13,8 @@
     "typecheck": "pnpm -r run typecheck"
   },
   "devDependencies": {
-    "baseline-browser-mapping": "^2.8.32"
+    "baseline-browser-mapping": "^2.8.32",
+    "vercel": "^50.17.1"
   },
   "dependencies": {
     "xlsx": "^0.18.5"
