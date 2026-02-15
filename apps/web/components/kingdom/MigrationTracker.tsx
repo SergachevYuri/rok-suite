@@ -45,6 +45,13 @@ const STATUS_ICONS: Record<MigrationStatus, React.ReactNode> = {
   ILLEGAL: <ShieldX size={14} />,
 };
 
+const STATUS_LABELS: Record<MigrationStatus, string> = {
+  ORIGINAL: 'Original',
+  ACCEPTED: 'Accepted',
+  PENDING: 'Pending',
+  ILLEGAL: 'Unverified',
+};
+
 type SortField = 'name' | 'power' | 'kill_points' | 'current_alliance' | 'migration_status';
 type SortDir = 'asc' | 'desc';
 
@@ -226,9 +233,13 @@ export default function MigrationTracker() {
 
       if (scanId) {
         // Save pre-migration IDs if a new file was uploaded
+        // Include snapshot IDs too — the Kingdom XLSX may not cover all players
         if (preMigrationFile && preMigration.length > 0) {
           setUploadProgress('Saving pre-migration data for future scans...');
           const ids = new Set(preMigration.map(r => r.governorId));
+          for (const s of snapshot) {
+            if (s.playerId) ids.add(s.playerId);
+          }
           await savePreMigrationIds(ids);
           setStoredPreMigCount(ids.size);
         }
@@ -268,7 +279,7 @@ export default function MigrationTracker() {
       p.power,
       p.kill_points,
       p.current_alliance,
-      p.migration_status,
+      STATUS_LABELS[p.migration_status as MigrationStatus] || p.migration_status,
       p.x ?? '',
       p.y ?? '',
       p.starting_kd ?? '',
@@ -586,7 +597,7 @@ export default function MigrationTracker() {
               description="On sheet, not yet approved"
             />
             <SummaryCard
-              label="Illegals"
+              label="Unverified"
               count={statusCounts.ILLEGAL}
               icon={<ShieldX size={18} />}
               color="text-red-500"
@@ -595,7 +606,7 @@ export default function MigrationTracker() {
               active={cardFilter === 'ILLEGAL'}
               activeColor="border-red-500/50"
               ringColor="ring-red-500/20"
-              description="Not on sheet or marked illegal"
+              description="Needs leadership review"
             />
           </div>
         )}
@@ -622,7 +633,7 @@ export default function MigrationTracker() {
               <option value="ORIGINAL">Original</option>
               <option value="ACCEPTED">Accepted</option>
               <option value="PENDING">Pending</option>
-              <option value="ILLEGAL">Illegal</option>
+              <option value="ILLEGAL">Unverified</option>
             </select>
             <select
               value={allianceFilter}
@@ -759,7 +770,7 @@ function PlayerCard({ player }: { player: ScanPlayer }) {
         </div>
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${colors.bg} ${colors.text} border ${colors.border}`}>
           {icon}
-          {status}
+          {STATUS_LABELS[status] || status}
         </span>
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs">
@@ -845,7 +856,7 @@ function PlayerRow({ player }: { player: ScanPlayer }) {
       <td className="px-3 py-2.5">
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border}`}>
           {icon}
-          {status}
+          {STATUS_LABELS[status] || status}
         </span>
       </td>
       <td className="px-3 py-2.5">

@@ -401,18 +401,7 @@ export async function refreshMigrantsOnScan(
 
   if (allPlayers.length === 0) return { updated: 0, statusChanges: 0 };
 
-  // 2. Fetch pre-migration IDs
-  const preMigrationIds = await fetchPreMigrationIds();
-  const hasPreMigrationData = preMigrationIds.size > 0;
-
-  // 3. Build normalized name index for fallback matching
-  const normalizedIndex = new Map<string, ScanPlayer>();
-  for (const p of allPlayers) {
-    const norm = normalizeName(p.name);
-    if (norm) normalizedIndex.set(norm, p);
-  }
-
-  // 4. Build migrant lookup: governor_id → migrant, normalized name → migrant
+  // 2. Build migrant lookup: governor_id → migrant, normalized name → migrant
   const migrantByGovId = new Map<number, MigrantRow>();
   const migrantByNorm = new Map<string, MigrantRow>();
   for (const m of migrants) {
@@ -421,7 +410,9 @@ export async function refreshMigrantsOnScan(
     if (norm) migrantByNorm.set(norm, m);
   }
 
-  // 5. Compute new migration fields for each player
+  // 3. Update migrant fields for each player
+  // Only change status for players matched to the migrant sheet.
+  // Non-migrants keep their existing status (avoids re-deriving from incomplete pre-migration data).
   type MigrantUpdate = {
     governor_id: number;
     migration_status: MigrationStatus;
@@ -436,7 +427,7 @@ export async function refreshMigrantsOnScan(
   let statusChanges = 0;
 
   for (const player of allPlayers) {
-    // Match migrant
+    // Match migrant by governor_id first, then normalized name
     let migrant: MigrantRow | undefined;
     if (player.governor_id && migrantByGovId.has(player.governor_id)) {
       migrant = migrantByGovId.get(player.governor_id);
@@ -446,23 +437,16 @@ export async function refreshMigrantsOnScan(
       if (norm) migrant = migrantByNorm.get(norm);
     }
 
-    // Compute new fields
-    let isMigrant = false;
-    let migrantAccepted = false;
-    let migrantGroup: string | null = null;
-    let migrantRecruiter: string | null = null;
-    let startingKd: string | null = null;
-    let migrationStatus: MigrationStatus = 'ILLEGAL';
-
     if (migrant) {
-      isMigrant = true;
+      // Player is on the migrant sheet — compute status from sheet columns
       const acceptedVal = migrant.accepted.toLowerCase().trim();
       const illegalVal = migrant.illegalMigrant.toLowerCase().trim();
-      migrantAccepted = acceptedVal === 'yes' || acceptedVal === 'y';
-      migrantGroup = migrant.group || null;
-      migrantRecruiter = migrant.recruiter || null;
-      startingKd = migrant.startingKd || null;
+      const migrantAccepted = acceptedVal === 'yes' || acceptedVal === 'y';
+      const migrantGroup = migrant.group || null;
+      const migrantRecruiter = migrant.recruiter || null;
+      const startingKd = migrant.startingKd || null;
 
+      let migrationStatus: MigrationStatus;
       if (illegalVal === 'yes' || illegalVal === 'y') {
         migrationStatus = 'ILLEGAL';
       } else if (migrantAccepted) {
@@ -470,39 +454,52 @@ export async function refreshMigrantsOnScan(
       } else {
         migrationStatus = 'PENDING';
       }
-    }
 
-    // Pre-migration override
-    const existedPreMigration = preMigrationIds.has(player.governor_id);
-    if (hasPreMigrationData && existedPreMigration) {
-      migrationStatus = 'ORIGINAL';
-    } else if (!hasPreMigrationData && !isMigrant) {
-      migrationStatus = 'ORIGINAL';
-    } else if (hasPreMigrationData && !existedPreMigration && !isMigrant) {
-      migrationStatus = 'ILLEGAL';
-    }
+      const changed =
+        player.migration_status !== migrationStatus ||
+        player.is_migrant !== true ||
+        player.migrant_accepted !== migrantAccepted ||
+        player.migrant_group !== migrantGroup ||
+        player.migrant_recruiter !== migrantRecruiter ||
+        player.starting_kd !== startingKd;
 
-    // Check if anything changed
-    const changed =
-      player.migration_status !== migrationStatus ||
-      player.is_migrant !== isMigrant ||
-      player.migrant_accepted !== migrantAccepted ||
-      player.migrant_group !== migrantGroup ||
-      player.migrant_recruiter !== migrantRecruiter ||
-      player.starting_kd !== startingKd;
+      if (changed) {
+        if (player.migration_status !== migrationStatus) statusChanges++;
+        updates.push({
+          governor_id: player.governor_id,
+          migration_status: migrationStatus,
+          is_migrant: true,
+          migrant_accepted: migrantAccepted,
+          migrant_group: migrantGroup,
+          migrant_recruiter: migrantRecruiter,
+          starting_kd: startingKd,
+        });
+      }
+    } else if (player.is_migrant) {
+      // Player was previously marked as migrant but is no longer on the sheet —
+      // clear migrant fields, keep existing status (ORIGINAL or ILLEGAL)
+      const newStatus = player.migration_status === 'ACCEPTED' || player.migration_status === 'PENDING'
+        ? 'ORIGINAL' as MigrationStatus
+        : player.migration_status as MigrationStatus;
 
-    if (changed) {
-      if (player.migration_status !== migrationStatus) statusChanges++;
-      updates.push({
-        governor_id: player.governor_id,
-        migration_status: migrationStatus,
-        is_migrant: isMigrant,
-        migrant_accepted: migrantAccepted,
-        migrant_group: migrantGroup,
-        migrant_recruiter: migrantRecruiter,
-        starting_kd: startingKd,
-      });
+      const changed =
+        player.is_migrant ||
+        player.migration_status !== newStatus;
+
+      if (changed) {
+        if (player.migration_status !== newStatus) statusChanges++;
+        updates.push({
+          governor_id: player.governor_id,
+          migration_status: newStatus,
+          is_migrant: false,
+          migrant_accepted: false,
+          migrant_group: null,
+          migrant_recruiter: null,
+          starting_kd: null,
+        });
+      }
     }
+    // Non-migrants not on the sheet: keep existing status, no update needed
   }
 
   // 6. Update changed players in parallel batches of 20

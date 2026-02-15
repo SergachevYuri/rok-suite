@@ -120,9 +120,20 @@ export function mergePlayers(
   }
 
   // 4. Mark pre-migration members
+  // Include snapshot IDs in pre-migration set — the snapshot captures everyone
+  // physically in the kingdom at scan time, while the Kingdom XLSX may be incomplete.
+  // Migrants won't be affected because isMigrant is checked first in computeMigrationStatus.
   const preMigrationIds = preMigration instanceof Set
-    ? preMigration
+    ? new Set(preMigration)
     : new Set(preMigration.map(r => r.governorId));
+  const hasPreMigrationData = preMigration instanceof Set
+    ? preMigration.size > 0
+    : preMigration.length > 0;
+  if (hasPreMigrationData) {
+    for (const row of snapshot) {
+      preMigrationIds.add(row.playerId);
+    }
+  }
   for (const player of byId.values()) {
     if (preMigrationIds.has(player.governorId)) {
       player.existedPreMigration = true;
@@ -132,9 +143,6 @@ export function mergePlayers(
 
   // 5. Compute migration status
   for (const player of byId.values()) {
-    const hasPreMigrationData = preMigration instanceof Set
-      ? preMigration.size > 0
-      : preMigration.length > 0;
     player.migrationStatus = computeMigrationStatus(player, hasPreMigrationData);
   }
 
@@ -142,25 +150,21 @@ export function mergePlayers(
 }
 
 function computeMigrationStatus(player: MergedPlayer, hasPreMigrationData: boolean): MigrationStatus {
+  // Migrants: sheet status always takes precedence (Accepted/Pending/Illegal columns)
+  if (player.isMigrant) {
+    return player.migrationStatus;
+  }
+
   // If pre-migration data exists and player was in it → original resident
   if (hasPreMigrationData && player.existedPreMigration) {
     return 'ORIGINAL';
   }
 
   // If no pre-migration data uploaded, treat everyone without migrant flag as original
-  if (!hasPreMigrationData && !player.isMigrant) {
+  if (!hasPreMigrationData) {
     return 'ORIGINAL';
   }
 
-  // Migrants: status was already set in the merge loop from Accepted + Illegal Migrant columns
-  if (player.isMigrant) {
-    return player.migrationStatus;
-  }
-
-  // Not on migrant list, not original → ILLEGAL
-  if (hasPreMigrationData && !player.existedPreMigration) {
-    return 'ILLEGAL';
-  }
-
-  return 'ORIGINAL';
+  // Has pre-migration data, not in it, not a migrant → unverified
+  return 'ILLEGAL';
 }
