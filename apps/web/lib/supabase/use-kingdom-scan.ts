@@ -276,6 +276,10 @@ export async function updateRosterFromScan(
   let updated = 0;
   let added = 0;
 
+  // Collect updates and inserts, then execute in parallel batches
+  const updateOps: { id: string; data: Record<string, unknown> }[] = [];
+  const insertOps: Record<string, unknown>[] = [];
+
   for (const p of kingdomPlayers) {
     // Match: governor_id → exact name → normalized name
     let match: RosterRow | undefined;
@@ -289,42 +293,47 @@ export async function updateRosterFromScan(
     }
 
     if (match) {
-      // Update power, alliance, governor_id, castle_hall — NOT kills
       const updateData: Record<string, unknown> = {
         power: p.power,
         alliance: p.sorterAlliance,
       };
       if (p.governorId) updateData.governor_id = p.governorId;
       if (p.castleHall) updateData.castle_hall = p.castleHall;
-      // Only update gathered/alliance_helps when non-zero (avoids overwriting when no kingdom XLSX)
       if (p.gathered > 0) updateData.gathered = p.gathered;
       if (p.allianceHelps > 0) updateData.alliance_helps = p.allianceHelps;
-
-      const { error } = await supabase
-        .from('alliance_roster')
-        .update(updateData)
-        .eq('id', match.id);
-
-      if (!error) updated++;
+      updateOps.push({ id: match.id, data: updateData });
     } else {
-      // New member
-      const { error } = await supabase
-        .from('alliance_roster')
-        .upsert({
-          name: p.name,
-          power: p.power,
-          kills: 0,
-          deads: 0,
-          governor_id: p.governorId || null,
-          castle_hall: p.castleHall,
-          alliance: p.sorterAlliance,
-          gathered: p.gathered || 0,
-          alliance_helps: p.allianceHelps || 0,
-          is_active: true,
-        }, { onConflict: 'name' });
-
-      if (!error) added++;
+      insertOps.push({
+        name: p.name,
+        power: p.power,
+        kills: 0,
+        deads: 0,
+        governor_id: p.governorId || null,
+        castle_hall: p.castleHall,
+        alliance: p.sorterAlliance,
+        gathered: p.gathered || 0,
+        alliance_helps: p.allianceHelps || 0,
+        is_active: true,
+      });
     }
+  }
+
+  // Execute updates in parallel batches of 20
+  for (let i = 0; i < updateOps.length; i += 20) {
+    const batch = updateOps.slice(i, i + 20);
+    const results = await Promise.all(
+      batch.map(op => supabase.from('alliance_roster').update(op.data).eq('id', op.id))
+    );
+    updated += results.filter(r => !r.error).length;
+  }
+
+  // Batch insert new members
+  for (let i = 0; i < insertOps.length; i += 100) {
+    const batch = insertOps.slice(i, i + 100);
+    const { error } = await supabase
+      .from('alliance_roster')
+      .upsert(batch, { onConflict: 'name' });
+    if (!error) added += batch.length;
   }
 
   // Create roster snapshot
@@ -496,20 +505,23 @@ export async function refreshMigrantsOnScan(
     }
   }
 
-  // 6. Batch update changed players
-  for (const u of updates) {
-    await supabase
-      .from('kingdom_scan_players')
-      .update({
-        migration_status: u.migration_status,
-        is_migrant: u.is_migrant,
-        migrant_accepted: u.migrant_accepted,
-        migrant_group: u.migrant_group,
-        migrant_recruiter: u.migrant_recruiter,
-        starting_kd: u.starting_kd,
-      })
-      .eq('scan_id', scanId)
-      .eq('governor_id', u.governor_id);
+  // 6. Update changed players in parallel batches of 20
+  for (let i = 0; i < updates.length; i += 20) {
+    const batch = updates.slice(i, i + 20);
+    await Promise.all(batch.map(u =>
+      supabase
+        .from('kingdom_scan_players')
+        .update({
+          migration_status: u.migration_status,
+          is_migrant: u.is_migrant,
+          migrant_accepted: u.migrant_accepted,
+          migrant_group: u.migrant_group,
+          migrant_recruiter: u.migrant_recruiter,
+          starting_kd: u.starting_kd,
+        })
+        .eq('scan_id', scanId)
+        .eq('governor_id', u.governor_id)
+    ));
   }
 
   return { updated: updates.length, statusChanges };
