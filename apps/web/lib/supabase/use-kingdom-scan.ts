@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Scan, ScanPlayer, MergedPlayer, PlayerAssignment } from '@/lib/kingdom/types';
+import type { Scan, ScanPlayer, MergedPlayer, PlayerAssignment, MigrantRow, MigrationStatus } from '@/lib/kingdom/types';
 import { isKingdomAlliance, toSorterTag, normalizeName } from '@/lib/kingdom/config';
 
 export function useLatestScan() {
@@ -365,4 +365,152 @@ export async function updateRosterFromScan(
   }
 
   return { updated, added };
+}
+
+/**
+ * Refresh migrant statuses on an existing scan by re-fetching the Google Sheet.
+ * Updates migration_status and migrant fields without requiring a new scan upload.
+ */
+export async function refreshMigrantsOnScan(
+  scanId: number,
+  migrants: MigrantRow[],
+): Promise<{ updated: number; statusChanges: number }> {
+  // 1. Fetch all players for this scan
+  let allPlayers: ScanPlayer[] = [];
+  let from = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('kingdom_scan_players')
+      .select('*')
+      .eq('scan_id', scanId)
+      .range(from, from + 999);
+    if (!data || data.length === 0) break;
+    allPlayers = allPlayers.concat(data as ScanPlayer[]);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+
+  if (allPlayers.length === 0) return { updated: 0, statusChanges: 0 };
+
+  // 2. Fetch pre-migration IDs
+  const preMigrationIds = await fetchPreMigrationIds();
+  const hasPreMigrationData = preMigrationIds.size > 0;
+
+  // 3. Build normalized name index for fallback matching
+  const normalizedIndex = new Map<string, ScanPlayer>();
+  for (const p of allPlayers) {
+    const norm = normalizeName(p.name);
+    if (norm) normalizedIndex.set(norm, p);
+  }
+
+  // 4. Build migrant lookup: governor_id → migrant, normalized name → migrant
+  const migrantByGovId = new Map<number, MigrantRow>();
+  const migrantByNorm = new Map<string, MigrantRow>();
+  for (const m of migrants) {
+    if (m.governorId) migrantByGovId.set(m.governorId, m);
+    const norm = normalizeName(m.name);
+    if (norm) migrantByNorm.set(norm, m);
+  }
+
+  // 5. Compute new migration fields for each player
+  type MigrantUpdate = {
+    governor_id: number;
+    migration_status: MigrationStatus;
+    is_migrant: boolean;
+    migrant_accepted: boolean;
+    migrant_group: string | null;
+    migrant_recruiter: string | null;
+    starting_kd: string | null;
+  };
+
+  const updates: MigrantUpdate[] = [];
+  let statusChanges = 0;
+
+  for (const player of allPlayers) {
+    // Match migrant
+    let migrant: MigrantRow | undefined;
+    if (player.governor_id && migrantByGovId.has(player.governor_id)) {
+      migrant = migrantByGovId.get(player.governor_id);
+    }
+    if (!migrant) {
+      const norm = normalizeName(player.name);
+      if (norm) migrant = migrantByNorm.get(norm);
+    }
+
+    // Compute new fields
+    let isMigrant = false;
+    let migrantAccepted = false;
+    let migrantGroup: string | null = null;
+    let migrantRecruiter: string | null = null;
+    let startingKd: string | null = null;
+    let migrationStatus: MigrationStatus = 'ILLEGAL';
+
+    if (migrant) {
+      isMigrant = true;
+      const acceptedVal = migrant.accepted.toLowerCase().trim();
+      const illegalVal = migrant.illegalMigrant.toLowerCase().trim();
+      migrantAccepted = acceptedVal === 'yes' || acceptedVal === 'y';
+      migrantGroup = migrant.group || null;
+      migrantRecruiter = migrant.recruiter || null;
+      startingKd = migrant.startingKd || null;
+
+      if (illegalVal === 'yes' || illegalVal === 'y') {
+        migrationStatus = 'ILLEGAL';
+      } else if (migrantAccepted) {
+        migrationStatus = 'ACCEPTED';
+      } else {
+        migrationStatus = 'PENDING';
+      }
+    }
+
+    // Pre-migration override
+    const existedPreMigration = preMigrationIds.has(player.governor_id);
+    if (hasPreMigrationData && existedPreMigration) {
+      migrationStatus = 'ORIGINAL';
+    } else if (!hasPreMigrationData && !isMigrant) {
+      migrationStatus = 'ORIGINAL';
+    } else if (hasPreMigrationData && !existedPreMigration && !isMigrant) {
+      migrationStatus = 'ILLEGAL';
+    }
+
+    // Check if anything changed
+    const changed =
+      player.migration_status !== migrationStatus ||
+      player.is_migrant !== isMigrant ||
+      player.migrant_accepted !== migrantAccepted ||
+      player.migrant_group !== migrantGroup ||
+      player.migrant_recruiter !== migrantRecruiter ||
+      player.starting_kd !== startingKd;
+
+    if (changed) {
+      if (player.migration_status !== migrationStatus) statusChanges++;
+      updates.push({
+        governor_id: player.governor_id,
+        migration_status: migrationStatus,
+        is_migrant: isMigrant,
+        migrant_accepted: migrantAccepted,
+        migrant_group: migrantGroup,
+        migrant_recruiter: migrantRecruiter,
+        starting_kd: startingKd,
+      });
+    }
+  }
+
+  // 6. Batch update changed players
+  for (const u of updates) {
+    await supabase
+      .from('kingdom_scan_players')
+      .update({
+        migration_status: u.migration_status,
+        is_migrant: u.is_migrant,
+        migrant_accepted: u.migrant_accepted,
+        migrant_group: u.migrant_group,
+        migrant_recruiter: u.migrant_recruiter,
+        starting_kd: u.starting_kd,
+      })
+      .eq('scan_id', scanId)
+      .eq('governor_id', u.governor_id);
+  }
+
+  return { updated: updates.length, statusChanges };
 }

@@ -20,8 +20,9 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowUpDown,
+  RefreshCw,
 } from 'lucide-react';
-import { useLatestScan, uploadScan, updateRosterFromScan, getPreMigrationCount, fetchPreMigrationIds, savePreMigrationIds } from '@/lib/supabase/use-kingdom-scan';
+import { useLatestScan, uploadScan, updateRosterFromScan, getPreMigrationCount, fetchPreMigrationIds, savePreMigrationIds, refreshMigrantsOnScan } from '@/lib/supabase/use-kingdom-scan';
 import { parseSnapshotCSV, parseKingdomXLSX, fetchMigrantSheet } from '@/lib/kingdom/parse';
 import { mergePlayers } from '@/lib/kingdom/merge';
 import { MIGRANT_SHEET_URL, formatNumber, toSorterTag } from '@/lib/kingdom/config';
@@ -66,6 +67,10 @@ export default function MigrationTracker() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [storedPreMigCount, setStoredPreMigCount] = useState<number | null>(null);
+
+  // Refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState('');
 
   // View state
   const [search, setSearch] = useState('');
@@ -154,6 +159,23 @@ export default function MigrationTracker() {
       setMigrantStatus('done');
     } catch {
       setMigrantStatus('error');
+    }
+  };
+
+  const handleRefreshFromSheet = async () => {
+    if (!scan) return;
+    setIsRefreshing(true);
+    setRefreshProgress('Fetching migrant sheet...');
+    try {
+      const data = await fetchMigrantSheet(MIGRANT_SHEET_URL);
+      setRefreshProgress(`Got ${data.length} migrants. Updating statuses...`);
+      const result = await refreshMigrantsOnScan(scan.id, data);
+      setRefreshProgress(`Done! ${result.updated} players updated, ${result.statusChanges} status changes.`);
+      await refetch();
+    } catch (err) {
+      setRefreshProgress(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -486,6 +508,29 @@ export default function MigrationTracker() {
                 <span className="text-sm text-[var(--text-secondary)]">{uploadProgress}</span>
               )}
             </div>
+
+            {/* Quick refresh from Google Sheet */}
+            {scan && (
+              <>
+                <div className="border-t border-[var(--border)] my-4" />
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleRefreshFromSheet}
+                    disabled={isRefreshing}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-sky-500/10 text-sky-400 border border-sky-500/30 hover:bg-sky-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isRefreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                    Refresh Migrant Statuses
+                  </button>
+                  <span className="text-xs text-[var(--text-muted)]">
+                    Fetch the Google Sheet and update statuses without re-uploading files
+                  </span>
+                </div>
+                {refreshProgress && (
+                  <div className="mt-2 text-sm text-[var(--text-secondary)]">{refreshProgress}</div>
+                )}
+              </>
+            )}
           </div>
         )}
 
