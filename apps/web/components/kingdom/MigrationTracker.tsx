@@ -97,6 +97,7 @@ export default function MigrationTracker() {
   const [overrides, setOverrides] = useState<Map<number, PlayerOverride>>(new Map());
   const [reviewFilter, setReviewFilter] = useState(false); // show only unreviewed ILLEGAL/INACTIVE players
   const [flaggedFilter, setFlaggedFilter] = useState(false); // show only officer-confirmed players
+  const [clearedFilter, setClearedFilter] = useState(false); // admin-only: show officer-cleared players
 
   // Load stored pre-migration count and officer overrides on mount
   useEffect(() => {
@@ -143,6 +144,12 @@ export default function MigrationTracker() {
         const override = overrides.get(p.governor_id);
         return override?.officer_status === 'confirmed';
       });
+    } else if (clearedFilter) {
+      // Admin-only: show officer-cleared players
+      result = result.filter(p => {
+        const override = overrides.get(p.governor_id);
+        return override?.officer_status === 'cleared';
+      });
     } else if (cardFilter) {
       result = result.filter(p => p.migration_status === cardFilter);
     } else if (statusFilter !== 'ALL') {
@@ -170,7 +177,7 @@ export default function MigrationTracker() {
     });
 
     return result;
-  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, cardFilter, reviewFilter, flaggedFilter, overrides]);
+  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, cardFilter, reviewFilter, flaggedFilter, clearedFilter, overrides]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -765,7 +772,7 @@ export default function MigrationTracker() {
               </div>
               <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
                 <button
-                  onClick={() => { setReviewFilter(!reviewFilter); setFlaggedFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
+                  onClick={() => { setReviewFilter(!reviewFilter); setFlaggedFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
                   className={`w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${
                     reviewFilter
                       ? 'bg-sky-500 text-white active:bg-sky-600'
@@ -776,7 +783,7 @@ export default function MigrationTracker() {
                 </button>
                 {reviewProgress.flagged > 0 && (
                   <button
-                    onClick={() => { setFlaggedFilter(!flaggedFilter); setReviewFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
+                    onClick={() => { setFlaggedFilter(!flaggedFilter); setReviewFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
                     className={`w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${
                       flaggedFilter
                         ? 'bg-red-500 text-white active:bg-red-600'
@@ -819,15 +826,17 @@ export default function MigrationTracker() {
             </div>
             <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
             <select
-              value={reviewFilter ? 'REVIEW' : flaggedFilter ? 'FLAGGED' : statusFilter}
+              value={reviewFilter ? 'REVIEW' : flaggedFilter ? 'FLAGGED' : clearedFilter ? 'CLEARED' : statusFilter}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === 'REVIEW') {
-                  setReviewFilter(true); setFlaggedFilter(false); setCardFilter(null);
+                  setReviewFilter(true); setFlaggedFilter(false); setClearedFilter(false); setCardFilter(null);
                 } else if (val === 'FLAGGED') {
-                  setFlaggedFilter(true); setReviewFilter(false); setCardFilter(null);
+                  setFlaggedFilter(true); setReviewFilter(false); setClearedFilter(false); setCardFilter(null);
+                } else if (val === 'CLEARED') {
+                  setClearedFilter(true); setReviewFilter(false); setFlaggedFilter(false); setCardFilter(null);
                 } else {
-                  setReviewFilter(false); setFlaggedFilter(false); setStatusFilter(val as MigrationStatus | 'ALL'); setCardFilter(null);
+                  setReviewFilter(false); setFlaggedFilter(false); setClearedFilter(false); setStatusFilter(val as MigrationStatus | 'ALL'); setCardFilter(null);
                 }
               }}
               className="w-full px-3 py-2.5 sm:py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none"
@@ -835,6 +844,7 @@ export default function MigrationTracker() {
               <option value="ALL">All Statuses</option>
               {isOfficer && <option value="REVIEW">Review Queue</option>}
               {isOfficer && <option value="FLAGGED">Flagged</option>}
+              {isAdmin && <option value="CLEARED">Cleared by Officers</option>}
               <option value="ORIGINAL">Original</option>
               <option value="ACCEPTED">Accepted</option>
               <option value="PENDING">Pending</option>
@@ -1038,6 +1048,20 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
           )}
           {player.starting_kd && <span>KD: {player.starting_kd}</span>}
           {player.migrant_group && <span>G: {player.migrant_group}</span>}
+        </div>
+      )}
+      {isOfficer && !reviewable && override && (
+        <div className="mt-2 pt-2 border-t border-[var(--border)]">
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+              override.officer_status === 'cleared'
+                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
+                : 'bg-red-500/10 text-red-500 border border-red-500/30'
+            }`}>
+              {override.officer_status === 'cleared' ? 'Cleared by officer' : 'Flagged'}
+            </span>
+            {override.officer_note && <span className="text-xs text-[var(--text-muted)] truncate">{override.officer_note}</span>}
+          </div>
         </div>
       )}
       {isOfficer && reviewable && (
