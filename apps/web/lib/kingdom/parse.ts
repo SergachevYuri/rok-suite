@@ -165,7 +165,7 @@ export async function fetchInactivesSheet(url: string): Promise<InactiveRow[]> {
   // "Player" column on the actual sheet, fallback to "name"
   let iName = headers.findIndex(h => h.toLowerCase().trim() === 'player');
   if (iName === -1) iName = idx('name');
-  const iGovId = idx('governor id');
+  const iGovId = idx('gov id');
 
   // Find the inactive status column — try several possible header names
   let iInactive = headers.findIndex(h => {
