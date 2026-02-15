@@ -1004,10 +1004,15 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
           <div className="font-medium text-sm text-[var(--foreground)] truncate">{player.name}</div>
           <div className="text-xs text-[var(--text-muted)]">#{player.governor_id}</div>
         </div>
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${colors.bg} ${colors.text} border ${colors.border}`}>
-          {icon}
-          {STATUS_LABELS[status] || status}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {player.is_migrant && reviewable && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/30">Migrant</span>
+          )}
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border}`}>
+            {icon}
+            {STATUS_LABELS[status] || status}
+          </span>
+        </div>
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div>
@@ -1052,7 +1057,11 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
           ) : (
             <div className="space-y-2">
               <div className="text-[10px] text-[var(--text-muted)]">
-                {status === 'INACTIVE' ? 'Is this player actually inactive?' : 'Is this player allowed in the kingdom?'}
+                {player.is_migrant
+                  ? 'Migrant — cannot migrate again. Flag to zero.'
+                  : status === 'INACTIVE'
+                    ? 'Is this player actually inactive?'
+                    : 'Is this player allowed in the kingdom?'}
               </div>
               {showNote && (
                 <input
@@ -1151,10 +1160,15 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
         <span className="text-[var(--text-secondary)]">{toSorterTag(player.current_alliance) || '-'}</span>
       </td>
       <td className="px-3 py-2.5">
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border}`}>
-          {icon}
-          {STATUS_LABELS[status] || status}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border}`}>
+            {icon}
+            {STATUS_LABELS[status] || status}
+          </span>
+          {player.is_migrant && reviewable && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/30">Migrant</span>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2.5">
         {player.x != null && player.y != null ? (
