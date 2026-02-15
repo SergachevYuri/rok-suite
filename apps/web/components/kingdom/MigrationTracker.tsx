@@ -658,7 +658,7 @@ export default function MigrationTracker() {
 
         {/* Summary Cards */}
         {players.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 sm:gap-3 mb-6">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-3 mb-6">
             <SummaryCard
               label="Total"
               count={players.length}
@@ -668,7 +668,7 @@ export default function MigrationTracker() {
               onClick={() => setCardFilter(null)}
               active={cardFilter === null}
               activeColor="border-[var(--foreground)]/50"
-              className="col-span-2 sm:col-span-1"
+              className="col-span-3 sm:col-span-1"
               description="All players in scan"
             />
             <SummaryCard
@@ -736,7 +736,7 @@ export default function MigrationTracker() {
 
         {/* Officer Review Banner */}
         {isOfficer && players.length > 0 && reviewProgress.total > 0 && (
-          <div className="mb-6 p-4 rounded-xl bg-sky-500/5 border border-sky-500/20">
+          <div className="mb-6 p-3 sm:p-4 rounded-xl bg-sky-500/5 border border-sky-500/20">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
               <div className="flex-1">
                 <div className="text-sm font-medium text-sky-400 mb-1">Officer Review Mode</div>
@@ -747,10 +747,10 @@ export default function MigrationTracker() {
               </div>
               <button
                 onClick={() => { setReviewFilter(!reviewFilter); setCardFilter(null); setStatusFilter('ALL'); }}
-                className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`shrink-0 w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${
                   reviewFilter
-                    ? 'bg-sky-500 text-white hover:bg-sky-600'
-                    : 'bg-sky-500/10 text-sky-400 border border-sky-500/30 hover:bg-sky-500/20'
+                    ? 'bg-sky-500 text-white active:bg-sky-600'
+                    : 'bg-sky-500/10 text-sky-400 border border-sky-500/30 active:bg-sky-500/20'
                 }`}
               >
                 {reviewFilter ? 'Show All Players' : `Review Queue (${reviewProgress.total - reviewProgress.reviewed})`}
@@ -772,17 +772,18 @@ export default function MigrationTracker() {
 
         {/* Filters */}
         {players.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mb-4">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name or governor ID..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-amber-500/50"
+                placeholder="Search name or ID..."
+                className="w-full pl-9 pr-3 py-2.5 sm:py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-amber-500/50"
               />
             </div>
+            <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
             <select
               value={reviewFilter ? 'REVIEW' : statusFilter}
               onChange={(e) => {
@@ -793,7 +794,7 @@ export default function MigrationTracker() {
                   setReviewFilter(false); setStatusFilter(val as MigrationStatus | 'ALL'); setCardFilter(null);
                 }
               }}
-              className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none"
+              className="w-full px-3 py-2.5 sm:py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none"
             >
               <option value="ALL">All Statuses</option>
               {isOfficer && <option value="REVIEW">Needs Review</option>}
@@ -817,7 +818,7 @@ export default function MigrationTracker() {
                   }
                 }}
                 placeholder="All Alliances"
-                className="w-full sm:w-40 px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-amber-500/50"
+                className="w-full sm:w-40 px-3 py-2.5 sm:py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-amber-500/50"
               />
               <datalist id="alliance-options">
                 {alliances.map(a => (
@@ -832,6 +833,7 @@ export default function MigrationTracker() {
                   &times;
                 </button>
               )}
+            </div>
             </div>
           </div>
         )}
@@ -1007,7 +1009,7 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
                 {override.officer_status === 'cleared' ? 'Marked OK' : 'Flagged'}
               </span>
               {override.officer_note && <span className="text-xs text-[var(--text-muted)] truncate">{override.officer_note}</span>}
-              <button onClick={() => onOverride?.(player.governor_id, null)} className="text-xs text-[var(--text-muted)] hover:text-red-400 ml-auto">undo</button>
+              <button onClick={() => onOverride?.(player.governor_id, null)} className="text-xs text-[var(--text-muted)] active:text-red-400 ml-auto px-2 py-1 -mr-2">undo</button>
             </div>
           ) : (
             <div className="space-y-2">
@@ -1017,19 +1019,19 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onOverride?.(player.governor_id, 'cleared')}
-                  className="flex-1 px-2 py-1.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30"
+                  className="flex-1 px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-500/10 text-emerald-500 active:bg-emerald-500/30 border border-emerald-500/30"
                 >
                   They&apos;re OK
                 </button>
                 <button
                   onClick={() => onOverride?.(player.governor_id, 'confirmed')}
-                  className="flex-1 px-2 py-1.5 rounded text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
+                  className="flex-1 px-3 py-2.5 rounded-lg text-sm font-medium bg-red-500/10 text-red-500 active:bg-red-500/30 border border-red-500/30"
                 >
                   Flag
                 </button>
                 <button
                   onClick={() => setShowNote(!showNote)}
-                  className="px-2 py-1.5 rounded text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-secondary)] border border-transparent hover:border-[var(--border)]"
+                  className="px-3 py-2.5 rounded-lg text-sm text-[var(--text-muted)] active:text-[var(--foreground)] active:bg-[var(--background-secondary)] border border-transparent active:border-[var(--border)]"
                 >
                   + note
                 </button>
