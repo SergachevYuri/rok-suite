@@ -749,9 +749,18 @@ export default function MigrationTracker() {
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
               <div className="flex-1">
                 <div className="text-sm font-medium text-sky-400 mb-1">Officer Review Mode</div>
-                <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-                  Review players marked <span className="text-red-400 font-medium">Needs Review</span> or <span className="text-orange-400 font-medium">Inactive</span>.
-                  Mark &quot;They&apos;re OK&quot; if they can stay, or &quot;Flag&quot; if they need to be zeroed/migrated.
+                <div className="text-xs text-[var(--text-muted)] leading-relaxed space-y-1.5">
+                  <p>
+                    Click <span className="font-medium text-sky-400">Review Queue</span> to start.
+                    For each player, choose <span className="font-medium text-emerald-400">&quot;They&apos;re OK&quot;</span> or <span className="font-medium text-red-400">&quot;Flag&quot;</span>.
+                  </p>
+                  <p>
+                    Only mark &quot;They&apos;re OK&quot; if someone is <span className="font-medium text-[var(--foreground)]">genuinely active</span> and was flagged by mistake.
+                    Everyone else gets flagged — even long-time players. If they&apos;re inactive, they&apos;re hurting the kingdom.
+                  </p>
+                  <p>
+                    Flagged players will be told to migrate out or face being zeroed. Use &quot;+ note&quot; to leave a comment, then choose Flag or OK.
+                  </p>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
