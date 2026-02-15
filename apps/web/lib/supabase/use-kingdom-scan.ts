@@ -466,17 +466,26 @@ export async function refreshMigrantsOnScan(
   };
 
   const updates: MigrantUpdate[] = [];
+  const updatedIds = new Set<number>();
   let statusChanges = 0;
 
+  // Phase 1: Process migrant sheet matches
   for (const player of allPlayers) {
     // Match migrant by governor_id first, then normalized name
+    // Name fallback: only match if the migrant has no governor_id OR it matches
     let migrant: MigrantRow | undefined;
     if (player.governor_id && migrantByGovId.has(player.governor_id)) {
       migrant = migrantByGovId.get(player.governor_id);
     }
     if (!migrant) {
       const norm = normalizeName(player.name);
-      if (norm) migrant = migrantByNorm.get(norm);
+      if (norm) {
+        const candidate = migrantByNorm.get(norm);
+        // Only match by name if governor_ids don't conflict
+        if (candidate && (!candidate.governorId || !player.governor_id || candidate.governorId === player.governor_id)) {
+          migrant = candidate;
+        }
+      }
     }
 
     if (migrant) {
@@ -516,36 +525,38 @@ export async function refreshMigrantsOnScan(
           migrant_recruiter: migrantRecruiter,
           starting_kd: startingKd,
         });
+        updatedIds.add(player.governor_id);
       }
     } else if (player.is_migrant) {
       // Player was previously marked as migrant but is no longer on the sheet —
-      // clear migrant fields, keep existing status (ORIGINAL or ILLEGAL)
-      const newStatus = player.migration_status === 'ACCEPTED' || player.migration_status === 'PENDING'
-        ? 'ORIGINAL' as MigrationStatus
-        : player.migration_status as MigrationStatus;
-
-      const changed =
-        player.is_migrant ||
-        player.migration_status !== newStatus;
-
-      if (changed) {
-        if (player.migration_status !== newStatus) statusChanges++;
+      // clear migrant fields and set to ORIGINAL (they were cleared from the sheet)
+      if (player.migration_status !== 'ORIGINAL' || player.is_migrant) {
+        if (player.migration_status !== 'ORIGINAL') statusChanges++;
         updates.push({
           governor_id: player.governor_id,
-          migration_status: newStatus,
+          migration_status: 'ORIGINAL',
           is_migrant: false,
           migrant_accepted: false,
           migrant_group: null,
           migrant_recruiter: null,
           starting_kd: null,
         });
+        updatedIds.add(player.governor_id);
       }
-    } else if (player.migration_status === 'ILLEGAL' && (
+    }
+  }
+
+  // Phase 2: Fix remaining ILLEGAL players against roster + pre-migration
+  // This runs AFTER migrant processing so roster always gets final say
+  for (const player of allPlayers) {
+    if (updatedIds.has(player.governor_id)) continue;
+    if (player.migration_status !== 'ILLEGAL') continue;
+
+    if (
       preMigrationIds.has(player.governor_id) ||
       roster.ids.has(player.governor_id) ||
       roster.normalizedNames.has(normalizeName(player.name))
-    )) {
-      // Non-migrant marked ILLEGAL but is a known roster member → fix to ORIGINAL
+    ) {
       statusChanges++;
       updates.push({
         governor_id: player.governor_id,
@@ -557,7 +568,6 @@ export async function refreshMigrantsOnScan(
         starting_kd: null,
       });
     }
-    // Other non-migrants: keep existing status, no update needed
   }
 
   // 5. Update changed players in parallel batches of 20
