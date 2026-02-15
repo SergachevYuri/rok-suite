@@ -53,7 +53,7 @@ const STATUS_LABELS: Record<MigrationStatus, string> = {
   ACCEPTED: 'Accepted',
   PENDING: 'Pending',
   INACTIVE: 'Inactive',
-  ILLEGAL: 'Unverified',
+  ILLEGAL: 'Needs Review',
 };
 
 type SortField = 'name' | 'power' | 'kill_points' | 'current_alliance' | 'migration_status';
@@ -95,7 +95,8 @@ export default function MigrationTracker() {
 
   // Officer review state
   const [overrides, setOverrides] = useState<Map<number, PlayerOverride>>(new Map());
-  const [reviewFilter, setReviewFilter] = useState(false); // show only unreviewed flagged players
+  const [reviewFilter, setReviewFilter] = useState(false); // show only unreviewed ILLEGAL/INACTIVE players
+  const [flaggedFilter, setFlaggedFilter] = useState(false); // show only officer-confirmed players
 
   // Load stored pre-migration count and officer overrides on mount
   useEffect(() => {
@@ -122,7 +123,9 @@ export default function MigrationTracker() {
   const reviewProgress = useMemo(() => {
     const reviewable = players.filter(p => p.migration_status === 'ILLEGAL' || p.migration_status === 'INACTIVE');
     const reviewed = reviewable.filter(p => overrides.has(p.governor_id));
-    return { total: reviewable.length, reviewed: reviewed.length };
+    const flagged = reviewed.filter(p => overrides.get(p.governor_id)?.officer_status === 'confirmed');
+    const cleared = reviewed.filter(p => overrides.get(p.governor_id)?.officer_status === 'cleared');
+    return { total: reviewable.length, reviewed: reviewed.length, flagged: flagged.length, cleared: cleared.length };
   }, [players, overrides]);
 
   const filteredPlayers = useMemo(() => {
@@ -134,6 +137,12 @@ export default function MigrationTracker() {
         (p.migration_status === 'ILLEGAL' || p.migration_status === 'INACTIVE')
         && !overrides.has(p.governor_id)
       );
+    } else if (flaggedFilter) {
+      // Show only officer-confirmed players (flagged for action)
+      result = result.filter(p => {
+        const override = overrides.get(p.governor_id);
+        return override?.officer_status === 'confirmed';
+      });
     } else if (cardFilter) {
       result = result.filter(p => p.migration_status === cardFilter);
     } else if (statusFilter !== 'ALL') {
@@ -161,7 +170,7 @@ export default function MigrationTracker() {
     });
 
     return result;
-  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, cardFilter, reviewFilter, overrides]);
+  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, cardFilter, reviewFilter, flaggedFilter, overrides]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -717,10 +726,10 @@ export default function MigrationTracker() {
               active={cardFilter === 'INACTIVE'}
               activeColor="border-orange-500/50"
               ringColor="ring-orange-500/20"
-              description="Needs to migrate or be zeroed"
+              description="Detected inactive — needs review"
             />
             <SummaryCard
-              label="Unverified"
+              label="Needs Review"
               count={statusCounts.ILLEGAL}
               icon={<ShieldX size={18} />}
               color="text-red-500"
@@ -729,7 +738,7 @@ export default function MigrationTracker() {
               active={cardFilter === 'ILLEGAL'}
               activeColor="border-red-500/50"
               ringColor="ring-red-500/20"
-              description="Needs leadership review"
+              description="Not on any list — verify identity"
             />
           </div>
         )}
@@ -741,20 +750,34 @@ export default function MigrationTracker() {
               <div className="flex-1">
                 <div className="text-sm font-medium text-sky-400 mb-1">Officer Review Mode</div>
                 <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-                  Review players flagged as <span className="text-red-400 font-medium">Unverified</span> or <span className="text-orange-400 font-medium">Inactive</span>.
-                  For each player, decide: are they a real problem, or are they fine?
+                  Review players marked <span className="text-red-400 font-medium">Needs Review</span> or <span className="text-orange-400 font-medium">Inactive</span>.
+                  Mark &quot;They&apos;re OK&quot; if they can stay, or &quot;Flag&quot; if they need to be zeroed/migrated.
                 </div>
               </div>
-              <button
-                onClick={() => { setReviewFilter(!reviewFilter); setCardFilter(null); setStatusFilter('ALL'); }}
-                className={`shrink-0 w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${
-                  reviewFilter
-                    ? 'bg-sky-500 text-white active:bg-sky-600'
-                    : 'bg-sky-500/10 text-sky-400 border border-sky-500/30 active:bg-sky-500/20'
-                }`}
-              >
-                {reviewFilter ? 'Show All Players' : `Review Queue (${reviewProgress.total - reviewProgress.reviewed})`}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
+                <button
+                  onClick={() => { setReviewFilter(!reviewFilter); setFlaggedFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
+                  className={`w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${
+                    reviewFilter
+                      ? 'bg-sky-500 text-white active:bg-sky-600'
+                      : 'bg-sky-500/10 text-sky-400 border border-sky-500/30 active:bg-sky-500/20'
+                  }`}
+                >
+                  {reviewFilter ? 'Show All' : `Review Queue (${reviewProgress.total - reviewProgress.reviewed})`}
+                </button>
+                {reviewProgress.flagged > 0 && (
+                  <button
+                    onClick={() => { setFlaggedFilter(!flaggedFilter); setReviewFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
+                    className={`w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${
+                      flaggedFilter
+                        ? 'bg-red-500 text-white active:bg-red-600'
+                        : 'bg-red-500/10 text-red-400 border border-red-500/30 active:bg-red-500/20'
+                    }`}
+                  >
+                    {flaggedFilter ? 'Show All' : `Flagged (${reviewProgress.flagged})`}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="flex-1 h-2 rounded-full bg-[var(--background-secondary)] overflow-hidden">
@@ -765,6 +788,8 @@ export default function MigrationTracker() {
               </div>
               <div className="text-xs text-[var(--text-muted)] shrink-0">
                 {reviewProgress.reviewed}/{reviewProgress.total} reviewed
+                {reviewProgress.flagged > 0 && <span className="text-red-400"> &middot; {reviewProgress.flagged} flagged</span>}
+                {reviewProgress.cleared > 0 && <span className="text-emerald-400"> &middot; {reviewProgress.cleared} OK</span>}
               </div>
             </div>
           </div>
@@ -785,24 +810,27 @@ export default function MigrationTracker() {
             </div>
             <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
             <select
-              value={reviewFilter ? 'REVIEW' : statusFilter}
+              value={reviewFilter ? 'REVIEW' : flaggedFilter ? 'FLAGGED' : statusFilter}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === 'REVIEW') {
-                  setReviewFilter(true); setCardFilter(null);
+                  setReviewFilter(true); setFlaggedFilter(false); setCardFilter(null);
+                } else if (val === 'FLAGGED') {
+                  setFlaggedFilter(true); setReviewFilter(false); setCardFilter(null);
                 } else {
-                  setReviewFilter(false); setStatusFilter(val as MigrationStatus | 'ALL'); setCardFilter(null);
+                  setReviewFilter(false); setFlaggedFilter(false); setStatusFilter(val as MigrationStatus | 'ALL'); setCardFilter(null);
                 }
               }}
               className="w-full px-3 py-2.5 sm:py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none"
             >
               <option value="ALL">All Statuses</option>
-              {isOfficer && <option value="REVIEW">Needs Review</option>}
+              {isOfficer && <option value="REVIEW">Review Queue</option>}
+              {isOfficer && <option value="FLAGGED">Flagged</option>}
               <option value="ORIGINAL">Original</option>
               <option value="ACCEPTED">Accepted</option>
               <option value="PENDING">Pending</option>
               <option value="INACTIVE">Inactive</option>
-              <option value="ILLEGAL">Unverified</option>
+              <option value="ILLEGAL">Needs Review</option>
             </select>
             <div className="relative">
               <input
@@ -1014,7 +1042,7 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
           ) : (
             <div className="space-y-2">
               <div className="text-[10px] text-[var(--text-muted)]">
-                {status === 'INACTIVE' ? 'Is this player actually inactive?' : 'Do you recognize this player?'}
+                {status === 'INACTIVE' ? 'Is this player actually inactive?' : 'Is this player allowed in the kingdom?'}
               </div>
               <div className="flex items-center gap-2">
                 <button
