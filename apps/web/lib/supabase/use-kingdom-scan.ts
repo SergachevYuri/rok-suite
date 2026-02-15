@@ -466,19 +466,20 @@ export async function refreshMigrantsOnScan(
 
   // 4. For each player, determine status using governor_id first, name as fallback.
   //
-  // Priority order (pre-migration/roster ALWAYS wins over migrant sheet):
-  //   1. Governor ID in pre-migration or roster → ORIGINAL
+  // Priority order:
+  //   1. Governor ID on roster → ORIGINAL (roster is curated by leadership, always wins)
   //   2. Name match on roster → ORIGINAL
   //   3. Governor ID match on migrant sheet → status from sheet
   //   4. Name match on migrant sheet (only if governor_ids don't conflict) → status from sheet
-  //   5. Previously migrant but no longer matched → ORIGINAL (cleared by leadership)
-  //   6. No match → ILLEGAL (genuine unverified)
+  //   5. Governor ID in pre-migration → ORIGINAL (fallback for non-roster, non-migrant players)
+  //   6. Previously migrant but no longer on any list → ORIGINAL (cleared by leadership)
+  //   7. No match → ILLEGAL (genuine unverified)
 
   for (const player of allPlayers) {
     const playerNorm = normalizeName(player.name);
 
-    // --- Step 1: Governor ID in pre-migration or roster → ORIGINAL ---
-    if (preMigrationIds.has(player.governor_id) || roster.ids.has(player.governor_id)) {
+    // --- Step 1: Governor ID on roster → ORIGINAL (roster always wins) ---
+    if (roster.ids.has(player.governor_id)) {
       const update = buildOriginalUpdate(player);
       if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
       continue;
@@ -509,14 +510,21 @@ export async function refreshMigrantsOnScan(
       }
     }
 
-    // --- Step 5: Previously migrant but no longer on any list → ORIGINAL ---
+    // --- Step 5: Governor ID in pre-migration → ORIGINAL ---
+    if (preMigrationIds.has(player.governor_id)) {
+      const update = buildOriginalUpdate(player);
+      if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
+      continue;
+    }
+
+    // --- Step 6: Previously migrant but no longer on any list → ORIGINAL ---
     if (player.is_migrant) {
       const update = buildOriginalUpdate(player);
       if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
       continue;
     }
 
-    // --- Step 6: No match → stays as-is (ILLEGAL if that's what it was) ---
+    // --- Step 7: No match → stays as-is (ILLEGAL if that's what it was) ---
   }
 
   function buildMigrantUpdate(player: ScanPlayer, migrant: MigrantRow): { data: PlayerUpdate; statusChanged: boolean } | null {

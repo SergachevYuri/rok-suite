@@ -235,15 +235,18 @@ export default function MigrationTracker() {
       setUploadProgress('Merging player data...');
       const merged = mergePlayers(snapshot, kingdom, migrantData, preMigrationSet);
 
-      // Post-process: fix ILLEGAL players that match roster by name
-      // (covers roster members without governor_id set)
+      // Post-process: roster members are ALWAYS original (roster is curated by leadership)
+      // Checks both governor_id and name to cover roster members without governor_id set.
       for (const player of merged) {
-        if (player.migrationStatus === 'ILLEGAL' && !player.isMigrant) {
-          const norm = normalizeName(player.name);
-          if (norm && roster.normalizedNames.has(norm)) {
-            player.migrationStatus = 'ORIGINAL';
-            player.existedPreMigration = true;
-          }
+        if (player.migrationStatus === 'ORIGINAL') continue;
+        const onRosterById = roster.ids.has(player.governorId);
+        const norm = normalizeName(player.name);
+        const onRosterByName = !onRosterById && norm ? roster.normalizedNames.has(norm) : false;
+        if (onRosterById || onRosterByName) {
+          player.migrationStatus = 'ORIGINAL';
+          player.existedPreMigration = true;
+          player.isMigrant = false;
+          player.migrantAccepted = false;
         }
       }
 
