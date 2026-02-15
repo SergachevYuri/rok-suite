@@ -579,5 +579,17 @@ export async function refreshMigrantsOnScan(
     ));
   }
 
+  // 6. Backfill pre_migration_governors with IDs we just set to ORIGINAL
+  // so future refreshes/uploads won't re-derive the same players.
+  const newOriginalIds = updates
+    .filter(u => u.migration_status === 'ORIGINAL' && !preMigrationIds.has(u.governor_id))
+    .map(u => ({ governor_id: u.governor_id }));
+  if (newOriginalIds.length > 0) {
+    for (let i = 0; i < newOriginalIds.length; i += 500) {
+      const batch = newOriginalIds.slice(i, i + 500);
+      await supabase.from('pre_migration_governors').upsert(batch, { onConflict: 'governor_id' });
+    }
+  }
+
   return { updated: updates.length, statusChanges };
 }

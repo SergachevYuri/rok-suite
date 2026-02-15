@@ -258,18 +258,16 @@ export default function MigrationTracker() {
       });
 
       if (scanId) {
-        // Save pre-migration IDs if a new file was uploaded
-        // Include snapshot + roster IDs for completeness
-        if (preMigrationFile && preMigration.length > 0) {
-          setUploadProgress('Saving pre-migration data for future scans...');
-          const ids = new Set(preMigration.map(r => r.governorId));
-          for (const s of snapshot) {
-            if (s.playerId) ids.add(s.playerId);
-          }
-          for (const id of roster.ids) ids.add(id);
-          await savePreMigrationIds(ids);
-          setStoredPreMigCount(ids.size);
+        // Always update pre-migration IDs with snapshot + roster IDs
+        // so the stored set grows to include every player seen in the kingdom.
+        setUploadProgress('Updating pre-migration baseline...');
+        const idsToSave = new Set(preMigrationSet);
+        for (const s of snapshot) {
+          if (s.playerId) idsToSave.add(s.playerId);
         }
+        for (const id of roster.ids) idsToSave.add(id);
+        await savePreMigrationIds(idsToSave);
+        setStoredPreMigCount(idsToSave.size);
 
         // Update alliance roster with power data (not KP — kingdom exports give cumulative KP)
         setUploadProgress('Updating roster with latest power data...');
