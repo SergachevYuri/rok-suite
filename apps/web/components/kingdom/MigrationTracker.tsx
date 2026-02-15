@@ -22,10 +22,10 @@ import {
   ArrowUpDown,
   RefreshCw,
 } from 'lucide-react';
-import { useLatestScan, uploadScan, updateRosterFromScan, getPreMigrationCount, fetchPreMigrationIds, savePreMigrationIds, refreshMigrantsOnScan, fetchRosterGovernorIds } from '@/lib/supabase/use-kingdom-scan';
+import { useLatestScan, uploadScan, updateRosterFromScan, getPreMigrationCount, fetchPreMigrationIds, savePreMigrationIds, refreshMigrantsOnScan, fetchRosterLookup } from '@/lib/supabase/use-kingdom-scan';
 import { parseSnapshotCSV, parseKingdomXLSX, fetchMigrantSheet } from '@/lib/kingdom/parse';
 import { mergePlayers } from '@/lib/kingdom/merge';
-import { MIGRANT_SHEET_URL, formatNumber, toSorterTag } from '@/lib/kingdom/config';
+import { MIGRANT_SHEET_URL, formatNumber, toSorterTag, normalizeName } from '@/lib/kingdom/config';
 import { matchesSearch } from '@/lib/search';
 import type { MigrationStatus, ScanPlayer, SnapshotRow, KingdomExportRow, MigrantRow } from '@/lib/kingdom/types';
 
@@ -216,9 +216,9 @@ export default function MigrationTracker() {
         storedIds = await fetchPreMigrationIds();
       }
 
-      // Fetch roster governor IDs — known members are always ORIGINAL
+      // Fetch roster — known members are always ORIGINAL (match by ID or name)
       setUploadProgress('Loading roster data...');
-      const rosterIds = await fetchRosterGovernorIds();
+      const roster = await fetchRosterLookup();
 
       // Merge pre-migration sources: stored/uploaded IDs + roster IDs
       let preMigrationSet: Set<number>;
@@ -229,11 +229,23 @@ export default function MigrationTracker() {
       } else {
         preMigrationSet = new Set<number>();
       }
-      for (const id of rosterIds) preMigrationSet.add(id);
+      for (const id of roster.ids) preMigrationSet.add(id);
 
       // Merge
       setUploadProgress('Merging player data...');
       const merged = mergePlayers(snapshot, kingdom, migrantData, preMigrationSet);
+
+      // Post-process: fix ILLEGAL players that match roster by name
+      // (covers roster members without governor_id set)
+      for (const player of merged) {
+        if (player.migrationStatus === 'ILLEGAL' && !player.isMigrant) {
+          const norm = normalizeName(player.name);
+          if (norm && roster.normalizedNames.has(norm)) {
+            player.migrationStatus = 'ORIGINAL';
+            player.existedPreMigration = true;
+          }
+        }
+      }
 
       // Upload
       setUploadProgress(`Uploading ${merged.length} players to database...`);
@@ -254,7 +266,7 @@ export default function MigrationTracker() {
           for (const s of snapshot) {
             if (s.playerId) ids.add(s.playerId);
           }
-          for (const id of rosterIds) ids.add(id);
+          for (const id of roster.ids) ids.add(id);
           await savePreMigrationIds(ids);
           setStoredPreMigCount(ids.size);
         }

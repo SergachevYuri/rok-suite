@@ -212,27 +212,38 @@ export async function savePreMigrationIds(ids: Set<number>): Promise<boolean> {
 }
 
 /**
- * Fetch all active roster governor IDs from alliance_roster.
+ * Fetch active roster members with both governor IDs and normalized names.
  * Used as an additional source of truth — known roster members are ORIGINAL.
+ * Returns both sets so matching can work by governor_id OR by name.
  */
-export async function fetchRosterGovernorIds(): Promise<Set<number>> {
+export async function fetchRosterLookup(): Promise<{ ids: Set<number>; normalizedNames: Set<string> }> {
   const ids = new Set<number>();
+  const normalizedNames = new Set<string>();
   let from = 0;
   while (true) {
     const { data } = await supabase
       .from('alliance_roster')
-      .select('governor_id')
+      .select('governor_id, name, alternate_names')
       .eq('is_active', true)
-      .not('governor_id', 'is', null)
       .range(from, from + 999);
     if (!data || data.length === 0) break;
     for (const row of data) {
       if (row.governor_id) ids.add(row.governor_id);
+      if (row.name) {
+        const norm = normalizeName(row.name);
+        if (norm) normalizedNames.add(norm);
+      }
+      if (row.alternate_names) {
+        for (const alt of row.alternate_names as string[]) {
+          const norm = normalizeName(alt);
+          if (norm) normalizedNames.add(norm);
+        }
+      }
     }
     if (data.length < 1000) break;
     from += 1000;
   }
-  return ids;
+  return { ids, normalizedNames };
 }
 
 /**
@@ -425,8 +436,8 @@ export async function refreshMigrantsOnScan(
 
   if (allPlayers.length === 0) return { updated: 0, statusChanges: 0 };
 
-  // 2. Fetch roster governor IDs — known members are ORIGINAL
-  const rosterIds = await fetchRosterGovernorIds();
+  // 2. Fetch roster lookup — known members are ORIGINAL (match by ID or name)
+  const roster = await fetchRosterLookup();
 
   // 3. Build migrant lookup: governor_id → migrant, normalized name → migrant
   const migrantByGovId = new Map<number, MigrantRow>();
@@ -526,7 +537,10 @@ export async function refreshMigrantsOnScan(
           starting_kd: null,
         });
       }
-    } else if (player.migration_status === 'ILLEGAL' && rosterIds.has(player.governor_id)) {
+    } else if (player.migration_status === 'ILLEGAL' && (
+      roster.ids.has(player.governor_id) ||
+      roster.normalizedNames.has(normalizeName(player.name))
+    )) {
       // Non-migrant marked ILLEGAL but is a known roster member → fix to ORIGINAL
       statusChanges++;
       updates.push({
