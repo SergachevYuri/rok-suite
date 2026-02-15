@@ -212,6 +212,30 @@ export async function savePreMigrationIds(ids: Set<number>): Promise<boolean> {
 }
 
 /**
+ * Fetch all active roster governor IDs from alliance_roster.
+ * Used as an additional source of truth — known roster members are ORIGINAL.
+ */
+export async function fetchRosterGovernorIds(): Promise<Set<number>> {
+  const ids = new Set<number>();
+  let from = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('alliance_roster')
+      .select('governor_id')
+      .eq('is_active', true)
+      .not('governor_id', 'is', null)
+      .range(from, from + 999);
+    if (!data || data.length === 0) break;
+    for (const row of data) {
+      if (row.governor_id) ids.add(row.governor_id);
+    }
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+  return ids;
+}
+
+/**
  * Get the count of stored pre-migration governor IDs without fetching all rows.
  */
 export async function getPreMigrationCount(): Promise<number> {
@@ -401,7 +425,10 @@ export async function refreshMigrantsOnScan(
 
   if (allPlayers.length === 0) return { updated: 0, statusChanges: 0 };
 
-  // 2. Build migrant lookup: governor_id → migrant, normalized name → migrant
+  // 2. Fetch roster governor IDs — known members are ORIGINAL
+  const rosterIds = await fetchRosterGovernorIds();
+
+  // 3. Build migrant lookup: governor_id → migrant, normalized name → migrant
   const migrantByGovId = new Map<number, MigrantRow>();
   const migrantByNorm = new Map<string, MigrantRow>();
   for (const m of migrants) {
@@ -410,9 +437,10 @@ export async function refreshMigrantsOnScan(
     if (norm) migrantByNorm.set(norm, m);
   }
 
-  // 3. Update migrant fields for each player
-  // Only change status for players matched to the migrant sheet.
-  // Non-migrants keep their existing status (avoids re-deriving from incomplete pre-migration data).
+  // 4. Update migrant fields for each player
+  // - Players on the migrant sheet: status from sheet columns
+  // - Non-migrants in the roster but marked ILLEGAL: flip to ORIGINAL
+  // - Other non-migrants: keep existing status
   type MigrantUpdate = {
     governor_id: number;
     migration_status: MigrationStatus;
@@ -498,11 +526,23 @@ export async function refreshMigrantsOnScan(
           starting_kd: null,
         });
       }
+    } else if (player.migration_status === 'ILLEGAL' && rosterIds.has(player.governor_id)) {
+      // Non-migrant marked ILLEGAL but is a known roster member → fix to ORIGINAL
+      statusChanges++;
+      updates.push({
+        governor_id: player.governor_id,
+        migration_status: 'ORIGINAL',
+        is_migrant: false,
+        migrant_accepted: false,
+        migrant_group: null,
+        migrant_recruiter: null,
+        starting_kd: null,
+      });
     }
-    // Non-migrants not on the sheet: keep existing status, no update needed
+    // Other non-migrants: keep existing status, no update needed
   }
 
-  // 6. Update changed players in parallel batches of 20
+  // 5. Update changed players in parallel batches of 20
   for (let i = 0; i < updates.length; i += 20) {
     const batch = updates.slice(i, i + 20);
     await Promise.all(batch.map(u =>

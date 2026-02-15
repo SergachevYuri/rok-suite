@@ -22,7 +22,7 @@ import {
   ArrowUpDown,
   RefreshCw,
 } from 'lucide-react';
-import { useLatestScan, uploadScan, updateRosterFromScan, getPreMigrationCount, fetchPreMigrationIds, savePreMigrationIds, refreshMigrantsOnScan } from '@/lib/supabase/use-kingdom-scan';
+import { useLatestScan, uploadScan, updateRosterFromScan, getPreMigrationCount, fetchPreMigrationIds, savePreMigrationIds, refreshMigrantsOnScan, fetchRosterGovernorIds } from '@/lib/supabase/use-kingdom-scan';
 import { parseSnapshotCSV, parseKingdomXLSX, fetchMigrantSheet } from '@/lib/kingdom/parse';
 import { mergePlayers } from '@/lib/kingdom/merge';
 import { MIGRANT_SHEET_URL, formatNumber, toSorterTag } from '@/lib/kingdom/config';
@@ -216,10 +216,24 @@ export default function MigrationTracker() {
         storedIds = await fetchPreMigrationIds();
       }
 
+      // Fetch roster governor IDs — known members are always ORIGINAL
+      setUploadProgress('Loading roster data...');
+      const rosterIds = await fetchRosterGovernorIds();
+
+      // Merge pre-migration sources: stored/uploaded IDs + roster IDs
+      let preMigrationSet: Set<number>;
+      if (storedIds) {
+        preMigrationSet = storedIds;
+      } else if (preMigration.length > 0) {
+        preMigrationSet = new Set(preMigration.map(r => r.governorId));
+      } else {
+        preMigrationSet = new Set<number>();
+      }
+      for (const id of rosterIds) preMigrationSet.add(id);
+
       // Merge
       setUploadProgress('Merging player data...');
-      const preMigrationData = storedIds ?? preMigration;
-      const merged = mergePlayers(snapshot, kingdom, migrantData, preMigrationData);
+      const merged = mergePlayers(snapshot, kingdom, migrantData, preMigrationSet);
 
       // Upload
       setUploadProgress(`Uploading ${merged.length} players to database...`);
@@ -228,18 +242,19 @@ export default function MigrationTracker() {
         snapshot: snapshot.length,
         kingdom: kingdom.length,
         migrant: migrantData.length,
-        preMigration: storedIds ? storedIds.size : preMigration.length,
+        preMigration: preMigrationSet.size,
       });
 
       if (scanId) {
         // Save pre-migration IDs if a new file was uploaded
-        // Include snapshot IDs too — the Kingdom XLSX may not cover all players
+        // Include snapshot + roster IDs for completeness
         if (preMigrationFile && preMigration.length > 0) {
           setUploadProgress('Saving pre-migration data for future scans...');
           const ids = new Set(preMigration.map(r => r.governorId));
           for (const s of snapshot) {
             if (s.playerId) ids.add(s.playerId);
           }
+          for (const id of rosterIds) ids.add(id);
           await savePreMigrationIds(ids);
           setStoredPreMigCount(ids.size);
         }
