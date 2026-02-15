@@ -95,6 +95,7 @@ export default function MigrationTracker() {
 
   // Officer review state
   const [overrides, setOverrides] = useState<Map<number, PlayerOverride>>(new Map());
+  const [reviewFilter, setReviewFilter] = useState(false); // show only unreviewed flagged players
 
   // Load stored pre-migration count and officer overrides on mount
   useEffect(() => {
@@ -127,7 +128,13 @@ export default function MigrationTracker() {
   const filteredPlayers = useMemo(() => {
     let result = [...players];
 
-    if (cardFilter) {
+    // Officer review filter: only unreviewed ILLEGAL/INACTIVE players
+    if (reviewFilter) {
+      result = result.filter(p =>
+        (p.migration_status === 'ILLEGAL' || p.migration_status === 'INACTIVE')
+        && !overrides.has(p.governor_id)
+      );
+    } else if (cardFilter) {
       result = result.filter(p => p.migration_status === cardFilter);
     } else if (statusFilter !== 'ALL') {
       result = result.filter(p => p.migration_status === statusFilter);
@@ -154,7 +161,7 @@ export default function MigrationTracker() {
     });
 
     return result;
-  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, cardFilter]);
+  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, cardFilter, reviewFilter, overrides]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -724,11 +731,42 @@ export default function MigrationTracker() {
               ringColor="ring-red-500/20"
               description="Needs leadership review"
             />
-          {isOfficer && reviewProgress.total > 0 && (
-            <div className="text-xs text-[var(--text-muted)] -mt-4 mb-4">
-              Officer review: {reviewProgress.reviewed}/{reviewProgress.total} flagged players reviewed
+          </div>
+        )}
+
+        {/* Officer Review Banner */}
+        {isOfficer && players.length > 0 && reviewProgress.total > 0 && (
+          <div className="mb-6 p-4 rounded-xl bg-sky-500/5 border border-sky-500/20">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+              <div className="flex-1">
+                <div className="text-sm font-medium text-sky-400 mb-1">Officer Review Mode</div>
+                <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+                  Review players flagged as <span className="text-red-400 font-medium">Unverified</span> or <span className="text-orange-400 font-medium">Inactive</span>.
+                  For each player, decide: are they a real problem, or are they fine?
+                </div>
+              </div>
+              <button
+                onClick={() => { setReviewFilter(!reviewFilter); setCardFilter(null); setStatusFilter('ALL'); }}
+                className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  reviewFilter
+                    ? 'bg-sky-500 text-white hover:bg-sky-600'
+                    : 'bg-sky-500/10 text-sky-400 border border-sky-500/30 hover:bg-sky-500/20'
+                }`}
+              >
+                {reviewFilter ? 'Show All Players' : `Review Queue (${reviewProgress.total - reviewProgress.reviewed})`}
+              </button>
             </div>
-          )}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2 rounded-full bg-[var(--background-secondary)] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-sky-500 transition-all duration-300"
+                  style={{ width: `${reviewProgress.total > 0 ? (reviewProgress.reviewed / reviewProgress.total) * 100 : 0}%` }}
+                />
+              </div>
+              <div className="text-xs text-[var(--text-muted)] shrink-0">
+                {reviewProgress.reviewed}/{reviewProgress.total} reviewed
+              </div>
+            </div>
           </div>
         )}
 
@@ -746,11 +784,19 @@ export default function MigrationTracker() {
               />
             </div>
             <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value as MigrationStatus | 'ALL'); setCardFilter(null); }}
+              value={reviewFilter ? 'REVIEW' : statusFilter}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'REVIEW') {
+                  setReviewFilter(true); setCardFilter(null);
+                } else {
+                  setReviewFilter(false); setStatusFilter(val as MigrationStatus | 'ALL'); setCardFilter(null);
+                }
+              }}
               className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none"
             >
               <option value="ALL">All Statuses</option>
+              {isOfficer && <option value="REVIEW">Needs Review</option>}
               <option value="ORIGINAL">Original</option>
               <option value="ACCEPTED">Accepted</option>
               <option value="PENDING">Pending</option>
@@ -938,37 +984,42 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
                   ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
                   : 'bg-red-500/10 text-red-500 border border-red-500/30'
               }`}>
-                {override.officer_status === 'cleared' ? 'Cleared' : 'Confirmed'}
+                {override.officer_status === 'cleared' ? 'Marked OK' : 'Needs Removal'}
               </span>
               {override.officer_note && <span className="text-xs text-[var(--text-muted)] truncate">{override.officer_note}</span>}
               <button onClick={() => onOverride?.(player.governor_id, null)} className="text-xs text-[var(--text-muted)] hover:text-red-400 ml-auto">undo</button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onOverride?.(player.governor_id, 'cleared')}
-                className="px-2 py-1 rounded text-xs bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30"
-              >
-                Clear
-              </button>
-              <button
-                onClick={() => onOverride?.(player.governor_id, 'confirmed')}
-                className="px-2 py-1 rounded text-xs bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => setShowNote(!showNote)}
-                className="text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] ml-auto"
-              >
-                + note
-              </button>
+            <div className="space-y-2">
+              <div className="text-[10px] text-[var(--text-muted)]">
+                {status === 'INACTIVE' ? 'Is this player actually inactive?' : 'Do you recognize this player?'}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onOverride?.(player.governor_id, 'cleared')}
+                  className="flex-1 px-2 py-1.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30"
+                >
+                  They&apos;re OK
+                </button>
+                <button
+                  onClick={() => onOverride?.(player.governor_id, 'confirmed')}
+                  className="flex-1 px-2 py-1.5 rounded text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
+                >
+                  Remove
+                </button>
+                <button
+                  onClick={() => setShowNote(!showNote)}
+                  className="px-2 py-1.5 rounded text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-secondary)] border border-transparent hover:border-[var(--border)]"
+                >
+                  + note
+                </button>
+              </div>
             </div>
           )}
           {showNote && !override && (
             <input
               type="text"
-              placeholder="Add a note..."
+              placeholder="Add a note then press Enter..."
               className="mt-2 w-full px-2 py-1 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -1064,53 +1115,53 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
       {isOfficer && (
         <td className="px-3 py-2.5">
           {reviewable ? (
-            <div>
+            <div className="min-w-[160px]">
               {override ? (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                     override.officer_status === 'cleared'
                       ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
                       : 'bg-red-500/10 text-red-500 border border-red-500/30'
                   }`}>
-                    {override.officer_status === 'cleared' ? 'Cleared' : 'Confirmed'}
+                    {override.officer_status === 'cleared' ? 'OK' : 'Remove'}
                   </span>
                   {override.officer_note && (
                     <span className="text-xs text-[var(--text-muted)] truncate max-w-[100px]" title={override.officer_note}>
                       {override.officer_note}
                     </span>
                   )}
-                  <button onClick={() => onOverride?.(player.governor_id, null)} className="text-[var(--text-muted)] hover:text-red-400 text-xs ml-1">x</button>
+                  <button onClick={() => onOverride?.(player.governor_id, null)} className="text-[var(--text-muted)] hover:text-red-400 text-xs ml-1">undo</button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => onOverride?.(player.governor_id, 'cleared')}
-                    className="p-1 rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 text-xs"
-                    title="Clear - this person is fine"
+                    className="px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30"
+                    title="This player is fine, no action needed"
                   >
-                    ✓
+                    They&apos;re OK
                   </button>
                   <button
                     onClick={() => onOverride?.(player.governor_id, 'confirmed')}
-                    className="p-1 rounded bg-red-500/10 text-red-500 hover:bg-red-500/20 text-xs"
-                    title="Confirm - yes, really illegal/inactive"
+                    className="px-2.5 py-1 rounded text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
+                    title="This player should be removed"
                   >
-                    ✗
+                    Remove
                   </button>
                   <button
                     onClick={() => setShowNote(!showNote)}
-                    className="p-1 text-[var(--text-muted)] hover:text-[var(--foreground)] text-xs"
-                    title="Add note"
+                    className="px-1.5 py-1 text-[var(--text-muted)] hover:text-[var(--foreground)] text-xs"
+                    title="Add a note"
                   >
-                    ...
+                    + note
                   </button>
                 </div>
               )}
               {showNote && !override && (
                 <input
                   type="text"
-                  placeholder="Note..."
-                  className="mt-1 w-full px-2 py-1 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
+                  placeholder="Add a note then press Enter..."
+                  className="mt-1.5 w-full px-2 py-1 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       onOverride?.(player.governor_id, 'confirmed', (e.target as HTMLInputElement).value);
@@ -1123,7 +1174,7 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
             </div>
           ) : override ? (
             <span className="text-xs text-[var(--text-muted)]">
-              {override.officer_status === 'cleared' ? 'Cleared' : 'Confirmed'}
+              {override.officer_status === 'cleared' ? 'OK' : 'Remove'}
             </span>
           ) : null}
         </td>
