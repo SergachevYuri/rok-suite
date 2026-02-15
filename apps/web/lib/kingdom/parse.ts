@@ -1,4 +1,4 @@
-import type { SnapshotRow, KingdomExportRow, MigrantRow } from './types';
+import type { SnapshotRow, KingdomExportRow, MigrantRow, InactiveRow } from './types';
 
 /** Parse a CSV line handling quoted fields */
 function parseCSVLine(line: string): string[] {
@@ -146,4 +146,56 @@ export async function fetchMigrantSheet(url: string): Promise<MigrantRow[]> {
       recruiter: (cols[iRecruiter] || '').trim(),
     }))
     .filter(r => r.name || r.governorId);
+}
+
+/**
+ * Fetch and parse the Google Sheet inactives list as CSV.
+ * Looks for a column containing Yes/Decrease to determine inactive status.
+ */
+export async function fetchInactivesSheet(url: string): Promise<InactiveRow[]> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch inactives sheet: ${response.status}`);
+  const text = await response.text();
+  const { headers, rows } = parseCSV(text);
+
+  const idx = (name: string) => {
+    return headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+  };
+
+  // "Player" column on the actual sheet, fallback to "name"
+  let iName = headers.findIndex(h => h.toLowerCase().trim() === 'player');
+  if (iName === -1) iName = idx('name');
+  const iGovId = idx('governor id');
+
+  // Find the inactive status column — try several possible header names
+  let iInactive = headers.findIndex(h => {
+    const lower = h.toLowerCase().trim();
+    return lower === 'inactive' || lower === 'action' || lower.includes('migrate')
+      || lower.includes('yes/no') || lower.includes('decrease');
+  });
+  // Fallback: look for a column that has "yes" or "decrease" values frequently
+  if (iInactive === -1) {
+    for (let col = 0; col < headers.length; col++) {
+      if (col === iName || col === iGovId) continue;
+      const vals = rows.slice(0, 20).map(r => (r[col] || '').toLowerCase().trim());
+      if (vals.some(v => v === 'yes' || v === 'decrease')) {
+        iInactive = col;
+        break;
+      }
+    }
+  }
+
+  if (iInactive === -1) return [];
+
+  return rows
+    .map(cols => {
+      const val = (cols[iInactive] || '').trim().toLowerCase();
+      if (val !== 'yes' && val !== 'decrease') return null;
+      return {
+        name: (cols[iName] || '').trim(),
+        governorId: parseInt(cols[iGovId]) || 0,
+        inactiveReason: val as 'yes' | 'decrease',
+      };
+    })
+    .filter((r): r is InactiveRow => r !== null && (!!r.name || !!r.governorId));
 }

@@ -1,4 +1,4 @@
-import type { SnapshotRow, KingdomExportRow, MigrantRow, MergedPlayer, MigrationStatus } from './types';
+import type { SnapshotRow, KingdomExportRow, MigrantRow, InactiveRow, MergedPlayer, MigrationStatus } from './types';
 import { cleanAllianceTag, normalizeName, isKingdomAlliance } from './config';
 
 export function mergePlayers(
@@ -6,6 +6,7 @@ export function mergePlayers(
   kingdom: KingdomExportRow[],
   migrants: MigrantRow[],
   preMigration: KingdomExportRow[] | Set<number>,
+  inactives?: InactiveRow[],
 ): MergedPlayer[] {
   const byId = new Map<number, MergedPlayer>();
 
@@ -151,6 +152,28 @@ export function mergePlayers(
   // 5. Compute migration status
   for (const player of byId.values()) {
     player.migrationStatus = computeMigrationStatus(player, hasPreMigrationData);
+  }
+
+  // 6. Apply inactive overrides (INACTIVE takes priority over all other statuses)
+  if (inactives && inactives.length > 0) {
+    const inactiveByGovId = new Map<number, InactiveRow>();
+    const inactiveByNorm = new Map<string, InactiveRow>();
+    for (const row of inactives) {
+      if (row.governorId) inactiveByGovId.set(row.governorId, row);
+      const norm = normalizeName(row.name);
+      if (norm) inactiveByNorm.set(norm, row);
+    }
+
+    for (const player of byId.values()) {
+      let match = player.governorId ? inactiveByGovId.get(player.governorId) : undefined;
+      if (!match) {
+        const norm = normalizeName(player.name);
+        if (norm) match = inactiveByNorm.get(norm);
+      }
+      if (match) {
+        player.migrationStatus = 'INACTIVE';
+      }
+    }
   }
 
   return Array.from(byId.values());

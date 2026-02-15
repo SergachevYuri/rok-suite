@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Scan, ScanPlayer, MergedPlayer, PlayerAssignment, MigrantRow, MigrationStatus } from '@/lib/kingdom/types';
+import type { Scan, ScanPlayer, MergedPlayer, PlayerAssignment, MigrantRow, InactiveRow, MigrationStatus, OfficerStatus, PlayerOverride } from '@/lib/kingdom/types';
 import { isKingdomAlliance, toSorterTag, normalizeName } from '@/lib/kingdom/config';
 
 export function useLatestScan() {
@@ -418,6 +418,7 @@ export async function updateRosterFromScan(
 export async function refreshMigrantsOnScan(
   scanId: number,
   migrants: MigrantRow[],
+  inactives?: InactiveRow[],
 ): Promise<{ updated: number; statusChanges: number }> {
   // 1. Fetch all players for this scan
   let allPlayers: ScanPlayer[] = [];
@@ -442,13 +443,23 @@ export async function refreshMigrantsOnScan(
     fetchPreMigrationIds(),
   ]);
 
-  // 3. Build migrant lookup by governor_id (primary) and normalized name (fallback)
+  // 3. Build lookup maps
   const migrantByGovId = new Map<number, MigrantRow>();
   const migrantByNorm = new Map<string, MigrantRow>();
   for (const m of migrants) {
     if (m.governorId) migrantByGovId.set(m.governorId, m);
     const norm = normalizeName(m.name);
     if (norm) migrantByNorm.set(norm, m);
+  }
+
+  const inactiveByGovId = new Map<number, InactiveRow>();
+  const inactiveByNorm = new Map<string, InactiveRow>();
+  if (inactives) {
+    for (const row of inactives) {
+      if (row.governorId) inactiveByGovId.set(row.governorId, row);
+      const norm = normalizeName(row.name);
+      if (norm) inactiveByNorm.set(norm, row);
+    }
   }
 
   type PlayerUpdate = {
@@ -467,6 +478,7 @@ export async function refreshMigrantsOnScan(
   // 4. For each player, determine status using governor_id first, name as fallback.
   //
   // Priority order:
+  //   0. Inactives sheet match → INACTIVE (highest priority)
   //   1. Governor ID on roster → ORIGINAL (roster is curated by leadership, always wins)
   //   2. Name match on roster → ORIGINAL
   //   3. Governor ID match on migrant sheet → status from sheet
@@ -474,9 +486,22 @@ export async function refreshMigrantsOnScan(
   //   5. Governor ID in pre-migration → ORIGINAL (fallback for non-roster, non-migrant players)
   //   6. Previously migrant but no longer on any list → ORIGINAL (cleared by leadership)
   //   7. No match → ILLEGAL (genuine unverified)
+  //
+  // After computing status, officer overrides are applied (cleared → ORIGINAL).
 
   for (const player of allPlayers) {
     const playerNorm = normalizeName(player.name);
+
+    // --- Step 0: Inactives sheet match → INACTIVE ---
+    if (inactiveByGovId.size > 0 || inactiveByNorm.size > 0) {
+      const inactiveMatch = (player.governor_id ? inactiveByGovId.get(player.governor_id) : undefined)
+        || (playerNorm ? inactiveByNorm.get(playerNorm) : undefined);
+      if (inactiveMatch) {
+        const update = buildInactiveUpdate(player);
+        if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
+        continue;
+      }
+    }
 
     // --- Step 1: Governor ID on roster → ORIGINAL (roster always wins) ---
     if (roster.ids.has(player.governor_id)) {
@@ -576,6 +601,54 @@ export async function refreshMigrantsOnScan(
     };
   }
 
+  function buildInactiveUpdate(player: ScanPlayer): { data: PlayerUpdate; statusChanged: boolean } | null {
+    const changed = player.migration_status !== 'INACTIVE';
+    if (!changed) return null;
+    return {
+      data: {
+        governor_id: player.governor_id,
+        migration_status: 'INACTIVE',
+        is_migrant: player.is_migrant,
+        migrant_accepted: player.migrant_accepted,
+        migrant_group: player.migrant_group,
+        migrant_recruiter: player.migrant_recruiter,
+        starting_kd: player.starting_kd,
+      },
+      statusChanged: true,
+    };
+  }
+
+  // 4b. Apply officer overrides (cleared → ORIGINAL)
+  const overrides = await fetchPlayerOverrides();
+  for (const update of updates) {
+    const override = overrides.get(update.governor_id);
+    if (override?.officer_status === 'cleared' && update.migration_status !== 'ORIGINAL') {
+      statusChanges++;
+      update.migration_status = 'ORIGINAL';
+      update.is_migrant = false;
+      update.migrant_accepted = false;
+    }
+  }
+  // Also check players not in the updates list that have a 'cleared' override
+  for (const player of allPlayers) {
+    const override = overrides.get(player.governor_id);
+    if (override?.officer_status === 'cleared' && player.migration_status !== 'ORIGINAL') {
+      const existing = updates.find(u => u.governor_id === player.governor_id);
+      if (!existing) {
+        updates.push({
+          governor_id: player.governor_id,
+          migration_status: 'ORIGINAL',
+          is_migrant: false,
+          migrant_accepted: false,
+          migrant_group: null,
+          migrant_recruiter: null,
+          starting_kd: null,
+        });
+        statusChanges++;
+      }
+    }
+  }
+
   // 5. Update changed players in parallel batches of 20
   for (let i = 0; i < updates.length; i += 20) {
     const batch = updates.slice(i, i + 20);
@@ -608,4 +681,53 @@ export async function refreshMigrantsOnScan(
   }
 
   return { updated: updates.length, statusChanges };
+}
+
+/**
+ * Fetch all officer overrides for player reviews.
+ */
+export async function fetchPlayerOverrides(): Promise<Map<number, PlayerOverride>> {
+  const map = new Map<number, PlayerOverride>();
+  let from = 0;
+  while (true) {
+    const { data } = await supabase
+      .from('kingdom_player_overrides')
+      .select('*')
+      .range(from, from + 999);
+    if (!data || data.length === 0) break;
+    for (const row of data) map.set(row.governor_id, row as PlayerOverride);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+  return map;
+}
+
+/**
+ * Upsert an officer override for a single player.
+ */
+export async function setPlayerOverride(
+  governorId: number,
+  status: OfficerStatus,
+  note?: string,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('kingdom_player_overrides')
+    .upsert({
+      governor_id: governorId,
+      officer_status: status,
+      officer_note: note ?? '',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'governor_id' });
+  return !error;
+}
+
+/**
+ * Remove an officer override for a single player.
+ */
+export async function removePlayerOverride(governorId: number): Promise<boolean> {
+  const { error } = await supabase
+    .from('kingdom_player_overrides')
+    .delete()
+    .eq('governor_id', governorId);
+  return !error;
 }

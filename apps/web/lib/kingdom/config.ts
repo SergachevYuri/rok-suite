@@ -14,6 +14,9 @@ export const DEFAULT_ALLIANCE_CONFIGS: AllianceConfig[] = [
 export const MIGRANT_SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1VoYEGLmM4H1HQ-uHSwgI_8SrQM4wryGH/export?format=csv&gid=443630646';
 
+export const INACTIVES_SHEET_URL =
+  'https://docs.google.com/spreadsheets/d/1VoYEGLmM4H1HQ-uHSwgI_8SrQM4wryGH/export?format=csv&gid=4777644';
+
 /** Alliance tags that belong to this kingdom */
 export const KINGDOM_ALLIANCE_TAGS = ['ANG', '23KK', 'KNG', 'K23S', '23A', '23-A', 'EQ', '23SP', 'GNG'];
 

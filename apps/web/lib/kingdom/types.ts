@@ -51,9 +51,26 @@ export interface MigrantRow {
   recruiter: string;
 }
 
+/** Google Sheet inactives list row */
+export interface InactiveRow {
+  name: string;
+  governorId: number;
+  inactiveReason: 'yes' | 'decrease';
+}
+
+/** Officer review override */
+export type OfficerStatus = 'confirmed' | 'cleared';
+
+export interface PlayerOverride {
+  governor_id: number;
+  officer_status: OfficerStatus;
+  officer_note: string;
+  updated_at: string;
+}
+
 // ─── Merged / computed types ────────────────────────────────────────
 
-export type MigrationStatus = 'ORIGINAL' | 'ACCEPTED' | 'PENDING' | 'ILLEGAL';
+export type MigrationStatus = 'ORIGINAL' | 'ACCEPTED' | 'PENDING' | 'ILLEGAL' | 'INACTIVE';
 export type AssignmentStatus = 'STAY' | 'MOVE' | 'INCOMING' | 'ILLEGAL' | 'UNASSIGNED';
 export type DataSource = 'snapshot' | 'kingdom' | 'migrant' | 'preMigration';
 
