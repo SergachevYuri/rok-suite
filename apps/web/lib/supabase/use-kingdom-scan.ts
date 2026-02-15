@@ -466,10 +466,10 @@ export async function refreshMigrantsOnScan(
 
   // 4. For each player, determine status using governor_id first, name as fallback.
   //
-  // Priority order:
-  //   1. Governor ID match on migrant sheet → status from sheet
-  //   2. Governor ID match on pre-migration or roster → ORIGINAL
-  //   3. Name match on roster → ORIGINAL
+  // Priority order (pre-migration/roster ALWAYS wins over migrant sheet):
+  //   1. Governor ID in pre-migration or roster → ORIGINAL
+  //   2. Name match on roster → ORIGINAL
+  //   3. Governor ID match on migrant sheet → status from sheet
   //   4. Name match on migrant sheet (only if governor_ids don't conflict) → status from sheet
   //   5. Previously migrant but no longer matched → ORIGINAL (cleared by leadership)
   //   6. No match → ILLEGAL (genuine unverified)
@@ -477,24 +477,24 @@ export async function refreshMigrantsOnScan(
   for (const player of allPlayers) {
     const playerNorm = normalizeName(player.name);
 
-    // --- Step 1: Governor ID match on migrant sheet ---
-    const migrantById = player.governor_id ? migrantByGovId.get(player.governor_id) : undefined;
-    if (migrantById) {
-      const update = buildMigrantUpdate(player, migrantById);
-      if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
-      continue;
-    }
-
-    // --- Step 2: Governor ID match on pre-migration or roster → ORIGINAL ---
+    // --- Step 1: Governor ID in pre-migration or roster → ORIGINAL ---
     if (preMigrationIds.has(player.governor_id) || roster.ids.has(player.governor_id)) {
       const update = buildOriginalUpdate(player);
       if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
       continue;
     }
 
-    // --- Step 3: Name match on roster → ORIGINAL ---
+    // --- Step 2: Name match on roster → ORIGINAL ---
     if (playerNorm && roster.normalizedNames.has(playerNorm)) {
       const update = buildOriginalUpdate(player);
+      if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
+      continue;
+    }
+
+    // --- Step 3: Governor ID match on migrant sheet ---
+    const migrantById = player.governor_id ? migrantByGovId.get(player.governor_id) : undefined;
+    if (migrantById) {
+      const update = buildMigrantUpdate(player, migrantById);
       if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
       continue;
     }
