@@ -803,16 +803,36 @@ export default function MigrationTracker() {
               <option value="INACTIVE">Inactive</option>
               <option value="ILLEGAL">Unverified</option>
             </select>
-            <select
-              value={allianceFilter}
-              onChange={(e) => setAllianceFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none"
-            >
-              <option value="ALL">All Alliances</option>
-              {alliances.map(a => (
-                <option key={a} value={a}>{toSorterTag(a) || a}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                type="text"
+                list="alliance-options"
+                value={allianceFilter === 'ALL' ? '' : allianceFilter}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) {
+                    setAllianceFilter('ALL');
+                  } else {
+                    setAllianceFilter(val);
+                  }
+                }}
+                placeholder="All Alliances"
+                className="w-full sm:w-40 px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-amber-500/50"
+              />
+              <datalist id="alliance-options">
+                {alliances.map(a => (
+                  <option key={a} value={a}>{toSorterTag(a) || a}</option>
+                ))}
+              </datalist>
+              {allianceFilter !== 'ALL' && (
+                <button
+                  onClick={() => setAllianceFilter('ALL')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--foreground)] text-xs"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -984,7 +1004,7 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
                   ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
                   : 'bg-red-500/10 text-red-500 border border-red-500/30'
               }`}>
-                {override.officer_status === 'cleared' ? 'Marked OK' : 'Needs Removal'}
+                {override.officer_status === 'cleared' ? 'Marked OK' : 'Flagged'}
               </span>
               {override.officer_note && <span className="text-xs text-[var(--text-muted)] truncate">{override.officer_note}</span>}
               <button onClick={() => onOverride?.(player.governor_id, null)} className="text-xs text-[var(--text-muted)] hover:text-red-400 ml-auto">undo</button>
@@ -1005,7 +1025,7 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
                   onClick={() => onOverride?.(player.governor_id, 'confirmed')}
                   className="flex-1 px-2 py-1.5 rounded text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
                 >
-                  Remove
+                  Flag
                 </button>
                 <button
                   onClick={() => setShowNote(!showNote)}
@@ -1123,7 +1143,7 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
                       ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
                       : 'bg-red-500/10 text-red-500 border border-red-500/30'
                   }`}>
-                    {override.officer_status === 'cleared' ? 'OK' : 'Remove'}
+                    {override.officer_status === 'cleared' ? 'OK' : 'Flagged'}
                   </span>
                   {override.officer_note && (
                     <span className="text-xs text-[var(--text-muted)] truncate max-w-[100px]" title={override.officer_note}>
@@ -1144,9 +1164,9 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
                   <button
                     onClick={() => onOverride?.(player.governor_id, 'confirmed')}
                     className="px-2.5 py-1 rounded text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
-                    title="This player should be removed"
+                    title="Flag this player as a real problem"
                   >
-                    Remove
+                    Flag
                   </button>
                   <button
                     onClick={() => setShowNote(!showNote)}
@@ -1174,7 +1194,7 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
             </div>
           ) : override ? (
             <span className="text-xs text-[var(--text-muted)]">
-              {override.officer_status === 'cleared' ? 'OK' : 'Remove'}
+              {override.officer_status === 'cleared' ? 'OK' : 'Flagged'}
             </span>
           ) : null}
         </td>
