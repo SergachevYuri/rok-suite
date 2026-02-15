@@ -436,8 +436,11 @@ export async function refreshMigrantsOnScan(
 
   if (allPlayers.length === 0) return { updated: 0, statusChanges: 0 };
 
-  // 2. Fetch roster lookup — known members are ORIGINAL (match by ID or name)
-  const roster = await fetchRosterLookup();
+  // 2. Fetch roster + pre-migration data — known members are ORIGINAL
+  const [roster, preMigrationIds] = await Promise.all([
+    fetchRosterLookup(),
+    fetchPreMigrationIds(),
+  ]);
 
   // 3. Build migrant lookup: governor_id → migrant, normalized name → migrant
   const migrantByGovId = new Map<number, MigrantRow>();
@@ -450,7 +453,7 @@ export async function refreshMigrantsOnScan(
 
   // 4. Update migrant fields for each player
   // - Players on the migrant sheet: status from sheet columns
-  // - Non-migrants in the roster but marked ILLEGAL: flip to ORIGINAL
+  // - Non-migrants marked ILLEGAL but in roster or pre-migration: flip to ORIGINAL
   // - Other non-migrants: keep existing status
   type MigrantUpdate = {
     governor_id: number;
@@ -538,6 +541,7 @@ export async function refreshMigrantsOnScan(
         });
       }
     } else if (player.migration_status === 'ILLEGAL' && (
+      preMigrationIds.has(player.governor_id) ||
       roster.ids.has(player.governor_id) ||
       roster.normalizedNames.has(normalizeName(player.name))
     )) {
