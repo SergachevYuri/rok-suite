@@ -980,6 +980,7 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
   onOverride?: (governorId: number, status: OfficerStatus | null, note?: string) => void;
 }) {
   const [showNote, setShowNote] = useState(false);
+  const [note, setNote] = useState('');
   const status = player.migration_status as MigrationStatus;
   const colors = STATUS_COLORS[status] || STATUS_COLORS.ORIGINAL;
   const icon = STATUS_ICONS[status];
@@ -1044,15 +1045,25 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
               <div className="text-[10px] text-[var(--text-muted)]">
                 {status === 'INACTIVE' ? 'Is this player actually inactive?' : 'Is this player allowed in the kingdom?'}
               </div>
+              {showNote && (
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Type a note..."
+                  className="w-full px-2 py-1.5 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
+                  autoFocus
+                />
+              )}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => onOverride?.(player.governor_id, 'cleared')}
+                  onClick={() => { onOverride?.(player.governor_id, 'cleared', note || undefined); setNote(''); setShowNote(false); }}
                   className="flex-1 px-3 py-2.5 rounded-lg text-sm font-medium bg-emerald-500/10 text-emerald-500 active:bg-emerald-500/30 border border-emerald-500/30"
                 >
                   They&apos;re OK
                 </button>
                 <button
-                  onClick={() => onOverride?.(player.governor_id, 'confirmed')}
+                  onClick={() => { onOverride?.(player.governor_id, 'confirmed', note || undefined); setNote(''); setShowNote(false); }}
                   className="flex-1 px-3 py-2.5 rounded-lg text-sm font-medium bg-red-500/10 text-red-500 active:bg-red-500/30 border border-red-500/30"
                 >
                   Flag
@@ -1061,24 +1072,10 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
                   onClick={() => setShowNote(!showNote)}
                   className="px-3 py-2.5 rounded-lg text-sm text-[var(--text-muted)] active:text-[var(--foreground)] active:bg-[var(--background-secondary)] border border-transparent active:border-[var(--border)]"
                 >
-                  + note
+                  {showNote ? '- note' : '+ note'}
                 </button>
               </div>
             </div>
-          )}
-          {showNote && !override && (
-            <input
-              type="text"
-              placeholder="Add a note then press Enter..."
-              className="mt-2 w-full px-2 py-1 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  onOverride?.(player.governor_id, 'confirmed', (e.target as HTMLInputElement).value);
-                  setShowNote(false);
-                }
-              }}
-              autoFocus
-            />
           )}
         </div>
       )}
@@ -1121,6 +1118,7 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
   onOverride?: (governorId: number, status: OfficerStatus | null, note?: string) => void;
 }) {
   const [showNote, setShowNote] = useState(false);
+  const [note, setNote] = useState('');
   const status = player.migration_status as MigrationStatus;
   const colors = STATUS_COLORS[status] || STATUS_COLORS.ORIGINAL;
   const icon = STATUS_ICONS[status];
@@ -1183,43 +1181,41 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
                   <button onClick={() => onOverride?.(player.governor_id, null)} className="text-[var(--text-muted)] hover:text-red-400 text-xs ml-1">undo</button>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => onOverride?.(player.governor_id, 'cleared')}
-                    className="px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30"
-                    title="This player is fine, no action needed"
-                  >
-                    They&apos;re OK
-                  </button>
-                  <button
-                    onClick={() => onOverride?.(player.governor_id, 'confirmed')}
-                    className="px-2.5 py-1 rounded text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
-                    title="Flag this player as a real problem"
-                  >
-                    Flag
-                  </button>
-                  <button
-                    onClick={() => setShowNote(!showNote)}
-                    className="px-1.5 py-1 text-[var(--text-muted)] hover:text-[var(--foreground)] text-xs"
-                    title="Add a note"
-                  >
-                    + note
-                  </button>
+                <div>
+                  {showNote && (
+                    <input
+                      type="text"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="Type a note..."
+                      className="mb-1.5 w-full px-2 py-1 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
+                      autoFocus
+                    />
+                  )}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => { onOverride?.(player.governor_id, 'cleared', note || undefined); setNote(''); setShowNote(false); }}
+                      className="px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/30"
+                      title="This player is fine, no action needed"
+                    >
+                      They&apos;re OK
+                    </button>
+                    <button
+                      onClick={() => { onOverride?.(player.governor_id, 'confirmed', note || undefined); setNote(''); setShowNote(false); }}
+                      className="px-2.5 py-1 rounded text-xs font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30"
+                      title="Flag this player as a real problem"
+                    >
+                      Flag
+                    </button>
+                    <button
+                      onClick={() => setShowNote(!showNote)}
+                      className="px-1.5 py-1 text-[var(--text-muted)] hover:text-[var(--foreground)] text-xs"
+                      title="Add a note"
+                    >
+                      {showNote ? '- note' : '+ note'}
+                    </button>
+                  </div>
                 </div>
-              )}
-              {showNote && !override && (
-                <input
-                  type="text"
-                  placeholder="Add a note then press Enter..."
-                  className="mt-1.5 w-full px-2 py-1 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      onOverride?.(player.governor_id, 'confirmed', (e.target as HTMLInputElement).value);
-                      setShowNote(false);
-                    }
-                  }}
-                  autoFocus
-                />
               )}
             </div>
           ) : override ? (
