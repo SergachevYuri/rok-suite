@@ -87,10 +87,17 @@ export function mergePlayers(
   }
 
   for (const migrant of migrants) {
+    // Match by governor_id first (reliable), then name (fallback with conflict check)
     let target = migrant.governorId ? byId.get(migrant.governorId) : undefined;
     if (!target) {
       const norm = normalizeName(migrant.name);
-      if (norm) target = normalizedIndex.get(norm);
+      if (norm) {
+        const candidate = normalizedIndex.get(norm);
+        // Only match by name if governor_ids don't conflict
+        if (candidate && (!migrant.governorId || !candidate.governorId || migrant.governorId === candidate.governorId)) {
+          target = candidate;
+        }
+      }
     }
     if (target) {
       target.isMigrant = true;
