@@ -129,6 +129,30 @@ export async function uploadScan(
 }
 
 /**
+ * Save a single alliance assignment to Supabase for the given scan.
+ */
+export async function saveSingleAssignment(
+  scanId: number,
+  assignment: PlayerAssignment,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('kingdom_scan_players')
+    .update({
+      assigned_alliance: assignment.assignedAlliance || null,
+      assignment_status: assignment.status,
+      assignment_reason: assignment.reason,
+    })
+    .eq('scan_id', scanId)
+    .eq('governor_id', assignment.governorId);
+
+  if (error) {
+    console.error(`Failed to update assignment for ${assignment.governorId}:`, error);
+    return false;
+  }
+  return true;
+}
+
+/**
  * Save alliance assignments back to Supabase for the given scan.
  */
 export async function saveAssignments(

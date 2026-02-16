@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   Lock,
   Unlock,
@@ -26,6 +26,7 @@ import {
   List,
   GripVertical,
   RotateCcw,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   DndContext,
@@ -42,7 +43,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useLatestScan, saveAssignments } from '@/lib/supabase/use-kingdom-scan';
+import { useLatestScan, saveAssignments, saveSingleAssignment } from '@/lib/supabase/use-kingdom-scan';
 import { useR4R5Members } from '@/lib/supabase/use-alliance-roster';
 import { assignAlliances, suggestThresholds } from '@/lib/kingdom/assign';
 import { DEFAULT_ALLIANCE_CONFIGS, SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
@@ -81,7 +82,8 @@ export default function AllianceSorter() {
 
   // Save state
   const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [saveIndicator, setSaveIndicator] = useState<'saving' | 'saved' | 'error' | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Exempt R4/R5
   const [exemptIds, setExemptIds] = useState<Set<number>>(new Set());
@@ -109,6 +111,34 @@ export default function AllianceSorter() {
       setExemptIds(autoExempt);
     }
   }, [r4r5Members, players]);
+
+  // Cleanup save indicator timer on unmount
+  useEffect(() => {
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, []);
+
+  const showSaveIndicator = useCallback((status: 'saved' | 'error') => {
+    setSaveIndicator(status);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => setSaveIndicator(null), 3000);
+  }, []);
+
+  const autoSaveSingle = useCallback(async (assignment: PlayerAssignment) => {
+    if (!scan) return;
+    setSaveIndicator('saving');
+    const ok = await saveSingleAssignment(scan.id, assignment);
+    showSaveIndicator(ok ? 'saved' : 'error');
+  }, [scan, showSaveIndicator]);
+
+  const autoSaveAll = useCallback(async (allAssignments: PlayerAssignment[]) => {
+    if (!scan || allAssignments.length === 0) return;
+    setSaveIndicator('saving');
+    setIsSaving(true);
+    const ok = await saveAssignments(scan.id, allAssignments);
+    showSaveIndicator(ok ? 'saved' : 'error');
+    setIsSaving(false);
+    if (ok) await refetch();
+  }, [scan, refetch, showSaveIndicator]);
 
   // Assignment index
   const assignmentMap = useMemo(() => {
@@ -218,7 +248,7 @@ export default function AllianceSorter() {
     const result = assignAlliances(players, configs, exemptIds.size > 0 ? exemptIds : undefined);
     setAssignments(result);
     setHasRun(true);
-    setSaveStatus(null);
+    autoSaveAll(result);
   };
 
   const handleSuggest = () => {
@@ -229,15 +259,19 @@ export default function AllianceSorter() {
     const result = assignAlliances(players, suggested, exempt);
     setAssignments(result);
     setHasRun(true);
-    setSaveStatus(null);
+    autoSaveAll(result);
   };
 
   const handleSave = async () => {
-    if (!scan || assignments.length === 0) return;
+    if (!scan) return;
+    const toSave = assignments.length > 0
+      ? assignments
+      : [...effectiveAssignments.values()];
+    if (toSave.length === 0) return;
     setIsSaving(true);
-    setSaveStatus(null);
-    const ok = await saveAssignments(scan.id, assignments);
-    setSaveStatus(ok ? 'Saved!' : 'Failed to save');
+    setSaveIndicator('saving');
+    const ok = await saveAssignments(scan.id, toSave);
+    showSaveIndicator(ok ? 'saved' : 'error');
     if (ok) await refetch();
     setIsSaving(false);
   };
@@ -270,7 +304,7 @@ export default function AllianceSorter() {
       return [...prev, newAssignment];
     });
     setHasRun(true);
-    setSaveStatus(null);
+    autoSaveSingle(newAssignment);
   };
 
   const allianceTags = configs.map(c => c.tag);
@@ -565,7 +599,7 @@ export default function AllianceSorter() {
                 <Play size={16} />
                 Run Sorter
               </button>
-              {hasRun && (
+              {effectiveAssignments.size > 0 && (
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
@@ -575,12 +609,28 @@ export default function AllianceSorter() {
                   Save Assignments
                 </button>
               )}
-              {saveStatus && (
-                <span className={`text-sm ${saveStatus === 'Saved!' ? 'text-emerald-500' : 'text-red-500'}`}>
-                  {saveStatus}
+              {saveIndicator === 'saving' && (
+                <span className="flex items-center gap-1.5 text-sm text-[var(--text-muted)]">
+                  <Loader2 size={14} className="animate-spin" />
+                  Saving...
+                </span>
+              )}
+              {saveIndicator === 'saved' && (
+                <span className="flex items-center gap-1.5 text-sm text-emerald-500">
+                  <CheckCircle2 size={14} />
+                  Saved
+                </span>
+              )}
+              {saveIndicator === 'error' && (
+                <span className="flex items-center gap-1.5 text-sm text-red-500">
+                  <AlertTriangle size={14} />
+                  Failed to save
                 </span>
               )}
             </div>
+            <p className="mt-3 text-xs text-[var(--text-muted)]">
+              All changes auto-save immediately — drag-and-drop moves, manual reassignments, and sorter runs are saved to the database as they happen. Use the Save button to force a full re-save.
+            </p>
           </div>
         )}
 
@@ -734,9 +784,14 @@ export default function AllianceSorter() {
             configs={configs}
             statusFilter={statusFilter}
             onAssignmentsChange={(updated) => {
+              // Find the changed assignment by diffing
+              const changed = updated.find(a => {
+                const prev = effectiveAssignments.get(a.governorId);
+                return !prev || prev.assignedAlliance !== a.assignedAlliance || prev.status !== a.status;
+              });
               setAssignments(updated);
               setHasRun(true);
-              setSaveStatus(null);
+              if (changed) autoSaveSingle(changed);
             }}
           />
         )}
