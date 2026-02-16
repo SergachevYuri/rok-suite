@@ -225,6 +225,39 @@ export default function AllianceSorter() {
     setIsSaving(false);
   };
 
+  const handleReassign = (governorId: number, newAlliance: string) => {
+    const player = players.find(p => p.governor_id === governorId);
+    if (!player) return;
+
+    const currentTag = toSorterTag(player.current_alliance);
+    const newStatus: AssignmentStatus = !newAlliance
+      ? 'UNASSIGNED'
+      : newAlliance === currentTag
+        ? 'STAY'
+        : 'MOVE';
+
+    const newAssignment: PlayerAssignment = {
+      governorId,
+      assignedAlliance: newAlliance,
+      status: newStatus,
+      reason: 'Manual override',
+    };
+
+    setAssignments(prev => {
+      const existing = prev.findIndex(a => a.governorId === governorId);
+      if (existing >= 0) {
+        const next = [...prev];
+        next[existing] = newAssignment;
+        return next;
+      }
+      return [...prev, newAssignment];
+    });
+    setHasRun(true);
+    setSaveStatus(null);
+  };
+
+  const allianceTags = configs.map(c => c.tag);
+
   const handleExportCSV = () => {
     const headers = ['Governor ID', 'Name', 'Power', 'Kill Points', 'Current Alliance', 'Assigned Alliance', 'Status', 'Reason'];
     const rows = tableData.map(({ player, assignment }) => [
@@ -686,7 +719,7 @@ export default function AllianceSorter() {
             {/* Mobile card view */}
             <div className="md:hidden space-y-2">
               {tableData.map(({ player, assignment }) => (
-                <AssignmentCard key={player.governor_id} player={player} assignment={assignment} />
+                <AssignmentCard key={player.governor_id} player={player} assignment={assignment} allianceTags={allianceTags} onReassign={handleReassign} />
               ))}
             </div>
 
@@ -707,7 +740,7 @@ export default function AllianceSorter() {
                   </thead>
                   <tbody>
                     {tableData.map(({ player, assignment }) => (
-                      <AssignmentRow key={player.governor_id} player={player} assignment={assignment} />
+                      <AssignmentRow key={player.governor_id} player={player} assignment={assignment} allianceTags={allianceTags} onReassign={handleReassign} />
                     ))}
                   </tbody>
                 </table>
@@ -726,7 +759,12 @@ export default function AllianceSorter() {
   );
 }
 
-function AssignmentCard({ player, assignment }: { player: ScanPlayer; assignment?: PlayerAssignment }) {
+function AssignmentCard({ player, assignment, allianceTags, onReassign }: {
+  player: ScanPlayer;
+  assignment?: PlayerAssignment;
+  allianceTags: string[];
+  onReassign: (governorId: number, newAlliance: string) => void;
+}) {
   const status = assignment?.status;
   const style = status ? STATUS_STYLES[status] : null;
   const assignedTag = assignment?.assignedAlliance || '';
@@ -763,12 +801,19 @@ function AssignmentCard({ player, assignment }: { player: ScanPlayer; assignment
         </div>
         <div>
           <div className="text-[var(--text-muted)]">Assigned</div>
-          {assignedTag ? (
-            <span className="inline-flex items-center gap-1 font-medium text-[var(--foreground)]">
-              <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: assignedColor }} />
-              {assignedTag}
-            </span>
-          ) : <span className="text-[var(--text-muted)]">-</span>}
+          <div className="flex items-center gap-1">
+            {assignedColor && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: assignedColor }} />}
+            <select
+              value={assignedTag}
+              onChange={(e) => onReassign(player.governor_id, e.target.value)}
+              className="px-1 py-0.5 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--foreground)] focus:outline-none cursor-pointer"
+            >
+              <option value="">—</option>
+              {allianceTags.map(tag => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
       {assignment?.reason && (
@@ -806,7 +851,12 @@ function SortableHeader({ field, label, current, dir, onSort, align }: {
   );
 }
 
-function AssignmentRow({ player, assignment }: { player: ScanPlayer; assignment?: PlayerAssignment }) {
+function AssignmentRow({ player, assignment, allianceTags, onReassign }: {
+  player: ScanPlayer;
+  assignment?: PlayerAssignment;
+  allianceTags: string[];
+  onReassign: (governorId: number, newAlliance: string) => void;
+}) {
   const status = assignment?.status;
   const style = status ? STATUS_STYLES[status] : null;
   const assignedTag = assignment?.assignedAlliance || '';
@@ -830,12 +880,19 @@ function AssignmentRow({ player, assignment }: { player: ScanPlayer; assignment?
         {toSorterTag(player.current_alliance) || '-'}
       </td>
       <td className="px-3 py-2.5">
-        {assignedTag ? (
-          <span className="inline-flex items-center gap-1.5 font-medium text-[var(--foreground)]">
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: assignedColor }} />
-            {assignedTag}
-          </span>
-        ) : '-'}
+        <div className="flex items-center gap-1.5">
+          {assignedColor && <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: assignedColor }} />}
+          <select
+            value={assignedTag}
+            onChange={(e) => onReassign(player.governor_id, e.target.value)}
+            className="px-1.5 py-0.5 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-sm font-medium text-[var(--foreground)] focus:outline-none focus:border-amber-500/50 cursor-pointer"
+          >
+            <option value="">—</option>
+            {allianceTags.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+        </div>
       </td>
       <td className="px-3 py-2.5">
         {style ? (
