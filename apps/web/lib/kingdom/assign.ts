@@ -201,9 +201,10 @@ export function suggestThresholds(
       }
     }
 
-    const finalPower = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
-    configs[idx].minPower = finalPower;
-    prevMinPower = finalPower;
+    // Use `low` — it's the highest threshold that still fills to target.
+    // Averaging low+high can round UP to the value that doesn't fill.
+    configs[idx].minPower = low;
+    prevMinPower = low;
   }
 
   return configs;
