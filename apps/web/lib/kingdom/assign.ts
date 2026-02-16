@@ -163,9 +163,9 @@ function findBestAlliance(
 
 /**
  * Suggest thresholds that fill alliances top-down by priority.
- * Disables secondary criteria (minKp, maxPowerKpRatio) so only minPower
- * gates each alliance. Maintains descending rank order.
- * User can re-enable secondaries after and tweak.
+ * Pass 1: binary-search minPower per alliance (secondaries disabled).
+ * Pass 2: binary-search minKp per alliance (power thresholds locked).
+ * Maintains descending rank order for both power and KP.
  */
 export function suggestThresholds(
   players: PlayerInput[],
@@ -173,14 +173,17 @@ export function suggestThresholds(
   exemptIds?: Set<number>,
 ): AllianceConfig[] {
   const SLACK = 5;
-  const STEP = 100_000;  // 100K granularity for precise fill targeting
+  const POWER_STEP = 100_000;
+  const KP_STEP = 100_000;
   const configs = baseConfigs.map(c => ({
     ...c,
-    minKp: null,              // disable secondaries for clean fill
-    maxPowerKpRatio: null,
+    minKp: null as number | null,
+    maxPowerKpRatio: null as number | null,
+    thresholdMode: 'all' as const,
   }));
   const sorted = [...configs].sort((a, b) => a.rank - b.rank);
 
+  // --- Pass 1: Find minPower per alliance (KP disabled) ---
   let prevMinPower = 80_000_000;
 
   for (const cfg of sorted) {
@@ -191,7 +194,7 @@ export function suggestThresholds(
     let high = prevMinPower;
 
     for (let iter = 0; iter < 30; iter++) {
-      const mid = Math.round((low + high) / 2 / STEP) * STEP;
+      const mid = Math.round((low + high) / 2 / POWER_STEP) * POWER_STEP;
       configs[idx].minPower = mid;
 
       const result = assignAlliances(players, configs, exemptIds);
@@ -205,7 +208,6 @@ export function suggestThresholds(
     }
 
     // Pick whichever of low/high gets fill closer to target (~cap-5).
-    // Prefer the higher threshold (fewer members) when tied, to leave open spots.
     configs[idx].minPower = low;
     const fillAtLow = assignAlliances(players, configs, exemptIds)
       .filter(a => a.assignedAlliance === cfg.tag).length;
@@ -215,12 +217,60 @@ export function suggestThresholds(
 
     const diffLow = Math.abs(fillAtLow - target);
     const diffHigh = Math.abs(fillAtHigh - target);
-    // Prefer high (more open spots) when tied or when low hits cap
     const useHigh = diffHigh < diffLow || (diffHigh === diffLow) || fillAtLow >= cfg.cap;
     const finalPower = useHigh ? high : low;
 
     configs[idx].minPower = finalPower;
     prevMinPower = finalPower;
+  }
+
+  // --- Pass 2: Find minKp per alliance (power thresholds locked) ---
+  // Binary-search the highest minKp that still keeps the alliance filled.
+  let prevMinKp = 50_000_000;
+
+  for (const cfg of sorted) {
+    const idx = configs.findIndex(c => c.tag === cfg.tag);
+
+    // Get current fill without any KP filter to know the baseline
+    const baseResult = assignAlliances(players, configs, exemptIds);
+    const baseFill = baseResult.filter(a => a.assignedAlliance === cfg.tag).length;
+
+    // Target: don't lose more than SLACK players from the power-only fill
+    const kpTarget = Math.max(baseFill - SLACK, cfg.cap - SLACK * 2);
+
+    let low = 0;
+    let high = prevMinKp;
+
+    for (let iter = 0; iter < 30; iter++) {
+      const mid = Math.round((low + high) / 2 / KP_STEP) * KP_STEP;
+      configs[idx].minKp = mid;
+
+      const result = assignAlliances(players, configs, exemptIds);
+      const fill = result.filter(a => a.assignedAlliance === cfg.tag).length;
+
+      if (fill < kpTarget) {
+        high = mid;  // KP too high, fewer players qualify
+      } else {
+        low = mid;   // Can raise KP, still enough players
+      }
+    }
+
+    // Same logic: pick closest to target, prefer higher KP
+    configs[idx].minKp = low;
+    const kpFillAtLow = assignAlliances(players, configs, exemptIds)
+      .filter(a => a.assignedAlliance === cfg.tag).length;
+    configs[idx].minKp = high;
+    const kpFillAtHigh = assignAlliances(players, configs, exemptIds)
+      .filter(a => a.assignedAlliance === cfg.tag).length;
+
+    const kpDiffLow = Math.abs(kpFillAtLow - kpTarget);
+    const kpDiffHigh = Math.abs(kpFillAtHigh - kpTarget);
+    const kpUseHigh = kpDiffHigh < kpDiffLow || (kpDiffHigh === kpDiffLow) || kpFillAtLow >= cfg.cap;
+    const finalKp = kpUseHigh ? high : low;
+
+    // Only apply KP threshold if it's meaningful (> 0)
+    configs[idx].minKp = finalKp > 0 ? finalKp : null;
+    if (finalKp > 0) prevMinKp = finalKp;
   }
 
   return configs;
