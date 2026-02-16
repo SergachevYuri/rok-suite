@@ -732,6 +732,7 @@ export default function AllianceSorter() {
             players={players}
             assignments={[...effectiveAssignments.values()]}
             configs={configs}
+            statusFilter={statusFilter}
             onAssignmentsChange={(updated) => {
               setAssignments(updated);
               setHasRun(true);

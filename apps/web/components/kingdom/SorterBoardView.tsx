@@ -15,13 +15,14 @@ import { useDroppable } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
 import { matchesSearch } from '@/lib/search';
 import { Search, Eye, EyeOff } from 'lucide-react';
-import type { AllianceConfig, PlayerAssignment, ScanPlayer } from '@/lib/kingdom/types';
+import type { AllianceConfig, PlayerAssignment, AssignmentStatus, ScanPlayer } from '@/lib/kingdom/types';
 import { SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
 
 interface SorterBoardViewProps {
   players: ScanPlayer[];
   assignments: PlayerAssignment[];
   configs: AllianceConfig[];
+  statusFilter: AssignmentStatus | 'ALL';
   onAssignmentsChange: (updated: PlayerAssignment[]) => void;
 }
 
@@ -31,6 +32,7 @@ export default function SorterBoardView({
   players,
   assignments,
   configs,
+  statusFilter,
   onAssignmentsChange,
 }: SorterBoardViewProps) {
   const [search, setSearch] = useState('');
@@ -73,6 +75,9 @@ export default function SorterBoardView({
         continue;
       }
 
+      // Status filter (from clickable badges)
+      if (statusFilter !== 'ALL' && a.status !== statusFilter) continue;
+
       // Moves only filter
       if (showMovesOnly && a.status === 'STAY') continue;
 
@@ -86,7 +91,7 @@ export default function SorterBoardView({
     }
 
     return cols;
-  }, [assignments, players, playerMap, configs, search, showMovesOnly]);
+  }, [assignments, players, playerMap, configs, search, showMovesOnly, statusFilter]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as number);
