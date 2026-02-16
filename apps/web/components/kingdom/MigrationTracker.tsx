@@ -1274,9 +1274,20 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
               )}
             </div>
           ) : override ? (
-            <span className="text-xs text-[var(--text-muted)]">
-              {override.officer_status === 'cleared' ? 'OK' : 'Flagged'}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                override.officer_status === 'cleared'
+                  ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
+                  : 'bg-red-500/10 text-red-500 border border-red-500/30'
+              }`}>
+                {override.officer_status === 'cleared' ? 'OK' : 'Flagged'}
+              </span>
+              {override.officer_note && (
+                <span className="text-xs text-[var(--text-muted)] truncate max-w-[100px]" title={override.officer_note}>
+                  {override.officer_note}
+                </span>
+              )}
+            </div>
           ) : null}
         </td>
       )}
