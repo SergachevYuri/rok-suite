@@ -618,15 +618,27 @@ export async function refreshMigrantsOnScan(
     };
   }
 
-  // 4b. Apply officer overrides (cleared → ORIGINAL)
+  // 4b. Apply officer overrides
   const overrides = await fetchPlayerOverrides();
+  const playerById = new Map(allPlayers.map(p => [p.governor_id, p]));
   for (const update of updates) {
     const override = overrides.get(update.governor_id);
+    // Cleared → force to ORIGINAL
     if (override?.officer_status === 'cleared' && update.migration_status !== 'ORIGINAL') {
       statusChanges++;
       update.migration_status = 'ORIGINAL';
       update.is_migrant = false;
       update.migrant_accepted = false;
+    }
+    // Confirmed (flagged) → keep reviewable status so they don't silently disappear
+    if (override?.officer_status === 'confirmed'
+        && update.migration_status !== 'ILLEGAL' && update.migration_status !== 'INACTIVE') {
+      const original = playerById.get(update.governor_id);
+      if (original && (original.migration_status === 'ILLEGAL' || original.migration_status === 'INACTIVE')) {
+        update.migration_status = original.migration_status;
+        update.is_migrant = original.is_migrant;
+        update.migrant_accepted = original.migrant_accepted;
+      }
     }
   }
   // Also check players not in the updates list that have a 'cleared' override

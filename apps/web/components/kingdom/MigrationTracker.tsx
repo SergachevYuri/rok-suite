@@ -124,9 +124,11 @@ export default function MigrationTracker() {
   const reviewProgress = useMemo(() => {
     const reviewable = players.filter(p => p.migration_status === 'ILLEGAL' || p.migration_status === 'INACTIVE');
     const reviewed = reviewable.filter(p => overrides.has(p.governor_id));
-    const flagged = reviewed.filter(p => overrides.get(p.governor_id)?.officer_status === 'confirmed');
-    const cleared = reviewed.filter(p => overrides.get(p.governor_id)?.officer_status === 'cleared');
-    return { total: reviewable.length, reviewed: reviewed.length, flagged: flagged.length, cleared: cleared.length };
+    // Count flagged/cleared across ALL players (not just reviewable) so they stay visible
+    // even if a refresh changed their migration_status before this fix was deployed.
+    const flagged = players.filter(p => overrides.get(p.governor_id)?.officer_status === 'confirmed').length;
+    const cleared = players.filter(p => overrides.get(p.governor_id)?.officer_status === 'cleared').length;
+    return { total: reviewable.length, reviewed: reviewed.length, flagged, cleared };
   }, [players, overrides]);
 
   const filteredPlayers = useMemo(() => {
@@ -301,14 +303,20 @@ export default function MigrationTracker() {
         }
       }
 
-      // Post-process: apply officer overrides (cleared → ORIGINAL)
+      // Post-process: apply officer overrides
       const uploadOverrides = await fetchPlayerOverrides();
       for (const player of merged) {
         const override = uploadOverrides.get(player.governorId);
+        // Cleared → force to ORIGINAL
         if (override?.officer_status === 'cleared' && player.migrationStatus !== 'ORIGINAL') {
           player.migrationStatus = 'ORIGINAL';
           player.isMigrant = false;
           player.migrantAccepted = false;
+        }
+        // Confirmed (flagged) → keep as ILLEGAL so they stay visible for officers
+        if (override?.officer_status === 'confirmed'
+            && player.migrationStatus !== 'ILLEGAL' && player.migrationStatus !== 'INACTIVE') {
+          player.migrationStatus = 'ILLEGAL';
         }
       }
 
