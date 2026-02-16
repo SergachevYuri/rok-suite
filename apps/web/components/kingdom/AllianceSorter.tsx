@@ -144,17 +144,22 @@ export default function AllianceSorter() {
 
   // Alliance fill rates
   const allianceFill = useMemo(() => {
-    const fill: Record<string, { count: number; cap: number }> = {};
+    const fill: Record<string, { count: number; cap: number; totalPower: number; totalKp: number }> = {};
     for (const cfg of configs) {
-      fill[cfg.tag] = { count: 0, cap: cfg.cap };
+      fill[cfg.tag] = { count: 0, cap: cfg.cap, totalPower: 0, totalKp: 0 };
     }
     for (const a of effectiveAssignments.values()) {
       if (a.assignedAlliance && fill[a.assignedAlliance]) {
         fill[a.assignedAlliance].count++;
+        const player = players.find(p => p.governor_id === a.governorId);
+        if (player) {
+          fill[a.assignedAlliance].totalPower += player.power;
+          fill[a.assignedAlliance].totalKp += player.kill_points;
+        }
       }
     }
     return fill;
-  }, [effectiveAssignments, configs]);
+  }, [effectiveAssignments, configs, players]);
 
   // Merge players with assignments for table display
   const tableData = useMemo(() => {
@@ -582,9 +587,11 @@ export default function AllianceSorter() {
         {effectiveAssignments.size > 0 && (
           <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             {configs.map(cfg => {
-              const fill = allianceFill[cfg.tag] || { count: 0, cap: cfg.cap };
+              const fill = allianceFill[cfg.tag] || { count: 0, cap: cfg.cap, totalPower: 0, totalKp: 0 };
               const pct = cfg.cap > 0 ? Math.min((fill.count / cfg.cap) * 100, 100) : 0;
               const color = SORTER_ALLIANCE_COLORS[cfg.tag] || '#666';
+              const avgPower = fill.count > 0 ? Math.round(fill.totalPower / fill.count) : 0;
+              const avgKp = fill.count > 0 ? Math.round(fill.totalKp / fill.count) : 0;
               return (
                 <div key={cfg.tag} className="p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
                   <div className="flex items-center gap-2 mb-2">
@@ -600,6 +607,26 @@ export default function AllianceSorter() {
                       style={{ width: `${pct}%`, backgroundColor: color }}
                     />
                   </div>
+                  {fill.count > 0 && (
+                    <div className="mt-2 space-y-0.5 text-xs text-[var(--text-muted)]">
+                      <div className="flex justify-between">
+                        <span>Power</span>
+                        <span className="font-medium text-[var(--foreground)]">{formatNumber(fill.totalPower)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Avg Pwr</span>
+                        <span className="font-medium text-[var(--foreground)]">{formatNumber(avgPower)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>KP</span>
+                        <span className="font-medium text-[var(--foreground)]">{formatNumber(fill.totalKp)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Avg KP</span>
+                        <span className="font-medium text-[var(--foreground)]">{formatNumber(avgKp)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
