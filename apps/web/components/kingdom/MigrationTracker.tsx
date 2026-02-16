@@ -96,6 +96,7 @@ export default function MigrationTracker() {
   // Officer review state
   const [overrides, setOverrides] = useState<Map<number, PlayerOverride>>(new Map());
   const [reviewFilter, setReviewFilter] = useState(false); // show only unreviewed ILLEGAL/INACTIVE players
+  const [reviewedFilter, setReviewedFilter] = useState(false); // show all reviewed players (flagged + cleared)
   const [flaggedFilter, setFlaggedFilter] = useState(false); // show only officer-confirmed players
   const [clearedFilter, setClearedFilter] = useState(false); // admin-only: show officer-cleared players
 
@@ -140,6 +141,9 @@ export default function MigrationTracker() {
         (p.migration_status === 'ILLEGAL' || p.migration_status === 'INACTIVE')
         && !overrides.has(p.governor_id)
       );
+    } else if (reviewedFilter) {
+      // Show all reviewed players (flagged + cleared)
+      result = result.filter(p => overrides.has(p.governor_id));
     } else if (flaggedFilter) {
       // Show only officer-confirmed players (flagged for action)
       result = result.filter(p => {
@@ -179,7 +183,7 @@ export default function MigrationTracker() {
     });
 
     return result;
-  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, cardFilter, reviewFilter, flaggedFilter, clearedFilter, overrides]);
+  }, [players, search, statusFilter, allianceFilter, sortField, sortDir, cardFilter, reviewFilter, reviewedFilter, flaggedFilter, clearedFilter, overrides]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -774,7 +778,7 @@ export default function MigrationTracker() {
               </div>
               <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
                 <button
-                  onClick={() => { setReviewFilter(!reviewFilter); setFlaggedFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
+                  onClick={() => { setReviewFilter(!reviewFilter); setReviewedFilter(false); setFlaggedFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
                   className={`w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${
                     reviewFilter
                       ? 'bg-sky-500 text-white active:bg-sky-600'
@@ -785,7 +789,7 @@ export default function MigrationTracker() {
                 </button>
                 {reviewProgress.flagged > 0 && (
                   <button
-                    onClick={() => { setFlaggedFilter(!flaggedFilter); setReviewFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
+                    onClick={() => { setFlaggedFilter(!flaggedFilter); setReviewFilter(false); setReviewedFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL'); }}
                     className={`w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-sm font-medium transition-colors ${
                       flaggedFilter
                         ? 'bg-red-500 text-white active:bg-red-600'
@@ -828,23 +832,21 @@ export default function MigrationTracker() {
             </div>
             <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
             <select
-              value={reviewFilter ? 'REVIEW' : flaggedFilter ? 'FLAGGED' : clearedFilter ? 'CLEARED' : statusFilter}
+              value={reviewFilter ? 'REVIEW' : reviewedFilter ? 'REVIEWED' : flaggedFilter ? 'FLAGGED' : clearedFilter ? 'CLEARED' : statusFilter}
               onChange={(e) => {
                 const val = e.target.value;
-                if (val === 'REVIEW') {
-                  setReviewFilter(true); setFlaggedFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL');
-                } else if (val === 'FLAGGED') {
-                  setFlaggedFilter(true); setReviewFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL');
-                } else if (val === 'CLEARED') {
-                  setClearedFilter(true); setReviewFilter(false); setFlaggedFilter(false); setCardFilter(null); setStatusFilter('ALL');
-                } else {
-                  setReviewFilter(false); setFlaggedFilter(false); setClearedFilter(false); setStatusFilter(val as MigrationStatus | 'ALL'); setCardFilter(null);
-                }
+                const reset = () => { setReviewFilter(false); setReviewedFilter(false); setFlaggedFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL'); };
+                if (val === 'REVIEW') { reset(); setReviewFilter(true); }
+                else if (val === 'REVIEWED') { reset(); setReviewedFilter(true); }
+                else if (val === 'FLAGGED') { reset(); setFlaggedFilter(true); }
+                else if (val === 'CLEARED') { reset(); setClearedFilter(true); }
+                else { reset(); setStatusFilter(val as MigrationStatus | 'ALL'); }
               }}
               className="w-full px-3 py-2.5 sm:py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none"
             >
               <option value="ALL">All Statuses</option>
               {isOfficer && <option value="REVIEW">Review Queue</option>}
+              {isOfficer && <option value="REVIEWED">Reviewed</option>}
               {isOfficer && <option value="FLAGGED">Flagged</option>}
               {isAdmin && <option value="CLEARED">Cleared by Officers</option>}
               <option value="ORIGINAL">Original</option>
