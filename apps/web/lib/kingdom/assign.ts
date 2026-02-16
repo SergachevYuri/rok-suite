@@ -160,43 +160,89 @@ function findBestAlliance(
 }
 
 /**
- * Suggest minPower thresholds that fill each alliance close to its cap
+ * Suggest thresholds that fill each alliance close to its cap
  * while maintaining rank order (higher-ranked alliances get higher thresholds).
  * Allows up to 5 open spots per alliance.
+ *
+ * Adjusts in order: minPower first, then minKp, then maxPowerKpRatio.
  */
 export function suggestThresholds(
   players: PlayerInput[],
   baseConfigs: AllianceConfig[],
   exemptIds?: Set<number>,
 ): AllianceConfig[] {
-  const SLACK = 5; // acceptable open spots per alliance
+  const SLACK = 5;
   const configs = baseConfigs.map(c => ({ ...c }));
   const sorted = [...configs].sort((a, b) => a.rank - b.rank);
 
-  let prevMinPower = 80_000_000; // enforce descending thresholds
+  let prevMinPower = 80_000_000;
 
   for (const cfg of sorted) {
     const idx = configs.findIndex(c => c.tag === cfg.tag);
-    let low = 0;
-    let high = prevMinPower; // can't exceed the alliance above
+    const target = cfg.cap - SLACK;
 
+    // Helper: run sorter and count fill for this alliance
+    const getFill = () => {
+      const result = assignAlliances(players, configs, exemptIds);
+      return result.filter(a => a.assignedAlliance === cfg.tag).length;
+    };
+
+    // Step 1: Binary search minPower
+    let low = 0;
+    let high = prevMinPower;
     for (let iter = 0; iter < 20; iter++) {
       const mid = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
       configs[idx].minPower = mid;
-
-      const result = assignAlliances(players, configs, exemptIds);
-      const fill = result.filter(a => a.assignedAlliance === cfg.tag).length;
-
-      if (fill < cfg.cap - SLACK) {
-        high = mid; // lower threshold to let more in
+      if (getFill() < target) {
+        high = mid;
       } else {
-        low = mid;  // raise threshold to be more selective
+        low = mid;
       }
     }
+    configs[idx].minPower = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
 
-    const finalPower = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
-    configs[idx].minPower = finalPower;
-    prevMinPower = finalPower; // next alliance must be ≤ this
+    // Step 2: If still underfilled and minKp is enabled, binary search it downward
+    if (configs[idx].minKp !== null && getFill() < target) {
+      const origKp = configs[idx].minKp!;
+      low = 0;
+      high = origKp;
+      for (let iter = 0; iter < 15; iter++) {
+        const mid = Math.round((low + high) / 2 / 500_000) * 500_000;
+        configs[idx].minKp = mid || null;
+        if (getFill() < target) {
+          high = mid;
+        } else {
+          low = mid;
+        }
+      }
+      const finalKp = Math.round((low + high) / 2 / 500_000) * 500_000;
+      configs[idx].minKp = finalKp || null;
+    }
+
+    // Step 3: If still underfilled and maxPowerKpRatio is enabled, binary search it upward
+    if (configs[idx].maxPowerKpRatio !== null && getFill() < target) {
+      const origRatio = configs[idx].maxPowerKpRatio!;
+      low = origRatio;
+      high = 5;
+      for (let iter = 0; iter < 15; iter++) {
+        const mid = Math.round((low + high) * 5) / 10;
+        configs[idx].maxPowerKpRatio = mid;
+        if (getFill() < target) {
+          low = mid;
+        } else {
+          high = mid;
+        }
+      }
+      configs[idx].maxPowerKpRatio = Math.round((low + high) * 5) / 10;
+    }
+
+    // Step 4: If STILL underfilled, disable secondary criteria entirely
+    if (getFill() < target) {
+      configs[idx].minKp = null;
+      configs[idx].maxPowerKpRatio = null;
+    }
+
+    prevMinPower = configs[idx].minPower;
   }
 
   return configs;
