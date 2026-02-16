@@ -19,7 +19,7 @@ export function assignAlliances(
   const assignments: PlayerAssignment[] = [];
   const assigned = new Set<number>();
 
-  // Pass 0: Exempt players (R4/R5) stay in their current alliance
+  // Pass 0a: Exempt players (R4/R5) stay in their current alliance
   if (exemptIds && exemptIds.size > 0) {
     for (const player of players) {
       if (!exemptIds.has(getId(player))) continue;
@@ -37,9 +37,26 @@ export function assignAlliances(
     }
   }
 
+  // Pass 0b: Accepted migrants — pin to their assigned alliance
+  for (const player of players) {
+    if (assigned.has(getId(player))) continue;
+    if (!isAcceptedMigrant(player)) continue;
+    const currentTag = toSorterTag(getAlliance(player));
+    if (remaining.has(currentTag) && (remaining.get(currentTag) ?? 0) > 0) {
+      assignments.push({
+        governorId: getId(player),
+        assignedAlliance: currentTag,
+        status: 'INCOMING',
+        reason: 'Accepted migrant — assigned to ' + currentTag,
+      });
+      assigned.add(getId(player));
+      remaining.set(currentTag, remaining.get(currentTag)! - 1);
+    }
+  }
+
   // Pass 1: Original kingdom members by power desc
   const originals = players
-    .filter(p => isOriginal(p) && !isIllegalStatus(p))
+    .filter(p => isOriginal(p) && !assigned.has(getId(p)) && !isIllegalStatus(p))
     .sort((a, b) => getPower(b) - getPower(a));
 
   for (const player of originals) {
@@ -51,22 +68,7 @@ export function assignAlliances(
     }
   }
 
-  // Pass 2: Accepted migrants by power desc
-  const accepted = players
-    .filter(p => isAcceptedMigrant(p) && !assigned.has(getId(p)))
-    .sort((a, b) => getPower(b) - getPower(a));
-
-  for (const player of accepted) {
-    const result = findBestAlliance(player, sortedConfigs, remaining);
-    if (result) {
-      result.status = 'INCOMING';
-      assignments.push(result);
-      assigned.add(getId(player));
-      remaining.set(result.assignedAlliance, remaining.get(result.assignedAlliance)! - 1);
-    }
-  }
-
-  // Pass 3: Everyone else (not illegal, not already assigned)
+  // Pass 2: Everyone else (not illegal, not already assigned)
   const others = players
     .filter(p => !assigned.has(getId(p)) && !isIllegalStatus(p))
     .sort((a, b) => getPower(b) - getPower(a));
@@ -88,7 +90,7 @@ export function assignAlliances(
     }
   }
 
-  // Pass 4: Mark illegals
+  // Pass 3: Mark illegals
   const illegals = players.filter(p => isIllegalStatus(p) && !assigned.has(getId(p)));
   for (const player of illegals) {
     assignments.push({
