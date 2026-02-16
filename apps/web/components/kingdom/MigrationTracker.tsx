@@ -759,7 +759,7 @@ export default function MigrationTracker() {
         )}
 
         {/* Officer Review Banner */}
-        {isOfficer && players.length > 0 && reviewProgress.total > 0 && (
+        {isOfficer && players.length > 0 && (reviewProgress.total > 0 || reviewProgress.flagged > 0) && (
           <div className="mb-6 p-3 sm:p-4 rounded-xl bg-sky-500/5 border border-sky-500/20">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
               <div className="flex-1">
@@ -838,11 +838,11 @@ export default function MigrationTracker() {
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === 'REVIEW') {
-                  setReviewFilter(true); setFlaggedFilter(false); setClearedFilter(false); setCardFilter(null);
+                  setReviewFilter(true); setFlaggedFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL');
                 } else if (val === 'FLAGGED') {
-                  setFlaggedFilter(true); setReviewFilter(false); setClearedFilter(false); setCardFilter(null);
+                  setFlaggedFilter(true); setReviewFilter(false); setClearedFilter(false); setCardFilter(null); setStatusFilter('ALL');
                 } else if (val === 'CLEARED') {
-                  setClearedFilter(true); setReviewFilter(false); setFlaggedFilter(false); setCardFilter(null);
+                  setClearedFilter(true); setReviewFilter(false); setFlaggedFilter(false); setCardFilter(null); setStatusFilter('ALL');
                 } else {
                   setReviewFilter(false); setFlaggedFilter(false); setClearedFilter(false); setStatusFilter(val as MigrationStatus | 'ALL'); setCardFilter(null);
                 }

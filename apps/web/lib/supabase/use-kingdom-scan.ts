@@ -707,7 +707,7 @@ export async function fetchPlayerOverrides(): Promise<Map<number, PlayerOverride
       .select('*')
       .range(from, from + 999);
     if (!data || data.length === 0) break;
-    for (const row of data) map.set(row.governor_id, row as PlayerOverride);
+    for (const row of data) map.set(Number(row.governor_id), row as PlayerOverride);
     if (data.length < 1000) break;
     from += 1000;
   }
