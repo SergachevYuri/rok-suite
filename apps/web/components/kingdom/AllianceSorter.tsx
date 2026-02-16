@@ -43,7 +43,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useLatestScan, saveAssignments } from '@/lib/supabase/use-kingdom-scan';
 import { useR4R5Members } from '@/lib/supabase/use-alliance-roster';
-import { assignAlliances } from '@/lib/kingdom/assign';
+import { assignAlliances, suggestThresholds } from '@/lib/kingdom/assign';
 import { DEFAULT_ALLIANCE_CONFIGS, SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
 import { matchesSearch } from '@/lib/search';
 import type { AllianceConfig, PlayerAssignment, AssignmentStatus, ScanPlayer } from '@/lib/kingdom/types';
@@ -210,6 +210,17 @@ export default function AllianceSorter() {
 
   const handleRunSorter = () => {
     const result = assignAlliances(players, configs, exemptIds.size > 0 ? exemptIds : undefined);
+    setAssignments(result);
+    setHasRun(true);
+    setSaveStatus(null);
+  };
+
+  const handleSuggest = () => {
+    const exempt = exemptIds.size > 0 ? exemptIds : undefined;
+    const suggested = suggestThresholds(players, configs, exempt);
+    setConfigs(suggested);
+    // Auto-run with the new configs
+    const result = assignAlliances(players, suggested, exempt);
     setAssignments(result);
     setHasRun(true);
     setSaveStatus(null);
@@ -534,6 +545,13 @@ export default function AllianceSorter() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={handleSuggest}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-amber-500 text-amber-500 hover:bg-amber-500/10 transition-colors"
+              >
+                <ArrowUpDown size={16} />
+                Suggest Thresholds
+              </button>
               <button
                 onClick={handleRunSorter}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors"

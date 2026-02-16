@@ -159,6 +159,44 @@ function findBestAlliance(
   return null;
 }
 
+/**
+ * Suggest minPower thresholds that fill each alliance close to its cap.
+ * Binary-searches minPower per alliance in rank order (top-down).
+ * Keeps secondary criteria (minKp, maxPowerKpRatio) unchanged.
+ */
+export function suggestThresholds(
+  players: PlayerInput[],
+  baseConfigs: AllianceConfig[],
+  exemptIds?: Set<number>,
+): AllianceConfig[] {
+  const configs = baseConfigs.map(c => ({ ...c }));
+  const sorted = [...configs].sort((a, b) => a.rank - b.rank);
+
+  for (const cfg of sorted) {
+    const idx = configs.findIndex(c => c.tag === cfg.tag);
+    let low = 0;
+    let high = 80_000_000;
+
+    for (let iter = 0; iter < 20; iter++) {
+      const mid = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
+      configs[idx].minPower = mid;
+
+      const result = assignAlliances(players, configs, exemptIds);
+      const fill = result.filter(a => a.assignedAlliance === cfg.tag).length;
+
+      if (fill < cfg.cap) {
+        high = mid; // lower threshold to let more in
+      } else {
+        low = mid;  // raise threshold to be more selective
+      }
+    }
+
+    configs[idx].minPower = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
+  }
+
+  return configs;
+}
+
 // ─── Polymorphic helpers for MergedPlayer | ScanPlayer ──────────────
 
 type PlayerInput = MergedPlayer | ScanPlayer;
