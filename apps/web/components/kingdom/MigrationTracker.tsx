@@ -123,13 +123,16 @@ export default function MigrationTracker() {
   }, [players]);
 
   const reviewProgress = useMemo(() => {
-    const reviewable = players.filter(p => p.migration_status === 'ILLEGAL' || p.migration_status === 'INACTIVE');
-    const reviewed = reviewable.filter(p => overrides.has(p.governor_id));
-    // Count flagged/cleared across ALL players (not just reviewable) so they stay visible
-    // even if a refresh changed their migration_status before this fix was deployed.
     const flagged = players.filter(p => overrides.get(p.governor_id)?.officer_status === 'confirmed').length;
     const cleared = players.filter(p => overrides.get(p.governor_id)?.officer_status === 'cleared').length;
-    return { total: reviewable.length, reviewed: reviewed.length, flagged, cleared };
+    const totalReviewed = flagged + cleared;
+    // Remaining = ILLEGAL/INACTIVE players without a review
+    const remaining = players.filter(p =>
+      (p.migration_status === 'ILLEGAL' || p.migration_status === 'INACTIVE')
+      && !overrides.has(p.governor_id)
+    ).length;
+    const total = totalReviewed + remaining;
+    return { total, reviewed: totalReviewed, remaining, flagged, cleared };
   }, [players, overrides]);
 
   const filteredPlayers = useMemo(() => {
@@ -785,7 +788,7 @@ export default function MigrationTracker() {
                       : 'bg-sky-500/10 text-sky-400 border border-sky-500/30 active:bg-sky-500/20'
                   }`}
                 >
-                  {reviewFilter ? 'Show All' : `Review Queue (${reviewProgress.total - reviewProgress.reviewed})`}
+                  {reviewFilter ? 'Show All' : `Review Queue (${reviewProgress.remaining})`}
                 </button>
                 {reviewProgress.flagged > 0 && (
                   <button
@@ -810,6 +813,7 @@ export default function MigrationTracker() {
               </div>
               <div className="text-xs text-[var(--text-muted)] shrink-0">
                 {reviewProgress.reviewed}/{reviewProgress.total} reviewed
+                {reviewProgress.remaining > 0 && <span> &middot; {reviewProgress.remaining} left</span>}
                 {reviewProgress.flagged > 0 && <span className="text-red-400"> &middot; {reviewProgress.flagged} flagged</span>}
                 {reviewProgress.cleared > 0 && <span className="text-emerald-400"> &middot; {reviewProgress.cleared} OK</span>}
               </div>
