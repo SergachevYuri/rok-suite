@@ -618,29 +618,22 @@ export async function refreshMigrantsOnScan(
     };
   }
 
-  // 4b. Apply officer overrides
+  // 4b. Apply officer overrides (cleared → ORIGINAL)
   const overrides = await fetchPlayerOverrides();
   for (const update of updates) {
     const override = overrides.get(update.governor_id);
-    // Cleared → force to ORIGINAL
     if (override?.officer_status === 'cleared' && update.migration_status !== 'ORIGINAL') {
       statusChanges++;
       update.migration_status = 'ORIGINAL';
       update.is_migrant = false;
       update.migrant_accepted = false;
     }
-    // Confirmed (flagged) → force to ILLEGAL so they stay in the review queue
-    if (override?.officer_status === 'confirmed'
-        && update.migration_status !== 'ILLEGAL' && update.migration_status !== 'INACTIVE') {
-      update.migration_status = 'ILLEGAL';
-    }
   }
-  // Also check players not in the updates list that have overrides
+  // Also check players not in the updates list that have a 'cleared' override
   const updatedIds = new Set(updates.map(u => u.governor_id));
   for (const player of allPlayers) {
     if (updatedIds.has(player.governor_id)) continue;
     const override = overrides.get(Number(player.governor_id));
-    // Cleared → force to ORIGINAL
     if (override?.officer_status === 'cleared' && player.migration_status !== 'ORIGINAL') {
       updates.push({
         governor_id: player.governor_id,
@@ -650,20 +643,6 @@ export async function refreshMigrantsOnScan(
         migrant_group: null,
         migrant_recruiter: null,
         starting_kd: null,
-      });
-      statusChanges++;
-    }
-    // Confirmed (flagged) → revert to ILLEGAL if previously corrupted to non-reviewable
-    if (override?.officer_status === 'confirmed'
-        && player.migration_status !== 'ILLEGAL' && player.migration_status !== 'INACTIVE') {
-      updates.push({
-        governor_id: player.governor_id,
-        migration_status: 'ILLEGAL',
-        is_migrant: player.is_migrant,
-        migrant_accepted: player.migrant_accepted,
-        migrant_group: player.migrant_group,
-        migrant_recruiter: player.migrant_recruiter,
-        starting_kd: player.starting_kd,
       });
       statusChanges++;
     }

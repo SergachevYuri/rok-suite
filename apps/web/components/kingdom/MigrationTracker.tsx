@@ -303,20 +303,14 @@ export default function MigrationTracker() {
         }
       }
 
-      // Post-process: apply officer overrides
+      // Post-process: apply officer overrides (cleared → ORIGINAL)
       const uploadOverrides = await fetchPlayerOverrides();
       for (const player of merged) {
         const override = uploadOverrides.get(player.governorId);
-        // Cleared → force to ORIGINAL
         if (override?.officer_status === 'cleared' && player.migrationStatus !== 'ORIGINAL') {
           player.migrationStatus = 'ORIGINAL';
           player.isMigrant = false;
           player.migrantAccepted = false;
-        }
-        // Confirmed (flagged) → keep as ILLEGAL so they stay visible for officers
-        if (override?.officer_status === 'confirmed'
-            && player.migrationStatus !== 'ILLEGAL' && player.migrationStatus !== 'INACTIVE') {
-          player.migrationStatus = 'ILLEGAL';
         }
       }
 
