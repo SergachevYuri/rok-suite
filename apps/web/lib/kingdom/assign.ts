@@ -160,22 +160,25 @@ function findBestAlliance(
 }
 
 /**
- * Suggest minPower thresholds that fill each alliance close to its cap.
- * Binary-searches minPower per alliance in rank order (top-down).
- * Keeps secondary criteria (minKp, maxPowerKpRatio) unchanged.
+ * Suggest minPower thresholds that fill each alliance close to its cap
+ * while maintaining rank order (higher-ranked alliances get higher thresholds).
+ * Allows up to 5 open spots per alliance.
  */
 export function suggestThresholds(
   players: PlayerInput[],
   baseConfigs: AllianceConfig[],
   exemptIds?: Set<number>,
 ): AllianceConfig[] {
+  const SLACK = 5; // acceptable open spots per alliance
   const configs = baseConfigs.map(c => ({ ...c }));
   const sorted = [...configs].sort((a, b) => a.rank - b.rank);
+
+  let prevMinPower = 80_000_000; // enforce descending thresholds
 
   for (const cfg of sorted) {
     const idx = configs.findIndex(c => c.tag === cfg.tag);
     let low = 0;
-    let high = 80_000_000;
+    let high = prevMinPower; // can't exceed the alliance above
 
     for (let iter = 0; iter < 20; iter++) {
       const mid = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
@@ -184,14 +187,16 @@ export function suggestThresholds(
       const result = assignAlliances(players, configs, exemptIds);
       const fill = result.filter(a => a.assignedAlliance === cfg.tag).length;
 
-      if (fill < cfg.cap) {
+      if (fill < cfg.cap - SLACK) {
         high = mid; // lower threshold to let more in
       } else {
         low = mid;  // raise threshold to be more selective
       }
     }
 
-    configs[idx].minPower = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
+    const finalPower = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
+    configs[idx].minPower = finalPower;
+    prevMinPower = finalPower; // next alliance must be ≤ this
   }
 
   return configs;
