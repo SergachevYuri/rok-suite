@@ -173,6 +173,7 @@ export function suggestThresholds(
   exemptIds?: Set<number>,
 ): AllianceConfig[] {
   const SLACK = 5;
+  const STEP = 100_000;  // 100K granularity for precise fill targeting
   const configs = baseConfigs.map(c => ({
     ...c,
     minKp: null,              // disable secondaries for clean fill
@@ -189,8 +190,8 @@ export function suggestThresholds(
     let low = 0;
     let high = prevMinPower;
 
-    for (let iter = 0; iter < 25; iter++) {
-      const mid = Math.round((low + high) / 2 / 1_000_000) * 1_000_000;
+    for (let iter = 0; iter < 30; iter++) {
+      const mid = Math.round((low + high) / 2 / STEP) * STEP;
       configs[idx].minPower = mid;
 
       const result = assignAlliances(players, configs, exemptIds);
@@ -203,10 +204,23 @@ export function suggestThresholds(
       }
     }
 
-    // Use `low` — it's the highest threshold that still fills to target.
-    // Averaging low+high can round UP to the value that doesn't fill.
+    // Pick whichever of low/high gets fill closer to target (~cap-5).
+    // Prefer the higher threshold (fewer members) when tied, to leave open spots.
     configs[idx].minPower = low;
-    prevMinPower = low;
+    const fillAtLow = assignAlliances(players, configs, exemptIds)
+      .filter(a => a.assignedAlliance === cfg.tag).length;
+    configs[idx].minPower = high;
+    const fillAtHigh = assignAlliances(players, configs, exemptIds)
+      .filter(a => a.assignedAlliance === cfg.tag).length;
+
+    const diffLow = Math.abs(fillAtLow - target);
+    const diffHigh = Math.abs(fillAtHigh - target);
+    // Prefer high (more open spots) when tied or when low hits cap
+    const useHigh = diffHigh < diffLow || (diffHigh === diffLow) || fillAtLow >= cfg.cap;
+    const finalPower = useHigh ? high : low;
+
+    configs[idx].minPower = finalPower;
+    prevMinPower = finalPower;
   }
 
   return configs;

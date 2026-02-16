@@ -1056,9 +1056,9 @@ function SortableConfigCard({
             <div className="flex items-center gap-1">
               <input
                 type="number"
-                value={parseFloat((cfg.minPower / 1_000_000).toFixed(0))}
+                value={parseFloat((cfg.minPower / 1_000_000).toFixed(1))}
                 onChange={(e) => updateConfig(index, 'minPower', e.target.value)}
-                min={0} max={60} step={1}
+                min={0} max={60} step={0.1}
                 className={inputClass}
               />
               <span className="text-sm font-semibold text-[var(--text-muted)]">M</span>
@@ -1066,7 +1066,7 @@ function SortableConfigCard({
           </div>
           <input
             type="range"
-            min={0} max={60} step={1}
+            min={0} max={60} step={0.1}
             value={cfg.minPower / 1_000_000}
             onChange={(e) => updateConfig(index, 'minPower', e.target.value)}
             className="w-full h-2 rounded-full cursor-pointer"
