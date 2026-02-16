@@ -25,6 +25,7 @@ import {
   LayoutGrid,
   List,
   GripVertical,
+  RotateCcw,
 } from 'lucide-react';
 import {
   DndContext,
@@ -633,19 +634,39 @@ export default function AllianceSorter() {
           </div>
         )}
 
-        {/* Status Summary */}
+        {/* Status Summary — clickable filters */}
         {effectiveAssignments.size > 0 && (
-          <div className="flex flex-wrap gap-3 mb-6">
+          <div className="flex flex-wrap gap-2 mb-6">
             {(Object.entries(statusCounts) as [AssignmentStatus, number][]).map(([status, count]) => {
               if (count === 0) return null;
               const style = STATUS_STYLES[status];
+              const isActive = statusFilter === status;
               return (
-                <div key={status} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(isActive ? 'ALL' : status)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                    isActive
+                      ? `${style.bg} ${style.text} ring-2 ring-offset-1 ring-offset-[var(--background)] ring-current`
+                      : statusFilter === 'ALL'
+                        ? `${style.bg} ${style.text}`
+                        : `${style.bg} ${style.text} opacity-40`
+                  }`}
+                >
                   {style.icon}
                   {status}: {count}
-                </div>
+                </button>
               );
             })}
+            {statusFilter !== 'ALL' && (
+              <button
+                onClick={() => setStatusFilter('ALL')}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+              >
+                <RotateCcw size={12} />
+                View All
+              </button>
+            )}
           </div>
         )}
 
@@ -692,18 +713,6 @@ export default function AllianceSorter() {
                 className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-amber-500/50"
               />
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as AssignmentStatus | 'ALL')}
-              className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="STAY">Stay</option>
-              <option value="MOVE">Move</option>
-              <option value="INCOMING">Incoming</option>
-              <option value="ILLEGAL">Illegal</option>
-              <option value="UNASSIGNED">Unassigned</option>
-            </select>
             <select
               value={allianceFilter}
               onChange={(e) => setAllianceFilter(e.target.value)}
