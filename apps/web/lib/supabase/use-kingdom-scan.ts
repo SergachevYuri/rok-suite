@@ -503,13 +503,17 @@ export async function refreshMigrantsOnScan(
   //
   // Priority order:
   //   0. Inactives sheet match → INACTIVE (highest priority)
-  //   1. Governor ID on roster → ORIGINAL (roster is curated by leadership, always wins)
-  //   2. Name match on roster → ORIGINAL
-  //   3. Governor ID match on migrant sheet → status from sheet
-  //   4. Name match on migrant sheet (only if governor_ids don't conflict) → status from sheet
+  //   1. Governor ID match on migrant sheet → status from sheet (migrant sheet is explicit, wins over roster)
+  //   2. Name match on migrant sheet (only if governor_ids don't conflict) → status from sheet
+  //   3. Governor ID on roster → ORIGINAL
+  //   4. Name match on roster → ORIGINAL
   //   5. Governor ID in pre-migration → ORIGINAL (fallback for non-roster, non-migrant players)
   //   6. Previously migrant but no longer on any list → ORIGINAL (cleared by leadership)
-  //   7. No match → ILLEGAL (genuine unverified)
+  //   7. No match → stays as-is
+  //
+  // Migrant sheet is checked before roster because the roster gets auto-populated
+  // by updateRosterFromScan — accepted migrants in kingdom alliances would otherwise
+  // be overwritten to ORIGINAL on every refresh.
   //
   // After computing status, officer overrides are applied (cleared → ORIGINAL).
 
@@ -527,21 +531,7 @@ export async function refreshMigrantsOnScan(
       }
     }
 
-    // --- Step 1: Governor ID on roster → ORIGINAL (roster always wins) ---
-    if (roster.ids.has(player.governor_id)) {
-      const update = buildOriginalUpdate(player);
-      if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
-      continue;
-    }
-
-    // --- Step 2: Name match on roster → ORIGINAL ---
-    if (playerNorm && roster.normalizedNames.has(playerNorm)) {
-      const update = buildOriginalUpdate(player);
-      if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
-      continue;
-    }
-
-    // --- Step 3: Governor ID match on migrant sheet ---
+    // --- Step 1: Governor ID match on migrant sheet → status from sheet ---
     const migrantById = player.governor_id ? migrantByGovId.get(player.governor_id) : undefined;
     if (migrantById) {
       const update = buildMigrantUpdate(player, migrantById);
@@ -549,7 +539,7 @@ export async function refreshMigrantsOnScan(
       continue;
     }
 
-    // --- Step 4: Name match on migrant sheet (only if governor_ids don't conflict) ---
+    // --- Step 2: Name match on migrant sheet (only if governor_ids don't conflict) ---
     if (playerNorm) {
       const migrantByName = migrantByNorm.get(playerNorm);
       if (migrantByName && (!migrantByName.governorId || !player.governor_id || migrantByName.governorId === player.governor_id)) {
@@ -557,6 +547,20 @@ export async function refreshMigrantsOnScan(
         if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
         continue;
       }
+    }
+
+    // --- Step 3: Governor ID on roster → ORIGINAL ---
+    if (roster.ids.has(player.governor_id)) {
+      const update = buildOriginalUpdate(player);
+      if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
+      continue;
+    }
+
+    // --- Step 4: Name match on roster → ORIGINAL ---
+    if (playerNorm && roster.normalizedNames.has(playerNorm)) {
+      const update = buildOriginalUpdate(player);
+      if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
+      continue;
     }
 
     // --- Step 5: Governor ID in pre-migration → ORIGINAL ---
