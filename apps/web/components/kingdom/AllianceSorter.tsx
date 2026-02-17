@@ -46,10 +46,11 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useLatestScan, saveAssignments, saveSingleAssignment } from '@/lib/supabase/use-kingdom-scan';
+import { useLatestScan, saveAssignments, saveSingleAssignment, refreshMigrantsOnScan } from '@/lib/supabase/use-kingdom-scan';
+import { fetchMigrantSheet, fetchInactivesSheet } from '@/lib/kingdom/parse';
 import { useR4R5Members } from '@/lib/supabase/use-alliance-roster';
 import { assignAlliances, suggestThresholds } from '@/lib/kingdom/assign';
-import { DEFAULT_ALLIANCE_CONFIGS, SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
+import { DEFAULT_ALLIANCE_CONFIGS, SORTER_ALLIANCE_COLORS, MIGRANT_SHEET_URL, INACTIVES_SHEET_URL, formatNumber, toSorterTag } from '@/lib/kingdom/config';
 import { matchesSearch } from '@/lib/search';
 import type { AllianceConfig, PlayerAssignment, AssignmentStatus, ScanPlayer } from '@/lib/kingdom/types';
 import { useSorterVersions, saveSorterVersion, loadSorterVersion, deleteSorterVersion } from '@/lib/supabase/use-sorter-versions';
@@ -128,6 +129,27 @@ export default function AllianceSorter() {
       setExemptIds(autoExempt);
     }
   }, [r4r5Members, players]);
+
+  // Auto-refresh migration statuses from Google Sheets when scan loads
+  const hasRefreshedRef = useRef(false);
+  useEffect(() => {
+    if (!scan || players.length === 0 || hasRefreshedRef.current) return;
+    hasRefreshedRef.current = true;
+    (async () => {
+      try {
+        const [migrants, inactives] = await Promise.all([
+          fetchMigrantSheet(MIGRANT_SHEET_URL),
+          fetchInactivesSheet(INACTIVES_SHEET_URL),
+        ]);
+        const result = await refreshMigrantsOnScan(scan.id, migrants, inactives);
+        if (result.statusChanges > 0) {
+          await refetch(); // Reload players with updated migration statuses
+        }
+      } catch {
+        // Silently continue — stale statuses are better than a broken page
+      }
+    })();
+  }, [scan, players.length, refetch]);
 
   // Cleanup save indicator timer on unmount
   useEffect(() => {
