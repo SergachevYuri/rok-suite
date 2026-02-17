@@ -164,17 +164,41 @@ export default function AllianceSorter() {
     return map;
   }, [assignments]);
 
-  // Use saved assignments from Supabase if available and sorter hasn't been run
+  // Use saved assignments from Supabase if available and sorter hasn't been run.
+  // ALL players must appear — those without assignments default based on migration status.
   const effectiveAssignments = useMemo(() => {
     if (hasRun) return assignmentMap;
     const map = new Map<number, PlayerAssignment>();
     for (const p of players) {
       if (p.assignment_status) {
+        // Flagged players with stale assignments should be forced to unassigned
+        const isFlagged = FLAGGED_MIGRATION_STATUSES.has(p.migration_status);
+        const isManualOverride = p.assignment_reason === 'Manual override';
+        if (isFlagged && p.assigned_alliance && !isManualOverride) {
+          map.set(p.governor_id, {
+            governorId: p.governor_id,
+            assignedAlliance: '',
+            status: 'ILLEGAL',
+            reason: `Flagged — ${p.migration_status.toLowerCase()} in migration tracker`,
+          });
+        } else {
+          map.set(p.governor_id, {
+            governorId: p.governor_id,
+            assignedAlliance: p.assigned_alliance || '',
+            status: p.assignment_status,
+            reason: p.assignment_reason || '',
+          });
+        }
+      } else {
+        // No assignment yet — create default entry so player is visible
+        const isFlagged = FLAGGED_MIGRATION_STATUSES.has(p.migration_status);
         map.set(p.governor_id, {
           governorId: p.governor_id,
-          assignedAlliance: p.assigned_alliance || '',
-          status: p.assignment_status,
-          reason: p.assignment_reason || '',
+          assignedAlliance: '',
+          status: isFlagged ? 'ILLEGAL' : 'UNASSIGNED',
+          reason: isFlagged
+            ? `Flagged — ${p.migration_status.toLowerCase()} in migration tracker`
+            : 'Not yet sorted',
         });
       }
     }
