@@ -4,8 +4,12 @@ const ALLIANCE_DISPLAY_NAMES: Record<string, string> = {
     '23KK': 'MNG',
     'KNG': 'KNG',
     'K23S': 'SNG',
-    '23A': 'ING',
+    '23A': 'ENG',
+    '23-A': 'ENG',
     'EQ': 'ENG',
+    '23SP': 'ING',
+    'ING': 'ING',
+    'GNG': 'GNG',
 };
 
 export function allianceDisplay(tag: string | null): string {

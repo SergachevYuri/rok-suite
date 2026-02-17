@@ -6,9 +6,8 @@ export const DEFAULT_ALLIANCE_CONFIGS: AllianceConfig[] = [
   { tag: 'KNG', rank: 3, cap: 91,  minPower: 16_000_000, minKp: 10_000_000, maxPowerKpRatio: 1.0, thresholdMode: 'all' },
   { tag: 'ENG', rank: 4, cap: 96,  minPower: 14_000_000, minKp: 5_000_000,  maxPowerKpRatio: 1.0, thresholdMode: 'all' },
   { tag: 'SNG', rank: 5, cap: 88,  minPower: 10_000_000, minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
-  { tag: '23A', rank: 6, cap: 97,  minPower: 8_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
-  { tag: '23SP', rank: 7, cap: 110, minPower: 8_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
-  { tag: 'GNG',  rank: 8, cap: 100, minPower: 1_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
+  { tag: 'ING', rank: 6, cap: 110, minPower: 8_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
+  { tag: 'GNG', rank: 7, cap: 100, minPower: 1_000_000,  minKp: null,       maxPowerKpRatio: null, thresholdMode: 'all' },
 ];
 
 export const MIGRANT_SHEET_URL =
@@ -18,7 +17,7 @@ export const INACTIVES_SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1VoYEGLmM4H1HQ-uHSwgI_8SrQM4wryGH/export?format=csv&gid=4777644';
 
 /** Alliance tags that belong to this kingdom */
-export const KINGDOM_ALLIANCE_TAGS = ['ANG', '23KK', 'KNG', 'K23S', '23A', '23-A', 'EQ', '23SP', 'GNG'];
+export const KINGDOM_ALLIANCE_TAGS = ['ANG', '23KK', 'KNG', 'K23S', '23A', '23-A', 'EQ', '23SP', 'ING', 'GNG'];
 
 /** Map in-game alliance tags → sorter display tags */
 export const ALLIANCE_TAG_TO_SORTER: Record<string, string> = {
@@ -26,10 +25,11 @@ export const ALLIANCE_TAG_TO_SORTER: Record<string, string> = {
   '23KK': 'MNG',
   'KNG': 'KNG',
   'K23S': 'SNG',
-  '23A': '23A',
-  '23-A': '23A',
+  '23A': 'ENG',
+  '23-A': 'ENG',
   'EQ': 'ENG',
-  '23SP': '23SP',
+  '23SP': 'ING',
+  'ING': 'ING',
   'GNG': 'GNG',
 };
 
@@ -40,8 +40,7 @@ export const SORTER_ALLIANCE_COLORS: Record<string, string> = {
   KNG: '#3399ff',
   ENG: '#9933ff',
   SNG: '#999999',
-  '23A': '#ff9933',
-  '23SP': '#66cccc',
+  ING: '#66cccc',
   GNG: '#cc6699',
 };
 

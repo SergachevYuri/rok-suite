@@ -57,6 +57,9 @@ import SorterBoardView from './SorterBoardView';
 
 const EDITOR_PASSWORD = 'carn-dum';
 
+/** Migration statuses that should be separated into the flagged section */
+const FLAGGED_MIGRATION_STATUSES = new Set(['ILLEGAL', 'PENDING', 'INACTIVE']);
+
 const STATUS_STYLES: Record<AssignmentStatus, { bg: string; text: string; icon: React.ReactNode }> = {
   STAY: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', icon: <Check size={12} /> },
   MOVE: { bg: 'bg-sky-500/10', text: 'text-sky-500', icon: <ArrowRight size={12} /> },
@@ -94,6 +97,9 @@ export default function AllianceSorter() {
   const [exemptIds, setExemptIds] = useState<Set<number>>(new Set());
   const [showExemptSection, setShowExemptSection] = useState(false);
   const [manualExemptInput, setManualExemptInput] = useState('');
+
+  // Flagged section
+  const [showFlagged, setShowFlagged] = useState(false);
 
   // Versions
   const [showVersions, setShowVersions] = useState(false);
@@ -175,14 +181,24 @@ export default function AllianceSorter() {
     return map;
   }, [players, hasRun, assignmentMap]);
 
-  // Status counts
+  // Check if a player is flagged (ILLEGAL/PENDING/INACTIVE migration status without a manual alliance override)
+  const isFlaggedPlayer = useCallback((p: ScanPlayer, assignment?: PlayerAssignment) => {
+    if (!FLAGGED_MIGRATION_STATUSES.has(p.migration_status)) return false;
+    // If manually assigned to an alliance, they graduate to the main sort
+    if (assignment?.assignedAlliance && assignment.reason === 'Manual override') return false;
+    return true;
+  }, []);
+
+  // Status counts (excluding flagged players)
   const statusCounts = useMemo(() => {
     const counts: Record<AssignmentStatus, number> = { STAY: 0, MOVE: 0, INCOMING: 0, ILLEGAL: 0, UNASSIGNED: 0 };
     for (const a of effectiveAssignments.values()) {
+      const player = players.find(p => p.governor_id === a.governorId);
+      if (player && isFlaggedPlayer(player, a)) continue;
       counts[a.status]++;
     }
     return counts;
-  }, [effectiveAssignments]);
+  }, [effectiveAssignments, players, isFlaggedPlayer]);
 
   // Alliance fill rates
   const allianceFill = useMemo(() => {
@@ -203,12 +219,22 @@ export default function AllianceSorter() {
     return fill;
   }, [effectiveAssignments, configs, players]);
 
-  // Merge players with assignments for table display
+  // Separate flagged players from the main sort
+  const flaggedData = useMemo(() => {
+    return players
+      .filter(p => isFlaggedPlayer(p, effectiveAssignments.get(p.governor_id)))
+      .map(p => ({ player: p, assignment: effectiveAssignments.get(p.governor_id) }))
+      .sort((a, b) => b.player.power - a.player.power);
+  }, [players, effectiveAssignments, isFlaggedPlayer]);
+
+  // Merge players with assignments for table display (excluding flagged)
   const tableData = useMemo(() => {
-    let result = players.map(p => ({
-      player: p,
-      assignment: effectiveAssignments.get(p.governor_id),
-    }));
+    let result = players
+      .filter(p => !isFlaggedPlayer(p, effectiveAssignments.get(p.governor_id)))
+      .map(p => ({
+        player: p,
+        assignment: effectiveAssignments.get(p.governor_id),
+      }));
 
     if (search.trim()) {
       result = result.filter(r => matchesSearch(search, r.player.name, r.player.governor_id));
@@ -236,7 +262,7 @@ export default function AllianceSorter() {
     });
 
     return result;
-  }, [players, effectiveAssignments, search, statusFilter, allianceFilter, sortField, sortDir]);
+  }, [players, effectiveAssignments, isFlaggedPlayer, search, statusFilter, allianceFilter, sortField, sortDir]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -927,8 +953,11 @@ export default function AllianceSorter() {
         {/* Board View */}
         {players.length > 0 && viewMode === 'board' && effectiveAssignments.size > 0 && (
           <SorterBoardView
-            players={players}
-            assignments={[...effectiveAssignments.values()]}
+            players={players.filter(p => !isFlaggedPlayer(p, effectiveAssignments.get(p.governor_id)))}
+            assignments={[...effectiveAssignments.values()].filter(a => {
+              const player = players.find(p => p.governor_id === a.governorId);
+              return !player || !isFlaggedPlayer(player, a);
+            })}
             configs={configs}
             statusFilter={statusFilter}
             onAssignmentsChange={(updated) => {
@@ -950,7 +979,7 @@ export default function AllianceSorter() {
             {/* Count + mobile sort */}
             <div className="flex items-center justify-between mb-3">
               <div className="text-xs text-[var(--text-muted)]">
-                Showing {tableData.length} of {players.length} players
+                Showing {tableData.length} of {players.length - flaggedData.length} players
               </div>
               <div className="flex items-center gap-2 md:hidden">
                 <select
@@ -1012,6 +1041,103 @@ export default function AllianceSorter() {
             <p className="text-sm mt-1">Upload scan data in the Migration Tracker first.</p>
           </div>
         ) : null}
+
+        {/* Flagged Players Section */}
+        {flaggedData.length > 0 && (
+          <div className="mt-8 border border-red-500/20 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setShowFlagged(!showFlagged)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-red-500/[0.05] hover:bg-red-500/[0.08] transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={16} className="text-red-400" />
+                <span className="text-sm font-medium text-red-400">
+                  Flagged — Needs Action
+                </span>
+                <span className="px-1.5 py-0.5 text-xs rounded-full bg-red-500/10 text-red-400 font-medium">
+                  {flaggedData.length}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                <span>Migrate out or zero</span>
+                {showFlagged ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </div>
+            </button>
+
+            {showFlagged && (
+              <div className="p-4">
+                <p className="text-xs text-[var(--text-muted)] mb-3">
+                  These players are flagged as illegal, pending, or inactive from the migration tracker. Assign them to an alliance manually to include them in the sort.
+                </p>
+
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-2">
+                  {flaggedData.map(({ player, assignment }) => (
+                    <AssignmentCard key={player.governor_id} player={player} assignment={assignment} allianceTags={allianceTags} onReassign={handleReassign} />
+                  ))}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block rounded-xl border border-[var(--border)] overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-[var(--background-secondary)] border-b border-[var(--border)]">
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Name</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-[var(--text-muted)] uppercase">Power</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-medium text-[var(--text-muted)] uppercase">KP</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Current</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Migration</th>
+                        <th className="px-3 py-2.5 text-left text-xs font-medium text-[var(--text-muted)] uppercase">Assign To</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {flaggedData.map(({ player, assignment }) => (
+                        <tr key={player.governor_id} className="border-b border-[var(--border)] bg-red-500/[0.02]">
+                          <td className="px-3 py-2.5">
+                            <div className="font-medium text-[var(--foreground)]">{player.name}</div>
+                            <div className="text-xs text-[var(--text-muted)]">#{player.governor_id}</div>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono text-[var(--foreground)]">
+                            {formatNumber(player.power)}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono text-[var(--foreground)]">
+                            {player.kill_points > 0 ? formatNumber(player.kill_points) : '-'}
+                          </td>
+                          <td className="px-3 py-2.5 text-[var(--text-secondary)]">
+                            {toSorterTag(player.current_alliance) || '-'}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              player.migration_status === 'ILLEGAL'
+                                ? 'bg-red-500/10 text-red-500'
+                                : player.migration_status === 'PENDING'
+                                  ? 'bg-amber-500/10 text-amber-500'
+                                  : 'bg-gray-500/10 text-gray-400'
+                            }`}>
+                              {player.migration_status}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <select
+                              value={assignment?.assignedAlliance || ''}
+                              onChange={(e) => handleReassign(player.governor_id, e.target.value)}
+                              className="px-1.5 py-0.5 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-sm font-medium text-[var(--foreground)] focus:outline-none focus:border-amber-500/50 cursor-pointer"
+                            >
+                              <option value="">—</option>
+                              {allianceTags.map(tag => (
+                                <option key={tag} value={tag}>{tag}</option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
