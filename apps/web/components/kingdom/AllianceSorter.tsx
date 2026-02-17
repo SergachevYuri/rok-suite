@@ -27,6 +27,9 @@ import {
   GripVertical,
   RotateCcw,
   CheckCircle2,
+  History,
+  Trash2,
+  BookmarkPlus,
 } from 'lucide-react';
 import {
   DndContext,
@@ -49,6 +52,7 @@ import { assignAlliances, suggestThresholds } from '@/lib/kingdom/assign';
 import { DEFAULT_ALLIANCE_CONFIGS, SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
 import { matchesSearch } from '@/lib/search';
 import type { AllianceConfig, PlayerAssignment, AssignmentStatus, ScanPlayer } from '@/lib/kingdom/types';
+import { useSorterVersions, saveSorterVersion, loadSorterVersion, deleteSorterVersion } from '@/lib/supabase/use-sorter-versions';
 import SorterBoardView from './SorterBoardView';
 
 const EDITOR_PASSWORD = 'carn-dum';
@@ -69,6 +73,7 @@ type ViewMode = 'table' | 'board';
 export default function AllianceSorter() {
   const { scan, players, loading, refetch } = useLatestScan();
   const { members: r4r5Members } = useR4R5Members();
+  const { versions, refetch: refetchVersions } = useSorterVersions(scan?.id ?? null);
 
   // Admin
   const [isAdmin, setIsAdmin] = useState(false);
@@ -89,6 +94,12 @@ export default function AllianceSorter() {
   const [exemptIds, setExemptIds] = useState<Set<number>>(new Set());
   const [showExemptSection, setShowExemptSection] = useState(false);
   const [manualExemptInput, setManualExemptInput] = useState('');
+
+  // Versions
+  const [showVersions, setShowVersions] = useState(false);
+  const [versionName, setVersionName] = useState('');
+  const [isSavingVersion, setIsSavingVersion] = useState(false);
+  const [isLoadingVersion, setIsLoadingVersion] = useState(false);
 
   // View
   const [viewMode, setViewMode] = useState<ViewMode>('table');
@@ -329,6 +340,55 @@ export default function AllianceSorter() {
     a.download = `alliance-sorter-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSaveVersion = async () => {
+    if (!scan || !versionName.trim()) return;
+    const toSave = assignments.length > 0 ? assignments : [...effectiveAssignments.values()];
+    if (toSave.length === 0) return;
+
+    if (versions.some(v => v.name === versionName.trim())) {
+      if (!window.confirm(`A version named "${versionName.trim()}" already exists. Overwrite it?`)) return;
+    }
+
+    setIsSavingVersion(true);
+    const id = await saveSorterVersion(scan.id, versionName.trim(), configs, toSave, [...exemptIds]);
+    if (id) {
+      setVersionName('');
+      await refetchVersions();
+    }
+    setIsSavingVersion(false);
+  };
+
+  const handleRestoreVersion = async (versionId: number, name: string) => {
+    if (!window.confirm(`Restore version "${name}"? This will replace all current assignments and configs.`)) return;
+    setIsLoadingVersion(true);
+    const version = await loadSorterVersion(versionId);
+    if (version) {
+      setConfigs(version.configs);
+      setExemptIds(new Set(version.exempt_ids));
+      setAssignments(version.assignments);
+      setHasRun(true);
+      await autoSaveAll(version.assignments);
+    }
+    setIsLoadingVersion(false);
+  };
+
+  const handleDeleteVersion = async (versionId: number, name: string) => {
+    if (!window.confirm(`Delete version "${name}"? This cannot be undone.`)) return;
+    await deleteSorterVersion(versionId);
+    await refetchVersions();
+  };
+
+  const formatTimeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
   };
 
   const updateConfig = (index: number, field: keyof AllianceConfig, value: string) => {
@@ -631,6 +691,94 @@ export default function AllianceSorter() {
             <p className="mt-3 text-xs text-[var(--text-muted)]">
               All changes auto-save immediately — drag-and-drop moves, manual reassignments, and sorter runs are saved to the database as they happen. Use the Save button to force a full re-save.
             </p>
+
+            {/* Saved Versions */}
+            <div className="mt-4 border-t border-[var(--border)] pt-4">
+              <button
+                onClick={() => setShowVersions(!showVersions)}
+                className="flex items-center gap-2 text-sm font-medium text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                <History size={16} />
+                Saved Versions
+                {versions.length > 0 && (
+                  <span className="px-1.5 py-0.5 text-xs rounded-full bg-[var(--background-secondary)] text-[var(--text-muted)]">
+                    {versions.length}
+                  </span>
+                )}
+                {showVersions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+
+              {showVersions && (
+                <div className="mt-3 space-y-3">
+                  {/* Save current state */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={versionName}
+                      onChange={e => setVersionName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveVersion()}
+                      placeholder="Version name..."
+                      className="flex-1 px-3 py-1.5 rounded-lg text-sm bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] placeholder:text-[var(--text-muted)]"
+                    />
+                    <button
+                      onClick={handleSaveVersion}
+                      disabled={isSavingVersion || !versionName.trim() || effectiveAssignments.size === 0}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                    >
+                      {isSavingVersion ? <Loader2 size={14} className="animate-spin" /> : <BookmarkPlus size={14} />}
+                      Save
+                    </button>
+                  </div>
+
+                  {/* Version list */}
+                  {isLoadingVersion && (
+                    <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                      <Loader2 size={14} className="animate-spin" />
+                      Restoring version...
+                    </div>
+                  )}
+
+                  {versions.length === 0 ? (
+                    <p className="text-xs text-[var(--text-muted)]">No saved versions yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {versions.map(v => (
+                        <div
+                          key={v.id}
+                          className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-[var(--foreground)] truncate">{v.name}</span>
+                              <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">{formatTimeAgo(v.created_at)}</span>
+                            </div>
+                            <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                              {v.player_count} players &middot; {v.stay_count} stay &middot; {v.move_count} move &middot; {v.unassigned_count} unassigned
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleRestoreVersion(v.id, v.name)}
+                              disabled={isLoadingVersion}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-amber-500 text-amber-500 hover:bg-amber-500/10 disabled:opacity-50 transition-colors"
+                            >
+                              <RotateCcw size={12} />
+                              Restore
+                            </button>
+                            <button
+                              onClick={() => handleDeleteVersion(v.id, v.name)}
+                              className="p-1 rounded-md text-red-400 hover:bg-red-500/10 transition-colors"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
