@@ -104,6 +104,61 @@ export function assignAlliances(
   return assignments;
 }
 
+function playerMeetsConfig(
+  power: number,
+  kp: number,
+  cfg: AllianceConfig,
+): { passed: boolean; checks: { passed: boolean; reason: string }[] } {
+  if (power < cfg.minPower) return { passed: false, checks: [] };
+
+  const checks: { passed: boolean; reason: string }[] = [];
+
+  if (cfg.minKp !== null && kp > 0) {
+    checks.push({
+      passed: kp >= cfg.minKp,
+      reason: `KP ${formatNumber(kp)} ${kp >= cfg.minKp ? '≥' : '<'} floor ${formatNumber(cfg.minKp)}`,
+    });
+  }
+
+  if (cfg.maxPowerKpRatio !== null && kp > 0) {
+    const ratio = power / kp;
+    checks.push({
+      passed: ratio <= cfg.maxPowerKpRatio,
+      reason: `P:KP ${ratio.toFixed(1)} ${ratio <= cfg.maxPowerKpRatio ? '≤' : '>'} ${cfg.maxPowerKpRatio}`,
+    });
+  }
+
+  if (checks.length > 0) {
+    const mode = cfg.thresholdMode || 'all';
+    const pass = mode === 'any'
+      ? checks.some(c => c.passed)
+      : checks.every(c => c.passed);
+    if (!pass) return { passed: false, checks };
+  }
+
+  return { passed: true, checks };
+}
+
+function makeAssignment(
+  player: PlayerInput,
+  cfg: AllianceConfig,
+  checks: { passed: boolean; reason: string }[],
+): PlayerAssignment {
+  const power = getPower(player);
+  const currentSorterTag = toSorterTag(getAlliance(player));
+  const status: AssignmentStatus = currentSorterTag === cfg.tag ? 'STAY' : 'MOVE';
+  const parts: string[] = [`Power ${formatNumber(power)} meets ${cfg.tag} floor ${formatNumber(cfg.minPower)}`];
+  for (const c of checks) {
+    if (c.passed) parts.push(c.reason);
+  }
+  return {
+    governorId: getId(player),
+    assignedAlliance: cfg.tag,
+    status,
+    reason: parts.join('; '),
+  };
+}
+
 function findBestAlliance(
   player: PlayerInput,
   configs: AllianceConfig[],
@@ -111,52 +166,25 @@ function findBestAlliance(
 ): PlayerAssignment | null {
   const power = getPower(player);
   const kp = getKp(player);
+  const currentSorterTag = toSorterTag(getAlliance(player));
 
+  // Prefer staying in current alliance to minimize moves
+  if (currentSorterTag) {
+    const currentCfg = configs.find(c => c.tag === currentSorterTag);
+    if (currentCfg && (remaining.get(currentCfg.tag) ?? 0) > 0) {
+      const result = playerMeetsConfig(power, kp, currentCfg);
+      if (result.passed) {
+        return makeAssignment(player, currentCfg, result.checks);
+      }
+    }
+  }
+
+  // Fall back to best available alliance by rank
   for (const cfg of configs) {
     if ((remaining.get(cfg.tag) ?? 0) <= 0) continue;
-    if (power < cfg.minPower) continue;
-
-    // Evaluate secondary criteria (KP and ratio)
-    const checks: { passed: boolean; reason: string }[] = [];
-
-    if (cfg.minKp !== null && kp > 0) {
-      checks.push({
-        passed: kp >= cfg.minKp,
-        reason: `KP ${formatNumber(kp)} ${kp >= cfg.minKp ? '≥' : '<'} floor ${formatNumber(cfg.minKp)}`,
-      });
-    }
-
-    if (cfg.maxPowerKpRatio !== null && kp > 0) {
-      const ratio = power / kp;
-      checks.push({
-        passed: ratio <= cfg.maxPowerKpRatio,
-        reason: `P:KP ${ratio.toFixed(1)} ${ratio <= cfg.maxPowerKpRatio ? '≤' : '>'} ${cfg.maxPowerKpRatio}`,
-      });
-    }
-
-    // Apply threshold mode: 'all' = every check must pass, 'any' = at least one
-    if (checks.length > 0) {
-      const mode = cfg.thresholdMode || 'all';
-      const pass = mode === 'any'
-        ? checks.some(c => c.passed)
-        : checks.every(c => c.passed);
-      if (!pass) continue;
-    }
-
-    const currentSorterTag = toSorterTag(getAlliance(player));
-    const status: AssignmentStatus = currentSorterTag === cfg.tag ? 'STAY' : 'MOVE';
-
-    const parts: string[] = [`Power ${formatNumber(power)} meets ${cfg.tag} floor ${formatNumber(cfg.minPower)}`];
-    for (const c of checks) {
-      if (c.passed) parts.push(c.reason);
-    }
-
-    return {
-      governorId: getId(player),
-      assignedAlliance: cfg.tag,
-      status,
-      reason: parts.join('; '),
-    };
+    const result = playerMeetsConfig(power, kp, cfg);
+    if (!result.passed) continue;
+    return makeAssignment(player, cfg, result.checks);
   }
   return null;
 }
