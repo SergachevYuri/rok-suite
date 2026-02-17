@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Upload,
   Lock,
@@ -105,6 +105,27 @@ export default function MigrationTracker() {
     getPreMigrationCount().then(setStoredPreMigCount);
     fetchPlayerOverrides().then(setOverrides);
   }, []);
+
+  // Auto-refresh migration statuses from Google Sheets when scan loads
+  const hasRefreshedRef = useRef(false);
+  useEffect(() => {
+    if (!scan || players.length === 0 || hasRefreshedRef.current) return;
+    hasRefreshedRef.current = true;
+    (async () => {
+      try {
+        const [migrants, inactives] = await Promise.all([
+          fetchMigrantSheet(MIGRANT_SHEET_URL),
+          fetchInactivesSheet(INACTIVES_SHEET_URL),
+        ]);
+        const result = await refreshMigrantsOnScan(scan.id, migrants, inactives);
+        if (result.statusChanges > 0) {
+          await refetch();
+        }
+      } catch {
+        // Silently continue with existing data
+      }
+    })();
+  }, [scan, players.length, refetch]);
 
   // Derived data
   const alliances = useMemo(() => {
