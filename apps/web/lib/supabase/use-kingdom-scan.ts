@@ -704,6 +704,99 @@ export async function refreshMigrantsOnScan(
     }
   }
 
+  // 7. Insert flagged migrants from the sheet that aren't in the scan yet.
+  //    These are people who arrived after the scan was taken.
+  const existingGovIds = new Set(allPlayers.map(p => p.governor_id));
+  const newFlaggedPlayers: {
+    scan_id: number;
+    governor_id: number;
+    name: string;
+    power: number;
+    highest_power: number;
+    kill_points: number;
+    t4_kills: number;
+    t5_kills: number;
+    deaths: number;
+    current_alliance: string;
+    migration_status: MigrationStatus;
+    is_migrant: boolean;
+    migrant_accepted: boolean;
+    migrant_group: string | null;
+    migrant_recruiter: string | null;
+    starting_kd: string | null;
+    sources: string[];
+  }[] = [];
+
+  for (const m of migrants) {
+    if (!m.governorId || existingGovIds.has(m.governorId)) continue;
+    const illegalVal = m.illegalMigrant.toLowerCase().trim();
+    const acceptedVal = m.accepted.toLowerCase().trim();
+    const isIllegal = illegalVal === 'yes' || illegalVal === 'y';
+    const isAccepted = acceptedVal === 'yes' || acceptedVal === 'y';
+    // Only auto-insert flagged (illegal/pending) migrants, not accepted ones
+    if (isAccepted && !isIllegal) continue;
+    const migrationStatus: MigrationStatus = isIllegal ? 'ILLEGAL' : 'PENDING';
+    newFlaggedPlayers.push({
+      scan_id: scanId,
+      governor_id: m.governorId,
+      name: m.name,
+      power: m.power || 0,
+      highest_power: m.power || 0,
+      kill_points: m.killPoints || 0,
+      t4_kills: m.t4Kills || 0,
+      t5_kills: m.t5Kills || 0,
+      deaths: m.deads || 0,
+      current_alliance: m.alliance || '',
+      migration_status: migrationStatus,
+      is_migrant: true,
+      migrant_accepted: false,
+      migrant_group: m.group || null,
+      migrant_recruiter: m.recruiter || null,
+      starting_kd: m.startingKd || null,
+      sources: ['migrant'],
+    });
+    existingGovIds.add(m.governorId);
+  }
+
+  // Also insert inactives not in the scan
+  if (inactives) {
+    for (const row of inactives) {
+      if (!row.governorId || existingGovIds.has(row.governorId)) continue;
+      newFlaggedPlayers.push({
+        scan_id: scanId,
+        governor_id: row.governorId,
+        name: row.name,
+        power: 0,
+        highest_power: 0,
+        kill_points: 0,
+        t4_kills: 0,
+        t5_kills: 0,
+        deaths: 0,
+        current_alliance: '',
+        migration_status: 'INACTIVE',
+        is_migrant: false,
+        migrant_accepted: false,
+        migrant_group: null,
+        migrant_recruiter: null,
+        starting_kd: null,
+        sources: ['migrant'],
+      });
+      existingGovIds.add(row.governorId);
+    }
+  }
+
+  let inserted = 0;
+  if (newFlaggedPlayers.length > 0) {
+    for (let i = 0; i < newFlaggedPlayers.length; i += 500) {
+      const batch = newFlaggedPlayers.slice(i, i + 500);
+      const { error } = await supabase
+        .from('kingdom_scan_players')
+        .upsert(batch, { onConflict: 'scan_id,governor_id' });
+      if (!error) inserted += batch.length;
+    }
+    if (inserted > 0) statusChanges += inserted;
+  }
+
   return { updated: updates.length, statusChanges };
 }
 
