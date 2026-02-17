@@ -14,7 +14,7 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import { useDraggable } from '@dnd-kit/core';
 import { matchesSearch } from '@/lib/search';
-import { Search, Eye, EyeOff } from 'lucide-react';
+import { Search, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import type { AllianceConfig, PlayerAssignment, AssignmentStatus, ScanPlayer } from '@/lib/kingdom/types';
 import { SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
 
@@ -129,6 +129,26 @@ export default function SorterBoardView({
     onAssignmentsChange(updated);
   };
 
+  const handleReassign = (govId: number, newAlliance: string) => {
+    const player = playerMap.get(govId);
+    if (!player) return;
+
+    const currentTag = toSorterTag(player.current_alliance);
+    const newStatus: AssignmentStatus = !newAlliance
+      ? 'UNASSIGNED'
+      : newAlliance === currentTag
+        ? 'STAY'
+        : 'MOVE';
+
+    const updated = assignments.map(a =>
+      a.governorId === govId
+        ? { ...a, assignedAlliance: newAlliance, status: newStatus, reason: 'Manual override' }
+        : a
+    );
+
+    onAssignmentsChange(updated);
+  };
+
   const activePlayer = activeId ? playerMap.get(activeId) : null;
   const activeAssignment = activeId ? assignmentMap.get(activeId) : null;
 
@@ -175,6 +195,8 @@ export default function SorterBoardView({
               color={SORTER_ALLIANCE_COLORS[cfg.tag] || '#666'}
               cap={cfg.cap}
               items={columns[cfg.tag] || []}
+              allianceTags={configs.map(c => c.tag)}
+              onReassign={handleReassign}
             />
           ))}
           <BoardColumn
@@ -183,6 +205,8 @@ export default function SorterBoardView({
             color="#666"
             cap={null}
             items={columns[UNASSIGNED_COL] || []}
+            allianceTags={configs.map(c => c.tag)}
+            onReassign={handleReassign}
           />
         </div>
 
@@ -202,12 +226,16 @@ function BoardColumn({
   color,
   cap,
   items,
+  allianceTags,
+  onReassign,
 }: {
   id: string;
   label: string;
   color: string;
   cap: number | null;
   items: { govId: number; player: ScanPlayer; assignment: PlayerAssignment }[];
+  allianceTags: string[];
+  onReassign: (govId: number, newAlliance: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
@@ -232,7 +260,14 @@ function BoardColumn({
       {/* Player cards */}
       <div className="p-1.5 space-y-1 max-h-[60vh] overflow-y-auto">
         {items.map(({ govId, player, assignment }) => (
-          <DraggablePlayerCard key={govId} govId={govId} player={player} assignment={assignment} />
+          <DraggablePlayerCard
+            key={govId}
+            govId={govId}
+            player={player}
+            assignment={assignment}
+            allianceTags={allianceTags}
+            onReassign={onReassign}
+          />
         ))}
         {items.length === 0 && (
           <div className="text-xs text-[var(--text-muted)] text-center py-4">
@@ -248,11 +283,16 @@ function DraggablePlayerCard({
   govId,
   player,
   assignment,
+  allianceTags,
+  onReassign,
 }: {
   govId: number;
   player: ScanPlayer;
   assignment: PlayerAssignment;
+  allianceTags: string[];
+  onReassign: (govId: number, newAlliance: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: govId,
   });
@@ -263,7 +303,15 @@ function DraggablePlayerCard({
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <PlayerCard player={player} assignment={assignment} isDragging={isDragging} />
+      <PlayerCard
+        player={player}
+        assignment={assignment}
+        isDragging={isDragging}
+        expanded={expanded}
+        onToggle={() => setExpanded(!expanded)}
+        allianceTags={allianceTags}
+        onReassign={(newAlliance) => onReassign(govId, newAlliance)}
+      />
     </div>
   );
 }
@@ -272,10 +320,18 @@ function PlayerCard({
   player,
   assignment,
   isDragging,
+  expanded,
+  onToggle,
+  allianceTags,
+  onReassign,
 }: {
   player: ScanPlayer;
   assignment: PlayerAssignment;
   isDragging?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
+  allianceTags?: string[];
+  onReassign?: (newAlliance: string) => void;
 }) {
   const statusColors: Record<string, string> = {
     STAY: 'border-l-emerald-500',
@@ -287,15 +343,26 @@ function PlayerCard({
 
   return (
     <div
+      onClick={(e) => {
+        // Only toggle on click, not on drag or select interactions
+        if (onToggle && !(e.target as HTMLElement).closest('select')) onToggle();
+      }}
       className={`px-2.5 py-1.5 rounded-lg border-l-2 text-xs cursor-grab active:cursor-grabbing transition-all ${
         statusColors[assignment.status] || 'border-l-gray-500'
       } ${
         isDragging
           ? 'bg-amber-500/10 border border-amber-500/30 shadow-lg opacity-90'
-          : 'bg-[var(--background-secondary)] hover:bg-[var(--background-secondary)]/80'
+          : expanded
+            ? 'bg-[var(--background-secondary)] ring-1 ring-amber-500/30'
+            : 'bg-[var(--background-secondary)] hover:bg-[var(--background-secondary)]/80'
       }`}
     >
-      <div className="font-medium text-[var(--foreground)] truncate">{player.name}</div>
+      <div className="flex items-center justify-between gap-1">
+        <div className="font-medium text-[var(--foreground)] truncate">{player.name}</div>
+        {onToggle && (
+          <ChevronDown size={10} className={`text-[var(--text-muted)] flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        )}
+      </div>
       <div className="flex items-center justify-between mt-0.5">
         <span className="text-[var(--text-muted)] font-mono">{formatNumber(player.power)}</span>
         {assignment.status !== 'STAY' && (
@@ -309,6 +376,28 @@ function PlayerCard({
           </span>
         )}
       </div>
+      {expanded && (
+        <div className="mt-1.5 pt-1.5 border-t border-[var(--border)] space-y-1">
+          <div className="text-[var(--text-muted)]">#{player.governor_id}</div>
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--text-muted)]">KP</span>
+            <span className="font-mono text-[var(--foreground)]">{player.kill_points > 0 ? formatNumber(player.kill_points) : '-'}</span>
+          </div>
+          {allianceTags && onReassign && (
+            <select
+              value={assignment.assignedAlliance || ''}
+              onChange={(e) => { e.stopPropagation(); onReassign(e.target.value); }}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="w-full px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs font-medium text-[var(--foreground)] focus:outline-none focus:border-amber-500/50 cursor-pointer"
+            >
+              <option value="">— Unassigned</option>
+              {allianceTags.map(tag => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
     </div>
   );
 }
