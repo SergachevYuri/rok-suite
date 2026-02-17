@@ -19,10 +19,11 @@ export function assignAlliances(
   const assignments: PlayerAssignment[] = [];
   const assigned = new Set<number>();
 
-  // Pass 0a: Exempt players (R4/R5) stay in their current alliance
+  // Pass 0a: Exempt players (R4/R5) stay in their current alliance (skip flagged)
   if (exemptIds && exemptIds.size > 0) {
     for (const player of players) {
       if (!exemptIds.has(getId(player))) continue;
+      if (isFlaggedStatus(player)) continue;
       const currentTag = toSorterTag(getAlliance(player));
       if (remaining.has(currentTag) && (remaining.get(currentTag) ?? 0) > 0) {
         assignments.push({
@@ -56,7 +57,7 @@ export function assignAlliances(
 
   // Pass 1: Original kingdom members by power desc
   const originals = players
-    .filter(p => isOriginal(p) && !assigned.has(getId(p)) && !isIllegalStatus(p))
+    .filter(p => isOriginal(p) && !assigned.has(getId(p)) && !isFlaggedStatus(p))
     .sort((a, b) => getPower(b) - getPower(a));
 
   for (const player of originals) {
@@ -70,7 +71,7 @@ export function assignAlliances(
 
   // Pass 2: Everyone else (not illegal, not already assigned)
   const others = players
-    .filter(p => !assigned.has(getId(p)) && !isIllegalStatus(p))
+    .filter(p => !assigned.has(getId(p)) && !isFlaggedStatus(p))
     .sort((a, b) => getPower(b) - getPower(a));
 
   for (const player of others) {
@@ -90,14 +91,15 @@ export function assignAlliances(
     }
   }
 
-  // Pass 3: Mark illegals
-  const illegals = players.filter(p => isIllegalStatus(p) && !assigned.has(getId(p)));
-  for (const player of illegals) {
+  // Pass 3: Mark flagged players (ILLEGAL/PENDING/INACTIVE) as unassigned
+  const flagged = players.filter(p => isFlaggedStatus(p) && !assigned.has(getId(p)));
+  for (const player of flagged) {
+    const migStatus = 'migrationStatus' in player ? player.migrationStatus : player.migration_status;
     assignments.push({
       governorId: getId(player),
       assignedAlliance: '',
       status: 'ILLEGAL',
-      reason: 'Illegal migrant — not on accepted list',
+      reason: `Flagged — ${migStatus.toLowerCase()} in migration tracker`,
     });
   }
 
@@ -328,7 +330,10 @@ function isAcceptedMigrant(p: PlayerInput): boolean {
   const status = 'migrationStatus' in p ? p.migrationStatus : p.migration_status;
   return status === 'ACCEPTED';
 }
-function isIllegalStatus(p: PlayerInput): boolean {
+/** Players with these migration statuses are excluded from sorting entirely */
+const FLAGGED_STATUSES = new Set(['ILLEGAL', 'PENDING', 'INACTIVE']);
+
+function isFlaggedStatus(p: PlayerInput): boolean {
   const status = 'migrationStatus' in p ? p.migrationStatus : p.migration_status;
-  return status === 'ILLEGAL';
+  return FLAGGED_STATUSES.has(status);
 }
