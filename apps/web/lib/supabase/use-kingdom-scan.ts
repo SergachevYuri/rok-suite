@@ -567,7 +567,8 @@ export async function refreshMigrantsOnScan(
     }
 
     // --- Step 6: Previously migrant but no longer on any list → ORIGINAL ---
-    if (player.is_migrant) {
+    // Skip accepted migrants — they were intentionally added (e.g. via manual DB insert)
+    if (player.is_migrant && !player.migrant_accepted) {
       const update = buildOriginalUpdate(player);
       if (update) { updates.push(update.data); if (update.statusChanged) statusChanges++; }
       continue;

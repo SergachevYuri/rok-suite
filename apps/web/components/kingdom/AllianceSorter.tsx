@@ -214,13 +214,17 @@ export default function AllianceSorter() {
       } else {
         // No assignment yet — create default entry so player is visible
         const isFlagged = FLAGGED_MIGRATION_STATUSES.has(p.migration_status);
+        const isAccepted = p.migration_status === 'ACCEPTED';
+        const currentTag = isAccepted ? toSorterTag(p.current_alliance) : '';
         map.set(p.governor_id, {
           governorId: p.governor_id,
-          assignedAlliance: '',
-          status: isFlagged ? 'ILLEGAL' : 'UNASSIGNED',
+          assignedAlliance: isFlagged ? '' : (isAccepted ? currentTag : ''),
+          status: isFlagged ? 'ILLEGAL' : (isAccepted ? 'INCOMING' : 'UNASSIGNED'),
           reason: isFlagged
             ? `Flagged — ${p.migration_status.toLowerCase()} in migration tracker`
-            : 'Not yet sorted',
+            : isAccepted
+              ? `Accepted migrant — assigned to ${currentTag}`
+              : 'Not yet sorted',
         });
       }
     }
