@@ -390,10 +390,10 @@ export default function WantedList() {
     const showPriority = sortRules.length > 1 && isActive;
 
     return (
-      <span className="relative inline-flex items-center">
+      <span className="inline-flex items-center gap-0.5">
         <Icon className={`w-3.5 h-3.5 transition-opacity ${isActive ? 'opacity-100' : 'opacity-30'}`} />
         {showPriority && (
-          <span className="absolute -top-1 -right-1 w-3 h-3 text-[8px] font-bold rounded-full bg-red-500 text-white flex items-center justify-center">
+          <span className="text-[9px] text-[var(--text-muted)] opacity-60">
             {ruleIndex + 1}
           </span>
         )}
@@ -529,7 +529,8 @@ export default function WantedList() {
               <span className="text-xs font-semibold uppercase tracking-wider text-amber-400">Pending</span>
             </div>
             <p className="text-2xl font-bold text-[var(--foreground)]">{stats.pendingCount}</p>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">{formatTotalPower(stats.pendingPower)} total power</p>
+            <p className="text-sm font-semibold text-[var(--text-secondary)] mt-1">{formatTotalPower(stats.pendingPower)}</p>
+            <p className="text-[10px] text-[var(--text-muted)]">total power</p>
           </div>
 
           {/* To Be Zeroed (subset of pending with zero=yes) */}
@@ -539,7 +540,8 @@ export default function WantedList() {
               <span className="text-xs font-semibold uppercase tracking-wider text-red-400">To Zero</span>
             </div>
             <p className="text-2xl font-bold text-[var(--foreground)]">{stats.toZeroCount}</p>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">{formatTotalPower(stats.toZeroPower)} total power</p>
+            <p className="text-sm font-semibold text-[var(--text-secondary)] mt-1">{formatTotalPower(stats.toZeroPower)}</p>
+            <p className="text-[10px] text-[var(--text-muted)]">total power</p>
           </div>
 
           {/* Zeroed */}
@@ -549,7 +551,8 @@ export default function WantedList() {
               <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Zeroed</span>
             </div>
             <p className="text-2xl font-bold text-[var(--foreground)]">{stats.zeroedCount}</p>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">{formatTotalPower(stats.zeroedPower)} total power</p>
+            <p className="text-sm font-semibold text-[var(--text-secondary)] mt-1">{formatTotalPower(stats.zeroedPower)}</p>
+            <p className="text-[10px] text-[var(--text-muted)]">total power</p>
           </div>
 
           {/* Left Kingdom */}
