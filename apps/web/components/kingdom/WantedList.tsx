@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, RefreshCw, Lock, ExternalLink, Crosshair, X, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Search, RefreshCw, Lock, ExternalLink, Crosshair, X, Info, ChevronDown, ChevronUp, Undo2, Target, Skull, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchWantedSheet } from '@/lib/kingdom/parse';
 import { WANTED_SHEET_URL, WANTED_SHEET_EDIT_URL } from '@/lib/kingdom/config';
@@ -16,8 +16,16 @@ interface WantedStatus {
   updated_at: string;
 }
 
+interface UndoAction {
+  governorId: number;
+  playerName: string;
+  previousStatus: OfficerMark | null;
+  newStatus: OfficerMark | null;
+}
+
 const OFFICER_PASSWORD = 'angmar';
 const ADMIN_PASSWORD = 'carn-dum';
+const UNDO_TIMEOUT_MS = 6000;
 
 /** Format power — sheet stores values in millions (e.g. 28 = 28M) */
 const formatPower = (val: number): string => {
@@ -25,6 +33,13 @@ const formatPower = (val: number): string => {
   if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M';
   if (val >= 1_000) return (val / 1_000).toFixed(0) + 'K';
   return val + 'M';
+};
+
+/** Format summed power (already in millions) */
+const formatTotalPower = (val: number): string => {
+  if (!val) return '0M';
+  if (val >= 1_000) return (val / 1_000).toFixed(2) + 'B';
+  return val.toLocaleString() + 'M';
 };
 
 // ─── Sort types ────────────────────────────────────────────────────
@@ -73,6 +88,10 @@ export default function WantedList() {
   // Supabase officer marks
   const [officerMarks, setOfficerMarks] = useState<Map<number, OfficerMark>>(new Map());
 
+  // Undo state
+  const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
+  const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Refresh state
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
@@ -109,6 +128,13 @@ export default function WantedList() {
     fetchData();
   }, [fetchData]);
 
+  // Clean up undo timer on unmount
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    };
+  }, []);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await fetchData();
@@ -131,7 +157,14 @@ export default function WantedList() {
     }
   };
 
-  const handleMarkStatus = async (governorId: number, status: OfficerMark | null) => {
+  const handleMarkStatus = async (governorId: number, playerName: string, status: OfficerMark | null) => {
+    // Save previous state for undo
+    const previousStatus = officerMarks.get(governorId) || null;
+
+    // Clear any existing undo timer
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+
+    // Apply the change
     if (status === null) {
       await supabase.from('wanted_status').delete().eq('governor_id', governorId);
       setOfficerMarks(prev => {
@@ -145,11 +178,42 @@ export default function WantedList() {
         .upsert({ governor_id: governorId, status, updated_at: new Date().toISOString() });
       setOfficerMarks(prev => new Map(prev).set(governorId, status));
     }
+
+    // Show undo toast
+    setUndoAction({ governorId, playerName, previousStatus, newStatus: status });
+    undoTimerRef.current = setTimeout(() => setUndoAction(null), UNDO_TIMEOUT_MS);
   };
 
-  // Officer handling status: zeroed, left, or pending (not yet handled)
+  const handleUndo = async () => {
+    if (!undoAction) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+
+    const { governorId, previousStatus } = undoAction;
+
+    if (previousStatus === null) {
+      await supabase.from('wanted_status').delete().eq('governor_id', governorId);
+      setOfficerMarks(prev => {
+        const next = new Map(prev);
+        next.delete(governorId);
+        return next;
+      });
+    } else {
+      await supabase
+        .from('wanted_status')
+        .upsert({ governor_id: governorId, status: previousStatus, updated_at: new Date().toISOString() });
+      setOfficerMarks(prev => new Map(prev).set(governorId, previousStatus));
+    }
+
+    setUndoAction(null);
+  };
+
+  // Officer handling status: zeroed, left, or pending
+  // Uses Supabase mark first, falls back to sheet "Zeroed" column
   const getHandledStatus = useCallback((player: WantedPlayer): 'pending' | 'zeroed' | 'left' => {
-    return officerMarks.get(player.governorId) || 'pending';
+    const mark = officerMarks.get(player.governorId);
+    if (mark) return mark;
+    if (player.zeroed === 'yes') return 'zeroed';
+    return 'pending';
   }, [officerMarks]);
 
   // ─── Sort logic ────────────────────────────────────────────────────
@@ -228,27 +292,30 @@ export default function WantedList() {
     }
   }, [getHandledStatus]);
 
+  // Only visible players (display !== false)
+  const visiblePlayers = useMemo(() => players.filter(p => p.display), [players]);
+
   // Unique reasons for filter chips
   const reasons = useMemo(() => {
     const set = new Set<string>();
-    for (const p of players) {
+    for (const p of visiblePlayers) {
       if (p.reason) set.add(p.reason);
     }
     return [...set].sort();
-  }, [players]);
+  }, [visiblePlayers]);
 
   // Unique alliances for filter dropdown
   const alliances = useMemo(() => {
     const set = new Set<string>();
-    for (const p of players) {
+    for (const p of visiblePlayers) {
       if (p.alliance) set.add(p.alliance);
     }
     return [...set].sort();
-  }, [players]);
+  }, [visiblePlayers]);
 
-  // Filtered and sorted players
+  // Filtered and sorted players (from visible only)
   const filtered = useMemo(() => {
-    return players
+    return visiblePlayers
       .filter(p => {
         if (search && !matchesSearch(search, p.name, p.governorId)) return false;
         if (reasonFilter && p.reason !== reasonFilter) return false;
@@ -265,27 +332,43 @@ export default function WantedList() {
         }
         return 0;
       });
-  }, [players, search, reasonFilter, allianceFilter, zeroFilter, handledFilter, sortRules, getHandledStatus, compareByField]);
+  }, [visiblePlayers, search, reasonFilter, allianceFilter, zeroFilter, handledFilter, sortRules, getHandledStatus, compareByField]);
 
-  // Counts
-  const counts = useMemo(() => {
-    let pending = 0, zeroed = 0, left = 0;
-    for (const p of players) {
+  // Dashboard stats — based on visible players only (excludes hidden)
+  const stats = useMemo(() => {
+    let pendingCount = 0, pendingPower = 0;
+    let zeroedCount = 0, zeroedPower = 0;
+    let leftCount = 0;
+    let toZeroCount = 0, toZeroPower = 0;
+
+    for (const p of visiblePlayers) {
       const s = getHandledStatus(p);
-      if (s === 'pending') pending++;
-      else if (s === 'zeroed') zeroed++;
-      else left++;
-    }
-    return { total: players.length, pending, zeroed, left };
-  }, [players, getHandledStatus]);
+      const power = p.power2 || 0;
 
-  const handledColor = (status: 'pending' | 'zeroed' | 'left') => {
-    switch (status) {
-      case 'pending': return 'text-amber-400';
-      case 'zeroed': return 'text-emerald-400';
-      case 'left': return 'text-sky-400';
+      if (s === 'pending') {
+        pendingCount++;
+        pendingPower += power;
+        if (p.zero === 'yes') {
+          toZeroCount++;
+          toZeroPower += power;
+        }
+      } else if (s === 'zeroed') {
+        zeroedCount++;
+        zeroedPower += power;
+      } else {
+        leftCount++;
+      }
     }
-  };
+
+    return {
+      total: visiblePlayers.length,
+      hidden: players.length - visiblePlayers.length,
+      pendingCount, pendingPower,
+      zeroedCount, zeroedPower,
+      leftCount,
+      toZeroCount, toZeroPower,
+    };
+  }, [players, visiblePlayers, getHandledStatus]);
 
   const handledBg = (status: 'pending' | 'zeroed' | 'left') => {
     switch (status) {
@@ -335,17 +418,17 @@ export default function WantedList() {
   );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 sm:py-10">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 sm:py-10">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-red-500/10">
+          <div className="p-2.5 rounded-xl bg-red-500/10">
             <Crosshair className="w-6 h-6 text-red-500" />
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--foreground)]">Wanted</h1>
             <p className="text-sm text-[var(--text-muted)]">
-              {counts.total} players &middot; {counts.pending} pending &middot; {counts.zeroed} zeroed &middot; {counts.left} left
+              {stats.total} players tracked{stats.hidden > 0 && ` · ${stats.hidden} hidden`}
             </p>
           </div>
         </div>
@@ -361,7 +444,7 @@ export default function WantedList() {
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
           >
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
             <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
@@ -413,7 +496,7 @@ export default function WantedList() {
           <div>
             <p className="font-semibold text-[var(--foreground)] mb-1">Officer Mode</p>
             <p className="text-[var(--text-muted)]">
-              Log in as an officer to mark players as &quot;Zeroed&quot; or &quot;Left Kingdom&quot;. Click a status button again to clear it back to Pending.
+              Log in as an officer to mark players as &quot;Zeroed&quot; or &quot;Left Kingdom&quot;. You can undo any status change within a few seconds.
             </p>
           </div>
         </div>
@@ -433,6 +516,51 @@ export default function WantedList() {
           >
             <X size={16} />
           </button>
+        </div>
+      )}
+
+      {/* Dashboard cards */}
+      {!loading && !error && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {/* Pending */}
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Target size={16} className="text-amber-400" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-amber-400">Pending</span>
+            </div>
+            <p className="text-2xl font-bold text-[var(--foreground)]">{stats.pendingCount}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">{formatTotalPower(stats.pendingPower)} total power</p>
+          </div>
+
+          {/* To Be Zeroed (subset of pending with zero=yes) */}
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Skull size={16} className="text-red-400" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-red-400">To Zero</span>
+            </div>
+            <p className="text-2xl font-bold text-[var(--foreground)]">{stats.toZeroCount}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">{formatTotalPower(stats.toZeroPower)} total power</p>
+          </div>
+
+          {/* Zeroed */}
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Crosshair size={16} className="text-emerald-400" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Zeroed</span>
+            </div>
+            <p className="text-2xl font-bold text-[var(--foreground)]">{stats.zeroedCount}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">{formatTotalPower(stats.zeroedPower)} total power</p>
+          </div>
+
+          {/* Left Kingdom */}
+          <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <LogOut size={16} className="text-sky-400" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-sky-400">Left</span>
+            </div>
+            <p className="text-2xl font-bold text-[var(--foreground)]">{stats.leftCount}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">migrated out</p>
+          </div>
         </div>
       )}
 
@@ -497,10 +625,10 @@ export default function WantedList() {
                   : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
             >
-              {s === 'all' ? `All (${counts.total})` :
-               s === 'pending' ? `Pending (${counts.pending})` :
-               s === 'zeroed' ? `Zeroed (${counts.zeroed})` :
-               `Left (${counts.left})`}
+              {s === 'all' ? `All (${stats.total})` :
+               s === 'pending' ? `Pending (${stats.pendingCount})` :
+               s === 'zeroed' ? `Zeroed (${stats.zeroedCount})` :
+               `Left (${stats.leftCount})`}
             </button>
           ))}
         </div>
@@ -652,7 +780,7 @@ export default function WantedList() {
                         <td className="px-3 py-2.5 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => handleMarkStatus(player.governorId, handled === 'zeroed' ? null : 'zeroed')}
+                              onClick={() => handleMarkStatus(player.governorId, player.name, handled === 'zeroed' ? null : 'zeroed')}
                               className={`px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
                                 handled === 'zeroed'
                                   ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
@@ -662,7 +790,7 @@ export default function WantedList() {
                               ZEROED
                             </button>
                             <button
-                              onClick={() => handleMarkStatus(player.governorId, handled === 'left' ? null : 'left')}
+                              onClick={() => handleMarkStatus(player.governorId, player.name, handled === 'left' ? null : 'left')}
                               className={`px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
                                 handled === 'left'
                                   ? 'bg-sky-500/20 border-sky-500/40 text-sky-400'
@@ -758,7 +886,7 @@ export default function WantedList() {
                   {isOfficer && (
                     <div className="flex gap-2 pt-1 border-t border-[var(--border)]/50">
                       <button
-                        onClick={() => handleMarkStatus(player.governorId, handled === 'zeroed' ? null : 'zeroed')}
+                        onClick={() => handleMarkStatus(player.governorId, player.name, handled === 'zeroed' ? null : 'zeroed')}
                         className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                           handled === 'zeroed'
                             ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
@@ -768,7 +896,7 @@ export default function WantedList() {
                         ZEROED
                       </button>
                       <button
-                        onClick={() => handleMarkStatus(player.governorId, handled === 'left' ? null : 'left')}
+                        onClick={() => handleMarkStatus(player.governorId, player.name, handled === 'left' ? null : 'left')}
                         className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                           handled === 'left'
                             ? 'bg-sky-500/20 border-sky-500/40 text-sky-400'
@@ -788,11 +916,32 @@ export default function WantedList() {
 
       {/* Showing count + last refreshed */}
       <div className="mt-3 text-xs text-[var(--text-muted)] text-center space-y-0.5">
-        <div>Showing {filtered.length} of {counts.total} players</div>
+        <div>Showing {filtered.length} of {stats.total} players</div>
         {lastRefreshed && (
           <div>Last refreshed: {lastRefreshed.toLocaleTimeString()}</div>
         )}
       </div>
+
+      {/* Undo toast */}
+      {undoAction && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-200">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-xl">
+            <span className="text-sm text-[var(--text-secondary)]">
+              Marked <span className="font-medium text-[var(--foreground)]">{undoAction.playerName}</span> as{' '}
+              <span className="font-medium">
+                {undoAction.newStatus === null ? 'pending' : undoAction.newStatus}
+              </span>
+            </span>
+            <button
+              onClick={handleUndo}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors"
+            >
+              <Undo2 size={14} />
+              Undo
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Password modal */}
       {showPasswordPrompt && (

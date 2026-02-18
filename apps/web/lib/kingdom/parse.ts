@@ -224,10 +224,14 @@ export async function fetchWantedSheet(url: string): Promise<WantedPlayer[]> {
   const iAlliance = idx('alliance');
   const iZero = idx('zero');
   const iReason = idx('reason');
+  const iZeroed = headers.findIndex(h => h.toLowerCase().trim() === 'zeroed');
+  const iDisplay = idx('display');
 
   return rows
     .map(cols => {
       const zeroVal = (cols[iZero] || '').trim().toLowerCase();
+      const zeroedVal = (cols[iZeroed] || '').trim().toLowerCase();
+      const displayVal = (cols[iDisplay >= 0 ? iDisplay : -1] || '').trim().toLowerCase();
       return {
         governorId: parseInt(cols[iGovId]) || 0,
         name: (cols[iName] || '').trim(),
@@ -239,6 +243,8 @@ export async function fetchWantedSheet(url: string): Promise<WantedPlayer[]> {
         alliance: (cols[iAlliance] || '').trim(),
         zero: (zeroVal === 'yes' ? 'yes' : zeroVal === 'no' ? 'no' : '') as WantedPlayer['zero'],
         reason: (cols[iReason] || '').trim(),
+        zeroed: (zeroedVal === 'yes' ? 'yes' : zeroedVal === 'no' ? 'no' : '') as WantedPlayer['zeroed'],
+        display: displayVal !== 'no',
       };
     })
     .filter(r => r.name || r.governorId);

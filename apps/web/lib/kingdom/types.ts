@@ -70,6 +70,8 @@ export interface WantedPlayer {
   alliance: string;
   zero: 'yes' | 'no' | '';
   reason: string;
+  zeroed: 'yes' | 'no' | '';
+  display: boolean;
 }
 
 /** Officer review override */
