@@ -16,6 +16,7 @@ import {
   Shield,
   Radar,
   ArrowUpDown,
+  Crosshair,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -112,6 +113,16 @@ export default function Home() {
       hoverShadow: 'hover:shadow-indigo-500/10',
       iconHoverBg: 'group-hover:bg-indigo-500/15',
       iconHoverColor: 'group-hover:text-indigo-500',
+    },
+    {
+      href: '/kingdom/wanted',
+      titleKey: 'tools.wanted.title',
+      descriptionKey: 'tools.wanted.description',
+      icon: Crosshair,
+      hoverBorder: 'hover:border-red-500/40',
+      hoverShadow: 'hover:shadow-red-500/10',
+      iconHoverBg: 'group-hover:bg-red-500/15',
+      iconHoverColor: 'group-hover:text-red-500',
     },
   ] as const;
 

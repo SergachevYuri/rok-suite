@@ -99,6 +99,10 @@
       "allianceSorter": {
         "title": "Alliance Sorter",
         "description": "Auto-assign members to alliances based on power and kill point thresholds"
+      },
+      "wanted": {
+        "title": "Wanted",
+        "description": "Track wanted players, zeroing priority, and officer status updates"
       }
     },
     "guide": {

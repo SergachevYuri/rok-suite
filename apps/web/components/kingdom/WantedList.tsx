@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, RefreshCw, Lock, ExternalLink, Crosshair, X } from 'lucide-react';
+import { Search, RefreshCw, Lock, ExternalLink, Crosshair, X, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchWantedSheet } from '@/lib/kingdom/parse';
 import { WANTED_SHEET_URL, WANTED_SHEET_EDIT_URL, formatNumber } from '@/lib/kingdom/config';
@@ -166,6 +166,9 @@ export default function WantedList() {
     }
   };
 
+  // Instructions toggle
+  const [showInstructions, setShowInstructions] = useState(false);
+
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 sm:py-10">
       {/* Header */}
@@ -181,14 +184,22 @@ export default function WantedList() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setShowInstructions(v => !v)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
+          >
+            <Info size={16} />
+            <span className="hidden sm:inline">Instructions</span>
+            {showInstructions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors disabled:opacity-50"
           >
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
           {!isOfficer && (
             <button
@@ -196,7 +207,7 @@ export default function WantedList() {
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
             >
               <Lock size={16} />
-              Login
+              <span className="hidden sm:inline">Login</span>
             </button>
           )}
           {isAdmin && (
@@ -207,11 +218,41 @@ export default function WantedList() {
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-colors"
             >
               <ExternalLink size={16} />
-              Edit Sheet
+              <span className="hidden sm:inline">Edit Sheet</span>
             </a>
           )}
         </div>
       </div>
+
+      {/* Instructions panel */}
+      {showInstructions && (
+        <div className="mb-4 px-4 py-4 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-3">
+          <p>
+            This page tracks wanted players in the kingdom. The list is pulled from a shared Google Sheet that admins can edit.
+          </p>
+          <div>
+            <p className="font-semibold text-[var(--foreground)] mb-1">Columns</p>
+            <ul className="list-disc list-inside space-y-0.5 text-[var(--text-muted)]">
+              <li><span className="text-[var(--text-secondary)]">Zero?</span> &mdash; Whether the player should be zeroed (from the sheet)</li>
+              <li><span className="text-[var(--text-secondary)]">Handled</span> &mdash; Officer-set status: Pending, Zeroed, or Left kingdom</li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-semibold text-[var(--foreground)] mb-1">Zeroing Priority</p>
+            <ol className="list-decimal list-inside space-y-0.5 text-[var(--text-muted)]">
+              <li>Farm killers and hostile players &mdash; zero first</li>
+              <li>Players who refuse to follow kingdom rules</li>
+              <li className="text-amber-400 font-medium">Illegal migrants &mdash; zero LAST (they may still leave on their own)</li>
+            </ol>
+          </div>
+          <div>
+            <p className="font-semibold text-[var(--foreground)] mb-1">Officer Mode</p>
+            <p className="text-[var(--text-muted)]">
+              Log in as an officer to mark players as &quot;Zeroed&quot; or &quot;Left Kingdom&quot;. Click a status button again to clear it back to Pending.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Officer/Admin mode banner */}
       {isOfficer && (
@@ -219,7 +260,7 @@ export default function WantedList() {
           <div className="flex items-center gap-2 text-sm text-amber-400">
             <Lock size={14} />
             <span className="font-medium">{isAdmin ? 'Admin Mode' : 'Officer Mode'}</span>
-            <span className="text-amber-400/60">&mdash; Mark players as zeroed or left kingdom</span>
+            <span className="hidden sm:inline text-amber-400/60">&mdash; Mark players as zeroed or left kingdom</span>
           </div>
           <button
             onClick={() => { setIsOfficer(false); setIsAdmin(false); }}
@@ -303,9 +344,9 @@ export default function WantedList() {
         <div className="text-center py-12 text-red-400">{error}</div>
       )}
 
-      {/* Table */}
+      {/* Desktop table */}
       {!loading && !error && (
-        <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+        <div className="hidden md:block rounded-xl border border-[var(--border)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -334,6 +375,7 @@ export default function WantedList() {
                   filtered.map((player) => {
                     const handled = getHandledStatus(player);
                     const isDone = handled !== 'pending';
+                    const isIllegal = player.reason?.toLowerCase().includes('illegal');
                     return (
                       <tr
                         key={player.governorId || player.name}
@@ -358,8 +400,13 @@ export default function WantedList() {
                         </td>
                         <td className="px-4 py-3">
                           {player.reason ? (
-                            <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                            <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
+                              isIllegal
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                : 'bg-red-500/10 text-red-400 border-red-500/20'
+                            }`}>
                               {player.reason}
+                              {isIllegal && ' (low priority)'}
                             </span>
                           ) : (
                             <span className="text-[var(--text-muted)]">-</span>
@@ -412,6 +459,110 @@ export default function WantedList() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Mobile card view */}
+      {!loading && !error && (
+        <div className="md:hidden space-y-3">
+          {filtered.length === 0 ? (
+            <div className="px-4 py-8 text-center text-[var(--text-muted)] rounded-xl border border-[var(--border)]">
+              {search || reasonFilter || handledFilter !== 'all' ? 'No players match filters' : 'No wanted players'}
+            </div>
+          ) : (
+            filtered.map((player) => {
+              const handled = getHandledStatus(player);
+              const isDone = handled !== 'pending';
+              const isIllegal = player.reason?.toLowerCase().includes('illegal');
+              return (
+                <div
+                  key={player.governorId || player.name}
+                  className={`rounded-xl border border-[var(--border)] p-4 space-y-3 ${isDone ? 'opacity-50' : ''}`}
+                >
+                  {/* Top row: name + handled badge */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className={`font-semibold text-[var(--foreground)] truncate ${isDone ? 'line-through' : ''}`}>
+                        {player.name}
+                      </p>
+                      <p className="text-xs font-mono text-[var(--text-muted)]">
+                        ID: {player.governorId || '-'}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase border ${handledBg(handled)}`}>
+                      {handled}
+                    </span>
+                  </div>
+
+                  {/* Info grid */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <div>
+                      <span className="text-[var(--text-muted)]">Power: </span>
+                      <span className="font-mono text-[var(--text-secondary)]">{player.power2 ? formatNumber(player.power2) : '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[var(--text-muted)]">Coords: </span>
+                      <span className="font-mono text-[var(--text-secondary)]">{player.x || player.y ? `${player.x}, ${player.y}` : '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[var(--text-muted)]">Alliance: </span>
+                      <span className="text-[var(--text-secondary)]">{player.alliance || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[var(--text-muted)]">Zero? </span>
+                      {player.zero === 'yes' ? (
+                        <span className="font-semibold text-red-400">YES</span>
+                      ) : player.zero === 'no' ? (
+                        <span className="font-semibold text-[var(--text-muted)]">NO</span>
+                      ) : (
+                        <span className="text-[var(--text-muted)]">-</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Reason */}
+                  {player.reason && (
+                    <div>
+                      <span className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium border ${
+                        isIllegal
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          : 'bg-red-500/10 text-red-400 border-red-500/20'
+                      }`}>
+                        {player.reason}
+                        {isIllegal && ' (low priority)'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Officer actions */}
+                  {isOfficer && (
+                    <div className="flex gap-2 pt-1 border-t border-[var(--border)]/50">
+                      <button
+                        onClick={() => handleMarkStatus(player.governorId, handled === 'zeroed' ? null : 'zeroed')}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                          handled === 'zeroed'
+                            ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                            : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-emerald-400 hover:border-emerald-500/40'
+                        }`}
+                      >
+                        ZEROED
+                      </button>
+                      <button
+                        onClick={() => handleMarkStatus(player.governorId, handled === 'left' ? null : 'left')}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                          handled === 'left'
+                            ? 'bg-sky-500/20 border-sky-500/40 text-sky-400'
+                            : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-sky-400 hover:border-sky-500/40'
+                        }`}
+                      >
+                        LEFT
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       )}
 

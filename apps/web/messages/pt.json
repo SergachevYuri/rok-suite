@@ -83,9 +83,12 @@
         "description": "Rastreie migrações do reino, detecte migrantes ilegais e monitore o status dos jogadores"
       },
       "allianceSorter": {
-    "wanted": "Wanted",
         "title": "Classificador de Alianças",
         "description": "Atribua automaticamente membros a alianças com base em limites de poder e pontos de abate"
+      },
+      "wanted": {
+        "title": "Wanted",
+        "description": "Track wanted players, zeroing priority, and officer status updates"
       }
     },
     "guide": {

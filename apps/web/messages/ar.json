@@ -83,9 +83,12 @@
         "description": "تتبع هجرات المملكة واكتشف المهاجرين غير الشرعيين وراقب حالة اللاعبين"
       },
       "allianceSorter": {
-    "wanted": "Wanted",
         "title": "مصنف التحالفات",
         "description": "تعيين الأعضاء تلقائياً للتحالفات بناءً على عتبات القوة ونقاط القتل"
+      },
+      "wanted": {
+        "title": "Wanted",
+        "description": "Track wanted players, zeroing priority, and officer status updates"
       }
     },
     "guide": {

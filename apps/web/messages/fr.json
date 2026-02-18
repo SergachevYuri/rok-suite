@@ -83,9 +83,12 @@
         "description": "Suivez les migrations du royaume, détectez les migrants illégaux et surveillez le statut des joueurs"
       },
       "allianceSorter": {
-    "wanted": "Wanted",
         "title": "Trieur d'Alliances",
         "description": "Attribuez automatiquement les membres aux alliances selon les seuils de puissance et de points de mort"
+      },
+      "wanted": {
+        "title": "Wanted",
+        "description": "Track wanted players, zeroing priority, and officer status updates"
       }
     },
     "guide": {

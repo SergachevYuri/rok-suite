@@ -83,9 +83,12 @@
         "description": "Traccia le migrazioni del regno, rileva migranti illegali e monitora lo stato dei giocatori"
       },
       "allianceSorter": {
-    "wanted": "Wanted",
         "title": "Ordinatore Alleanze",
         "description": "Assegna automaticamente i membri alle alleanze in base a soglie di potere e punti uccisione"
+      },
+      "wanted": {
+        "title": "Wanted",
+        "description": "Track wanted players, zeroing priority, and officer status updates"
       }
     },
     "guide": {

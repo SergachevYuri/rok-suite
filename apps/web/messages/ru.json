@@ -83,9 +83,12 @@
         "description": "Отслеживайте миграции королевства, обнаруживайте нелегальных мигрантов и контролируйте статус игроков"
       },
       "allianceSorter": {
-    "wanted": "Wanted",
         "title": "Сортировщик Альянсов",
         "description": "Автоматически распределяйте участников по альянсам на основе порогов силы и очков убийств"
+      },
+      "wanted": {
+        "title": "Wanted",
+        "description": "Track wanted players, zeroing priority, and officer status updates"
       }
     },
     "guide": {

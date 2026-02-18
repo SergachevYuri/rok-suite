@@ -83,9 +83,12 @@
         "description": "王国の移住を追跡し、不正移民を検出し、プレイヤーのステータスを監視"
       },
       "allianceSorter": {
-    "wanted": "Wanted",
         "title": "同盟ソーター",
         "description": "戦力とキルポイントの閾値に基づいてメンバーを同盟に自動割り当て"
+      },
+      "wanted": {
+        "title": "Wanted",
+        "description": "Track wanted players, zeroing priority, and officer status updates"
       }
     },
     "guide": {
