@@ -19,13 +19,41 @@ interface WantedStatus {
 const OFFICER_PASSWORD = 'angmar';
 const ADMIN_PASSWORD = 'carn-dum';
 
+// ─── Sort types ────────────────────────────────────────────────────
+type SortableField = 'name' | 'governorId' | 'power' | 'alliance' | 'reason' | 'zero' | 'handled';
+
+interface SortRule {
+  field: SortableField;
+  direction: 'asc' | 'desc';
+}
+
+const DEFAULT_SORT_RULES: SortRule[] = [
+  { field: 'handled', direction: 'asc' },
+  { field: 'power', direction: 'desc' },
+];
+
+const SORT_FIELD_LABELS: Record<SortableField, string> = {
+  name: 'Name',
+  governorId: 'Gov ID',
+  power: 'Power',
+  alliance: 'Alliance',
+  reason: 'Reason',
+  zero: 'Zero?',
+  handled: 'Handled',
+};
+
 export default function WantedList() {
   const [players, setPlayers] = useState<WantedPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [reasonFilter, setReasonFilter] = useState<string | null>(null);
+  const [allianceFilter, setAllianceFilter] = useState<string | null>(null);
   const [handledFilter, setHandledFilter] = useState<'all' | 'pending' | 'zeroed' | 'left'>('all');
+  const [zeroFilter, setZeroFilter] = useState<'all' | 'yes' | 'no'>('all');
+
+  // Sort state
+  const [sortRules, setSortRules] = useState<SortRule[]>(DEFAULT_SORT_RULES);
 
   // Officer mode (can change handled status)
   const [isOfficer, setIsOfficer] = useState(false);
@@ -112,9 +140,85 @@ export default function WantedList() {
   };
 
   // Officer handling status: zeroed, left, or pending (not yet handled)
-  const getHandledStatus = (player: WantedPlayer): 'pending' | 'zeroed' | 'left' => {
+  const getHandledStatus = useCallback((player: WantedPlayer): 'pending' | 'zeroed' | 'left' => {
     return officerMarks.get(player.governorId) || 'pending';
+  }, [officerMarks]);
+
+  // ─── Sort logic ────────────────────────────────────────────────────
+  const handleSort = (field: SortableField, addToChain: boolean) => {
+    if (addToChain) {
+      const existingIdx = sortRules.findIndex(r => r.field === field);
+      if (existingIdx >= 0) {
+        const updated = [...sortRules];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          direction: updated[existingIdx].direction === 'asc' ? 'desc' : 'asc',
+        };
+        setSortRules(updated);
+      } else {
+        const defaultDir = field === 'name' || field === 'alliance' ? 'asc' : 'desc';
+        setSortRules([...sortRules, { field, direction: defaultDir }]);
+      }
+    } else {
+      const existing = sortRules.find(r => r.field === field);
+      const newDir = existing
+        ? (existing.direction === 'asc' ? 'desc' : 'asc')
+        : (field === 'name' || field === 'alliance' ? 'asc' : 'desc');
+      setSortRules([{ field, direction: newDir }]);
+    }
   };
+
+  const removeSortRule = (field: SortableField) => {
+    const remaining = sortRules.filter(r => r.field !== field);
+    setSortRules(remaining.length > 0 ? remaining : DEFAULT_SORT_RULES);
+  };
+
+  const resetFiltersAndSort = () => {
+    setSortRules(DEFAULT_SORT_RULES);
+    setReasonFilter(null);
+    setAllianceFilter(null);
+    setHandledFilter('all');
+    setZeroFilter('all');
+    setSearch('');
+  };
+
+  const handledOrder = (status: 'pending' | 'zeroed' | 'left'): number => {
+    switch (status) {
+      case 'pending': return 0;
+      case 'zeroed': return 1;
+      case 'left': return 2;
+    }
+  };
+
+  const zeroOrder = (val: 'yes' | 'no' | ''): number => {
+    switch (val) {
+      case 'yes': return 0;
+      case 'no': return 1;
+      default: return 2;
+    }
+  };
+
+  const compareByField = useCallback((a: WantedPlayer, b: WantedPlayer, field: SortableField, direction: 'asc' | 'desc'): number => {
+    let aVal: string | number;
+    let bVal: string | number;
+
+    switch (field) {
+      case 'name':       aVal = a.name.toLowerCase(); bVal = b.name.toLowerCase(); break;
+      case 'governorId': aVal = a.governorId; bVal = b.governorId; break;
+      case 'power':      aVal = a.power2 || 0; bVal = b.power2 || 0; break;
+      case 'alliance':   aVal = (a.alliance || '').toLowerCase(); bVal = (b.alliance || '').toLowerCase(); break;
+      case 'reason':     aVal = (a.reason || '').toLowerCase(); bVal = (b.reason || '').toLowerCase(); break;
+      case 'zero':       aVal = zeroOrder(a.zero); bVal = zeroOrder(b.zero); break;
+      case 'handled':    aVal = handledOrder(getHandledStatus(a)); bVal = handledOrder(getHandledStatus(b)); break;
+      default: return 0;
+    }
+
+    if (direction === 'asc') {
+      return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+    } else {
+      return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+    }
+  }, [getHandledStatus]);
 
   // Unique reasons for filter chips
   const reasons = useMemo(() => {
@@ -125,17 +229,35 @@ export default function WantedList() {
     return [...set].sort();
   }, [players]);
 
-  // Filtered players
+  // Unique alliances for filter dropdown
+  const alliances = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of players) {
+      if (p.alliance) set.add(p.alliance);
+    }
+    return [...set].sort();
+  }, [players]);
+
+  // Filtered and sorted players
   const filtered = useMemo(() => {
-    return players.filter(p => {
-      if (search && !matchesSearch(search, p.name, p.governorId)) return false;
-      if (reasonFilter && p.reason !== reasonFilter) return false;
-      const handled = getHandledStatus(p);
-      if (handledFilter !== 'all' && handled !== handledFilter) return false;
-      return true;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, search, reasonFilter, handledFilter, officerMarks]);
+    return players
+      .filter(p => {
+        if (search && !matchesSearch(search, p.name, p.governorId)) return false;
+        if (reasonFilter && p.reason !== reasonFilter) return false;
+        if (allianceFilter && p.alliance !== allianceFilter) return false;
+        if (zeroFilter !== 'all' && p.zero !== zeroFilter) return false;
+        const handled = getHandledStatus(p);
+        if (handledFilter !== 'all' && handled !== handledFilter) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        for (const rule of sortRules) {
+          const result = compareByField(a, b, rule.field, rule.direction);
+          if (result !== 0) return result;
+        }
+        return 0;
+      });
+  }, [players, search, reasonFilter, allianceFilter, zeroFilter, handledFilter, sortRules, getHandledStatus, compareByField]);
 
   // Counts
   const counts = useMemo(() => {
@@ -147,8 +269,7 @@ export default function WantedList() {
       else left++;
     }
     return { total: players.length, pending, zeroed, left };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, officerMarks]);
+  }, [players, getHandledStatus]);
 
   const handledColor = (status: 'pending' | 'zeroed' | 'left') => {
     switch (status) {
@@ -168,6 +289,42 @@ export default function WantedList() {
 
   // Instructions toggle
   const [showInstructions, setShowInstructions] = useState(false);
+
+  // Sort icon component
+  const SortIcon = ({ field }: { field: SortableField }) => {
+    const ruleIndex = sortRules.findIndex(r => r.field === field);
+    const isActive = ruleIndex >= 0;
+    const rule = isActive ? sortRules[ruleIndex] : null;
+    const Icon = rule?.direction === 'desc' ? ChevronDown : ChevronUp;
+    const showPriority = sortRules.length > 1 && isActive;
+
+    return (
+      <span className="relative inline-flex items-center">
+        <Icon className={`w-3.5 h-3.5 transition-opacity ${isActive ? 'opacity-100' : 'opacity-30'}`} />
+        {showPriority && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 text-[8px] font-bold rounded-full bg-red-500 text-white flex items-center justify-center">
+            {ruleIndex + 1}
+          </span>
+        )}
+      </span>
+    );
+  };
+
+  const hasActiveFilters = search || reasonFilter || allianceFilter || handledFilter !== 'all' || zeroFilter !== 'all'
+    || JSON.stringify(sortRules) !== JSON.stringify(DEFAULT_SORT_RULES);
+
+  // Sortable header helper
+  const SortHeader = ({ field, label, align = 'left' }: { field: SortableField; label: string; align?: 'left' | 'right' | 'center' }) => (
+    <th className={`text-${align} px-2 sm:px-4 py-2 sm:py-3`}>
+      <button
+        onClick={(e) => handleSort(field, e.shiftKey)}
+        title="Click to sort, Shift+click to add secondary sort"
+        className={`flex items-center gap-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors ${align === 'right' ? 'ml-auto' : align === 'center' ? 'mx-auto' : ''}`}
+      >
+        {label} <SortIcon field={field} />
+      </button>
+    </th>
+  );
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 sm:py-10">
@@ -273,15 +430,49 @@ export default function WantedList() {
 
       {/* Search + filters */}
       <div className="space-y-3 mb-4">
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or governor ID..."
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-red-500/50"
-          />
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or governor ID..."
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-red-500/50"
+            />
+          </div>
+          {/* Alliance filter */}
+          {alliances.length > 0 && (
+            <select
+              value={allianceFilter || ''}
+              onChange={(e) => setAllianceFilter(e.target.value || null)}
+              className="px-3 py-2.5 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-red-500/50"
+            >
+              <option value="">All Alliances</option>
+              {alliances.map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          )}
+          {/* Zero filter */}
+          <select
+            value={zeroFilter}
+            onChange={(e) => setZeroFilter(e.target.value as 'all' | 'yes' | 'no')}
+            className="px-3 py-2.5 rounded-xl bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm focus:outline-none focus:border-red-500/50"
+          >
+            <option value="all">Zero: All</option>
+            <option value="yes">Zero: Yes</option>
+            <option value="no">Zero: No</option>
+          </select>
+          {/* Reset */}
+          {hasActiveFilters && (
+            <button
+              onClick={resetFiltersAndSort}
+              className="px-3 py-2.5 rounded-xl text-sm font-medium bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors whitespace-nowrap"
+            >
+              Reset
+            </button>
+          )}
         </div>
 
         {/* Handled status filter chips */}
@@ -334,6 +525,27 @@ export default function WantedList() {
             ))}
           </div>
         )}
+
+        {/* Sort chain display */}
+        {JSON.stringify(sortRules) !== JSON.stringify(DEFAULT_SORT_RULES) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-[var(--text-muted)]">Sorted by:</span>
+            {sortRules.map((rule, idx) => (
+              <span key={rule.field} className="inline-flex items-center">
+                {idx > 0 && <span className="mx-1 text-[var(--text-muted)]">&rarr;</span>}
+                <button
+                  onClick={() => removeSortRule(rule.field)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                  title={`Remove ${SORT_FIELD_LABELS[rule.field]} from sort`}
+                >
+                  {SORT_FIELD_LABELS[rule.field]}
+                  {rule.direction === 'asc' ? '\u2191' : '\u2193'}
+                  <X className="w-3 h-3 ml-0.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Loading / Error */}
@@ -350,30 +562,16 @@ export default function WantedList() {
           <table className="w-full min-w-[320px]">
             <thead className="sticky top-0 z-10 bg-[var(--background-card)]">
               <tr className="border-b border-[var(--border)]">
-                <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
-                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Name</span>
-                </th>
-                <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
-                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Gov ID</span>
-                </th>
-                <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
-                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Power</span>
-                </th>
+                <SortHeader field="name" label="Name" />
+                <SortHeader field="governorId" label="Gov ID" />
+                <SortHeader field="power" label="Power" align="right" />
                 <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
                   <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Coords</span>
                 </th>
-                <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
-                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Alliance</span>
-                </th>
-                <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
-                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Reason</span>
-                </th>
-                <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
-                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Zero?</span>
-                </th>
-                <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
-                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Handled</span>
-                </th>
+                <SortHeader field="alliance" label="Alliance" />
+                <SortHeader field="reason" label="Reason" />
+                <SortHeader field="zero" label="Zero?" align="center" />
+                <SortHeader field="handled" label="Handled" align="center" />
                 {isOfficer && (
                   <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
                     <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Actions</span>
@@ -385,7 +583,7 @@ export default function WantedList() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={isOfficer ? 9 : 8} className="px-2 sm:px-4 py-8 text-center text-[var(--text-muted)]">
-                    {search || reasonFilter || handledFilter !== 'all' ? 'No players match filters' : 'No wanted players'}
+                    {hasActiveFilters ? 'No players match filters' : 'No wanted players'}
                   </td>
                 </tr>
               ) : (
@@ -483,7 +681,7 @@ export default function WantedList() {
         <div className="md:hidden space-y-3">
           {filtered.length === 0 ? (
             <div className="px-4 py-8 text-center text-[var(--text-muted)] rounded-xl border border-[var(--border)]">
-              {search || reasonFilter || handledFilter !== 'all' ? 'No players match filters' : 'No wanted players'}
+              {hasActiveFilters ? 'No players match filters' : 'No wanted players'}
             </div>
           ) : (
             filtered.map((player) => {
@@ -582,12 +780,13 @@ export default function WantedList() {
         </div>
       )}
 
-      {/* Last refreshed */}
-      {lastRefreshed && (
-        <div className="mt-3 text-xs text-[var(--text-muted)] text-center">
-          Last refreshed: {lastRefreshed.toLocaleTimeString()}
-        </div>
-      )}
+      {/* Showing count + last refreshed */}
+      <div className="mt-3 text-xs text-[var(--text-muted)] text-center space-y-0.5">
+        <div>Showing {filtered.length} of {counts.total} players</div>
+        {lastRefreshed && (
+          <div>Last refreshed: {lastRefreshed.toLocaleTimeString()}</div>
+        )}
+      </div>
 
       {/* Password modal */}
       {showPasswordPrompt && (
