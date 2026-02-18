@@ -17,6 +17,7 @@ interface WantedStatus {
 }
 
 const OFFICER_PASSWORD = 'angmar';
+const ADMIN_PASSWORD = 'carn-dum';
 
 export default function WantedList() {
   const [players, setPlayers] = useState<WantedPlayer[]>([]);
@@ -24,10 +25,12 @@ export default function WantedList() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [reasonFilter, setReasonFilter] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'zeroed' | 'left'>('all');
+  const [handledFilter, setHandledFilter] = useState<'all' | 'pending' | 'zeroed' | 'left'>('all');
 
-  // Officer mode
+  // Officer mode (can change handled status)
   const [isOfficer, setIsOfficer] = useState(false);
+  // Admin mode (can see sheet link) — admin also gets officer privileges
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [password, setPassword] = useState('');
 
@@ -77,7 +80,12 @@ export default function WantedList() {
   };
 
   const handlePasswordSubmit = () => {
-    if (password === OFFICER_PASSWORD) {
+    if (password === ADMIN_PASSWORD) {
+      setIsAdmin(true);
+      setIsOfficer(true);
+      setShowPasswordPrompt(false);
+      setPassword('');
+    } else if (password === OFFICER_PASSWORD) {
       setIsOfficer(true);
       setShowPasswordPrompt(false);
       setPassword('');
@@ -89,7 +97,6 @@ export default function WantedList() {
 
   const handleMarkStatus = async (governorId: number, status: OfficerMark | null) => {
     if (status === null) {
-      // Clear the mark
       await supabase.from('wanted_status').delete().eq('governor_id', governorId);
       setOfficerMarks(prev => {
         const next = new Map(prev);
@@ -104,12 +111,9 @@ export default function WantedList() {
     }
   };
 
-  // Get effective status: officer mark takes priority, then sheet zero column
-  const getEffectiveStatus = (player: WantedPlayer): 'active' | 'zeroed' | 'left' => {
-    const mark = officerMarks.get(player.governorId);
-    if (mark) return mark;
-    if (player.zero === 'yes') return 'zeroed';
-    return 'active';
+  // Officer handling status: zeroed, left, or pending (not yet handled)
+  const getHandledStatus = (player: WantedPlayer): 'pending' | 'zeroed' | 'left' => {
+    return officerMarks.get(player.governorId) || 'pending';
   };
 
   // Unique reasons for filter chips
@@ -126,37 +130,37 @@ export default function WantedList() {
     return players.filter(p => {
       if (search && !matchesSearch(search, p.name, p.governorId)) return false;
       if (reasonFilter && p.reason !== reasonFilter) return false;
-      const status = getEffectiveStatus(p);
-      if (statusFilter !== 'all' && status !== statusFilter) return false;
+      const handled = getHandledStatus(p);
+      if (handledFilter !== 'all' && handled !== handledFilter) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, search, reasonFilter, statusFilter, officerMarks]);
+  }, [players, search, reasonFilter, handledFilter, officerMarks]);
 
   // Counts
   const counts = useMemo(() => {
-    let active = 0, zeroed = 0, left = 0;
+    let pending = 0, zeroed = 0, left = 0;
     for (const p of players) {
-      const s = getEffectiveStatus(p);
-      if (s === 'active') active++;
+      const s = getHandledStatus(p);
+      if (s === 'pending') pending++;
       else if (s === 'zeroed') zeroed++;
       else left++;
     }
-    return { total: players.length, active, zeroed, left };
+    return { total: players.length, pending, zeroed, left };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, officerMarks]);
 
-  const statusColor = (status: 'active' | 'zeroed' | 'left') => {
+  const handledColor = (status: 'pending' | 'zeroed' | 'left') => {
     switch (status) {
-      case 'active': return 'text-red-400';
+      case 'pending': return 'text-amber-400';
       case 'zeroed': return 'text-emerald-400';
       case 'left': return 'text-sky-400';
     }
   };
 
-  const statusBg = (status: 'active' | 'zeroed' | 'left') => {
+  const handledBg = (status: 'pending' | 'zeroed' | 'left') => {
     switch (status) {
-      case 'active': return 'bg-red-500/10 border-red-500/30 text-red-400';
+      case 'pending': return 'bg-amber-500/10 border-amber-500/30 text-amber-400';
       case 'zeroed': return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400';
       case 'left': return 'bg-sky-500/10 border-sky-500/30 text-sky-400';
     }
@@ -173,7 +177,7 @@ export default function WantedList() {
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-[var(--foreground)]">Wanted</h1>
             <p className="text-sm text-[var(--text-muted)]">
-              {counts.total} players &middot; {counts.active} active &middot; {counts.zeroed} zeroed &middot; {counts.left} left
+              {counts.total} players &middot; {counts.pending} pending &middot; {counts.zeroed} zeroed &middot; {counts.left} left
             </p>
           </div>
         </div>
@@ -186,15 +190,16 @@ export default function WantedList() {
             <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </button>
-          {!isOfficer ? (
+          {!isOfficer && (
             <button
               onClick={() => setShowPasswordPrompt(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
             >
               <Lock size={16} />
-              Officer Login
+              Login
             </button>
-          ) : (
+          )}
+          {isAdmin && (
             <a
               href={WANTED_SHEET_EDIT_URL}
               target="_blank"
@@ -208,16 +213,16 @@ export default function WantedList() {
         </div>
       </div>
 
-      {/* Officer mode banner */}
+      {/* Officer/Admin mode banner */}
       {isOfficer && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-amber-400">
             <Lock size={14} />
-            <span className="font-medium">Officer Mode</span>
+            <span className="font-medium">{isAdmin ? 'Admin Mode' : 'Officer Mode'}</span>
             <span className="text-amber-400/60">&mdash; Mark players as zeroed or left kingdom</span>
           </div>
           <button
-            onClick={() => setIsOfficer(false)}
+            onClick={() => { setIsOfficer(false); setIsAdmin(false); }}
             className="text-amber-400/60 hover:text-amber-400 transition-colors"
           >
             <X size={16} />
@@ -238,22 +243,22 @@ export default function WantedList() {
           />
         </div>
 
-        {/* Status filter chips */}
+        {/* Handled status filter chips */}
         <div className="flex flex-wrap gap-2">
-          {(['all', 'active', 'zeroed', 'left'] as const).map(s => (
+          {(['all', 'pending', 'zeroed', 'left'] as const).map(s => (
             <button
               key={s}
-              onClick={() => setStatusFilter(s)}
+              onClick={() => setHandledFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                statusFilter === s
+                handledFilter === s
                   ? s === 'all'
                     ? 'bg-[var(--foreground)]/10 border-[var(--foreground)]/30 text-[var(--foreground)]'
-                    : statusBg(s)
+                    : handledBg(s)
                   : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
             >
               {s === 'all' ? `All (${counts.total})` :
-               s === 'active' ? `Active (${counts.active})` :
+               s === 'pending' ? `Pending (${counts.pending})` :
                s === 'zeroed' ? `Zeroed (${counts.zeroed})` :
                `Left (${counts.left})`}
             </button>
@@ -311,7 +316,8 @@ export default function WantedList() {
                   <th className="text-center px-4 py-3 font-semibold text-[var(--text-muted)]">Coords</th>
                   <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)]">Alliance</th>
                   <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)]">Reason</th>
-                  <th className="text-center px-4 py-3 font-semibold text-[var(--text-muted)]">Status</th>
+                  <th className="text-center px-4 py-3 font-semibold text-[var(--text-muted)]">Zero?</th>
+                  <th className="text-center px-4 py-3 font-semibold text-[var(--text-muted)]">Handled</th>
                   {isOfficer && (
                     <th className="text-center px-4 py-3 font-semibold text-[var(--text-muted)]">Actions</th>
                   )}
@@ -320,20 +326,21 @@ export default function WantedList() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={isOfficer ? 8 : 7} className="px-4 py-8 text-center text-[var(--text-muted)]">
-                      {search || reasonFilter || statusFilter !== 'all' ? 'No players match filters' : 'No wanted players'}
+                    <td colSpan={isOfficer ? 9 : 8} className="px-4 py-8 text-center text-[var(--text-muted)]">
+                      {search || reasonFilter || handledFilter !== 'all' ? 'No players match filters' : 'No wanted players'}
                     </td>
                   </tr>
                 ) : (
                   filtered.map((player) => {
-                    const status = getEffectiveStatus(player);
+                    const handled = getHandledStatus(player);
+                    const isDone = handled !== 'pending';
                     return (
                       <tr
                         key={player.governorId || player.name}
-                        className="border-b border-[var(--border)]/50 hover:bg-[var(--background-secondary)]/50 transition-colors"
+                        className={`border-b border-[var(--border)]/50 hover:bg-[var(--background-secondary)]/50 transition-colors ${isDone ? 'opacity-50' : ''}`}
                       >
                         <td className="px-4 py-3">
-                          <span className={`font-medium ${status !== 'active' ? 'line-through opacity-60' : ''}`}>
+                          <span className={`font-medium ${isDone ? 'line-through' : ''}`}>
                             {player.name}
                           </span>
                         </td>
@@ -359,17 +366,26 @@ export default function WantedList() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`text-xs font-semibold uppercase ${statusColor(status)}`}>
-                            {status}
+                          {player.zero === 'yes' ? (
+                            <span className="text-xs font-semibold text-red-400">YES</span>
+                          ) : player.zero === 'no' ? (
+                            <span className="text-xs font-semibold text-[var(--text-muted)]">NO</span>
+                          ) : (
+                            <span className="text-[var(--text-muted)]">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`text-xs font-semibold uppercase ${handledColor(handled)}`}>
+                            {handled}
                           </span>
                         </td>
                         {isOfficer && (
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center gap-1">
                               <button
-                                onClick={() => handleMarkStatus(player.governorId, status === 'zeroed' ? null : 'zeroed')}
+                                onClick={() => handleMarkStatus(player.governorId, handled === 'zeroed' ? null : 'zeroed')}
                                 className={`px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
-                                  status === 'zeroed'
+                                  handled === 'zeroed'
                                     ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
                                     : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-emerald-400 hover:border-emerald-500/40'
                                 }`}
@@ -377,9 +393,9 @@ export default function WantedList() {
                                 ZEROED
                               </button>
                               <button
-                                onClick={() => handleMarkStatus(player.governorId, status === 'left' ? null : 'left')}
+                                onClick={() => handleMarkStatus(player.governorId, handled === 'left' ? null : 'left')}
                                 className={`px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
-                                  status === 'left'
+                                  handled === 'left'
                                     ? 'bg-sky-500/20 border-sky-500/40 text-sky-400'
                                     : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-sky-400 hover:border-sky-500/40'
                                 }`}
@@ -410,7 +426,7 @@ export default function WantedList() {
       {showPasswordPrompt && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-[var(--background-card)] border border-[var(--border)] rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
-            <h2 className="text-lg font-semibold text-[var(--foreground)] mb-4">Officer Login</h2>
+            <h2 className="text-lg font-semibold text-[var(--foreground)] mb-4">Login</h2>
             <input
               type="password"
               value={password}
