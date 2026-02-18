@@ -39,6 +39,7 @@
     "kingdom": "المملكة",
     "migrationTracker": "متتبع الهجرة",
     "allianceSorter": "مصنف التحالفات",
+    "wanted": "Wanted",
     "aooPlanner": "مخطط AoO",
     "protocols": "البروتوكولات",
     "resources": "الموارد",
@@ -82,6 +83,7 @@
         "description": "تتبع هجرات المملكة واكتشف المهاجرين غير الشرعيين وراقب حالة اللاعبين"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "مصنف التحالفات",
         "description": "تعيين الأعضاء تلقائياً للتحالفات بناءً على عتبات القوة ونقاط القتل"
       }

@@ -39,6 +39,7 @@
     "kingdom": "Royaume",
     "migrationTracker": "Suivi des Migrations",
     "allianceSorter": "Trieur d'Alliances",
+    "wanted": "Wanted",
     "aooPlanner": "Planificateur AoO",
     "protocols": "Protocoles",
     "resources": "Ressources",
@@ -82,6 +83,7 @@
         "description": "Suivez les migrations du royaume, détectez les migrants illégaux et surveillez le statut des joueurs"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "Trieur d'Alliances",
         "description": "Attribuez automatiquement les membres aux alliances selon les seuils de puissance et de points de mort"
       }

@@ -360,6 +360,16 @@ export async function updateRosterFromScan(
       if (p.castleHall) updateData.castle_hall = p.castleHall;
       if (p.gathered > 0) updateData.gathered = p.gathered;
       if (p.allianceHelps > 0) updateData.alliance_helps = p.allianceHelps;
+
+      // Track name changes: if governor_id matched but name differs, record the old name
+      if (p.name && match.name && p.name.toLowerCase() !== match.name.toLowerCase()) {
+        const existingAlts: string[] = match.alternate_names || [];
+        if (!existingAlts.some(a => a.toLowerCase() === match.name.toLowerCase())) {
+          updateData.alternate_names = [...existingAlts, match.name];
+        }
+        updateData.name = p.name;
+      }
+
       updateOps.push({ id: match.id, data: updateData });
     } else {
       insertOps.push({

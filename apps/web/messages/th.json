@@ -39,6 +39,7 @@
     "kingdom": "อาณาจักร",
     "migrationTracker": "ติดตามการอพยพ",
     "allianceSorter": "จัดเรียงพันธมิตร",
+    "wanted": "Wanted",
     "aooPlanner": "วางแผน AoO",
     "protocols": "โปรโตคอล",
     "resources": "ทรัพยากร",
@@ -82,6 +83,7 @@
         "description": "ติดตามการอพยพในอาณาจักร ตรวจจับผู้อพยพผิดกฎหมาย และตรวจสอบสถานะผู้เล่น"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "จัดเรียงพันธมิตร",
         "description": "จัดสมาชิกเข้าพันธมิตรอัตโนมัติตามเกณฑ์พลังและคะแนนสังหาร"
       }

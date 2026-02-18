@@ -27,6 +27,8 @@ import { parseSnapshotCSV, parseKingdomXLSX, fetchMigrantSheet, fetchInactivesSh
 import { mergePlayers } from '@/lib/kingdom/merge';
 import { MIGRANT_SHEET_URL, INACTIVES_SHEET_URL, formatNumber, toSorterTag, normalizeName } from '@/lib/kingdom/config';
 import { matchesSearch } from '@/lib/search';
+import { useNameHistory } from '@/lib/supabase/use-name-history';
+import { NameHistoryBadge } from './NameHistoryBadge';
 import type { MigrationStatus, ScanPlayer, SnapshotRow, KingdomExportRow, MigrantRow, InactiveRow, OfficerStatus, PlayerOverride } from '@/lib/kingdom/types';
 
 const EDITOR_PASSWORD = 'carn-dum';
@@ -61,6 +63,15 @@ type SortDir = 'asc' | 'desc';
 
 export default function MigrationTracker() {
   const { scan, players, loading, refetch } = useLatestScan();
+
+  // Name history
+  const nameHistoryGovIds = useMemo(() => players.map(p => p.governor_id), [players]);
+  const nameHistoryCurrentNames = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const p of players) m.set(p.governor_id, p.name);
+    return m;
+  }, [players]);
+  const { nameHistory } = useNameHistory(nameHistoryGovIds, nameHistoryCurrentNames);
 
   // Auth state
   const [isAdmin, setIsAdmin] = useState(false);
@@ -943,7 +954,7 @@ export default function MigrationTracker() {
             {/* Mobile card view */}
             <div className="md:hidden space-y-2">
               {filteredPlayers.map((player) => (
-                <PlayerCard key={player.governor_id} player={player} isOfficer={isOfficer} override={overrides.get(player.governor_id)} onOverride={handleOverride} />
+                <PlayerCard key={player.governor_id} player={player} isOfficer={isOfficer} override={overrides.get(player.governor_id)} onOverride={handleOverride} previousNames={nameHistory.get(player.governor_id) || []} />
               ))}
             </div>
 
@@ -965,7 +976,7 @@ export default function MigrationTracker() {
                   </thead>
                   <tbody>
                     {filteredPlayers.map((player) => (
-                      <PlayerRow key={player.governor_id} player={player} isOfficer={isOfficer} override={overrides.get(player.governor_id)} onOverride={handleOverride} />
+                      <PlayerRow key={player.governor_id} player={player} isOfficer={isOfficer} override={overrides.get(player.governor_id)} onOverride={handleOverride} previousNames={nameHistory.get(player.governor_id) || []} />
                     ))}
                   </tbody>
                 </table>
@@ -1016,11 +1027,12 @@ function SummaryCard({ label, count, icon, color, bg, onClick, active, activeCol
   );
 }
 
-function PlayerCard({ player, isOfficer, override, onOverride }: {
+function PlayerCard({ player, isOfficer, override, onOverride, previousNames }: {
   player: ScanPlayer;
   isOfficer: boolean;
   override?: PlayerOverride;
   onOverride?: (governorId: number, status: OfficerStatus | null, note?: string) => void;
+  previousNames?: string[];
 }) {
   const [showNote, setShowNote] = useState(false);
   const [note, setNote] = useState('');
@@ -1035,7 +1047,10 @@ function PlayerCard({ player, isOfficer, override, onOverride }: {
     }`}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
-          <div className="font-medium text-sm text-[var(--foreground)] truncate">{player.name}</div>
+          <div className="font-medium text-sm text-[var(--foreground)] truncate flex items-center gap-1">
+            {player.name}
+            <NameHistoryBadge previousNames={previousNames || []} />
+          </div>
           <div className="text-xs text-[var(--text-muted)]">#{player.governor_id}</div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -1177,11 +1192,12 @@ function SortableHeader({ field, label, current, dir, onSort, align }: {
   );
 }
 
-function PlayerRow({ player, isOfficer, override, onOverride }: {
+function PlayerRow({ player, isOfficer, override, onOverride, previousNames }: {
   player: ScanPlayer;
   isOfficer: boolean;
   override?: PlayerOverride;
   onOverride?: (governorId: number, status: OfficerStatus | null, note?: string) => void;
+  previousNames?: string[];
 }) {
   const [showNote, setShowNote] = useState(false);
   const [note, setNote] = useState('');
@@ -1195,7 +1211,10 @@ function PlayerRow({ player, isOfficer, override, onOverride }: {
       status === 'ILLEGAL' ? 'bg-red-500/[0.03]' : status === 'INACTIVE' ? 'bg-orange-500/[0.03]' : ''
     }`}>
       <td className="px-3 py-2.5">
-        <div className="font-medium text-[var(--foreground)]">{player.name}</div>
+        <div className="font-medium text-[var(--foreground)] flex items-center gap-1">
+          {player.name}
+          <NameHistoryBadge previousNames={previousNames || []} />
+        </div>
         <div className="text-xs text-[var(--text-muted)]">#{player.governor_id}</div>
       </td>
       <td className="px-3 py-2.5 text-right font-mono text-[var(--foreground)]">

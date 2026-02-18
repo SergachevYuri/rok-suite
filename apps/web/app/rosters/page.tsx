@@ -12,6 +12,8 @@ import { ArrowLeft, Search, ChevronUp, ChevronDown, Edit2, Save, X, Upload, User
 import { matchesSearch } from '@/lib/search';
 import { AppSidebar } from '@/components/AppSidebar';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useNameHistory } from '@/lib/supabase/use-name-history';
+import { NameHistoryBadge } from '@/components/kingdom/NameHistoryBadge';
 
 interface RosterMember {
     id: string;
@@ -50,6 +52,7 @@ interface RosterMember {
     trades: number;
     castle_hall: number | null;
     civilization: string | null;
+    alternate_names: string[] | null;
 }
 
 // Sortable field types for multi-column sorting
@@ -475,6 +478,15 @@ export default function RosterPage() {
 
     // History data from hook
     const { dailyTotals, allSnapshots, memberChanges, lastSnapshotDate, loading: historyLoading, refetch: refetchHistory } = useRosterSnapshots();
+
+    // Name history for all roster members
+    const nameHistoryGovIds = useMemo(() => roster.filter(m => m.governor_id).map(m => m.governor_id!), [roster]);
+    const nameHistoryCurrentNames = useMemo(() => {
+        const map = new Map<number, string>();
+        for (const m of roster) if (m.governor_id) map.set(m.governor_id, m.name);
+        return map;
+    }, [roster]);
+    const { nameHistory } = useNameHistory(nameHistoryGovIds, nameHistoryCurrentNames);
 
     const fetchRoster = useCallback(async () => {
         setLoading(true);
@@ -2456,8 +2468,9 @@ export default function RosterPage() {
                                             {member.updated_at && (Date.now() - new Date(member.updated_at).getTime()) < 86400000 && (
                                                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 align-middle" title={`Updated ${new Date(member.updated_at).toLocaleString()}`} />
                                             )}
-                                            <span className="font-medium text-sm sm:text-base">
+                                            <span className="font-medium text-sm sm:text-base inline-flex items-center gap-0.5">
                                                 {member.name}
+                                                {member.governor_id && <NameHistoryBadge previousNames={nameHistory.get(member.governor_id) || []} size="sm" />}
                                             </span>
                                             {isEditor && member.tags?.includes('angmar-og') && (
                                                 <span className="ml-1 sm:ml-2 px-1 sm:px-1.5 py-0.5 text-[8px] sm:text-[10px] font-semibold rounded bg-amber-500/20 text-amber-400" title="Angmar Core">ANG</span>

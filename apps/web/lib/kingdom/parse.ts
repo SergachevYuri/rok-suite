@@ -1,4 +1,4 @@
-import type { SnapshotRow, KingdomExportRow, MigrantRow, InactiveRow } from './types';
+import type { SnapshotRow, KingdomExportRow, MigrantRow, InactiveRow, WantedPlayer } from './types';
 
 /** Parse a CSV line handling quoted fields */
 function parseCSVLine(line: string): string[] {
@@ -20,7 +20,7 @@ function parseCSVLine(line: string): string[] {
 }
 
 /** Parse CSV text into header + row arrays */
-function parseCSV(text: string): { headers: string[]; rows: string[][] } {
+export function parseCSV(text: string): { headers: string[]; rows: string[][] } {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   if (lines.length === 0) return { headers: [], rows: [] };
   const headers = parseCSVLine(lines[0]);
@@ -198,4 +198,48 @@ export async function fetchInactivesSheet(url: string): Promise<InactiveRow[]> {
       };
     })
     .filter((r): r is InactiveRow => r !== null && (!!r.name || !!r.governorId));
+}
+
+/**
+ * Fetch and parse the Google Sheet wanted list as CSV.
+ * Columns: Name, Governor ID, X Coordinate, Y Coordinate, Zero, Reason
+ */
+export async function fetchWantedSheet(url: string): Promise<WantedPlayer[]> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch wanted sheet: ${response.status}`);
+  const text = await response.text();
+  const { headers, rows } = parseCSV(text);
+
+  const idx = (name: string) => {
+    return headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+  };
+
+  const iGovId = idx('governor id');
+  const iName = idx('name');
+  const iPower1 = idx('power 1');
+  const iPower2 = idx('power 2');
+  const iDelta = idx('delta');
+  const iX = idx('coordinate x');
+  const iY = idx('coordinate y');
+  const iAlliance = idx('alliance');
+  const iZero = idx('zero');
+  const iReason = idx('reason');
+
+  return rows
+    .map(cols => {
+      const zeroVal = (cols[iZero] || '').trim().toLowerCase();
+      return {
+        governorId: parseInt(cols[iGovId]) || 0,
+        name: (cols[iName] || '').trim(),
+        power1: parseInt(cols[iPower1]) || 0,
+        power2: parseInt(cols[iPower2]) || 0,
+        delta: parseInt(cols[iDelta]) || 0,
+        x: parseInt(cols[iX]) || 0,
+        y: parseInt(cols[iY]) || 0,
+        alliance: (cols[iAlliance] || '').trim(),
+        zero: (zeroVal === 'yes' ? 'yes' : zeroVal === 'no' ? 'no' : '') as WantedPlayer['zero'],
+        reason: (cols[iReason] || '').trim(),
+      };
+    })
+    .filter(r => r.name || r.governorId);
 }

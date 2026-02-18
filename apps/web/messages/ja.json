@@ -39,6 +39,7 @@
     "kingdom": "王国",
     "migrationTracker": "移住トラッカー",
     "allianceSorter": "同盟ソーター",
+    "wanted": "Wanted",
     "aooPlanner": "AoO プランナー",
     "protocols": "プロトコル",
     "resources": "リソース",
@@ -82,6 +83,7 @@
         "description": "王国の移住を追跡し、不正移民を検出し、プレイヤーのステータスを監視"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "同盟ソーター",
         "description": "戦力とキルポイントの閾値に基づいてメンバーを同盟に自動割り当て"
       }

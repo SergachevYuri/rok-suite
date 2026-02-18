@@ -39,6 +39,7 @@
     "kingdom": "Vương quốc",
     "migrationTracker": "Theo dõi Di cư",
     "allianceSorter": "Phân loại Liên minh",
+    "wanted": "Wanted",
     "aooPlanner": "Kế hoạch AoO",
     "protocols": "Quy trình",
     "resources": "Tài nguyên",
@@ -82,6 +83,7 @@
         "description": "Theo dõi di cư vương quốc, phát hiện di dân bất hợp pháp và giám sát trạng thái người chơi"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "Phân loại Liên minh",
         "description": "Tự động phân công thành viên vào liên minh dựa trên ngưỡng sức mạnh và điểm tiêu diệt"
       }

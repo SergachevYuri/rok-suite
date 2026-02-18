@@ -16,6 +16,12 @@ export const MIGRANT_SHEET_URL =
 export const INACTIVES_SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1VoYEGLmM4H1HQ-uHSwgI_8SrQM4wryGH/export?format=csv&gid=4777644';
 
+export const WANTED_SHEET_URL =
+  'https://docs.google.com/spreadsheets/d/1VoYEGLmM4H1HQ-uHSwgI_8SrQM4wryGH/export?format=csv&gid=641582522';
+
+export const WANTED_SHEET_EDIT_URL =
+  'https://docs.google.com/spreadsheets/d/1VoYEGLmM4H1HQ-uHSwgI_8SrQM4wryGH/edit?gid=641582522#gid=641582522';
+
 /** Alliance tags that belong to this kingdom */
 export const KINGDOM_ALLIANCE_TAGS = ['ANG', '23KK', 'KNG', 'K23S', '23A', '23-A', 'EQ', '23SP', 'ING', 'GNG'];
 

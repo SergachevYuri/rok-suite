@@ -39,6 +39,7 @@
     "kingdom": "Königreich",
     "migrationTracker": "Migrations-Tracker",
     "allianceSorter": "Allianz-Sortierer",
+    "wanted": "Wanted",
     "aooPlanner": "AoO-Planer",
     "protocols": "Protokolle",
     "resources": "Ressourcen",
@@ -82,6 +83,7 @@
         "description": "Verfolge Königreich-Migrationen, erkenne illegale Migranten und überwache Spielerstatus"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "Allianz-Sortierer",
         "description": "Weise Mitglieder automatisch Allianzen basierend auf Macht- und Kill-Punkt-Schwellen zu"
       }

@@ -58,6 +58,20 @@ export interface InactiveRow {
   inactiveReason: 'yes' | 'decrease';
 }
 
+/** Google Sheet wanted list row */
+export interface WantedPlayer {
+  governorId: number;
+  name: string;
+  power1: number;
+  power2: number;
+  delta: number;
+  x: number;
+  y: number;
+  alliance: string;
+  zero: 'yes' | 'no' | '';
+  reason: string;
+}
+
 /** Officer review override */
 export type OfficerStatus = 'confirmed' | 'cleared';
 

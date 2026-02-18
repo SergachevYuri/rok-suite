@@ -39,6 +39,7 @@
     "kingdom": "왕국",
     "migrationTracker": "이주 추적기",
     "allianceSorter": "동맹 분류기",
+    "wanted": "Wanted",
     "aooPlanner": "AoO 플래너",
     "protocols": "프로토콜",
     "resources": "리소스",
@@ -94,6 +95,7 @@
         "description": "왕국 이주를 추적하고, 불법 이주자를 감지하고, 플레이어 상태를 모니터링"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "동맹 분류기",
         "description": "전투력과 킬 포인트 기준으로 멤버를 동맹에 자동 배정"
       }

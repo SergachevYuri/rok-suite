@@ -39,6 +39,7 @@
     "kingdom": "Reino",
     "migrationTracker": "Rastreador de Migración",
     "allianceSorter": "Clasificador de Alianzas",
+    "wanted": "Wanted",
     "aooPlanner": "Planificador AoO",
     "protocols": "Protocolos",
     "resources": "Recursos",
@@ -82,6 +83,7 @@
         "description": "Rastrea migraciones del reino, detecta migrantes ilegales y monitorea el estado de los jugadores"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "Clasificador de Alianzas",
         "description": "Asigna automáticamente miembros a alianzas según umbrales de poder y puntos de muerte"
       }

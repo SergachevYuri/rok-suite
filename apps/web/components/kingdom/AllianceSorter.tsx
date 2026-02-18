@@ -54,6 +54,8 @@ import { DEFAULT_ALLIANCE_CONFIGS, SORTER_ALLIANCE_COLORS, MIGRANT_SHEET_URL, IN
 import { matchesSearch } from '@/lib/search';
 import type { AllianceConfig, PlayerAssignment, AssignmentStatus, ScanPlayer } from '@/lib/kingdom/types';
 import { useSorterVersions, saveSorterVersion, loadSorterVersion, deleteSorterVersion } from '@/lib/supabase/use-sorter-versions';
+import { useNameHistory } from '@/lib/supabase/use-name-history';
+import { NameHistoryBadge } from './NameHistoryBadge';
 import SorterBoardView from './SorterBoardView';
 
 const EDITOR_PASSWORD = 'carn-dum';
@@ -78,6 +80,15 @@ export default function AllianceSorter() {
   const { scan, players, loading, refetch } = useLatestScan();
   const { members: r4r5Members } = useR4R5Members();
   const { versions, refetch: refetchVersions } = useSorterVersions(scan?.id ?? null);
+
+  // Name history
+  const nameHistoryGovIds = useMemo(() => players.map(p => p.governor_id), [players]);
+  const nameHistoryCurrentNames = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const p of players) m.set(p.governor_id, p.name);
+    return m;
+  }, [players]);
+  const { nameHistory } = useNameHistory(nameHistoryGovIds, nameHistoryCurrentNames);
 
   // Admin
   const [isAdmin, setIsAdmin] = useState(false);
@@ -1010,6 +1021,7 @@ export default function AllianceSorter() {
             })}
             configs={configs}
             statusFilter={statusFilter}
+            nameHistory={nameHistory}
             onAssignmentsChange={(updated) => {
               // Find the changed assignment by diffing
               const changed = updated.find(a => {
@@ -1056,7 +1068,7 @@ export default function AllianceSorter() {
             {/* Mobile card view */}
             <div className="md:hidden space-y-2">
               {tableData.map(({ player, assignment }) => (
-                <AssignmentCard key={player.governor_id} player={player} assignment={assignment} allianceTags={allianceTags} onReassign={handleReassign} />
+                <AssignmentCard key={player.governor_id} player={player} assignment={assignment} allianceTags={allianceTags} onReassign={handleReassign} previousNames={nameHistory.get(player.governor_id) || []} />
               ))}
             </div>
 
@@ -1077,7 +1089,7 @@ export default function AllianceSorter() {
                   </thead>
                   <tbody>
                     {tableData.map(({ player, assignment }) => (
-                      <AssignmentRow key={player.governor_id} player={player} assignment={assignment} allianceTags={allianceTags} onReassign={handleReassign} />
+                      <AssignmentRow key={player.governor_id} player={player} assignment={assignment} allianceTags={allianceTags} onReassign={handleReassign} previousNames={nameHistory.get(player.governor_id) || []} />
                     ))}
                   </tbody>
                 </table>
@@ -1123,7 +1135,7 @@ export default function AllianceSorter() {
                 {/* Mobile cards */}
                 <div className="md:hidden space-y-2">
                   {flaggedData.map(({ player, assignment }) => (
-                    <AssignmentCard key={player.governor_id} player={player} assignment={assignment} allianceTags={allianceTags} onReassign={handleReassign} />
+                    <AssignmentCard key={player.governor_id} player={player} assignment={assignment} allianceTags={allianceTags} onReassign={handleReassign} previousNames={nameHistory.get(player.governor_id) || []} />
                   ))}
                 </div>
 
@@ -1193,11 +1205,12 @@ export default function AllianceSorter() {
   );
 }
 
-function AssignmentCard({ player, assignment, allianceTags, onReassign }: {
+function AssignmentCard({ player, assignment, allianceTags, onReassign, previousNames }: {
   player: ScanPlayer;
   assignment?: PlayerAssignment;
   allianceTags: string[];
   onReassign: (governorId: number, newAlliance: string) => void;
+  previousNames?: string[];
 }) {
   const status = assignment?.status;
   const style = status ? STATUS_STYLES[status] : null;
@@ -1210,7 +1223,10 @@ function AssignmentCard({ player, assignment, allianceTags, onReassign }: {
     }`}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
-          <div className="font-medium text-sm text-[var(--foreground)] truncate">{player.name}</div>
+          <div className="font-medium text-sm text-[var(--foreground)] truncate flex items-center gap-1">
+            {player.name}
+            <NameHistoryBadge previousNames={previousNames || []} />
+          </div>
           <div className="text-xs text-[var(--text-muted)]">#{player.governor_id}</div>
         </div>
         {style && (
@@ -1285,11 +1301,12 @@ function SortableHeader({ field, label, current, dir, onSort, align }: {
   );
 }
 
-function AssignmentRow({ player, assignment, allianceTags, onReassign }: {
+function AssignmentRow({ player, assignment, allianceTags, onReassign, previousNames }: {
   player: ScanPlayer;
   assignment?: PlayerAssignment;
   allianceTags: string[];
   onReassign: (governorId: number, newAlliance: string) => void;
+  previousNames?: string[];
 }) {
   const status = assignment?.status;
   const style = status ? STATUS_STYLES[status] : null;
@@ -1301,7 +1318,10 @@ function AssignmentRow({ player, assignment, allianceTags, onReassign }: {
       status === 'ILLEGAL' ? 'bg-red-500/[0.03]' : ''
     }`}>
       <td className="px-3 py-2.5">
-        <div className="font-medium text-[var(--foreground)]">{player.name}</div>
+        <div className="font-medium text-[var(--foreground)] flex items-center gap-1">
+          {player.name}
+          <NameHistoryBadge previousNames={previousNames || []} />
+        </div>
         <div className="text-xs text-[var(--text-muted)]">#{player.governor_id}</div>
       </td>
       <td className="px-3 py-2.5 text-right font-mono text-[var(--foreground)]">

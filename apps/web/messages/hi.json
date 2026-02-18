@@ -39,6 +39,7 @@
     "kingdom": "राज्य",
     "migrationTracker": "प्रवासन ट्रैकर",
     "allianceSorter": "गठबंधन सॉर्टर",
+    "wanted": "Wanted",
     "aooPlanner": "AoO प्लानर",
     "protocols": "प्रोटोकॉल",
     "resources": "संसाधन",
@@ -82,6 +83,7 @@
         "description": "राज्य प्रवासन ट्रैक करें, अवैध प्रवासियों का पता लगाएं और खिलाड़ी स्थिति की निगरानी करें"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "गठबंधन सॉर्टर",
         "description": "शक्ति और किल पॉइंट सीमा के आधार पर सदस्यों को स्वचालित रूप से गठबंधनों में असाइन करें"
       }

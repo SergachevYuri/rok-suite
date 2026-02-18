@@ -17,6 +17,8 @@ import { matchesSearch } from '@/lib/search';
 import { Search, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import type { AllianceConfig, PlayerAssignment, AssignmentStatus, ScanPlayer } from '@/lib/kingdom/types';
 import { SORTER_ALLIANCE_COLORS, formatNumber, toSorterTag } from '@/lib/kingdom/config';
+import type { NameHistoryMap } from '@/lib/supabase/use-name-history';
+import { NameHistoryBadge } from './NameHistoryBadge';
 
 interface SorterBoardViewProps {
   players: ScanPlayer[];
@@ -24,6 +26,7 @@ interface SorterBoardViewProps {
   configs: AllianceConfig[];
   statusFilter: AssignmentStatus | 'ALL';
   onAssignmentsChange: (updated: PlayerAssignment[]) => void;
+  nameHistory?: NameHistoryMap;
 }
 
 const UNASSIGNED_COL = '__UNASSIGNED__';
@@ -34,6 +37,7 @@ export default function SorterBoardView({
   configs,
   statusFilter,
   onAssignmentsChange,
+  nameHistory,
 }: SorterBoardViewProps) {
   const [search, setSearch] = useState('');
   const [showMovesOnly, setShowMovesOnly] = useState(false);
@@ -197,6 +201,7 @@ export default function SorterBoardView({
               items={columns[cfg.tag] || []}
               allianceTags={configs.map(c => c.tag)}
               onReassign={handleReassign}
+              nameHistory={nameHistory}
             />
           ))}
           <BoardColumn
@@ -207,6 +212,7 @@ export default function SorterBoardView({
             items={columns[UNASSIGNED_COL] || []}
             allianceTags={configs.map(c => c.tag)}
             onReassign={handleReassign}
+            nameHistory={nameHistory}
           />
         </div>
 
@@ -228,6 +234,7 @@ function BoardColumn({
   items,
   allianceTags,
   onReassign,
+  nameHistory,
 }: {
   id: string;
   label: string;
@@ -236,6 +243,7 @@ function BoardColumn({
   items: { govId: number; player: ScanPlayer; assignment: PlayerAssignment }[];
   allianceTags: string[];
   onReassign: (govId: number, newAlliance: string) => void;
+  nameHistory?: NameHistoryMap;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
@@ -267,6 +275,7 @@ function BoardColumn({
             assignment={assignment}
             allianceTags={allianceTags}
             onReassign={onReassign}
+            previousNames={nameHistory?.get(govId) || []}
           />
         ))}
         {items.length === 0 && (
@@ -285,12 +294,14 @@ function DraggablePlayerCard({
   assignment,
   allianceTags,
   onReassign,
+  previousNames,
 }: {
   govId: number;
   player: ScanPlayer;
   assignment: PlayerAssignment;
   allianceTags: string[];
   onReassign: (govId: number, newAlliance: string) => void;
+  previousNames?: string[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -311,6 +322,7 @@ function DraggablePlayerCard({
         onToggle={() => setExpanded(!expanded)}
         allianceTags={allianceTags}
         onReassign={(newAlliance) => onReassign(govId, newAlliance)}
+        previousNames={previousNames}
       />
     </div>
   );
@@ -324,6 +336,7 @@ function PlayerCard({
   onToggle,
   allianceTags,
   onReassign,
+  previousNames,
 }: {
   player: ScanPlayer;
   assignment: PlayerAssignment;
@@ -332,6 +345,7 @@ function PlayerCard({
   onToggle?: () => void;
   allianceTags?: string[];
   onReassign?: (newAlliance: string) => void;
+  previousNames?: string[];
 }) {
   const statusColors: Record<string, string> = {
     STAY: 'border-l-emerald-500',
@@ -358,7 +372,10 @@ function PlayerCard({
       }`}
     >
       <div className="flex items-center justify-between gap-1">
-        <div className="font-medium text-[var(--foreground)] truncate">{player.name}</div>
+        <div className="font-medium text-[var(--foreground)] truncate flex items-center gap-0.5">
+          {player.name}
+          <NameHistoryBadge previousNames={previousNames || []} size="sm" />
+        </div>
         {onToggle && (
           <ChevronDown size={10} className={`text-[var(--text-muted)] flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         )}

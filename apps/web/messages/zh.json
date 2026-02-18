@@ -39,6 +39,7 @@
     "kingdom": "王国",
     "migrationTracker": "迁移追踪器",
     "allianceSorter": "联盟分配器",
+    "wanted": "Wanted",
     "aooPlanner": "AoO 规划器",
     "protocols": "规程",
     "resources": "资源",
@@ -82,6 +83,7 @@
         "description": "追踪王国迁移，检测非法移民，监控玩家状态"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "联盟分配器",
         "description": "根据战力和击杀积分阈值自动分配成员到联盟"
       }

@@ -39,6 +39,7 @@
     "kingdom": "Krallık",
     "migrationTracker": "Göç Takipçisi",
     "allianceSorter": "İttifak Sıralayıcı",
+    "wanted": "Wanted",
     "aooPlanner": "AoO Planlayıcı",
     "protocols": "Protokoller",
     "resources": "Kaynaklar",
@@ -82,6 +83,7 @@
         "description": "Krallık göçlerini takip edin, yasadışı göçmenleri tespit edin ve oyuncu durumunu izleyin"
       },
       "allianceSorter": {
+    "wanted": "Wanted",
         "title": "İttifak Sıralayıcı",
         "description": "Güç ve öldürme puanı eşiklerine göre üyeleri otomatik olarak ittifaklara atayın"
       }
