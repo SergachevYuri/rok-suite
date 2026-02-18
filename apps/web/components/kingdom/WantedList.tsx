@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, RefreshCw, Lock, ExternalLink, Crosshair, X, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { fetchWantedSheet } from '@/lib/kingdom/parse';
-import { WANTED_SHEET_URL, WANTED_SHEET_EDIT_URL, formatNumber } from '@/lib/kingdom/config';
+import { WANTED_SHEET_URL, WANTED_SHEET_EDIT_URL } from '@/lib/kingdom/config';
 import { matchesSearch } from '@/lib/search';
 import type { WantedPlayer } from '@/lib/kingdom/types';
 
@@ -18,6 +18,14 @@ interface WantedStatus {
 
 const OFFICER_PASSWORD = 'angmar';
 const ADMIN_PASSWORD = 'carn-dum';
+
+/** Format power — sheet stores values in millions (e.g. 28 = 28M) */
+const formatPower = (val: number): string => {
+  if (!val) return '-';
+  if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M';
+  if (val >= 1_000) return (val / 1_000).toFixed(0) + 'K';
+  return val + 'M';
+};
 
 // ─── Sort types ────────────────────────────────────────────────────
 type SortableField = 'name' | 'governorId' | 'power' | 'alliance' | 'reason' | 'zero' | 'handled';
@@ -315,7 +323,7 @@ export default function WantedList() {
 
   // Sortable header helper
   const SortHeader = ({ field, label, align = 'left' }: { field: SortableField; label: string; align?: 'left' | 'right' | 'center' }) => (
-    <th className={`text-${align} px-2 sm:px-4 py-2 sm:py-3`}>
+    <th className={`text-${align} px-3 py-2 sm:py-3`}>
       <button
         onClick={(e) => handleSort(field, e.shiftKey)}
         title="Click to sort, Shift+click to add secondary sort"
@@ -559,13 +567,13 @@ export default function WantedList() {
       {/* Desktop table */}
       {!loading && !error && (
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full min-w-[320px]">
+          <table className="w-full">
             <thead className="sticky top-0 z-10 bg-[var(--background-card)]">
               <tr className="border-b border-[var(--border)]">
                 <SortHeader field="name" label="Name" />
                 <SortHeader field="governorId" label="Gov ID" />
                 <SortHeader field="power" label="Power" align="right" />
-                <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
+                <th className="text-center px-3 py-2 sm:py-3">
                   <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Coords</span>
                 </th>
                 <SortHeader field="alliance" label="Alliance" />
@@ -573,7 +581,7 @@ export default function WantedList() {
                 <SortHeader field="zero" label="Zero?" align="center" />
                 <SortHeader field="handled" label="Handled" align="center" />
                 {isOfficer && (
-                  <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
+                  <th className="text-center px-3 py-2 sm:py-3">
                     <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Actions</span>
                   </th>
                 )}
@@ -582,7 +590,7 @@ export default function WantedList() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isOfficer ? 9 : 8} className="px-2 sm:px-4 py-8 text-center text-[var(--text-muted)]">
+                  <td colSpan={isOfficer ? 9 : 8} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
                     {hasActiveFilters ? 'No players match filters' : 'No wanted players'}
                   </td>
                 </tr>
@@ -596,38 +604,37 @@ export default function WantedList() {
                       key={player.governorId || player.name}
                       className={`border-b border-[var(--border)] hover:bg-[var(--background-secondary)]/50 transition-colors ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''} ${isDone ? 'opacity-50' : ''}`}
                     >
-                      <td className="px-2 sm:px-4 py-2 sm:py-3">
-                        <span className={`font-medium text-sm ${isDone ? 'line-through' : ''}`}>
+                      <td className="px-3 py-2.5">
+                        <span className={`font-medium text-sm ${isDone ? 'line-through text-[var(--text-muted)]' : 'text-[var(--foreground)]'}`}>
                           {player.name}
                         </span>
                       </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 font-mono text-sm text-[var(--text-muted)]">
+                      <td className="px-3 py-2.5 font-mono text-xs text-[var(--text-muted)]">
                         {player.governorId || '-'}
                       </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-mono text-sm text-[var(--text-muted)]">
-                        {player.power2 ? formatNumber(player.power2) : '-'}
+                      <td className="px-3 py-2.5 text-right font-mono text-sm text-[var(--foreground)]">
+                        {formatPower(player.power2)}
                       </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-mono text-sm text-[var(--text-muted)]">
+                      <td className="px-3 py-2.5 text-center font-mono text-xs text-[var(--text-muted)] whitespace-nowrap">
                         {player.x || player.y ? `${player.x}, ${player.y}` : '-'}
                       </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-sm text-[var(--text-secondary)]">
+                      <td className="px-3 py-2.5 text-sm text-[var(--text-secondary)]">
                         {player.alliance || '-'}
                       </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3">
+                      <td className="px-3 py-2.5">
                         {player.reason ? (
-                          <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
+                          <span className={`inline-block whitespace-nowrap px-2 py-0.5 rounded-md text-xs font-medium border ${
                             isIllegal
                               ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                               : 'bg-red-500/10 text-red-400 border-red-500/20'
                           }`}>
                             {player.reason}
-                            {isIllegal && ' (low priority)'}
                           </span>
                         ) : (
                           <span className="text-[var(--text-muted)]">-</span>
                         )}
                       </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                      <td className="px-3 py-2.5 text-center">
                         {player.zero === 'yes' ? (
                           <span className="text-xs font-semibold text-red-400">YES</span>
                         ) : player.zero === 'no' ? (
@@ -636,13 +643,13 @@ export default function WantedList() {
                           <span className="text-[var(--text-muted)]">-</span>
                         )}
                       </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                        <span className={`text-xs font-semibold uppercase ${handledColor(handled)}`}>
+                      <td className="px-3 py-2.5 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase border ${handledBg(handled)}`}>
                           {handled}
                         </span>
                       </td>
                       {isOfficer && (
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                        <td className="px-3 py-2.5 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => handleMarkStatus(player.governorId, handled === 'zeroed' ? null : 'zeroed')}
@@ -712,7 +719,7 @@ export default function WantedList() {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                     <div>
                       <span className="text-[var(--text-muted)]">Power: </span>
-                      <span className="font-mono text-[var(--text-secondary)]">{player.power2 ? formatNumber(player.power2) : '-'}</span>
+                      <span className="font-mono text-[var(--text-secondary)]">{formatPower(player.power2)}</span>
                     </div>
                     <div>
                       <span className="text-[var(--text-muted)]">Coords: </span>
@@ -743,7 +750,6 @@ export default function WantedList() {
                           : 'bg-red-500/10 text-red-400 border-red-500/20'
                       }`}>
                         {player.reason}
-                        {isIllegal && ' (low priority)'}
                       </span>
                     </div>
                   )}
