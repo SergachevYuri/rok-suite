@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
-import { useAllianceRoster, formatPower, RosterMember } from '@/lib/supabase/use-alliance-roster';
+import { useScanRoster, formatPower, RosterMember } from '@/lib/supabase/use-alliance-roster';
 import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-participation';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/lib/supabase/auth-context';
@@ -147,6 +147,7 @@ interface TeamBuilderTabProps {
     theme: Record<string, string>;
     formatPower: (p: number | null | undefined) => string;
     user: { id: string } | null;
+    scanLabel: string | null;
 }
 
 function TeamBuilderTab({
@@ -180,6 +181,7 @@ function TeamBuilderTab({
     theme,
     formatPower,
     user,
+    scanLabel,
 }: TeamBuilderTabProps) {
     // Local state for search and add member form
     const [searchTerm, setSearchTerm] = useState('');
@@ -792,9 +794,16 @@ function TeamBuilderTab({
                     {/* Player Selection List */}
                     <section className={`${theme.card} border rounded-xl mb-6 p-5`}>
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className={`text-lg font-semibold ${theme.text}`}>
-                                Select Players <span className={`text-base font-normal ${theme.textMuted}`}>({combinedRoster.length} available{pendingAdditions.length > 0 ? `, ${pendingAdditions.length} pending` : ''})</span>
-                            </h3>
+                            <div>
+                                <h3 className={`text-lg font-semibold ${theme.text}`}>
+                                    Select Players <span className={`text-base font-normal ${theme.textMuted}`}>({combinedRoster.length} available{pendingAdditions.length > 0 ? `, ${pendingAdditions.length} pending` : ''})</span>
+                                </h3>
+                                {scanLabel && (
+                                    <p className={`text-xs ${theme.textMuted} mt-0.5`}>
+                                        Data from scan: <span className={theme.text}>{scanLabel}</span>
+                                    </p>
+                                )}
+                            </div>
                             <div className="flex items-center gap-6 text-base font-medium">
                                 <span className="text-green-400">
                                     ✓ Confirmed: {confirmedPlayers.length} ({formatPower(confirmedPower)})
@@ -1441,7 +1450,7 @@ export default function AooStrategyPage() {
     const { user } = useAuth();
 
     // Fetch roster from Supabase
-    const { roster, rosterNames, powerByName, killsByName, allianceByName, alliances: dbAlliances, loading: rosterLoading } = useAllianceRoster();
+    const { roster, rosterNames, powerByName, killsByName, allianceByName, alliances: dbAlliances, loading: rosterLoading, scanLabel } = useScanRoster();
     const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'builder'>('builder');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);
@@ -2277,6 +2286,7 @@ export default function AooStrategyPage() {
                     theme={theme}
                     formatPower={formatPower}
                     user={user}
+                    scanLabel={scanLabel}
                 />
             )}
 

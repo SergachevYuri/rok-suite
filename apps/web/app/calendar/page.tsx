@@ -5,7 +5,7 @@ import { useTheme } from '@/lib/theme-context';
 import { AppSidebar } from '@/components/AppSidebar';
 
 // Google Calendar configuration
-const CALENDARS = [
+const PUBLIC_CALENDARS = [
     {
         id: '2aed069b30c3f3501b64ef982441f597b833e3db8b855488f734efe1b9552040@group.calendar.google.com',
         name: 'Angmar Alliance',
@@ -26,6 +26,15 @@ const CALENDARS = [
     },
 ];
 
+const ADMIN_CALENDAR = {
+    id: 'ef47386caa3f7c72112843b965a4db91dc20c1b785836db69b064bf49a50aede@group.calendar.google.com',
+    name: 'Leadership',
+    color: '#7986CB', // indigo
+    displayColor: '#8b5cf6', // violet
+};
+
+const ADMIN_PASSWORD = 'carn-dum';
+
 const TIMEZONE_OPTIONS = [
     { value: 'UTC', label: 'UTC (Game Time)' },
     { value: 'America/New_York', label: 'US Eastern' },
@@ -42,7 +51,37 @@ export default function CalendarPage() {
     const [timezone, setTimezone] = useState('UTC');
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showSubscribe, setShowSubscribe] = useState(false);
-    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1, 2])); // Default to all calendars
+    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1, 2])); // Default to all public calendars
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+    const [password, setPassword] = useState('');
+    const [passwordError, setPasswordError] = useState(false);
+
+    // Combine public + admin calendars based on login state
+    const CALENDARS = isAdmin ? [...PUBLIC_CALENDARS, ADMIN_CALENDAR] : PUBLIC_CALENDARS;
+
+    const handleAdminLogin = () => {
+        if (password === ADMIN_PASSWORD) {
+            setIsAdmin(true);
+            setShowPasswordPrompt(false);
+            setPassword('');
+            setPasswordError(false);
+            // Auto-enable the leadership calendar
+            setEnabledCalendars(prev => new Set([...prev, PUBLIC_CALENDARS.length]));
+        } else {
+            setPasswordError(true);
+        }
+    };
+
+    const handleAdminLogout = () => {
+        setIsAdmin(false);
+        // Remove admin calendar from enabled set
+        setEnabledCalendars(prev => {
+            const next = new Set(prev);
+            next.delete(PUBLIC_CALENDARS.length);
+            return next;
+        });
+    };
 
     const toggleCalendar = (index: number) => {
         const newEnabled = new Set(enabledCalendars);
@@ -112,9 +151,72 @@ export default function CalendarPage() {
                                 <p className="text-xs sm:text-sm text-[var(--text-secondary)] hidden sm:block">Kingdom 23 events and Angmar alliance activities</p>
                             </div>
                         </div>
+                        {isAdmin ? (
+                            <button
+                                onClick={handleAdminLogout}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-500/15 text-violet-400 border border-violet-500/30 hover:bg-violet-500/25 transition-colors flex items-center gap-1.5"
+                            >
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                </svg>
+                                Admin
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setShowPasswordPrompt(true)}
+                                className={`p-2 rounded-lg transition-colors ${theme.button} opacity-40 hover:opacity-70`}
+                                title="Admin login"
+                            >
+                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0110 0v4"/>
+                                </svg>
+                            </button>
+                        )}
                     </div>
                 </div>
             </header>
+
+            {/* Admin password modal */}
+            {showPasswordPrompt && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => { setShowPasswordPrompt(false); setPassword(''); setPasswordError(false); }}>
+                    <div className="bg-[var(--background-card)] border border-[var(--border)] rounded-xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-2 mb-4">
+                            <svg className="w-5 h-5 text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                            <h3 className="text-lg font-semibold">Admin Login</h3>
+                        </div>
+                        <p className={`text-xs ${theme.textMuted} mb-4`}>Enter the admin password to view leadership calendars.</p>
+                        <form onSubmit={e => { e.preventDefault(); handleAdminLogin(); }}>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={e => { setPassword(e.target.value); setPasswordError(false); }}
+                                placeholder="Password"
+                                autoFocus
+                                className={`w-full px-3 py-2 rounded-lg text-sm bg-[var(--background)] border ${passwordError ? 'border-red-500' : 'border-[var(--border)]'} text-[var(--foreground)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-1 focus:ring-violet-500`}
+                            />
+                            {passwordError && <p className="text-xs text-red-400 mt-1">Incorrect password</p>}
+                            <div className="flex gap-2 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowPasswordPrompt(false); setPassword(''); setPasswordError(false); }}
+                                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${theme.button}`}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-3 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-700 text-white transition-colors"
+                                >
+                                    Login
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <div className="max-w-5xl mx-auto p-4 md:p-6">
                 {/* Calendar toggles */}
