@@ -18,6 +18,12 @@ const CALENDARS = [
         color: '#039BE5', // blue
         displayColor: '#3b82f6', // blue
     },
+    {
+        id: 'd005a7955410ff8b21164034320d73e20fad0124e59617077234e6b15aae0577@group.calendar.google.com',
+        name: 'ROK Events',
+        color: '#F09300', // orange
+        displayColor: '#f59e0b', // amber
+    },
 ];
 
 const TIMEZONE_OPTIONS = [
@@ -36,7 +42,7 @@ export default function CalendarPage() {
     const [timezone, setTimezone] = useState('UTC');
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showSubscribe, setShowSubscribe] = useState(false);
-    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1])); // Default to both calendars
+    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1, 2])); // Default to all calendars
 
     const toggleCalendar = (index: number) => {
         const newEnabled = new Set(enabledCalendars);
@@ -247,9 +253,13 @@ export default function CalendarPage() {
                     Times shown in {TIMEZONE_OPTIONS.find(tz => tz.value === timezone)?.label || timezone}
                 </p>
 
-                <footer className={`mt-8 pt-4 border-t ${theme.border} text-center`}>
+                <footer className={`mt-8 pt-4 border-t ${theme.border} text-center space-y-1`}>
                     <p className={`text-xs ${theme.textMuted}`}>Kingdom 23 • Rise of Kingdoms</p>
-                    <p className={`text-[10px] ${theme.textMuted} mt-1 opacity-50`}>Subscribe to get event reminders in your calendar app</p>
+                    <p className={`text-[10px] ${theme.textMuted} opacity-50`}>Subscribe to get event reminders in your calendar app</p>
+                    <p className={`text-[10px] ${theme.textMuted} opacity-50`}>
+                        ROK Events calendar sourced from{' '}
+                        <a href="https://rokcentral.com/calendar/" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--foreground)] transition-colors">rokcentral.com</a>
+                    </p>
                 </footer>
             </div>
         </div>
