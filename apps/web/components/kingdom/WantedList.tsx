@@ -346,119 +346,135 @@ export default function WantedList() {
 
       {/* Desktop table */}
       {!loading && !error && (
-        <div className="hidden md:block rounded-xl border border-[var(--border)] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-[var(--background-secondary)] border-b border-[var(--border)]">
-                  <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)]">Name</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)]">Gov ID</th>
-                  <th className="text-right px-4 py-3 font-semibold text-[var(--text-muted)]">Power</th>
-                  <th className="text-center px-4 py-3 font-semibold text-[var(--text-muted)]">Coords</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)]">Alliance</th>
-                  <th className="text-left px-4 py-3 font-semibold text-[var(--text-muted)]">Reason</th>
-                  <th className="text-center px-4 py-3 font-semibold text-[var(--text-muted)]">Zero?</th>
-                  <th className="text-center px-4 py-3 font-semibold text-[var(--text-muted)]">Handled</th>
-                  {isOfficer && (
-                    <th className="text-center px-4 py-3 font-semibold text-[var(--text-muted)]">Actions</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={isOfficer ? 9 : 8} className="px-4 py-8 text-center text-[var(--text-muted)]">
-                      {search || reasonFilter || handledFilter !== 'all' ? 'No players match filters' : 'No wanted players'}
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((player) => {
-                    const handled = getHandledStatus(player);
-                    const isDone = handled !== 'pending';
-                    const isIllegal = player.reason?.toLowerCase().includes('illegal');
-                    return (
-                      <tr
-                        key={player.governorId || player.name}
-                        className={`border-b border-[var(--border)]/50 hover:bg-[var(--background-secondary)]/50 transition-colors ${isDone ? 'opacity-50' : ''}`}
-                      >
-                        <td className="px-4 py-3">
-                          <span className={`font-medium ${isDone ? 'line-through' : ''}`}>
-                            {player.name}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[var(--text-muted)]">
-                          {player.governorId || '-'}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-[var(--text-muted)]">
-                          {player.power2 ? formatNumber(player.power2) : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-center font-mono text-[var(--text-muted)]">
-                          {player.x || player.y ? `${player.x}, ${player.y}` : '-'}
-                        </td>
-                        <td className="px-4 py-3 text-[var(--text-secondary)]">
-                          {player.alliance || '-'}
-                        </td>
-                        <td className="px-4 py-3">
-                          {player.reason ? (
-                            <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
-                              isIllegal
-                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                : 'bg-red-500/10 text-red-400 border-red-500/20'
-                            }`}>
-                              {player.reason}
-                              {isIllegal && ' (low priority)'}
-                            </span>
-                          ) : (
-                            <span className="text-[var(--text-muted)]">-</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {player.zero === 'yes' ? (
-                            <span className="text-xs font-semibold text-red-400">YES</span>
-                          ) : player.zero === 'no' ? (
-                            <span className="text-xs font-semibold text-[var(--text-muted)]">NO</span>
-                          ) : (
-                            <span className="text-[var(--text-muted)]">-</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`text-xs font-semibold uppercase ${handledColor(handled)}`}>
-                            {handled}
-                          </span>
-                        </td>
-                        {isOfficer && (
-                          <td className="px-4 py-3 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => handleMarkStatus(player.governorId, handled === 'zeroed' ? null : 'zeroed')}
-                                className={`px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
-                                  handled === 'zeroed'
-                                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                                    : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-emerald-400 hover:border-emerald-500/40'
-                                }`}
-                              >
-                                ZEROED
-                              </button>
-                              <button
-                                onClick={() => handleMarkStatus(player.governorId, handled === 'left' ? null : 'left')}
-                                className={`px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
-                                  handled === 'left'
-                                    ? 'bg-sky-500/20 border-sky-500/40 text-sky-400'
-                                    : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-sky-400 hover:border-sky-500/40'
-                                }`}
-                              >
-                                LEFT
-                              </button>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full min-w-[320px]">
+            <thead className="sticky top-0 z-10 bg-[var(--background-card)]">
+              <tr className="border-b border-[var(--border)]">
+                <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Name</span>
+                </th>
+                <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Gov ID</span>
+                </th>
+                <th className="text-right px-2 sm:px-4 py-2 sm:py-3">
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Power</span>
+                </th>
+                <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Coords</span>
+                </th>
+                <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Alliance</span>
+                </th>
+                <th className="text-left px-2 sm:px-4 py-2 sm:py-3">
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Reason</span>
+                </th>
+                <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Zero?</span>
+                </th>
+                <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Handled</span>
+                </th>
+                {isOfficer && (
+                  <th className="text-center px-2 sm:px-4 py-2 sm:py-3">
+                    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Actions</span>
+                  </th>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={isOfficer ? 9 : 8} className="px-2 sm:px-4 py-8 text-center text-[var(--text-muted)]">
+                    {search || reasonFilter || handledFilter !== 'all' ? 'No players match filters' : 'No wanted players'}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((player, idx) => {
+                  const handled = getHandledStatus(player);
+                  const isDone = handled !== 'pending';
+                  const isIllegal = player.reason?.toLowerCase().includes('illegal');
+                  return (
+                    <tr
+                      key={player.governorId || player.name}
+                      className={`border-b border-[var(--border)] hover:bg-[var(--background-secondary)]/50 transition-colors ${idx % 2 === 0 ? 'bg-[var(--background-secondary)]/30' : ''} ${isDone ? 'opacity-50' : ''}`}
+                    >
+                      <td className="px-2 sm:px-4 py-2 sm:py-3">
+                        <span className={`font-medium text-sm ${isDone ? 'line-through' : ''}`}>
+                          {player.name}
+                        </span>
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 font-mono text-sm text-[var(--text-muted)]">
+                        {player.governorId || '-'}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-mono text-sm text-[var(--text-muted)]">
+                        {player.power2 ? formatNumber(player.power2) : '-'}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-mono text-sm text-[var(--text-muted)]">
+                        {player.x || player.y ? `${player.x}, ${player.y}` : '-'}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-sm text-[var(--text-secondary)]">
+                        {player.alliance || '-'}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3">
+                        {player.reason ? (
+                          <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
+                            isIllegal
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              : 'bg-red-500/10 text-red-400 border-red-500/20'
+                          }`}>
+                            {player.reason}
+                            {isIllegal && ' (low priority)'}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--text-muted)]">-</span>
+                        )}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                        {player.zero === 'yes' ? (
+                          <span className="text-xs font-semibold text-red-400">YES</span>
+                        ) : player.zero === 'no' ? (
+                          <span className="text-xs font-semibold text-[var(--text-muted)]">NO</span>
+                        ) : (
+                          <span className="text-[var(--text-muted)]">-</span>
+                        )}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                        <span className={`text-xs font-semibold uppercase ${handledColor(handled)}`}>
+                          {handled}
+                        </span>
+                      </td>
+                      {isOfficer && (
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleMarkStatus(player.governorId, handled === 'zeroed' ? null : 'zeroed')}
+                              className={`px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
+                                handled === 'zeroed'
+                                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                                  : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-emerald-400 hover:border-emerald-500/40'
+                              }`}
+                            >
+                              ZEROED
+                            </button>
+                            <button
+                              onClick={() => handleMarkStatus(player.governorId, handled === 'left' ? null : 'left')}
+                              className={`px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
+                                handled === 'left'
+                                  ? 'bg-sky-500/20 border-sky-500/40 text-sky-400'
+                                  : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-muted)] hover:text-sky-400 hover:border-sky-500/40'
+                              }`}
+                            >
+                              LEFT
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
