@@ -97,10 +97,10 @@ Your message here.
   // ── ING Templates ──
   {
     id: 'ing-mail',
-    name: 'Isengard Mail',
+    name: 'Immortal Mail',
     category: 'ing',
-    description: 'Standard Isengard Nightguard alliance mail format',
-    content: `<size=30px><color=#663300>I</color><color=#804000>S</color><color=#994d00>E</color><color=#b35900>N</color><color=#cc6600>G</color><color=#e67300>A</color><color=#ff8000>R</color><color=#e67300>D</color> <color=#663300>N</color><color=#804000>I</color><color=#994d00>G</color><color=#b35900>H</color><color=#cc6600>T</color><color=#e67300>G</color><color=#ff8000>U</color><color=#e67300>A</color><color=#cc6600>R</color><color=#b35900>D</color></size>
+    description: 'Standard Immortal Nightguards alliance mail format',
+    content: `<size=30px><color=#663300>I</color><color=#804000>M</color><color=#994d00>M</color><color=#b35900>O</color><color=#cc6600>R</color><color=#e67300>T</color><color=#ff8000>A</color><color=#e67300>L</color> <color=#663300>N</color><color=#804000>I</color><color=#994d00>G</color><color=#b35900>H</color><color=#cc6600>T</color><color=#e67300>G</color><color=#ff8000>U</color><color=#e67300>A</color><color=#cc6600>R</color><color=#b35900>D</color><color=#994d00>S</color></size>
 ►═════════❂❂❂═════════◄
 
 <b><color=#ff9933>SUBJECT TITLE HERE</color></b>
@@ -108,7 +108,7 @@ Your message here.
 Your message here.
 
 ►═════════❂❂❂═════════◄
-<b><color=#994d00>— Isengard Leadership</color></b>`,
+<b><color=#994d00>— Immortal Leadership</color></b>`,
   },
 
   // ── ENG Templates ──
