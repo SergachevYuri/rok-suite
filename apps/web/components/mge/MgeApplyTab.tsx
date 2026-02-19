@@ -1,10 +1,19 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Send, CheckCircle, Clock, XCircle, AlertCircle, Camera, X } from 'lucide-react';
+import { Search, Send, CheckCircle, Clock, XCircle, AlertCircle, Camera, X, Pencil, Trash2 } from 'lucide-react';
 import { MgeSkillInput } from './MgeSkillInput';
 import { supabase } from '@/lib/supabase';
-import { submitApplication, uploadMgeScreenshot, type MgeEvent, type MgeApplication, type MgeApplicationStatus } from '@/lib/supabase/use-mge';
+import {
+  submitApplication,
+  updateApplicationFields,
+  deleteApplication,
+  withdrawApplication,
+  uploadMgeScreenshot,
+  type MgeEvent,
+  type MgeApplication,
+  type MgeApplicationStatus,
+} from '@/lib/supabase/use-mge';
 import { formatSkillLevels, commanderInvestmentScore, isDeadlinePassed, formatDeadline } from '@/lib/mge/helpers';
 import { allianceDisplay } from '@/lib/alliances';
 
@@ -22,56 +31,10 @@ interface MgeApplyTabProps {
 
 const APPLICANT_KEY = 'mge-applicant-name';
 
-function ApplicationStatusCard({ app }: { app: MgeApplication }) {
-  const statusConfig: Record<MgeApplicationStatus, { icon: React.ReactNode; color: string; label: string }> = {
-    pending: { icon: <Clock size={18} />, color: 'text-blue-400', label: 'Pending Review' },
-    approved: { icon: <CheckCircle size={18} />, color: 'text-emerald-400', label: 'Approved' },
-    waitlisted: { icon: <AlertCircle size={18} />, color: 'text-blue-400', label: 'Waitlisted' },
-    declined: { icon: <XCircle size={18} />, color: 'text-red-400', label: 'Declined' },
-    withdrawn: { icon: <XCircle size={18} />, color: 'text-zinc-400', label: 'Withdrawn' },
-  };
-
-  const config = statusConfig[app.status];
-
-  return (
-    <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-      <div className="flex items-center gap-2 mb-3">
-        <span className={config.color}>{config.icon}</span>
-        <span className={`font-semibold ${config.color}`}>{config.label}</span>
-      </div>
-      <div className="space-y-1.5 text-sm">
-        <div className="flex justify-between">
-          <span style={{ color: 'var(--text-secondary)' }}>Commander</span>
-          <span style={{ color: 'var(--foreground)' }}>{app.commander_name}</span>
-        </div>
-        {app.skill_levels && (
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>Skills</span>
-            <span style={{ color: 'var(--foreground)' }}>
-              Lv.{app.commander_level} — {formatSkillLevels(app.skill_levels)} — {app.commander_stars}★
-            </span>
-          </div>
-        )}
-        {app.preferred_tier && (
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>Preferred</span>
-            <span style={{ color: 'var(--foreground)' }}>{app.preferred_tier}</span>
-          </div>
-        )}
-        {app.assigned_tier && (
-          <div className="flex justify-between">
-            <span style={{ color: 'var(--text-secondary)' }}>Assigned Tier</span>
-            <span className="text-blue-400 font-medium">{app.assigned_tier}</span>
-          </div>
-        )}
-        {app.officer_notes && (
-          <div className="mt-2 p-2 rounded-md text-xs" style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)' }}>
-            <span className="font-medium">Officer Note:</span> {app.officer_notes}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+function formatPower(power: number): string {
+  if (power >= 1_000_000) return `${(power / 1_000_000).toFixed(1)}M`;
+  if (power >= 1_000) return `${(power / 1_000).toFixed(0)}K`;
+  return power.toString();
 }
 
 export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps) {
@@ -106,6 +69,7 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
   const [roster, setRoster] = useState<RosterMember[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [existingApp, setExistingApp] = useState<MgeApplication | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Load roster
   useEffect(() => {
@@ -125,11 +89,12 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
     const saved = localStorage.getItem(APPLICANT_KEY);
     if (saved) {
       setApplicantName(saved);
-      // Check if they already applied
       const existing = event.mge_applications.find(
-        a => a.applicant_name.toLowerCase() === saved.toLowerCase()
+        a => a.applicant_name.toLowerCase() === saved.toLowerCase() && a.status !== 'withdrawn'
       );
-      if (existing) setExistingApp(existing);
+      if (existing) {
+        setExistingApp(existing);
+      }
     }
   }, [event.mge_applications]);
 
@@ -143,6 +108,21 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
       }
     }
   }, [applicantName, roster]);
+
+  // Pre-fill form when editing existing application
+  useEffect(() => {
+    if (isEditing && existingApp) {
+      setLevel(existingApp.commander_level || 60);
+      setSkills(existingApp.skill_levels || [5, 5, 5, 5]);
+      setStars(existingApp.commander_stars || 5);
+      setPreferredTier(existingApp.preferred_tier || '');
+      setMaxTier(existingApp.max_tier || '');
+      setNotes(existingApp.notes || '');
+      if (existingApp.screenshot_url) {
+        setScreenshotPreview(existingApp.screenshot_url);
+      }
+    }
+  }, [isEditing, existingApp]);
 
   const filteredRoster = useMemo(() => {
     if (!nameSearch) return roster.slice(0, 15);
@@ -158,9 +138,8 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
     setShowNameDropdown(false);
     localStorage.setItem(APPLICANT_KEY, name);
 
-    // Check existing application
     const existing = event.mge_applications.find(
-      a => a.applicant_name.toLowerCase() === name.toLowerCase()
+      a => a.applicant_name.toLowerCase() === name.toLowerCase() && a.status !== 'withdrawn'
     );
     if (existing) setExistingApp(existing);
   };
@@ -179,7 +158,9 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
 
   const removeScreenshot = () => {
     setScreenshotFile(null);
-    if (screenshotPreview) URL.revokeObjectURL(screenshotPreview);
+    if (screenshotPreview && !screenshotPreview.startsWith('http')) {
+      URL.revokeObjectURL(screenshotPreview);
+    }
     setScreenshotPreview(null);
   };
 
@@ -187,7 +168,7 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
     if (!applicantName.trim() || !focusCommander) return;
     setSubmitting(true);
 
-    let screenshotUrl: string | null = null;
+    let screenshotUrl: string | null = screenshotPreview?.startsWith('http') ? screenshotPreview : null;
     if (screenshotFile) {
       screenshotUrl = await uploadMgeScreenshot(screenshotFile, event.id, applicantName.trim());
     }
@@ -209,15 +190,68 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
     if (result) {
       localStorage.setItem(APPLICANT_KEY, applicantName.trim());
       setExistingApp(result);
+      setIsEditing(false);
       onApplicationSubmitted();
     }
     setSubmitting(false);
   };
 
+  const handleUpdate = async () => {
+    if (!existingApp) return;
+    setSubmitting(true);
+
+    let screenshotUrl: string | null = screenshotPreview?.startsWith('http') ? screenshotPreview : null;
+    if (screenshotFile) {
+      screenshotUrl = await uploadMgeScreenshot(screenshotFile, event.id, applicantName.trim());
+    }
+
+    const ok = await updateApplicationFields(existingApp.id, {
+      commander_level: level,
+      skill_levels: skills,
+      commander_stars: stars,
+      preferred_tier: preferredTier || null,
+      max_tier: maxTier || null,
+      notes: notes.trim() || null,
+      screenshot_url: screenshotUrl,
+    });
+
+    if (ok) {
+      setIsEditing(false);
+      onApplicationSubmitted();
+    }
+    setSubmitting(false);
+  };
+
+  const handleWithdraw = async () => {
+    if (!existingApp) return;
+    if (!confirm('Are you sure you want to withdraw your application?')) return;
+
+    if (existingApp.status === 'pending') {
+      const ok = await deleteApplication(existingApp.id);
+      if (ok) {
+        setExistingApp(null);
+        onApplicationSubmitted();
+      }
+    } else {
+      const ok = await withdrawApplication(existingApp.id);
+      if (ok) {
+        setExistingApp(null);
+        onApplicationSubmitted();
+      }
+    }
+  };
+
+  const handleChangeName = () => {
+    setApplicantName('');
+    setExistingApp(null);
+    setIsEditing(false);
+    localStorage.removeItem(APPLICANT_KEY);
+  };
+
   const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
   const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
 
-  // If deadline passed and not already applied
+  // Deadline passed and not already applied
   if (deadlinePassed && !existingApp) {
     return (
       <div className="p-6 text-center">
@@ -230,74 +264,183 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
     );
   }
 
-  // If already applied, show status
-  if (existingApp) {
+  // Existing application: show status card with edit/withdraw options
+  if (existingApp && !isEditing) {
+    const statusConfig: Record<MgeApplicationStatus, { icon: React.ReactNode; color: string; label: string }> = {
+      pending: { icon: <Clock size={18} />, color: 'text-blue-400', label: 'Pending Review' },
+      approved: { icon: <CheckCircle size={18} />, color: 'text-emerald-400', label: 'Approved' },
+      waitlisted: { icon: <AlertCircle size={18} />, color: 'text-blue-400', label: 'Waitlisted' },
+      declined: { icon: <XCircle size={18} />, color: 'text-red-400', label: 'Declined' },
+      withdrawn: { icon: <XCircle size={18} />, color: 'text-zinc-400', label: 'Withdrawn' },
+    };
+    const config = statusConfig[existingApp.status];
+
     return (
       <div className="p-4">
-        <ApplicationStatusCard app={existingApp} />
+        <div className="rounded-lg border p-4" style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className={config.color}>{config.icon}</span>
+              <span className={`font-semibold ${config.color}`}>{config.label}</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between">
+              <span style={{ color: 'var(--text-secondary)' }}>Commander</span>
+              <span style={{ color: 'var(--foreground)' }}>{existingApp.commander_name}</span>
+            </div>
+            {existingApp.skill_levels && (
+              <div className="flex justify-between">
+                <span style={{ color: 'var(--text-secondary)' }}>Stats</span>
+                <span style={{ color: 'var(--foreground)' }}>
+                  Lv.{existingApp.commander_level} — {formatSkillLevels(existingApp.skill_levels)} — {existingApp.commander_stars}&star;
+                </span>
+              </div>
+            )}
+            {existingApp.preferred_tier && (
+              <div className="flex justify-between">
+                <span style={{ color: 'var(--text-secondary)' }}>Preferred</span>
+                <span style={{ color: 'var(--foreground)' }}>{existingApp.preferred_tier}</span>
+              </div>
+            )}
+            {existingApp.assigned_tier && (
+              <div className="flex justify-between">
+                <span style={{ color: 'var(--text-secondary)' }}>Assigned Tier</span>
+                <span className="text-blue-400 font-medium">{existingApp.assigned_tier}</span>
+              </div>
+            )}
+            {existingApp.notes && (
+              <div className="flex justify-between">
+                <span style={{ color: 'var(--text-secondary)' }}>Notes</span>
+                <span style={{ color: 'var(--foreground)' }}>{existingApp.notes}</span>
+              </div>
+            )}
+            {existingApp.officer_notes && (
+              <div className="mt-2 p-2 rounded-md text-sm" style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)' }}>
+                <span className="font-medium">Officer Note:</span> {existingApp.officer_notes}
+              </div>
+            )}
+          </div>
+
+          {/* Edit + Withdraw buttons */}
+          <div className="flex gap-2 mt-4 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 transition-fast"
+            >
+              <Pencil size={14} />
+              Edit Application
+            </button>
+            <button
+              type="button"
+              onClick={handleWithdraw}
+              className="flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-fast"
+            >
+              <Trash2 size={14} />
+              Withdraw
+            </button>
+          </div>
+
+          {existingApp.status === 'approved' && existingApp.assigned_tier && (
+            <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+              Editing after assignment may trigger a re-review by officers.
+            </p>
+          )}
+
+          {/* Switch player */}
+          <button
+            type="button"
+            onClick={handleChangeName}
+            className="mt-3 text-xs hover:underline"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Not you? Switch player
+          </button>
+        </div>
       </div>
     );
   }
 
-  const tiers = event.mge_rank_tiers.length > 0
-    ? event.mge_rank_tiers
-    : [];
+  // Application form (new or editing existing)
+  const tiers = event.mge_rank_tiers.length > 0 ? event.mge_rank_tiers : [];
+  const isEditMode = isEditing && existingApp;
 
   return (
     <div className="p-4 space-y-4">
+      {/* Edit mode banner */}
+      {isEditMode && (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <div>
+            <p className="text-sm font-medium text-blue-400">Editing your application</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Update your stats and save</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className="text-sm text-blue-400 hover:text-blue-300 transition-fast"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* Deadline notice */}
-      {event.application_deadline && !deadlinePassed && (
+      {event.application_deadline && !deadlinePassed && !isEditMode && (
         <div className="flex items-center gap-2 p-2 rounded-md text-xs bg-blue-500/10 text-blue-400">
           <Clock size={14} />
           Deadline: {formatDeadline(event.application_deadline)}
         </div>
       )}
 
-      {/* Player Name */}
-      <div>
-        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-          Your Name
-        </label>
-        <div className="relative">
-          <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            placeholder="Search your name..."
-            value={applicantName || nameSearch}
-            onChange={e => {
-              setNameSearch(e.target.value);
-              setApplicantName('');
-              setShowNameDropdown(true);
-            }}
-            onFocus={() => { if (!applicantName) setShowNameDropdown(true); }}
-            onBlur={() => setTimeout(() => setShowNameDropdown(false), 200)}
-            className={inputClass + ' w-full pl-8'}
-            style={inputStyle}
-          />
-          {showNameDropdown && filteredRoster.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border shadow-lg"
-              style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-              {filteredRoster.map(m => (
-                <button key={m.id} type="button"
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => handleSelectName(m.name)}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-500/10 transition-fast flex justify-between">
-                  <span style={{ color: 'var(--foreground)' }}>{m.name}</span>
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {m.alliance ? allianceDisplay(m.alliance) : ''} {formatPower(m.power)}
-                  </span>
-                </button>
-              ))}
+      {/* Player Name (only for new applications) */}
+      {!isEditMode && (
+        <div>
+          <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Your Name
+          </label>
+          <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder="Search your name..."
+              value={applicantName || nameSearch}
+              onChange={e => {
+                setNameSearch(e.target.value);
+                setApplicantName('');
+                setShowNameDropdown(true);
+              }}
+              onFocus={() => { if (!applicantName) setShowNameDropdown(true); }}
+              onBlur={() => setTimeout(() => setShowNameDropdown(false), 200)}
+              className={inputClass + ' w-full pl-8'}
+              style={inputStyle}
+            />
+            {showNameDropdown && filteredRoster.length > 0 && (
+              <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border shadow-lg"
+                style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
+                {filteredRoster.map(m => (
+                  <button key={m.id} type="button"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => handleSelectName(m.name)}
+                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-500/10 transition-fast flex justify-between">
+                    <span style={{ color: 'var(--foreground)' }}>{m.name}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {m.alliance ? allianceDisplay(m.alliance) : ''} {formatPower(m.power)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {applicantName && applicantPower && (
+            <div className="flex gap-3 mt-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+              {applicantAlliance && <span>{allianceDisplay(applicantAlliance)}</span>}
+              <span>{formatPower(applicantPower)} power</span>
             </div>
           )}
         </div>
-        {applicantName && applicantPower && (
-          <div className="flex gap-3 mt-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-            {applicantAlliance && <span>{allianceDisplay(applicantAlliance)}</span>}
-            <span>{formatPower(applicantPower)} power</span>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Focus Commander Header */}
       <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
@@ -419,22 +562,16 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
         />
       </div>
 
-      {/* Submit */}
+      {/* Submit / Update */}
       <button
         type="button"
-        onClick={handleSubmit}
-        disabled={submitting || !applicantName.trim()}
+        onClick={isEditMode ? handleUpdate : handleSubmit}
+        disabled={submitting || (!isEditMode && !applicantName.trim())}
         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-fast disabled:opacity-40"
       >
         <Send size={14} />
-        {submitting ? 'Submitting...' : 'Submit Application'}
+        {submitting ? 'Saving...' : isEditMode ? 'Update Application' : 'Submit Application'}
       </button>
     </div>
   );
-}
-
-function formatPower(power: number): string {
-  if (power >= 1_000_000) return `${(power / 1_000_000).toFixed(1)}M`;
-  if (power >= 1_000) return `${(power / 1_000).toFixed(0)}K`;
-  return power.toString();
 }

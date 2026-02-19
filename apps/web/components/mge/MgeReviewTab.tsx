@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Users, CheckCircle, MessageSquare, Info, Image as ImageIcon, X } from 'lucide-react';
+import { Users, CheckCircle, MessageSquare, Info, Image as ImageIcon, X, ChevronDown, ChevronUp, AlertTriangle, Camera, Eye } from 'lucide-react';
 import {
   updateApplicationStatus,
   convertApprovedToSelections,
@@ -22,8 +22,6 @@ interface MgeReviewTabProps {
   isAdmin: boolean;
   onUpdate: () => void;
 }
-
-type TriageFilter = 'all' | 'undecided' | 'assigned' | 'skipped';
 
 function formatPower(power: number): string {
   if (power >= 1_000_000) return `${(power / 1_000_000).toFixed(1)}M`;
@@ -53,51 +51,50 @@ function InvestmentBar({
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
-        <div className="w-20 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
+        <div className="w-24 h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
           <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
         </div>
-        <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{score}/{max}</span>
+        <span className="text-sm font-medium tabular-nums" style={{ color: 'var(--text-secondary)' }}>{score}/{max}</span>
       </button>
 
-      {/* Score breakdown tooltip */}
       {showTooltip && breakdown && (
         <div className="absolute bottom-full left-0 mb-2 z-20">
           <div
-            className="p-2.5 rounded-lg border shadow-lg text-xs whitespace-nowrap"
+            className="p-3 rounded-lg border shadow-lg text-sm whitespace-nowrap"
             style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
           >
-            <p className="font-medium mb-1.5" style={{ color: 'var(--foreground)' }}>
+            <p className="font-semibold mb-2" style={{ color: 'var(--foreground)' }}>
               Investment Score
             </p>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <div className="flex justify-between gap-6">
                 <span style={{ color: 'var(--text-muted)' }}>Level</span>
-                <span className="tabular-nums" style={{ color: 'var(--foreground)' }}>
+                <span className="tabular-nums font-medium" style={{ color: 'var(--foreground)' }}>
                   {breakdown.levelScore}/{breakdown.levelMax}
                 </span>
               </div>
               <div className="flex justify-between gap-6">
                 <span style={{ color: 'var(--text-muted)' }}>Skills (&times;5)</span>
-                <span className="tabular-nums" style={{ color: 'var(--foreground)' }}>
+                <span className="tabular-nums font-medium" style={{ color: 'var(--foreground)' }}>
                   {breakdown.skillScore}/{breakdown.skillMax}
                 </span>
               </div>
               <div className="flex justify-between gap-6">
                 <span style={{ color: 'var(--text-muted)' }}>Stars (&times;3)</span>
-                <span className="tabular-nums" style={{ color: 'var(--foreground)' }}>
+                <span className="tabular-nums font-medium" style={{ color: 'var(--foreground)' }}>
                   {breakdown.starsScore}/{breakdown.starsMax}
                 </span>
               </div>
               {breakdown.equipmentScore > 0 && (
                 <div className="flex justify-between gap-6">
                   <span style={{ color: 'var(--text-muted)' }}>Equipment</span>
-                  <span className="tabular-nums" style={{ color: 'var(--foreground)' }}>
+                  <span className="tabular-nums font-medium" style={{ color: 'var(--foreground)' }}>
                     {breakdown.equipmentScore}/{breakdown.equipmentMax}
                   </span>
                 </div>
               )}
               <div
-                className="border-t pt-1 mt-1 flex justify-between gap-6 font-medium"
+                className="border-t pt-1.5 mt-1.5 flex justify-between gap-6 font-semibold"
                 style={{ borderColor: 'var(--border)' }}
               >
                 <span style={{ color: 'var(--text-secondary)' }}>Total</span>
@@ -108,7 +105,7 @@ function InvestmentBar({
               {breakdown.goldHeadsNeeded > 0 && (
                 <div className="flex justify-between gap-6 text-yellow-500">
                   <span>Heads to expertise</span>
-                  <span className="tabular-nums">{breakdown.goldHeadsNeeded}</span>
+                  <span className="tabular-nums font-medium">{breakdown.goldHeadsNeeded}</span>
                 </div>
               )}
             </div>
@@ -119,15 +116,41 @@ function InvestmentBar({
   );
 }
 
+/** Missing info badges for an application */
+function MissingBadges({ app }: { app: MgeApplication }) {
+  const missing: { label: string; color: string }[] = [];
+  if (!app.screenshot_url) {
+    missing.push({ label: 'No screenshot', color: 'bg-orange-500/15 text-orange-400' });
+  }
+  if (app.screenshot_url && app.equipment_rating == null) {
+    missing.push({ label: 'Needs gear rating', color: 'bg-orange-500/15 text-orange-400' });
+  }
+  if (app.status === 'pending') {
+    missing.push({ label: 'No decision', color: 'bg-red-500/15 text-red-400' });
+  }
+  if (missing.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mb-2">
+      {missing.map(m => (
+        <span key={m.label} className={`text-xs px-2 py-0.5 rounded-full font-medium ${m.color}`}>
+          {m.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ApplicantCard({
   app,
   tiers,
+  showMissingBadges,
   onDecision,
   onNoteChange,
   onEquipmentRating,
 }: {
   app: MgeApplication;
   tiers: { tier_label: string }[];
+  showMissingBadges: boolean;
   onDecision: (tier: string | null, status: 'approved' | 'declined' | 'pending') => void;
   onNoteChange: (note: string) => void;
   onEquipmentRating: (rating: number | null) => void;
@@ -144,7 +167,6 @@ function ApplicantCard({
   const isSkipped = app.status === 'declined';
   const skillsMaxed = app.skill_levels?.every(s => s === 5);
 
-  // Combine tier + skip into one dropdown value
   const dropdownValue = isSkipped ? '__skip__' : (isAssigned ? (app.assigned_tier || '') : '');
 
   const handleDropdownChange = (value: string) => {
@@ -159,70 +181,71 @@ function ApplicantCard({
 
   return (
     <div
-      className={`rounded-lg border p-3 sm:p-4 transition-fast ${
+      className={`rounded-lg border p-4 sm:p-5 transition-fast ${
         isAssigned ? 'border-emerald-500/30 bg-emerald-500/5' :
-        isSkipped ? 'border-red-500/20 bg-red-500/5 opacity-50' :
+        isSkipped ? 'border-red-500/20 bg-red-500/5 opacity-60' :
         ''
       }`}
       style={!isAssigned && !isSkipped ? { backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' } : undefined}
     >
+      {/* Missing info badges */}
+      {showMissingBadges && <MissingBadges app={app} />}
+
       {/* Row 1: Name + Alliance + Power */}
       <div className="flex items-center justify-between gap-3 mb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-semibold text-base" style={{ color: 'var(--foreground)' }}>
+          <span className="font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
             {app.applicant_name}
           </span>
-          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-base" style={{ color: 'var(--text-muted)' }}>
             {app.applicant_alliance ? allianceDisplay(app.applicant_alliance) : ''}
           </span>
         </div>
         {app.applicant_power && (
-          <span className="text-sm shrink-0" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-base shrink-0 font-medium" style={{ color: 'var(--text-secondary)' }}>
             {formatPower(app.applicant_power)}
           </span>
         )}
       </div>
 
       {/* Row 2: Commander stats + investment + heads */}
-      <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
-        <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <span className="text-base font-medium" style={{ color: 'var(--text-secondary)' }}>
           Lv.{app.commander_level || '?'}
         </span>
-        <span className={`text-sm font-mono ${skillsMaxed ? 'text-yellow-500 font-semibold' : ''}`}
+        <span className={`text-base font-mono ${skillsMaxed ? 'text-yellow-500 font-semibold' : ''}`}
           style={!skillsMaxed ? { color: 'var(--foreground)' } : undefined}>
           {app.skill_levels ? formatSkillLevels(app.skill_levels) : '-'}
         </span>
-        <span className="text-sm text-yellow-500">
+        <span className="text-base text-yellow-500">
           {app.commander_stars ? '\u2605'.repeat(Math.min(app.commander_stars, 6)) : ''}
         </span>
-        <div className="flex items-center gap-1">
-          <InvestmentBar score={score} breakdown={breakdown} />
-        </div>
+        <InvestmentBar score={score} breakdown={breakdown} />
         {headsNeeded !== null && headsNeeded > 0 && (
-          <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-500 shrink-0">
+          <span className="text-sm px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-500 font-medium shrink-0">
             {headsNeeded} heads
           </span>
         )}
         {headsNeeded === 0 && (
-          <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 shrink-0">
+          <span className="text-sm px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium shrink-0">
             Expertised
           </span>
         )}
       </div>
 
-      {/* Row 3: Equipment rating (officer-assigned, shown when screenshot exists) */}
+      {/* Row 3: Equipment rating (always editable when screenshot exists) */}
       {app.screenshot_url && (
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>Gear:</span>
+        <div className="flex items-center gap-2.5 mb-3">
+          <span className="text-sm shrink-0 font-medium" style={{ color: 'var(--text-muted)' }}>Gear:</span>
           <div className="flex gap-0.5">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
               <button
                 key={n}
                 type="button"
                 onClick={() => onEquipmentRating(n === app.equipment_rating ? null : n)}
-                className={`w-5 h-5 text-[10px] rounded transition-fast ${
+                className={`w-6 h-6 text-xs rounded transition-fast ${
                   n <= (app.equipment_rating || 0)
-                    ? 'bg-blue-500/30 text-blue-400 font-medium'
+                    ? 'bg-blue-500/30 text-blue-400 font-semibold'
                     : 'hover:bg-blue-500/10'
                 }`}
                 style={n > (app.equipment_rating || 0) ? { backgroundColor: 'var(--background-secondary)', color: 'var(--text-muted)' } : undefined}
@@ -232,25 +255,27 @@ function ApplicantCard({
             ))}
           </div>
           {app.equipment_rating != null && (
-            <span className="text-xs text-blue-400 tabular-nums">{app.equipment_rating}/10</span>
+            <span className="text-sm text-blue-400 font-medium tabular-nums">{app.equipment_rating}/10</span>
           )}
         </div>
       )}
 
       {/* Row 4: Player preference + notes */}
-      <div className="flex items-center gap-3 mb-3 flex-wrap">
-        {app.preferred_tier && (
-          <span className="text-xs px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400">
-            Prefers {app.preferred_tier}
-          </span>
-        )}
-        {app.notes && (
-          <span className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-            <MessageSquare size={11} />
-            &ldquo;{app.notes}&rdquo;
-          </span>
-        )}
-      </div>
+      {(app.preferred_tier || app.notes) && (
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          {app.preferred_tier && (
+            <span className="text-sm px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400">
+              Prefers {app.preferred_tier}
+            </span>
+          )}
+          {app.notes && (
+            <span className="text-sm flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+              <MessageSquare size={13} />
+              &ldquo;{app.notes}&rdquo;
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Row 5: Screenshot thumbnail */}
       {app.screenshot_url && (
@@ -258,13 +283,13 @@ function ApplicantCard({
           <button
             type="button"
             onClick={() => setShowScreenshot(true)}
-            className="flex items-center gap-1.5 mb-3 text-xs text-blue-400 hover:text-blue-300 transition-fast"
+            className="flex items-center gap-2 mb-3 text-sm text-blue-400 hover:text-blue-300 transition-fast"
           >
-            <ImageIcon size={14} />
+            <Eye size={15} />
             <img
               src={app.screenshot_url}
               alt="Commander screenshot"
-              className="h-16 rounded-md border object-cover"
+              className="h-20 rounded-md border object-cover"
               style={{ borderColor: 'var(--border)' }}
             />
           </button>
@@ -291,13 +316,13 @@ function ApplicantCard({
         </>
       )}
 
-      {/* Row 6: Assign rank dropdown + Officer notes */}
-      <div className="flex gap-2 sm:gap-3 items-center">
+      {/* Row 6: Decision + Officer notes */}
+      <div className="flex gap-3 items-center">
         <div className="shrink-0">
           <select
             value={dropdownValue}
             onChange={e => handleDropdownChange(e.target.value)}
-            className={`py-2 px-2 sm:px-3 rounded-md border text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500/50 w-32 sm:w-40 ${
+            className={`py-2 px-3 rounded-md border text-base font-medium focus:outline-none focus:ring-1 focus:ring-blue-500/50 w-36 sm:w-44 ${
               isAssigned ? 'border-emerald-500/40 text-emerald-400' :
               isSkipped ? 'border-red-500/30 text-red-400' :
               ''
@@ -324,7 +349,7 @@ function ApplicantCard({
             }
           }}
           placeholder="Officer notes..."
-          className="flex-1 min-w-0 text-sm py-2 px-2 sm:px-3 rounded-md border focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+          className="flex-1 min-w-0 text-base py-2 px-3 rounded-md border focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
         />
       </div>
@@ -332,46 +357,84 @@ function ApplicantCard({
   );
 }
 
+/** Collapsible section wrapper */
+function ReviewSection({
+  title,
+  count,
+  defaultOpen,
+  accentColor,
+  children,
+}: {
+  title: string;
+  count: number;
+  defaultOpen: boolean;
+  accentColor?: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  if (count === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 w-full text-left mb-2 group"
+      >
+        {open ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
+        <span className={`text-base font-semibold ${accentColor || ''}`} style={!accentColor ? { color: 'var(--foreground)' } : undefined}>
+          {title}
+        </span>
+        <span className="text-sm font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-muted)' }}>
+          {count}
+        </span>
+      </button>
+      {open && <div className="space-y-3">{children}</div>}
+    </div>
+  );
+}
+
 export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
-  const [triageFilter, setTriageFilter] = useState<TriageFilter>('all');
   const [finalizing, setFinalizing] = useState(false);
 
   const apps = event.mge_applications || [];
   const tiers = event.mge_rank_tiers || [];
 
-  // Counts
-  const counts = useMemo(() => {
-    let assigned = 0, skipped = 0, undecided = 0;
+  // Group apps by status
+  const { needsReview, assigned, skipped, withdrawn } = useMemo(() => {
+    const needsReview: MgeApplication[] = [];
+    const assigned: MgeApplication[] = [];
+    const skipped: MgeApplication[] = [];
+    const withdrawn: MgeApplication[] = [];
+
     for (const app of apps) {
-      if (app.status === 'approved') assigned++;
-      else if (app.status === 'declined') skipped++;
-      else if (app.status === 'pending') undecided++;
+      if (app.status === 'pending' || app.status === 'waitlisted') needsReview.push(app);
+      else if (app.status === 'approved') assigned.push(app);
+      else if (app.status === 'declined') skipped.push(app);
+      else if (app.status === 'withdrawn') withdrawn.push(app);
     }
-    return { assigned, skipped, undecided, total: apps.length };
-  }, [apps]);
 
-  // Filtered and sorted by investment score
-  const sortedApps = useMemo(() => {
-    let filtered = apps;
-    if (triageFilter === 'undecided') filtered = apps.filter(a => a.status === 'pending');
-    else if (triageFilter === 'assigned') filtered = apps.filter(a => a.status === 'approved');
-    else if (triageFilter === 'skipped') filtered = apps.filter(a => a.status === 'declined');
+    const scoreOf = (a: MgeApplication) =>
+      a.commander_level && a.skill_levels && a.commander_stars
+        ? commanderInvestmentScore(a.commander_level, a.skill_levels, a.commander_stars, a.equipment_rating)
+        : 0;
 
-    return [...filtered].sort((a, b) => {
-      // Assigned first, then pending, then skipped
-      const order = { approved: 0, pending: 1, declined: 2, waitlisted: 3, withdrawn: 4 };
-      const oa = order[a.status] ?? 5;
-      const ob = order[b.status] ?? 5;
-      if (oa !== ob) return oa - ob;
-
-      // Within same status, sort by score descending
-      const sa = a.commander_level && a.skill_levels && a.commander_stars
-        ? commanderInvestmentScore(a.commander_level, a.skill_levels, a.commander_stars, a.equipment_rating) : 0;
-      const sb = b.commander_level && b.skill_levels && b.commander_stars
-        ? commanderInvestmentScore(b.commander_level, b.skill_levels, b.commander_stars, b.equipment_rating) : 0;
-      return sb - sa;
+    // Needs review: screenshot first, then by score
+    needsReview.sort((a, b) => {
+      const aHasScreenshot = a.screenshot_url ? 1 : 0;
+      const bHasScreenshot = b.screenshot_url ? 1 : 0;
+      if (aHasScreenshot !== bHasScreenshot) return bHasScreenshot - aHasScreenshot;
+      return scoreOf(b) - scoreOf(a);
     });
-  }, [apps, triageFilter]);
+
+    // Assigned: by score desc
+    assigned.sort((a, b) => scoreOf(b) - scoreOf(a));
+
+    // Skipped: by score desc
+    skipped.sort((a, b) => scoreOf(b) - scoreOf(a));
+
+    return { needsReview, assigned, skipped, withdrawn };
+  }, [apps]);
 
   const handleDecision = useCallback(async (appId: number, tier: string | null, status: 'approved' | 'declined' | 'pending') => {
     const app = apps.find(a => a.id === appId);
@@ -417,76 +480,68 @@ export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
     );
   }
 
+  const renderCards = (list: MgeApplication[], showMissing: boolean) =>
+    list.map(app => (
+      <ApplicantCard
+        key={app.id}
+        app={app}
+        tiers={tiers}
+        showMissingBadges={showMissing}
+        onDecision={(tier, status) => handleDecision(app.id, tier, status)}
+        onNoteChange={note => handleNoteChange(app.id, note)}
+        onEquipmentRating={rating => handleEquipmentRating(app.id, rating)}
+      />
+    ));
+
   return (
     <div className="p-4 md:p-5">
       {/* Instructions */}
       <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/15">
         <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
         <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          <p className="font-medium text-blue-400 mb-1">Set rankings here</p>
           <p>
-            Use the <strong>dropdown</strong> on each applicant to assign their rank (1st Place, 2nd Place, etc.) or <strong>Skip</strong> them.
-            Tap the <strong>score bar</strong> to see a breakdown. Rate <strong>equipment</strong> from screenshots (1-10).
-            Rankings you set here will show in the Overview tab. When done, click <strong>Finalize</strong> to lock them in.
+            Assign ranks using the <strong>dropdown</strong> on each card. Tap the <strong>score bar</strong> for a breakdown.
+            Rate <strong>equipment</strong> from screenshots. Click <strong>Finalize</strong> when done.
           </p>
         </div>
       </div>
 
-      {/* Summary + filter pills */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          <span className="text-emerald-400 font-medium">{counts.assigned} assigned</span>
-          {' / '}
-          <span className="text-red-400">{counts.skipped} skipped</span>
-          {' / '}
-          <span>{counts.undecided} undecided</span>
-        </div>
-        <div className="flex-1" />
-        <div className="flex gap-1 flex-wrap">
-          {([
-            { key: 'all', label: 'All' },
-            { key: 'undecided', label: 'Undecided' },
-            { key: 'assigned', label: 'Assigned' },
-            { key: 'skipped', label: 'Skipped' },
-          ] as { key: TriageFilter; label: string }[]).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTriageFilter(key)}
-              className={`px-3 py-1.5 text-sm rounded-md transition-fast ${
-                triageFilter === key ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-[var(--background-secondary)]'
-              }`}
-              style={triageFilter !== key ? { color: 'var(--text-muted)' } : undefined}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      {/* Summary bar */}
+      <div className="flex flex-wrap items-center gap-3 mb-5 text-base">
+        <span className="font-medium" style={{ color: 'var(--foreground)' }}>{apps.length} applicants</span>
+        <span style={{ color: 'var(--text-muted)' }}>&mdash;</span>
+        <span className="text-emerald-400 font-medium">{assigned.length} assigned</span>
+        <span className="text-red-400">{skipped.length} skipped</span>
+        <span style={{ color: 'var(--text-muted)' }}>{needsReview.length} undecided</span>
       </div>
 
-      {/* Applicant cards */}
-      <div className="space-y-3">
-        {sortedApps.map(app => (
-          <ApplicantCard
-            key={app.id}
-            app={app}
-            tiers={tiers}
-            onDecision={(tier, status) => handleDecision(app.id, tier, status)}
-            onNoteChange={note => handleNoteChange(app.id, note)}
-            onEquipmentRating={rating => handleEquipmentRating(app.id, rating)}
-          />
-        ))}
-      </div>
+      {/* Sections */}
+      <ReviewSection title="Needs Review" count={needsReview.length} defaultOpen={true} accentColor="text-orange-400">
+        {renderCards(needsReview, true)}
+      </ReviewSection>
+
+      <ReviewSection title="Assigned" count={assigned.length} defaultOpen={true} accentColor="text-emerald-400">
+        {renderCards(assigned, false)}
+      </ReviewSection>
+
+      <ReviewSection title="Skipped" count={skipped.length} defaultOpen={false} accentColor="text-red-400">
+        {renderCards(skipped, false)}
+      </ReviewSection>
+
+      <ReviewSection title="Withdrawn" count={withdrawn.length} defaultOpen={false} accentColor="text-zinc-400">
+        {renderCards(withdrawn, false)}
+      </ReviewSection>
 
       {/* Finalize button (admin only) */}
-      {isAdmin && counts.assigned > 0 && event.status !== 'finalized' && event.status !== 'completed' && (
+      {isAdmin && assigned.length > 0 && event.status !== 'finalized' && event.status !== 'completed' && (
         <div className="mt-5 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
           <button
             onClick={handleFinalize}
             disabled={finalizing}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-fast disabled:opacity-40"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md text-base font-medium bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-fast disabled:opacity-40"
           >
-            <CheckCircle size={16} />
-            {finalizing ? 'Finalizing...' : `Finalize Event (${counts.assigned} assigned)`}
+            <CheckCircle size={18} />
+            {finalizing ? 'Finalizing...' : `Finalize Event (${assigned.length} assigned)`}
           </button>
         </div>
       )}

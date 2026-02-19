@@ -498,6 +498,45 @@ export async function withdrawApplication(appId: number): Promise<boolean> {
   return updateApplicationStatus(appId, 'withdrawn');
 }
 
+/** Update applicant-editable fields (does NOT touch officer fields) */
+export async function updateApplicationFields(
+  appId: number,
+  data: {
+    commander_level?: number | null;
+    skill_levels?: number[] | null;
+    commander_stars?: number | null;
+    preferred_tier?: string | null;
+    max_tier?: string | null;
+    notes?: string | null;
+    screenshot_url?: string | null;
+  }
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('mge_applications')
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq('id', appId);
+
+  if (error) {
+    console.error('Failed to update application:', error.message);
+    return false;
+  }
+  return true;
+}
+
+/** Hard-delete an application (for user withdrawing a pending app) */
+export async function deleteApplication(appId: number): Promise<boolean> {
+  const { error } = await supabase
+    .from('mge_applications')
+    .delete()
+    .eq('id', appId);
+
+  if (error) {
+    console.error('Failed to delete application:', error.message);
+    return false;
+  }
+  return true;
+}
+
 /** Convert all approved applications into mge_selections and finalize the event */
 export async function convertApprovedToSelections(eventId: number): Promise<boolean> {
   // Get approved applications
