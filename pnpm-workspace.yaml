@@ -2,3 +2,4 @@ packages:
   - "apps/*"
   - "adapters/*"
   - "packages/*"
+  - "heroscroll-scraper"
