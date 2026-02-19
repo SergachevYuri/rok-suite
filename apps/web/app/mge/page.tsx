@@ -11,6 +11,7 @@ import {
 import { Shield, Lock, Unlock, Plus, Crown, X } from 'lucide-react';
 import { MgeEventCard } from '@/components/mge/MgeEventCard';
 import { MgeEventSetup } from '@/components/mge/MgeEventSetup';
+import { tierSortValue } from '@/lib/mge/helpers';
 
 const ADMIN_PASSWORD = 'carn-dum';
 const OFFICER_PASSWORD = 'angmar';
@@ -84,26 +85,81 @@ function generateApplicationsMail(evt: MgeEvent): string {
 }
 
 function generateRankingsMail(evt: MgeEvent): string {
+  // Build a unified rankings list from finalized selections + approved pending assignments
+  const tierCapMap = new Map(evt.mge_rank_tiers.map(t => [t.tier_label, t.point_cap]));
+
+  interface RankEntry { tier: string; name: string; pointCap: number | null; isFfa: boolean; sortVal: number }
+  const entries: RankEntry[] = [];
+
+  // Finalized selections
+  for (const sel of evt.mge_selections) {
+    const isFfa = sel.member_name === 'Free for All';
+    entries.push({
+      tier: sel.ranking_tier,
+      name: isFfa ? 'Free for all' : sel.member_name,
+      pointCap: sel.power_cap || tierCapMap.get(sel.ranking_tier) || null,
+      isFfa,
+      sortVal: sel.sort_order,
+    });
+  }
+
+  // Approved applications with assigned tiers (not yet finalized)
+  const selNames = new Set(evt.mge_selections.map(s => s.member_name.toLowerCase()));
+  for (const app of evt.mge_applications || []) {
+    if (app.status === 'approved' && app.assigned_tier && !selNames.has(app.applicant_name.toLowerCase())) {
+      entries.push({
+        tier: app.assigned_tier,
+        name: app.applicant_name,
+        pointCap: tierCapMap.get(app.assigned_tier) || null,
+        isFfa: false,
+        sortVal: tierSortValue(app.assigned_tier),
+      });
+    }
+  }
+
+  // Sort by tier order
+  entries.sort((a, b) => a.sortVal - b.sortVal);
+
+  // Also include FFA tiers that have no one assigned (just show the cap)
+  const usedTiers = new Set(entries.map(e => e.tier));
+  for (const tier of evt.mge_rank_tiers) {
+    if (tier.is_ffa && !usedTiers.has(tier.tier_label)) {
+      entries.push({
+        tier: tier.tier_label,
+        name: 'Free for all',
+        pointCap: tier.point_cap,
+        isFfa: true,
+        sortVal: tier.sort_order,
+      });
+    }
+  }
+  entries.sort((a, b) => a.sortVal - b.sortVal);
+
   const lines: string[] = [];
   lines.push(KINGDOM_HEADER);
   lines.push(KINGDOM_DIVIDER);
   lines.push('');
   lines.push(`<b><color=#ff3333>MGE RANKINGS UPDATE</color></b>`);
   lines.push('');
+
+  const commanders = evt.mge_event_commanders.length > 0
+    ? evt.mge_event_commanders.map(c => c.commander_name)
+    : evt.focused_commander.split(',').map(c => c.trim());
+  lines.push(`<b>Commander:</b> ${commanders.join(', ')}`);
+  lines.push('');
+
   if (evt.notes) {
     lines.push(evt.notes);
     lines.push('');
   }
 
   let lowestCap = 0;
-  for (const sel of evt.mge_selections) {
-    const isFfa = sel.member_name === 'Free for All';
-    const tier = isFfa ? sel.ranking_tier.replace(' Place', '+') : `<b>${sel.ranking_tier}</b>`;
-    const name = isFfa ? 'Free for all' : sel.member_name;
-    const pts = sel.power_cap ? ` - <b>${formatPointsCap(sel.power_cap)}</b> points${isFfa ? ' max' : ''}` : '';
-    lines.push(`${tier} - ${name}${pts}`);
-    if (sel.power_cap && (lowestCap === 0 || sel.power_cap < lowestCap)) {
-      lowestCap = sel.power_cap;
+  for (const entry of entries) {
+    const tier = entry.isFfa ? entry.tier.replace(' Place', '+') : `<b>${entry.tier}</b>`;
+    const pts = entry.pointCap ? ` - <b>${formatPointsCap(entry.pointCap)}</b> points${entry.isFfa ? ' max' : ''}` : '';
+    lines.push(`${tier} - ${entry.name}${pts}`);
+    if (entry.pointCap && (lowestCap === 0 || entry.pointCap < lowestCap)) {
+      lowestCap = entry.pointCap;
     }
   }
 
