@@ -35,6 +35,7 @@ interface RosterMember {
 interface MgeEventCardProps {
   event: MgeEvent;
   isAdmin: boolean;
+  isOfficer: boolean;
   isExpanded: boolean;
   onToggle: () => void;
   onRefetch: () => void;
@@ -56,6 +57,7 @@ function formatPower(power: number): string {
 export function MgeEventCard({
   event,
   isAdmin,
+  isOfficer,
   isExpanded,
   onToggle,
   onRefetch,
@@ -167,14 +169,14 @@ export function MgeEventCard({
     ? roster.filter(m => m.name.toLowerCase().includes(selMemberSearch.toLowerCase())).slice(0, 15)
     : roster.slice(0, 15);
 
-  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50';
+  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
   const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
 
-  // Available tabs
+  // Available tabs — officer sees Applications, admin sees Settings
   const tabs: { key: EventTab; label: string; icon: React.ReactNode; show: boolean }[] = [
     { key: 'overview', label: 'Overview', icon: <FileText size={14} />, show: true },
     { key: 'apply', label: 'Apply', icon: <ClipboardList size={14} />, show: canApply },
-    { key: 'applications', label: `Applications${appCount > 0 ? ` (${appCount})` : ''}`, icon: <Users size={14} />, show: isAdmin },
+    { key: 'applications', label: `Applications${appCount > 0 ? ` (${appCount})` : ''}`, icon: <Users size={14} />, show: isOfficer },
     { key: 'settings', label: 'Settings', icon: <Settings size={14} />, show: isAdmin },
   ];
 
@@ -186,11 +188,11 @@ export function MgeEventCard({
         onClick={onToggle}
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--background-secondary)] transition-fast"
       >
-        <Crown size={18} className="text-amber-500 shrink-0" />
+        <Crown size={18} className="text-blue-500 shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             {commanders.map((cmd, i) => (
-              <span key={i} className="font-semibold text-sm px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300">
+              <span key={i} className="font-semibold text-sm px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300">
                 {cmd}
               </span>
             ))}
@@ -205,10 +207,10 @@ export function MgeEventCard({
         {appCount > 0 && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 shrink-0">
             {appCount} app{appCount !== 1 ? 's' : ''}
-            {pendingCount > 0 && <span className="text-amber-400"> ({pendingCount} new)</span>}
+            {pendingCount > 0 && <span className="text-blue-400"> ({pendingCount} new)</span>}
           </span>
         )}
-        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 shrink-0">
+        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 shrink-0">
           {event.mge_selections.length} selected
         </span>
         {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> :
@@ -226,7 +228,7 @@ export function MgeEventCard({
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium whitespace-nowrap transition-fast border-b-2 ${
                   activeTab === tab.key
-                    ? 'border-amber-500 text-amber-400'
+                    ? 'border-blue-500 text-blue-400'
                     : 'border-transparent hover:bg-[var(--background-secondary)]'
                 }`}
                 style={activeTab !== tab.key ? { color: 'var(--text-muted)' } : undefined}
@@ -247,11 +249,11 @@ export function MgeEventCard({
                 </div>
               )}
 
-              {/* Admin quick actions */}
-              {isAdmin && (
+              {/* Officer quick actions */}
+              {isOfficer && (
                 <div className="flex items-center gap-1 px-4 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
                   <button onClick={startAddSelection}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-amber-500/10 text-amber-400/70 hover:text-amber-400 transition-fast">
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
                     <Plus size={12} /> Add Member
                   </button>
                   <button onClick={() => onGenerateMail(event)}
@@ -259,35 +261,37 @@ export function MgeEventCard({
                     <ScrollText size={12} /> Mail
                   </button>
                   <div className="flex-1" />
-                  {/* Status transitions */}
-                  {status === 'draft' && (
+                  {/* Status transitions — admin only */}
+                  {isAdmin && status === 'draft' && (
                     <button onClick={() => handleStatusChange('open')}
                       className="flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-emerald-500/10 text-emerald-400/70 hover:text-emerald-400 transition-fast">
                       Open Applications
                     </button>
                   )}
-                  {status === 'open' && (
+                  {isAdmin && status === 'open' && (
                     <button onClick={() => handleStatusChange('reviewing')}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-amber-500/10 text-amber-400/70 hover:text-amber-400 transition-fast">
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
                       Close & Review
                     </button>
                   )}
-                  {(status === 'finalized') && (
+                  {isAdmin && status === 'finalized' && (
                     <button onClick={() => handleStatusChange('completed')}
                       className="flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-zinc-500/10 text-zinc-400/70 hover:text-zinc-400 transition-fast">
                       Mark Complete
                     </button>
                   )}
-                  <button onClick={handleDeleteEvent}
-                    className="p-1.5 rounded-md text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-fast" title="Delete event">
-                    <Trash2 size={14} />
-                  </button>
+                  {isAdmin && (
+                    <button onClick={handleDeleteEvent}
+                      className="p-1.5 rounded-md text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-fast" title="Delete event">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </div>
               )}
 
-              {/* Add selection form (legacy inline) */}
-              {isAddingSelection && isAdmin && (
-                <div className="px-4 py-3 border-b bg-amber-500/5" style={{ borderColor: 'var(--border)' }}>
+              {/* Add selection form */}
+              {isAddingSelection && isOfficer && (
+                <div className="px-4 py-3 border-b bg-blue-500/5" style={{ borderColor: 'var(--border)' }}>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
                     {selFreeForAll ? (
                       <div className="md:col-span-2 flex items-center px-3 py-2 rounded-md text-sm italic"
@@ -314,7 +318,7 @@ export function MgeEventCard({
                             {filteredRoster.map(m => (
                               <button key={m.id} type="button"
                                 onClick={() => { setSelMemberName(m.name); setSelMemberSearch(''); }}
-                                className="w-full text-left px-3 py-1.5 text-sm hover:bg-amber-500/10 transition-fast flex justify-between">
+                                className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-500/10 transition-fast flex justify-between">
                                 <span style={{ color: 'var(--foreground)' }}>{m.name}</span>
                                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                                   {m.alliance ? allianceDisplay(m.alliance) : ''} {formatPower(m.power)}
@@ -346,7 +350,7 @@ export function MgeEventCard({
                     <div className="flex-1" />
                     <button onClick={handleAddSelection}
                       disabled={!selFreeForAll && !selMemberName.trim()}
-                      className="px-4 py-2 rounded-md text-sm font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-fast disabled:opacity-40">
+                      className="px-4 py-2 rounded-md text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-fast disabled:opacity-40">
                       Add
                     </button>
                     <button onClick={() => setIsAddingSelection(false)}
@@ -368,7 +372,7 @@ export function MgeEventCard({
                   {event.mge_selections.map(sel => (
                     <div key={sel.id}
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--background-secondary)] transition-fast">
-                      <span className="text-xs font-semibold w-20 shrink-0 text-amber-400">
+                      <span className="text-xs font-semibold w-20 shrink-0 text-blue-400">
                         {sel.member_name === 'Free for All'
                           ? sel.ranking_tier.replace(' Place', '+')
                           : sel.ranking_tier}
@@ -388,7 +392,7 @@ export function MgeEventCard({
                           {sel.reason}
                         </span>
                       )}
-                      {isAdmin && (
+                      {isOfficer && (
                         <button onClick={() => handleRemoveSelection(sel.id)}
                           className="p-1.5 rounded-md text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-fast">
                           <Trash2 size={14} />
@@ -405,8 +409,8 @@ export function MgeEventCard({
             <MgeApplyTab event={event} onApplicationSubmitted={onRefetch} />
           )}
 
-          {activeTab === 'applications' && isAdmin && (
-            <MgeReviewTab event={event} onUpdate={onRefetch} />
+          {activeTab === 'applications' && isOfficer && (
+            <MgeReviewTab event={event} isAdmin={isAdmin} onUpdate={onRefetch} />
           )}
 
           {activeTab === 'settings' && isAdmin && (
@@ -430,7 +434,7 @@ export function MgeEventCard({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-fast"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-fast"
                     >
                       <Pencil size={12} /> Edit Event
                     </button>
@@ -462,7 +466,7 @@ export function MgeEventCard({
                         <div className="mt-1 space-y-0.5">
                           {event.mge_rank_tiers.map(t => (
                             <div key={t.id} className="flex gap-2 text-xs">
-                              <span className="w-20 text-amber-400">{t.tier_label}</span>
+                              <span className="w-20 text-blue-400">{t.tier_label}</span>
                               <span style={{ color: 'var(--foreground)' }}>
                                 {t.point_cap ? `${formatPower(t.point_cap)} pts` : '—'}
                               </span>

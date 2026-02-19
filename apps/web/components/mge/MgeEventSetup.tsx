@@ -119,7 +119,7 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
     }
   };
 
-  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50';
+  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
   const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
 
   return (
@@ -138,15 +138,15 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
             {commanders.map(c => (
               <span key={c.name}
                 className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-md ${
-                  c.isFocus ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-[var(--background-secondary)] border border-transparent'
+                  c.isFocus ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-[var(--background-secondary)] border border-transparent'
                 }`}
                 style={!c.isFocus ? { color: 'var(--foreground)' } : undefined}
               >
-                {c.isFocus && <Star size={10} className="text-amber-400 fill-amber-400" />}
+                {c.isFocus && <Star size={10} className="text-blue-400 fill-blue-400" />}
                 {c.name}
                 {!c.isFocus && commanders.length > 1 && (
                   <button type="button" onClick={() => toggleFocus(c.name)}
-                    className="hover:text-amber-400 transition-fast" title="Set as focus">
+                    className="hover:text-blue-400 transition-fast" title="Set as focus">
                     <Star size={10} />
                   </button>
                 )}
@@ -177,7 +177,7 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
                 <button key={name} type="button"
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => addCommander(name)}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-amber-500/10 transition-fast"
+                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-500/10 transition-fast"
                   style={{ color: 'var(--foreground)' }}>
                   {name}
                 </button>
@@ -187,7 +187,7 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
         </div>
         {commanders.length > 1 && (
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-            <Star size={8} className="inline text-amber-400 fill-amber-400" /> marks the focus commander (the one players submit stats for)
+            <Star size={8} className="inline text-blue-400 fill-blue-400" /> marks the focus commander (the one players submit stats for)
           </p>
         )}
       </div>
@@ -224,7 +224,7 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
               <div className="space-y-1.5 mb-2">
                 {tiers.map((tier, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <span className="text-xs w-20 shrink-0 text-amber-400 font-medium">{tier.label}</span>
+                    <span className="text-xs w-20 shrink-0 text-blue-400 font-medium">{tier.label}</span>
                     <div className="relative flex-1">
                       <input
                         type="number"
@@ -256,7 +256,7 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
             )}
             <div className="flex gap-2">
               <button type="button" onClick={addTier}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md hover:bg-amber-500/10 text-amber-400/70 hover:text-amber-400 transition-fast">
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md hover:bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
                 <Plus size={12} /> Add Tier
               </button>
               <button type="button" onClick={() => autoFillTiers(5)}
@@ -290,7 +290,7 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
           type="button"
           onClick={handleSave}
           disabled={saving || !date || commanders.length === 0}
-          className="px-4 py-2 rounded-md text-sm font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-fast disabled:opacity-40"
+          className="px-4 py-2 rounded-md text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-fast disabled:opacity-40"
         >
           {saving ? 'Saving...' : initialData ? 'Save Changes' : 'Create Event'}
         </button>

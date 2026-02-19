@@ -12,7 +12,8 @@ import { Shield, Lock, Unlock, Plus, Crown, X } from 'lucide-react';
 import { MgeEventCard } from '@/components/mge/MgeEventCard';
 import { MgeEventSetup } from '@/components/mge/MgeEventSetup';
 
-const EDITOR_PASSWORD = 'carn-dum';
+const ADMIN_PASSWORD = 'carn-dum';
+const OFFICER_PASSWORD = 'angmar';
 
 interface RosterMember {
   id: string;
@@ -73,8 +74,9 @@ type StatusFilter = 'all' | 'active' | 'past';
 export default function MgePage() {
   const { events, loading, error, refetch } = useMgeEvents();
 
-  // Admin mode
+  // Two-level auth
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isOfficer, setIsOfficer] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [password, setPassword] = useState('');
 
@@ -123,13 +125,24 @@ export default function MgePage() {
   }, [events, isAdmin, statusFilter]);
 
   const handleLogin = () => {
-    if (password === EDITOR_PASSWORD) {
+    if (password === ADMIN_PASSWORD) {
       setIsAdmin(true);
+      setIsOfficer(true);
+      setShowPasswordPrompt(false);
+      setPassword('');
+    } else if (password === OFFICER_PASSWORD) {
+      setIsOfficer(true);
       setShowPasswordPrompt(false);
       setPassword('');
     } else {
       alert('Incorrect password');
+      setPassword('');
     }
+  };
+
+  const handleLogout = () => {
+    setIsAdmin(false);
+    setIsOfficer(false);
   };
 
   const handleCreateEvent = async (data: {
@@ -165,9 +178,9 @@ export default function MgePage() {
     setExpandedEvents(next);
   };
 
-  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50';
+  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
   const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
-  const btnPrimary = 'px-4 py-2 rounded-md text-sm font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-fast';
+  const btnPrimary = 'px-4 py-2 rounded-md text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-fast';
 
   return (
     <AppSidebar>
@@ -175,7 +188,7 @@ export default function MgePage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Shield size={28} className="text-amber-500" />
+            <Shield size={28} className="text-blue-500" />
             <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
               MGE Events
             </h1>
@@ -187,25 +200,44 @@ export default function MgePage() {
                   <span className="flex items-center gap-1.5"><Plus size={16} /> New Event</span>
                 </button>
                 <button
-                  onClick={() => setIsAdmin(false)}
-                  className="p-2 rounded-md hover:bg-amber-500/10 transition-fast"
+                  onClick={handleLogout}
+                  className="p-2 rounded-md hover:bg-blue-500/10 transition-fast"
                   title="Lock admin mode"
                 >
-                  <Unlock size={18} className="text-amber-400" />
+                  <Unlock size={18} className="text-blue-400" />
                 </button>
               </>
+            ) : isOfficer ? (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm hover:bg-blue-500/10 transition-fast text-blue-400"
+              >
+                Officer Mode
+                <X size={14} />
+              </button>
             ) : (
               <button
                 onClick={() => setShowPasswordPrompt(true)}
                 className="p-2 rounded-md hover:bg-[var(--background-secondary)] transition-fast"
                 style={{ color: 'var(--text-muted)' }}
-                title="Admin mode"
+                title="Login"
               >
                 <Lock size={18} />
               </button>
             )}
           </div>
         </div>
+
+        {/* Mode banner */}
+        {isOfficer && (
+          <div className="mb-4 px-4 py-2 rounded-lg border flex items-center gap-2 text-sm bg-blue-500/10 border-blue-500/30">
+            <span className="font-medium text-blue-400">{isAdmin ? 'Admin Mode' : 'Officer Mode'}</span>
+            <span style={{ color: 'var(--text-muted)' }}>—</span>
+            <span style={{ color: 'var(--text-secondary)' }}>
+              {isAdmin ? 'Full access: create events, review, manage' : 'Review and triage applicants'}
+            </span>
+          </div>
+        )}
 
         {/* Password prompt */}
         {showPasswordPrompt && (
@@ -214,7 +246,7 @@ export default function MgePage() {
             <Lock size={16} style={{ color: 'var(--text-muted)' }} />
             <input
               type="password"
-              placeholder="Admin password"
+              placeholder="Password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
@@ -242,7 +274,7 @@ export default function MgePage() {
               key={key}
               onClick={() => setStatusFilter(key)}
               className={`px-3 py-1.5 text-xs rounded-md transition-fast ${
-                statusFilter === key ? 'bg-amber-500/20 text-amber-400' : 'hover:bg-[var(--background-secondary)]'
+                statusFilter === key ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-[var(--background-secondary)]'
               }`}
               style={statusFilter !== key ? { color: 'var(--text-muted)' } : undefined}
             >
@@ -275,7 +307,7 @@ export default function MgePage() {
         {!loading && !error && visibleEvents.length === 0 && (
           <div className="text-center py-16 rounded-lg border"
             style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-            <Crown size={48} className="mx-auto mb-4 text-amber-500/30" />
+            <Crown size={48} className="mx-auto mb-4 text-blue-500/30" />
             <p className="text-lg font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
               No MGE events yet
             </p>
@@ -292,6 +324,7 @@ export default function MgePage() {
               key={evt.id}
               event={evt}
               isAdmin={isAdmin}
+              isOfficer={isOfficer}
               isExpanded={expandedEvents.has(evt.id)}
               onToggle={() => toggleEvent(evt.id)}
               onRefetch={refetch}

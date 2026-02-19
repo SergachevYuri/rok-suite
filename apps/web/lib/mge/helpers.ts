@@ -69,7 +69,7 @@ export function statusColor(status: string): { bg: string; text: string } {
   switch (status) {
     case 'draft': return { bg: 'bg-zinc-500/15', text: 'text-zinc-400' };
     case 'open': return { bg: 'bg-emerald-500/15', text: 'text-emerald-400' };
-    case 'reviewing': return { bg: 'bg-amber-500/15', text: 'text-amber-400' };
+    case 'reviewing': return { bg: 'bg-purple-500/15', text: 'text-purple-400' };
     case 'finalized': return { bg: 'bg-blue-500/15', text: 'text-blue-400' };
     case 'completed': return { bg: 'bg-zinc-500/15', text: 'text-zinc-500' };
     default: return { bg: 'bg-zinc-500/15', text: 'text-zinc-400' };
@@ -89,7 +89,7 @@ export function statusLabel(status: string): string {
 
 export function applicationStatusColor(status: string): { bg: string; text: string } {
   switch (status) {
-    case 'pending': return { bg: 'bg-amber-500/15', text: 'text-amber-400' };
+    case 'pending': return { bg: 'bg-blue-500/15', text: 'text-blue-400' };
     case 'approved': return { bg: 'bg-emerald-500/15', text: 'text-emerald-400' };
     case 'waitlisted': return { bg: 'bg-blue-500/15', text: 'text-blue-400' };
     case 'declined': return { bg: 'bg-red-500/15', text: 'text-red-400' };

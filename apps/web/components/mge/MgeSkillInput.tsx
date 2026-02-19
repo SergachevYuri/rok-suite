@@ -40,7 +40,7 @@ export function MgeSkillInput({
           <select
             value={level}
             onChange={(e) => onLevelChange(parseInt(e.target.value))}
-            className="w-full px-3 py-2 rounded-md border text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50 appearance-none cursor-pointer"
+            className="w-full px-3 py-2 rounded-md border text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50 appearance-none cursor-pointer"
             style={{
               backgroundColor: 'var(--background-secondary)',
               borderColor: 'var(--border)',

@@ -24,7 +24,7 @@ const APPLICANT_KEY = 'mge-applicant-name';
 
 function ApplicationStatusCard({ app }: { app: MgeApplication }) {
   const statusConfig: Record<MgeApplicationStatus, { icon: React.ReactNode; color: string; label: string }> = {
-    pending: { icon: <Clock size={18} />, color: 'text-amber-400', label: 'Pending Review' },
+    pending: { icon: <Clock size={18} />, color: 'text-blue-400', label: 'Pending Review' },
     approved: { icon: <CheckCircle size={18} />, color: 'text-emerald-400', label: 'Approved' },
     waitlisted: { icon: <AlertCircle size={18} />, color: 'text-blue-400', label: 'Waitlisted' },
     declined: { icon: <XCircle size={18} />, color: 'text-red-400', label: 'Declined' },
@@ -61,7 +61,7 @@ function ApplicationStatusCard({ app }: { app: MgeApplication }) {
         {app.assigned_tier && (
           <div className="flex justify-between">
             <span style={{ color: 'var(--text-secondary)' }}>Assigned Tier</span>
-            <span className="text-amber-400 font-medium">{app.assigned_tier}</span>
+            <span className="text-blue-400 font-medium">{app.assigned_tier}</span>
           </div>
         )}
         {app.officer_notes && (
@@ -186,7 +186,7 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
     setSubmitting(false);
   };
 
-  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50';
+  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
   const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
 
   // If deadline passed and not already applied
@@ -219,7 +219,7 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
     <div className="p-4 space-y-4">
       {/* Deadline notice */}
       {event.application_deadline && !deadlinePassed && (
-        <div className="flex items-center gap-2 p-2 rounded-md text-xs bg-amber-500/10 text-amber-400">
+        <div className="flex items-center gap-2 p-2 rounded-md text-xs bg-blue-500/10 text-blue-400">
           <Clock size={14} />
           Deadline: {formatDeadline(event.application_deadline)}
         </div>
@@ -253,7 +253,7 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
                 <button key={m.id} type="button"
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => handleSelectName(m.name)}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-amber-500/10 transition-fast flex justify-between">
+                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-500/10 transition-fast flex justify-between">
                   <span style={{ color: 'var(--foreground)' }}>{m.name}</span>
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {m.alliance ? allianceDisplay(m.alliance) : ''} {formatPower(m.power)}
@@ -272,8 +272,8 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
       </div>
 
       {/* Focus Commander Header */}
-      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-        <p className="text-xs font-medium text-amber-400 mb-0.5">Focus Commander</p>
+      <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+        <p className="text-xs font-medium text-blue-400 mb-0.5">Focus Commander</p>
         <p className="font-semibold" style={{ color: 'var(--foreground)' }}>{focusCommander}</p>
         {event.notes && (
           <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{event.notes}</p>
@@ -355,7 +355,7 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
         type="button"
         onClick={handleSubmit}
         disabled={submitting || !applicantName.trim()}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-fast disabled:opacity-40"
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-fast disabled:opacity-40"
       >
         <Send size={14} />
         {submitting ? 'Submitting...' : 'Submit Application'}
