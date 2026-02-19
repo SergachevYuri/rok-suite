@@ -15,6 +15,7 @@ interface TierConfig {
   label: string;
   pointCap: number | null;
   isFfa: boolean;
+  rewardHeads: number | null;
 }
 
 interface CommanderConfig {
@@ -40,10 +41,20 @@ interface MgeEventSetupProps {
   };
 }
 
+// Ensure initialData tiers have rewardHeads (backward compat)
+function normalizeTiers(tiers: Partial<TierConfig>[]): TierConfig[] {
+  return tiers.map(t => ({
+    label: t.label || '',
+    pointCap: t.pointCap ?? null,
+    isFfa: t.isFfa ?? false,
+    rewardHeads: t.rewardHeads ?? null,
+  }));
+}
+
 export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupProps) {
   const [date, setDate] = useState(initialData?.date || '');
   const [commanders, setCommanders] = useState<CommanderConfig[]>(initialData?.commanders || []);
-  const [tiers, setTiers] = useState<TierConfig[]>(initialData?.tiers || []);
+  const [tiers, setTiers] = useState<TierConfig[]>(initialData?.tiers ? normalizeTiers(initialData.tiers) : []);
   const [notes, setNotes] = useState(initialData?.notes || '');
   const [deadline, setDeadline] = useState(initialData?.deadline || '');
   const [saving, setSaving] = useState(false);
@@ -94,6 +105,7 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
       label: `${ordinals[idx] || `${idx + 1}th`} Place`,
       pointCap: null,
       isFfa: false,
+      rewardHeads: null,
     }]);
   };
 
@@ -223,9 +235,9 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
             {tiers.length > 0 && (
               <div className="space-y-1.5 mb-2">
                 {tiers.map((tier, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="text-xs w-20 shrink-0 text-blue-400 font-medium">{tier.label}</span>
-                    <div className="relative flex-1">
+                  <div key={i} className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <span className="text-xs w-full sm:w-20 shrink-0 text-blue-400 font-medium">{tier.label}</span>
+                    <div className="relative flex-1 min-w-0">
                       <input
                         type="number"
                         placeholder="Points cap (M)"
@@ -238,6 +250,20 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
                         style={inputStyle}
                       />
                       <span className="absolute right-3 top-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>M</span>
+                    </div>
+                    <div className="relative w-20 shrink-0">
+                      <input
+                        type="number"
+                        placeholder="Heads"
+                        value={tier.rewardHeads ?? ''}
+                        onChange={e => {
+                          const val = e.target.value ? parseInt(e.target.value) : null;
+                          updateTier(i, { rewardHeads: val });
+                        }}
+                        className={inputClass + ' w-full pr-7'}
+                        style={inputStyle}
+                      />
+                      <span className="absolute right-2 top-2 text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>GH</span>
                     </div>
                     <label className="flex items-center gap-1 text-xs shrink-0 cursor-pointer"
                       style={{ color: 'var(--text-secondary)' }}>

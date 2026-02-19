@@ -33,6 +33,7 @@ export interface MgeRankTier {
   point_cap: number | null;
   is_ffa: boolean;
   sort_order: number;
+  reward_heads: number | null;
 }
 
 export type MgeEventStatus = 'draft' | 'open' | 'reviewing' | 'finalized' | 'completed';
@@ -56,6 +57,7 @@ export interface MgeApplication {
   assigned_tier: string | null;
   decided_at: string | null;
   screenshot_url: string | null;
+  equipment_rating: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -157,7 +159,7 @@ export async function createMgeEvent(
 export async function createMgeEventFull(
   event_date: string,
   commanders: { name: string; isFocus: boolean }[],
-  tiers: { label: string; pointCap: number | null; isFfa: boolean }[],
+  tiers: { label: string; pointCap: number | null; isFfa: boolean; rewardHeads?: number | null }[],
   notes?: string,
   deadline?: string
 ): Promise<MgeEvent | null> {
@@ -202,6 +204,7 @@ export async function createMgeEventFull(
         point_cap: t.pointCap,
         is_ffa: t.isFfa,
         sort_order: i,
+        reward_heads: t.rewardHeads ?? null,
       }))
     );
     if (tierErr) console.error('Failed to insert tiers:', tierErr.message);
@@ -225,6 +228,7 @@ export async function createMgeEventFull(
       point_cap: t.pointCap,
       is_ffa: t.isFfa,
       sort_order: i,
+      reward_heads: t.rewardHeads ?? null,
     })),
     mge_applications: [],
   };
@@ -304,7 +308,7 @@ export async function updateEventCommanders(
 
 export async function updateEventTiers(
   eventId: number,
-  tiers: { label: string; pointCap: number | null; isFfa: boolean }[]
+  tiers: { label: string; pointCap: number | null; isFfa: boolean; rewardHeads?: number | null }[]
 ): Promise<boolean> {
   await supabase.from('mge_rank_tiers').delete().eq('mge_event_id', eventId);
   if (tiers.length === 0) return true;
@@ -316,6 +320,7 @@ export async function updateEventTiers(
       point_cap: t.pointCap,
       is_ffa: t.isFfa,
       sort_order: i,
+      reward_heads: t.rewardHeads ?? null,
     }))
   );
   if (error) {
@@ -465,16 +470,21 @@ export async function updateApplicationStatus(
   appId: number,
   status: MgeApplicationStatus,
   officerNotes?: string | null,
-  assignedTier?: string | null
+  assignedTier?: string | null,
+  equipmentRating?: number | null
 ): Promise<boolean> {
+  const updates: Record<string, unknown> = {
+    status,
+    officer_notes: officerNotes ?? null,
+    assigned_tier: assignedTier ?? null,
+    decided_at: new Date().toISOString(),
+  };
+  if (equipmentRating !== undefined) {
+    updates.equipment_rating = equipmentRating;
+  }
   const { error } = await supabase
     .from('mge_applications')
-    .update({
-      status,
-      officer_notes: officerNotes ?? null,
-      assigned_tier: assignedTier ?? null,
-      decided_at: new Date().toISOString(),
-    })
+    .update(updates)
     .eq('id', appId);
 
   if (error) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Crown, Pencil, Trash2, Eye, EyeOff, ScrollText, Plus, Settings, FileText, Users, ClipboardList } from 'lucide-react';
+import { ChevronDown, ChevronUp, Crown, Pencil, Trash2, Eye, EyeOff, ScrollText, Plus, Settings, FileText, Users, ClipboardList, Star } from 'lucide-react';
 import { MgeApplyTab } from './MgeApplyTab';
 import { MgeReviewTab } from './MgeReviewTab';
 import { MgeEventSetup } from './MgeEventSetup';
@@ -80,6 +80,11 @@ export function MgeEventCard({
   const commanders = event.mge_event_commanders.length > 0
     ? event.mge_event_commanders.map(c => c.commander_name)
     : event.focused_commander.split(',').map(c => c.trim());
+  const focusSet = new Set(
+    event.mge_event_commanders.filter(c => c.is_focus).map(c => c.commander_name)
+  );
+  const isFocusCmd = (cmd: string, idx: number) =>
+    focusSet.size > 0 ? focusSet.has(cmd) : idx === 0;
   const appCount = event.mge_applications?.length || 0;
   const pendingCount = event.mge_applications?.filter(a => a.status === 'pending').length || 0;
 
@@ -109,7 +114,7 @@ export function MgeEventCard({
   const handleSaveEdit = async (data: {
     date: string;
     commanders: { name: string; isFocus: boolean }[];
-    tiers: { label: string; pointCap: number | null; isFfa: boolean }[];
+    tiers: { label: string; pointCap: number | null; isFfa: boolean; rewardHeads: number | null }[];
     notes: string;
     deadline: string;
   }) => {
@@ -197,31 +202,42 @@ export function MgeEventCard({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--background-secondary)] transition-fast"
+        className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 text-left hover:bg-[var(--background-secondary)] transition-fast flex-wrap"
       >
         <Crown size={18} className="text-blue-500 shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            {commanders.map((cmd, i) => (
-              <span key={i} className="font-semibold text-base px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-300">
-                {cmd}
-              </span>
-            ))}
+            {commanders.map((cmd, i) => {
+              const focus = isFocusCmd(cmd, i);
+              return (
+                <span
+                  key={i}
+                  className={`font-semibold px-2.5 py-0.5 rounded-md inline-flex items-center gap-1 ${
+                    focus
+                      ? 'text-base bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/30'
+                      : 'text-sm bg-zinc-500/10 text-zinc-500'
+                  }`}
+                >
+                  {focus && <Star size={12} className="text-blue-400 fill-blue-400" />}
+                  {cmd}
+                </span>
+              );
+            })}
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
               {formatDate(event.event_date)}
             </span>
           </div>
         </div>
-        <span className={`text-sm px-2.5 py-0.5 rounded-full ${statusBg} ${statusText} shrink-0`}>
+        <span className={`text-xs sm:text-sm px-2 sm:px-2.5 py-0.5 rounded-full ${statusBg} ${statusText} shrink-0`}>
           {statusLabel(status)}
         </span>
         {appCount > 0 && (
-          <span className="text-sm px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 shrink-0">
+          <span className="hidden sm:inline-flex text-sm px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 shrink-0">
             {appCount} app{appCount !== 1 ? 's' : ''}
             {pendingCount > 0 && <span className="text-blue-400"> ({pendingCount} new)</span>}
           </span>
         )}
-        <span className="text-sm px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 shrink-0">
+        <span className="hidden sm:inline-flex text-sm px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 shrink-0">
           {event.mge_selections.length + pendingAssignments.length} selected
         </span>
         {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> :
@@ -278,7 +294,7 @@ export function MgeEventCard({
 
               {/* Officer quick actions */}
               {isOfficer && (
-                <div className="flex items-center gap-1 px-4 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-1.5 px-3 sm:px-4 py-2 border-b flex-wrap" style={{ borderColor: 'var(--border)' }}>
                   <button onClick={startAddSelection}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm hover:bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
                     <Plus size={14} /> Add Member
@@ -418,6 +434,14 @@ export function MgeEventCard({
                           {formatPower(sel.power_cap)} pts
                         </span>
                       )}
+                      {(() => {
+                        const tier = event.mge_rank_tiers.find(t => t.tier_label === sel.ranking_tier);
+                        return tier?.reward_heads ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-500 shrink-0">
+                            {tier.reward_heads} GH
+                          </span>
+                        ) : null;
+                      })()}
                       {sel.reason && (
                         <span className="text-sm hidden md:inline shrink-0" style={{ color: 'var(--text-muted)' }}>
                           {sel.reason}
@@ -480,7 +504,7 @@ export function MgeEventCard({
                     commanders: event.mge_event_commanders.length > 0
                       ? event.mge_event_commanders.map(c => ({ name: c.commander_name, isFocus: c.is_focus }))
                       : event.focused_commander.split(',').map((c, i) => ({ name: c.trim(), isFocus: i === 0 })),
-                    tiers: event.mge_rank_tiers.map(t => ({ label: t.tier_label, pointCap: t.point_cap, isFfa: t.is_ffa })),
+                    tiers: event.mge_rank_tiers.map(t => ({ label: t.tier_label, pointCap: t.point_cap, isFfa: t.is_ffa, rewardHeads: t.reward_heads })),
                     notes: event.notes || '',
                     deadline: event.application_deadline || '',
                   }}
@@ -526,6 +550,9 @@ export function MgeEventCard({
                               <span style={{ color: 'var(--foreground)' }}>
                                 {t.point_cap ? `${formatPower(t.point_cap)} pts` : '—'}
                               </span>
+                              {t.reward_heads != null && (
+                                <span className="text-yellow-500">{t.reward_heads} GH</span>
+                              )}
                               {t.is_ffa && <span className="text-zinc-500">FFA</span>}
                             </div>
                           ))}

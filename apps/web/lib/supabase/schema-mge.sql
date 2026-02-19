@@ -142,3 +142,12 @@ ON CONFLICT (id) DO NOTHING;
 -- Storage RLS policies for mge-screenshots bucket
 CREATE POLICY "Allow public upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'mge-screenshots');
 CREATE POLICY "Allow public read" ON storage.objects FOR SELECT USING (bucket_id = 'mge-screenshots');
+
+-- ─── Migration: Equipment rating & reward heads ─────────────────────
+-- Officer-assigned equipment rating (0-10) based on screenshot evaluation
+ALTER TABLE public.mge_applications
+  ADD COLUMN IF NOT EXISTS equipment_rating smallint;
+
+-- Gold head rewards per rank tier
+ALTER TABLE public.mge_rank_tiers
+  ADD COLUMN IF NOT EXISTS reward_heads int;

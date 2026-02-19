@@ -197,7 +197,7 @@ export default function MgePage() {
   const handleCreateEvent = async (data: {
     date: string;
     commanders: { name: string; isFocus: boolean }[];
-    tiers: { label: string; pointCap: number | null; isFfa: boolean }[];
+    tiers: { label: string; pointCap: number | null; isFfa: boolean; rewardHeads?: number | null }[];
     notes: string;
     deadline: string;
   }) => {
