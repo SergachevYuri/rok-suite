@@ -21,16 +21,16 @@ const PUBLIC_CALENDARS = [
     {
         id: 'd005a7955410ff8b21164034320d73e20fad0124e59617077234e6b15aae0577@group.calendar.google.com',
         name: 'ROK Events',
-        color: '#F09300', // orange
-        displayColor: '#f59e0b', // amber
+        color: '#7986CB', // purple
+        displayColor: '#8b5cf6', // violet
     },
 ];
 
 const ADMIN_CALENDAR = {
     id: 'ef47386caa3f7c72112843b965a4db91dc20c1b785836db69b064bf49a50aede@group.calendar.google.com',
     name: 'Leadership',
-    color: '#7986CB', // indigo
-    displayColor: '#8b5cf6', // violet
+    color: '#0B8043', // green
+    displayColor: '#22c55e', // green
 };
 
 const ADMIN_PASSWORD = 'carn-dum';
