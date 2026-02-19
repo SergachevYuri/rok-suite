@@ -128,3 +128,17 @@ CREATE POLICY "Allow public read" ON public.mge_applications FOR SELECT USING (t
 CREATE POLICY "Allow public insert" ON public.mge_applications FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update" ON public.mge_applications FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete" ON public.mge_applications FOR DELETE USING (true);
+
+-- ─── Migration: Screenshot uploads ──────────────────────────────────
+-- Add screenshot_url column to mge_applications
+ALTER TABLE public.mge_applications ADD COLUMN IF NOT EXISTS screenshot_url text;
+
+-- Create storage bucket for MGE screenshots (run in Supabase Dashboard > Storage):
+-- 1. Create bucket named "mge-screenshots" with public access
+-- 2. Or run this SQL:
+INSERT INTO storage.buckets (id, name, public) VALUES ('mge-screenshots', 'mge-screenshots', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage RLS policies for mge-screenshots bucket
+CREATE POLICY "Allow public upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'mge-screenshots');
+CREATE POLICY "Allow public read" ON storage.objects FOR SELECT USING (bucket_id = 'mge-screenshots');

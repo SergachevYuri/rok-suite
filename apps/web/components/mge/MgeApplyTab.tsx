@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Send, CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react';
+import { Search, Send, CheckCircle, Clock, XCircle, AlertCircle, Camera, X } from 'lucide-react';
 import { MgeSkillInput } from './MgeSkillInput';
 import { supabase } from '@/lib/supabase';
-import { submitApplication, type MgeEvent, type MgeApplication, type MgeApplicationStatus } from '@/lib/supabase/use-mge';
+import { submitApplication, uploadMgeScreenshot, type MgeEvent, type MgeApplication, type MgeApplicationStatus } from '@/lib/supabase/use-mge';
 import { formatSkillLevels, commanderInvestmentScore, isDeadlinePassed, formatDeadline } from '@/lib/mge/helpers';
 import { allianceDisplay } from '@/lib/alliances';
 
@@ -98,6 +98,10 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
   const [maxTier, setMaxTier] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Screenshot
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+
   // State
   const [roster, setRoster] = useState<RosterMember[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -161,9 +165,32 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
     if (existing) setExistingApp(existing);
   };
 
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be under 5MB');
+      return;
+    }
+    setScreenshotFile(file);
+    const url = URL.createObjectURL(file);
+    setScreenshotPreview(url);
+  };
+
+  const removeScreenshot = () => {
+    setScreenshotFile(null);
+    if (screenshotPreview) URL.revokeObjectURL(screenshotPreview);
+    setScreenshotPreview(null);
+  };
+
   const handleSubmit = async () => {
     if (!applicantName.trim() || !focusCommander) return;
     setSubmitting(true);
+
+    let screenshotUrl: string | null = null;
+    if (screenshotFile) {
+      screenshotUrl = await uploadMgeScreenshot(screenshotFile, event.id, applicantName.trim());
+    }
 
     const result = await submitApplication(event.id, {
       applicant_name: applicantName.trim(),
@@ -176,6 +203,7 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
       preferred_tier: preferredTier || null,
       max_tier: maxTier || null,
       notes: notes.trim() || null,
+      screenshot_url: screenshotUrl,
     });
 
     if (result) {
@@ -293,6 +321,47 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
           onSkillsChange={setSkills}
           onStarsChange={setStars}
         />
+      </div>
+
+      {/* Commander Screenshot */}
+      <div>
+        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+          Commander Screenshot (optional)
+        </label>
+        <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+          Upload a screenshot of your commander to show gear and equipment
+        </p>
+        {screenshotPreview ? (
+          <div className="relative inline-block">
+            <img
+              src={screenshotPreview}
+              alt="Commander screenshot"
+              className="rounded-lg border max-h-48 object-contain"
+              style={{ borderColor: 'var(--border)' }}
+            />
+            <button
+              type="button"
+              onClick={removeScreenshot}
+              className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500/80 text-white hover:bg-red-500 transition-fast"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ) : (
+          <label className="flex items-center gap-2 px-4 py-3 rounded-lg border border-dashed cursor-pointer hover:bg-[var(--background-secondary)] transition-fast"
+            style={{ borderColor: 'var(--border)' }}>
+            <Camera size={18} style={{ color: 'var(--text-muted)' }} />
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Tap to upload screenshot
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleScreenshotChange}
+              className="hidden"
+            />
+          </label>
+        )}
       </div>
 
       {/* Tier Preferences */}

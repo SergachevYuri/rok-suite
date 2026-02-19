@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp, Crown, Pencil, Trash2, Eye, EyeOff, ScrollText, Plus, Settings, FileText, Users, ClipboardList } from 'lucide-react';
 import { MgeApplyTab } from './MgeApplyTab';
 import { MgeReviewTab } from './MgeReviewTab';
@@ -18,7 +18,7 @@ import {
   type MgeEventStatus,
   RANKING_TIERS,
 } from '@/lib/supabase/use-mge';
-import { statusColor, statusLabel } from '@/lib/mge/helpers';
+import { statusColor, statusLabel, tierSortValue } from '@/lib/mge/helpers';
 import { allianceDisplay } from '@/lib/alliances';
 import { supabase } from '@/lib/supabase';
 import { Search, X } from 'lucide-react';
@@ -39,7 +39,7 @@ interface MgeEventCardProps {
   isExpanded: boolean;
   onToggle: () => void;
   onRefetch: () => void;
-  onGenerateMail: (evt: MgeEvent) => void;
+  onGenerateMail: (evt: MgeEvent, type: 'applications' | 'rankings') => void;
   roster: RosterMember[];
 }
 
@@ -85,6 +85,15 @@ export function MgeEventCard({
 
   const isOpen = status === 'open';
   const canApply = isOpen || status === 'reviewing';
+
+  // Approved applications not yet finalized into selections
+  const pendingAssignments = useMemo(() => {
+    const approved = (event.mge_applications || []).filter(a => a.status === 'approved' && a.assigned_tier);
+    const selNames = new Set(event.mge_selections.map(s => s.member_name.toLowerCase()));
+    return approved
+      .filter(a => !selNames.has(a.applicant_name.toLowerCase()))
+      .sort((a, b) => tierSortValue(a.assigned_tier!) - tierSortValue(b.assigned_tier!));
+  }, [event.mge_applications, event.mge_selections]);
 
   const handleDeleteEvent = async () => {
     if (!confirm('Delete this MGE event and all its data?')) return;
@@ -211,7 +220,7 @@ export function MgeEventCard({
           </span>
         )}
         <span className="text-sm px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 shrink-0">
-          {event.mge_selections.length} selected
+          {event.mge_selections.length + pendingAssignments.length} selected
         </span>
         {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> :
           <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
@@ -256,9 +265,13 @@ export function MgeEventCard({
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm hover:bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
                     <Plus size={14} /> Add Member
                   </button>
-                  <button onClick={() => onGenerateMail(event)}
+                  <button onClick={() => onGenerateMail(event, 'applications')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-fast">
-                    <ScrollText size={14} /> Generate Mail
+                    <ScrollText size={14} /> Mail: Applications
+                  </button>
+                  <button onClick={() => onGenerateMail(event, 'rankings')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-fast">
+                    <ScrollText size={14} /> Mail: Rankings
                   </button>
                   <div className="flex-1" />
                   {/* Status transitions — admin only */}
@@ -362,8 +375,8 @@ export function MgeEventCard({
                 </div>
               )}
 
-              {/* Selections list */}
-              {event.mge_selections.length === 0 ? (
+              {/* Selections list + pending assignments */}
+              {event.mge_selections.length === 0 && pendingAssignments.length === 0 ? (
                 <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
                   No members selected yet
                 </div>
@@ -400,6 +413,31 @@ export function MgeEventCard({
                       )}
                     </div>
                   ))}
+                  {pendingAssignments.length > 0 && (
+                    <>
+                      {event.mge_selections.length > 0 && (
+                        <div className="px-4 py-1.5 text-xs font-medium"
+                          style={{ color: 'var(--text-muted)', backgroundColor: 'var(--background-secondary)' }}>
+                          Assigned — Pending Finalization
+                        </div>
+                      )}
+                      {pendingAssignments.map(app => (
+                        <div key={`pending-${app.id}`}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--background-secondary)] transition-fast border-l-2 border-blue-500/30">
+                          <span className="text-sm font-semibold w-24 shrink-0 text-blue-400/70">
+                            {app.assigned_tier}
+                          </span>
+                          <span className="font-medium text-base flex-1 min-w-0 truncate"
+                            style={{ color: 'var(--foreground)' }}>
+                            {app.applicant_name}
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 shrink-0">
+                            Assigned
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>

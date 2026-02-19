@@ -55,6 +55,7 @@ export interface MgeApplication {
   officer_notes: string | null;
   assigned_tier: string | null;
   decided_at: string | null;
+  screenshot_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -391,6 +392,31 @@ export async function removeSelection(id: number): Promise<boolean> {
   return true;
 }
 
+// ─── Screenshot Upload ──────────────────────────────────────────────
+
+export async function uploadMgeScreenshot(
+  file: File,
+  eventId: number,
+  applicantName: string
+): Promise<string | null> {
+  const ext = file.name.split('.').pop() || 'png';
+  const safeName = applicantName.replace(/[^a-zA-Z0-9]/g, '_');
+  const path = `${eventId}/${safeName}_${Date.now()}.${ext}`;
+
+  const { error } = await supabase
+    .storage
+    .from('mge-screenshots')
+    .upload(path, file, { contentType: file.type, upsert: true });
+
+  if (error) {
+    console.error('Failed to upload screenshot:', error.message);
+    return null;
+  }
+
+  const { data } = supabase.storage.from('mge-screenshots').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 // ─── Application CRUD ───────────────────────────────────────────────
 
 export async function submitApplication(
@@ -406,6 +432,7 @@ export async function submitApplication(
     preferred_tier?: string | null;
     max_tier?: string | null;
     notes?: string | null;
+    screenshot_url?: string | null;
   }
 ): Promise<MgeApplication | null> {
   const { data: result, error } = await supabase
@@ -422,6 +449,7 @@ export async function submitApplication(
       preferred_tier: data.preferred_tier || null,
       max_tier: data.max_tier || null,
       notes: data.notes || null,
+      screenshot_url: data.screenshot_url || null,
     }])
     .select()
     .single();

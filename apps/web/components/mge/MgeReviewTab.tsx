@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Users, CheckCircle, MessageSquare, Info } from 'lucide-react';
+import { Users, CheckCircle, MessageSquare, Info, Image as ImageIcon, X } from 'lucide-react';
 import {
   updateApplicationStatus,
   convertApprovedToSelections,
@@ -55,6 +55,8 @@ function ApplicantCard({
   const score = app.commander_level && app.skill_levels && app.commander_stars
     ? commanderInvestmentScore(app.commander_level, app.skill_levels, app.commander_stars)
     : 0;
+
+  const [showScreenshot, setShowScreenshot] = useState(false);
 
   const isAssigned = app.status === 'approved';
   const isSkipped = app.status === 'declined';
@@ -132,7 +134,46 @@ function ApplicantCard({
         )}
       </div>
 
-      {/* Row 4: Assign rank dropdown + Officer notes */}
+      {/* Row 4: Screenshot thumbnail */}
+      {app.screenshot_url && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowScreenshot(true)}
+            className="flex items-center gap-1.5 mb-3 text-xs text-blue-400 hover:text-blue-300 transition-fast"
+          >
+            <ImageIcon size={14} />
+            <img
+              src={app.screenshot_url}
+              alt="Commander screenshot"
+              className="h-16 rounded-md border object-cover"
+              style={{ borderColor: 'var(--border)' }}
+            />
+          </button>
+          {showScreenshot && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+              onClick={() => setShowScreenshot(false)}
+            >
+              <div className="relative max-w-[90vw] max-h-[90vh]">
+                <img
+                  src={app.screenshot_url}
+                  alt="Commander screenshot"
+                  className="max-w-full max-h-[85vh] rounded-lg object-contain"
+                />
+                <button
+                  onClick={() => setShowScreenshot(false)}
+                  className="absolute -top-3 -right-3 p-1.5 rounded-full bg-zinc-800 text-white hover:bg-zinc-700 transition-fast"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Row 5: Assign rank dropdown + Officer notes */}
       <div className="flex gap-3 items-center">
         <div className="shrink-0">
           <select

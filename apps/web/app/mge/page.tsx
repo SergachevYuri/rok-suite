@@ -40,7 +40,50 @@ function formatPointsCap(points: number): string {
   return points.toLocaleString('en-US');
 }
 
-function generateMailContent(evt: MgeEvent): string {
+function generateApplicationsMail(evt: MgeEvent): string {
+  const commanders = evt.mge_event_commanders.length > 0
+    ? evt.mge_event_commanders.map(c => c.commander_name)
+    : evt.focused_commander.split(',').map(c => c.trim());
+  const focusCommander = evt.mge_event_commanders.find(c => c.is_focus)?.commander_name
+    || commanders[0] || '';
+
+  const lines: string[] = [];
+  lines.push(KINGDOM_HEADER);
+  lines.push(KINGDOM_DIVIDER);
+  lines.push('');
+  lines.push(`<b><color=#ff3333>MGE — APPLICATIONS OPEN</color></b>`);
+  lines.push('');
+  lines.push(`<b>Commander:</b> ${commanders.join(', ')}`);
+  lines.push(`<b>Date:</b> ${formatDate(evt.event_date)}`);
+  if (evt.application_deadline) {
+    lines.push(`<b>Deadline:</b> ${formatDate(evt.application_deadline)}`);
+  }
+  lines.push('');
+  if (evt.notes) {
+    lines.push(evt.notes);
+    lines.push('');
+  }
+
+  if (evt.mge_rank_tiers.length > 0) {
+    lines.push('<b>Available Ranks:</b>');
+    for (const tier of evt.mge_rank_tiers) {
+      const cap = tier.point_cap ? ` — ${formatPointsCap(tier.point_cap)} points` : '';
+      const ffa = tier.is_ffa ? ' (free for all)' : '';
+      lines.push(`${tier.tier_label}${cap}${ffa}`);
+    }
+    lines.push('');
+  }
+
+  lines.push(`If you want to compete for a ranking spot, submit your <b>${focusCommander}</b> stats at:`);
+  lines.push(`<b>https://rok-suite.vercel.app/mge</b>`);
+  lines.push('');
+  lines.push(KINGDOM_DIVIDER);
+  lines.push(`<b><color=#800000>— King Fluffy</color></b>`);
+
+  return lines.join('\n');
+}
+
+function generateRankingsMail(evt: MgeEvent): string {
   const lines: string[] = [];
   lines.push(KINGDOM_HEADER);
   lines.push(KINGDOM_DIVIDER);
@@ -52,7 +95,6 @@ function generateMailContent(evt: MgeEvent): string {
     lines.push('');
   }
 
-  // Find lowest point cap for the warning line
   let lowestCap = 0;
   for (const sel of evt.mge_selections) {
     const isFfa = sel.member_name === 'Free for All';
@@ -172,8 +214,8 @@ export default function MgePage() {
     }
   };
 
-  const handleGenerateMail = (evt: MgeEvent) => {
-    const content = generateMailContent(evt);
+  const handleGenerateMail = (evt: MgeEvent, type: 'applications' | 'rankings') => {
+    const content = type === 'applications' ? generateApplicationsMail(evt) : generateRankingsMail(evt);
     localStorage.setItem('rok-mail-draft', content);
     window.location.href = '/rok-mail';
   };
