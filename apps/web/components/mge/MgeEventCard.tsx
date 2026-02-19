@@ -181,12 +181,14 @@ export function MgeEventCard({
   const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
   const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
 
-  // Available tabs — officer sees Applications, admin sees Settings
-  const tabs: { key: EventTab; label: string; icon: React.ReactNode; show: boolean }[] = [
+  // Available tabs — officer sees Review & Rank, admin sees Settings, Apply pushed right
+  const leftTabs: { key: EventTab; label: string; icon: React.ReactNode; show: boolean }[] = [
     { key: 'overview', label: 'Overview', icon: <FileText size={14} />, show: true },
-    { key: 'apply', label: 'Apply', icon: <ClipboardList size={14} />, show: canApply },
-    { key: 'applications', label: `Applications${appCount > 0 ? ` (${appCount})` : ''}`, icon: <Users size={14} />, show: isOfficer },
+    { key: 'applications', label: `Review & Rank${appCount > 0 ? ` (${appCount})` : ''}`, icon: <Users size={14} />, show: isOfficer },
     { key: 'settings', label: 'Settings', icon: <Settings size={14} />, show: isAdmin },
+  ];
+  const rightTabs: { key: EventTab; label: string; icon: React.ReactNode; show: boolean }[] = [
+    { key: 'apply', label: 'Apply', icon: <ClipboardList size={14} />, show: canApply },
   ];
 
   return (
@@ -231,7 +233,23 @@ export function MgeEventCard({
         <div className="border-t" style={{ borderColor: 'var(--border)' }}>
           {/* Tab bar */}
           <div className="flex border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
-            {tabs.filter(t => t.show).map(tab => (
+            {leftTabs.filter(t => t.show).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-fast border-b-2 ${
+                  activeTab === tab.key
+                    ? 'border-blue-500 text-blue-400'
+                    : 'border-transparent hover:bg-[var(--background-secondary)]'
+                }`}
+                style={activeTab !== tab.key ? { color: 'var(--text-muted)' } : undefined}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+            <div className="flex-1" />
+            {rightTabs.filter(t => t.show).map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}

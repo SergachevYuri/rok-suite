@@ -292,11 +292,13 @@ export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
       {/* Instructions */}
       <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/15">
         <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Use the dropdown on each applicant to assign a rank tier, or select <strong>Skip</strong> to pass.
-          The <strong>Investment</strong> bar shows how developed their commander is (level + skills + stars).
-          Add officer notes as needed.
-        </p>
+        <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <p className="font-medium text-blue-400 mb-1">Set rankings here</p>
+          <p>
+            Use the <strong>dropdown</strong> on each applicant to assign their rank (1st Place, 2nd Place, etc.) or <strong>Skip</strong> them.
+            Rankings you set here will show in the Overview tab. When done, click <strong>Finalize</strong> to lock them in.
+          </p>
+        </div>
       </div>
 
       {/* Summary + filter pills */}
