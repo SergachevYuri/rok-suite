@@ -5,110 +5,14 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { supabase } from '@/lib/supabase';
 import {
   useMgeEvents,
-  createMgeEvent,
-  updateMgeEvent,
-  deleteMgeEvent,
-  addSelection,
-  removeSelection,
-  RANKING_TIERS,
+  createMgeEventFull,
   type MgeEvent,
-  type MgeSelection,
 } from '@/lib/supabase/use-mge';
-import {
-  Shield, Lock, Unlock, Plus, Trash2, Pencil, X, Check, ChevronDown, ChevronUp, Search, Crown, Eye, EyeOff, ScrollText,
-} from 'lucide-react';
-import { commanderReferences } from '@/lib/sunset-canyon/commander-reference';
-import { allianceDisplay } from '@/lib/alliances';
+import { Shield, Lock, Unlock, Plus, Crown, X } from 'lucide-react';
+import { MgeEventCard } from '@/components/mge/MgeEventCard';
+import { MgeEventSetup } from '@/components/mge/MgeEventSetup';
 
 const EDITOR_PASSWORD = 'carn-dum';
-
-// Commander names sorted alphabetically for the picker
-const COMMANDER_NAMES = commanderReferences
-  .filter(c => c.rarity === 'legendary')
-  .map(c => c.name)
-  .sort();
-
-function CommanderPicker({
-  value,
-  onChange,
-  inputClass,
-  inputStyle,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  inputClass: string;
-  inputStyle: React.CSSProperties;
-}) {
-  const [search, setSearch] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  const selected = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
-
-  const filtered = useMemo(() => {
-    if (!search) return COMMANDER_NAMES.filter(n => !selected.includes(n)).slice(0, 12);
-    const q = search.toLowerCase();
-    return COMMANDER_NAMES.filter(n => n.toLowerCase().includes(q) && !selected.includes(n)).slice(0, 12);
-  }, [search, selected]);
-
-  const addCommander = (name: string) => {
-    const next = [...selected, name].join(', ');
-    onChange(next);
-    setSearch('');
-    setShowDropdown(false);
-  };
-
-  const removeCommander = (name: string) => {
-    const next = selected.filter(n => n !== name).join(', ');
-    onChange(next);
-  };
-
-  return (
-    <div className="relative">
-      {/* Selected chips */}
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-1.5">
-          {selected.map(name => (
-            <span key={name} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300">
-              {name}
-              <button type="button" onClick={() => removeCommander(name)} className="hover:text-amber-100">
-                <X size={12} />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-      {/* Search input */}
-      <div className="relative">
-        <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-muted)' }} />
-        <input
-          type="text"
-          placeholder={selected.length ? 'Add another commander...' : 'Search commanders...'}
-          value={search}
-          onChange={e => { setSearch(e.target.value); setShowDropdown(true); }}
-          onFocus={() => setShowDropdown(true)}
-          onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-          className={inputClass + ' w-full pl-8'}
-          style={inputStyle}
-        />
-      </div>
-      {/* Dropdown */}
-      {showDropdown && filtered.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border shadow-lg"
-          style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-          {filtered.map(name => (
-            <button key={name} type="button"
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => addCommander(name)}
-              className="w-full text-left px-3 py-1.5 text-sm hover:bg-amber-500/10 transition-fast"
-              style={{ color: 'var(--foreground)' }}>
-              {name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface RosterMember {
   id: string;
@@ -120,8 +24,21 @@ interface RosterMember {
 const KINGDOM_HEADER = `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>`;
 const KINGDOM_DIVIDER = '►═════════❂❂❂═════════◄';
 
-function generateMailContent(evt: MgeEvent, formatDate: (d: string) => string, formatPower: (p: number) => string): string {
-  const commanders = evt.focused_commander.split(',').map(c => c.trim());
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatPower(power: number): string {
+  if (power >= 1_000_000) return `${(power / 1_000_000).toFixed(1)}M`;
+  if (power >= 1_000) return `${(power / 1_000).toFixed(0)}K`;
+  return power.toString();
+}
+
+function generateMailContent(evt: MgeEvent): string {
+  const commanders = evt.mge_event_commanders.length > 0
+    ? evt.mge_event_commanders.map(c => c.commander_name)
+    : evt.focused_commander.split(',').map(c => c.trim());
   const commanderText = commanders.join(', ');
 
   const lines: string[] = [];
@@ -151,6 +68,8 @@ function generateMailContent(evt: MgeEvent, formatDate: (d: string) => string, f
   return lines.join('\n');
 }
 
+type StatusFilter = 'all' | 'active' | 'past';
+
 export default function MgePage() {
   const { events, loading, error, refetch } = useMgeEvents();
 
@@ -161,33 +80,16 @@ export default function MgePage() {
 
   // New event form
   const [showNewForm, setShowNewForm] = useState(false);
-  const [newDate, setNewDate] = useState('');
-  const [newCommander, setNewCommander] = useState('');
-  const [newNotes, setNewNotes] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  // Editing event
-  const [editingEventId, setEditingEventId] = useState<number | null>(null);
-  const [editDate, setEditDate] = useState('');
-  const [editCommander, setEditCommander] = useState('');
-  const [editNotes, setEditNotes] = useState('');
-
-  // Adding selection
-  const [addingToEventId, setAddingToEventId] = useState<number | null>(null);
-  const [selMemberSearch, setSelMemberSearch] = useState('');
-  const [selMemberName, setSelMemberName] = useState('');
-  const [selTier, setSelTier] = useState('1st Place');
-  const [selPointsLimit, setSelPointsLimit] = useState('');
-  const [selReason, setSelReason] = useState('');
-  const [selFreeForAll, setSelFreeForAll] = useState(false);
-
-  // Roster for member search
-  const [roster, setRoster] = useState<RosterMember[]>([]);
 
   // Expanded events
   const [expandedEvents, setExpandedEvents] = useState<Set<number>>(() => new Set());
 
-  // Fetch roster for member autocomplete
+  // Status filter
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  // Roster for member autocomplete (shared across cards)
+  const [roster, setRoster] = useState<RosterMember[]>([]);
+
   useEffect(() => {
     async function fetchRoster() {
       const { data } = await supabase
@@ -207,16 +109,18 @@ export default function MgePage() {
     }
   }, [events, expandedEvents.size]);
 
-  // Admin sees all events; public only sees published
-  const visibleEvents = useMemo(() =>
-    isAdmin ? events : events.filter(e => e.is_published),
-  [events, isAdmin]);
+  // Filter events
+  const visibleEvents = useMemo(() => {
+    let filtered = isAdmin ? events : events.filter(e => e.is_published || e.status === 'open' || e.status === 'reviewing');
 
-  const filteredRoster = useMemo(() => {
-    if (!selMemberSearch) return roster.slice(0, 15);
-    const search = selMemberSearch.toLowerCase();
-    return roster.filter(m => m.name.toLowerCase().includes(search)).slice(0, 15);
-  }, [roster, selMemberSearch]);
+    if (statusFilter === 'active') {
+      filtered = filtered.filter(e => ['draft', 'open', 'reviewing', 'finalized'].includes(e.status || ''));
+    } else if (statusFilter === 'past') {
+      filtered = filtered.filter(e => e.status === 'completed');
+    }
+
+    return filtered;
+  }, [events, isAdmin, statusFilter]);
 
   const handleLogin = () => {
     if (password === EDITOR_PASSWORD) {
@@ -228,83 +132,30 @@ export default function MgePage() {
     }
   };
 
-  const handleCreateEvent = async () => {
-    if (!newDate || !newCommander.trim()) return;
-    setCreating(true);
-    const result = await createMgeEvent(newDate, newCommander.trim(), newNotes.trim() || undefined);
+  const handleCreateEvent = async (data: {
+    date: string;
+    commanders: { name: string; isFocus: boolean }[];
+    tiers: { label: string; pointCap: number | null; isFfa: boolean }[];
+    notes: string;
+    deadline: string;
+  }) => {
+    const result = await createMgeEventFull(
+      data.date,
+      data.commanders,
+      data.tiers,
+      data.notes || undefined,
+      data.deadline || undefined,
+    );
     if (result) {
       setShowNewForm(false);
-      setNewDate('');
-      setNewCommander('');
-      setNewNotes('');
       refetch();
     }
-    setCreating(false);
-  };
-
-  const handleUpdateEvent = async (id: number) => {
-    if (!editDate || !editCommander.trim()) return;
-    const ok = await updateMgeEvent(id, {
-      event_date: editDate,
-      focused_commander: editCommander.trim(),
-      notes: editNotes.trim() || null,
-    });
-    if (ok) {
-      setEditingEventId(null);
-      refetch();
-    }
-  };
-
-  const handleDeleteEvent = async (id: number) => {
-    if (!confirm('Delete this MGE event and all its selections?')) return;
-    const ok = await deleteMgeEvent(id);
-    if (ok) refetch();
-  };
-
-  const handleTogglePublish = async (evt: MgeEvent) => {
-    const ok = await updateMgeEvent(evt.id, { is_published: !evt.is_published });
-    if (ok) refetch();
   };
 
   const handleGenerateMail = (evt: MgeEvent) => {
-    const content = generateMailContent(evt, formatDate, formatPower);
+    const content = generateMailContent(evt);
     localStorage.setItem('rok-mail-draft', content);
     window.location.href = '/rok-mail';
-  };
-
-  const handleAddSelection = async (eventId: number) => {
-    const memberName = selFreeForAll ? 'Free for All' : selMemberName.trim();
-    if (!memberName) return;
-    const pointsValue = selPointsLimit ? parseFloat(selPointsLimit) * 1_000_000 : null;
-    const result = await addSelection(
-      eventId,
-      memberName,
-      selTier,
-      pointsValue,
-      selReason.trim() || null
-    );
-    if (result) {
-      // Auto-advance tier and suggest next points limit
-      const tierIdx = RANKING_TIERS.indexOf(selTier as typeof RANKING_TIERS[number]);
-      const nextTier = tierIdx >= 0 && tierIdx < RANKING_TIERS.length - 1
-        ? RANKING_TIERS[tierIdx + 1] : selTier;
-      const nextPoints = selPointsLimit
-        ? Math.max(0, parseFloat(selPointsLimit) - 1) : '';
-
-      setSelMemberSearch('');
-      setSelMemberName('');
-      setSelTier(nextTier);
-      setSelPointsLimit(nextPoints ? nextPoints.toString() : '');
-      setSelReason('');
-      setSelFreeForAll(false);
-      refetch();
-    }
-  };
-
-  const handleRemoveSelection = async (id: number) => {
-    if (!confirm('Remove this member from the event?')) return;
-    const ok = await removeSelection(id);
-    if (ok) refetch();
   };
 
   const toggleEvent = (id: number) => {
@@ -314,58 +165,9 @@ export default function MgePage() {
     setExpandedEvents(next);
   };
 
-  const startEditEvent = (evt: MgeEvent) => {
-    setEditingEventId(evt.id);
-    setEditDate(evt.event_date);
-    setEditCommander(evt.focused_commander);
-    setEditNotes(evt.notes || '');
-  };
-
-  const startAddSelection = (eventId: number) => {
-    const evt = events.find(e => e.id === eventId);
-    const selections = evt?.mge_selections || [];
-
-    // Auto-default to next tier & points based on existing selections
-    let nextTier = '1st Place';
-    let nextPoints = '';
-
-    if (selections.length > 0) {
-      const lastSel = selections[selections.length - 1];
-      const lastTierIdx = RANKING_TIERS.indexOf(lastSel.ranking_tier as typeof RANKING_TIERS[number]);
-      if (lastTierIdx >= 0 && lastTierIdx < RANKING_TIERS.length - 1) {
-        nextTier = RANKING_TIERS[lastTierIdx + 1];
-      }
-      if (lastSel.power_cap) {
-        const pts = lastSel.power_cap / 1_000_000 - 1;
-        if (pts > 0) nextPoints = pts.toString();
-      }
-    }
-
-    setAddingToEventId(eventId);
-    setSelMemberSearch('');
-    setSelMemberName('');
-    setSelTier(nextTier);
-    setSelPointsLimit(nextPoints);
-    setSelReason('');
-    setSelFreeForAll(false);
-  };
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const formatPower = (power: number) => {
-    if (power >= 1_000_000) return `${(power / 1_000_000).toFixed(1)}M`;
-    if (power >= 1_000) return `${(power / 1_000).toFixed(0)}K`;
-    return power.toString();
-  };
-
   const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/50';
   const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
   const btnPrimary = 'px-4 py-2 rounded-md text-sm font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-fast';
-  const btnDanger = 'p-1.5 rounded-md text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-fast';
-  const btnMuted = 'px-3 py-2 rounded-md text-sm hover:bg-[var(--background-secondary)] transition-fast';
 
   return (
     <AppSidebar>
@@ -429,40 +231,32 @@ export default function MgePage() {
           </div>
         )}
 
+        {/* Status filter pills */}
+        <div className="flex gap-1.5 mb-4">
+          {([
+            { key: 'all', label: 'All' },
+            { key: 'active', label: 'Active' },
+            { key: 'past', label: 'Past' },
+          ] as { key: StatusFilter; label: string }[]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              className={`px-3 py-1.5 text-xs rounded-md transition-fast ${
+                statusFilter === key ? 'bg-amber-500/20 text-amber-400' : 'hover:bg-[var(--background-secondary)]'
+              }`}
+              style={statusFilter !== key ? { color: 'var(--text-muted)' } : undefined}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* New event form */}
         {showNewForm && isAdmin && (
-          <div className="mb-6 p-5 rounded-lg border"
-            style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-            <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
-              Create New MGE Event
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Event Date</label>
-                <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
-                  className={inputClass + ' w-full'} style={inputStyle} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Focused Commander(s)</label>
-                <CommanderPicker value={newCommander} onChange={setNewCommander}
-                  inputClass={inputClass} inputStyle={inputStyle} />
-              </div>
-            </div>
-            <div className="mb-4">
-              <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Notes (optional)</label>
-              <textarea value={newNotes} onChange={e => setNewNotes(e.target.value)}
-                placeholder="Any additional notes..."
-                className={inputClass + ' w-full'} style={{ ...inputStyle, minHeight: '60px' }} />
-            </div>
-            <div className="flex gap-2">
-              <button onClick={handleCreateEvent} disabled={creating || !newDate || !newCommander.trim()}
-                className={btnPrimary + ' disabled:opacity-40'}>
-                {creating ? 'Creating...' : 'Create Event'}
-              </button>
-              <button onClick={() => setShowNewForm(false)} className={btnMuted}
-                style={{ color: 'var(--text-secondary)' }}>Cancel</button>
-            </div>
-          </div>
+          <MgeEventSetup
+            onSave={handleCreateEvent}
+            onCancel={() => setShowNewForm(false)}
+          />
         )}
 
         {/* Loading / Error */}
@@ -493,233 +287,18 @@ export default function MgePage() {
 
         {/* Event list */}
         <div className="space-y-4">
-          {visibleEvents.map(evt => {
-            const isExpanded = expandedEvents.has(evt.id);
-            const isEditing = editingEventId === evt.id;
-            const isAddingHere = addingToEventId === evt.id;
-
-            return (
-              <div key={evt.id} className="rounded-lg border overflow-hidden"
-                style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-
-                {/* Event header */}
-                <button
-                  type="button"
-                  onClick={() => toggleEvent(evt.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--background-secondary)] transition-fast"
-                >
-                  <Crown size={18} className="text-amber-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    {isEditing ? (
-                      <div className="space-y-2" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center gap-2">
-                          <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-                            className={inputClass + ' w-36'} style={inputStyle} />
-                          <div className="flex-1" />
-                          <button onClick={() => handleUpdateEvent(evt.id)}
-                            className="p-1.5 rounded-md text-emerald-400 hover:bg-emerald-500/10"><Check size={16} /></button>
-                          <button onClick={() => setEditingEventId(null)}
-                            className="p-1.5 rounded-md hover:bg-[var(--background-secondary)]"
-                            style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
-                        </div>
-                        <CommanderPicker value={editCommander} onChange={setEditCommander}
-                          inputClass={inputClass} inputStyle={inputStyle} />
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {evt.focused_commander.split(',').map((cmd, i) => (
-                          <span key={i} className="font-semibold text-sm px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300">
-                            {cmd.trim()}
-                          </span>
-                        ))}
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                          {formatDate(evt.event_date)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {isAdmin && !evt.is_published && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-500/20 text-zinc-400 shrink-0">
-                      Draft
-                    </span>
-                  )}
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 shrink-0">
-                    {evt.mge_selections.length} selected
-                  </span>
-                  {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> :
-                    <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
-                </button>
-
-                {/* Expanded content */}
-                {isExpanded && (
-                  <div className="border-t" style={{ borderColor: 'var(--border)' }}>
-                    {/* Notes */}
-                    {isEditing ? (
-                      <div className="px-4 py-2" onClick={e => e.stopPropagation()}>
-                        <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)}
-                          placeholder="Notes (optional)"
-                          className={inputClass + ' w-full'} style={{ ...inputStyle, minHeight: '50px' }} />
-                      </div>
-                    ) : evt.notes ? (
-                      <div className="px-4 py-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        {evt.notes}
-                      </div>
-                    ) : null}
-
-                    {/* Admin actions */}
-                    {isAdmin && !isEditing && (
-                      <div className="flex items-center gap-1 px-4 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-                        <button onClick={() => startEditEvent(evt)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-amber-500/10 text-amber-400/70 hover:text-amber-400 transition-fast">
-                          <Pencil size={12} /> Edit
-                        </button>
-                        <button onClick={() => startAddSelection(evt.id)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-amber-500/10 text-amber-400/70 hover:text-amber-400 transition-fast">
-                          <Plus size={12} /> Add Member
-                        </button>
-                        <button onClick={() => handleGenerateMail(evt)}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-pink-500/10 text-pink-400/70 hover:text-pink-400 transition-fast">
-                          <ScrollText size={12} /> Mail
-                        </button>
-                        <div className="flex-1" />
-                        <button onClick={() => handleTogglePublish(evt)}
-                          className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-fast ${evt.is_published
-                            ? 'text-emerald-400/70 hover:text-emerald-400 hover:bg-emerald-500/10'
-                            : 'text-zinc-400/70 hover:text-zinc-400 hover:bg-zinc-500/10'
-                          }`}
-                          title={evt.is_published ? 'Unpublish' : 'Publish'}>
-                          {evt.is_published ? <><Eye size={12} /> Published</> : <><EyeOff size={12} /> Publish</>}
-                        </button>
-                        <button onClick={() => handleDeleteEvent(evt.id)} className={btnDanger} title="Delete event">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Add selection form */}
-                    {isAddingHere && isAdmin && (
-                      <div className="px-4 py-3 border-b bg-amber-500/5" style={{ borderColor: 'var(--border)' }}>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
-                          {/* Member search (hidden for Free for All) */}
-                          {selFreeForAll ? (
-                            <div className="md:col-span-2 flex items-center px-3 py-2 rounded-md text-sm italic"
-                              style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)' }}>
-                              {selTier.replace(' Place', '')}+ &mdash; Free for all
-                            </div>
-                          ) : (
-                          <div className="relative md:col-span-2">
-                            <div className="relative">
-                              <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-muted)' }} />
-                              <input
-                                type="text"
-                                placeholder="Search member..."
-                                value={selMemberName || selMemberSearch}
-                                onChange={e => {
-                                  setSelMemberSearch(e.target.value);
-                                  setSelMemberName('');
-                                }}
-                                className={inputClass + ' w-full pl-8'}
-                                style={inputStyle}
-                                autoFocus
-                              />
-                            </div>
-                            {selMemberSearch && !selMemberName && (
-                              <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border shadow-lg"
-                                style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-                                {filteredRoster.map(m => (
-                                  <button key={m.id} type="button"
-                                    onClick={() => { setSelMemberName(m.name); setSelMemberSearch(''); }}
-                                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-amber-500/10 transition-fast flex justify-between">
-                                    <span style={{ color: 'var(--foreground)' }}>{m.name}</span>
-                                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                      {m.alliance ? allianceDisplay(m.alliance) : ''} {formatPower(m.power)}
-                                    </span>
-                                  </button>
-                                ))}
-                                {filteredRoster.length === 0 && (
-                                  <div className="px-3 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>No matches</div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          )}
-                          {/* Tier */}
-                          <select value={selTier} onChange={e => setSelTier(e.target.value)}
-                            className={inputClass} style={inputStyle}>
-                            {RANKING_TIERS.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                          {/* Points limit (in millions) */}
-                          <div className="relative">
-                            <input type="number" placeholder="Points (M)" value={selPointsLimit}
-                              onChange={e => setSelPointsLimit(e.target.value)}
-                              className={inputClass + ' w-full pr-8'} style={inputStyle} />
-                            <span className="absolute right-3 top-2 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>M</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 items-center">
-                          <label className="flex items-center gap-1.5 text-xs cursor-pointer shrink-0"
-                            style={{ color: 'var(--text-secondary)' }}>
-                            <input type="checkbox" checked={selFreeForAll}
-                              onChange={e => setSelFreeForAll(e.target.checked)}
-                              className="rounded" />
-                            Free for All
-                          </label>
-                          <input type="text" placeholder="Reason (optional)" value={selReason}
-                            onChange={e => setSelReason(e.target.value)}
-                            className={inputClass + ' flex-1'} style={inputStyle} />
-                          <button onClick={() => handleAddSelection(evt.id)}
-                            disabled={!selFreeForAll && !selMemberName.trim()}
-                            className={btnPrimary + ' disabled:opacity-40'}>Add</button>
-                          <button onClick={() => setAddingToEventId(null)} className={btnMuted}
-                            style={{ color: 'var(--text-secondary)' }}>Cancel</button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Selections list */}
-                    {evt.mge_selections.length === 0 ? (
-                      <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                        No members selected yet
-                      </div>
-                    ) : (
-                      <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                        {evt.mge_selections.map(sel => (
-                          <div key={sel.id}
-                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--background-secondary)] transition-fast">
-                            <span className="text-xs font-semibold w-20 shrink-0 text-amber-400">
-                              {sel.member_name === 'Free for All'
-                                ? sel.ranking_tier.replace(' Place', '+')
-                                : sel.ranking_tier}
-                            </span>
-                            <span className={`font-medium text-sm flex-1 min-w-0 truncate ${sel.member_name === 'Free for All' ? 'italic' : ''}`}
-                              style={{ color: sel.member_name === 'Free for All' ? 'var(--text-secondary)' : 'var(--foreground)' }}>
-                              {sel.member_name === 'Free for All' ? 'Free for all' : sel.member_name}
-                            </span>
-                            {sel.power_cap && (
-                              <span className="text-xs px-2 py-0.5 rounded-full shrink-0"
-                                style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)' }}>
-                                {formatPower(sel.power_cap)} pts
-                              </span>
-                            )}
-                            {sel.reason && (
-                              <span className="text-xs hidden md:inline shrink-0" style={{ color: 'var(--text-muted)' }}>
-                                {sel.reason}
-                              </span>
-                            )}
-                            {isAdmin && (
-                              <button onClick={() => handleRemoveSelection(sel.id)} className={btnDanger}>
-                                <Trash2 size={14} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {visibleEvents.map(evt => (
+            <MgeEventCard
+              key={evt.id}
+              event={evt}
+              isAdmin={isAdmin}
+              isExpanded={expandedEvents.has(evt.id)}
+              onToggle={() => toggleEvent(evt.id)}
+              onRefetch={refetch}
+              onGenerateMail={handleGenerateMail}
+              roster={roster}
+            />
+          ))}
         </div>
       </div>
     </AppSidebar>
