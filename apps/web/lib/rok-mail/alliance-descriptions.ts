@@ -7,7 +7,7 @@ export const ALLIANCE_COLORS: Record<AllianceKey, string> = {
   MNG: '#00cc4d',
   KNG: '#3399ff',
   SNG: '#999999',
-  ING: '#ff9933',
+  ING: '#9933ff',
   ENG: '#9933ff',
 };
 
@@ -92,7 +92,7 @@ export const ALLIANCE_DESCRIPTIONS: Record<AllianceKey, string> = {
 
 <b>No drama. Team > ego.</b>`,
 
-  ING: `<size=30><color=#663300>I</color><color=#804000>M</color><color=#994d00>M</color><color=#b35900>O</color><color=#cc6600>R</color><color=#e67300>T</color><color=#ff8000>A</color><color=#e67300>L</color> <color=#663300>N</color><color=#804000>I</color><color=#994d00>G</color><color=#b35900>H</color><color=#cc6600>T</color><color=#e67300>G</color><color=#ff8000>U</color><color=#ff9933>A</color><color=#ffb366>R</color><color=#ffcc99>D</color><color=#ffe6cc>S</color></size>
+  ING: `<size=30><color=#330066>I</color><color=#400080>M</color><color=#4d0099>M</color><color=#5900b3>O</color><color=#6600cc>R</color><color=#7300e6>T</color><color=#8000ff>A</color><color=#7300e6>L</color> <color=#330066>N</color><color=#400080>I</color><color=#4d0099>G</color><color=#5900b3>H</color><color=#6600cc>T</color><color=#7300e6>G</color><color=#8000ff>U</color><color=#9933ff>A</color><color=#b366ff>R</color><color=#cc99ff>D</color><color=#e6ccff>S</color></size>
 
 ►═════════❂❂❂═════════◄
 <b>KvK 1 Winner. Allied :3922</b>

@@ -100,15 +100,15 @@ Your message here.
     name: 'Immortal Mail',
     category: 'ing',
     description: 'Standard Immortal Nightguards alliance mail format',
-    content: `<size=30px><color=#663300>I</color><color=#804000>M</color><color=#994d00>M</color><color=#b35900>O</color><color=#cc6600>R</color><color=#e67300>T</color><color=#ff8000>A</color><color=#e67300>L</color> <color=#663300>N</color><color=#804000>I</color><color=#994d00>G</color><color=#b35900>H</color><color=#cc6600>T</color><color=#e67300>G</color><color=#ff8000>U</color><color=#e67300>A</color><color=#cc6600>R</color><color=#b35900>D</color><color=#994d00>S</color></size>
+    content: `<size=30px><color=#330066>I</color><color=#400080>M</color><color=#4d0099>M</color><color=#5900b3>O</color><color=#6600cc>R</color><color=#7300e6>T</color><color=#8000ff>A</color><color=#7300e6>L</color> <color=#330066>N</color><color=#400080>I</color><color=#4d0099>G</color><color=#5900b3>H</color><color=#6600cc>T</color><color=#7300e6>G</color><color=#8000ff>U</color><color=#7300e6>A</color><color=#6600cc>R</color><color=#5900b3>D</color><color=#4d0099>S</color></size>
 ►═════════❂❂❂═════════◄
 
-<b><color=#ff9933>SUBJECT TITLE HERE</color></b>
+<b><color=#9933ff>SUBJECT TITLE HERE</color></b>
 
 Your message here.
 
 ►═════════❂❂❂═════════◄
-<b><color=#994d00>— Immortal Leadership</color></b>`,
+<b><color=#5900b3>— Immortal Leadership</color></b>`,
   },
 
   // ── ENG Templates ──
