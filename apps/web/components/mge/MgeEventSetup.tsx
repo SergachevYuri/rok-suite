@@ -214,7 +214,8 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
         <div>
           <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Application Deadline</label>
           <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)}
-            className={inputClass + ' w-full'} style={inputStyle} />
+            className={inputClass + ' w-full'} style={inputStyle}
+            title="After this date, new applications are blocked" />
         </div>
       </div>
 
@@ -233,67 +234,82 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
         {showTiers && (
           <>
             {tiers.length > 0 && (
-              <div className="space-y-1.5 mb-2">
-                {tiers.map((tier, i) => (
-                  <div key={i} className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                    <span className="text-xs w-full sm:w-20 shrink-0 text-blue-400 font-medium">{tier.label}</span>
-                    <div className="relative flex-1 min-w-0">
-                      <input
-                        type="number"
-                        placeholder="Points cap (M)"
-                        value={tier.pointCap !== null ? tier.pointCap / 1_000_000 : ''}
-                        onChange={e => {
-                          const val = e.target.value ? parseFloat(e.target.value) * 1_000_000 : null;
-                          updateTier(i, { pointCap: val });
-                        }}
-                        className={inputClass + ' w-full pr-8'}
-                        style={inputStyle}
-                      />
-                      <span className="absolute right-3 top-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>M</span>
+              <div className="mb-2">
+                {/* Column headers */}
+                <div className="flex items-center gap-2 mb-1 px-0.5">
+                  <span className="w-20 shrink-0 text-[10px] uppercase tracking-wide font-medium" style={{ color: 'var(--text-muted)' }}>Rank</span>
+                  <span className="w-24 shrink-0 text-[10px] uppercase tracking-wide font-medium" style={{ color: 'var(--text-muted)' }}>Points (M)</span>
+                  <span className="w-20 shrink-0 text-[10px] uppercase tracking-wide font-medium" style={{ color: 'var(--text-muted)' }}>Gold Heads</span>
+                  <span className="w-10 shrink-0 text-[10px] uppercase tracking-wide font-medium" style={{ color: 'var(--text-muted)' }}>FFA</span>
+                </div>
+                <div className="space-y-1">
+                  {tiers.map((tier, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-xs w-20 shrink-0 text-blue-400 font-medium">{tier.label}</span>
+                      <div className="relative w-24 shrink-0">
+                        <input
+                          type="number"
+                          placeholder="—"
+                          value={tier.pointCap !== null ? tier.pointCap / 1_000_000 : ''}
+                          onChange={e => {
+                            const val = e.target.value ? parseFloat(e.target.value) * 1_000_000 : null;
+                            updateTier(i, { pointCap: val });
+                          }}
+                          className={inputClass + ' w-full pr-7'}
+                          style={inputStyle}
+                          title="Max points this rank can score (in millions)"
+                        />
+                        <span className="absolute right-2 top-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>M</span>
+                      </div>
+                      <div className="relative w-20 shrink-0">
+                        <input
+                          type="number"
+                          placeholder="—"
+                          value={tier.rewardHeads ?? ''}
+                          onChange={e => {
+                            const val = e.target.value ? parseInt(e.target.value) : null;
+                            updateTier(i, { rewardHeads: val });
+                          }}
+                          className={inputClass + ' w-full'}
+                          style={inputStyle}
+                          title="Gold head reward for this rank"
+                        />
+                      </div>
+                      <label className="flex items-center justify-center w-10 shrink-0 cursor-pointer"
+                        title="Free for all — no assigned player, anyone can compete">
+                        <input type="checkbox" checked={tier.isFfa}
+                          onChange={e => updateTier(i, { isFfa: e.target.checked })}
+                          className="rounded" />
+                      </label>
+                      <button type="button" onClick={() => removeTier(i)}
+                        className="p-1 rounded-md text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-fast"
+                        title="Remove tier">
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-                    <div className="relative w-20 shrink-0">
-                      <input
-                        type="number"
-                        placeholder="Heads"
-                        value={tier.rewardHeads ?? ''}
-                        onChange={e => {
-                          const val = e.target.value ? parseInt(e.target.value) : null;
-                          updateTier(i, { rewardHeads: val });
-                        }}
-                        className={inputClass + ' w-full pr-7'}
-                        style={inputStyle}
-                      />
-                      <span className="absolute right-2 top-2 text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>GH</span>
-                    </div>
-                    <label className="flex items-center gap-1 text-xs shrink-0 cursor-pointer"
-                      style={{ color: 'var(--text-secondary)' }}>
-                      <input type="checkbox" checked={tier.isFfa}
-                        onChange={e => updateTier(i, { isFfa: e.target.checked })}
-                        className="rounded" />
-                      FFA
-                    </label>
-                    <button type="button" onClick={() => removeTier(i)}
-                      className="p-1 rounded-md text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-fast">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button type="button" onClick={addTier}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md hover:bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
                 <Plus size={12} /> Add Tier
               </button>
               <button type="button" onClick={() => autoFillTiers(5)}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md hover:bg-purple-500/10 text-purple-400/70 hover:text-purple-400 transition-fast">
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md hover:bg-purple-500/10 text-purple-400/70 hover:text-purple-400 transition-fast"
+                title="Auto-fill 5 ranks with default point caps and gold head rewards">
                 <Wand2 size={12} /> 5 Ranks
               </button>
               <button type="button" onClick={() => autoFillTiers(10)}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md hover:bg-purple-500/10 text-purple-400/70 hover:text-purple-400 transition-fast">
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md hover:bg-purple-500/10 text-purple-400/70 hover:text-purple-400 transition-fast"
+                title="Auto-fill 10 ranks with default point caps and gold head rewards">
                 <Wand2 size={12} /> 10 Ranks
               </button>
             </div>
+            <p className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
+              Points = max score for that rank. Gold Heads = reward. FFA = open to everyone (no assigned player). Use presets to auto-fill defaults.
+            </p>
           </>
         )}
       </div>
@@ -304,10 +320,13 @@ export function MgeEventSetup({ onSave, onCancel, initialData }: MgeEventSetupPr
         <textarea
           value={notes}
           onChange={e => setNotes(e.target.value)}
-          placeholder="e.g., Infantry MGE — submit your Charles Martel stats"
+          placeholder="e.g., Infantry MGE — Submit your Charles Martel stats"
           className={inputClass + ' w-full'}
           style={{ ...inputStyle, minHeight: '60px' }}
         />
+        <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+          Shown to applicants and included in mail templates
+        </p>
       </div>
 
       {/* Actions */}

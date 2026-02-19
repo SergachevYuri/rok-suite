@@ -260,7 +260,7 @@ function ApplicantCard({
               />
             </button>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>Gear</span>
+              <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }} title="Rate equipment quality from screenshot (1=poor, 10=maxed)">Gear</span>
               <div className="flex gap-px">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                   <button
@@ -336,6 +336,7 @@ function ApplicantCard({
               onNoteChange(e.target.value);
             }
           }}
+          title="Internal notes — only visible to officers"
           placeholder="Officer notes..."
           className="flex-1 min-w-0 text-sm py-1.5 px-2 rounded-md border focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
@@ -486,11 +487,15 @@ export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
       {/* Instructions */}
       <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-blue-500/5 border border-blue-500/15">
         <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
-        <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-          <p>
-            Assign ranks using the <strong>dropdown</strong> on each card. Tap the <strong>score bar</strong> for a breakdown.
-            Rate <strong>equipment</strong> from screenshots. Click <strong>Finalize</strong> when done.
-          </p>
+        <div className="text-sm space-y-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="font-medium text-blue-400">How to review</p>
+          <ol className="list-decimal list-inside space-y-0.5" style={{ color: 'var(--text-muted)' }}>
+            <li>Review <strong>screenshot</strong> and rate <strong>equipment</strong> (1-10)</li>
+            <li>Tap the <strong>score bar</strong> to see level/skill/star breakdown</li>
+            <li>Use the <strong>dropdown</strong> to assign a rank or skip</li>
+            <li>Add <strong>officer notes</strong> if needed</li>
+            <li>When all reviewed, admin clicks <strong>Finalize</strong></li>
+          </ol>
         </div>
       </div>
 
