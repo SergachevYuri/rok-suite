@@ -192,25 +192,25 @@ export function MgeEventCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             {commanders.map((cmd, i) => (
-              <span key={i} className="font-semibold text-sm px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300">
+              <span key={i} className="font-semibold text-base px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-300">
                 {cmd}
               </span>
             ))}
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
               {formatDate(event.event_date)}
             </span>
           </div>
         </div>
-        <span className={`text-xs px-2 py-0.5 rounded-full ${statusBg} ${statusText} shrink-0`}>
+        <span className={`text-sm px-2.5 py-0.5 rounded-full ${statusBg} ${statusText} shrink-0`}>
           {statusLabel(status)}
         </span>
         {appCount > 0 && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 shrink-0">
+          <span className="text-sm px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 shrink-0">
             {appCount} app{appCount !== 1 ? 's' : ''}
             {pendingCount > 0 && <span className="text-blue-400"> ({pendingCount} new)</span>}
           </span>
         )}
-        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 shrink-0">
+        <span className="text-sm px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 shrink-0">
           {event.mge_selections.length} selected
         </span>
         {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> :
@@ -226,7 +226,7 @@ export function MgeEventCard({
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium whitespace-nowrap transition-fast border-b-2 ${
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-fast border-b-2 ${
                   activeTab === tab.key
                     ? 'border-blue-500 text-blue-400'
                     : 'border-transparent hover:bg-[var(--background-secondary)]'
@@ -253,30 +253,30 @@ export function MgeEventCard({
               {isOfficer && (
                 <div className="flex items-center gap-1 px-4 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
                   <button onClick={startAddSelection}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
-                    <Plus size={12} /> Add Member
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm hover:bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
+                    <Plus size={14} /> Add Member
                   </button>
                   <button onClick={() => onGenerateMail(event)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-pink-500/10 text-pink-400/70 hover:text-pink-400 transition-fast">
-                    <ScrollText size={12} /> Mail
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 transition-fast">
+                    <ScrollText size={14} /> Generate Mail
                   </button>
                   <div className="flex-1" />
                   {/* Status transitions — admin only */}
                   {isAdmin && status === 'draft' && (
                     <button onClick={() => handleStatusChange('open')}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-emerald-500/10 text-emerald-400/70 hover:text-emerald-400 transition-fast">
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-emerald-500/10 text-emerald-400/70 hover:text-emerald-400 transition-fast">
                       Open Applications
                     </button>
                   )}
                   {isAdmin && status === 'open' && (
                     <button onClick={() => handleStatusChange('reviewing')}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-blue-500/10 text-blue-400/70 hover:text-blue-400 transition-fast">
                       Close & Review
                     </button>
                   )}
                   {isAdmin && status === 'finalized' && (
                     <button onClick={() => handleStatusChange('completed')}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-zinc-500/10 text-zinc-400/70 hover:text-zinc-400 transition-fast">
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-zinc-500/10 text-zinc-400/70 hover:text-zinc-400 transition-fast">
                       Mark Complete
                     </button>
                   )}
@@ -372,23 +372,23 @@ export function MgeEventCard({
                   {event.mge_selections.map(sel => (
                     <div key={sel.id}
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--background-secondary)] transition-fast">
-                      <span className="text-xs font-semibold w-20 shrink-0 text-blue-400">
+                      <span className="text-sm font-semibold w-24 shrink-0 text-blue-400">
                         {sel.member_name === 'Free for All'
                           ? sel.ranking_tier.replace(' Place', '+')
                           : sel.ranking_tier}
                       </span>
-                      <span className={`font-medium text-sm flex-1 min-w-0 truncate ${sel.member_name === 'Free for All' ? 'italic' : ''}`}
+                      <span className={`font-medium text-base flex-1 min-w-0 truncate ${sel.member_name === 'Free for All' ? 'italic' : ''}`}
                         style={{ color: sel.member_name === 'Free for All' ? 'var(--text-secondary)' : 'var(--foreground)' }}>
                         {sel.member_name === 'Free for All' ? 'Free for all' : sel.member_name}
                       </span>
                       {sel.power_cap && (
-                        <span className="text-xs px-2 py-0.5 rounded-full shrink-0"
+                        <span className="text-sm px-2.5 py-0.5 rounded-full shrink-0"
                           style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-secondary)' }}>
                           {formatPower(sel.power_cap)} pts
                         </span>
                       )}
                       {sel.reason && (
-                        <span className="text-xs hidden md:inline shrink-0" style={{ color: 'var(--text-muted)' }}>
+                        <span className="text-sm hidden md:inline shrink-0" style={{ color: 'var(--text-muted)' }}>
                           {sel.reason}
                         </span>
                       )}

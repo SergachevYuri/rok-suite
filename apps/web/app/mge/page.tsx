@@ -36,33 +36,40 @@ function formatPower(power: number): string {
   return power.toString();
 }
 
-function generateMailContent(evt: MgeEvent): string {
-  const commanders = evt.mge_event_commanders.length > 0
-    ? evt.mge_event_commanders.map(c => c.commander_name)
-    : evt.focused_commander.split(',').map(c => c.trim());
-  const commanderText = commanders.join(', ');
+function formatPointsCap(points: number): string {
+  return points.toLocaleString('en-US');
+}
 
+function generateMailContent(evt: MgeEvent): string {
   const lines: string[] = [];
   lines.push(KINGDOM_HEADER);
   lines.push(KINGDOM_DIVIDER);
   lines.push('');
-  lines.push(`<b><color=#ff3333>MGE — Mightiest Governor</color></b>`);
-  lines.push(`<b>Commander:</b> ${commanderText}`);
-  lines.push(`<b>Date:</b> ${formatDate(evt.event_date)}`);
-  if (evt.notes) {
-    lines.push(`<i>${evt.notes}</i>`);
-  }
+  lines.push(`<b><color=#ff3333>MGE RANKINGS UPDATE</color></b>`);
   lines.push('');
+  if (evt.notes) {
+    lines.push(evt.notes);
+    lines.push('');
+  }
 
+  // Find lowest point cap for the warning line
+  let lowestCap = 0;
   for (const sel of evt.mge_selections) {
     const isFfa = sel.member_name === 'Free for All';
-    const tier = isFfa ? sel.ranking_tier.replace(' Place', '+') : sel.ranking_tier;
-    const name = isFfa ? '<i>Free for all</i>' : sel.member_name;
-    const pts = sel.power_cap ? ` (${formatPower(sel.power_cap)} pts)` : '';
-    lines.push(`<b>${tier}</b> — ${name}${pts}`);
+    const tier = isFfa ? sel.ranking_tier.replace(' Place', '+') : `<b>${sel.ranking_tier}</b>`;
+    const name = isFfa ? 'Free for all' : sel.member_name;
+    const pts = sel.power_cap ? ` - <b>${formatPointsCap(sel.power_cap)}</b> points${isFfa ? ' max' : ''}` : '';
+    lines.push(`${tier} - ${name}${pts}`);
+    if (sel.power_cap && (lowestCap === 0 || sel.power_cap < lowestCap)) {
+      lowestCap = sel.power_cap;
+    }
   }
 
   lines.push('');
+  if (lowestCap > 0) {
+    lines.push(`<b>Do not exceed your limit. If you're not on this list, stay under ${formatPointsCap(lowestCap)} to avoid unpleasant consequences</b>`);
+    lines.push('');
+  }
   lines.push(KINGDOM_DIVIDER);
   lines.push(`<b><color=#800000>— King Fluffy</color></b>`);
 
@@ -87,7 +94,7 @@ export default function MgePage() {
   const [expandedEvents, setExpandedEvents] = useState<Set<number>>(() => new Set());
 
   // Status filter
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
 
   // Roster for member autocomplete (shared across cards)
   const [roster, setRoster] = useState<RosterMember[]>([]);
@@ -266,14 +273,14 @@ export default function MgePage() {
         {/* Status filter pills */}
         <div className="flex gap-1.5 mb-4">
           {([
-            { key: 'all', label: 'All' },
             { key: 'active', label: 'Active' },
             { key: 'past', label: 'Past' },
+            { key: 'all', label: 'All' },
           ] as { key: StatusFilter; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setStatusFilter(key)}
-              className={`px-3 py-1.5 text-xs rounded-md transition-fast ${
+              className={`px-3 py-1.5 text-sm rounded-md transition-fast ${
                 statusFilter === key ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-[var(--background-secondary)]'
               }`}
               style={statusFilter !== key ? { color: 'var(--text-muted)' } : undefined}
