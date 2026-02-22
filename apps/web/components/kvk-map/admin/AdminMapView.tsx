@@ -144,7 +144,7 @@ export default function AdminMapView() {
   const handleFeatureClick = useCallback(
     (feature: KvkMapFeature) => {
       if (isPlacing || isDrawingZone) return;
-      setSelectedFeatureId(feature.id);
+      setSelectedFeatureId((prev) => (prev === feature.id ? null : feature.id));
       setSelectedZoneId(null);
     },
     [isPlacing, isDrawingZone]
@@ -180,7 +180,7 @@ export default function AdminMapView() {
   const handleZoneClick = useCallback(
     (zone: KvkMapZone) => {
       if (isPlacing || isDrawingZone) return;
-      setSelectedZoneId(zone.id);
+      setSelectedZoneId((prev) => (prev === zone.id ? null : zone.id));
       setSelectedFeatureId(null);
     },
     [isPlacing, isDrawingZone]
@@ -325,7 +325,7 @@ export default function AdminMapView() {
             />
           ))}
           {showZones && zones.map((zone) => (
-            <ZoneLabel key={`label-${zone.id}`} zone={zone} />
+            <ZoneLabel key={`label-${zone.id}`} zone={zone} zoom={zoom} />
           ))}
           {visibleFeatures.map((feature) => (
             <FeatureMarker
