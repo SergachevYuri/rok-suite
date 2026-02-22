@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, BarChart3, Table, TrendingUp, GitCompareArrows } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
@@ -25,7 +26,24 @@ const METRICS = [
 // Color palette for multi-KD lines
 const KD_COLORS = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#fb923c', '#a78bfa'];
 
+type TabType = 'table' | 'charts' | 'comparison';
+const VALID_TABS: TabType[] = ['table', 'charts', 'comparison'];
+
 export default function KingdomStats() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // URL-synced tab
+  const rawTab = searchParams.get('tab');
+  const activeTab: TabType = VALID_TABS.includes(rawTab as TabType) ? (rawTab as TabType) : 'table';
+  const setActiveTab = useCallback((tab: TabType) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === 'table') params.delete('tab');
+    else params.set('tab', tab);
+    const qs = params.toString();
+    router.push(qs ? `?${qs}` : '/kingdom/kingdom-stats', { scroll: false });
+  }, [searchParams, router]);
+
   // Table state
   const [selectedKingdom, setSelectedKingdom] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -34,7 +52,6 @@ export default function KingdomStats() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
-  const [activeTab, setActiveTab] = useState<'table' | 'charts' | 'comparison'>('table');
 
   // Chart state
   const [chartKingdoms, setChartKingdoms] = useState<Set<number>>(new Set());
@@ -129,6 +146,22 @@ export default function KingdomStats() {
     }
     return Array.from(byDate.values()).sort((a, b) => (a.dt as string).localeCompare(b.dt as string));
   }, [aggregates, chartMetric]);
+
+  // Chart kingdom IDs sorted by latest total power (desc)
+  const sortedChartKingdomIds = useMemo(() => {
+    if (aggregates.length === 0) return chartKingdomIds;
+    // Get latest date per kingdom, sum power
+    const latestPower = new Map<number, number>();
+    const latestDate = new Map<number, string>();
+    for (const a of aggregates) {
+      const prev = latestDate.get(a.kingdom_id);
+      if (!prev || a.dt > prev) {
+        latestDate.set(a.kingdom_id, a.dt);
+        latestPower.set(a.kingdom_id, a.total_power);
+      }
+    }
+    return [...chartKingdomIds].sort((a, b) => (latestPower.get(b) || 0) - (latestPower.get(a) || 0));
+  }, [chartKingdomIds, aggregates]);
 
   // Get all dates across all kingdoms for date range selectors
   const allChartDates = useMemo(() => {
@@ -482,7 +515,7 @@ export default function KingdomStats() {
                       labelFormatter={(label: string) => `Date: ${label}`}
                     />
                     <Legend />
-                    {chartKingdomIds.map((k, i) => (
+                    {sortedChartKingdomIds.map((k, i) => (
                       <Line
                         key={k}
                         type="monotone"
