@@ -9,7 +9,17 @@ export interface FeatureTypeConfig {
   kingdomHonor: string | null;
   allianceHonor: string | null;
   defaultLevel: number | null;
+  firstTimeRewards: string[];
 }
+
+const CIRCLE_REWARDS = [
+  '3,000 Gems',
+  '100,000 Alliance Honor',
+  '100,000 Kingdom Honor',
+  '100x 60m Speed Up',
+  '3x Targeted Teleport',
+  '1x Golden Key',
+];
 
 export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
   pass_4: {
@@ -21,6 +31,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: null,
     allianceHonor: null,
     defaultLevel: 4,
+    firstTimeRewards: [],
   },
   pass_5: {
     label: 'Pass (Lv5)',
@@ -31,6 +42,14 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: null,
     allianceHonor: null,
     defaultLevel: 5,
+    firstTimeRewards: [
+      '1,500 Gems',
+      '20,000 Alliance Honor',
+      '20,000 Kingdom Honor',
+      '1x Golden Key',
+      '2x Territorial Teleport',
+      '50x 30m Speed Up',
+    ],
   },
   pass_6: {
     label: 'Pass (Lv6)',
@@ -41,6 +60,14 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: null,
     allianceHonor: null,
     defaultLevel: 6,
+    firstTimeRewards: [
+      '2,000 Gems',
+      '30,000 Alliance Honor',
+      '30,000 Kingdom Honor',
+      '1x Golden Key',
+      '3x Territorial Teleport',
+      '100x 30m Speed Up',
+    ],
   },
   crusader_fortress: {
     label: 'Crusader Fortress',
@@ -51,6 +78,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+5/m',
     allianceHonor: '+5/m',
     defaultLevel: 5,
+    firstTimeRewards: [],
   },
   crusader_camp: {
     label: 'Crusader Camp',
@@ -61,6 +89,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+1/m',
     allianceHonor: '+1/m',
     defaultLevel: 4,
+    firstTimeRewards: [],
   },
   hieron_steel: {
     label: 'Hieron of Steel',
@@ -71,6 +100,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+3/m',
     allianceHonor: '+3/m',
     defaultLevel: 5,
+    firstTimeRewards: [],
   },
   hieron_thorns: {
     label: 'Hieron of Thorns',
@@ -81,6 +111,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+3/m',
     allianceHonor: '+3/m',
     defaultLevel: 5,
+    firstTimeRewards: [],
   },
   ancient_ruins: {
     label: 'Ancient Ruins',
@@ -91,6 +122,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+15/m',
     allianceHonor: '+40/m',
     defaultLevel: null,
+    firstTimeRewards: [],
   },
   circle_nature: {
     label: 'Circle of Nature',
@@ -101,6 +133,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+7/m',
     allianceHonor: '+7/m',
     defaultLevel: 7,
+    firstTimeRewards: CIRCLE_REWARDS,
   },
   circle_vitality: {
     label: 'Circle of Vitality',
@@ -111,6 +144,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+7/m',
     allianceHonor: '+7/m',
     defaultLevel: 7,
+    firstTimeRewards: CIRCLE_REWARDS,
   },
   circle_courage: {
     label: 'Circle of Courage',
@@ -121,6 +155,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+7/m',
     allianceHonor: '+7/m',
     defaultLevel: 7,
+    firstTimeRewards: CIRCLE_REWARDS,
   },
   circle_defense: {
     label: 'Circle of Defense',
@@ -131,6 +166,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+7/m',
     allianceHonor: '+7/m',
     defaultLevel: 7,
+    firstTimeRewards: CIRCLE_REWARDS,
   },
   tempest_sanctuary: {
     label: 'Tempest Sanctuary',
@@ -141,6 +177,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+5/m',
     allianceHonor: '+5/m',
     defaultLevel: 6,
+    firstTimeRewards: [],
   },
   altar_darkness: {
     label: 'Altar of Darkness',
@@ -151,6 +188,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+25/m',
     allianceHonor: '+75/m',
     defaultLevel: null,
+    firstTimeRewards: [],
   },
   ziggurat: {
     label: 'The Great Ziggurat',
@@ -161,6 +199,14 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+15/m',
     allianceHonor: '+15/m',
     defaultLevel: 8,
+    firstTimeRewards: [
+      '5,000 Gems',
+      '200,000 Alliance Honor',
+      '200,000 Kingdom Honor',
+      '50x 3hr Speed Up',
+      '3x Targeted Teleport',
+      '1x Golden Key',
+    ],
   },
 };
 

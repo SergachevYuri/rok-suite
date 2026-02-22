@@ -101,6 +101,13 @@ export default function FeatureMarker({
               Zone {feature.zone}
             </div>
           )}
+          {config?.firstTimeRewards.length > 0 && (
+            <div style={{ color: '#6b7280', fontSize: '10px', marginTop: '2px', borderTop: '1px solid #374151', paddingTop: '2px' }}>
+              {config.firstTimeRewards.map((reward, i) => (
+                <div key={i}>{reward}</div>
+              ))}
+            </div>
+          )}
         </div>
       </Tooltip>
     </Marker>

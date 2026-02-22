@@ -144,6 +144,25 @@ export default function FeatureEditorPanel({
           </div>
         </div>
 
+        {config?.firstTimeRewards.length > 0 && (
+          <div>
+            <label
+              className="block text-xs font-medium mb-1"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              First Occupation (per player)
+            </label>
+            <div
+              className="rounded-md p-2.5 text-xs space-y-0.5"
+              style={{ backgroundColor: 'var(--background-secondary)' }}
+            >
+              {config.firstTimeRewards.map((reward, i) => (
+                <div key={i} style={{ color: '#d4d4d8' }}>{reward}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Coordinates (read-only) */}
         <div
           className="text-xs font-mono"
