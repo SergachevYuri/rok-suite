@@ -22,6 +22,7 @@ import {
   ArrowUpDown,
   Crosshair,
   Map,
+  BarChart3,
 } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -71,6 +72,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         { labelKey: 'allianceSorter', href: '/kingdom/alliance-sorter', icon: <ArrowUpDown size={20} />, hoverColor: 'group-hover:text-indigo-500', hoverBg: 'hover:bg-indigo-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-indigo-500 to-blue-500' },
         { labelKey: 'wanted', href: '/kingdom/wanted', icon: <Crosshair size={20} />, hoverColor: 'group-hover:text-red-500', hoverBg: 'hover:bg-red-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-red-500 to-rose-500' },
         { labelKey: 'kvkMap', href: '/kvk-map', icon: <Map size={20} />, hoverColor: 'group-hover:text-orange-500', hoverBg: 'hover:bg-orange-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-orange-500 to-red-500' },
+        { labelKey: 'kingdomStats', href: '/kingdom/kingdom-stats', icon: <BarChart3 size={20} />, hoverColor: 'group-hover:text-green-500', hoverBg: 'hover:bg-green-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-green-500 to-emerald-500' },
       ],
     },
     {
