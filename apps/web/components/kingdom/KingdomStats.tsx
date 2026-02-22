@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, BarChart3, Table, TrendingUp } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, BarChart3, Table, TrendingUp, GitCompareArrows } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   useAvailableKingdoms,
@@ -34,13 +34,16 @@ export default function KingdomStats() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
-  const [activeTab, setActiveTab] = useState<'table' | 'charts'>('table');
+  const [activeTab, setActiveTab] = useState<'table' | 'charts' | 'comparison'>('table');
 
   // Chart state
   const [chartKingdoms, setChartKingdoms] = useState<Set<number>>(new Set());
   const [chartMetric, setChartMetric] = useState<string>('total_power');
   const [chartDateFrom, setChartDateFrom] = useState<string>('');
   const [chartDateTo, setChartDateTo] = useState<string>('');
+
+  // Comparison state
+  const [comparisonDate, setComparisonDate] = useState<string>('');
 
   // Data
   const { kingdoms, loading: loadingKingdoms } = useAvailableKingdoms();
@@ -54,6 +57,13 @@ export default function KingdomStats() {
     chartDateTo || null,
   );
 
+  // Comparison: fetch all kingdoms for the selected comparison date
+  const { aggregates: compAggregates, loading: loadingComparison } = useKingdomAggregates(
+    kingdoms,
+    comparisonDate || null,
+    comparisonDate || null,
+  );
+
   // Auto-select first kingdom
   React.useEffect(() => {
     if (kingdoms.length > 0 && !selectedKingdom) {
@@ -65,6 +75,14 @@ export default function KingdomStats() {
   React.useEffect(() => {
     if (dates.length > 0 && !selectedDate) setSelectedDate(dates[0]);
   }, [dates, selectedDate]);
+
+  // Auto-select latest date for comparison (from aggregates of all kingdoms)
+  React.useEffect(() => {
+    if (compAggregates.length > 0 && !comparisonDate) {
+      const allDates = [...new Set(compAggregates.map(a => a.dt))].sort().reverse();
+      if (allDates.length > 0) setComparisonDate(allDates[0]);
+    }
+  }, [compAggregates, comparisonDate]);
 
   React.useEffect(() => { setPage(0); }, [search, selectedKingdom, selectedDate, sortField, sortDir]);
 
@@ -118,6 +136,29 @@ export default function KingdomStats() {
     return Array.from(s).sort();
   }, [aggregates]);
 
+  // Comparison ranking data: one row per kingdom, sorted by total power desc
+  const comparisonRows = useMemo(() => {
+    if (compAggregates.length === 0) return [];
+    // Filter to the selected comparison date (should already be filtered, but be safe)
+    const forDate = comparisonDate
+      ? compAggregates.filter(a => a.dt === comparisonDate)
+      : compAggregates;
+    // One row per kingdom
+    const byKd = new Map<number, KingdomAggregate>();
+    for (const a of forDate) {
+      // If multiple dates, take the latest
+      if (!byKd.has(a.kingdom_id)) byKd.set(a.kingdom_id, a);
+    }
+    return Array.from(byKd.values()).sort((a, b) => b.total_power - a.total_power);
+  }, [compAggregates, comparisonDate]);
+
+  // All available dates for comparison selector (from ALL kingdoms)
+  const comparisonDates = useMemo(() => {
+    // Use dates from the aggregates which cover all kingdoms
+    const s = new Set(compAggregates.map(a => a.dt));
+    return Array.from(s).sort().reverse();
+  }, [compAggregates]);
+
   const isLoading = loadingKingdoms || loadingDates || loadingMembers;
 
   return (
@@ -144,6 +185,12 @@ export default function KingdomStats() {
           className={`px-4 py-2 text-sm flex items-center gap-1.5 transition-colors ${activeTab === 'charts' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--background-card)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'}`}
         >
           <TrendingUp size={16} /> Charts
+        </button>
+        <button
+          onClick={() => setActiveTab('comparison')}
+          className={`px-4 py-2 text-sm flex items-center gap-1.5 transition-colors ${activeTab === 'comparison' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--background-card)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'}`}
+        >
+          <GitCompareArrows size={16} /> Comparison
         </button>
       </div>
 
@@ -258,6 +305,72 @@ export default function KingdomStats() {
             )}
           </div>
         </>
+      )}
+
+      {/* ═══ COMPARISON VIEW ═══ */}
+      {activeTab === 'comparison' && (
+        <div className="space-y-4">
+          {/* Date selector */}
+          <div className="flex items-center gap-3">
+            <select
+              value={comparisonDate}
+              onChange={e => setComparisonDate(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+            >
+              {comparisonDates.length === 0 && <option>Loading...</option>}
+              {comparisonDates.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <span className="text-sm text-[var(--text-muted)]">
+              {comparisonRows.length} kingdom{comparisonRows.length !== 1 ? 's' : ''} compared
+            </span>
+          </div>
+
+          {/* Comparison table */}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
+            {loadingComparison ? (
+              <div className="p-12 text-center text-[var(--text-muted)]">Loading...</div>
+            ) : comparisonRows.length === 0 ? (
+              <div className="p-12 text-center text-[var(--text-muted)]">No data for this date</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">#</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Kingdom</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Total Power</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Kill Points</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Gathered</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Helps</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Deaths</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Members</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparisonRows.map((row, i) => (
+                      <tr key={row.kingdom_id} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
+                        <td className="px-4 py-3 text-[var(--text-muted)] font-medium">{i + 1}</td>
+                        <td className="px-4 py-3 font-semibold text-[var(--foreground)]">
+                          <span
+                            className="inline-block w-3 h-3 rounded-full mr-2"
+                            style={{ backgroundColor: KD_COLORS[kingdoms.indexOf(row.kingdom_id) % KD_COLORS.length] }}
+                          />
+                          KD {row.kingdom_id}
+                        </td>
+                        <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{formatCompact(row.total_power)}</td>
+                        <td className="px-4 py-3 text-right text-red-400 tabular-nums">{formatCompact(row.total_kill)}</td>
+                        <td className="px-4 py-3 text-right text-emerald-400 tabular-nums">{formatCompact(row.total_collect)}</td>
+                        <td className="px-4 py-3 text-right text-amber-400 tabular-nums">{formatCompact(row.total_help)}</td>
+                        <td className="px-4 py-3 text-right text-[var(--text-muted)] tabular-nums">{formatCompact(row.total_dead)}</td>
+                        <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{row.member_count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ═══ CHARTS VIEW ═══ */}
