@@ -106,6 +106,10 @@
         "title": "Wanted",
         "description": "Track wanted players, zeroing priority, and officer status updates"
       },
+      "kvkMap": {
+        "title": "KvK War Room",
+        "description": "Interactive KvK map with alliance assignments, strategy planning, and achievement tracking"
+      },
       "kingdomStats": {
         "title": "Kingdom Stats",
         "description": "Daily member rankings, power trends, and historical kingdom data"

@@ -17,6 +17,8 @@ import {
   Radar,
   ArrowUpDown,
   Crosshair,
+  Map,
+  BarChart3,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -123,6 +125,26 @@ export default function Home() {
       hoverShadow: 'hover:shadow-red-500/10',
       iconHoverBg: 'group-hover:bg-red-500/15',
       iconHoverColor: 'group-hover:text-red-500',
+    },
+    {
+      href: '/kvk-map',
+      titleKey: 'tools.kvkMap.title',
+      descriptionKey: 'tools.kvkMap.description',
+      icon: Map,
+      hoverBorder: 'hover:border-orange-500/40',
+      hoverShadow: 'hover:shadow-orange-500/10',
+      iconHoverBg: 'group-hover:bg-orange-500/15',
+      iconHoverColor: 'group-hover:text-orange-500',
+    },
+    {
+      href: '/kingdom/kingdom-stats',
+      titleKey: 'tools.kingdomStats.title',
+      descriptionKey: 'tools.kingdomStats.description',
+      icon: BarChart3,
+      hoverBorder: 'hover:border-green-500/40',
+      hoverShadow: 'hover:shadow-green-500/10',
+      iconHoverBg: 'group-hover:bg-green-500/15',
+      iconHoverColor: 'group-hover:text-green-500',
     },
   ] as const;
 
