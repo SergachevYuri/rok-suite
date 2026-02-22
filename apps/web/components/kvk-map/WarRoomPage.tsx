@@ -13,7 +13,7 @@ import ZoneEditorPanel from '@/components/kvk-map/admin/ZoneEditorPanel';
 import WarRoomHeader from './WarRoomHeader';
 import AllianceList from './AllianceList';
 import FeatureDetailPanel from './FeatureDetailPanel';
-import AchievementSidebar from './AchievementSidebar';
+import AchievementProgressPanel from './AchievementProgressPanel';
 import { useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import {
   useActiveKvkMap,
@@ -85,6 +85,9 @@ export default function WarRoomPage() {
   }, [map?.id, alliancesLoading, alliances.length, refetchAlliances]);
 
   const activeAssignments = strategyAssignments ?? assignments;
+
+  // ── Bottom panel state ─────────────────────────────────────────────
+  const [bottomPanelOpen, setBottomPanelOpen] = useState(true);
 
   // ── Feature UI state ───────────────────────────────────────────────
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
@@ -482,160 +485,172 @@ export default function WarRoomPage() {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-180px)]">
-        {/* Left sidebar */}
-        <div className="lg:w-56 shrink-0 overflow-y-auto space-y-3">
-          <AllianceList
-            alliances={alliances}
-            onCreate={handleCreateAlliance}
-            onUpdate={handleUpdateAlliance}
-            onDelete={handleDeleteAlliance}
-          />
-          <FeaturePalette
-            selectedType={placingType}
-            isPlacing={isPlacing}
-            onSelectType={handleSelectType}
-            onCancelPlacement={handleCancelPlacement}
-            featureCounts={featureCounts}
-            hiddenGroups={hiddenGroups}
-            onToggleGroup={handleToggleGroup}
-            allHidden={allHidden}
-            onToggleAll={handleToggleAll}
-            readOnly={!isAdminMode}
-          />
-        </div>
-
-        {/* Center: Map */}
-        <div
-          className="flex-1 relative rounded-xl overflow-hidden border min-h-[400px]"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <MapBase
-            imageUrl={map.image_path}
-            imageWidth={map.image_width}
-            imageHeight={map.image_height}
-            onClick={handleMapClick}
-            onDoubleClick={handleMapDoubleClick}
-            onMouseMove={handleMouseMove}
-            onZoomChange={setZoom}
-            cursorStyle={(isPlacing || isDrawingZone) && isAdminMode ? 'crosshair' : undefined}
-          >
-            {showZones && zones.map((zone) => (
-              <ZonePolygon
-                key={zone.id}
-                zone={zone}
-                onClick={handleZoneClick}
-                isSelected={zone.id === selectedZoneId}
-                isHighlighted={hoveredZoneNumber != null && zone.zone_number === hoveredZoneNumber}
-              />
-            ))}
-            {showZones && zones.map((zone) => (
-              <ZoneLabel key={`label-${zone.id}`} zone={zone} zoom={zoom} />
-            ))}
-            {visibleFeatures.map((feature) => {
-              const assignment = assignmentMap.get(feature.id);
-              const alliance = assignment ? allianceMap.get(assignment.alliance_id) : undefined;
-              return (
-                <FeatureMarker
-                  key={feature.id}
-                  feature={feature}
-                  isSelected={feature.id === selectedFeatureId}
-                  isDraggable={isAdminMode && !isPlacing && !isDrawingZone}
-                  zoom={zoom}
-                  allianceColor={alliance?.color}
-                  allianceTag={alliance?.tag}
-                  assignmentStatus={assignment?.status}
-                  onClick={handleFeatureClick}
-                  onDragEnd={handleFeatureDragEnd}
-                  onMouseOver={handleFeatureMouseOver}
-                  onMouseOut={handleFeatureMouseOut}
-                />
-              );
-            })}
-            {isDrawingZone && (
-              <DrawingOverlay vertices={zoneVertices} currentPoint={mousePos} />
-            )}
-          </MapBase>
-          <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
-
-          {/* Mode indicator */}
-          {isPlacing && placingType && isAdminMode && (
-            <div
-              className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] px-3 py-1.5 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: 'rgba(0,0,0,0.8)',
-                color: FEATURE_TYPE_CONFIG[placingType].color,
-                border: '1px solid var(--border)',
-              }}
-            >
-              Placing: {FEATURE_TYPE_CONFIG[placingType].label} (click map to place, Esc to cancel)
-            </div>
-          )}
-          {isDrawingZone && selectedZone && (
-            <div
-              className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] px-3 py-1.5 rounded-full text-xs font-medium"
-              style={{
-                backgroundColor: 'rgba(0,0,0,0.8)',
-                color: selectedZone.color,
-                border: '1px solid var(--border)',
-              }}
-            >
-              Drawing: {selectedZone.name || `Zone ${selectedZone.zone_number}`} — {zoneVertices.length} vertices (double-click to finish, Esc to cancel)
-            </div>
-          )}
-        </div>
-
-        {/* Right sidebar */}
-        <div className="lg:w-72 shrink-0 overflow-y-auto">
-          {selectedZone ? (
-            isAdminMode ? (
-              <ZoneEditorPanel
-                zone={selectedZone}
-                isDrawing={isDrawingZone}
-                vertexCount={zoneVertices.length}
-                onStartDrawing={handleStartDrawing}
-                onUndoVertex={handleUndoVertex}
-                onFinishDrawing={handleFinishDrawing}
-                onCancelDrawing={handleCancelDrawing}
-                onClose={() => {
-                  setSelectedZoneId(null);
-                  setIsDrawingZone(false);
-                  setZoneVertices([]);
-                }}
-              />
-            ) : (
-              <div
-                className="rounded-xl p-4 border"
-                style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: selectedZone.color }} />
-                  <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
-                    {selectedZone.name || `Zone ${selectedZone.zone_number}`}
-                  </h3>
-                </div>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {selectedZone.polygon.length} vertices
-                </p>
-              </div>
-            )
-          ) : selectedFeature ? (
-            <FeatureDetailPanel
-              feature={selectedFeature}
-              assignment={selectedAssignment}
-              alliance={selectedAlliance}
+      <div className="flex flex-col h-[calc(100vh-180px)]">
+        {/* Map row: left sidebar + map + right sidebar */}
+        <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
+          {/* Left sidebar */}
+          <div className="lg:w-56 shrink-0 overflow-y-auto space-y-3">
+            <AllianceList
               alliances={alliances}
-              onSave={isAdminMode ? handleSaveFeature : undefined}
-              onDelete={isAdminMode ? handleDeleteFeature : undefined}
-              onAssign={isAtLeast('officer') ? handleAssign : undefined}
-              onUpdateAssignment={isAtLeast('officer') ? handleUpdateAssignment : undefined}
-              onUnassign={isAtLeast('officer') ? handleUnassign : undefined}
-              onClose={() => setSelectedFeatureId(null)}
+              onCreate={handleCreateAlliance}
+              onUpdate={handleUpdateAlliance}
+              onDelete={handleDeleteAlliance}
             />
-          ) : (
-            <AchievementSidebar />
+            <FeaturePalette
+              selectedType={placingType}
+              isPlacing={isPlacing}
+              onSelectType={handleSelectType}
+              onCancelPlacement={handleCancelPlacement}
+              featureCounts={featureCounts}
+              hiddenGroups={hiddenGroups}
+              onToggleGroup={handleToggleGroup}
+              allHidden={allHidden}
+              onToggleAll={handleToggleAll}
+              readOnly={!isAdminMode}
+            />
+          </div>
+
+          {/* Center: Map */}
+          <div
+            className="flex-1 relative rounded-xl overflow-hidden border min-h-[300px]"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <MapBase
+              imageUrl={map.image_path}
+              imageWidth={map.image_width}
+              imageHeight={map.image_height}
+              onClick={handleMapClick}
+              onDoubleClick={handleMapDoubleClick}
+              onMouseMove={handleMouseMove}
+              onZoomChange={setZoom}
+              cursorStyle={(isPlacing || isDrawingZone) && isAdminMode ? 'crosshair' : undefined}
+            >
+              {showZones && zones.map((zone) => (
+                <ZonePolygon
+                  key={zone.id}
+                  zone={zone}
+                  onClick={handleZoneClick}
+                  isSelected={zone.id === selectedZoneId}
+                  isHighlighted={hoveredZoneNumber != null && zone.zone_number === hoveredZoneNumber}
+                />
+              ))}
+              {showZones && zones.map((zone) => (
+                <ZoneLabel key={`label-${zone.id}`} zone={zone} zoom={zoom} />
+              ))}
+              {visibleFeatures.map((feature) => {
+                const assignment = assignmentMap.get(feature.id);
+                const alliance = assignment ? allianceMap.get(assignment.alliance_id) : undefined;
+                return (
+                  <FeatureMarker
+                    key={feature.id}
+                    feature={feature}
+                    isSelected={feature.id === selectedFeatureId}
+                    isDraggable={isAdminMode && !isPlacing && !isDrawingZone}
+                    zoom={zoom}
+                    allianceColor={alliance?.color}
+                    allianceTag={alliance?.tag}
+                    assignmentStatus={assignment?.status}
+                    onClick={handleFeatureClick}
+                    onDragEnd={handleFeatureDragEnd}
+                    onMouseOver={handleFeatureMouseOver}
+                    onMouseOut={handleFeatureMouseOut}
+                  />
+                );
+              })}
+              {isDrawingZone && (
+                <DrawingOverlay vertices={zoneVertices} currentPoint={mousePos} />
+              )}
+            </MapBase>
+            <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
+
+            {/* Mode indicator */}
+            {isPlacing && placingType && isAdminMode && (
+              <div
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: 'rgba(0,0,0,0.8)',
+                  color: FEATURE_TYPE_CONFIG[placingType].color,
+                  border: '1px solid var(--border)',
+                }}
+              >
+                Placing: {FEATURE_TYPE_CONFIG[placingType].label} (click map to place, Esc to cancel)
+              </div>
+            )}
+            {isDrawingZone && selectedZone && (
+              <div
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: 'rgba(0,0,0,0.8)',
+                  color: selectedZone.color,
+                  border: '1px solid var(--border)',
+                }}
+              >
+                Drawing: {selectedZone.name || `Zone ${selectedZone.zone_number}`} — {zoneVertices.length} vertices (double-click to finish, Esc to cancel)
+              </div>
+            )}
+          </div>
+
+          {/* Right sidebar — feature/zone detail only */}
+          {(selectedZone || selectedFeature) && (
+            <div className="lg:w-72 shrink-0 overflow-y-auto">
+              {selectedZone ? (
+                isAdminMode ? (
+                  <ZoneEditorPanel
+                    zone={selectedZone}
+                    isDrawing={isDrawingZone}
+                    vertexCount={zoneVertices.length}
+                    onStartDrawing={handleStartDrawing}
+                    onUndoVertex={handleUndoVertex}
+                    onFinishDrawing={handleFinishDrawing}
+                    onCancelDrawing={handleCancelDrawing}
+                    onClose={() => {
+                      setSelectedZoneId(null);
+                      setIsDrawingZone(false);
+                      setZoneVertices([]);
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="rounded-xl p-4 border"
+                    style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: selectedZone.color }} />
+                      <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+                        {selectedZone.name || `Zone ${selectedZone.zone_number}`}
+                      </h3>
+                    </div>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {selectedZone.polygon.length} vertices
+                    </p>
+                  </div>
+                )
+              ) : selectedFeature ? (
+                <FeatureDetailPanel
+                  feature={selectedFeature}
+                  assignment={selectedAssignment}
+                  alliance={selectedAlliance}
+                  alliances={alliances}
+                  onSave={isAdminMode ? handleSaveFeature : undefined}
+                  onDelete={isAdminMode ? handleDeleteFeature : undefined}
+                  onAssign={isAtLeast('officer') ? handleAssign : undefined}
+                  onUpdateAssignment={isAtLeast('officer') ? handleUpdateAssignment : undefined}
+                  onUnassign={isAtLeast('officer') ? handleUnassign : undefined}
+                  onClose={() => setSelectedFeatureId(null)}
+                />
+              ) : null}
+            </div>
           )}
         </div>
+
+        {/* Bottom panel: Achievement Progress */}
+        <AchievementProgressPanel
+          features={features}
+          assignments={activeAssignments}
+          alliances={alliances}
+          collapsed={!bottomPanelOpen}
+          onToggle={() => setBottomPanelOpen((v) => !v)}
+        />
       </div>
     </div>
   );
