@@ -10,6 +10,7 @@ interface FeatureMarkerProps {
   feature: KvkMapFeature;
   isSelected?: boolean;
   isDraggable?: boolean;
+  zoom?: number;
   onClick?: (feature: KvkMapFeature) => void;
   onDragEnd?: (feature: KvkMapFeature, newX: number, newY: number) => void;
 }
@@ -24,11 +25,13 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function createDivIcon(featureType: string, isSelected: boolean, level: number | null): L.DivIcon {
+function createDivIcon(featureType: string, isSelected: boolean, level: number | null, zoom: number): L.DivIcon {
   const config = FEATURE_TYPE_CONFIG[featureType as keyof typeof FEATURE_TYPE_CONFIG];
   if (!config) return new L.DivIcon();
 
-  const size = isSelected ? 28 : 20;
+  // Scale: 16px at zoom -2, 20px at -1, 24 at 0, 28 at 1, 32 at 2
+  const baseSize = 16 + (zoom + 2) * 4;
+  const size = isSelected ? baseSize + 8 : baseSize;
   const displayText = level != null ? String(level) : config.abbreviation;
   const bg = isSelected ? config.color : hexToRgba(config.color, 0.55);
   const border = isSelected
@@ -52,7 +55,7 @@ function createDivIcon(featureType: string, isSelected: boolean, level: number |
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: ${isSelected ? '11px' : '9px'};
+      font-size: ${Math.round(size * 0.45)}px;
       font-weight: 700;
       color: rgba(255,255,255,${isSelected ? '1' : '0.9'});
       text-shadow: 0 1px 2px rgba(0,0,0,0.6);
@@ -67,12 +70,13 @@ export default function FeatureMarker({
   feature,
   isSelected = false,
   isDraggable = false,
+  zoom = -1,
   onClick,
   onDragEnd,
 }: FeatureMarkerProps) {
   const icon = useMemo(
-    () => createDivIcon(feature.feature_type, isSelected, feature.level),
-    [feature.feature_type, isSelected, feature.level]
+    () => createDivIcon(feature.feature_type, isSelected, feature.level, zoom),
+    [feature.feature_type, isSelected, feature.level, zoom]
   );
 
   const config = FEATURE_TYPE_CONFIG[feature.feature_type];

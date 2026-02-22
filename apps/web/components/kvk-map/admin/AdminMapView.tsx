@@ -34,6 +34,7 @@ export default function AdminMapView() {
   const [placingType, setPlacingType] = useState<FeatureType | null>(null);
   const [isPlacing, setIsPlacing] = useState(false);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+  const [zoom, setZoom] = useState(-1);
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
 
   // Zone editing state
@@ -312,6 +313,7 @@ export default function AdminMapView() {
           onClick={handleMapClick}
           onDoubleClick={handleMapDoubleClick}
           onMouseMove={handleMouseMove}
+          onZoomChange={setZoom}
           cursorStyle={isPlacing || isDrawingZone ? 'crosshair' : undefined}
         >
           {showZones && zones.map((zone) => (
@@ -331,6 +333,7 @@ export default function AdminMapView() {
               feature={feature}
               isSelected={feature.id === selectedFeatureId}
               isDraggable={!isPlacing && !isDrawingZone}
+              zoom={zoom}
               onClick={handleFeatureClick}
               onDragEnd={handleFeatureDragEnd}
             />

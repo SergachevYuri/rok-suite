@@ -18,6 +18,7 @@ interface MapBaseProps {
   onClick?: (x: number, y: number) => void;
   onDoubleClick?: (x: number, y: number) => void;
   onMouseMove?: (x: number, y: number) => void;
+  onZoomChange?: (zoom: number) => void;
   className?: string;
   cursorStyle?: string;
 }
@@ -41,10 +42,12 @@ function MapEventHandler({
   onClick,
   onDoubleClick,
   onMouseMove,
+  onZoomChange,
 }: {
   onClick?: (x: number, y: number) => void;
   onDoubleClick?: (x: number, y: number) => void;
   onMouseMove?: (x: number, y: number) => void;
+  onZoomChange?: (zoom: number) => void;
 }) {
   useMapEvents({
     click(e) {
@@ -55,6 +58,9 @@ function MapEventHandler({
     },
     mousemove(e) {
       onMouseMove?.(e.latlng.lng, e.latlng.lat);
+    },
+    zoomend(e) {
+      onZoomChange?.(e.target.getZoom());
     },
   });
   return null;
@@ -80,6 +86,7 @@ export default function MapBase({
   onClick,
   onDoubleClick,
   onMouseMove,
+  onZoomChange,
   className = '',
   cursorStyle,
 }: MapBaseProps) {
@@ -109,7 +116,7 @@ export default function MapBase({
       <ImageOverlay url={imageUrl} bounds={bounds} />
       <FitBounds bounds={bounds} />
       <CursorStyle cursor={cursorStyle} />
-      <MapEventHandler onClick={onClick} onDoubleClick={onDoubleClick} onMouseMove={onMouseMove} />
+      <MapEventHandler onClick={onClick} onDoubleClick={onDoubleClick} onMouseMove={onMouseMove} onZoomChange={onZoomChange} />
       {children}
     </MapContainer>
   );
