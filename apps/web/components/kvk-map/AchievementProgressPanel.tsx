@@ -19,7 +19,54 @@ interface AchievementProgressPanelProps {
   onToggle: () => void;
 }
 
-// ── Progress bar for a single mappable requirement ──────────────────
+// ── Tier badge (larger, readable) ───────────────────────────────────
+
+function TierBadge({ tier }: { tier: TierProgress }) {
+  const mapReqs = tier.requirements.filter((r) => r.mappable);
+
+  if (mapReqs.length === 0) {
+    return (
+      <span
+        className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[10px]"
+        style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
+        title={tier.task}
+      >
+        —
+      </span>
+    );
+  }
+
+  if (tier.mapSatisfied) {
+    return (
+      <span
+        className="w-7 h-7 rounded-full inline-flex items-center justify-center"
+        style={{ backgroundColor: '#22c55e', color: '#fff' }}
+        title={`Tier ${tier.level}: ${tier.task}`}
+      >
+        <Check size={14} strokeWidth={3} />
+      </span>
+    );
+  }
+
+  const primary = mapReqs[0];
+  const fraction = `${Math.min(primary.current, primary.target)}/${primary.target}`;
+
+  return (
+    <span
+      className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[10px] font-bold"
+      style={{
+        backgroundColor: primary.current > 0 ? 'rgba(251, 191, 36, 0.25)' : 'var(--background-hover)',
+        color: primary.current > 0 ? '#fbbf24' : 'var(--text-muted)',
+        border: primary.current > 0 ? '1.5px solid rgba(251, 191, 36, 0.4)' : '1.5px solid transparent',
+      }}
+      title={`Tier ${tier.level}: ${tier.task} (${fraction})`}
+    >
+      {fraction}
+    </span>
+  );
+}
+
+// ── Progress bar for expanded tier detail ────────────────────────────
 
 function ProgressBar({ req }: { req: RequirementProgress }) {
   const pct = Math.min((req.current / req.target) * 100, 100);
@@ -54,55 +101,6 @@ function ProgressBar({ req }: { req: RequirementProgress }) {
   );
 }
 
-// ── Single tier chip shown inline ───────────────────────────────────
-
-function TierChip({ tier }: { tier: TierProgress }) {
-  const mapReqs = tier.requirements.filter((r) => r.mappable);
-  const roman = ROMAN[tier.level - 1] || String(tier.level);
-
-  if (mapReqs.length === 0) {
-    return (
-      <span
-        className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px]"
-        style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
-      >
-        <span className="font-bold">{roman}</span>
-        <span className="opacity-60">manual</span>
-      </span>
-    );
-  }
-
-  const primary = mapReqs[0];
-
-  if (tier.mapSatisfied) {
-    return (
-      <span
-        className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium"
-        style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' }}
-      >
-        <Check size={12} strokeWidth={3} />
-        <span className="font-bold">{roman}</span>
-        <span>{primary.label}</span>
-        <span className="tabular-nums">{primary.current}/{primary.target}</span>
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px]"
-      style={{
-        backgroundColor: primary.current > 0 ? 'rgba(251, 191, 36, 0.12)' : 'var(--background-hover)',
-        color: primary.current > 0 ? '#fbbf24' : 'var(--text-muted)',
-      }}
-    >
-      <span className="font-bold">{roman}</span>
-      <span>{primary.label}</span>
-      <span className="font-medium tabular-nums">{primary.current}/{primary.target}</span>
-    </span>
-  );
-}
-
 // ── Category row ────────────────────────────────────────────────────
 
 function CategoryRow({ category }: { category: CategoryProgress }) {
@@ -117,7 +115,7 @@ function CategoryRow({ category }: { category: CategoryProgress }) {
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors"
+        className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
         style={{ opacity: category.hasMapReqs ? 1 : 0.5 }}
       >
         <ChevronRight
@@ -140,9 +138,10 @@ function CategoryRow({ category }: { category: CategoryProgress }) {
         <span className="text-sm font-medium shrink-0" style={{ color: 'var(--foreground)' }}>
           {category.name}
         </span>
-        <div className="flex flex-wrap gap-1 flex-1 justify-end">
+        {/* Badges right next to the name */}
+        <div className="flex gap-1">
           {category.tiers.map((tier) => (
-            <TierChip key={tier.level} tier={tier} />
+            <TierBadge key={tier.level} tier={tier} />
           ))}
         </div>
       </button>
