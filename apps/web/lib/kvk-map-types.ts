@@ -1,7 +1,9 @@
 // ─── Feature Types ──────────────────────────────────────────────────
 
 export type FeatureType =
-  | 'pass'
+  | 'pass_4'
+  | 'pass_5'
+  | 'pass_6'
   | 'crusader_fortress'
   | 'crusader_camp'
   | 'hieron_steel'
@@ -13,8 +15,7 @@ export type FeatureType =
   | 'circle_defense'
   | 'tempest_sanctuary'
   | 'altar_darkness'
-  | 'ziggurat'
-  | 'starting_zone';
+  | 'ziggurat';
 
 export type MapStatus = 'draft' | 'base_complete' | 'planning' | 'active';
 

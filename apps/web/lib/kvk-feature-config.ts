@@ -12,15 +12,35 @@ export interface FeatureTypeConfig {
 }
 
 export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
-  pass: {
-    label: 'Pass',
-    abbreviation: 'PA',
-    color: '#f59e0b',
-    description: 'Mountain pass between zones (level 4-6)',
+  pass_4: {
+    label: 'Pass (Lv4)',
+    abbreviation: 'P4',
+    color: '#fbbf24',
+    description: 'Level 4 mountain pass',
     buffs: [],
     kingdomHonor: null,
     allianceHonor: null,
-    defaultLevel: null,
+    defaultLevel: 4,
+  },
+  pass_5: {
+    label: 'Pass (Lv5)',
+    abbreviation: 'P5',
+    color: '#f59e0b',
+    description: 'Level 5 mountain pass',
+    buffs: [],
+    kingdomHonor: null,
+    allianceHonor: null,
+    defaultLevel: 5,
+  },
+  pass_6: {
+    label: 'Pass (Lv6)',
+    abbreviation: 'P6',
+    color: '#d97706',
+    description: 'Level 6 mountain pass',
+    buffs: [],
+    kingdomHonor: null,
+    allianceHonor: null,
+    defaultLevel: 6,
   },
   crusader_fortress: {
     label: 'Crusader Fortress',
@@ -142,20 +162,12 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     allianceHonor: '+15/m',
     defaultLevel: 8,
   },
-  starting_zone: {
-    label: 'Starting Zone',
-    abbreviation: 'SZ',
-    color: '#6b7280',
-    description: 'Kingdom spawn point',
-    buffs: [],
-    kingdomHonor: null,
-    allianceHonor: null,
-    defaultLevel: null,
-  },
 };
 
 export const FEATURE_TYPES_ORDERED: FeatureType[] = [
-  'pass',
+  'pass_4',
+  'pass_5',
+  'pass_6',
   'crusader_camp',
   'crusader_fortress',
   'hieron_steel',
@@ -168,7 +180,6 @@ export const FEATURE_TYPES_ORDERED: FeatureType[] = [
   'ancient_ruins',
   'altar_darkness',
   'ziggurat',
-  'starting_zone',
 ];
 
 export const ZONE_OPTIONS = [
