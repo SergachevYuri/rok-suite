@@ -9,21 +9,24 @@ import {
   useKingdomMembers,
   useKingdomAggregates,
   formatCompact,
-  type KingdomMember,
+  type KingdomAggregate,
 } from '@/lib/supabase/use-kingdom-members';
 
 type SortField = 'power' | 'kill' | 'collect' | 'help' | 'dead' | 't4' | 't5' | 'name' | 'max_power';
 type SortDir = 'asc' | 'desc';
 
-const CHART_LINES = [
+const METRICS = [
   { key: 'total_power', label: 'Total Power', color: '#818cf8' },
   { key: 'total_kill', label: 'Kill Points', color: '#f87171' },
   { key: 'total_collect', label: 'Resources', color: '#34d399' },
   { key: 'total_help', label: 'Helps', color: '#fbbf24' },
 ] as const;
 
+// Color palette for multi-KD lines
+const KD_COLORS = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#fb923c', '#a78bfa'];
+
 export default function KingdomStats() {
-  // State
+  // Table state
   const [selectedKingdom, setSelectedKingdom] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -31,28 +34,41 @@ export default function KingdomStats() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
-  const [visibleLines, setVisibleLines] = useState<Set<string>>(new Set(CHART_LINES.map(l => l.key)));
   const [activeTab, setActiveTab] = useState<'table' | 'charts'>('table');
+
+  // Chart state
+  const [chartKingdoms, setChartKingdoms] = useState<Set<number>>(new Set());
+  const [chartMetric, setChartMetric] = useState<string>('total_power');
+  const [chartDateFrom, setChartDateFrom] = useState<string>('');
+  const [chartDateTo, setChartDateTo] = useState<string>('');
 
   // Data
   const { kingdoms, loading: loadingKingdoms } = useAvailableKingdoms();
   const { dates, loading: loadingDates } = useKingdomDates(selectedKingdom);
-  const { members, loading: loadingMembers } = useKingdomMembers(selectedKingdom, selectedDate);
-  const { aggregates, loading: loadingAggregates } = useKingdomAggregates(selectedKingdom);
+  const { members, loading: loadingMembers } = useKingdomMembers(selectedKingdom, selectedDate, 400);
 
-  // Auto-select first kingdom and date
+  const chartKingdomIds = useMemo(() => Array.from(chartKingdoms), [chartKingdoms]);
+  const { aggregates, loading: loadingAggregates } = useKingdomAggregates(
+    chartKingdomIds,
+    chartDateFrom || null,
+    chartDateTo || null,
+  );
+
+  // Auto-select first kingdom
   React.useEffect(() => {
-    if (kingdoms.length > 0 && !selectedKingdom) setSelectedKingdom(kingdoms[0]);
+    if (kingdoms.length > 0 && !selectedKingdom) {
+      setSelectedKingdom(kingdoms[0]);
+      setChartKingdoms(new Set(kingdoms));
+    }
   }, [kingdoms, selectedKingdom]);
 
   React.useEffect(() => {
     if (dates.length > 0 && !selectedDate) setSelectedDate(dates[0]);
   }, [dates, selectedDate]);
 
-  // Reset page on filter change
   React.useEffect(() => { setPage(0); }, [search, selectedKingdom, selectedDate, sortField, sortDir]);
 
-  // Sort & filter
+  // Sort & filter (already limited to top 400 by the hook)
   const filtered = useMemo(() => {
     let data = [...members];
     if (search) {
@@ -73,26 +89,34 @@ export default function KingdomStats() {
   const paged = filtered.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDir('desc');
-    }
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('desc'); }
   };
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ChevronDown size={14} className="opacity-20" />;
-    return sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
-  };
-
-  const toggleLine = (key: string) => {
-    setVisibleLines(prev => {
+  const toggleChartKingdom = (k: number) => {
+    setChartKingdoms(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(k)) next.delete(k); else next.add(k);
       return next;
     });
   };
+
+  // Pivot aggregates for multi-KD chart: { dt, "KD 3921": value, "KD 4041": value }
+  const chartData = useMemo(() => {
+    const byDate = new Map<string, Record<string, string | number>>();
+    for (const agg of aggregates) {
+      const row = byDate.get(agg.dt) || { dt: agg.dt };
+      row[`KD ${agg.kingdom_id}`] = agg[chartMetric as keyof KingdomAggregate] as number;
+      byDate.set(agg.dt, row);
+    }
+    return Array.from(byDate.values()).sort((a, b) => (a.dt as string).localeCompare(b.dt as string));
+  }, [aggregates, chartMetric]);
+
+  // Get all dates across all kingdoms for date range selectors
+  const allChartDates = useMemo(() => {
+    const s = new Set(aggregates.map(a => a.dt));
+    return Array.from(s).sort();
+  }, [aggregates]);
 
   const isLoading = loadingKingdoms || loadingDates || loadingMembers;
 
@@ -104,214 +128,271 @@ export default function KingdomStats() {
           <BarChart3 size={28} className="text-green-500" />
           Kingdom Stats
         </h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">Daily member statistics from Lilith Game Tools</p>
+        <p className="text-sm text-[var(--text-muted)] mt-1">Top 400 member statistics from Lilith Game Tools</p>
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* Kingdom selector */}
-        <select
-          value={selectedKingdom || ''}
-          onChange={e => { setSelectedKingdom(Number(e.target.value)); setSelectedDate(null); }}
-          className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+      {/* Tab toggle */}
+      <div className="flex rounded-lg border border-[var(--border)] overflow-hidden mb-6 w-fit">
+        <button
+          onClick={() => setActiveTab('table')}
+          className={`px-4 py-2 text-sm flex items-center gap-1.5 transition-colors ${activeTab === 'table' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--background-card)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'}`}
         >
-          {loadingKingdoms && <option>Loading...</option>}
-          {kingdoms.map(k => <option key={k} value={k}>KD {k}</option>)}
-        </select>
-
-        {/* Date selector */}
-        <select
-          value={selectedDate || ''}
-          onChange={e => setSelectedDate(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+          <Table size={16} /> Table
+        </button>
+        <button
+          onClick={() => setActiveTab('charts')}
+          className={`px-4 py-2 text-sm flex items-center gap-1.5 transition-colors ${activeTab === 'charts' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--background-card)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'}`}
         >
-          {loadingDates && <option>Loading...</option>}
-          {dates.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-          <input
-            type="text"
-            placeholder="Search player..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
-          />
-        </div>
-
-        {/* Tab toggle */}
-        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden ml-auto">
-          <button
-            onClick={() => setActiveTab('table')}
-            className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${activeTab === 'table' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--background-card)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'}`}
-          >
-            <Table size={16} /> Table
-          </button>
-          <button
-            onClick={() => setActiveTab('charts')}
-            className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${activeTab === 'charts' ? 'bg-[var(--primary)] text-white' : 'bg-[var(--background-card)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'}`}
-          >
-            <TrendingUp size={16} /> Charts
-          </button>
-        </div>
+          <TrendingUp size={16} /> Charts
+        </button>
       </div>
 
-      {/* Summary cards */}
-      {!isLoading && members.length > 0 && activeTab === 'table' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <SummaryCard label="Members" value={members.length.toLocaleString()} color="text-sky-400" />
-          <SummaryCard label="Total Power" value={formatCompact(members.reduce((s, m) => s + m.power, 0))} color="text-indigo-400" />
-          <SummaryCard label="Total Kill Points" value={formatCompact(members.reduce((s, m) => s + m.kill, 0))} color="text-red-400" />
-          <SummaryCard label="Total Gathered" value={formatCompact(members.reduce((s, m) => s + m.collect, 0))} color="text-emerald-400" />
-        </div>
-      )}
-
-      {/* Table view */}
+      {/* ═══ TABLE VIEW ═══ */}
       {activeTab === 'table' && (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
-          {isLoading ? (
-            <div className="p-12 text-center text-[var(--text-muted)]">Loading...</div>
-          ) : filtered.length === 0 ? (
-            <div className="p-12 text-center text-[var(--text-muted)]">No data available</div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
-                      <th className="px-3 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">#</th>
-                      <HeaderCell label="Name" field="name" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
-                      <HeaderCell label="Power" field="power" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                      <HeaderCell label="Kill Points" field="kill" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                      <HeaderCell label="T4 Kills" field="t4" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                      <HeaderCell label="T5 Kills" field="t5" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                      <HeaderCell label="Gathered" field="collect" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                      <HeaderCell label="Helps" field="help" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                      <HeaderCell label="Deaths" field="dead" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paged.map((m, i) => (
-                      <tr key={m.id} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
-                        <td className="px-3 py-2.5 text-[var(--text-muted)]">{page * rowsPerPage + i + 1}</td>
-                        <td className="px-3 py-2.5 font-medium text-[var(--foreground)]">{m.name}</td>
-                        <td className="px-3 py-2.5 text-right text-[var(--foreground)] tabular-nums">{formatCompact(m.power)}</td>
-                        <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(m.kill)}</td>
-                        <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{formatCompact(m.t4)}</td>
-                        <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{formatCompact(m.t5)}</td>
-                        <td className="px-3 py-2.5 text-right text-emerald-400 tabular-nums">{formatCompact(m.collect)}</td>
-                        <td className="px-3 py-2.5 text-right text-amber-400 tabular-nums">{formatCompact(m.help)}</td>
-                        <td className="px-3 py-2.5 text-right text-[var(--text-muted)] tabular-nums">{formatCompact(m.dead)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+        <>
+          {/* Table controls */}
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <select
+              value={selectedKingdom || ''}
+              onChange={e => { setSelectedKingdom(Number(e.target.value)); setSelectedDate(null); }}
+              className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+            >
+              {loadingKingdoms && <option>Loading...</option>}
+              {kingdoms.map(k => <option key={k} value={k}>KD {k}</option>)}
+            </select>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)]">
-                <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                  <span>{filtered.length} members</span>
-                  <select
-                    value={rowsPerPage}
-                    onChange={e => { setRowsPerPage(Number(e.target.value)); setPage(0); }}
-                    className="px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-xs"
-                  >
-                    {[25, 50, 100].map(n => <option key={n} value={n}>{n} / page</option>)}
-                  </select>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30 text-[var(--text-secondary)]">
-                    <ChevronLeft size={16} />
-                  </button>
-                  <span className="px-3 py-1 text-sm text-[var(--foreground)]">{page + 1} / {totalPages || 1}</span>
-                  <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30 text-[var(--text-secondary)]">
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
+            <select
+              value={selectedDate || ''}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+            >
+              {loadingDates && <option>Loading...</option>}
+              {dates.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
 
-      {/* Charts view */}
-      {activeTab === 'charts' && (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-[var(--foreground)]">Historical Trends</h2>
-            <div className="flex gap-2">
-              {CHART_LINES.map(line => (
-                <button
-                  key={line.key}
-                  onClick={() => toggleLine(line.key)}
-                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                    visibleLines.has(line.key)
-                      ? 'border-transparent text-white'
-                      : 'border-[var(--border)] text-[var(--text-muted)] bg-transparent'
-                  }`}
-                  style={visibleLines.has(line.key) ? { backgroundColor: line.color } : {}}
-                >
-                  {line.label}
-                </button>
-              ))}
+            <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+              <input
+                type="text"
+                placeholder="Search player..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
+              />
             </div>
           </div>
 
-          {loadingAggregates ? (
-            <div className="h-80 flex items-center justify-center text-[var(--text-muted)]">Loading...</div>
-          ) : aggregates.length === 0 ? (
-            <div className="h-80 flex items-center justify-center text-[var(--text-muted)]">No historical data yet</div>
-          ) : (
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={aggregates}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis
-                    dataKey="dt"
-                    tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                    tickFormatter={d => d.slice(5)}
-                  />
-                  <YAxis
-                    tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
-                    tickFormatter={formatCompact}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'var(--background-card)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                      color: 'var(--foreground)',
-                    }}
-                    formatter={(value?: number) => formatCompact(value ?? 0)}
-                    labelFormatter={label => `Date: ${label}`}
-                  />
-                  <Legend />
-                  {CHART_LINES.filter(l => visibleLines.has(l.key)).map(line => (
-                    <Line
-                      key={line.key}
-                      type="monotone"
-                      dataKey={line.key}
-                      name={line.label}
-                      stroke={line.color}
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 4 }}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
+          {/* Summary cards */}
+          {!isLoading && members.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <SummaryCard label="Top 400 Members" value={members.length.toLocaleString()} color="text-sky-400" />
+              <SummaryCard label="Total Power" value={formatCompact(members.reduce((s, m) => s + m.power, 0))} color="text-indigo-400" />
+              <SummaryCard label="Total Kill Points" value={formatCompact(members.reduce((s, m) => s + m.kill, 0))} color="text-red-400" />
+              <SummaryCard label="Total Gathered" value={formatCompact(members.reduce((s, m) => s + m.collect, 0))} color="text-emerald-400" />
             </div>
           )}
 
-          {/* Aggregate stats below chart */}
-          {aggregates.length > 0 && (
-            <div className="mt-4 text-xs text-[var(--text-muted)]">
-              {aggregates.length} data points &middot; {aggregates[0]?.dt} to {aggregates[aggregates.length - 1]?.dt}
+          {/* Table */}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
+            {isLoading ? (
+              <div className="p-12 text-center text-[var(--text-muted)]">Loading...</div>
+            ) : filtered.length === 0 ? (
+              <div className="p-12 text-center text-[var(--text-muted)]">No data available</div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">#</th>
+                        <HeaderCell label="Name" field="name" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                        <HeaderCell label="Power" field="power" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                        <HeaderCell label="Kill Points" field="kill" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                        <HeaderCell label="T4 Kills" field="t4" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                        <HeaderCell label="T5 Kills" field="t5" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                        <HeaderCell label="Gathered" field="collect" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                        <HeaderCell label="Helps" field="help" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                        <HeaderCell label="Deaths" field="dead" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paged.map((m, i) => (
+                        <tr key={m.id} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
+                          <td className="px-3 py-2.5 text-[var(--text-muted)]">{page * rowsPerPage + i + 1}</td>
+                          <td className="px-3 py-2.5 font-medium text-[var(--foreground)]">{m.name}</td>
+                          <td className="px-3 py-2.5 text-right text-[var(--foreground)] tabular-nums">{formatCompact(m.power)}</td>
+                          <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(m.kill)}</td>
+                          <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{formatCompact(m.t4)}</td>
+                          <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{formatCompact(m.t5)}</td>
+                          <td className="px-3 py-2.5 text-right text-emerald-400 tabular-nums">{formatCompact(m.collect)}</td>
+                          <td className="px-3 py-2.5 text-right text-amber-400 tabular-nums">{formatCompact(m.help)}</td>
+                          <td className="px-3 py-2.5 text-right text-[var(--text-muted)] tabular-nums">{formatCompact(m.dead)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)]">
+                  <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                    <span>{filtered.length} of top 400</span>
+                    <select
+                      value={rowsPerPage}
+                      onChange={e => { setRowsPerPage(Number(e.target.value)); setPage(0); }}
+                      className="px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-xs"
+                    >
+                      {[25, 50, 100].map(n => <option key={n} value={n}>{n} / page</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30 text-[var(--text-secondary)]">
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="px-3 py-1 text-sm text-[var(--foreground)]">{page + 1} / {totalPages || 1}</span>
+                    <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30 text-[var(--text-secondary)]">
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ═══ CHARTS VIEW ═══ */}
+      {activeTab === 'charts' && (
+        <div className="space-y-4">
+          {/* Chart controls */}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-4">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Kingdom multi-select */}
+              <div>
+                <div className="text-xs text-[var(--text-muted)] mb-2">Kingdoms</div>
+                <div className="flex gap-2">
+                  {kingdoms.map((k, i) => (
+                    <button
+                      key={k}
+                      onClick={() => toggleChartKingdom(k)}
+                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors font-medium ${
+                        chartKingdoms.has(k)
+                          ? 'border-transparent text-white'
+                          : 'border-[var(--border)] text-[var(--text-muted)]'
+                      }`}
+                      style={chartKingdoms.has(k) ? { backgroundColor: KD_COLORS[i % KD_COLORS.length] } : {}}
+                    >
+                      KD {k}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Metric selector */}
+              <div>
+                <div className="text-xs text-[var(--text-muted)] mb-2">Metric</div>
+                <div className="flex gap-2">
+                  {METRICS.map(m => (
+                    <button
+                      key={m.key}
+                      onClick={() => setChartMetric(m.key)}
+                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                        chartMetric === m.key
+                          ? 'border-transparent text-white'
+                          : 'border-[var(--border)] text-[var(--text-muted)]'
+                      }`}
+                      style={chartMetric === m.key ? { backgroundColor: m.color } : {}}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date range */}
+              <div>
+                <div className="text-xs text-[var(--text-muted)] mb-2">Date Range</div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={chartDateFrom}
+                    onChange={e => setChartDateFrom(e.target.value)}
+                    className="px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-xs"
+                  >
+                    <option value="">All (from)</option>
+                    {allChartDates.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <span className="text-[var(--text-muted)] text-xs">to</span>
+                  <select
+                    value={chartDateTo}
+                    onChange={e => setChartDateTo(e.target.value)}
+                    className="px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-xs"
+                  >
+                    <option value="">All (to)</option>
+                    {allChartDates.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Chart */}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-6">
+            <h2 className="text-lg font-semibold text-[var(--foreground)] mb-4">
+              {METRICS.find(m => m.key === chartMetric)?.label || 'Trend'} — Top 400
+            </h2>
+
+            {loadingAggregates ? (
+              <div className="h-80 flex items-center justify-center text-[var(--text-muted)]">Loading...</div>
+            ) : chartData.length === 0 ? (
+              <div className="h-80 flex items-center justify-center text-[var(--text-muted)]">No historical data yet</div>
+            ) : (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis
+                      dataKey="dt"
+                      tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                      tickFormatter={(d: string) => d.slice(5)}
+                    />
+                    <YAxis
+                      tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
+                      tickFormatter={formatCompact}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'var(--background-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                        color: 'var(--foreground)',
+                      }}
+                      formatter={(value?: number) => formatCompact(value ?? 0)}
+                      labelFormatter={(label: string) => `Date: ${label}`}
+                    />
+                    <Legend />
+                    {chartKingdomIds.map((k, i) => (
+                      <Line
+                        key={k}
+                        type="monotone"
+                        dataKey={`KD ${k}`}
+                        name={`KD ${k}`}
+                        stroke={KD_COLORS[i % KD_COLORS.length]}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                        connectNulls
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {chartData.length > 0 && (
+              <div className="mt-4 text-xs text-[var(--text-muted)]">
+                {chartData.length} dates &middot; {chartKingdomIds.length} kingdom{chartKingdomIds.length > 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
