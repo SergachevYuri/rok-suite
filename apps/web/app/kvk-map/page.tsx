@@ -1,7 +1,7 @@
 'use client';
 
 import { AppSidebar } from '@/components/AppSidebar';
-import { Map, Wrench, Users, Eye } from 'lucide-react';
+import { Map, Wrench, Trophy, Users, Eye } from 'lucide-react';
 import Link from 'next/link';
 
 const modes = [
@@ -15,14 +15,13 @@ const modes = [
     color: '#f59e0b',
   },
   {
-    href: '/kvk-map/planner',
-    icon: Users,
-    title: 'Officer Planner',
-    subtitle: 'R4s',
+    href: '/kvk-map/achievements',
+    icon: Trophy,
+    title: 'Achievement Browser',
+    subtitle: 'Reference',
     description:
-      'Assign alliances to objectives, set priorities, track occupation status, optimize achievements.',
-    color: '#3b82f6',
-    disabled: true,
+      'Browse all KvK achievements by season with requirements, tiers, and rewards.',
+    color: '#8b5cf6',
   },
   {
     href: '/kvk-map',

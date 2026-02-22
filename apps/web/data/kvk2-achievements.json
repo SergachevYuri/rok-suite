@@ -1,0 +1,517 @@
+{
+  "season": "kvk2",
+  "label": "KvK Season 2 - The Lost Kingdom",
+  "source": "RoK Fandom Wiki + community guides",
+  "notes": "KvK1/2/3 share same achievement structure. Tasks/thresholds identical. Reward qtys may vary slightly. KvK2 gives Wu Zetian sculptures. Glorious Victory/Overwhelming Triumph may be KvK3/L&D only.",
+  "individual": [
+    {
+      "id": "intrepid",
+      "category": "Intrepid",
+      "icon": "⚔️",
+      "desc": "Defeat barbarian troops",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "Defeat 80 Lvl 26+ Barbarian troops",
+          "rewards": "9x 50k EXP, 8x 50k Food, 8x 50k Wood"
+        },
+        {
+          "lvl": 2,
+          "task": "Defeat 200 Lvl 26+ Barbarian troops",
+          "rewards": "14x 50k EXP, 14x 50k Food/Wood, 14x 37.5k Stone"
+        },
+        {
+          "lvl": 3,
+          "task": "Defeat 400 Lvl 26+ Barbarian troops",
+          "rewards": "18x 50k EXP, 8x 150k Food/Wood, 8x 112.5k Stone, 7x 50k Gold"
+        },
+        {
+          "lvl": 4,
+          "task": "Defeat 800 Lvl 26+ Barbarian troops",
+          "rewards": "3x Transmutation Stone, Gold Key, 27x 50k EXP, 14x 150k Food/Wood, 14x 112.5k Stone, 9x 50k Gold"
+        },
+        {
+          "lvl": 5,
+          "task": "Defeat 1,400 Lvl 26+ Barbarian troops",
+          "rewards": "2x Gold Key, Crystal Key, Epic Equip Chest, 50x 50k EXP, 2x 1000 Alliance Credit, 30x 375k Stone, 25x 200k Gold"
+        }
+      ]
+    },
+    {
+      "id": "unity",
+      "category": "Unity",
+      "icon": "🏗️",
+      "desc": "Alliance flag building",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "Build alliance flags for 120 min",
+          "rewards": "3h Speedup, 10x 150k Food/Wood, 10x 112.5k Stone"
+        },
+        {
+          "lvl": 2,
+          "task": "Build alliance flags for 450 min",
+          "rewards": "Epic Equip Chest, 2x Lvl 1 Expanded Training, 3h Speedup, 3h Healing Speedup"
+        },
+        {
+          "lvl": 3,
+          "task": "Build alliance flags for 900 min",
+          "rewards": "Epic Equip Chest, Territorial Teleport, 3x 3h Speedup, 10x 112.5k Stone, 10x 50k Gold"
+        },
+        {
+          "lvl": 4,
+          "task": "Build alliance flags for 1,500 min",
+          "rewards": "Epic Equip Chest, 2x Crystal Key, Gold Key, 5x 3h Speedup, 20x 112.5k Stone, 20x 50k Gold"
+        },
+        {
+          "lvl": 5,
+          "task": "Build flags 3,500 min + Kill/wound 1.5M enemy",
+          "rewards": "5x Dazzling Starlight, 2x Epic Equip Chest, 5x Crystal Key, 5x 3h Speedup, 50x 500k Food/Wood, 30x 375k Stone, 30x 200k Gold"
+        }
+      ]
+    },
+    {
+      "id": "honor",
+      "category": "Honor",
+      "icon": "🏅",
+      "desc": "Accumulate individual honor points",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "4,500 individual honor",
+          "rewards": "2x 60m Building Speedup, 9x 50k Food/Wood"
+        },
+        {
+          "lvl": 2,
+          "task": "9,000 individual honor",
+          "rewards": "2x 60m Training Speedup, 12x 50k Food/Wood"
+        },
+        {
+          "lvl": 3,
+          "task": "18,000 individual honor",
+          "rewards": "3h Research Speedup, 7x 150k Food/Wood, 7x 112.5k Stone, 500 AP Potion"
+        },
+        {
+          "lvl": 4,
+          "task": "27,000 individual honor",
+          "rewards": "Brand-new Starlight, 2x Elite Equip Chest, 3h Build/Train/Research/Heal Speedup, 1000 AP Potion"
+        },
+        {
+          "lvl": 5,
+          "task": "36,000 individual honor",
+          "rewards": "8x Epic Sculpture, Elite Equip Chest, 2x 60m Speedup, 10x 150k Food/Wood, 10x 112.5k Stone, 1000 AP Potion"
+        },
+        {
+          "lvl": 6,
+          "task": "50,000 individual honor",
+          "rewards": "12x Epic Sculpture, Epic+Elite Equip Chest, 1000 Alliance Credits, 8h Research/Training/Healing Speedup, 1000 AP Potion"
+        },
+        {
+          "lvl": 7,
+          "task": "65,000 individual honor",
+          "rewards": "5x Transmutation Stone, 6x Dazzling Starlight, Epic Equip Chest, 3h Speedup, 15x 150k Food/Wood, 15x 112.5k Stone, 10x 50k Gold"
+        },
+        {
+          "lvl": 8,
+          "task": "90,000 individual honor",
+          "rewards": "4x Legendary Sculpture, 2x Epic Formation Chest, Epic+Elite Equip Chest, 3x Gold Key, 2x Crystal Key, 3h Healing+Training Speedup"
+        },
+        {
+          "lvl": 9,
+          "task": "120,000 honor + Kill/wound 3.5M enemy",
+          "rewards": "6x Legendary Sculpture, 3x Epic Equip Chest, 2x Gold Key, 6x Crystal Key, 4x 3h Speedup, 20x 375k Stone, 10x 200k Gold, 3x 1000 AP Potion"
+        }
+      ]
+    },
+    {
+      "id": "faith",
+      "category": "Faith",
+      "icon": "💀",
+      "desc": "Kill or severely wound enemy troops",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "Kill/wound 500K enemy troops",
+          "rewards": "Minor rewards"
+        },
+        {
+          "lvl": 2,
+          "task": "Kill/wound 1.5M enemy troops",
+          "rewards": "Epic Equip Chest, 500 Alliance Credits, 3x 3h Building/Healing/Training Speedup"
+        },
+        {
+          "lvl": 3,
+          "task": "Kill/wound 5M enemy troops",
+          "rewards": "Epic Equip Chest, 2x Epic Formation Chest, 500 Alliance Credits, 3x 3h Speedup, 15x 150k Food/Wood, 15x 112.5k Stone"
+        },
+        {
+          "lvl": 4,
+          "task": "Kill/wound 15M enemy troops",
+          "rewards": "2x Legendary Formation Chest, 5x Dazzling Starlight, Epic+3x Elite Equip Chest, 5x Crystal Key, 4x 3h Build/Train/Research Speedup"
+        },
+        {
+          "lvl": 5,
+          "task": "Kill/wound 25M enemy troops",
+          "rewards": "10x Legendary Sculpture, 5x Dazzling Starlight, 2x Legendary Equip Chest, 3x 3h Speedup, 30x 500k Food/Wood, 20x 200k Gold"
+        }
+      ]
+    },
+    {
+      "id": "conquest",
+      "category": "Conquest",
+      "icon": "🏛️",
+      "desc": "Occupy ruins/altars & gather resources",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "Occupy ruins/altars for 20 min",
+          "rewards": "5x 50k EXP, 10x 50k Food/Wood"
+        },
+        {
+          "lvl": 2,
+          "task": "Occupy ruins/altars for 100 min",
+          "rewards": "10x 50k EXP, 20x 50k Food/Wood, 20x 37.5k Stone"
+        },
+        {
+          "lvl": 3,
+          "task": "Occupy ruins/altars for 200 min",
+          "rewards": "15x 50k EXP, Epic Equip Chest, 2x 3h Speedup, 10x 150k Food/Wood, 10x 112.5k Stone"
+        },
+        {
+          "lvl": 4,
+          "task": "Occupy ruins/altars for 400 min",
+          "rewards": "Dazzling Starlight, 20x 50k EXP, Epic Equip Chest, Gold Key, Crystal Key, 5x 3h Speedup, 30x 112.5k Stone"
+        },
+        {
+          "lvl": 6,
+          "task": "Gather 10M resources on map",
+          "rewards": "10x 50k Food/Wood, 10x 37.5k Stone"
+        },
+        {
+          "lvl": 7,
+          "task": "Gather 30M resources on map",
+          "rewards": "20x 50k Food/Wood, 20x 37.5k Stone"
+        },
+        {
+          "lvl": 8,
+          "task": "Gather 50M resources on map",
+          "rewards": "10x 150k Food/Wood, 10x 112.5k Stone, 10x 50k Gold"
+        }
+      ]
+    },
+    {
+      "id": "glorious_victory",
+      "category": "Glorious Victory",
+      "icon": "👑",
+      "desc": "Win ultimate victory + high honor (may be KvK3-only)",
+      "kvk3Only": true,
+      "tiers": [
+        {
+          "lvl": "-",
+          "task": "Win Light & Darkness + 90K individual honor",
+          "rewards": "3x Legendary Sculpture, Epic+2x Elite Equip Chest, 3x Crystal Key, 2x 3h Heal/Train/Research Speedup"
+        }
+      ]
+    },
+    {
+      "id": "overwhelming_triumph",
+      "category": "Overwhelming Triumph",
+      "icon": "🏆",
+      "desc": "Win + massive honor (may be KvK3-only)",
+      "kvk3Only": true,
+      "tiers": [
+        {
+          "lvl": "-",
+          "task": "Win Light & Darkness + 180K individual honor",
+          "rewards": "7x Legendary Sculpture, 8x Dazzling Starlight, Legendary Equip Chest, 4x Gold Key, 6x Crystal Key, 6x 3h Heal/Train/Research Speedup"
+        }
+      ]
+    }
+  ],
+  "alliance": [
+    {
+      "id": "together_we_rise",
+      "category": "Together We Rise",
+      "icon": "🤝",
+      "desc": "Alliance + individual honor milestones",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "40K alliance + 1K individual honor",
+          "rewards": "2x 60m Speedup, 5x 50k Food/Wood"
+        },
+        {
+          "lvl": 2,
+          "task": "80K alliance + 2K individual honor",
+          "rewards": "3x 60m Build/Train/Research Speedup"
+        },
+        {
+          "lvl": 3,
+          "task": "160K alliance + 3K individual honor",
+          "rewards": "Elite Equip Chest, 3h Speedup, 5x 150k Food/Wood, 5x 112.5k Stone"
+        },
+        {
+          "lvl": 4,
+          "task": "240K alliance + 4.5K individual honor",
+          "rewards": "Gold Key, Archer Blueprint, Brand-new Starlight, 3h Train/Heal Speedup"
+        },
+        {
+          "lvl": 5,
+          "task": "320K alliance + 6K individual honor",
+          "rewards": "2x Archer Blueprint, 3h Speedup, 6x 150k Food/Wood, 6x 112.5k Stone, 4x 50k Gold"
+        },
+        {
+          "lvl": 6,
+          "task": "400K alliance + 7.5K individual honor",
+          "rewards": "10x Brand-new Starlight, Crystal Key, 3x Elite Equip Chest, 2x 3h Build/Train/Research Speedup"
+        },
+        {
+          "lvl": 7,
+          "task": "560K alliance + 10K individual honor",
+          "rewards": "5x Epic Sculpture, Elite Equip Chest, 3h Speedup, 12x 150k Wood, 12x 112.5k Stone, 12x 50k Gold"
+        },
+        {
+          "lvl": 8,
+          "task": "750K alliance + 15K individual honor",
+          "rewards": "Epic Formation Chest, 10x 5000 Alliance Credits, Crystal Key, Epic+Elite Equip Chest, 2x 3h Build/Train/Research Speedup"
+        },
+        {
+          "lvl": 9,
+          "task": "1M alliance + 20K individual honor",
+          "rewards": "9x Epic Sculpture, 2x Epic Formation Chest, Crystal Key, 8x 150k Food/Wood, 8x 112.5k Stone, 5x 50k Gold"
+        },
+        {
+          "lvl": 10,
+          "task": "1.5M alliance + 25K individual honor",
+          "rewards": "2x Legendary Formation Chest, 20x 5000 Alliance Credits, 5x Archer Blueprint, Epic+Elite Equip Chest, 4x 3h Build/Train/Research Speedup"
+        },
+        {
+          "lvl": 11,
+          "task": "1.8M alliance + 30K individual honor",
+          "rewards": "3x Legendary Sculpture, Epic Equip Chest, 30x 5000 Alliance Credits, 50x 50k Food/Wood, 50x 37.5k Stone, 25x 15k Gold, 500 AP Potion"
+        },
+        {
+          "lvl": 12,
+          "task": "2.8M alliance + 35K individual honor",
+          "rewards": "10x Dazzling Starlight, 4x Transmutation Stone, 2x Gold Key, Epic Equip Chest, 40x 5000 Alliance Credits, 10x 500k Food/Wood, 10x 375k Stone, 10x 200k Gold"
+        },
+        {
+          "lvl": 13,
+          "task": "4.8M alliance + Kill/wound 5M enemy",
+          "rewards": "7x Legendary Sculpture, Legendary Equip Choice Chest, 2x Legendary Formation Chest, 20x Archer Blueprint (Epic), 4x Gold Key, 3x 3h Research/Train/Heal Speedup, 3x 1000 AP Potion"
+        }
+      ]
+    },
+    {
+      "id": "fleeting_victory",
+      "category": "Fleeting Victory",
+      "icon": "⚡",
+      "desc": "Occupy holy sites with alliance",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "Occupy 1 Hieron + 25K individual honor",
+          "rewards": "500 Gems, Crystal Key, Epic Equip Chest, 2x Archer Blueprint, 3h Build/Heal/Research Speedup, 1000 AP Potion"
+        },
+        {
+          "lvl": 2,
+          "task": "Occupy 1 Circle + 35K individual honor",
+          "rewards": "1000 Gems, 5x Crystal Key, Epic Equip Chest, 6x Archer Blueprint, 3x 3h Build/Heal/Research Speedup, 1000 AP Potion"
+        },
+        {
+          "lvl": 3,
+          "task": "Occupy Great Ziggurat + 45K individual honor",
+          "rewards": "2000 Gems, 5x Crystal Key, Epic Equip Chest, 6x Archer Blueprint, 3x 3h Build/Train/Research Speedup, 1000 AP Potion"
+        }
+      ]
+    },
+    {
+      "id": "invasion",
+      "category": "Invasion",
+      "icon": "🗡️",
+      "desc": "Destroy enemy structures",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "Destroy 2 enemy Circles + 25K individual honor",
+          "rewards": "5x Legendary Sculpture, 2x Gold Key, 2x Archer Blueprint, Epic Equip Chest, 20x 10k EXP, 3x 3h Build/Train/Research Speedup"
+        },
+        {
+          "lvl": 2,
+          "task": "Destroy 4 enemy Camps + 35K individual honor",
+          "rewards": "10x Legendary Sculpture, 3x Gold Key, 3x Archer Blueprint, Epic Equip Chest, 50x 10k EXP, 3x 3h Build/Train/Research Speedup"
+        }
+      ]
+    },
+    {
+      "id": "unstoppable_juggernaut",
+      "category": "Unstoppable Juggernaut",
+      "icon": "💥",
+      "desc": "Destroy enemy fortresses",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "Destroy 1 Fortress + 45K individual honor",
+          "rewards": "30x Scolas Coin Blueprint, Legendary Equip Chest, 4x Dazzling Starlight, 4x Archer Blueprint, 150x 10k EXP, 4x 3h Research/Train/Build Speedup"
+        },
+        {
+          "lvl": 2,
+          "task": "Destroy 2 Fortresses + Kill/wound 1.8M enemy",
+          "rewards": "10x Legendary Sculpture, 2x Legendary Equip Chest, 4x Dazzling Starlight, Gold Key, 200x 10k EXP, 4x 3h Speedup"
+        },
+        {
+          "lvl": 3,
+          "task": "Destroy 3 Fortresses + Kill/wound 2.3M enemy",
+          "rewards": "30x Scolas Coin Blueprint, 3x Legendary Equip Chest, 4x Dazzling Starlight, 2x Gold Key, 200x 10k EXP, 5x 3h Speedup"
+        },
+        {
+          "lvl": 4,
+          "task": "Destroy 4 Fortresses + Kill/wound 4.2M enemy",
+          "rewards": "30x Scolas Coin Blueprint, 3x Legendary Equip Chest, 4x Dazzling Starlight, 2x Gold Key, 200x 10k EXP, 6x 3h Speedup"
+        },
+        {
+          "lvl": 5,
+          "task": "Destroy 4 Hierons + Kill/wound 5M enemy",
+          "rewards": "10x Legendary Sculpture, 3x Legendary Equip Chest, 4x Dazzling Starlight, 3x Gold Key, 200x 10k EXP, 10x 3h Speedup"
+        }
+      ]
+    },
+    {
+      "id": "last_one_standing",
+      "category": "Last One Standing",
+      "icon": "🏰",
+      "desc": "Control Great Ziggurat at event end",
+      "tiers": [
+        {
+          "lvl": "-",
+          "task": "Alliance controls Great Ziggurat at end + Kill/wound 5M enemy",
+          "rewards": "Alliance Star, 30x Scolas Coin Blueprint, 4x Legendary Equip Chest, 2x Epic Equip Chest, 2x Level 4 Reserves, 3x 3h Research/Train/Heal Speedup"
+        }
+      ]
+    }
+  ],
+  "kingdom": [
+    {
+      "id": "the_crusade_begins",
+      "category": "The Crusade Begins",
+      "icon": "🚩",
+      "desc": "Kingdom occupies first fortress",
+      "tiers": [
+        {
+          "lvl": "-",
+          "task": "Kingdom occupies 1 Fortress + 10K individual honor",
+          "rewards": "Epic Equip Chest, 2x Elite Equip Chest, 3h Train/Build/Heal Speedup, 5x 50k Food/Wood, 5x 37.5k Stone"
+        }
+      ]
+    },
+    {
+      "id": "beyond_compare",
+      "category": "Beyond Compare",
+      "icon": "⭐",
+      "desc": "Kingdom destroys enemy structures",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "Kingdom destroys 1 Circle + 30K individual honor",
+          "rewards": "3x Gold Key, Crystal Key, 3h Speedup + Train/Build Speedup, 5x 50k Food/Wood, 5x 37.5k Stone"
+        },
+        {
+          "lvl": 2,
+          "task": "Kingdom destroys 1 Camp + 35K individual honor",
+          "rewards": "2x Legendary Sculpture, 2x Epic Equip Chest, 5x Crystal Key, 8x 10k EXP, 3h Heal/Train/Research Speedup, 500 AP Potion"
+        },
+        {
+          "lvl": 3,
+          "task": "Kingdom destroys 1 Fortress + Kill/wound 4.5M enemy",
+          "rewards": "3x Legendary Sculpture, 2x Epic Equip Chest, 3x Crystal Key, 20x 10k EXP, 3h Heal/Train/Research Speedup, 500 AP Potion"
+        },
+        {
+          "lvl": 4,
+          "task": "Kingdom destroys 1 Hieron + 60K individual honor",
+          "rewards": "5x Gold Key, 2x Epic Equip Chest, 8h Train/Research/Heal Speedup, 10x 50k Food/Wood, 10x 37.5k Stone"
+        }
+      ]
+    },
+    {
+      "id": "kingdoms_might",
+      "category": "Kingdom's Might",
+      "icon": "🛡️",
+      "desc": "Kingdom + individual honor milestones",
+      "tiers": [
+        {
+          "lvl": 1,
+          "task": "40K kingdom + 1K individual honor",
+          "rewards": "60m Speedup, 2x 50k Food/Wood"
+        },
+        {
+          "lvl": 2,
+          "task": "80K kingdom + 2K individual honor",
+          "rewards": "2x 60m Build/Research/Train Speedup"
+        },
+        {
+          "lvl": 3,
+          "task": "160K kingdom + 3K individual honor",
+          "rewards": "2x 60m Speedup, 3x 50k Food/Wood, 3x 37.5k Stone"
+        },
+        {
+          "lvl": 4,
+          "task": "240K kingdom + 4.5K individual honor",
+          "rewards": "Elite Equip Chest, 3h Build/Train/Research Speedup"
+        },
+        {
+          "lvl": 5,
+          "task": "320K kingdom + 6K individual honor",
+          "rewards": "2x 60m Speedup, 5x 150k Wood, 5x 112.5k Stone, 5x 50k Gold"
+        },
+        {
+          "lvl": 6,
+          "task": "400K kingdom + 7.5K individual honor",
+          "rewards": "Crystal Key, 3h Build/Train/Research Speedup"
+        },
+        {
+          "lvl": 7,
+          "task": "560K kingdom + 10K individual honor",
+          "rewards": "Lvl 1 Expanded Training, 8x 50k Food/Wood, 8x 37.5k Stone"
+        },
+        {
+          "lvl": 8,
+          "task": "800K kingdom + 15K individual honor",
+          "rewards": "2x Crystal Key, 3h Build/Train/Research Speedup"
+        },
+        {
+          "lvl": 9,
+          "task": "1.2M kingdom + 20K individual honor",
+          "rewards": "Lvl 2 Expanded Training, 4x 150k Food/Wood, 4x 112.5k Stone, 4x 50k Gold"
+        },
+        {
+          "lvl": 10,
+          "task": "2M kingdom + 30K individual honor",
+          "rewards": "7x Brand-new Starlight, Epic Equip Chest, 3h Speedup, 8x 150k Food/Wood, 8x 112.5k Stone, 4x 50k Gold"
+        },
+        {
+          "lvl": 11,
+          "task": "2.8M kingdom + 35K individual honor",
+          "rewards": "3x Transmutation Stone, Gold Key, Epic Equip Chest, Crystal Key, 3x 3h Build/Train/Research Speedup, 4x 50k Gold"
+        },
+        {
+          "lvl": 12,
+          "task": "3.6M kingdom + 40K individual honor",
+          "rewards": "7x Dazzling Starlight, 3x Epic+3x Elite Equip Chest, 3x Crystal Key, 3x 3h Build/Train/Research Speedup, 500 AP Potion"
+        }
+      ]
+    },
+    {
+      "id": "the_lost_throne",
+      "category": "The Lost Throne",
+      "icon": "👑",
+      "desc": "Kingdom controls Ziggurat at end",
+      "tiers": [
+        {
+          "lvl": "-",
+          "task": "Kingdom controls Great Ziggurat at end + Kill/wound 5M enemy",
+          "rewards": "5x Legendary Sculpture, Legendary Equip Chest, 2x Epic Equip Chest, 20x 10k EXP, 2x 3h Build/Train/Research Speedup, 500 AP Potion"
+        }
+      ]
+    }
+  ]
+}

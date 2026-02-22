@@ -1,0 +1,586 @@
+{
+  "event": "Crusader Achievements",
+  "tabs": {
+    "individual": {
+      "categories": {
+        "honor": [
+          {
+            "name": "Honor I",
+            "requirements": [
+              { "type": "individual_honor_points", "target": 4500 }
+            ]
+          },
+          {
+            "name": "Honor II",
+            "requirements": [
+              { "type": "individual_honor_points", "target": 9000 }
+            ]
+          },
+          {
+            "name": "Honor III",
+            "requirements": [
+              { "type": "individual_honor_points", "target": 15000 }
+            ]
+          },
+          {
+            "name": "Honor IV",
+            "requirements": [
+              { "type": "individual_honor_points", "target": 20000 }
+            ]
+          },
+          {
+            "name": "Honor V",
+            "requirements": [
+              { "type": "individual_honor_points", "target": 30000 }
+            ]
+          },
+          {
+            "name": "Honor VI",
+            "requirements": [
+              { "type": "individual_honor_points", "target": 40000 }
+            ]
+          },
+          {
+            "name": "Honor VII",
+            "requirements": [
+              { "type": "individual_honor_points", "target": 60000 }
+            ]
+          },
+          {
+            "name": "Honor VIII",
+            "requirements": [
+              { "type": "individual_honor_points", "target": 80000 }
+            ]
+          },
+          {
+            "name": "Honor IX",
+            "requirements": [
+              { "type": "individual_honor_points", "target": 90000 },
+              { "type": "kill_or_wound_enemy_units", "target": 2500000 }
+            ]
+          }
+        ],
+        "faith": [
+          {
+            "name": "Faith I",
+            "requirements": [
+              { "type": "kill_or_wound_enemy_units", "target": 500000 }
+            ]
+          },
+          {
+            "name": "Faith II",
+            "requirements": [
+              { "type": "kill_or_wound_enemy_units", "target": 1500000 }
+            ]
+          },
+          {
+            "name": "Faith III",
+            "requirements": [
+              { "type": "kill_or_wound_enemy_units", "target": 5000000 }
+            ]
+          },
+          {
+            "name": "Faith IV",
+            "requirements": [
+              { "type": "kill_or_wound_enemy_units", "target": 15000000 }
+            ]
+          },
+          {
+            "name": "Faith V",
+            "requirements": [
+              { "type": "kill_or_wound_enemy_units", "target": 25000000 }
+            ]
+          }
+        ],
+        "conquest": [
+          {
+            "name": "Conquest I",
+            "requirements": [
+              { "type": "occupy_ruins_or_altars_minutes", "target": 20 }
+            ]
+          },
+          {
+            "name": "Conquest II",
+            "requirements": [
+              { "type": "occupy_ruins_or_altars_minutes", "target": 100 }
+            ]
+          },
+          {
+            "name": "Conquest III",
+            "requirements": [
+              { "type": "occupy_ruins_or_altars_minutes", "target": 200 }
+            ]
+          },
+          {
+            "name": "Conquest IV",
+            "requirements": [
+              { "type": "occupy_ruins_or_altars_minutes", "target": 400 }
+            ]
+          },
+          {
+            "name": "Conquest V",
+            "requirements": [
+              { "type": "gather_resources_on_map", "target": 3000000 }
+            ]
+          },
+          {
+            "name": "Conquest VI",
+            "requirements": [
+              { "type": "gather_resources_on_map", "target": 10000000 }
+            ]
+          },
+          {
+            "name": "Conquest VII",
+            "requirements": [
+              { "type": "gather_resources_on_map", "target": 30000000 }
+            ]
+          },
+          {
+            "name": "Conquest VIII",
+            "requirements": [
+              { "type": "gather_resources_on_map", "target": 50000000 }
+            ]
+          }
+        ],
+        "intrepid": [
+          {
+            "name": "Intrepid I",
+            "requirements": [
+              { "type": "defeat_barbarian_troops_lvl26", "target": 90 }
+            ]
+          },
+          {
+            "name": "Intrepid II",
+            "requirements": [
+              { "type": "defeat_barbarian_troops_lvl26", "target": 225 }
+            ]
+          },
+          {
+            "name": "Intrepid III",
+            "requirements": [
+              { "type": "defeat_barbarian_troops_lvl26", "target": 450 }
+            ]
+          },
+          {
+            "name": "Intrepid IV",
+            "requirements": [
+              { "type": "defeat_barbarian_troops_lvl26", "target": 900 }
+            ]
+          },
+          {
+            "name": "Intrepid V",
+            "requirements": [
+              { "type": "defeat_barbarian_troops_lvl26", "target": 1800 }
+            ]
+          }
+        ],
+        "unity": [
+          {
+            "name": "Unity I",
+            "requirements": [
+              { "type": "alliance_building_construction_minutes", "target": 120 }
+            ]
+          },
+          {
+            "name": "Unity II",
+            "requirements": [
+              { "type": "alliance_building_construction_minutes", "target": 450 }
+            ]
+          },
+          {
+            "name": "Unity III",
+            "requirements": [
+              { "type": "alliance_building_construction_minutes", "target": 900 }
+            ]
+          },
+          {
+            "name": "Unity IV",
+            "requirements": [
+              { "type": "alliance_building_construction_minutes", "target": 1500 }
+            ]
+          }
+        ],
+        "final": [
+          {
+            "name": "Final Achievement",
+            "requirements": [
+              { "type": "alliance_building_construction_minutes", "target": 3000 },
+              { "type": "kill_or_wound_enemy_units", "target": 1200000 }
+            ]
+          }
+        ]
+      }
+    },
+    "alliance": {
+      "categories": {
+        "together_we_rise": [
+          {
+            "name": "Together We Rise I",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 45000 },
+              { "type": "individual_honor_points", "target": 1000 }
+            ]
+          },
+          {
+            "name": "Together We Rise II",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 90000 },
+              { "type": "individual_honor_points", "target": 2000 }
+            ]
+          },
+          {
+            "name": "Together We Rise III",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 180000 },
+              { "type": "individual_honor_points", "target": 3000 }
+            ]
+          },
+          {
+            "name": "Together We Rise IV",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 270000 },
+              { "type": "individual_honor_points", "target": 4500 }
+            ]
+          },
+          {
+            "name": "Together We Rise V",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 360000 },
+              { "type": "individual_honor_points", "target": 6000 }
+            ]
+          },
+          {
+            "name": "Together We Rise VI",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 450000 },
+              { "type": "individual_honor_points", "target": 7500 }
+            ]
+          },
+          {
+            "name": "Together We Rise VII",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 630000 },
+              { "type": "individual_honor_points", "target": 10000 }
+            ]
+          },
+          {
+            "name": "Together We Rise VIII",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 900000 },
+              { "type": "individual_honor_points", "target": 12000 }
+            ]
+          },
+          {
+            "name": "Together We Rise IX",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 1350000 },
+              { "type": "individual_honor_points", "target": 15000 }
+            ]
+          },
+          {
+            "name": "Together We Rise X",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 1800000 },
+              { "type": "individual_honor_points", "target": 20000 }
+            ]
+          },
+          {
+            "name": "Together We Rise XI",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 2250000 },
+              { "type": "individual_honor_points", "target": 25000 }
+            ]
+          },
+          {
+            "name": "Together We Rise XII",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 3150000 },
+              { "type": "individual_honor_points", "target": 30000 }
+            ]
+          },
+          {
+            "name": "Together We Rise XIII",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 4050000 },
+              { "type": "individual_honor_points", "target": 40000 }
+            ]
+          },
+          {
+            "name": "Together We Rise XIV",
+            "requirements": [
+              { "type": "alliance_honor_points", "target": 5400000 },
+              { "type": "kill_or_wound_enemy_units", "target": 4000000 }
+            ]
+          }
+        ],
+        "fleeting_victory": [
+          {
+            "name": "Fleeting Victory I",
+            "requirements": [
+              { "type": "occupy_hieron_with_alliance", "target": 1 },
+              { "type": "individual_honor_points", "target": 35000 }
+            ]
+          },
+          {
+            "name": "Fleeting Victory II",
+            "requirements": [
+              { "type": "occupy_sanctuary_with_alliance", "target": 1 },
+              { "type": "individual_honor_points", "target": 40000 }
+            ]
+          },
+          {
+            "name": "Fleeting Victory III",
+            "requirements": [
+              { "type": "occupy_circle_with_alliance", "target": 1 },
+              { "type": "individual_honor_points", "target": 25000 }
+            ]
+          },
+          {
+            "name": "Fleeting Victory IV",
+            "requirements": [
+              { "type": "occupy_great_ziggurat_with_alliance", "target": 1 },
+              { "type": "individual_honor_points", "target": 35000 }
+            ]
+          },
+          {
+            "name": "Fleeting Victory V",
+            "requirements": [
+              { "type": "occupy_crusader_fortress_other_kingdom", "target": 1 },
+              { "type": "individual_honor_points", "target": 18000 }
+            ]
+          }
+        ],
+        "last_one_standing": [
+          {
+            "name": "Last One Standing",
+            "requirements": [
+              { "type": "alliance_controlled_great_ziggurat_end", "target": 1 },
+              { "type": "kill_or_wound_enemy_units", "target": 4000000 }
+            ]
+          }
+        ],
+        "triumphant_dawn": [
+          {
+            "name": "Triumphant Dawn I",
+            "requirements": [
+              { "type": "alliance_controlled_hieron_end", "target": 5 },
+              { "type": "individual_honor_points", "target": 9000 }
+            ]
+          },
+          {
+            "name": "Triumphant Dawn II",
+            "requirements": [
+              { "type": "alliance_controlled_sanctuary_end", "target": 2 },
+              { "type": "individual_honor_points", "target": 18000 }
+            ]
+          },
+          {
+            "name": "Triumphant Dawn III",
+            "requirements": [
+              { "type": "alliance_controlled_circles_end", "target": 4 },
+              { "type": "kill_or_wound_enemy_units", "target": 2500000 }
+            ]
+          },
+          {
+            "name": "Triumphant Dawn IV",
+            "requirements": [
+              { "type": "alliance_controlled_crusader_fortresses_other_end", "target": 1 },
+              { "type": "kill_or_wound_enemy_units", "target": 4000000 }
+            ]
+          },
+          {
+            "name": "Triumphant Dawn V",
+            "requirements": [
+              { "type": "alliance_controlled_crusader_fortresses_other_end", "target": 3 },
+              { "type": "kill_or_wound_enemy_units", "target": 5000000 }
+            ]
+          },
+          {
+            "name": "Triumphant Dawn VI",
+            "requirements": [
+              { "type": "alliance_controlled_crusader_fortresses_other_end", "target": 5 },
+              { "type": "kill_or_wound_enemy_units", "target": 7000000 }
+            ]
+          }
+        ]
+      }
+    },
+    "kingdom": {
+      "categories": {
+        "kingdoms_might": [
+          {
+            "name": "Kingdom's Might I",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 45000 },
+              { "type": "individual_honor_points", "target": 1000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might II",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 90000 },
+              { "type": "individual_honor_points", "target": 2000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might III",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 180000 },
+              { "type": "individual_honor_points", "target": 3000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might IV",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 270000 },
+              { "type": "individual_honor_points", "target": 4500 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might V",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 360000 },
+              { "type": "individual_honor_points", "target": 6000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might VI",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 450000 },
+              { "type": "individual_honor_points", "target": 7500 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might VII",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 630000 },
+              { "type": "individual_honor_points", "target": 10000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might VIII",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 900000 },
+              { "type": "individual_honor_points", "target": 15000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might IX",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 1350000 },
+              { "type": "individual_honor_points", "target": 20000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might X",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 1800000 },
+              { "type": "individual_honor_points", "target": 25000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might XI",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 2250000 },
+              { "type": "individual_honor_points", "target": 30000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might XII",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 3150000 },
+              { "type": "individual_honor_points", "target": 35000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might XIII",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 4050000 },
+              { "type": "individual_honor_points", "target": 40000 }
+            ]
+          },
+          {
+            "name": "Kingdom's Might XIV",
+            "requirements": [
+              { "type": "kingdom_honor_points", "target": 5400000 },
+              { "type": "individual_honor_points", "target": 45000 }
+            ]
+          }
+        ],
+        "the_lost_throne": [
+          {
+            "name": "The Lost Throne",
+            "requirements": [
+              { "type": "kingdom_controlled_great_ziggurat_end", "target": 1 },
+              { "type": "kill_or_wound_enemy_units", "target": 3000000 }
+            ]
+          }
+        ],
+        "road_to_glory": [
+          {
+            "name": "Road to Glory I",
+            "requirements": [
+              { "type": "kingdom_controlled_hierons_end", "target": 10 },
+              { "type": "individual_honor_points", "target": 30000 }
+            ]
+          },
+          {
+            "name": "Road to Glory II",
+            "requirements": [
+              { "type": "kingdom_controlled_sanctuaries_end", "target": 3 },
+              { "type": "individual_honor_points", "target": 20000 }
+            ]
+          },
+          {
+            "name": "Road to Glory III",
+            "requirements": [
+              { "type": "kingdom_controlled_circles_end", "target": 5 },
+              { "type": "individual_honor_points", "target": 10000 }
+            ]
+          }
+        ],
+        "the_crusade_begins": [
+          {
+            "name": "The Crusade Begins",
+            "requirements": [
+              { "type": "kingdom_occupied_crusader_fortress", "target": 1 },
+              { "type": "individual_honor_points", "target": 10000 }
+            ]
+          }
+        ],
+        "hunters_prize": [
+          {
+            "name": "Hunter's Prize",
+            "requirements": [
+              { "type": "occupy_crusader_fortress_other_kingdom", "target": 1 },
+              { "type": "kill_or_wound_enemy_units", "target": 3000000 }
+            ]
+          }
+        ],
+        "beyond_compare": [
+          {
+            "name": "Beyond Compare I",
+            "requirements": [
+              { "type": "kingdom_controlled_crusader_fortresses_other_end", "target": 1 },
+              { "type": "individual_honor_points", "target": 50000 }
+            ]
+          },
+          {
+            "name": "Beyond Compare II",
+            "requirements": [
+              { "type": "kingdom_controlled_crusader_fortresses_other_end", "target": 3 },
+              { "type": "individual_honor_points", "target": 50000 }
+            ]
+          },
+          {
+            "name": "Beyond Compare III",
+            "requirements": [
+              { "type": "kingdom_controlled_crusader_fortresses_other_end", "target": 5 },
+              { "type": "individual_honor_points", "target": 50000 }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
