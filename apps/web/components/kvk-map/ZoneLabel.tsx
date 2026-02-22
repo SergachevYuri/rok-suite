@@ -32,13 +32,13 @@ export default function ZoneLabel({ zone }: ZoneLabelProps) {
         white-space: nowrap;
         font-size: 11px;
         font-weight: 600;
-        color: ${zone.color};
-        text-shadow: 0 0 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.5);
+        color: rgba(255,255,255,0.85);
+        text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
         pointer-events: none;
         user-select: none;
       ">${label}</div>`,
     });
-  }, [zone.name, zone.zone_number, zone.color]);
+  }, [zone.name, zone.zone_number]);
 
   // Leaflet CRS.Simple: [lat, lng] = [y, x]
   const position: L.LatLngExpression = [cy, cx];

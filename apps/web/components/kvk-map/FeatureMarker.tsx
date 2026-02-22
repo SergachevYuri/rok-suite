@@ -14,14 +14,29 @@ interface FeatureMarkerProps {
   onDragEnd?: (feature: KvkMapFeature, newX: number, newY: number) => void;
 }
 
+/**
+ * Convert a hex color (#rrggbb) to an rgba string.
+ */
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function createDivIcon(featureType: string, isSelected: boolean, level: number | null): L.DivIcon {
   const config = FEATURE_TYPE_CONFIG[featureType as keyof typeof FEATURE_TYPE_CONFIG];
   if (!config) return new L.DivIcon();
 
-  const size = isSelected ? 32 : 24;
-  const borderWidth = isSelected ? 3 : 2;
-  const borderColor = isSelected ? '#ffffff' : 'rgba(0,0,0,0.5)';
+  const size = isSelected ? 28 : 20;
   const displayText = level != null ? String(level) : config.abbreviation;
+  const bg = isSelected ? config.color : hexToRgba(config.color, 0.55);
+  const border = isSelected
+    ? `2px solid rgba(255,255,255,0.8)`
+    : `1.5px solid rgba(0,0,0,0.25)`;
+  const shadow = isSelected
+    ? '0 0 10px rgba(255,255,255,0.35)'
+    : '0 1px 3px rgba(0,0,0,0.3)';
 
   return new L.DivIcon({
     className: '',
@@ -31,17 +46,17 @@ function createDivIcon(featureType: string, isSelected: boolean, level: number |
       width: ${size}px;
       height: ${size}px;
       border-radius: 50%;
-      background-color: ${config.color};
-      border: ${borderWidth}px solid ${borderColor};
+      background-color: ${bg};
+      border: ${border};
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: ${isSelected ? '12px' : '10px'};
+      font-size: ${isSelected ? '11px' : '9px'};
       font-weight: 700;
-      color: white;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      color: rgba(255,255,255,${isSelected ? '1' : '0.9'});
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4)${isSelected ? ', 0 0 12px rgba(255,255,255,0.4)' : ''};
+      box-shadow: ${shadow};
     ">${displayText}</div>`,
   });
 }
@@ -78,34 +93,15 @@ export default function FeatureMarker({
         },
       }}
     >
-      <Tooltip direction="top" offset={[0, -16]} opacity={0.95}>
-        <div style={{ fontSize: '12px', lineHeight: '1.4' }}>
+      <Tooltip direction="top" offset={[0, -14]} opacity={0.92}>
+        <div style={{ fontSize: '11px', lineHeight: '1.3' }}>
           <strong>{feature.name || config?.label || feature.feature_type}</strong>
-          {config?.buffs.map((buff, i) => (
-            <div key={i} style={{ color: '#9ca3af' }}>{buff}</div>
-          ))}
-          {(config?.kingdomHonor || config?.allianceHonor) && (
-            <div style={{ color: '#6b7280', fontSize: '10px', marginTop: '2px' }}>
-              {config.kingdomHonor && <>Kingdom {config.kingdomHonor}</>}
-              {config.kingdomHonor && config.allianceHonor && ' · '}
-              {config.allianceHonor && <>Alliance {config.allianceHonor}</>}
-            </div>
-          )}
           {feature.level != null && (
-            <div style={{ color: '#6b7280', fontSize: '10px' }}>
-              Level {feature.level}
-            </div>
+            <span style={{ color: '#9ca3af', fontWeight: 400 }}> Lv{feature.level}</span>
           )}
-          {feature.zone != null && (
-            <div style={{ color: '#6b7280', fontSize: '10px' }}>
-              Zone {feature.zone}
-            </div>
-          )}
-          {config?.firstTimeRewards.length > 0 && (
-            <div style={{ color: '#6b7280', fontSize: '10px', marginTop: '2px', borderTop: '1px solid #374151', paddingTop: '2px' }}>
-              {config.firstTimeRewards.map((reward, i) => (
-                <div key={i}>{reward}</div>
-              ))}
+          {config?.buffs.length > 0 && (
+            <div style={{ color: '#9ca3af', fontSize: '10px' }}>
+              {config.buffs.join(', ')}
             </div>
           )}
         </div>
