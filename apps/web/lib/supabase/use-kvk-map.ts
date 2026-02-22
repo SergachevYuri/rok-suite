@@ -138,6 +138,24 @@ export async function updateFeaturePosition(
   return updateMapFeature(featureId, { x, y });
 }
 
+// ─── Zone Mutations ────────────────────────────────────────────────
+
+export async function updateMapZone(
+  zoneId: string,
+  updates: Partial<Pick<KvkMapZone, 'polygon' | 'name' | 'color' | 'opacity'>>,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('kvk_map_zones')
+    .update(updates)
+    .eq('id', zoneId);
+
+  if (error) {
+    console.error('Failed to update map zone:', error.message);
+    return false;
+  }
+  return true;
+}
+
 // ─── Zones Hook ────────────────────────────────────────────────────
 
 export function useKvkMapZones(mapId: string | undefined) {

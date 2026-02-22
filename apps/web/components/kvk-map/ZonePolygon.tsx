@@ -7,9 +7,11 @@ import type { KvkMapZone } from '@/lib/kvk-map-types';
 
 interface ZonePolygonProps {
   zone: KvkMapZone;
+  onClick?: (zone: KvkMapZone) => void;
+  isSelected?: boolean;
 }
 
-export default function ZonePolygon({ zone }: ZonePolygonProps) {
+export default function ZonePolygon({ zone, onClick, isSelected = false }: ZonePolygonProps) {
   // Convert stored [x, y] pairs to Leaflet [lat, lng] = [y, x]
   const positions = useMemo<L.LatLngExpression[]>(
     () => zone.polygon.map(([x, y]) => [y, x] as [number, number]),
@@ -23,10 +25,11 @@ export default function ZonePolygon({ zone }: ZonePolygonProps) {
         color: zone.color,
         fillColor: zone.color,
         fillOpacity: zone.opacity,
-        weight: 1,
-        opacity: 0.4,
+        weight: isSelected ? 3 : 1,
+        opacity: isSelected ? 0.8 : 0.4,
       }}
-      interactive={false}
+      interactive={!!onClick}
+      eventHandlers={onClick ? { click: () => onClick(zone) } : undefined}
     >
       <Tooltip direction="center" permanent={false} opacity={0.9}>
         <div style={{ fontSize: '11px' }}>

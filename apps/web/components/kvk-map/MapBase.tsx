@@ -16,6 +16,7 @@ interface MapBaseProps {
   imageHeight: number;
   children?: ReactNode;
   onClick?: (x: number, y: number) => void;
+  onDoubleClick?: (x: number, y: number) => void;
   onMouseMove?: (x: number, y: number) => void;
   className?: string;
   cursorStyle?: string;
@@ -38,14 +39,19 @@ function CursorStyle({ cursor }: { cursor?: string }) {
 
 function MapEventHandler({
   onClick,
+  onDoubleClick,
   onMouseMove,
 }: {
   onClick?: (x: number, y: number) => void;
+  onDoubleClick?: (x: number, y: number) => void;
   onMouseMove?: (x: number, y: number) => void;
 }) {
   useMapEvents({
     click(e) {
       onClick?.(e.latlng.lng, e.latlng.lat);
+    },
+    dblclick(e) {
+      onDoubleClick?.(e.latlng.lng, e.latlng.lat);
     },
     mousemove(e) {
       onMouseMove?.(e.latlng.lng, e.latlng.lat);
@@ -72,6 +78,7 @@ export default function MapBase({
   imageHeight,
   children,
   onClick,
+  onDoubleClick,
   onMouseMove,
   className = '',
   cursorStyle,
@@ -102,7 +109,7 @@ export default function MapBase({
       <ImageOverlay url={imageUrl} bounds={bounds} />
       <FitBounds bounds={bounds} />
       <CursorStyle cursor={cursorStyle} />
-      <MapEventHandler onClick={onClick} onMouseMove={onMouseMove} />
+      <MapEventHandler onClick={onClick} onDoubleClick={onDoubleClick} onMouseMove={onMouseMove} />
       {children}
     </MapContainer>
   );
