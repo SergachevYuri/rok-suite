@@ -26,6 +26,7 @@ export interface KingdomMember {
 
 export interface KingdomAggregate {
   dt: string;
+  kingdom_id: number;
   total_power: number;
   total_kill: number;
   total_collect: number;
@@ -85,7 +86,10 @@ export function useKingdomDates(kingdomId: number | null) {
   return { dates, loading };
 }
 
-export function useKingdomMembers(kingdomId: number | null, date: string | null) {
+/**
+ * Fetch top N members for a kingdom on a specific date, sorted by power desc.
+ */
+export function useKingdomMembers(kingdomId: number | null, date: string | null, topN: number = 400) {
   const [members, setMembers] = useState<KingdomMember[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,73 +99,88 @@ export function useKingdomMembers(kingdomId: number | null, date: string | null)
     setLoading(true);
     try {
       const supabase = createClient();
-      const data = await fetchAllRows<KingdomMember>((range) =>
-        supabase
-          .from('kingdom_members')
-          .select('*')
-          .eq('kingdom_id', kingdomId)
-          .eq('dt', date)
-          .order('power', { ascending: false })
-          .range(range.from, range.to)
-      );
-      setMembers(data);
+      const { data } = await supabase
+        .from('kingdom_members')
+        .select('*')
+        .eq('kingdom_id', kingdomId)
+        .eq('dt', date)
+        .order('power', { ascending: false })
+        .limit(topN);
+      setMembers((data as KingdomMember[]) || []);
     } catch (err) {
       console.error('Error fetching kingdom members:', err);
       setMembers([]);
     }
     setLoading(false);
-  }, [kingdomId, date]);
+  }, [kingdomId, date, topN]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
   return { members, loading, refetch: fetch };
 }
 
-export function useKingdomAggregates(kingdomId: number | null) {
+/**
+ * Fetch aggregates for multiple kingdoms, optionally filtered by date range.
+ * Top 400 per kingdom/date are aggregated (sorted by power, take top 400).
+ */
+export function useKingdomAggregates(
+  kingdomIds: number[],
+  dateFrom: string | null = null,
+  dateTo: string | null = null,
+) {
   const [aggregates, setAggregates] = useState<KingdomAggregate[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const key = kingdomIds.join(',') + '|' + (dateFrom || '') + '|' + (dateTo || '');
+
   useEffect(() => {
-    if (!kingdomId) { setAggregates([]); setLoading(false); return; }
+    if (kingdomIds.length === 0) { setAggregates([]); setLoading(false); return; }
 
     (async () => {
       setLoading(true);
       try {
         const supabase = createClient();
-        // Fetch all members for this kingdom, then aggregate client-side
-        const data = await fetchAllRows<KingdomMember>((range) =>
-          supabase
+        const allAggregates: KingdomAggregate[] = [];
+
+        for (const kingdomId of kingdomIds) {
+          let query = supabase
             .from('kingdom_members')
             .select('*')
             .eq('kingdom_id', kingdomId)
-            .range(range.from, range.to)
-        );
+            .order('power', { ascending: false });
 
-        // Group by date
-        const byDate = new Map<string, KingdomAggregate>();
-        for (const row of data) {
-          const existing = byDate.get(row.dt);
-          if (existing) {
-            existing.total_power += row.power || 0;
-            existing.total_kill += row.kill || 0;
-            existing.total_collect += row.collect || 0;
-            existing.total_help += row.help || 0;
-            existing.total_dead += row.dead || 0;
-            existing.member_count += 1;
-          } else {
-            byDate.set(row.dt, {
-              dt: row.dt,
-              total_power: row.power || 0,
-              total_kill: row.kill || 0,
-              total_collect: row.collect || 0,
-              total_help: row.help || 0,
-              total_dead: row.dead || 0,
-              member_count: 1,
+          if (dateFrom) query = query.gte('dt', dateFrom);
+          if (dateTo) query = query.lte('dt', dateTo);
+
+          const data = await fetchAllRows<KingdomMember>((range) =>
+            query.range(range.from, range.to)
+          );
+
+          // Group by date, take top 400 per date
+          const byDate = new Map<string, KingdomMember[]>();
+          for (const row of data) {
+            const arr = byDate.get(row.dt) || [];
+            arr.push(row);
+            byDate.set(row.dt, arr);
+          }
+
+          for (const [dt, members] of byDate) {
+            // Already sorted by power desc from query, take top 400
+            const top400 = members.slice(0, 400);
+            allAggregates.push({
+              dt,
+              kingdom_id: kingdomId,
+              total_power: top400.reduce((s, m) => s + (m.power || 0), 0),
+              total_kill: top400.reduce((s, m) => s + (m.kill || 0), 0),
+              total_collect: top400.reduce((s, m) => s + (m.collect || 0), 0),
+              total_help: top400.reduce((s, m) => s + (m.help || 0), 0),
+              total_dead: top400.reduce((s, m) => s + (m.dead || 0), 0),
+              member_count: top400.length,
             });
           }
         }
 
-        const sorted = Array.from(byDate.values()).sort((a, b) => a.dt.localeCompare(b.dt));
+        const sorted = allAggregates.sort((a, b) => a.dt.localeCompare(b.dt) || a.kingdom_id - b.kingdom_id);
         setAggregates(sorted);
       } catch (err) {
         console.error('Error fetching kingdom aggregates:', err);
@@ -169,7 +188,8 @@ export function useKingdomAggregates(kingdomId: number | null) {
       }
       setLoading(false);
     })();
-  }, [kingdomId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   return { aggregates, loading };
 }
