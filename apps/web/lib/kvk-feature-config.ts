@@ -127,7 +127,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
   circle_nature: {
     label: 'Circle of Nature',
     abbreviation: 'CN',
-    color: '#22c55e',
+    color: '#93c5fd',
     description: 'Circle of Nature',
     buffs: ['Counterattack Damage Taken Reduction +10%'],
     kingdomHonor: '+7/m',
@@ -138,7 +138,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
   circle_vitality: {
     label: 'Circle of Vitality',
     abbreviation: 'CV',
-    color: '#06b6d4',
+    color: '#60a5fa',
     description: 'Circle of Vitality',
     buffs: ['Healing Speed +30%', 'Hospital Capacity +10%'],
     kingdomHonor: '+7/m',
@@ -160,7 +160,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
   circle_defense: {
     label: 'Circle of Defense',
     abbreviation: 'CD',
-    color: '#0ea5e9',
+    color: '#2563eb',
     description: 'Circle of Defense',
     buffs: ['Reinforcement Capacity +20%', 'Watchtower Damage +20%'],
     kingdomHonor: '+7/m',
@@ -211,9 +211,6 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
 };
 
 export const FEATURE_TYPES_ORDERED: FeatureType[] = [
-  'pass_4',
-  'pass_5',
-  'pass_6',
   'crusader_camp',
   'crusader_fortress',
   'hieron_steel',
@@ -223,8 +220,11 @@ export const FEATURE_TYPES_ORDERED: FeatureType[] = [
   'circle_courage',
   'circle_defense',
   'tempest_sanctuary',
-  'ancient_ruins',
   'altar_darkness',
+  'ancient_ruins',
+  'pass_4',
+  'pass_5',
+  'pass_6',
   'ziggurat',
 ];
 
@@ -236,12 +236,13 @@ export interface FeatureGroup {
 }
 
 export const FEATURE_GROUPS: FeatureGroup[] = [
-  { key: 'passes', label: 'Passes', color: '#f59e0b', types: ['pass_4', 'pass_5', 'pass_6'] },
   { key: 'crusaders', label: 'Crusaders', color: '#ef4444', types: ['crusader_camp', 'crusader_fortress'] },
   { key: 'hierons', label: 'Hierons', color: '#14b8a6', types: ['hieron_steel', 'hieron_thorns'] },
   { key: 'circles', label: 'Circles', color: '#3b82f6', types: ['circle_nature', 'circle_vitality', 'circle_courage', 'circle_defense'] },
-  { key: 'sanctuaries', label: 'Sanctuaries', color: '#ec4899', types: ['tempest_sanctuary', 'altar_darkness'] },
-  { key: 'landmarks', label: 'Landmarks', color: '#a855f7', types: ['ancient_ruins', 'ziggurat'] },
+  { key: 'sanctuaries', label: 'Sanctuaries', color: '#ec4899', types: ['tempest_sanctuary'] },
+  { key: 'altars_ruins', label: 'Altars & Ruins', color: '#8b5cf6', types: ['altar_darkness', 'ancient_ruins'] },
+  { key: 'passes', label: 'Passes', color: '#f59e0b', types: ['pass_4', 'pass_5', 'pass_6'] },
+  { key: 'ziggurat', label: 'Ziggurat', color: '#eab308', types: ['ziggurat'] },
 ];
 
 // Lookup: feature type → group key

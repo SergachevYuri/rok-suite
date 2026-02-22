@@ -133,6 +133,11 @@ html {
   outline-offset: 2px;
 }
 
+/* Suppress browser focus bounding-box on Leaflet interactive SVG paths */
+.leaflet-interactive:focus {
+  outline: none;
+}
+
 /* Card styles */
 .card {
   background: var(--background-card);
