@@ -80,9 +80,14 @@ export default function FeatureMarker({
       <Tooltip direction="top" offset={[0, -16]} opacity={0.95}>
         <div style={{ fontSize: '12px', lineHeight: '1.4' }}>
           <strong>{feature.name || config?.label || feature.feature_type}</strong>
-          {feature.buff_name && (
-            <div style={{ color: '#9ca3af' }}>
-              {feature.buff_name}{feature.buff_value ? `: ${feature.buff_value}` : ''}
+          {config?.buffs.map((buff, i) => (
+            <div key={i} style={{ color: '#9ca3af' }}>{buff}</div>
+          ))}
+          {(config?.kingdomHonor || config?.allianceHonor) && (
+            <div style={{ color: '#6b7280', fontSize: '10px', marginTop: '2px' }}>
+              {config.kingdomHonor && <>Kingdom {config.kingdomHonor}</>}
+              {config.kingdomHonor && config.allianceHonor && ' · '}
+              {config.allianceHonor && <>Alliance {config.allianceHonor}</>}
             </div>
           )}
           {feature.level != null && (

@@ -2,11 +2,17 @@
 
 export type FeatureType =
   | 'pass'
-  | 'shrine'
-  | 'altar'
-  | 'sanctum'
-  | 'heiron'
-  | 'temple'
+  | 'crusader_fortress'
+  | 'crusader_camp'
+  | 'hieron_steel'
+  | 'hieron_thorns'
+  | 'ancient_ruins'
+  | 'circle_nature'
+  | 'circle_vitality'
+  | 'circle_courage'
+  | 'tempest_sanctuary'
+  | 'altar_darkness'
+  | 'ziggurat'
   | 'starting_zone';
 
 export type MapStatus = 'draft' | 'base_complete' | 'planning' | 'active';

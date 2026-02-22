@@ -43,7 +43,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.kvk_maps TO authenticated;
 CREATE TABLE IF NOT EXISTS public.kvk_map_features (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   map_id uuid NOT NULL REFERENCES public.kvk_maps(id) ON DELETE CASCADE,
-  feature_type text NOT NULL CHECK (feature_type IN ('pass', 'shrine', 'altar', 'sanctum', 'heiron', 'temple', 'starting_zone')),
+  feature_type text NOT NULL CHECK (feature_type IN ('pass', 'crusader_fortress', 'crusader_camp', 'hieron_steel', 'hieron_thorns', 'ancient_ruins', 'circle_nature', 'circle_vitality', 'circle_courage', 'tempest_sanctuary', 'altar_darkness', 'ziggurat', 'starting_zone')),
   name text,
   x float NOT NULL,
   y float NOT NULL,

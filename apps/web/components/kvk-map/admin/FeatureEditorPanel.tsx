@@ -19,27 +19,21 @@ export default function FeatureEditorPanel({
   onClose,
 }: FeatureEditorPanelProps) {
   const [name, setName] = useState(feature.name || '');
-  const [buffName, setBuffName] = useState(feature.buff_name || '');
-  const [buffValue, setBuffValue] = useState(feature.buff_value || '');
   const [zone, setZone] = useState(feature.zone?.toString() || '');
   const [level, setLevel] = useState(feature.level?.toString() || '');
 
   // Reset form when feature changes
   useEffect(() => {
     setName(feature.name || '');
-    setBuffName(feature.buff_name || '');
-    setBuffValue(feature.buff_value || '');
     setZone(feature.zone?.toString() || '');
     setLevel(feature.level?.toString() || '');
-  }, [feature.id, feature.name, feature.buff_name, feature.buff_value, feature.zone, feature.level]);
+  }, [feature.id, feature.name, feature.zone, feature.level]);
 
   const config = FEATURE_TYPE_CONFIG[feature.feature_type];
 
   const handleSave = () => {
     onSave(feature.id, {
       name: name || null,
-      buff_name: buffName || null,
-      buff_value: buffValue || null,
       zone: zone ? parseInt(zone, 10) : null,
       level: level ? parseInt(level, 10) : null,
     });
@@ -111,39 +105,22 @@ export default function FeatureEditorPanel({
           />
         </div>
 
-        <div>
-          <label
-            className="block text-xs font-medium mb-1"
-            style={{ color: 'var(--text-muted)' }}
+        {(config?.buffs.length > 0 || config?.kingdomHonor || config?.allianceHonor) && (
+          <div
+            className="rounded-md p-2.5 text-xs space-y-1"
+            style={{ backgroundColor: 'var(--background-secondary)' }}
           >
-            Buff Name
-          </label>
-          <input
-            type="text"
-            value={buffName}
-            onChange={(e) => setBuffName(e.target.value)}
-            placeholder="e.g., Troop Attack"
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-
-        <div>
-          <label
-            className="block text-xs font-medium mb-1"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Buff Value
-          </label>
-          <input
-            type="text"
-            value={buffValue}
-            onChange={(e) => setBuffValue(e.target.value)}
-            placeholder="e.g., +3%"
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
+            {config.buffs.map((buff, i) => (
+              <div key={i} style={{ color: config.color }}>{buff}</div>
+            ))}
+            {config.kingdomHonor && (
+              <div style={{ color: 'var(--text-muted)' }}>Kingdom Honor {config.kingdomHonor}</div>
+            )}
+            {config.allianceHonor && (
+              <div style={{ color: 'var(--text-muted)' }}>Alliance Honor {config.allianceHonor}</div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
