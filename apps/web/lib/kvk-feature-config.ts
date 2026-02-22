@@ -228,6 +228,27 @@ export const FEATURE_TYPES_ORDERED: FeatureType[] = [
   'ziggurat',
 ];
 
+export interface FeatureGroup {
+  key: string;
+  label: string;
+  color: string;
+  types: FeatureType[];
+}
+
+export const FEATURE_GROUPS: FeatureGroup[] = [
+  { key: 'passes', label: 'Passes', color: '#f59e0b', types: ['pass_4', 'pass_5', 'pass_6'] },
+  { key: 'crusaders', label: 'Crusaders', color: '#ef4444', types: ['crusader_camp', 'crusader_fortress'] },
+  { key: 'hierons', label: 'Hierons', color: '#14b8a6', types: ['hieron_steel', 'hieron_thorns'] },
+  { key: 'circles', label: 'Circles', color: '#3b82f6', types: ['circle_nature', 'circle_vitality', 'circle_courage', 'circle_defense'] },
+  { key: 'sanctuaries', label: 'Sanctuaries', color: '#ec4899', types: ['tempest_sanctuary', 'altar_darkness'] },
+  { key: 'landmarks', label: 'Landmarks', color: '#a855f7', types: ['ancient_ruins', 'ziggurat'] },
+];
+
+// Lookup: feature type → group key
+export const FEATURE_TYPE_TO_GROUP: Record<FeatureType, string> = Object.fromEntries(
+  FEATURE_GROUPS.flatMap((g) => g.types.map((t) => [t, g.key]))
+) as Record<FeatureType, string>;
+
 export const ZONE_OPTIONS = [
   { value: 1, label: 'Zone 1' },
   { value: 2, label: 'Zone 2' },

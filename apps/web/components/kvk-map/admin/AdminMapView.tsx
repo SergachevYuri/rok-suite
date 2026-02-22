@@ -21,7 +21,7 @@ import {
   updateFeaturePosition,
 } from '@/lib/supabase/use-kvk-map';
 import type { FeatureType, KvkMapFeature, KvkMapZone } from '@/lib/kvk-map-types';
-import { FEATURE_TYPE_CONFIG } from '@/lib/kvk-feature-config';
+import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config';
 
 export default function AdminMapView() {
   // Data
@@ -34,7 +34,7 @@ export default function AdminMapView() {
   const [placingType, setPlacingType] = useState<FeatureType | null>(null);
   const [isPlacing, setIsPlacing] = useState(false);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
-  const [showZones, setShowZones] = useState(true);
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
 
   // Zone editing state
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
@@ -78,6 +78,25 @@ export default function AdminMapView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isDrawingZone]);
 
+  const showZones = !hiddenGroups.has('zones');
+
+  const visibleFeatures = useMemo(
+    () => features.filter((f) => !hiddenGroups.has(FEATURE_TYPE_TO_GROUP[f.feature_type as FeatureType])),
+    [features, hiddenGroups]
+  );
+
+  const handleToggleGroup = useCallback((groupKey: string) => {
+    setHiddenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  }, []);
+
   // ── Feature handlers ─────────────────────────────────────────────
 
   const handleSelectType = useCallback((type: FeatureType) => {
@@ -87,6 +106,16 @@ export default function AdminMapView() {
     setSelectedZoneId(null);
     setIsDrawingZone(false);
     setZoneVertices([]);
+    // Auto-show the group if it's hidden
+    const group = FEATURE_TYPE_TO_GROUP[type];
+    if (group) {
+      setHiddenGroups((prev) => {
+        if (!prev.has(group)) return prev;
+        const next = new Set(prev);
+        next.delete(group);
+        return next;
+      });
+    }
   }, []);
 
   const handleCancelPlacement = useCallback(() => {
@@ -247,6 +276,8 @@ export default function AdminMapView() {
           onSelectType={handleSelectType}
           onCancelPlacement={handleCancelPlacement}
           featureCounts={featureCounts}
+          hiddenGroups={hiddenGroups}
+          onToggleGroup={handleToggleGroup}
         />
       </div>
 
@@ -275,7 +306,7 @@ export default function AdminMapView() {
           {showZones && zones.map((zone) => (
             <ZoneLabel key={`label-${zone.id}`} zone={zone} />
           ))}
-          {features.map((feature) => (
+          {visibleFeatures.map((feature) => (
             <FeatureMarker
               key={feature.id}
               feature={feature}
@@ -290,19 +321,6 @@ export default function AdminMapView() {
           )}
         </MapBase>
         <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
-
-        {/* Zone toggle */}
-        <button
-          onClick={() => setShowZones((v) => !v)}
-          className="absolute bottom-2 right-2 z-[1000] px-2.5 py-1.5 rounded-md text-xs font-medium transition-all"
-          style={{
-            backgroundColor: showZones ? 'rgba(59,130,246,0.2)' : 'rgba(0,0,0,0.6)',
-            color: showZones ? '#60a5fa' : '#9ca3af',
-            border: '1px solid var(--border)',
-          }}
-        >
-          {showZones ? 'Zones ON' : 'Zones OFF'}
-        </button>
 
         {/* Mode indicator */}
         {isPlacing && placingType && (

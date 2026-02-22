@@ -1,8 +1,8 @@
 'use client';
 
 import type { FeatureType } from '@/lib/kvk-map-types';
-import { FEATURE_TYPE_CONFIG, FEATURE_TYPES_ORDERED } from '@/lib/kvk-feature-config';
-import { MousePointer } from 'lucide-react';
+import { FEATURE_TYPE_CONFIG, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
+import { MousePointer, Eye, EyeOff } from 'lucide-react';
 
 interface FeaturePaletteProps {
   selectedType: FeatureType | null;
@@ -10,6 +10,8 @@ interface FeaturePaletteProps {
   onSelectType: (type: FeatureType) => void;
   onCancelPlacement: () => void;
   featureCounts: Record<string, number>;
+  hiddenGroups: Set<string>;
+  onToggleGroup: (groupKey: string) => void;
 }
 
 export default function FeaturePalette({
@@ -18,6 +20,8 @@ export default function FeaturePalette({
   onSelectType,
   onCancelPlacement,
   featureCounts,
+  hiddenGroups,
+  onToggleGroup,
 }: FeaturePaletteProps) {
   return (
     <div
@@ -27,17 +31,10 @@ export default function FeaturePalette({
         borderColor: 'var(--border)',
       }}
     >
-      <h3
-        className="text-xs font-semibold uppercase tracking-wider mb-3"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        Features
-      </h3>
-
       {/* Select tool */}
       <button
         onClick={onCancelPlacement}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all mb-2"
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all mb-3"
         style={{
           backgroundColor: !isPlacing ? 'var(--background-hover)' : 'transparent',
           color: 'var(--foreground)',
@@ -49,53 +46,103 @@ export default function FeaturePalette({
         Select
       </button>
 
-      {/* Feature type buttons */}
-      <div className="space-y-1">
-        {FEATURE_TYPES_ORDERED.map((type) => {
-          const config = FEATURE_TYPE_CONFIG[type];
-          const isActive = isPlacing && selectedType === type;
-          const count = featureCounts[type] || 0;
+      {/* Zones toggle */}
+      <div className="mb-1">
+        <button
+          onClick={() => onToggleGroup('zones')}
+          className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all"
+          style={{ color: hiddenGroups.has('zones') ? 'var(--text-muted)' : '#3b82f6' }}
+        >
+          <div
+            className="w-3 h-3 rounded-sm"
+            style={{ backgroundColor: '#3b82f6', opacity: hiddenGroups.has('zones') ? 0.3 : 1 }}
+          />
+          <span className="flex-1 text-left">Zones</span>
+          {hiddenGroups.has('zones') ? <EyeOff size={14} /> : <Eye size={14} />}
+        </button>
+      </div>
 
-          return (
+      {/* Feature groups */}
+      {FEATURE_GROUPS.map((group) => {
+        const isHidden = hiddenGroups.has(group.key);
+        const groupCount = group.types.reduce((sum, t) => sum + (featureCounts[t] || 0), 0);
+
+        return (
+          <div key={group.key} className="mb-1">
+            {/* Group header with toggle */}
             <button
-              key={type}
-              onClick={() => onSelectType(type)}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-              style={{
-                backgroundColor: isActive ? `${config.color}20` : 'transparent',
-                color: isActive ? config.color : 'var(--text-secondary)',
-                outline: isActive ? `2px solid ${config.color}` : 'none',
-                outlineOffset: '-2px',
-              }}
-              title={config.description}
+              onClick={() => onToggleGroup(group.key)}
+              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all"
+              style={{ color: isHidden ? 'var(--text-muted)' : group.color }}
             >
               <div
-                className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                style={{
-                  backgroundColor: config.color,
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  color: 'white',
-                }}
-              >
-                {config.abbreviation.charAt(0)}
-              </div>
-              <span className="flex-1 text-left">{config.label}</span>
-              {count > 0 && (
+                className="w-3 h-3 rounded-sm"
+                style={{ backgroundColor: group.color, opacity: isHidden ? 0.3 : 1 }}
+              />
+              <span className="flex-1 text-left">{group.label}</span>
+              {groupCount > 0 && (
                 <span
-                  className="text-xs px-1.5 py-0.5 rounded"
-                  style={{
-                    backgroundColor: 'var(--background-hover)',
-                    color: 'var(--text-muted)',
-                  }}
+                  className="text-[10px] px-1 rounded"
+                  style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
                 >
-                  {count}
+                  {groupCount}
                 </span>
               )}
+              {isHidden ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
-          );
-        })}
-      </div>
+
+            {/* Feature type buttons */}
+            {!isHidden && (
+              <div className="ml-2 space-y-0.5 mt-0.5">
+                {group.types.map((type) => {
+                  const config = FEATURE_TYPE_CONFIG[type];
+                  const isActive = isPlacing && selectedType === type;
+                  const count = featureCounts[type] || 0;
+
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => onSelectType(type)}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                      style={{
+                        backgroundColor: isActive ? `${config.color}20` : 'transparent',
+                        color: isActive ? config.color : 'var(--text-secondary)',
+                        outline: isActive ? `2px solid ${config.color}` : 'none',
+                        outlineOffset: '-2px',
+                      }}
+                      title={config.description}
+                    >
+                      <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                        style={{
+                          backgroundColor: config.color,
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          color: 'white',
+                        }}
+                      >
+                        {config.abbreviation.charAt(0)}
+                      </div>
+                      <span className="flex-1 text-left text-xs">{config.label}</span>
+                      {count > 0 && (
+                        <span
+                          className="text-xs px-1.5 py-0.5 rounded"
+                          style={{
+                            backgroundColor: 'var(--background-hover)',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Placement hint */}
       {isPlacing && selectedType && (
