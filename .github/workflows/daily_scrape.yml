@@ -1,0 +1,28 @@
+name: Daily RoK Scrape
+
+on:
+  schedule:
+    # Ogni mattina alle 06:00 UTC (dati di ieri disponibili)
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r seeds-extractor/requirements.txt
+
+      - name: Fetch kingdom data
+        env:
+          LILITH_EMAIL: ${{ secrets.LILITH_EMAIL }}
+          LILITH_PASSWORD_MD5: ${{ secrets.LILITH_PASSWORD_MD5 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python seeds-extractor/rok_automation.py --yesterday --supabase
