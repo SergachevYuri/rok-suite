@@ -132,7 +132,7 @@ export function useKingdomAggregates(kingdomId: number | null) {
         const data = await fetchAllRows<KingdomMember>((range) =>
           supabase
             .from('kingdom_members')
-            .select('dt,power,kill,collect,help,dead')
+            .select('*')
             .eq('kingdom_id', kingdomId)
             .range(range.from, range.to)
         );
