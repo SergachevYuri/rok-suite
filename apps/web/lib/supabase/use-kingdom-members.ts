@@ -42,11 +42,20 @@ export function useAvailableKingdoms() {
   useEffect(() => {
     (async () => {
       const supabase = createClient();
-      const { data, error } = await supabase.rpc('get_distinct_kingdom_ids');
-      if (error) {
-        console.error('Error fetching kingdoms:', error);
+      const allIds = new Set<number>();
+      let offset = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('kingdom_members')
+          .select('kingdom_id')
+          .range(offset, offset + 999);
+        if (error) { console.error('Error fetching kingdoms:', error); break; }
+        if (!data || data.length === 0) break;
+        for (const r of data) allIds.add(r.kingdom_id);
+        if (data.length < 1000) break;
+        offset += 1000;
       }
-      setKingdoms((data as number[]) || []);
+      setKingdoms([...allIds].sort());
       setLoading(false);
     })();
   }, []);
@@ -64,13 +73,17 @@ export function useKingdomDates(kingdomId: number | null) {
     (async () => {
       setLoading(true);
       const supabase = createClient();
-      const { data, error } = await supabase.rpc('get_distinct_kingdom_dates', {
-        p_kingdom_id: kingdomId,
-      });
-      if (error) {
-        console.error('Error fetching kingdom dates:', error);
+      const { data, error } = await supabase
+        .from('kingdom_members')
+        .select('dt')
+        .eq('kingdom_id', kingdomId)
+        .order('dt', { ascending: false })
+        .limit(1000);
+      if (error) console.error('Error fetching kingdom dates:', error);
+      if (data) {
+        const unique = [...new Set(data.map((r: { dt: string }) => r.dt))];
+        setDates(unique);
       }
-      setDates((data as string[]) || []);
       setLoading(false);
     })();
   }, [kingdomId]);
