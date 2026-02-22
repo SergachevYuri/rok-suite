@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Users, CheckCircle, Info, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, CheckCircle, Info, X, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import {
   updateApplicationStatus,
   convertApprovedToSelections,
+  deleteApplication,
   type MgeEvent,
   type MgeApplication,
 } from '@/lib/supabase/use-mge';
@@ -144,16 +145,20 @@ function ApplicantCard({
   app,
   tiers,
   showMissingBadges,
+  isAdmin,
   onDecision,
   onNoteChange,
   onEquipmentRating,
+  onDelete,
 }: {
   app: MgeApplication;
   tiers: { tier_label: string }[];
   showMissingBadges: boolean;
+  isAdmin: boolean;
   onDecision: (tier: string | null, status: 'approved' | 'declined' | 'pending') => void;
   onNoteChange: (note: string) => void;
   onEquipmentRating: (rating: number | null) => void;
+  onDelete: () => void;
 }) {
   const breakdown = app.commander_level && app.skill_levels && app.commander_stars
     ? commanderInvestmentBreakdown(app.commander_level, app.skill_levels, app.commander_stars, app.equipment_rating)
@@ -341,6 +346,16 @@ function ApplicantCard({
           className="flex-1 min-w-0 text-sm py-1.5 px-2 rounded-md border focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           style={{ backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
         />
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="shrink-0 p-1.5 rounded-md text-red-400/50 hover:text-red-400 hover:bg-red-500/10 transition-fast"
+            title="Delete application (admin)"
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -449,6 +464,12 @@ export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
     onUpdate();
   }, [apps, onUpdate]);
 
+  const handleDelete = useCallback(async (appId: number, appName: string) => {
+    if (!confirm(`Delete ${appName}'s application? This cannot be undone.`)) return;
+    const ok = await deleteApplication(appId);
+    if (ok) onUpdate();
+  }, [onUpdate]);
+
   const handleFinalize = async () => {
     if (!confirm('Convert all assigned applications to selections and finalize this event?')) return;
     setFinalizing(true);
@@ -476,9 +497,11 @@ export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
         app={app}
         tiers={tiers}
         showMissingBadges={showMissing}
+        isAdmin={isAdmin}
         onDecision={(tier, status) => handleDecision(app.id, tier, status)}
         onNoteChange={note => handleNoteChange(app.id, note)}
         onEquipmentRating={rating => handleEquipmentRating(app.id, rating)}
+        onDelete={() => handleDelete(app.id, app.applicant_name)}
       />
     ));
 
