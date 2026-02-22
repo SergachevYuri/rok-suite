@@ -12,6 +12,8 @@ interface FeaturePaletteProps {
   featureCounts: Record<string, number>;
   hiddenGroups: Set<string>;
   onToggleGroup: (groupKey: string) => void;
+  allHidden: boolean;
+  onToggleAll: () => void;
 }
 
 export default function FeaturePalette({
@@ -22,6 +24,8 @@ export default function FeaturePalette({
   featureCounts,
   hiddenGroups,
   onToggleGroup,
+  allHidden,
+  onToggleAll,
 }: FeaturePaletteProps) {
   return (
     <div
@@ -31,20 +35,33 @@ export default function FeaturePalette({
         borderColor: 'var(--border)',
       }}
     >
-      {/* Select tool */}
-      <button
-        onClick={onCancelPlacement}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all mb-3"
-        style={{
-          backgroundColor: !isPlacing ? 'var(--background-hover)' : 'transparent',
-          color: 'var(--foreground)',
-          outline: !isPlacing ? '2px solid rgba(255,255,255,0.2)' : 'none',
-          outlineOffset: '-2px',
-        }}
-      >
-        <MousePointer size={16} />
-        Select
-      </button>
+      {/* Select tool + Hide All */}
+      <div className="flex gap-1.5 mb-3">
+        <button
+          onClick={onCancelPlacement}
+          className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+          style={{
+            backgroundColor: !isPlacing ? 'var(--background-hover)' : 'transparent',
+            color: 'var(--foreground)',
+            outline: !isPlacing ? '2px solid rgba(255,255,255,0.2)' : 'none',
+            outlineOffset: '-2px',
+          }}
+        >
+          <MousePointer size={16} />
+          Select
+        </button>
+        <button
+          onClick={onToggleAll}
+          className="flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs font-medium transition-all"
+          style={{
+            backgroundColor: allHidden ? 'var(--background-hover)' : 'transparent',
+            color: 'var(--text-muted)',
+          }}
+          title={allHidden ? 'Show all layers' : 'Hide all layers'}
+        >
+          {allHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+        </button>
+      </div>
 
       {/* Zones toggle */}
       <div className="mb-1">

@@ -21,7 +21,7 @@ import {
   updateFeaturePosition,
 } from '@/lib/supabase/use-kvk-map';
 import type { FeatureType, KvkMapFeature, KvkMapZone } from '@/lib/kvk-map-types';
-import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config';
+import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
 
 export default function AdminMapView() {
   // Data
@@ -85,6 +85,16 @@ export default function AdminMapView() {
     [features, hiddenGroups]
   );
 
+  const allGroupKeys = useMemo(
+    () => ['zones', ...FEATURE_GROUPS.map((g) => g.key)],
+    []
+  );
+
+  const allHidden = useMemo(
+    () => allGroupKeys.every((k) => hiddenGroups.has(k)),
+    [allGroupKeys, hiddenGroups]
+  );
+
   const handleToggleGroup = useCallback((groupKey: string) => {
     setHiddenGroups((prev) => {
       const next = new Set(prev);
@@ -96,6 +106,13 @@ export default function AdminMapView() {
       return next;
     });
   }, []);
+
+  const handleToggleAll = useCallback(() => {
+    setHiddenGroups((prev) => {
+      const allCurrentlyHidden = allGroupKeys.every((k) => prev.has(k));
+      return allCurrentlyHidden ? new Set() : new Set(allGroupKeys);
+    });
+  }, [allGroupKeys]);
 
   // ── Feature handlers ─────────────────────────────────────────────
 
@@ -278,6 +295,8 @@ export default function AdminMapView() {
           featureCounts={featureCounts}
           hiddenGroups={hiddenGroups}
           onToggleGroup={handleToggleGroup}
+          allHidden={allHidden}
+          onToggleAll={handleToggleAll}
         />
       </div>
 
