@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MapBase from '@/components/kvk-map/MapBase';
 import FeatureMarker from '@/components/kvk-map/FeatureMarker';
@@ -25,6 +25,7 @@ import {
   deleteMapFeature,
   updateFeaturePosition,
 } from '@/lib/supabase/use-kvk-map';
+import { supabase } from '@/lib/supabase';
 import { useKvkAlliances, createAlliance, updateAlliance, deleteAlliance, fetchTopAlliancesFromRoster } from '@/lib/supabase/use-kvk-alliances';
 import { useKvkAssignments, upsertAssignment, updateAssignment, deleteAssignment } from '@/lib/supabase/use-kvk-assignments';
 import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy } from '@/lib/supabase/use-kvk-strategies';
@@ -61,17 +62,26 @@ export default function WarRoomPage() {
   }, [strategyCode, map?.id]);
 
   // Auto-populate alliances from roster data when none exist
-  const autoPopulatedRef = useRef(false);
   useEffect(() => {
-    if (!map?.id || alliancesLoading || alliances.length > 0 || autoPopulatedRef.current) return;
-    autoPopulatedRef.current = true;
+    if (!map?.id || alliancesLoading || alliances.length > 0) return;
+    let cancelled = false;
     (async () => {
+      // Double-check DB directly to avoid race conditions with Strict Mode
+      const { data: existing } = await supabase
+        .from('kvk_alliances')
+        .select('id')
+        .eq('map_id', map.id)
+        .limit(1);
+      if (cancelled || (existing && existing.length > 0)) return;
+
       const topAlliances = await fetchTopAlliancesFromRoster(3);
+      if (cancelled || topAlliances.length === 0) return;
       for (let i = 0; i < topAlliances.length; i++) {
         await createAlliance(map.id, { ...topAlliances[i], sort_order: i });
       }
-      if (topAlliances.length > 0) await refetchAlliances();
+      await refetchAlliances();
     })();
+    return () => { cancelled = true; };
   }, [map?.id, alliancesLoading, alliances.length, refetchAlliances]);
 
   const activeAssignments = strategyAssignments ?? assignments;
