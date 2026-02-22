@@ -42,7 +42,8 @@ function createDivIcon(featureType: string, isSelected: boolean, level: number |
     className: '',
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
-    html: `<div style="
+    html: `<div class="kvk-badge" style="
+      --c: ${config.color};
       width: ${size}px;
       height: ${size}px;
       border-radius: 50%;
@@ -57,6 +58,7 @@ function createDivIcon(featureType: string, isSelected: boolean, level: number |
       text-shadow: 0 1px 2px rgba(0,0,0,0.6);
       cursor: pointer;
       box-shadow: ${shadow};
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
     ">${displayText}</div>`,
   });
 }
