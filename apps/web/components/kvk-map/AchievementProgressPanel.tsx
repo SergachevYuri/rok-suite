@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronRight, Check } from 'lucide-react';
 import { getAchievementData, ALL_SEASONS } from '@/lib/kvk-achievements/data';
 import { computeProgress } from '@/lib/kvk-achievements/compute-progress';
 import { formatTarget } from '@/lib/kvk-achievements/normalize';
 import type { KvkSeason } from '@/lib/kvk-achievements/types';
 import type { CategoryProgress, TierProgress, RequirementProgress } from '@/lib/kvk-achievements/compute-progress';
 import type { KvkMapFeature, KvkAssignment, KvkAlliance } from '@/lib/kvk-map-types';
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
 
 interface AchievementProgressPanelProps {
   features: KvkMapFeature[];
@@ -17,102 +19,86 @@ interface AchievementProgressPanelProps {
   onToggle: () => void;
 }
 
-// ── Tier dot indicator ──────────────────────────────────────────────
+// ── Progress bar for a single mappable requirement ──────────────────
 
-function TierDot({ tier }: { tier: TierProgress }) {
-  const mapReqs = tier.requirements.filter((r) => r.mappable);
-  if (mapReqs.length === 0) {
-    return (
-      <span
-        className="w-5 h-5 rounded-full inline-flex items-center justify-center text-[9px]"
-        style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
-        title={tier.task}
-      >
-        —
-      </span>
-    );
-  }
-
-  if (tier.mapSatisfied) {
-    return (
-      <span
-        className="w-5 h-5 rounded-full inline-flex items-center justify-center"
-        style={{ backgroundColor: '#22c55e', color: '#fff' }}
-        title={`Tier ${tier.level}: ${tier.task}`}
-      >
-        <Check size={11} strokeWidth={3} />
-      </span>
-    );
-  }
-
-  // Partial progress — show fraction
-  const primary = mapReqs[0];
-  const fraction = `${Math.min(primary.current, primary.target)}/${primary.target}`;
+function ProgressBar({ req }: { req: RequirementProgress }) {
+  const pct = Math.min((req.current / req.target) * 100, 100);
 
   return (
-    <span
-      className="w-5 h-5 rounded-full inline-flex items-center justify-center text-[8px] font-bold"
-      style={{
-        backgroundColor: primary.current > 0 ? 'rgba(251, 191, 36, 0.25)' : 'var(--background-hover)',
-        color: primary.current > 0 ? '#fbbf24' : 'var(--text-muted)',
-        border: primary.current > 0 ? '1px solid rgba(251, 191, 36, 0.4)' : 'none',
-      }}
-      title={`Tier ${tier.level}: ${tier.task} (${fraction})`}
-    >
-      {fraction}
-    </span>
-  );
-}
-
-// ── Expanded tier details ───────────────────────────────────────────
-
-function TierDetail({ tier }: { tier: TierProgress }) {
-  return (
-    <div className="flex items-center gap-2 py-1">
-      <TierDot tier={tier} />
-      <div className="flex-1 min-w-0">
-        <span className="text-xs" style={{ color: 'var(--foreground)' }}>
-          {tier.task}
-        </span>
-        <div className="flex gap-1.5 mt-0.5">
-          {tier.requirements.map((req, i) => (
-            <ReqBadge key={i} req={req} />
-          ))}
-        </div>
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="text-[11px] shrink-0" style={{ color: 'var(--text-muted)' }}>
+        {req.label}
+      </span>
+      <div
+        className="flex-1 h-1.5 rounded-full overflow-hidden min-w-[40px]"
+        style={{ backgroundColor: 'var(--background-hover)' }}
+      >
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: req.satisfied ? '#22c55e' : req.current > 0 ? '#fbbf24' : 'transparent',
+          }}
+        />
       </div>
+      <span
+        className="text-[11px] font-medium shrink-0 tabular-nums"
+        style={{
+          color: req.satisfied ? '#22c55e' : req.current > 0 ? '#fbbf24' : 'var(--text-muted)',
+        }}
+      >
+        {req.current}/{formatTarget(req.target)}
+      </span>
+      {req.satisfied && <Check size={12} style={{ color: '#22c55e' }} />}
     </div>
   );
 }
 
-function ReqBadge({ req }: { req: RequirementProgress }) {
-  if (!req.mappable) {
+// ── Single tier chip shown inline ───────────────────────────────────
+
+function TierChip({ tier }: { tier: TierProgress }) {
+  const mapReqs = tier.requirements.filter((r) => r.mappable);
+  const roman = ROMAN[tier.level - 1] || String(tier.level);
+
+  if (mapReqs.length === 0) {
     return (
       <span
-        className="text-[10px] px-1.5 py-0.5 rounded"
+        className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px]"
         style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
       >
-        {formatTarget(req.target)} {req.label}
+        <span className="font-bold">{roman}</span>
+        <span className="opacity-60">manual</span>
+      </span>
+    );
+  }
+
+  const primary = mapReqs[0];
+
+  if (tier.mapSatisfied) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium"
+        style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#22c55e' }}
+      >
+        <Check size={12} strokeWidth={3} />
+        <span className="font-bold">{roman}</span>
+        <span>{primary.label}</span>
+        <span className="tabular-nums">{primary.current}/{primary.target}</span>
       </span>
     );
   }
 
   return (
     <span
-      className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px]"
       style={{
-        backgroundColor: req.satisfied
-          ? 'rgba(34, 197, 94, 0.15)'
-          : req.current > 0
-            ? 'rgba(251, 191, 36, 0.15)'
-            : 'var(--background-hover)',
-        color: req.satisfied
-          ? '#22c55e'
-          : req.current > 0
-            ? '#fbbf24'
-            : 'var(--text-muted)',
+        backgroundColor: primary.current > 0 ? 'rgba(251, 191, 36, 0.12)' : 'var(--background-hover)',
+        color: primary.current > 0 ? '#fbbf24' : 'var(--text-muted)',
       }}
     >
-      {req.current}/{formatTarget(req.target)} {req.label}
+      <span className="font-bold">{roman}</span>
+      <span>{primary.label}</span>
+      <span className="font-medium tabular-nums">{primary.current}/{primary.target}</span>
     </span>
   );
 }
@@ -125,16 +111,25 @@ function CategoryRow({ category }: { category: CategoryProgress }) {
   const scopeLabel = category.scope === 'kingdom' ? 'Kingdom' : 'Alliance';
 
   return (
-    <div>
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{ backgroundColor: expanded ? 'rgba(255,255,255,0.03)' : 'transparent' }}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors hover:opacity-80"
-        style={{
-          opacity: category.hasMapReqs ? 1 : 0.5,
-        }}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors"
+        style={{ opacity: category.hasMapReqs ? 1 : 0.5 }}
       >
+        <ChevronRight
+          size={14}
+          className="shrink-0 transition-transform"
+          style={{
+            color: 'var(--text-muted)',
+            transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+          }}
+        />
         <span
-          className="text-[9px] font-medium px-1 py-0.5 rounded shrink-0"
+          className="text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
           style={{
             backgroundColor: category.scope === 'kingdom' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)',
             color: category.scope === 'kingdom' ? '#a78bfa' : '#60a5fa',
@@ -142,20 +137,53 @@ function CategoryRow({ category }: { category: CategoryProgress }) {
         >
           {scopeLabel}
         </span>
-        <span className="text-xs font-medium flex-1 truncate" style={{ color: 'var(--foreground)' }}>
+        <span className="text-sm font-medium shrink-0" style={{ color: 'var(--foreground)' }}>
           {category.name}
         </span>
-        <div className="flex gap-0.5 shrink-0">
+        <div className="flex flex-wrap gap-1 flex-1 justify-end">
           {category.tiers.map((tier) => (
-            <TierDot key={tier.level} tier={tier} />
+            <TierChip key={tier.level} tier={tier} />
           ))}
         </div>
       </button>
+
+      {/* Expanded: show each tier with full progress bars */}
       {expanded && (
-        <div className="pl-2 pr-1 pb-1">
-          {category.tiers.map((tier) => (
-            <TierDetail key={tier.level} tier={tier} />
-          ))}
+        <div className="px-3 pb-2 space-y-2">
+          {category.tiers.map((tier) => {
+            const roman = ROMAN[tier.level - 1] || String(tier.level);
+            return (
+              <div key={tier.level} className="pl-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="text-xs font-bold w-6"
+                    style={{ color: tier.mapSatisfied ? '#22c55e' : 'var(--text-muted)' }}
+                  >
+                    {roman}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--foreground)' }}>
+                    {tier.task}
+                  </span>
+                </div>
+                <div className="pl-8 space-y-1">
+                  {tier.requirements.map((req, i) =>
+                    req.mappable ? (
+                      <ProgressBar key={i} req={req} />
+                    ) : (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                          {formatTarget(req.target)} {req.label}
+                        </span>
+                        <span className="text-[10px] opacity-50" style={{ color: 'var(--text-muted)' }}>
+                          (manual)
+                        </span>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -194,27 +222,29 @@ export default function AchievementProgressPanel({
       style={{ borderColor: 'var(--border)' }}
     >
       {/* Header bar — always visible */}
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 px-3 py-2 text-left"
+      <div
+        className="flex items-center gap-3 px-3 py-2"
         style={{ backgroundColor: 'var(--background-card)' }}
       >
-        {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          Achievement Progress
-        </span>
-        <span className="text-[10px] font-medium" style={{ color: completedMapTiers > 0 ? '#22c55e' : 'var(--text-muted)' }}>
-          {completedMapTiers}/{totalMapTiers} tiers
-        </span>
+        <button onClick={onToggle} className="flex items-center gap-2">
+          {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+            Achievement Progress
+          </span>
+          <span className="text-xs font-medium" style={{ color: completedMapTiers > 0 ? '#22c55e' : 'var(--text-muted)' }}>
+            {completedMapTiers}/{totalMapTiers} tiers
+          </span>
+        </button>
+
         <div className="flex-1" />
 
-        {/* Season selector (inline in header) */}
-        <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
+        {/* Season selector */}
+        <div className="flex gap-1">
           {ALL_SEASONS.map((s) => (
             <button
               key={s.id}
               onClick={() => setSeason(s.id)}
-              className="px-2 py-0.5 text-[10px] font-medium rounded transition-colors"
+              className="px-2.5 py-1 text-xs font-medium rounded transition-colors"
               style={{
                 backgroundColor: season === s.id ? '#8b5cf6' : 'transparent',
                 color: season === s.id ? '#fff' : 'var(--text-muted)',
@@ -225,11 +255,11 @@ export default function AchievementProgressPanel({
           ))}
         </div>
 
-        {/* Alliance filter tabs (inline in header) */}
-        <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
+        {/* Alliance filter tabs */}
+        <div className="flex gap-1">
           <button
             onClick={() => setFilterAllianceId(null)}
-            className="px-2 py-0.5 text-[10px] font-medium rounded transition-colors"
+            className="px-2.5 py-1 text-xs font-medium rounded transition-colors"
             style={{
               backgroundColor: filterAllianceId === null ? 'var(--background-hover)' : 'transparent',
               color: filterAllianceId === null ? 'var(--foreground)' : 'var(--text-muted)',
@@ -241,7 +271,7 @@ export default function AchievementProgressPanel({
             <button
               key={a.id}
               onClick={() => setFilterAllianceId(a.id)}
-              className="px-2 py-0.5 text-[10px] font-bold rounded transition-colors"
+              className="px-2.5 py-1 text-xs font-bold rounded transition-colors"
               style={{
                 backgroundColor: filterAllianceId === a.id ? a.color : 'transparent',
                 color: filterAllianceId === a.id ? '#fff' : a.color,
@@ -252,39 +282,35 @@ export default function AchievementProgressPanel({
             </button>
           ))}
         </div>
-      </button>
+      </div>
 
       {/* Body — only when expanded */}
       {!collapsed && (
         <div
           className="overflow-y-auto px-2 pb-2"
-          style={{ maxHeight: '240px', backgroundColor: 'var(--background-card)' }}
+          style={{ maxHeight: '280px', backgroundColor: 'var(--background-card)' }}
         >
-          {/* Mappable achievements */}
           {mappable.length > 0 && (
-            <div className="space-y-0.5">
+            <div>
               {mappable.map((cat) => (
                 <CategoryRow key={cat.id} category={cat} />
               ))}
             </div>
           )}
 
-          {/* Non-mappable achievements */}
           {nonMappable.length > 0 && (
             <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
-              <p className="text-[10px] font-medium px-2 mb-1" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-[11px] font-medium px-3 mb-1" style={{ color: 'var(--text-muted)' }}>
                 Manual Tracking (honor, kills, resources)
               </p>
-              <div className="space-y-0.5">
-                {nonMappable.map((cat) => (
-                  <CategoryRow key={cat.id} category={cat} />
-                ))}
-              </div>
+              {nonMappable.map((cat) => (
+                <CategoryRow key={cat.id} category={cat} />
+              ))}
             </div>
           )}
 
           {progress.length === 0 && (
-            <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>
               No achievement data for this season
             </p>
           )}
