@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
-import type { KvkMap, KvkMapFeature } from '@/lib/kvk-map-types';
+import type { KvkMap, KvkMapFeature, KvkMapZone } from '@/lib/kvk-map-types';
 
 // ─── Active Map Hook ────────────────────────────────────────────────
 
@@ -136,4 +136,42 @@ export async function updateFeaturePosition(
   y: number,
 ): Promise<boolean> {
   return updateMapFeature(featureId, { x, y });
+}
+
+// ─── Zones Hook ────────────────────────────────────────────────────
+
+export function useKvkMapZones(mapId: string | undefined) {
+  const [zones, setZones] = useState<KvkMapZone[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchZones = useCallback(async (isRefetch = false) => {
+    if (!mapId) {
+      setZones([]);
+      setLoading(false);
+      return;
+    }
+    if (!isRefetch) setLoading(true);
+    setError(null);
+    const { data, error: err } = await supabase
+      .from('kvk_map_zones')
+      .select('*')
+      .eq('map_id', mapId)
+      .order('zone_number', { ascending: true });
+
+    if (err) {
+      setError(err.message);
+    } else {
+      setZones((data || []) as KvkMapZone[]);
+    }
+    setLoading(false);
+  }, [mapId]);
+
+  useEffect(() => {
+    fetchZones();
+  }, [fetchZones]);
+
+  const refetch = useCallback(() => fetchZones(true), [fetchZones]);
+
+  return { zones, loading, error, refetch };
 }

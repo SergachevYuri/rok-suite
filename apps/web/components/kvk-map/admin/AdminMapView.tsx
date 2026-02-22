@@ -3,12 +3,15 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import MapBase from '@/components/kvk-map/MapBase';
 import FeatureMarker from '@/components/kvk-map/FeatureMarker';
+import ZonePolygon from '@/components/kvk-map/ZonePolygon';
+import ZoneLabel from '@/components/kvk-map/ZoneLabel';
 import CoordinateDisplay from '@/components/kvk-map/CoordinateDisplay';
 import FeaturePalette from './FeaturePalette';
 import FeatureEditorPanel from './FeatureEditorPanel';
 import {
   useActiveKvkMap,
   useKvkMapFeatures,
+  useKvkMapZones,
   createMapFeature,
   updateMapFeature,
   deleteMapFeature,
@@ -21,12 +24,14 @@ export default function AdminMapView() {
   // Data
   const { map, loading: mapLoading } = useActiveKvkMap();
   const { features, refetch } = useKvkMapFeatures(map?.id);
+  const { zones } = useKvkMapZones(map?.id);
 
   // UI state
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
   const [placingType, setPlacingType] = useState<FeatureType | null>(null);
   const [isPlacing, setIsPlacing] = useState(false);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+  const [showZones, setShowZones] = useState(true);
 
   const selectedFeature = useMemo(
     () => features.find((f) => f.id === selectedFeatureId) || null,
@@ -172,6 +177,12 @@ export default function AdminMapView() {
           onMouseMove={handleMouseMove}
           cursorStyle={isPlacing ? 'crosshair' : undefined}
         >
+          {showZones && zones.map((zone) => (
+            <ZonePolygon key={zone.id} zone={zone} />
+          ))}
+          {showZones && zones.map((zone) => (
+            <ZoneLabel key={`label-${zone.id}`} zone={zone} />
+          ))}
           {features.map((feature) => (
             <FeatureMarker
               key={feature.id}
@@ -184,6 +195,19 @@ export default function AdminMapView() {
           ))}
         </MapBase>
         <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
+
+        {/* Zone toggle */}
+        <button
+          onClick={() => setShowZones((v) => !v)}
+          className="absolute bottom-2 right-2 z-[1000] px-2.5 py-1.5 rounded-md text-xs font-medium transition-all"
+          style={{
+            backgroundColor: showZones ? 'rgba(59,130,246,0.2)' : 'rgba(0,0,0,0.6)',
+            color: showZones ? '#60a5fa' : '#9ca3af',
+            border: '1px solid var(--border)',
+          }}
+        >
+          {showZones ? 'Zones ON' : 'Zones OFF'}
+        </button>
 
         {/* Placement mode indicator */}
         {isPlacing && placingType && (
