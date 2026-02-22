@@ -41,13 +41,13 @@ export function useKvkMapFeatures(mapId: string | undefined) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchFeatures = useCallback(async () => {
+  const fetchFeatures = useCallback(async (isRefetch = false) => {
     if (!mapId) {
       setFeatures([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!isRefetch) setLoading(true);
     setError(null);
     const { data, error: err } = await supabase
       .from('kvk_map_features')
@@ -67,7 +67,9 @@ export function useKvkMapFeatures(mapId: string | undefined) {
     fetchFeatures();
   }, [fetchFeatures]);
 
-  return { features, loading, error, refetch: fetchFeatures };
+  const refetch = useCallback(() => fetchFeatures(true), [fetchFeatures]);
+
+  return { features, loading, error, refetch };
 }
 
 // ─── Mutations ──────────────────────────────────────────────────────

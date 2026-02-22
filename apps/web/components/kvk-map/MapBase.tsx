@@ -18,6 +18,22 @@ interface MapBaseProps {
   onClick?: (x: number, y: number) => void;
   onMouseMove?: (x: number, y: number) => void;
   className?: string;
+  cursorStyle?: string;
+}
+
+function CursorStyle({ cursor }: { cursor?: string }) {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    if (cursor) {
+      container.style.cursor = cursor;
+      container.classList.remove('leaflet-grab');
+    } else {
+      container.style.cursor = '';
+      container.classList.add('leaflet-grab');
+    }
+  }, [map, cursor]);
+  return null;
 }
 
 function MapEventHandler({
@@ -58,6 +74,7 @@ export default function MapBase({
   onClick,
   onMouseMove,
   className = '',
+  cursorStyle,
 }: MapBaseProps) {
   const bounds = useMemo<L.LatLngBoundsExpression>(
     () => [[0, 0], [imageHeight, imageWidth]],
@@ -84,6 +101,7 @@ export default function MapBase({
     >
       <ImageOverlay url={imageUrl} bounds={bounds} />
       <FitBounds bounds={bounds} />
+      <CursorStyle cursor={cursorStyle} />
       <MapEventHandler onClick={onClick} onMouseMove={onMouseMove} />
       {children}
     </MapContainer>

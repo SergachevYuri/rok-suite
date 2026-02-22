@@ -20,7 +20,7 @@ import { FEATURE_TYPE_CONFIG } from '@/lib/kvk-feature-config';
 export default function AdminMapView() {
   // Data
   const { map, loading: mapLoading } = useActiveKvkMap();
-  const { features, loading: featuresLoading, refetch } = useKvkMapFeatures(map?.id);
+  const { features, refetch } = useKvkMapFeatures(map?.id);
 
   // UI state
   const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
@@ -117,8 +117,8 @@ export default function AdminMapView() {
     [refetch]
   );
 
-  // Loading state
-  if (mapLoading || featuresLoading) {
+  // Only show loading/error states before the map has loaded for the first time
+  if (mapLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="w-5 h-5 border border-[#4318ff] border-t-transparent rounded-full animate-spin" />
@@ -161,6 +161,7 @@ export default function AdminMapView() {
           imageHeight={map.image_height}
           onClick={handleMapClick}
           onMouseMove={handleMouseMove}
+          cursorStyle={isPlacing ? 'crosshair' : undefined}
         >
           {features.map((feature) => (
             <FeatureMarker
