@@ -47,7 +47,8 @@
     "guide": "Guide",
     "betaTools": "Beta Tools",
     "wipBadge": "WIP",
-    "kvkMap": "KvK Map"
+    "kvkMap": "KvK Map",
+    "kingdomStats": "Kingdom Stats"
   },
   "home": {
     "tagline": "Kingdom 23 • Rise of Kingdoms",
@@ -104,6 +105,10 @@
       "wanted": {
         "title": "Wanted",
         "description": "Track wanted players, zeroing priority, and officer status updates"
+      },
+      "kingdomStats": {
+        "title": "Kingdom Stats",
+        "description": "Daily member rankings, power trends, and historical kingdom data"
       }
     },
     "guide": {
