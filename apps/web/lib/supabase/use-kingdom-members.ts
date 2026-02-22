@@ -42,15 +42,20 @@ export function useAvailableKingdoms() {
   useEffect(() => {
     (async () => {
       const supabase = createClient();
-      const { data } = await supabase
-        .from('kingdom_members')
-        .select('kingdom_id')
-        .limit(1000);
-
-      if (data) {
-        const unique = [...new Set(data.map((r: { kingdom_id: number }) => r.kingdom_id))].sort();
-        setKingdoms(unique);
+      // Fetch all rows in batches to get all unique kingdom_ids
+      const allIds = new Set<number>();
+      let offset = 0;
+      while (true) {
+        const { data } = await supabase
+          .from('kingdom_members')
+          .select('kingdom_id')
+          .range(offset, offset + 999);
+        if (!data || data.length === 0) break;
+        for (const r of data) allIds.add(r.kingdom_id);
+        if (data.length < 1000) break;
+        offset += 1000;
       }
+      setKingdoms([...allIds].sort());
       setLoading(false);
     })();
   }, []);
