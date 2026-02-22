@@ -8,7 +8,7 @@ export interface FeatureTypeConfig {
   buffs: string[];
   kingdomHonor: string | null;
   allianceHonor: string | null;
-  expectedCount: number | null;
+  defaultLevel: number | null;
 }
 
 export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
@@ -16,11 +16,11 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     label: 'Pass',
     abbreviation: 'PA',
     color: '#f59e0b',
-    description: 'Mountain pass between zones',
+    description: 'Mountain pass between zones (level 4-6)',
     buffs: [],
     kingdomHonor: null,
     allianceHonor: null,
-    expectedCount: null,
+    defaultLevel: null,
   },
   crusader_fortress: {
     label: 'Crusader Fortress',
@@ -30,7 +30,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: [],
     kingdomHonor: '+5/m',
     allianceHonor: '+5/m',
-    expectedCount: 5,
+    defaultLevel: 5,
   },
   crusader_camp: {
     label: 'Crusader Camp',
@@ -40,7 +40,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: ['Gathering Speed +25%'],
     kingdomHonor: '+1/m',
     allianceHonor: '+1/m',
-    expectedCount: 4,
+    defaultLevel: 4,
   },
   hieron_steel: {
     label: 'Hieron of Steel',
@@ -50,7 +50,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: ['Troop Defense +5%'],
     kingdomHonor: '+3/m',
     allianceHonor: '+3/m',
-    expectedCount: 5,
+    defaultLevel: 5,
   },
   hieron_thorns: {
     label: 'Hieron of Thorns',
@@ -60,7 +60,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: ['Troop Attack +5%'],
     kingdomHonor: '+3/m',
     allianceHonor: '+3/m',
-    expectedCount: 5,
+    defaultLevel: 5,
   },
   ancient_ruins: {
     label: 'Ancient Ruins',
@@ -70,7 +70,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: [],
     kingdomHonor: '+15/m',
     allianceHonor: '+40/m',
-    expectedCount: null,
+    defaultLevel: null,
   },
   circle_nature: {
     label: 'Circle of Nature',
@@ -80,7 +80,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: ['Counterattack Damage Taken Reduction +10%'],
     kingdomHonor: '+7/m',
     allianceHonor: '+7/m',
-    expectedCount: 7,
+    defaultLevel: 7,
   },
   circle_vitality: {
     label: 'Circle of Vitality',
@@ -90,7 +90,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: ['Healing Speed +30%', 'Hospital Capacity +10%'],
     kingdomHonor: '+7/m',
     allianceHonor: '+7/m',
-    expectedCount: 7,
+    defaultLevel: 7,
   },
   circle_courage: {
     label: 'Circle of Courage',
@@ -100,7 +100,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: ['All Damage +3%', 'Rallied Army Unit Capacity +10%'],
     kingdomHonor: '+7/m',
     allianceHonor: '+7/m',
-    expectedCount: 7,
+    defaultLevel: 7,
   },
   tempest_sanctuary: {
     label: 'Tempest Sanctuary',
@@ -110,7 +110,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: ['March Speed +10%'],
     kingdomHonor: '+5/m',
     allianceHonor: '+5/m',
-    expectedCount: 6,
+    defaultLevel: 6,
   },
   altar_darkness: {
     label: 'Altar of Darkness',
@@ -120,7 +120,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: [],
     kingdomHonor: '+25/m',
     allianceHonor: '+75/m',
-    expectedCount: null,
+    defaultLevel: null,
   },
   ziggurat: {
     label: 'The Great Ziggurat',
@@ -130,7 +130,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: ['All Damage +3%', 'Damage Taken -3%'],
     kingdomHonor: '+15/m',
     allianceHonor: '+15/m',
-    expectedCount: null,
+    defaultLevel: 8,
   },
   starting_zone: {
     label: 'Starting Zone',
@@ -140,7 +140,7 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     buffs: [],
     kingdomHonor: null,
     allianceHonor: null,
-    expectedCount: null,
+    defaultLevel: null,
   },
 };
 

@@ -14,13 +14,14 @@ interface FeatureMarkerProps {
   onDragEnd?: (feature: KvkMapFeature, newX: number, newY: number) => void;
 }
 
-function createDivIcon(featureType: string, isSelected: boolean): L.DivIcon {
+function createDivIcon(featureType: string, isSelected: boolean, level: number | null): L.DivIcon {
   const config = FEATURE_TYPE_CONFIG[featureType as keyof typeof FEATURE_TYPE_CONFIG];
   if (!config) return new L.DivIcon();
 
   const size = isSelected ? 32 : 24;
   const borderWidth = isSelected ? 3 : 2;
   const borderColor = isSelected ? '#ffffff' : 'rgba(0,0,0,0.5)';
+  const displayText = level != null ? String(level) : config.abbreviation;
 
   return new L.DivIcon({
     className: '',
@@ -35,13 +36,13 @@ function createDivIcon(featureType: string, isSelected: boolean): L.DivIcon {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: ${isSelected ? '11px' : '9px'};
+      font-size: ${isSelected ? '12px' : '10px'};
       font-weight: 700;
       color: white;
       text-shadow: 0 1px 2px rgba(0,0,0,0.5);
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(0,0,0,0.4)${isSelected ? ', 0 0 12px rgba(255,255,255,0.4)' : ''};
-    ">${config.abbreviation}</div>`,
+    ">${displayText}</div>`,
   });
 }
 
@@ -53,8 +54,8 @@ export default function FeatureMarker({
   onDragEnd,
 }: FeatureMarkerProps) {
   const icon = useMemo(
-    () => createDivIcon(feature.feature_type, isSelected),
-    [feature.feature_type, isSelected]
+    () => createDivIcon(feature.feature_type, isSelected, feature.level),
+    [feature.feature_type, isSelected, feature.level]
   );
 
   const config = FEATURE_TYPE_CONFIG[feature.feature_type];

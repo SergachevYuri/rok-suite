@@ -18,22 +18,19 @@ export default function FeatureEditorPanel({
   onDelete,
   onClose,
 }: FeatureEditorPanelProps) {
-  const [name, setName] = useState(feature.name || '');
   const [zone, setZone] = useState(feature.zone?.toString() || '');
   const [level, setLevel] = useState(feature.level?.toString() || '');
 
   // Reset form when feature changes
   useEffect(() => {
-    setName(feature.name || '');
     setZone(feature.zone?.toString() || '');
     setLevel(feature.level?.toString() || '');
-  }, [feature.id, feature.name, feature.zone, feature.level]);
+  }, [feature.id, feature.zone, feature.level]);
 
   const config = FEATURE_TYPE_CONFIG[feature.feature_type];
 
   const handleSave = () => {
     onSave(feature.id, {
-      name: name || null,
       zone: zone ? parseInt(zone, 10) : null,
       level: level ? parseInt(level, 10) : null,
     });
@@ -88,23 +85,6 @@ export default function FeatureEditorPanel({
 
       {/* Form */}
       <div className="space-y-3">
-        <div>
-          <label
-            className="block text-xs font-medium mb-1"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Name
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={`e.g., ${config?.label} of War`}
-            className={inputClass}
-            style={inputStyle}
-          />
-        </div>
-
         {(config?.buffs.length > 0 || config?.kingdomHonor || config?.allianceHonor) && (
           <div
             className="rounded-md p-2.5 text-xs space-y-1"
@@ -154,10 +134,10 @@ export default function FeatureEditorPanel({
             <input
               type="number"
               min="1"
-              max="6"
+              max="8"
               value={level}
               onChange={(e) => setLevel(e.target.value)}
-              placeholder="1-6"
+              placeholder="1-8"
               className={inputClass}
               style={inputStyle}
             />

@@ -79,6 +79,7 @@ export async function createMapFeature(
   featureType: string,
   x: number,
   y: number,
+  defaults?: { level?: number | null; zone?: number | null },
 ): Promise<KvkMapFeature | null> {
   const { data, error } = await supabase
     .from('kvk_map_features')
@@ -87,6 +88,8 @@ export async function createMapFeature(
       feature_type: featureType,
       x,
       y,
+      ...(defaults?.level != null && { level: defaults.level }),
+      ...(defaults?.zone != null && { zone: defaults.zone }),
     })
     .select()
     .single();

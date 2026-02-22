@@ -74,14 +74,23 @@ export default function AdminMapView() {
     async (x: number, y: number) => {
       if (!isPlacing || !placingType || !map) return;
 
-      const newFeature = await createMapFeature(map.id, placingType, x, y);
+      // Auto-fill from most recent marker of same type, or fall back to config defaults
+      const sameType = features.filter((f) => f.feature_type === placingType);
+      const lastOfType = sameType[sameType.length - 1];
+      const config = FEATURE_TYPE_CONFIG[placingType];
+      const defaults = {
+        level: lastOfType?.level ?? config.defaultLevel,
+        zone: lastOfType?.zone ?? null,
+      };
+
+      const newFeature = await createMapFeature(map.id, placingType, x, y, defaults);
       if (newFeature) {
         await refetch();
         setSelectedFeatureId(newFeature.id);
         // Stay in placement mode for placing multiple features
       }
     },
-    [isPlacing, placingType, map, refetch]
+    [isPlacing, placingType, map, features, refetch]
   );
 
   const handleFeatureClick = useCallback(
