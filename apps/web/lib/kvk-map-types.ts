@@ -10,6 +10,7 @@ export type FeatureType =
   | 'circle_nature'
   | 'circle_vitality'
   | 'circle_courage'
+  | 'circle_defense'
   | 'tempest_sanctuary'
   | 'altar_darkness'
   | 'ziggurat'
