@@ -285,7 +285,7 @@ export default function KingdomStats() {
                       borderRadius: '8px',
                       color: 'var(--foreground)',
                     }}
-                    formatter={(value: number) => formatCompact(value)}
+                    formatter={(value?: number) => formatCompact(value ?? 0)}
                     labelFormatter={label => `Date: ${label}`}
                   />
                   <Legend />
