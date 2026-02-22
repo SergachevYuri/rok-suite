@@ -14,6 +14,7 @@ interface FeaturePaletteProps {
   onToggleGroup: (groupKey: string) => void;
   allHidden: boolean;
   onToggleAll: () => void;
+  readOnly?: boolean;
 }
 
 export default function FeaturePalette({
@@ -26,6 +27,7 @@ export default function FeaturePalette({
   onToggleGroup,
   allHidden,
   onToggleAll,
+  readOnly = false,
 }: FeaturePaletteProps) {
   return (
     <div
@@ -37,19 +39,21 @@ export default function FeaturePalette({
     >
       {/* Select tool + Hide All */}
       <div className="flex gap-1.5 mb-3">
-        <button
-          onClick={onCancelPlacement}
-          className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-          style={{
-            backgroundColor: !isPlacing ? 'var(--background-hover)' : 'transparent',
-            color: 'var(--foreground)',
-            outline: !isPlacing ? '2px solid rgba(255,255,255,0.2)' : 'none',
-            outlineOffset: '-2px',
-          }}
-        >
-          <MousePointer size={16} />
-          Select
-        </button>
+        {!readOnly && (
+          <button
+            onClick={onCancelPlacement}
+            className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{
+              backgroundColor: !isPlacing ? 'var(--background-hover)' : 'transparent',
+              color: 'var(--foreground)',
+              outline: !isPlacing ? '2px solid rgba(255,255,255,0.2)' : 'none',
+              outlineOffset: '-2px',
+            }}
+          >
+            <MousePointer size={16} />
+            Select
+          </button>
+        )}
         <button
           onClick={onToggleAll}
           className="flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs font-medium transition-all"
@@ -109,7 +113,7 @@ export default function FeaturePalette({
             </button>
 
             {/* Feature type buttons */}
-            {!isHidden && (
+            {!isHidden && !readOnly && (
               <div className="ml-2 space-y-0.5 mt-0.5">
                 {group.types.map((type) => {
                   const config = FEATURE_TYPE_CONFIG[type];
@@ -162,7 +166,7 @@ export default function FeaturePalette({
       })}
 
       {/* Placement hint */}
-      {isPlacing && selectedType && (
+      {!readOnly && isPlacing && selectedType && (
         <div
           className="mt-3 px-3 py-2 rounded-lg text-xs"
           style={{

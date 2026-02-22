@@ -133,6 +133,25 @@ export interface KvkAchievementProgress {
   updated_at: string;
 }
 
+// ─── Auth ───────────────────────────────────────────────────────────
+
+export type WarRoomRole = 'viewer' | 'officer' | 'admin';
+
+// ─── Strategies ─────────────────────────────────────────────────────
+
+export interface KvkStrategy {
+  id: string;
+  map_id: string;
+  name: string;
+  share_code: string | null;
+  assignments: KvkAssignment[];
+  alliance_snapshot: KvkAlliance[];
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── UI State Types ─────────────────────────────────────────────────
 
 export type AdminTool = 'select' | 'place';
