@@ -87,3 +87,45 @@ export async function deleteAlliance(allianceId: string): Promise<boolean> {
   }
   return true;
 }
+
+// ─── Auto-populate from roster data ────────────────────────────────
+
+const DEFAULT_COLORS = ['#ef4444', '#3b82f6', '#22c55e'];
+
+/**
+ * Fetch the top N alliances by total member power from alliance_roster.
+ * Returns them in a shape ready to be inserted as kvk_alliances.
+ */
+export async function fetchTopAlliancesFromRoster(
+  count: number = 3,
+): Promise<{ tag: string; name: string; role: AllianceRole; color: string }[]> {
+  const { data, error } = await supabase
+    .from('alliance_roster')
+    .select('alliance, power')
+    .eq('is_active', true)
+    .not('alliance', 'is', null);
+
+  if (error || !data) {
+    console.error('Failed to fetch roster alliances:', error?.message);
+    return [];
+  }
+
+  // Aggregate power by alliance tag
+  const totals = new Map<string, number>();
+  for (const row of data) {
+    if (!row.alliance) continue;
+    totals.set(row.alliance, (totals.get(row.alliance) || 0) + (row.power || 0));
+  }
+
+  // Sort by total power descending, take top N
+  const sorted = [...totals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, count);
+
+  return sorted.map(([tag], i) => ({
+    tag,
+    name: tag,
+    role: (i === 0 ? 'top' : 'support') as AllianceRole,
+    color: DEFAULT_COLORS[i] || DEFAULT_COLORS[DEFAULT_COLORS.length - 1],
+  }));
+}

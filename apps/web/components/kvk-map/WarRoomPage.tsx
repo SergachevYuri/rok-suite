@@ -25,7 +25,7 @@ import {
   deleteMapFeature,
   updateFeaturePosition,
 } from '@/lib/supabase/use-kvk-map';
-import { useKvkAlliances, createAlliance, updateAlliance, deleteAlliance } from '@/lib/supabase/use-kvk-alliances';
+import { useKvkAlliances, createAlliance, updateAlliance, deleteAlliance, fetchTopAlliancesFromRoster } from '@/lib/supabase/use-kvk-alliances';
 import { useKvkAssignments, upsertAssignment, updateAssignment, deleteAssignment } from '@/lib/supabase/use-kvk-assignments';
 import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy } from '@/lib/supabase/use-kvk-strategies';
 import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentStatus } from '@/lib/kvk-map-types';
@@ -40,7 +40,7 @@ export default function WarRoomPage() {
   const { map, loading: mapLoading } = useActiveKvkMap();
   const { features, refetch: refetchFeatures } = useKvkMapFeatures(map?.id);
   const { zones, refetch: refetchZones } = useKvkMapZones(map?.id);
-  const { alliances, refetch: refetchAlliances } = useKvkAlliances(map?.id);
+  const { alliances, loading: alliancesLoading, refetch: refetchAlliances } = useKvkAlliances(map?.id);
   const { assignments, refetch: refetchAssignments } = useKvkAssignments(map?.id);
   const { strategies, refetch: refetchStrategies } = useKvkStrategies(map?.id);
 
@@ -59,6 +59,18 @@ export default function WarRoomPage() {
       });
     }
   }, [strategyCode, map?.id]);
+
+  // Auto-populate alliances from roster data when none exist
+  useEffect(() => {
+    if (!map?.id || alliancesLoading || alliances.length > 0) return;
+    (async () => {
+      const topAlliances = await fetchTopAlliancesFromRoster(3);
+      for (let i = 0; i < topAlliances.length; i++) {
+        await createAlliance(map.id, { ...topAlliances[i], sort_order: i });
+      }
+      if (topAlliances.length > 0) await refetchAlliances();
+    })();
+  }, [map?.id, alliancesLoading, alliances.length, refetchAlliances]);
 
   const activeAssignments = strategyAssignments ?? assignments;
 

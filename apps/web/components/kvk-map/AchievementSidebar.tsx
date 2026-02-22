@@ -1,15 +1,103 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import CategoryCard from '@/components/kvk-achievements/CategoryCard';
+import { ChevronRight } from 'lucide-react';
 import { getAchievementData, ALL_SEASONS } from '@/lib/kvk-achievements/data';
-import type { KvkSeason, AchievementScope } from '@/lib/kvk-achievements/types';
+import { formatTarget } from '@/lib/kvk-achievements/normalize';
+import type { KvkSeason, AchievementScope, AchievementCategory, AchievementTier } from '@/lib/kvk-achievements/types';
 
 const SCOPE_TABS: { key: AchievementScope; label: string }[] = [
   { key: 'individual', label: 'Individual' },
   { key: 'alliance', label: 'Alliance' },
   { key: 'kingdom', label: 'Kingdom' },
 ];
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
+
+function TierRow({ tier }: { tier: AchievementTier }) {
+  return (
+    <div
+      className="flex items-start gap-2 px-2 py-1.5"
+      style={{ borderTop: '1px solid var(--border)' }}
+    >
+      <span
+        className="text-[10px] font-bold w-5 shrink-0 pt-0.5"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        {ROMAN[tier.level - 1] || tier.level}
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[11px] leading-snug" style={{ color: 'var(--foreground)' }}>
+          {tier.task}
+        </p>
+        {tier.requirements.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-0.5">
+            {tier.requirements.map((req, i) => (
+              <span
+                key={i}
+                className="text-[9px] px-1 py-0.5 rounded"
+                style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
+              >
+                {formatTarget(req.target)} {req.label}
+              </span>
+            ))}
+          </div>
+        )}
+        {tier.rewards && (
+          <p className="text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {tier.rewards}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CategoryAccordion({ category }: { category: AchievementCategory }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className={category.kvk3Only ? 'opacity-50' : ''}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-left transition-colors"
+        style={{
+          backgroundColor: open ? 'var(--background-hover)' : 'transparent',
+        }}
+      >
+        <ChevronRight
+          size={11}
+          className="shrink-0 transition-transform"
+          style={{
+            color: 'var(--text-muted)',
+            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+          }}
+        />
+        <span className="text-[11px] font-medium flex-1 truncate" style={{ color: 'var(--foreground)' }}>
+          {category.name}
+        </span>
+        {category.kvk3Only && (
+          <span
+            className="text-[8px] px-1 py-0.5 rounded font-medium shrink-0"
+            style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
+          >
+            KvK3
+          </span>
+        )}
+        <span className="text-[9px] shrink-0" style={{ color: 'var(--text-muted)' }}>
+          {category.tiers.length}
+        </span>
+      </button>
+      {open && (
+        <div className="ml-1 mb-1 rounded-md overflow-hidden" style={{ backgroundColor: 'var(--background-card)' }}>
+          {category.tiers.map((tier) => (
+            <TierRow key={tier.level} tier={tier} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AchievementSidebar() {
   const [season, setSeason] = useState<KvkSeason>('kvk2');
@@ -23,7 +111,7 @@ export default function AchievementSidebar() {
       className="rounded-xl border"
       style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
     >
-      <div className="p-3 space-y-3">
+      <div className="p-3 space-y-2">
         {/* Header */}
         <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
           Achievements
@@ -71,10 +159,10 @@ export default function AchievementSidebar() {
         </div>
       </div>
 
-      {/* Category cards */}
-      <div className="px-3 pb-3 space-y-2">
+      {/* Category accordions */}
+      <div className="px-2 pb-2">
         {categories.map((cat) => (
-          <CategoryCard key={cat.id} category={cat} />
+          <CategoryAccordion key={cat.id} category={cat} />
         ))}
       </div>
     </div>
