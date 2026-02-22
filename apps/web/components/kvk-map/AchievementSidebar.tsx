@@ -17,25 +17,25 @@ const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'
 function TierRow({ tier }: { tier: AchievementTier }) {
   return (
     <div
-      className="flex items-start gap-2 px-2 py-1.5"
+      className="flex items-start gap-2 px-2.5 py-2"
       style={{ borderTop: '1px solid var(--border)' }}
     >
       <span
-        className="text-[10px] font-bold w-5 shrink-0 pt-0.5"
+        className="text-xs font-bold w-5 shrink-0 pt-0.5"
         style={{ color: 'var(--text-muted)' }}
       >
         {ROMAN[tier.level - 1] || tier.level}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] leading-snug" style={{ color: 'var(--foreground)' }}>
+        <p className="text-xs leading-snug" style={{ color: 'var(--foreground)' }}>
           {tier.task}
         </p>
         {tier.requirements.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-0.5">
+          <div className="flex flex-wrap gap-1 mt-1">
             {tier.requirements.map((req, i) => (
               <span
                 key={i}
-                className="text-[9px] px-1 py-0.5 rounded"
+                className="text-[10px] px-1.5 py-0.5 rounded"
                 style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
               >
                 {formatTarget(req.target)} {req.label}
@@ -44,7 +44,7 @@ function TierRow({ tier }: { tier: AchievementTier }) {
           </div>
         )}
         {tier.rewards && (
-          <p className="text-[9px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
             {tier.rewards}
           </p>
         )}
@@ -60,31 +60,31 @@ function CategoryAccordion({ category }: { category: AchievementCategory }) {
     <div className={category.kvk3Only ? 'opacity-50' : ''}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-left transition-colors"
+        className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-left transition-colors"
         style={{
           backgroundColor: open ? 'var(--background-hover)' : 'transparent',
         }}
       >
         <ChevronRight
-          size={11}
+          size={12}
           className="shrink-0 transition-transform"
           style={{
             color: 'var(--text-muted)',
             transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
           }}
         />
-        <span className="text-[11px] font-medium flex-1 truncate" style={{ color: 'var(--foreground)' }}>
+        <span className="text-xs font-medium flex-1 truncate" style={{ color: 'var(--foreground)' }}>
           {category.name}
         </span>
         {category.kvk3Only && (
           <span
-            className="text-[8px] px-1 py-0.5 rounded font-medium shrink-0"
+            className="text-[9px] px-1 py-0.5 rounded font-medium shrink-0"
             style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
           >
             KvK3
           </span>
         )}
-        <span className="text-[9px] shrink-0" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-[10px] shrink-0" style={{ color: 'var(--text-muted)' }}>
           {category.tiers.length}
         </span>
       </button>
@@ -126,7 +126,7 @@ export default function AchievementSidebar() {
             <button
               key={s.id}
               onClick={() => setSeason(s.id)}
-              className="flex-1 px-2 py-1 text-[10px] font-medium transition-colors"
+              className="flex-1 px-2 py-1.5 text-xs font-medium transition-colors"
               style={{
                 backgroundColor: season === s.id ? '#8b5cf6' : 'transparent',
                 color: season === s.id ? '#fff' : 'var(--text-secondary)',
@@ -145,7 +145,7 @@ export default function AchievementSidebar() {
               <button
                 key={tab.key}
                 onClick={() => setScope(tab.key)}
-                className="flex-1 text-[10px] font-medium py-1.5 rounded transition-colors"
+                className="flex-1 text-xs font-medium py-1.5 rounded transition-colors"
                 style={{
                   backgroundColor: isActive ? 'var(--background-hover)' : 'transparent',
                   color: isActive ? 'var(--foreground)' : 'var(--text-muted)',

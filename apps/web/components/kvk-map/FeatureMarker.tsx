@@ -16,6 +16,8 @@ interface FeatureMarkerProps {
   assignmentStatus?: AssignmentStatus | null;
   onClick?: (feature: KvkMapFeature) => void;
   onDragEnd?: (feature: KvkMapFeature, newX: number, newY: number) => void;
+  onMouseOver?: (feature: KvkMapFeature) => void;
+  onMouseOut?: (feature: KvkMapFeature) => void;
 }
 
 /**
@@ -108,6 +110,8 @@ export default function FeatureMarker({
   assignmentStatus,
   onClick,
   onDragEnd,
+  onMouseOver,
+  onMouseOut,
 }: FeatureMarkerProps) {
   const icon = useMemo(
     () => createDivIcon(feature.feature_type, isSelected, feature.level, zoom, allianceColor, assignmentStatus),
@@ -126,6 +130,8 @@ export default function FeatureMarker({
       draggable={isDraggable}
       eventHandlers={{
         click: () => onClick?.(feature),
+        mouseover: () => onMouseOver?.(feature),
+        mouseout: () => onMouseOut?.(feature),
         dragend: (e) => {
           const marker = e.target;
           const pos = marker.getLatLng();

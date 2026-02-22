@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MapBase from '@/components/kvk-map/MapBase';
 import FeatureMarker from '@/components/kvk-map/FeatureMarker';
@@ -61,8 +61,10 @@ export default function WarRoomPage() {
   }, [strategyCode, map?.id]);
 
   // Auto-populate alliances from roster data when none exist
+  const autoPopulatedRef = useRef(false);
   useEffect(() => {
-    if (!map?.id || alliancesLoading || alliances.length > 0) return;
+    if (!map?.id || alliancesLoading || alliances.length > 0 || autoPopulatedRef.current) return;
+    autoPopulatedRef.current = true;
     (async () => {
       const topAlliances = await fetchTopAlliancesFromRoster(3);
       for (let i = 0; i < topAlliances.length; i++) {
@@ -81,6 +83,9 @@ export default function WarRoomPage() {
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(-1);
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
+
+  // ── Zone hover state (for marker → zone highlight) ────────────────
+  const [hoveredZoneNumber, setHoveredZoneNumber] = useState<number | null>(null);
 
   // ── Zone editing state ─────────────────────────────────────────────
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
@@ -209,6 +214,17 @@ export default function WarRoomPage() {
     },
     [isPlacing, isDrawingZone]
   );
+
+  const handleFeatureMouseOver = useCallback(
+    (feature: KvkMapFeature) => {
+      if (feature.zone != null) setHoveredZoneNumber(feature.zone);
+    },
+    []
+  );
+
+  const handleFeatureMouseOut = useCallback(() => {
+    setHoveredZoneNumber(null);
+  }, []);
 
   const handleFeatureDragEnd = useCallback(
     async (feature: KvkMapFeature, newX: number, newY: number) => {
@@ -500,6 +516,7 @@ export default function WarRoomPage() {
                 zone={zone}
                 onClick={handleZoneClick}
                 isSelected={zone.id === selectedZoneId}
+                isHighlighted={hoveredZoneNumber != null && zone.zone_number === hoveredZoneNumber}
               />
             ))}
             {showZones && zones.map((zone) => (
@@ -520,6 +537,8 @@ export default function WarRoomPage() {
                   assignmentStatus={assignment?.status}
                   onClick={handleFeatureClick}
                   onDragEnd={handleFeatureDragEnd}
+                  onMouseOver={handleFeatureMouseOver}
+                  onMouseOut={handleFeatureMouseOut}
                 />
               );
             })}

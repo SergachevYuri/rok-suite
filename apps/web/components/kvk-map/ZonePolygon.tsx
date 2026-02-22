@@ -9,9 +9,10 @@ interface ZonePolygonProps {
   zone: KvkMapZone;
   onClick?: (zone: KvkMapZone) => void;
   isSelected?: boolean;
+  isHighlighted?: boolean;
 }
 
-export default function ZonePolygon({ zone, onClick, isSelected = false }: ZonePolygonProps) {
+export default function ZonePolygon({ zone, onClick, isSelected = false, isHighlighted = false }: ZonePolygonProps) {
   const polygonRef = useRef<L.Polygon | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -34,27 +35,27 @@ export default function ZonePolygon({ zone, onClick, isSelected = false }: ZoneP
   }, [isSelected]);
 
   const handleMouseOut = useCallback(() => {
-    if (isSelected) return;
+    if (isSelected || isHighlighted) return;
     setIsHovered(false);
     polygonRef.current?.setStyle({
       fillOpacity: 0,
       weight: 0,
       opacity: 0,
     });
-  }, [isSelected]);
+  }, [isSelected, isHighlighted]);
 
-  const highlighted = isSelected || isHovered;
+  const showHighlight = isSelected || isHovered || isHighlighted;
 
   return (
     <Polygon
       ref={polygonRef}
       positions={positions}
       pathOptions={{
-        color: highlighted ? '#ffffff' : 'transparent',
-        fillColor: highlighted ? '#ffffff' : 'transparent',
-        fillOpacity: isSelected ? 0.18 : isHovered ? 0.12 : 0,
-        weight: isSelected ? 2 : isHovered ? 1 : 0,
-        opacity: isSelected ? 0.5 : isHovered ? 0.3 : 0,
+        color: showHighlight ? '#ffffff' : 'transparent',
+        fillColor: showHighlight ? '#ffffff' : 'transparent',
+        fillOpacity: isSelected ? 0.18 : showHighlight ? 0.12 : 0,
+        weight: isSelected ? 2 : showHighlight ? 1 : 0,
+        opacity: isSelected ? 0.5 : showHighlight ? 0.3 : 0,
       }}
       interactive={!!onClick}
       eventHandlers={{
