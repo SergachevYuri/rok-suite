@@ -522,6 +522,15 @@ export default function WarRoomPage() {
     [isDrawingZone, zoneVertices, selectedZone, refetchZones, isAtLeast]
   );
 
+  // ── Role checks (must be before early returns to satisfy Rules of Hooks) ──
+  const isAdminMode = isAtLeast('admin');
+  const isOfficerMode = isAtLeast('officer');
+
+  const officerEditableGroups = useMemo(
+    () => (!isAdminMode && isOfficerMode ? new Set(['flags']) : undefined),
+    [isAdminMode, isOfficerMode]
+  );
+
   // ── Render ─────────────────────────────────────────────────────────
   if (mapLoading) {
     return (
@@ -538,14 +547,6 @@ export default function WarRoomPage() {
       </div>
     );
   }
-
-  const isAdminMode = isAtLeast('admin');
-  const isOfficerMode = isAtLeast('officer');
-
-  const officerEditableGroups = useMemo(
-    () => (!isAdminMode && isOfficerMode ? new Set(['flags']) : undefined),
-    [isAdminMode, isOfficerMode]
-  );
 
   return (
     <div className="max-w-[1800px] mx-auto p-4 md:p-6">
