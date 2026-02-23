@@ -9,11 +9,10 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { MapContainer, ImageOverlay, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
 
 interface MapBaseProps {
   imageUrl: string;
-  imageWidth: number;
-  imageHeight: number;
   children?: ReactNode;
   onClick?: (x: number, y: number) => void;
   onDoubleClick?: (x: number, y: number) => void;
@@ -80,8 +79,6 @@ function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression }) {
 
 export default function MapBase({
   imageUrl,
-  imageWidth,
-  imageHeight,
   children,
   onClick,
   onDoubleClick,
@@ -91,12 +88,12 @@ export default function MapBase({
   cursorStyle,
 }: MapBaseProps) {
   const bounds = useMemo<L.LatLngBoundsExpression>(
-    () => [[0, 0], [imageHeight, imageWidth]],
-    [imageHeight, imageWidth]
+    () => [[0, 0], [GAME_MAP_SIZE, GAME_MAP_SIZE]],
+    []
   );
   const center = useMemo<L.LatLngExpression>(
-    () => [imageHeight / 2, imageWidth / 2],
-    [imageHeight, imageWidth]
+    () => [GAME_MAP_SIZE / 2, GAME_MAP_SIZE / 2],
+    []
   );
 
   return (

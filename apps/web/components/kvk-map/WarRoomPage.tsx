@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MapBase from '@/components/kvk-map/MapBase';
 import FeatureMarker from '@/components/kvk-map/FeatureMarker';
+import FlagOverlay from '@/components/kvk-map/FlagOverlay';
 import ZonePolygon from '@/components/kvk-map/ZonePolygon';
 import ZoneLabel from '@/components/kvk-map/ZoneLabel';
 import DrawingOverlay from '@/components/kvk-map/DrawingOverlay';
@@ -517,8 +518,6 @@ export default function WarRoomPage() {
           >
             <MapBase
               imageUrl={map.image_path}
-              imageWidth={map.image_width}
-              imageHeight={map.image_height}
               onClick={handleMapClick}
               onDoubleClick={handleMapDoubleClick}
               onMouseMove={handleMouseMove}
@@ -540,6 +539,25 @@ export default function WarRoomPage() {
               {visibleFeatures.map((feature) => {
                 const assignment = assignmentMap.get(feature.id);
                 const alliance = assignment ? allianceMap.get(assignment.alliance_id) : undefined;
+                const cfg = FEATURE_TYPE_CONFIG[feature.feature_type];
+                if (cfg?.tileSize) {
+                  return (
+                    <FlagOverlay
+                      key={feature.id}
+                      feature={feature}
+                      isSelected={feature.id === selectedFeatureId}
+                      isDraggable={isAdminMode && !isPlacing && !isDrawingZone}
+                      zoom={zoom}
+                      allianceColor={alliance?.color}
+                      allianceTag={alliance?.tag}
+                      assignmentStatus={assignment?.status}
+                      onClick={handleFeatureClick}
+                      onDragEnd={handleFeatureDragEnd}
+                      onMouseOver={handleFeatureMouseOver}
+                      onMouseOut={handleFeatureMouseOut}
+                    />
+                  );
+                }
                 return (
                   <FeatureMarker
                     key={feature.id}

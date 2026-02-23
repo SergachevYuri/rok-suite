@@ -10,6 +10,8 @@ export interface FeatureTypeConfig {
   allianceHonor: string | null;
   defaultLevel: number | null;
   firstTimeRewards: string[];
+  /** Tile size in game coordinates (e.g. 9 for flags, 15 for fortresses). */
+  tileSize?: number;
 }
 
 const CIRCLE_REWARDS = [
@@ -208,6 +210,30 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
       '1x Golden Key',
     ],
   },
+  flag: {
+    label: 'Flag',
+    abbreviation: 'FL',
+    color: '#64748b',
+    description: 'Alliance flag (9×9 tiles)',
+    buffs: [],
+    kingdomHonor: null,
+    allianceHonor: null,
+    defaultLevel: null,
+    firstTimeRewards: [],
+    tileSize: 9,
+  },
+  fortress: {
+    label: 'Fortress',
+    abbreviation: 'FT',
+    color: '#475569',
+    description: 'Alliance fortress (15×15 tiles)',
+    buffs: [],
+    kingdomHonor: null,
+    allianceHonor: null,
+    defaultLevel: null,
+    firstTimeRewards: [],
+    tileSize: 15,
+  },
 };
 
 export const FEATURE_TYPES_ORDERED: FeatureType[] = [
@@ -226,6 +252,8 @@ export const FEATURE_TYPES_ORDERED: FeatureType[] = [
   'pass_5',
   'pass_6',
   'ziggurat',
+  'flag',
+  'fortress',
 ];
 
 export interface FeatureGroup {
@@ -243,6 +271,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
   { key: 'altars_ruins', label: 'Altars & Ruins', color: '#8b5cf6', types: ['altar_darkness', 'ancient_ruins'] },
   { key: 'passes', label: 'Passes', color: '#f59e0b', types: ['pass_4', 'pass_5', 'pass_6'] },
   { key: 'ziggurat', label: 'Ziggurat', color: '#eab308', types: ['ziggurat'] },
+  { key: 'flags', label: 'Flags', color: '#64748b', types: ['flag', 'fortress'] },
 ];
 
 // Lookup: feature type → group key

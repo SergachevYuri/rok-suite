@@ -1,3 +1,8 @@
+// ─── Constants ──────────────────────────────────────────────────────
+
+/** RoK KvK maps use a 1200×1200 coordinate grid (X: 0→1200, Y: 1200→0). */
+export const GAME_MAP_SIZE = 1200;
+
 // ─── Feature Types ──────────────────────────────────────────────────
 
 export type FeatureType =
@@ -15,7 +20,9 @@ export type FeatureType =
   | 'circle_defense'
   | 'tempest_sanctuary'
   | 'altar_darkness'
-  | 'ziggurat';
+  | 'ziggurat'
+  | 'flag'
+  | 'fortress';
 
 export type MapStatus = 'draft' | 'base_complete' | 'planning' | 'active';
 

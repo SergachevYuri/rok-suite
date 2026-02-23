@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import MapBase from '@/components/kvk-map/MapBase';
 import FeatureMarker from '@/components/kvk-map/FeatureMarker';
+import FlagOverlay from '@/components/kvk-map/FlagOverlay';
 import ZonePolygon from '@/components/kvk-map/ZonePolygon';
 import ZoneLabel from '@/components/kvk-map/ZoneLabel';
 import DrawingOverlay from '@/components/kvk-map/DrawingOverlay';
@@ -308,8 +309,6 @@ export default function AdminMapView() {
       >
         <MapBase
           imageUrl={map.image_path}
-          imageWidth={map.image_width}
-          imageHeight={map.image_height}
           onClick={handleMapClick}
           onDoubleClick={handleMapDoubleClick}
           onMouseMove={handleMouseMove}
@@ -327,17 +326,33 @@ export default function AdminMapView() {
           {showZones && zones.map((zone) => (
             <ZoneLabel key={`label-${zone.id}`} zone={zone} zoom={zoom} />
           ))}
-          {visibleFeatures.map((feature) => (
-            <FeatureMarker
-              key={feature.id}
-              feature={feature}
-              isSelected={feature.id === selectedFeatureId}
-              isDraggable={!isPlacing && !isDrawingZone}
-              zoom={zoom}
-              onClick={handleFeatureClick}
-              onDragEnd={handleFeatureDragEnd}
-            />
-          ))}
+          {visibleFeatures.map((feature) => {
+            const cfg = FEATURE_TYPE_CONFIG[feature.feature_type];
+            if (cfg?.tileSize) {
+              return (
+                <FlagOverlay
+                  key={feature.id}
+                  feature={feature}
+                  isSelected={feature.id === selectedFeatureId}
+                  isDraggable={!isPlacing && !isDrawingZone}
+                  zoom={zoom}
+                  onClick={handleFeatureClick}
+                  onDragEnd={handleFeatureDragEnd}
+                />
+              );
+            }
+            return (
+              <FeatureMarker
+                key={feature.id}
+                feature={feature}
+                isSelected={feature.id === selectedFeatureId}
+                isDraggable={!isPlacing && !isDrawingZone}
+                zoom={zoom}
+                onClick={handleFeatureClick}
+                onDragEnd={handleFeatureDragEnd}
+              />
+            );
+          })}
           {isDrawingZone && (
             <DrawingOverlay vertices={zoneVertices} currentPoint={mousePos} />
           )}
