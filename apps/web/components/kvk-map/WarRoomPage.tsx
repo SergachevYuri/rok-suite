@@ -82,7 +82,7 @@ export default function WarRoomPage() {
         .limit(1);
       if (cancelled || (existing && existing.length > 0)) return;
 
-      const topAlliances = await fetchTopAlliancesFromRoster(3);
+      const topAlliances = await fetchTopAlliancesFromRoster(6);
       if (cancelled || topAlliances.length === 0) return;
       for (let i = 0; i < topAlliances.length; i++) {
         await createAlliance(map.id, { ...topAlliances[i], sort_order: i });

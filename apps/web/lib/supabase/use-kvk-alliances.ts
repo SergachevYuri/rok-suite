@@ -90,7 +90,7 @@ export async function deleteAlliance(allianceId: string): Promise<boolean> {
 
 // ─── Roster alliance helpers ────────────────────────────────────────
 
-const DEFAULT_COLORS = ['#ef4444', '#3b82f6', '#22c55e'];
+const DEFAULT_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export interface RosterAllianceSummary {
   tag: string;
