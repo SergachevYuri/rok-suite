@@ -40,5 +40,5 @@ jobs:
           if [[ -n "$START" && -n "$END" ]]; then
             python seeds-extractor/rok_automation.py --start "$START" --end "$END" --supabase
           else
-            python seeds-extractor/rok_automation.py --yesterday --supabase
+            python seeds-extractor/rok_automation.py --supabase
           fi
