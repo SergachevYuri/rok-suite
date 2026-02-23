@@ -102,7 +102,7 @@ export default function MapBase({
       center={center}
       zoom={-1}
       minZoom={-2}
-      maxZoom={2}
+      maxZoom={4}
       maxBounds={bounds}
       maxBoundsViscosity={1.0}
       style={{ width: '100%', height: '100%', background: '#0a0e1a' }}
