@@ -11,6 +11,8 @@ import DrawingOverlay from '@/components/kvk-map/DrawingOverlay';
 import CoordinateDisplay from '@/components/kvk-map/CoordinateDisplay';
 import FeaturePalette from '@/components/kvk-map/admin/FeaturePalette';
 import ZoneEditorPanel from '@/components/kvk-map/admin/ZoneEditorPanel';
+import RssNodeOverlay from '@/components/kvk-map/admin/RssNodeOverlay';
+import RssReviewPanel from '@/components/kvk-map/admin/RssReviewPanel';
 import WarRoomHeader from './WarRoomHeader';
 import AllianceList from './AllianceList';
 import FeatureDetailPanel from './FeatureDetailPanel';
@@ -32,6 +34,7 @@ import { useKvkAssignments, upsertAssignment, updateAssignment, deleteAssignment
 import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy } from '@/lib/supabase/use-kvk-strategies';
 import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentStatus } from '@/lib/kvk-map-types';
 import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
+import { loadRssNodes, type RssNode, type RssNodeType, type RssNodeStatus } from '@/lib/kvk-map/rss-review';
 
 function isFlagFeatureType(type: FeatureType): boolean {
   return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
@@ -111,6 +114,13 @@ export default function WarRoomPage() {
   const [isDrawingZone, setIsDrawingZone] = useState(false);
   const [zoneVertices, setZoneVertices] = useState<[number, number][]>([]);
 
+  // ── RSS review state (admin only) ─────────────────────────────────
+  const [rssReviewActive, setRssReviewActive] = useState(false);
+  const [rssNodes, setRssNodes] = useState<RssNode[]>([]);
+  const [selectedRssNodeId, setSelectedRssNodeId] = useState<number | null>(null);
+  const [rssTypeFilter, setRssTypeFilter] = useState<RssNodeType | 'all'>('all');
+  const [rssStatusFilter, setRssStatusFilter] = useState<RssNodeStatus | 'all'>('all');
+
   // ── Computed ────────────────────────────────────────────────────────
   const assignmentMap = useMemo(
     () => new Map(activeAssignments.map((a) => [a.feature_id, a])),
@@ -147,6 +157,14 @@ export default function WarRoomPage() {
     return counts;
   }, [features]);
 
+  const filteredRssNodes = useMemo(
+    () => rssNodes.filter((n) =>
+      (rssTypeFilter === 'all' || n.type === rssTypeFilter) &&
+      (rssStatusFilter === 'all' || n.status === rssStatusFilter)
+    ),
+    [rssNodes, rssTypeFilter, rssStatusFilter]
+  );
+
   const showZones = !hiddenGroups.has('zones');
 
   const visibleFeatures = useMemo(
@@ -178,6 +196,7 @@ export default function WarRoomPage() {
         setPlacingForAllianceId(null);
         setSelectedFeatureId(null);
         setSelectedZoneId(null);
+        setSelectedRssNodeId(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -408,6 +427,50 @@ export default function WarRoomPage() {
     [activeStrategyId, refetchStrategies]
   );
 
+  // ── RSS review handlers (admin only) ────────────────────────────────
+  const handleToggleRssReview = useCallback(() => {
+    setRssReviewActive((prev) => {
+      if (!prev) {
+        setRssNodes(loadRssNodes());
+        setSelectedRssNodeId(null);
+      }
+      return !prev;
+    });
+  }, []);
+
+  const handleRssNodeMove = useCallback((id: number, x: number, y: number) => {
+    setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
+  }, []);
+
+  const handleRssNodeChangeType = useCallback((id: number, type: RssNodeType) => {
+    setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, type } : n)));
+  }, []);
+
+  const handleRssNodeApprove = useCallback((id: number) => {
+    setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'approved' as RssNodeStatus } : n)));
+  }, []);
+
+  const handleRssNodeReject = useCallback((id: number) => {
+    setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'rejected' as RssNodeStatus } : n)));
+  }, []);
+
+  const handleRssNodeDelete = useCallback((id: number) => {
+    setRssNodes((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const handleRssExport = useCallback(() => {
+    const exportNodes = rssNodes
+      .filter((n) => n.status !== 'rejected')
+      .map(({ type, x, y }) => ({ type, x, y }));
+    const blob = new Blob([JSON.stringify(exportNodes, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'rss_nodes_corrected.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [rssNodes]);
+
   // ── Map click/move ─────────────────────────────────────────────────
   const handleMouseMove = useCallback((x: number, y: number) => {
     setMousePos({ x, y });
@@ -523,6 +586,22 @@ export default function WarRoomPage() {
               onUpdate={handleUpdateAlliance}
               onDelete={handleDeleteAlliance}
             />
+            {/* RSS Review toggle (admin only) */}
+            {isAdminMode && (
+              <button
+                onClick={handleToggleRssReview}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  backgroundColor: rssReviewActive ? 'rgba(34,197,94,0.15)' : 'var(--background-card)',
+                  color: rssReviewActive ? '#22c55e' : 'var(--text-muted)',
+                  border: `1px solid ${rssReviewActive ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
+                }}
+              >
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: rssReviewActive ? '#22c55e' : 'var(--text-muted)' }} />
+                RSS Node Review
+                {rssReviewActive && <span className="ml-auto text-[10px]">{rssNodes.length}</span>}
+              </button>
+            )}
             <FeaturePalette
               selectedType={placingType}
               isPlacing={isPlacing}
@@ -602,6 +681,15 @@ export default function WarRoomPage() {
                   />
                 );
               })}
+              {rssReviewActive && (
+                <RssNodeOverlay
+                  nodes={filteredRssNodes}
+                  selectedId={selectedRssNodeId}
+                  interactive={!isPlacing && !isDrawingZone}
+                  onSelect={setSelectedRssNodeId}
+                  onMove={handleRssNodeMove}
+                />
+              )}
               {isDrawingZone && (
                 <DrawingOverlay vertices={zoneVertices} currentPoint={mousePos} />
               )}
@@ -650,10 +738,26 @@ export default function WarRoomPage() {
             )}
           </div>
 
-          {/* Right sidebar — feature/zone detail only */}
-          {(selectedZone || selectedFeature) && (
+          {/* Right sidebar — feature/zone detail or RSS review */}
+          {(selectedZone || selectedFeature || rssReviewActive) && (
             <div className="lg:w-72 shrink-0 overflow-y-auto">
-              {selectedZone ? (
+              {rssReviewActive ? (
+                <RssReviewPanel
+                  nodes={rssNodes}
+                  selectedId={selectedRssNodeId}
+                  typeFilter={rssTypeFilter}
+                  statusFilter={rssStatusFilter}
+                  onTypeFilterChange={setRssTypeFilter}
+                  onStatusFilterChange={setRssStatusFilter}
+                  onChangeType={handleRssNodeChangeType}
+                  onApprove={handleRssNodeApprove}
+                  onReject={handleRssNodeReject}
+                  onDelete={handleRssNodeDelete}
+                  onSelect={setSelectedRssNodeId}
+                  onExport={handleRssExport}
+                  onClose={handleToggleRssReview}
+                />
+              ) : selectedZone ? (
                 isAdminMode ? (
                   <ZoneEditorPanel
                     zone={selectedZone}
