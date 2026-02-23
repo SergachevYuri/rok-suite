@@ -1,5 +1,3 @@
-import rssNodesRaw from '@/data/rss_nodes_all.json';
-
 // ─── Types ──────────────────────────────────────────────────────────
 
 export type RssNodeType = 'food' | 'wood' | 'stone' | 'gold';
@@ -31,9 +29,10 @@ export const RSS_TYPE_LABELS: Record<RssNodeType, string> = {
 
 export const RSS_TYPES: RssNodeType[] = ['food', 'wood', 'stone', 'gold'];
 
-// ─── Data loader ────────────────────────────────────────────────────
+// ─── Data loader (lazy — JSON loaded only when called) ──────────────
 
-export function loadRssNodes(): RssNode[] {
+export async function loadRssNodes(): Promise<RssNode[]> {
+  const { default: rssNodesRaw } = await import('@/data/rss_nodes_all.json');
   return (rssNodesRaw as { type: string; x: number; y: number }[]).map((raw, i) => ({
     id: i,
     type: (RSS_TYPES.includes(raw.type as RssNodeType) ? raw.type : 'food') as RssNodeType,

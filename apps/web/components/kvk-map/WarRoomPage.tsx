@@ -428,15 +428,16 @@ export default function WarRoomPage() {
   );
 
   // ── RSS review handlers (admin only) ────────────────────────────────
-  const handleToggleRssReview = useCallback(() => {
-    setRssReviewActive((prev) => {
-      if (!prev) {
-        setRssNodes(loadRssNodes());
-        setSelectedRssNodeId(null);
-      }
-      return !prev;
-    });
-  }, []);
+  const handleToggleRssReview = useCallback(async () => {
+    if (!rssReviewActive) {
+      const nodes = await loadRssNodes();
+      setRssNodes(nodes);
+      setSelectedRssNodeId(null);
+      setRssReviewActive(true);
+    } else {
+      setRssReviewActive(false);
+    }
+  }, [rssReviewActive]);
 
   const handleRssNodeMove = useCallback((id: number, x: number, y: number) => {
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
