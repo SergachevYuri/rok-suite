@@ -150,7 +150,7 @@ const DEFAULT_VISIBLE_COLUMNS = COLUMN_CONFIG.filter(c => c.defaultVisible).map(
 
 type SortDirection = 'asc' | 'desc';
 
-const EDITOR_PASSWORD = 'carn-dum';
+import { ADMIN_PASSWORD as EDITOR_PASSWORD } from '@/lib/auth-passwords';
 
 // Activity score breakdown interface
 interface ActivityBreakdown {

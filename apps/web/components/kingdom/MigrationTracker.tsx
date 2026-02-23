@@ -30,9 +30,7 @@ import { matchesSearch } from '@/lib/search';
 import { useNameHistory } from '@/lib/supabase/use-name-history';
 import { NameHistoryBadge } from './NameHistoryBadge';
 import type { MigrationStatus, ScanPlayer, SnapshotRow, KingdomExportRow, MigrantRow, InactiveRow, OfficerStatus, PlayerOverride } from '@/lib/kingdom/types';
-
-const EDITOR_PASSWORD = 'carn-dum';
-const OFFICER_PASSWORD = 'angmar';
+import { ADMIN_PASSWORD as EDITOR_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
 
 const STATUS_COLORS: Record<MigrationStatus, { bg: string; text: string; border: string }> = {
   ORIGINAL: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'border-emerald-500/30' },

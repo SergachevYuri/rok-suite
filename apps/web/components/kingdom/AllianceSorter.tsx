@@ -58,7 +58,7 @@ import { useNameHistory } from '@/lib/supabase/use-name-history';
 import { NameHistoryBadge } from './NameHistoryBadge';
 import SorterBoardView from './SorterBoardView';
 
-const EDITOR_PASSWORD = 'carn-dum';
+import { ADMIN_PASSWORD as EDITOR_PASSWORD } from '@/lib/auth-passwords';
 
 /** Migration statuses that should be separated into the flagged section */
 const FLAGGED_MIGRATION_STATUSES = new Set(['ILLEGAL', 'PENDING', 'INACTIVE']);

@@ -13,8 +13,7 @@ import { MgeEventCard } from '@/components/mge/MgeEventCard';
 import { MgeEventSetup } from '@/components/mge/MgeEventSetup';
 import { tierSortValue } from '@/lib/mge/helpers';
 
-const ADMIN_PASSWORD = 'carn-dum';
-const OFFICER_PASSWORD = 'angmar';
+import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
 
 interface RosterMember {
   id: string;

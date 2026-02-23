@@ -33,7 +33,7 @@ const ADMIN_CALENDAR = {
     displayColor: '#22c55e', // green
 };
 
-const ADMIN_PASSWORD = 'carn-dum';
+import { ADMIN_PASSWORD } from '@/lib/auth-passwords';
 
 const TIMEZONE_OPTIONS = [
     { value: 'UTC', label: 'UTC (Game Time)' },

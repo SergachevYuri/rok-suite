@@ -23,8 +23,7 @@ interface UndoAction {
   newStatus: OfficerMark | null;
 }
 
-const OFFICER_PASSWORD = 'angmar';
-const ADMIN_PASSWORD = 'carn-dum';
+import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
 const UNDO_TIMEOUT_MS = 6000;
 
 /** Format power — sheet stores values in millions (e.g. 28 = 28M) */

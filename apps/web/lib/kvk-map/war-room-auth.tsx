@@ -2,10 +2,11 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type { WarRoomRole } from '@/lib/kvk-map-types';
+import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
 
 const PASSWORDS: Record<Exclude<WarRoomRole, 'viewer'>, string> = {
-  officer: 'angmar23',
-  admin: 'carn-dum',
+  officer: OFFICER_PASSWORD,
+  admin: ADMIN_PASSWORD,
 };
 
 const ROLE_RANK: Record<WarRoomRole, number> = { viewer: 0, officer: 1, admin: 2 };

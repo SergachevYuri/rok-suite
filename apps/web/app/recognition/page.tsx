@@ -23,7 +23,7 @@ import {
 import { Crown, Trophy, Award, Medal, Star, ChevronDown, ChevronUp, Plus, Trash2, Lock, Calendar, Users, ScrollText } from 'lucide-react';
 import { allianceDisplay } from '@/lib/alliances';
 
-const EDITOR_PASSWORD = 'carn-dum';
+import { ADMIN_PASSWORD as EDITOR_PASSWORD } from '@/lib/auth-passwords';
 
 // Trophy type order for display
 const TROPHY_ORDER: TrophyType[] = ['legendary', 'epic', 'elite', 'advanced'];
