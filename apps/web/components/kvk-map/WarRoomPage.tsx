@@ -33,6 +33,10 @@ import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy
 import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentStatus } from '@/lib/kvk-map-types';
 import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
 
+function isFlagFeatureType(type: FeatureType): boolean {
+  return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
+}
+
 export default function WarRoomPage() {
   const { isAtLeast } = useWarRoomAuth();
   const searchParams = useSearchParams();
@@ -97,6 +101,7 @@ export default function WarRoomPage() {
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(-1);
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
+  const [placingForAllianceId, setPlacingForAllianceId] = useState<string | null>(null);
 
   // ── Zone hover state (for marker → zone highlight) ────────────────
   const [hoveredZoneNumber, setHoveredZoneNumber] = useState<number | null>(null);
@@ -170,6 +175,7 @@ export default function WarRoomPage() {
         }
         setPlacingType(null);
         setIsPlacing(false);
+        setPlacingForAllianceId(null);
         setSelectedFeatureId(null);
         setSelectedZoneId(null);
       }
@@ -195,15 +201,21 @@ export default function WarRoomPage() {
     });
   }, [allGroupKeys]);
 
-  // ── Feature handlers (admin only) ──────────────────────────────────
+  // ── Feature handlers (admin, or officer for flags) ─────────────────
   const handleSelectType = useCallback((type: FeatureType) => {
-    if (!isAtLeast('admin')) return;
+    const canPlace = isAtLeast('admin') || (isAtLeast('officer') && isFlagFeatureType(type));
+    if (!canPlace) return;
     setPlacingType(type);
     setIsPlacing(true);
     setSelectedFeatureId(null);
     setSelectedZoneId(null);
     setIsDrawingZone(false);
     setZoneVertices([]);
+    if (isFlagFeatureType(type) && alliances.length > 0) {
+      setPlacingForAllianceId(alliances[0].id);
+    } else {
+      setPlacingForAllianceId(null);
+    }
     const group = FEATURE_TYPE_TO_GROUP[type];
     if (group) {
       setHiddenGroups((prev) => {
@@ -213,11 +225,12 @@ export default function WarRoomPage() {
         return next;
       });
     }
-  }, [isAtLeast]);
+  }, [isAtLeast, alliances]);
 
   const handleCancelPlacement = useCallback(() => {
     setPlacingType(null);
     setIsPlacing(false);
+    setPlacingForAllianceId(null);
   }, []);
 
   const handleFeatureClick = useCallback(
@@ -242,7 +255,8 @@ export default function WarRoomPage() {
 
   const handleFeatureDragEnd = useCallback(
     async (feature: KvkMapFeature, newX: number, newY: number) => {
-      if (!isAtLeast('admin')) return;
+      const canDrag = isAtLeast('admin') || (isAtLeast('officer') && isFlagFeatureType(feature.feature_type as FeatureType));
+      if (!canDrag) return;
       await updateFeaturePosition(feature.id, newX, newY);
       await refetchFeatures();
     },
@@ -405,7 +419,9 @@ export default function WarRoomPage() {
         setZoneVertices((prev) => [...prev, [x, y]]);
         return;
       }
-      if (!isPlacing || !placingType || !map || !isAtLeast('admin')) return;
+      if (!isPlacing || !placingType || !map) return;
+      const canPlace = isAtLeast('admin') || (isAtLeast('officer') && isFlagFeatureType(placingType));
+      if (!canPlace) return;
       const sameType = features.filter((f) => f.feature_type === placingType);
       const lastOfType = sameType[sameType.length - 1];
       const config = FEATURE_TYPE_CONFIG[placingType];
@@ -415,11 +431,15 @@ export default function WarRoomPage() {
       };
       const newFeature = await createMapFeature(map.id, placingType, x, y, defaults);
       if (newFeature) {
+        if (isFlagFeatureType(placingType) && placingForAllianceId) {
+          await upsertAssignment(map.id, newFeature.id, placingForAllianceId);
+          await refetchAssignments();
+        }
         await refetchFeatures();
         setSelectedFeatureId(newFeature.id);
       }
     },
-    [isDrawingZone, isPlacing, placingType, map, features, refetchFeatures, isAtLeast]
+    [isDrawingZone, isPlacing, placingType, map, features, refetchFeatures, isAtLeast, placingForAllianceId, refetchAssignments]
   );
 
   const handleMapDoubleClick = useCallback(
@@ -456,6 +476,12 @@ export default function WarRoomPage() {
   }
 
   const isAdminMode = isAtLeast('admin');
+  const isOfficerMode = isAtLeast('officer');
+
+  const officerEditableGroups = useMemo(
+    () => (!isAdminMode && isOfficerMode ? new Set(['flags']) : undefined),
+    [isAdminMode, isOfficerMode]
+  );
 
   return (
     <div className="max-w-[1800px] mx-auto p-4 md:p-6">
@@ -508,6 +534,7 @@ export default function WarRoomPage() {
               allHidden={allHidden}
               onToggleAll={handleToggleAll}
               readOnly={!isAdminMode}
+              editableGroupKeys={officerEditableGroups}
             />
           </div>
 
@@ -522,7 +549,7 @@ export default function WarRoomPage() {
               onDoubleClick={handleMapDoubleClick}
               onMouseMove={handleMouseMove}
               onZoomChange={setZoom}
-              cursorStyle={(isPlacing || isDrawingZone) && isAdminMode ? 'crosshair' : undefined}
+              cursorStyle={(isPlacing && placingType) || (isDrawingZone && isAdminMode) ? 'crosshair' : undefined}
             >
               {showZones && zones.map((zone) => (
                 <ZonePolygon
@@ -546,7 +573,7 @@ export default function WarRoomPage() {
                       key={feature.id}
                       feature={feature}
                       isSelected={feature.id === selectedFeatureId}
-                      isDraggable={isAdminMode && !isPlacing && !isDrawingZone}
+                      isDraggable={(isAdminMode || isOfficerMode) && !isPlacing && !isDrawingZone}
                       zoom={zoom}
                       allianceColor={alliance?.color}
                       allianceTag={alliance?.tag}
@@ -582,16 +609,31 @@ export default function WarRoomPage() {
             <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
 
             {/* Mode indicator */}
-            {isPlacing && placingType && isAdminMode && (
+            {isPlacing && placingType && (
               <div
-                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] px-3 py-1.5 rounded-full text-xs font-medium"
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
                 style={{
                   backgroundColor: 'rgba(0,0,0,0.8)',
                   color: FEATURE_TYPE_CONFIG[placingType].color,
                   border: '1px solid var(--border)',
                 }}
               >
-                Placing: {FEATURE_TYPE_CONFIG[placingType].label} (click map to place, Esc to cancel)
+                <span>Placing: {FEATURE_TYPE_CONFIG[placingType].label}</span>
+                {isFlagFeatureType(placingType) && alliances.length > 0 && (
+                  <select
+                    value={placingForAllianceId || ''}
+                    onChange={(e) => setPlacingForAllianceId(e.target.value || null)}
+                    className="bg-transparent border rounded px-1.5 py-0.5 text-xs"
+                    style={{ borderColor: 'var(--border)', color: 'inherit' }}
+                  >
+                    {alliances.map((a) => (
+                      <option key={a.id} value={a.id} style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>
+                        [{a.tag}] {a.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <span style={{ color: 'var(--text-muted)' }}>(click map · Esc to cancel)</span>
               </div>
             )}
             {isDrawingZone && selectedZone && (
@@ -649,8 +691,8 @@ export default function WarRoomPage() {
                   assignment={selectedAssignment}
                   alliance={selectedAlliance}
                   alliances={alliances}
-                  onSave={isAdminMode ? handleSaveFeature : undefined}
-                  onDelete={isAdminMode ? handleDeleteFeature : undefined}
+                  onSave={(isAdminMode || (isOfficerMode && isFlagFeatureType(selectedFeature.feature_type as FeatureType))) ? handleSaveFeature : undefined}
+                  onDelete={(isAdminMode || (isOfficerMode && isFlagFeatureType(selectedFeature.feature_type as FeatureType))) ? handleDeleteFeature : undefined}
                   onAssign={isAtLeast('officer') ? handleAssign : undefined}
                   onUpdateAssignment={isAtLeast('officer') ? handleUpdateAssignment : undefined}
                   onUnassign={isAtLeast('officer') ? handleUnassign : undefined}

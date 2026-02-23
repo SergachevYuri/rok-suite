@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, X, Check, Trash2 } from 'lucide-react';
 import { useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
+import { fetchAllRosterAlliances, type RosterAllianceSummary } from '@/lib/supabase/use-kvk-alliances';
 import type { KvkAlliance, AllianceRole } from '@/lib/kvk-map-types';
 
 const ALLIANCE_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
@@ -21,6 +22,22 @@ export default function AllianceList({ alliances, onCreate, onUpdate, onDelete }
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ tag: '', name: '', role: 'support' as AllianceRole, color: ALLIANCE_COLORS[0] });
+  const [rosterAlliances, setRosterAlliances] = useState<RosterAllianceSummary[]>([]);
+
+  // Fetch roster alliances when opening the add form
+  useEffect(() => {
+    if (!adding) return;
+    fetchAllRosterAlliances().then(setRosterAlliances);
+  }, [adding]);
+
+  // Alliances already added to the war room
+  const existingTags = new Set(alliances.map((a) => a.tag.toUpperCase()));
+  const availableRosterAlliances = rosterAlliances.filter((r) => !existingTags.has(r.tag.toUpperCase()));
+
+  const handleSelectRosterAlliance = (tag: string) => {
+    const nextColor = ALLIANCE_COLORS[alliances.length % ALLIANCE_COLORS.length];
+    setForm({ tag, name: tag, role: 'support', color: nextColor });
+  };
 
   const handleAdd = () => {
     if (!form.tag.trim()) return;
@@ -138,6 +155,28 @@ export default function AllianceList({ alliances, onCreate, onUpdate, onDelete }
       {/* Add new alliance form */}
       {adding && (
         <div className="space-y-1.5 p-2 mt-1 rounded-lg" style={{ backgroundColor: 'var(--background-hover)' }}>
+          {/* Roster alliance picker */}
+          {availableRosterAlliances.length > 0 && !form.tag && (
+            <div className="space-y-0.5 max-h-32 overflow-y-auto">
+              {availableRosterAlliances.map((r) => (
+                <button
+                  key={r.tag}
+                  onClick={() => handleSelectRosterAlliance(r.tag)}
+                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs transition-all hover:brightness-125"
+                  style={{ backgroundColor: 'var(--background-card)' }}
+                >
+                  <span className="font-semibold" style={{ color: 'var(--foreground)' }}>[{r.tag}]</span>
+                  <span className="flex-1 truncate" style={{ color: 'var(--text-muted)' }}>
+                    {r.memberCount} members
+                  </span>
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    {(r.totalPower / 1e9).toFixed(1)}B
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Manual tag/name fields (shown after picking or for custom entry) */}
           <div className="flex gap-1.5">
             <input
               value={form.tag}
@@ -180,7 +219,7 @@ export default function AllianceList({ alliances, onCreate, onUpdate, onDelete }
               <option value="support">Support</option>
             </select>
             <div className="flex-1" />
-            <button onClick={handleAdd} style={{ color: 'var(--success)' }}><Check size={14} /></button>
+            <button onClick={handleAdd} disabled={!form.tag.trim()} style={{ color: form.tag.trim() ? 'var(--success)' : 'var(--text-muted)' }}><Check size={14} /></button>
             <button onClick={() => setAdding(false)} style={{ color: 'var(--text-muted)' }}><X size={14} /></button>
           </div>
         </div>

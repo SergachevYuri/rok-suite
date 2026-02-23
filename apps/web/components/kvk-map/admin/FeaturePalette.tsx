@@ -1,7 +1,7 @@
 'use client';
 
 import type { FeatureType } from '@/lib/kvk-map-types';
-import { FEATURE_TYPE_CONFIG, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
+import { FEATURE_TYPE_CONFIG, FEATURE_GROUPS, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config';
 import { MousePointer, Eye, EyeOff } from 'lucide-react';
 
 interface FeaturePaletteProps {
@@ -15,6 +15,8 @@ interface FeaturePaletteProps {
   allHidden: boolean;
   onToggleAll: () => void;
   readOnly?: boolean;
+  /** Group keys that are editable even when readOnly is true (e.g. officers can place flags). */
+  editableGroupKeys?: Set<string>;
 }
 
 export default function FeaturePalette({
@@ -28,6 +30,7 @@ export default function FeaturePalette({
   allHidden,
   onToggleAll,
   readOnly = false,
+  editableGroupKeys,
 }: FeaturePaletteProps) {
   return (
     <div
@@ -39,7 +42,7 @@ export default function FeaturePalette({
     >
       {/* Select tool + Hide All */}
       <div className="flex gap-1.5 mb-3">
-        {!readOnly && (
+        {(!readOnly || (editableGroupKeys && editableGroupKeys.size > 0)) && (
           <button
             onClick={onCancelPlacement}
             className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
@@ -113,7 +116,7 @@ export default function FeaturePalette({
             </button>
 
             {/* Feature type buttons */}
-            {!isHidden && !readOnly && (
+            {!isHidden && (!readOnly || editableGroupKeys?.has(group.key)) && (
               <div className="ml-2 space-y-0.5 mt-0.5">
                 {group.types.map((type) => {
                   const config = FEATURE_TYPE_CONFIG[type];
@@ -166,7 +169,7 @@ export default function FeaturePalette({
       })}
 
       {/* Placement hint */}
-      {!readOnly && isPlacing && selectedType && (
+      {(!readOnly || editableGroupKeys?.has(FEATURE_TYPE_TO_GROUP[selectedType!])) && isPlacing && selectedType && (
         <div
           className="mt-3 px-3 py-2 rounded-lg text-xs"
           style={{

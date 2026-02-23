@@ -88,9 +88,43 @@ export async function deleteAlliance(allianceId: string): Promise<boolean> {
   return true;
 }
 
-// ─── Auto-populate from roster data ────────────────────────────────
+// ─── Roster alliance helpers ────────────────────────────────────────
 
 const DEFAULT_COLORS = ['#ef4444', '#3b82f6', '#22c55e'];
+
+export interface RosterAllianceSummary {
+  tag: string;
+  memberCount: number;
+  totalPower: number;
+}
+
+/**
+ * Fetch all alliances from roster data with member counts and total power.
+ * Sorted by total power descending.
+ */
+export async function fetchAllRosterAlliances(): Promise<RosterAllianceSummary[]> {
+  const { data, error } = await supabase
+    .from('alliance_roster')
+    .select('alliance, power')
+    .eq('is_active', true)
+    .not('alliance', 'is', null);
+
+  if (error || !data) {
+    console.error('Failed to fetch roster alliances:', error?.message);
+    return [];
+  }
+
+  const stats = new Map<string, { count: number; power: number }>();
+  for (const row of data) {
+    if (!row.alliance) continue;
+    const prev = stats.get(row.alliance) || { count: 0, power: 0 };
+    stats.set(row.alliance, { count: prev.count + 1, power: prev.power + (row.power || 0) });
+  }
+
+  return [...stats.entries()]
+    .map(([tag, s]) => ({ tag, memberCount: s.count, totalPower: s.power }))
+    .sort((a, b) => b.totalPower - a.totalPower);
+}
 
 /**
  * Fetch the top N alliances by total member power from alliance_roster.
