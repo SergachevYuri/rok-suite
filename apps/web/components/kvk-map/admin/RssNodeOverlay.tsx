@@ -26,8 +26,8 @@ const RssNodeDot = memo(function RssNodeDot({
   const color = RSS_TYPE_COLORS[node.type];
   const isPropagated = node.source === 'propagated';
   const baseOpacity = node.status === 'rejected' ? 0.2 : node.status === 'approved' ? 1 : 0.7;
-  const opacity = isPropagated ? baseOpacity * 0.5 : baseOpacity;
-  const radius = isSelected ? 6 : isPropagated ? 2 : 3;
+  const opacity = isPropagated ? baseOpacity * 0.7 : baseOpacity;
+  const radius = isSelected ? 6 : 3;
 
   return (
     <CircleMarker

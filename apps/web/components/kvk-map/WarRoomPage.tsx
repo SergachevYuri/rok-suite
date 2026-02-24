@@ -525,13 +525,16 @@ export default function WarRoomPage() {
   // ── RSS annotation handlers ────────────────────────────────────────
   const handleRssPropagate = useCallback(() => {
     if (!symmetryConfig) return;
-    const manualNodes = rssNodes.filter((n) => n.source === 'manual');
-    const maxId = rssNodes.reduce((max, n) => Math.max(max, n.id), 0);
-    const propagated = propagateNodes(manualNodes, symmetryConfig, maxId + 1);
-    setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
-    setRssNodes((prev) => [...prev.filter((n) => n.source === 'manual'), ...propagated]);
-    setRssNextId(maxId + 1 + propagated.length);
-  }, [rssNodes, symmetryConfig]);
+    setRssNodes((currentNodes) => {
+      const manualNodes = currentNodes.filter((n) => n.source === 'manual');
+      if (manualNodes.length === 0) return currentNodes;
+      const maxId = currentNodes.reduce((max, n) => Math.max(max, n.id), 0);
+      const propagated = propagateNodes(manualNodes, symmetryConfig, maxId + 1);
+      setRssUndoStack((prev) => [...prev.slice(-19), currentNodes]);
+      setRssNextId(maxId + 1 + propagated.length);
+      return [...manualNodes, ...propagated];
+    });
+  }, [symmetryConfig]);
 
   const handleRssClearPropagated = useCallback(() => {
     setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
