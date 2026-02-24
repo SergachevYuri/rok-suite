@@ -6,26 +6,41 @@ export interface MapTile {
   gridY: number;
 }
 
+/** Target size for the downscaled image before tiling */
+const SCALED_SIZE = 2048;
+
 /**
- * Load map image and split into a grid of JPEG tiles.
- * Returns base64-encoded JPEG for each tile.
+ * Load map image, downscale it, and split into a grid of JPEG tiles.
+ * Returns base64-encoded JPEG for each tile plus the scaled image dimensions.
  */
 export async function splitMapIntoTiles(
   imageUrl: string,
   gridSize: number = 4,
-): Promise<MapTile[]> {
+  onProgress?: (msg: string) => void,
+): Promise<{ tiles: MapTile[]; scaledSize: number; tilePixelSize: number }> {
+  onProgress?.('Loading map image...');
   const img = await loadImage(imageUrl);
-  const tilePixelSize = Math.ceil(img.width / gridSize);
 
+  // Downscale the full image first
+  onProgress?.(`Downscaling ${img.width}x${img.height} → ${SCALED_SIZE}x${SCALED_SIZE}...`);
+  const scaledCanvas = document.createElement('canvas');
+  scaledCanvas.width = SCALED_SIZE;
+  scaledCanvas.height = SCALED_SIZE;
+  const scaledCtx = scaledCanvas.getContext('2d')!;
+  scaledCtx.drawImage(img, 0, 0, SCALED_SIZE, SCALED_SIZE);
+
+  const tilePixelSize = Math.ceil(SCALED_SIZE / gridSize);
+
+  onProgress?.(`Splitting into ${gridSize}x${gridSize} tiles...`);
   const tiles: MapTile[] = [];
   for (let gy = 0; gy < gridSize; gy++) {
     for (let gx = 0; gx < gridSize; gx++) {
-      const canvas = document.createElement('canvas');
-      canvas.width = tilePixelSize;
-      canvas.height = tilePixelSize;
-      const ctx = canvas.getContext('2d')!;
+      const tileCanvas = document.createElement('canvas');
+      tileCanvas.width = tilePixelSize;
+      tileCanvas.height = tilePixelSize;
+      const ctx = tileCanvas.getContext('2d')!;
       ctx.drawImage(
-        img,
+        scaledCanvas,
         gx * tilePixelSize,
         gy * tilePixelSize,
         tilePixelSize,
@@ -35,13 +50,13 @@ export async function splitMapIntoTiles(
         tilePixelSize,
         tilePixelSize,
       );
-      // JPEG at 70% quality to keep payload reasonable
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      const dataUrl = tileCanvas.toDataURL('image/jpeg', 0.75);
       const base64 = dataUrl.split(',')[1];
       tiles.push({ base64, gridX: gx, gridY: gy });
     }
   }
-  return tiles;
+
+  return { tiles, scaledSize: SCALED_SIZE, tilePixelSize };
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -56,7 +71,6 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 
 /**
  * Convert tile-relative pixel coordinates to game map coordinates (0–GAME_MAP_SIZE).
- * The map image is `imageSize` px, split into `gridSize x gridSize` tiles.
  */
 export function tileToMapCoords(
   gridX: number,
@@ -64,12 +78,12 @@ export function tileToMapCoords(
   nodePixelX: number,
   nodePixelY: number,
   tilePixelSize: number,
-  imageSize: number,
+  scaledSize: number,
 ): { x: number; y: number } {
   const pixelX = gridX * tilePixelSize + nodePixelX;
   const pixelY = gridY * tilePixelSize + nodePixelY;
   return {
-    x: Math.round((pixelX / imageSize) * GAME_MAP_SIZE),
-    y: Math.round((pixelY / imageSize) * GAME_MAP_SIZE),
+    x: Math.round((pixelX / scaledSize) * GAME_MAP_SIZE),
+    y: Math.round((pixelY / scaledSize) * GAME_MAP_SIZE),
   };
 }

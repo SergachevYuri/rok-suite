@@ -555,60 +555,77 @@ export default function WarRoomPage() {
     if (manualNodes.length === 0) return;
 
     setRssDetecting(true);
-    setRssDetectProgress('Splitting map into tiles...');
 
     try {
       const GRID_SIZE = 4;
-      const tiles = await splitMapIntoTiles(map.image_path, GRID_SIZE);
-      const imageSize = 2500; // map image is 2500x2500
-      const tilePixelSize = Math.ceil(imageSize / GRID_SIZE);
+      const { tiles, scaledSize, tilePixelSize } = await splitMapIntoTiles(
+        map.image_path,
+        GRID_SIZE,
+        setRssDetectProgress,
+      );
 
       const annotations = manualNodes.map((n) => ({ x: n.x, y: n.y, type: n.type }));
+      const allDetected: { x: number; y: number; type: string; confidence: number }[] = [];
 
-      setRssDetectProgress(`Scanning ${tiles.length} tiles with AI...`);
+      // Send tiles one at a time for per-tile progress
+      for (let i = 0; i < tiles.length; i++) {
+        const tile = tiles[i];
+        setRssDetectProgress(`Scanning tile ${i + 1}/${tiles.length}...`);
 
-      const response = await fetch('/api/kvk-map/detect-nodes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tiles,
-          annotations,
-          tilePixelSize,
-          imageSize,
-          mapSize: GAME_MAP_SIZE,
-        }),
-      });
+        const response = await fetch('/api/kvk-map/detect-nodes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tile,
+            annotations,
+            tilePixelSize,
+            scaledSize,
+            mapSize: GAME_MAP_SIZE,
+          }),
+        });
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({ error: 'Detection failed' }));
-        throw new Error(err.error || `HTTP ${response.status}`);
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({ error: 'Detection failed' }));
+          console.error(`Tile ${i + 1} failed:`, err.error);
+          continue; // skip failed tile, keep going
+        }
+
+        const data = await response.json();
+        if (data.nodes?.length) {
+          allDetected.push(...data.nodes);
+        }
       }
 
-      const data = await response.json();
-      const detectedNodes: RssNode[] = data.nodes.map((n: { x: number; y: number; type: string; confidence: number }, i: number) => ({
-        id: rssNextId + i,
-        type: n.type as RssNodeType,
-        x: n.x,
-        y: n.y,
-        status: 'pending' as const,
-        source: 'detected' as const,
-        segment: 0,
-      }));
+      // Deduplicate close nodes (within 5 game units)
+      const deduped: typeof allDetected = [];
+      for (const node of allDetected) {
+        const dup = deduped.find(
+          (d) => d.type === node.type && Math.hypot(d.x - node.x, d.y - node.y) < 5,
+        );
+        if (!dup) deduped.push(node);
+      }
 
-      // Filter out detected nodes that overlap with existing manual nodes
-      const filtered = detectedNodes.filter((n) => {
-        return !manualNodes.some((m) => Math.hypot(m.x - n.x, m.y - n.y) < 8);
-      });
+      // Convert to RssNode format, filter overlaps with manual nodes
+      let nextId = rssNextId;
+      const detectedNodes: RssNode[] = deduped
+        .filter((n) => !manualNodes.some((m) => Math.hypot(m.x - n.x, m.y - n.y) < 8))
+        .map((n) => ({
+          id: nextId++,
+          type: n.type as RssNodeType,
+          x: n.x,
+          y: n.y,
+          status: 'pending' as const,
+          source: 'detected' as const,
+          segment: 0,
+        }));
 
       setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
       setRssNodes((prev) => {
         const withoutOldDetected = prev.filter((n) => n.source !== 'detected');
-        return [...withoutOldDetected, ...filtered];
+        return [...withoutOldDetected, ...detectedNodes];
       });
-      setRssNextId((prev) => prev + filtered.length);
-      setRssDetectProgress(`Found ${filtered.length} new nodes`);
-
-      // Clear progress after a brief display
+      setRssNextId(nextId);
+      setRssDetectProgress(`Found ${detectedNodes.length} new nodes`);
       setTimeout(() => setRssDetectProgress(null), 3000);
     } catch (error) {
       console.error('RSS detection failed:', error);
