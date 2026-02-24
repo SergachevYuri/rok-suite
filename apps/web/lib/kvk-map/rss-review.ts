@@ -2,7 +2,7 @@
 
 export type RssNodeType = 'food' | 'wood' | 'stone' | 'gold' | 'crystal';
 export type RssNodeStatus = 'pending' | 'approved' | 'rejected';
-export type RssNodeSource = 'manual' | 'propagated';
+export type RssNodeSource = 'manual' | 'propagated' | 'detected';
 export type RssAnnotationMode = 'off' | 'annotate' | 'review';
 
 export interface RssNode {

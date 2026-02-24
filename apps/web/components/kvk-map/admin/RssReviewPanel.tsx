@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Check, X, Trash2, Download, GripVertical, Undo2, RotateCw, Play, Eraser } from 'lucide-react';
+import { Check, X, Trash2, Download, GripVertical, Undo2, Play, Eraser, Sparkles, Loader2 } from 'lucide-react';
 import type { RssNode, RssNodeType, RssNodeStatus, RssAnnotationMode } from '@/lib/kvk-map/rss-review';
 import { RSS_TYPES, RSS_TYPE_COLORS, RSS_TYPE_LABELS } from '@/lib/kvk-map/rss-review';
 
@@ -25,10 +25,12 @@ interface RssReviewPanelProps {
   activeRssType: RssNodeType;
   onActiveRssTypeChange: (type: RssNodeType) => void;
   sourceCount: number;
-  propagatedCount: number;
+  detectedCount: number;
   canUndo: boolean;
-  onPropagate: () => void;
-  onClearPropagated: () => void;
+  onDetect: () => void;
+  detecting: boolean;
+  detectProgress: string | null;
+  onClearDetected: () => void;
   onStartFresh: () => void;
   onUndo: () => void;
   onLoadExisting: () => void;
@@ -53,10 +55,12 @@ export default function RssReviewPanel({
   activeRssType,
   onActiveRssTypeChange,
   sourceCount,
-  propagatedCount,
+  detectedCount,
   canUndo,
-  onPropagate,
-  onClearPropagated,
+  onDetect,
+  detecting,
+  detectProgress,
+  onClearDetected,
   onStartFresh,
   onUndo,
   onLoadExisting,
@@ -134,8 +138,8 @@ export default function RssReviewPanel({
           {/* Stats */}
           <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex gap-3 text-[10px] font-medium">
-              <span style={{ color: '#3b82f6' }}>{sourceCount} source</span>
-              <span style={{ color: 'var(--text-muted)' }}>{propagatedCount} propagated</span>
+              <span style={{ color: '#3b82f6' }}>{sourceCount} manual</span>
+              <span style={{ color: '#a855f7' }}>{detectedCount} detected</span>
               <span className="ml-auto" style={{ color: 'var(--foreground)' }}>{nodes.length} total</span>
             </div>
           </div>
@@ -148,9 +152,9 @@ export default function RssReviewPanel({
                 <span className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>
                   Node #{selectedNode.id}
                 </span>
-                {selectedNode.source === 'propagated' && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>
-                    propagated
+                {selectedNode.source === 'detected' && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>
+                    AI detected
                   </span>
                 )}
               </div>
@@ -188,43 +192,54 @@ export default function RssReviewPanel({
           {/* Action buttons */}
           <div className="px-3 py-2 space-y-1.5">
             <button
-              onClick={onPropagate}
-              disabled={sourceCount === 0}
+              onClick={onDetect}
+              disabled={sourceCount === 0 || detecting}
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-30"
-              style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}
+              style={{ backgroundColor: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' }}
             >
-              <RotateCw size={12} /> Propagate to All Segments
+              {detecting ? (
+                <><Loader2 size={12} className="animate-spin" /> {detectProgress || 'Detecting...'}</>
+              ) : (
+                <><Sparkles size={12} /> Detect with AI</>
+              )}
             </button>
+            {detecting && detectProgress && (
+              <div className="text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>
+                {detectProgress}
+              </div>
+            )}
             <div className="flex gap-1.5">
               <button
                 onClick={onUndo}
-                disabled={!canUndo}
+                disabled={!canUndo || detecting}
                 className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium disabled:opacity-30"
                 style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
               >
                 <Undo2 size={10} /> Undo
               </button>
-              {propagatedCount > 0 && (
+              {detectedCount > 0 && (
                 <button
-                  onClick={onClearPropagated}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium"
+                  onClick={onClearDetected}
+                  disabled={detecting}
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium disabled:opacity-30"
                   style={{ backgroundColor: 'rgba(234,179,8,0.1)', color: '#eab308' }}
                 >
-                  <Eraser size={10} /> Clear propagated
+                  <Eraser size={10} /> Clear detected
                 </button>
               )}
             </div>
             <div className="flex gap-1.5">
               <button
                 onClick={onLoadExisting}
-                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium"
+                disabled={detecting}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium disabled:opacity-30"
                 style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
               >
                 <Play size={10} /> Load existing
               </button>
               <button
                 onClick={onStartFresh}
-                disabled={nodes.length === 0}
+                disabled={nodes.length === 0 || detecting}
                 className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium disabled:opacity-30"
                 style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
               >
@@ -333,8 +348,8 @@ export default function RssReviewPanel({
               {/* Coordinates */}
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 Position: <span style={{ color: 'var(--foreground)' }}>X: {selectedNode.x}, Y: {selectedNode.y}</span>
-                {selectedNode.source === 'propagated' && (
-                  <span style={{ color: '#8b5cf6' }}> (propagated)</span>
+                {selectedNode.source === 'detected' && (
+                  <span style={{ color: '#a855f7' }}> (AI detected)</span>
                 )}
               </div>
 

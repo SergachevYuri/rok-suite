@@ -13,7 +13,6 @@ import FeaturePalette from '@/components/kvk-map/admin/FeaturePalette';
 import ZoneEditorPanel from '@/components/kvk-map/admin/ZoneEditorPanel';
 import RssNodeOverlay from '@/components/kvk-map/admin/RssNodeOverlay';
 import RssReviewPanel from '@/components/kvk-map/admin/RssReviewPanel';
-import SegmentOverlay from '@/components/kvk-map/admin/SegmentOverlay';
 import WarRoomHeader from './WarRoomHeader';
 import AllianceList from './AllianceList';
 import FeatureDetailPanel from './FeatureDetailPanel';
@@ -37,7 +36,8 @@ import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentS
 import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
 import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
 import { loadRssNodes, RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus, type RssAnnotationMode } from '@/lib/kvk-map/rss-review';
-import { type SymmetryConfig, getSegment, propagateNodes } from '@/lib/kvk-map/rss-symmetry';
+import { type SymmetryConfig, getSegment } from '@/lib/kvk-map/rss-symmetry';
+import { splitMapIntoTiles } from '@/lib/kvk-map/map-tiling';
 
 function isFlagFeatureType(type: FeatureType): boolean {
   return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
@@ -129,6 +129,8 @@ export default function WarRoomPage() {
   const [activeRssType, setActiveRssType] = useState<RssNodeType>('food');
   const [rssNextId, setRssNextId] = useState(0);
   const [rssUndoStack, setRssUndoStack] = useState<RssNode[][]>([]);
+  const [rssDetecting, setRssDetecting] = useState(false);
+  const [rssDetectProgress, setRssDetectProgress] = useState<string | null>(null);
 
   // Auto-save RSS nodes to localStorage
   const RSS_STORAGE_KEY = 'kvk-rss-annotation-nodes';
@@ -152,7 +154,7 @@ export default function WarRoomPage() {
   }, [map]);
 
   const rssSourceCount = useMemo(() => rssNodes.filter((n) => n.source === 'manual').length, [rssNodes]);
-  const rssPropagatedCount = useMemo(() => rssNodes.filter((n) => n.source === 'propagated').length, [rssNodes]);
+  const rssDetectedCount = useMemo(() => rssNodes.filter((n) => n.source === 'detected').length, [rssNodes]);
 
   // ── Computed ────────────────────────────────────────────────────────
   const assignmentMap = useMemo(
@@ -547,22 +549,79 @@ export default function WarRoomPage() {
   }, [rssNodes]);
 
   // ── RSS annotation handlers ────────────────────────────────────────
-  const handleRssPropagate = useCallback(() => {
-    if (!symmetryConfig) return;
-    setRssNodes((currentNodes) => {
-      const manualNodes = currentNodes.filter((n) => n.source === 'manual');
-      if (manualNodes.length === 0) return currentNodes;
-      const maxId = currentNodes.reduce((max, n) => Math.max(max, n.id), 0);
-      const propagated = propagateNodes(manualNodes, symmetryConfig, maxId + 1);
-      setRssUndoStack((prev) => [...prev.slice(-19), currentNodes]);
-      setRssNextId(maxId + 1 + propagated.length);
-      return [...manualNodes, ...propagated];
-    });
-  }, [symmetryConfig]);
+  const handleRssDetect = useCallback(async () => {
+    if (!map || rssDetecting) return;
+    const manualNodes = rssNodes.filter((n) => n.source === 'manual');
+    if (manualNodes.length === 0) return;
 
-  const handleRssClearPropagated = useCallback(() => {
+    setRssDetecting(true);
+    setRssDetectProgress('Splitting map into tiles...');
+
+    try {
+      const GRID_SIZE = 4;
+      const tiles = await splitMapIntoTiles(map.image_path, GRID_SIZE);
+      const imageSize = 2500; // map image is 2500x2500
+      const tilePixelSize = Math.ceil(imageSize / GRID_SIZE);
+
+      const annotations = manualNodes.map((n) => ({ x: n.x, y: n.y, type: n.type }));
+
+      setRssDetectProgress(`Scanning ${tiles.length} tiles with AI...`);
+
+      const response = await fetch('/api/kvk-map/detect-nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tiles,
+          annotations,
+          tilePixelSize,
+          imageSize,
+          mapSize: GAME_MAP_SIZE,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Detection failed' }));
+        throw new Error(err.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const detectedNodes: RssNode[] = data.nodes.map((n: { x: number; y: number; type: string; confidence: number }, i: number) => ({
+        id: rssNextId + i,
+        type: n.type as RssNodeType,
+        x: n.x,
+        y: n.y,
+        status: 'pending' as const,
+        source: 'detected' as const,
+        segment: 0,
+      }));
+
+      // Filter out detected nodes that overlap with existing manual nodes
+      const filtered = detectedNodes.filter((n) => {
+        return !manualNodes.some((m) => Math.hypot(m.x - n.x, m.y - n.y) < 8);
+      });
+
+      setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+      setRssNodes((prev) => {
+        const withoutOldDetected = prev.filter((n) => n.source !== 'detected');
+        return [...withoutOldDetected, ...filtered];
+      });
+      setRssNextId((prev) => prev + filtered.length);
+      setRssDetectProgress(`Found ${filtered.length} new nodes`);
+
+      // Clear progress after a brief display
+      setTimeout(() => setRssDetectProgress(null), 3000);
+    } catch (error) {
+      console.error('RSS detection failed:', error);
+      setRssDetectProgress(`Error: ${error instanceof Error ? error.message : 'Detection failed'}`);
+      setTimeout(() => setRssDetectProgress(null), 5000);
+    } finally {
+      setRssDetecting(false);
+    }
+  }, [map, rssDetecting, rssNodes, rssNextId]);
+
+  const handleRssClearDetected = useCallback(() => {
     setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
-    setRssNodes((prev) => prev.filter((n) => n.source === 'manual'));
+    setRssNodes((prev) => prev.filter((n) => n.source !== 'detected'));
   }, [rssNodes]);
 
   const handleRssStartFresh = useCallback(() => {
@@ -811,14 +870,6 @@ export default function WarRoomPage() {
                   />
                 );
               })}
-              {rssReviewActive && symmetryConfig && rssAnnotationMode === 'annotate' && (
-                <SegmentOverlay
-                  config={symmetryConfig}
-                  mapSize={GAME_MAP_SIZE}
-                  sourceSegment={0}
-                  visible
-                />
-              )}
               {rssReviewActive && (
                 <RssNodeOverlay
                   nodes={filteredRssNodes}
@@ -913,10 +964,12 @@ export default function WarRoomPage() {
                   activeRssType={activeRssType}
                   onActiveRssTypeChange={setActiveRssType}
                   sourceCount={rssSourceCount}
-                  propagatedCount={rssPropagatedCount}
+                  detectedCount={rssDetectedCount}
                   canUndo={rssUndoStack.length > 0}
-                  onPropagate={handleRssPropagate}
-                  onClearPropagated={handleRssClearPropagated}
+                  onDetect={handleRssDetect}
+                  detecting={rssDetecting}
+                  detectProgress={rssDetectProgress}
+                  onClearDetected={handleRssClearDetected}
                   onStartFresh={handleRssStartFresh}
                   onUndo={handleRssUndo}
                   onLoadExisting={handleRssLoadExisting}
