@@ -38,7 +38,7 @@ jobs:
           START="${{ inputs.start_date }}"
           END="${{ inputs.end_date }}"
           if [[ -n "$START" && -n "$END" ]]; then
-            python seeds-extractor/rok_automation.py --start "$START" --end "$END" --supabase
+            python seeds-extractor/rok_automation.py --start "$START" --end "$END" --exclude-kingdoms 4041 --supabase
           else
-            python seeds-extractor/rok_automation.py --supabase
+            python seeds-extractor/rok_automation.py --exclude-kingdoms 4041 --supabase
           fi
