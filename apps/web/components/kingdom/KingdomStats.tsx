@@ -7,6 +7,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import {
   useAvailableKingdoms,
   useKingdomDates,
+  useAllDates,
   useKingdomMembers,
   useKingdomAggregates,
   formatCompact,
@@ -65,6 +66,7 @@ export default function KingdomStats() {
   // Data
   const { kingdoms, loading: loadingKingdoms } = useAvailableKingdoms();
   const { dates, loading: loadingDates } = useKingdomDates(selectedKingdom);
+  const { dates: allDates, loading: loadingAllDates } = useAllDates();
   const { members, loading: loadingMembers } = useKingdomMembers(selectedKingdom, selectedDate, 400);
 
   const chartKingdomIds = useMemo(() => Array.from(chartKingdoms), [chartKingdoms]);
@@ -93,13 +95,10 @@ export default function KingdomStats() {
     if (dates.length > 0 && !selectedDate) setSelectedDate(dates[0]);
   }, [dates, selectedDate]);
 
-  // Auto-select latest date for comparison (from aggregates of all kingdoms)
+  // Auto-select latest date for comparison
   React.useEffect(() => {
-    if (compAggregates.length > 0 && !comparisonDate) {
-      const allDates = [...new Set(compAggregates.map(a => a.dt))].sort().reverse();
-      if (allDates.length > 0) setComparisonDate(allDates[0]);
-    }
-  }, [compAggregates, comparisonDate]);
+    if (allDates.length > 0 && !comparisonDate) setComparisonDate(allDates[0]);
+  }, [allDates, comparisonDate]);
 
   React.useEffect(() => { setPage(0); }, [search, selectedKingdom, selectedDate, sortField, sortDir]);
 
@@ -108,7 +107,7 @@ export default function KingdomStats() {
     let data = [...members];
     if (search) {
       const q = search.toLowerCase();
-      data = data.filter(m => m.name.toLowerCase().includes(q));
+      data = data.filter(m => m.name.toLowerCase().includes(q) || m.id.toString().includes(q));
     }
     data.sort((a, b) => {
       const av = sortField === 'name' ? a.name.toLowerCase() : (a[sortField] || 0);
@@ -184,13 +183,6 @@ export default function KingdomStats() {
     }
     return Array.from(byKd.values()).sort((a, b) => b.total_power - a.total_power);
   }, [compAggregates, comparisonDate]);
-
-  // All available dates for comparison selector (from ALL kingdoms)
-  const comparisonDates = useMemo(() => {
-    // Use dates from the aggregates which cover all kingdoms
-    const s = new Set(compAggregates.map(a => a.dt));
-    return Array.from(s).sort().reverse();
-  }, [compAggregates]);
 
   const isLoading = loadingKingdoms || loadingDates || loadingMembers;
 
@@ -285,6 +277,7 @@ export default function KingdomStats() {
                     <thead>
                       <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
                         <th className="px-3 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">#</th>
+                        <th className="px-3 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">ID</th>
                         <HeaderCell label="Name" field="name" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                         <HeaderCell label="Power" field="power" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                         <HeaderCell label="Kill Points" field="kill" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
@@ -299,6 +292,7 @@ export default function KingdomStats() {
                       {paged.map((m, i) => (
                         <tr key={m.id} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
                           <td className="px-3 py-2.5 text-[var(--text-muted)]">{page * rowsPerPage + i + 1}</td>
+                          <td className="px-3 py-2.5 text-[var(--text-muted)] text-xs tabular-nums">{m.id}</td>
                           <td className="px-3 py-2.5 font-medium text-[var(--foreground)]">{m.name}</td>
                           <td className="px-3 py-2.5 text-right text-[var(--foreground)] tabular-nums">{formatCompact(m.power)}</td>
                           <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(m.kill)}</td>
@@ -350,8 +344,8 @@ export default function KingdomStats() {
               onChange={e => setComparisonDate(e.target.value)}
               className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
             >
-              {comparisonDates.length === 0 && <option>Loading...</option>}
-              {comparisonDates.map(d => <option key={d} value={d}>{d}</option>)}
+              {allDates.length === 0 && <option>Loading...</option>}
+              {allDates.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <span className="text-sm text-[var(--text-muted)]">
               {comparisonRows.length} kingdom{comparisonRows.length !== 1 ? 's' : ''} compared
@@ -390,11 +384,11 @@ export default function KingdomStats() {
                           />
                           KD {row.kingdom_id}
                         </td>
-                        <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{formatCompact(row.total_power)}</td>
-                        <td className="px-4 py-3 text-right text-red-400 tabular-nums">{formatCompact(row.total_kill)}</td>
-                        <td className="px-4 py-3 text-right text-emerald-400 tabular-nums">{formatCompact(row.total_collect)}</td>
-                        <td className="px-4 py-3 text-right text-amber-400 tabular-nums">{formatCompact(row.total_help)}</td>
-                        <td className="px-4 py-3 text-right text-[var(--text-muted)] tabular-nums">{formatCompact(row.total_dead)}</td>
+                        <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{row.total_power.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-red-400 tabular-nums">{row.total_kill.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-emerald-400 tabular-nums">{row.total_collect.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-amber-400 tabular-nums">{row.total_help.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right text-[var(--text-muted)] tabular-nums">{row.total_dead.toLocaleString()}</td>
                         <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{row.member_count}</td>
                       </tr>
                     ))}

@@ -199,6 +199,36 @@ export function useKingdomAggregates(
   return { aggregates, loading };
 }
 
+/**
+ * Fetch all distinct dates across all kingdoms.
+ */
+export function useAllDates() {
+  const [dates, setDates] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const allDates = new Set<string>();
+      let offset = 0;
+      while (true) {
+        const { data } = await supabase
+          .from('kingdom_members')
+          .select('dt')
+          .range(offset, offset + 999);
+        if (!data || data.length === 0) break;
+        for (const r of data) allDates.add(r.dt);
+        if (data.length < 1000) break;
+        offset += 1000;
+      }
+      setDates([...allDates].sort().reverse());
+      setLoading(false);
+    })();
+  }, []);
+
+  return { dates, loading };
+}
+
 export function formatCompact(n: number): string {
   if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B';
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
