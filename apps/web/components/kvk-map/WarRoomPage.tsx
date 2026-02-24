@@ -133,11 +133,12 @@ export default function WarRoomPage() {
   // ── Symmetry config ───────────────────────────────────────────────
   const symmetryConfig = useMemo<SymmetryConfig | null>(() => {
     if (!map) return null;
+    // DB default is 1000 from old 2000-era coordinate system — always use map center
+    const center = GAME_MAP_SIZE / 2;
     return {
       segments: map.symmetry_segments || 8,
-      // Guard against stale default of 1000 from old 2000-era coordinate system
-      centerX: map.symmetry_center_x <= GAME_MAP_SIZE ? map.symmetry_center_x : GAME_MAP_SIZE / 2,
-      centerY: map.symmetry_center_y <= GAME_MAP_SIZE ? map.symmetry_center_y : GAME_MAP_SIZE / 2,
+      centerX: center,
+      centerY: center,
     };
   }, [map]);
 
