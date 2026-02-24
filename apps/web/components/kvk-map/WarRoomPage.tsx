@@ -563,10 +563,9 @@ export default function WarRoomPage() {
         setZoneVertices((prev) => [...prev, [x, y]]);
         return;
       }
-      // RSS annotation: click to place node in source segment
+      // RSS annotation: click to place node anywhere
       if (rssAnnotationMode === 'annotate' && symmetryConfig) {
         const seg = getSegment(x, y, symmetryConfig);
-        if (seg !== 0) return; // only allow placing in source segment
         const newNode: RssNode = {
           id: rssNextId,
           type: activeRssType,
@@ -574,7 +573,7 @@ export default function WarRoomPage() {
           y: Math.round(y),
           status: 'pending',
           source: 'manual',
-          segment: 0,
+          segment: seg,
         };
         setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
         setRssNodes((prev) => [...prev, newNode]);
@@ -858,7 +857,7 @@ export default function WarRoomPage() {
               >
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[activeRssType] }} />
                 <span>Placing: {RSS_TYPE_LABELS[activeRssType]}</span>
-                <span style={{ color: 'var(--text-muted)' }}>(click in highlighted segment · Esc to stop)</span>
+                <span style={{ color: 'var(--text-muted)' }}>(click map to place · Esc to stop)</span>
               </div>
             )}
           </div>
