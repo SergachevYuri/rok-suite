@@ -130,6 +130,15 @@ export default function WarRoomPage() {
   const [rssNextId, setRssNextId] = useState(0);
   const [rssUndoStack, setRssUndoStack] = useState<RssNode[][]>([]);
 
+  // Auto-save RSS nodes to localStorage
+  const RSS_STORAGE_KEY = 'kvk-rss-annotation-nodes';
+  useEffect(() => {
+    if (!rssReviewActive || rssNodes.length === 0) return;
+    try {
+      localStorage.setItem(RSS_STORAGE_KEY, JSON.stringify({ nodes: rssNodes, nextId: rssNextId }));
+    } catch { /* quota exceeded — ignore */ }
+  }, [rssNodes, rssNextId, rssReviewActive]);
+
   // ── Symmetry config ───────────────────────────────────────────────
   const symmetryConfig = useMemo<SymmetryConfig | null>(() => {
     if (!map) return null;
@@ -469,8 +478,23 @@ export default function WarRoomPage() {
   // ── RSS review handlers (admin only) ────────────────────────────────
   const handleToggleRssReview = useCallback(() => {
     if (!rssReviewActive) {
-      setRssNodes([]);
-      setRssNextId(0);
+      // Try to restore saved nodes from localStorage
+      let restored = false;
+      try {
+        const saved = localStorage.getItem(RSS_STORAGE_KEY);
+        if (saved) {
+          const { nodes, nextId } = JSON.parse(saved);
+          if (Array.isArray(nodes) && nodes.length > 0) {
+            setRssNodes(nodes);
+            setRssNextId(nextId || nodes.length);
+            restored = true;
+          }
+        }
+      } catch { /* corrupt data — start fresh */ }
+      if (!restored) {
+        setRssNodes([]);
+        setRssNextId(0);
+      }
       setSelectedRssNodeId(null);
       setRssUndoStack([]);
       setRssAnnotationMode('annotate');
@@ -546,6 +570,7 @@ export default function WarRoomPage() {
     setRssNodes([]);
     setRssNextId(0);
     setSelectedRssNodeId(null);
+    try { localStorage.removeItem(RSS_STORAGE_KEY); } catch { /* ignore */ }
   }, []);
 
   const handleRssUndo = useCallback(() => {
