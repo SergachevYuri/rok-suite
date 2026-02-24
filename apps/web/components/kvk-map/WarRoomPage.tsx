@@ -13,6 +13,7 @@ import FeaturePalette from '@/components/kvk-map/admin/FeaturePalette';
 import ZoneEditorPanel from '@/components/kvk-map/admin/ZoneEditorPanel';
 import RssNodeOverlay from '@/components/kvk-map/admin/RssNodeOverlay';
 import RssReviewPanel from '@/components/kvk-map/admin/RssReviewPanel';
+import SegmentOverlay from '@/components/kvk-map/admin/SegmentOverlay';
 import WarRoomHeader from './WarRoomHeader';
 import AllianceList from './AllianceList';
 import FeatureDetailPanel from './FeatureDetailPanel';
@@ -33,8 +34,10 @@ import { useKvkAlliances, createAlliance, updateAlliance, deleteAlliance, fetchT
 import { useKvkAssignments, upsertAssignment, updateAssignment, deleteAssignment } from '@/lib/supabase/use-kvk-assignments';
 import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy } from '@/lib/supabase/use-kvk-strategies';
 import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentStatus } from '@/lib/kvk-map-types';
+import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
 import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
-import { loadRssNodes, type RssNode, type RssNodeType, type RssNodeStatus } from '@/lib/kvk-map/rss-review';
+import { loadRssNodes, RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus, type RssAnnotationMode } from '@/lib/kvk-map/rss-review';
+import { type SymmetryConfig, getSegment, propagateNodes } from '@/lib/kvk-map/rss-symmetry';
 
 function isFlagFeatureType(type: FeatureType): boolean {
   return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
@@ -121,6 +124,26 @@ export default function WarRoomPage() {
   const [rssTypeFilter, setRssTypeFilter] = useState<RssNodeType | 'all'>('all');
   const [rssStatusFilter, setRssStatusFilter] = useState<RssNodeStatus | 'all'>('all');
 
+  // ── RSS annotation state (admin only) ───────────────────────────
+  const [rssAnnotationMode, setRssAnnotationMode] = useState<RssAnnotationMode>('off');
+  const [activeRssType, setActiveRssType] = useState<RssNodeType>('food');
+  const [rssNextId, setRssNextId] = useState(0);
+  const [rssUndoStack, setRssUndoStack] = useState<RssNode[][]>([]);
+
+  // ── Symmetry config ───────────────────────────────────────────────
+  const symmetryConfig = useMemo<SymmetryConfig | null>(() => {
+    if (!map) return null;
+    return {
+      segments: map.symmetry_segments || 8,
+      // Guard against stale default of 1000 from old 2000-era coordinate system
+      centerX: map.symmetry_center_x <= GAME_MAP_SIZE ? map.symmetry_center_x : GAME_MAP_SIZE / 2,
+      centerY: map.symmetry_center_y <= GAME_MAP_SIZE ? map.symmetry_center_y : GAME_MAP_SIZE / 2,
+    };
+  }, [map]);
+
+  const rssSourceCount = useMemo(() => rssNodes.filter((n) => n.source === 'manual').length, [rssNodes]);
+  const rssPropagatedCount = useMemo(() => rssNodes.filter((n) => n.source === 'propagated').length, [rssNodes]);
+
   // ── Computed ────────────────────────────────────────────────────────
   const assignmentMap = useMemo(
     () => new Map(activeAssignments.map((a) => [a.feature_id, a])),
@@ -182,13 +205,28 @@ export default function WarRoomPage() {
     [allGroupKeys, hiddenGroups]
   );
 
-  // ── Escape key ─────────────────────────────────────────────────────
+  // ── Keyboard shortcuts ─────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd+Z: undo in annotation mode
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && rssAnnotationMode === 'annotate') {
+        e.preventDefault();
+        setRssUndoStack((stack) => {
+          if (stack.length === 0) return stack;
+          const prev = stack[stack.length - 1];
+          setRssNodes(prev);
+          return stack.slice(0, -1);
+        });
+        return;
+      }
       if (e.key === 'Escape') {
         if (isDrawingZone) {
           setIsDrawingZone(false);
           setZoneVertices([]);
+          return;
+        }
+        if (rssAnnotationMode === 'annotate') {
+          setRssAnnotationMode('review');
           return;
         }
         setPlacingType(null);
@@ -201,7 +239,7 @@ export default function WarRoomPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawingZone]);
+  }, [isDrawingZone, rssAnnotationMode]);
 
   // ── Visibility toggles ─────────────────────────────────────────────
   const handleToggleGroup = useCallback((groupKey: string) => {
@@ -428,16 +466,27 @@ export default function WarRoomPage() {
   );
 
   // ── RSS review handlers (admin only) ────────────────────────────────
-  const handleToggleRssReview = useCallback(async () => {
+  const handleToggleRssReview = useCallback(() => {
     if (!rssReviewActive) {
-      const nodes = await loadRssNodes();
-      setRssNodes(nodes);
+      setRssNodes([]);
+      setRssNextId(0);
       setSelectedRssNodeId(null);
+      setRssUndoStack([]);
+      setRssAnnotationMode('annotate');
       setRssReviewActive(true);
     } else {
       setRssReviewActive(false);
+      setRssAnnotationMode('off');
     }
   }, [rssReviewActive]);
+
+  const handleRssLoadExisting = useCallback(async () => {
+    const nodes = await loadRssNodes();
+    setRssNodes(nodes);
+    setRssNextId(nodes.length);
+    setSelectedRssNodeId(null);
+    setRssUndoStack([]);
+  }, []);
 
   const handleRssNodeMove = useCallback((id: number, x: number, y: number) => {
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
@@ -472,6 +521,36 @@ export default function WarRoomPage() {
     URL.revokeObjectURL(url);
   }, [rssNodes]);
 
+  // ── RSS annotation handlers ────────────────────────────────────────
+  const handleRssPropagate = useCallback(() => {
+    if (!symmetryConfig) return;
+    const manualNodes = rssNodes.filter((n) => n.source === 'manual');
+    const maxId = rssNodes.reduce((max, n) => Math.max(max, n.id), 0);
+    const propagated = propagateNodes(manualNodes, symmetryConfig, maxId + 1);
+    setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+    setRssNodes((prev) => [...prev.filter((n) => n.source === 'manual'), ...propagated]);
+    setRssNextId(maxId + 1 + propagated.length);
+  }, [rssNodes, symmetryConfig]);
+
+  const handleRssClearPropagated = useCallback(() => {
+    setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+    setRssNodes((prev) => prev.filter((n) => n.source === 'manual'));
+  }, [rssNodes]);
+
+  const handleRssStartFresh = useCallback(() => {
+    setRssUndoStack([]);
+    setRssNodes([]);
+    setRssNextId(0);
+    setSelectedRssNodeId(null);
+  }, []);
+
+  const handleRssUndo = useCallback(() => {
+    if (rssUndoStack.length === 0) return;
+    const prev = rssUndoStack[rssUndoStack.length - 1];
+    setRssUndoStack((s) => s.slice(0, -1));
+    setRssNodes(prev);
+  }, [rssUndoStack]);
+
   // ── Map click/move ─────────────────────────────────────────────────
   const handleMouseMove = useCallback((x: number, y: number) => {
     setMousePos({ x, y });
@@ -481,6 +560,25 @@ export default function WarRoomPage() {
     async (x: number, y: number) => {
       if (isDrawingZone && isAtLeast('admin')) {
         setZoneVertices((prev) => [...prev, [x, y]]);
+        return;
+      }
+      // RSS annotation: click to place node in source segment
+      if (rssAnnotationMode === 'annotate' && symmetryConfig) {
+        const seg = getSegment(x, y, symmetryConfig);
+        if (seg !== 0) return; // only allow placing in source segment
+        const newNode: RssNode = {
+          id: rssNextId,
+          type: activeRssType,
+          x: Math.round(x),
+          y: Math.round(y),
+          status: 'pending',
+          source: 'manual',
+          segment: 0,
+        };
+        setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+        setRssNodes((prev) => [...prev, newNode]);
+        setRssNextId((prev) => prev + 1);
+        setSelectedRssNodeId(newNode.id);
         return;
       }
       if (!isPlacing || !placingType || !map) return;
@@ -503,7 +601,7 @@ export default function WarRoomPage() {
         setSelectedFeatureId(newFeature.id);
       }
     },
-    [isDrawingZone, isPlacing, placingType, map, features, refetchFeatures, isAtLeast, placingForAllianceId, refetchAssignments]
+    [isDrawingZone, isPlacing, placingType, map, features, refetchFeatures, isAtLeast, placingForAllianceId, refetchAssignments, rssAnnotationMode, symmetryConfig, rssNextId, activeRssType, rssNodes]
   );
 
   const handleMapDoubleClick = useCallback(
@@ -632,7 +730,7 @@ export default function WarRoomPage() {
               onDoubleClick={handleMapDoubleClick}
               onMouseMove={handleMouseMove}
               onZoomChange={setZoom}
-              cursorStyle={(isPlacing && placingType) || (isDrawingZone && isAdminMode) ? 'crosshair' : undefined}
+              cursorStyle={(isPlacing && placingType) || (isDrawingZone && isAdminMode) || rssAnnotationMode === 'annotate' ? 'crosshair' : undefined}
             >
               {showZones && zones.map((zone) => (
                 <ZonePolygon
@@ -685,6 +783,14 @@ export default function WarRoomPage() {
                   />
                 );
               })}
+              {rssReviewActive && symmetryConfig && rssAnnotationMode === 'annotate' && (
+                <SegmentOverlay
+                  config={symmetryConfig}
+                  mapSize={GAME_MAP_SIZE}
+                  sourceSegment={0}
+                  visible
+                />
+              )}
               {rssReviewActive && (
                 <RssNodeOverlay
                   nodes={filteredRssNodes}
@@ -740,6 +846,20 @@ export default function WarRoomPage() {
                 Drawing: {selectedZone.name || `Zone ${selectedZone.zone_number}`} — {zoneVertices.length} vertices (double-click to finish, Esc to cancel)
               </div>
             )}
+            {rssAnnotationMode === 'annotate' && (
+              <div
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: 'rgba(0,0,0,0.8)',
+                  color: RSS_TYPE_COLORS[activeRssType],
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[activeRssType] }} />
+                <span>Placing: {RSS_TYPE_LABELS[activeRssType]}</span>
+                <span style={{ color: 'var(--text-muted)' }}>(click in highlighted segment · Esc to stop)</span>
+              </div>
+            )}
           </div>
 
           {/* Right sidebar — feature/zone detail or RSS review */}
@@ -760,6 +880,18 @@ export default function WarRoomPage() {
                   onSelect={setSelectedRssNodeId}
                   onExport={handleRssExport}
                   onClose={handleToggleRssReview}
+                  annotationMode={rssAnnotationMode}
+                  onAnnotationModeChange={setRssAnnotationMode}
+                  activeRssType={activeRssType}
+                  onActiveRssTypeChange={setActiveRssType}
+                  sourceCount={rssSourceCount}
+                  propagatedCount={rssPropagatedCount}
+                  canUndo={rssUndoStack.length > 0}
+                  onPropagate={handleRssPropagate}
+                  onClearPropagated={handleRssClearPropagated}
+                  onStartFresh={handleRssStartFresh}
+                  onUndo={handleRssUndo}
+                  onLoadExisting={handleRssLoadExisting}
                 />
               ) : selectedZone ? (
                 isAdminMode ? (

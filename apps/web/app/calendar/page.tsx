@@ -128,7 +128,7 @@ export default function CalendarPage() {
     const calendarSources = enabledCalendarsList
         .map(cal => `src=${encodeURIComponent(cal.id)}&color=${encodeURIComponent(cal.color)}`)
         .join('&');
-    const calendarUrl = `https://calendar.google.com/calendar/embed?${calendarSources}&ctz=${encodeURIComponent(timezone)}&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=MONTH`;
+    const calendarUrl = `https://calendar.google.com/calendar/embed?${calendarSources}&ctz=${encodeURIComponent(timezone)}&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=AGENDA`;
 
     return (
         <AppSidebar>

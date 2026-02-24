@@ -2,6 +2,8 @@
 
 export type RssNodeType = 'food' | 'wood' | 'stone' | 'gold';
 export type RssNodeStatus = 'pending' | 'approved' | 'rejected';
+export type RssNodeSource = 'manual' | 'propagated';
+export type RssAnnotationMode = 'off' | 'annotate' | 'review';
 
 export interface RssNode {
   id: number;
@@ -9,6 +11,9 @@ export interface RssNode {
   x: number;
   y: number;
   status: RssNodeStatus;
+  source: RssNodeSource;
+  segment: number;
+  sourceNodeId?: number;
 }
 
 // ─── Colors ─────────────────────────────────────────────────────────
@@ -39,5 +44,7 @@ export async function loadRssNodes(): Promise<RssNode[]> {
     x: raw.x,
     y: raw.y,
     status: 'pending' as RssNodeStatus,
+    source: 'manual' as RssNodeSource,
+    segment: 0,
   }));
 }

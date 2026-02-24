@@ -24,12 +24,15 @@ const RssNodeDot = memo(function RssNodeDot({
   onClick: () => void;
 }) {
   const color = RSS_TYPE_COLORS[node.type];
-  const opacity = node.status === 'rejected' ? 0.2 : node.status === 'approved' ? 1 : 0.7;
+  const isPropagated = node.source === 'propagated';
+  const baseOpacity = node.status === 'rejected' ? 0.2 : node.status === 'approved' ? 1 : 0.7;
+  const opacity = isPropagated ? baseOpacity * 0.5 : baseOpacity;
+  const radius = isSelected ? 6 : isPropagated ? 2 : 3;
 
   return (
     <CircleMarker
       center={[node.y, node.x]}
-      radius={isSelected ? 6 : 3}
+      radius={radius}
       pathOptions={{
         color: isSelected ? '#fff' : color,
         weight: isSelected ? 2 : 0,
@@ -47,6 +50,12 @@ const RssNodeDot = memo(function RssNodeDot({
             <span style={{ color: node.status === 'approved' ? '#22c55e' : node.status === 'rejected' ? '#ef4444' : '#9ca3af' }}>
               {node.status}
             </span>
+            {isPropagated && (
+              <>
+                <br />
+                <span style={{ color: '#8b5cf6' }}>propagated from #{node.sourceNodeId}</span>
+              </>
+            )}
           </div>
         </Tooltip>
       )}
