@@ -438,6 +438,7 @@ def main(
     search:        str  = "",
     output_format: str  = "json",
     kingdoms:      list = None,
+    exclude_kingdoms: list = None,
     force_login:   bool = False,
     pup_token:     str  = None,
     use_supabase:  bool = False,
@@ -448,7 +449,7 @@ def main(
         start_date = start_date or yday
         end_date   = end_date   or yday
     else:
-        today      = datetime.now().strftime("%Y-%m-%d")
+        today      = datetime.now(timezone(timedelta(hours=1))).strftime("%Y-%m-%d")
         start_date = start_date or today
         end_date   = end_date   or start_date
 
@@ -467,6 +468,8 @@ def main(
 
     if kingdoms:
         characters = {uid: svr for uid, svr in characters.items() if svr in kingdoms}
+    if exclude_kingdoms:
+        characters = {uid: svr for uid, svr in characters.items() if svr not in exclude_kingdoms}
 
     data = client.fetch_all(characters, start_date, end_date, output_format, CONFIG["output_dir"], search)
     print_summary(data, start_date, end_date)
@@ -497,6 +500,7 @@ if __name__ == "__main__":
     p.add_argument("--search",      default="")
     p.add_argument("--format",      default="json", choices=["json", "csv", "xlsx", "both"])
     p.add_argument("--kingdoms",    nargs="+", type=int, default=None)
+    p.add_argument("--exclude-kingdoms", nargs="+", type=int, default=None, help="Kingdom IDs da escludere")
     p.add_argument("--force-login", action="store_true", help="Forza re-login anche se il token e valido")
     p.add_argument("--pup-token",   default=None, help="pup_token manuale (da DevTools)")
     p.add_argument("--supabase",    action="store_true", help="Salva i dati su Supabase")
@@ -509,6 +513,7 @@ if __name__ == "__main__":
         search=args.search,
         output_format=args.format,
         kingdoms=args.kingdoms,
+        exclude_kingdoms=args.exclude_kingdoms,
         force_login=args.force_login,
         pup_token=args.pup_token,
         use_supabase=args.supabase,
