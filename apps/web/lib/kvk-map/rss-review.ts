@@ -1,6 +1,6 @@
 // ─── Types ──────────────────────────────────────────────────────────
 
-export type RssNodeType = 'food' | 'wood' | 'stone' | 'gold';
+export type RssNodeType = 'food' | 'wood' | 'stone' | 'gold' | 'crystal';
 export type RssNodeStatus = 'pending' | 'approved' | 'rejected';
 export type RssNodeSource = 'manual' | 'propagated';
 export type RssAnnotationMode = 'off' | 'annotate' | 'review';
@@ -23,6 +23,7 @@ export const RSS_TYPE_COLORS: Record<RssNodeType, string> = {
   wood: '#a16207',
   stone: '#6b7280',
   gold: '#eab308',
+  crystal: '#a855f7',
 };
 
 export const RSS_TYPE_LABELS: Record<RssNodeType, string> = {
@@ -30,9 +31,10 @@ export const RSS_TYPE_LABELS: Record<RssNodeType, string> = {
   wood: 'Wood',
   stone: 'Stone',
   gold: 'Gold',
+  crystal: 'Crystal',
 };
 
-export const RSS_TYPES: RssNodeType[] = ['food', 'wood', 'stone', 'gold'];
+export const RSS_TYPES: RssNodeType[] = ['food', 'wood', 'stone', 'gold', 'crystal'];
 
 // ─── Data loader (lazy — JSON loaded only when called) ──────────────
 
