@@ -582,12 +582,14 @@ export default function WarRoomPage() {
         <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
           {/* Left sidebar */}
           <div className="lg:w-56 shrink-0 overflow-y-auto space-y-3">
-            <AllianceList
-              alliances={alliances}
-              onCreate={handleCreateAlliance}
-              onUpdate={handleUpdateAlliance}
-              onDelete={handleDeleteAlliance}
-            />
+            {isOfficerMode && (
+              <AllianceList
+                alliances={alliances}
+                onCreate={handleCreateAlliance}
+                onUpdate={handleUpdateAlliance}
+                onDelete={handleDeleteAlliance}
+              />
+            )}
             {/* RSS Review toggle (admin only) */}
             {isAdminMode && (
               <button
@@ -645,7 +647,7 @@ export default function WarRoomPage() {
                 <ZoneLabel key={`label-${zone.id}`} zone={zone} zoom={zoom} />
               ))}
               {visibleFeatures.map((feature) => {
-                const assignment = assignmentMap.get(feature.id);
+                const assignment = isOfficerMode ? assignmentMap.get(feature.id) : undefined;
                 const alliance = assignment ? allianceMap.get(assignment.alliance_id) : undefined;
                 const cfg = FEATURE_TYPE_CONFIG[feature.feature_type];
                 if (cfg?.tileSize) {
@@ -794,9 +796,9 @@ export default function WarRoomPage() {
               ) : selectedFeature ? (
                 <FeatureDetailPanel
                   feature={selectedFeature}
-                  assignment={selectedAssignment}
-                  alliance={selectedAlliance}
-                  alliances={alliances}
+                  assignment={isOfficerMode ? selectedAssignment : null}
+                  alliance={isOfficerMode ? selectedAlliance : null}
+                  alliances={isOfficerMode ? alliances : []}
                   onSave={(isAdminMode || (isOfficerMode && isFlagFeatureType(selectedFeature.feature_type as FeatureType))) ? handleSaveFeature : undefined}
                   onDelete={(isAdminMode || (isOfficerMode && isFlagFeatureType(selectedFeature.feature_type as FeatureType))) ? handleDeleteFeature : undefined}
                   onAssign={isAtLeast('officer') ? handleAssign : undefined}
@@ -812,8 +814,8 @@ export default function WarRoomPage() {
         {/* Bottom panel: Achievement Progress */}
         <AchievementProgressPanel
           features={features}
-          assignments={activeAssignments}
-          alliances={alliances}
+          assignments={isOfficerMode ? activeAssignments : []}
+          alliances={isOfficerMode ? alliances : []}
           collapsed={!bottomPanelOpen}
           onToggle={() => setBottomPanelOpen((v) => !v)}
         />
