@@ -32,8 +32,16 @@ const CENTER_WHITENESS_MIN = 85;
  */
 const CONTRAST_MIN = 35;
 
-/** Size of the center patch used for color classification (in downscaled px) */
-const COLOR_SAMPLE_RADIUS = 2; // 5x5 patch
+/**
+ * Color sampling radii (in downscaled px).
+ * The icon center is mostly white — the color tint is in the ring.
+ * Inner: skip the pure-white center.  Outer: capture the colored halo.
+ */
+const COLOR_INNER_RADIUS = 2; // skip center 5x5
+const COLOR_OUTER_RADIUS = 6; // sample up to 13x13
+
+/** KNN K value for classification */
+const KNN_K = 5;
 
 /**
  * Whiteness score for a single pixel.
@@ -50,79 +58,116 @@ function pixelWhiteness(r: number, g: number, b: number): number {
   return Math.max(0, brightness - spread * 1.5);
 }
 
-/** Convert RGB [0-255] to HSL. Returns [hue 0-360, saturation 0-1, lightness 0-1]. */
-function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
-  const rn = r / 255, gn = g / 255, bn = b / 255;
-  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
-  const l = (max + min) / 2;
-  if (max === min) return [0, 0, l];
-  const d = max - min;
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h = 0;
-  if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
-  else if (max === gn) h = ((bn - rn) / d + 2) * 60;
-  else h = ((rn - gn) / d + 4) * 60;
-  return [h, s, l];
-}
-
-/** Sample the average RGB of a center patch around (cx, cy) in the RGBA pixel array. */
-function sampleCenterColor(
-  pixels: Uint8ClampedArray, w: number, h: number,
-  cx: number, cy: number, radius: number,
-): { r: number; g: number; b: number } | null {
-  let rSum = 0, gSum = 0, bSum = 0, count = 0;
-  for (let dy = -radius; dy <= radius; dy++) {
-    for (let dx = -radius; dx <= radius; dx++) {
-      const px = cx + dx, py = cy + dy;
-      if (px < 0 || px >= w || py < 0 || py >= h) continue;
-      const idx = (py * w + px) * 4;
-      rSum += pixels[idx];
-      gSum += pixels[idx + 1];
-      bSum += pixels[idx + 2];
-      count++;
-    }
-  }
-  if (count === 0) return null;
-  return { r: rSum / count, g: gSum / count, b: bSum / count };
-}
-
-/** Hue distance on the circular 0-360 scale. */
-function hueDist(a: number, b: number): number {
-  const d = Math.abs(a - b);
-  return d > 180 ? 360 - d : d;
-}
-
-interface TypeColorProfile {
+/** A single training sample: tint vector + known type */
+interface TintSample {
   type: RssNodeType;
-  hue: number;
-  saturation: number;
-  lightness: number;
-  count: number;
+  dr: number;
+  dg: number;
+  db: number;
 }
 
-/** Classify a detected node by comparing its center color to per-type profiles. */
-function classifyByColor(
-  r: number, g: number, b: number,
-  profiles: TypeColorProfile[],
+/** Euclidean distance between two tint vectors */
+function tintDist(a: { dr: number; dg: number; db: number }, b: { dr: number; dg: number; db: number }): number {
+  const dd = a.dr - b.dr, dg = a.dg - b.dg, db = a.db - b.db;
+  return Math.sqrt(dd * dd + dg * dg + db * db);
+}
+
+/**
+ * KNN classifier: find the K nearest training samples by tint distance
+ * and return the majority type.
+ */
+function classifyByKnn(
+  tint: { dr: number; dg: number; db: number },
+  samples: TintSample[],
 ): RssNodeType {
-  const [h, s, l] = rgbToHsl(r, g, b);
+  if (samples.length === 0) return 'food';
+
+  // Compute distances to all training samples
+  const dists = samples.map((s, i) => ({ i, dist: tintDist(tint, s) }));
+  dists.sort((a, b) => a.dist - b.dist);
+
+  // Vote among K nearest
+  const k = Math.min(KNN_K, dists.length);
+  const votes: Partial<Record<RssNodeType, number>> = {};
+  for (let i = 0; i < k; i++) {
+    const type = samples[dists[i].i].type;
+    votes[type] = (votes[type] || 0) + 1;
+  }
 
   let bestType: RssNodeType = 'food';
-  let bestScore = Infinity;
-
-  for (const p of profiles) {
-    // Stone is distinguished by low saturation; others by hue
-    // Weighted distance: hue matters most, saturation helps separate stone from others
-    const hDist = hueDist(h, p.hue);
-    const sDist = Math.abs(s - p.saturation) * 180; // scale to comparable range
-    const lDist = Math.abs(l - p.lightness) * 60;
-    const score = hDist + sDist + lDist;
-    if (score < bestScore) {
-      bestScore = score;
-      bestType = p.type;
+  let bestCount = 0;
+  for (const [type, count] of Object.entries(votes)) {
+    if (count! > bestCount) {
+      bestCount = count!;
+      bestType = type as RssNodeType;
     }
   }
   return bestType;
+}
+
+/**
+ * Sample the color tint of an RSS icon by looking at the ring of pixels
+ * around the white center.  The center is mostly white (low saturation);
+ * the colored halo at radius 2–6 carries the actual type color.
+ *
+ * Returns a "deviation from gray" vector (dr, dg, db) which is more
+ * stable than HSL hue for near-white colors.  Each component is the
+ * channel value minus the per-pixel mean, averaged across the ring,
+ * weighted by each pixel's saturation (so colorful pixels count more).
+ */
+function sampleIconTint(
+  pixels: Uint8ClampedArray, w: number, h: number,
+  cx: number, cy: number,
+): { dr: number; dg: number; db: number } | null {
+  let drSum = 0, dgSum = 0, dbSum = 0, weightSum = 0;
+
+  for (let dy = -COLOR_OUTER_RADIUS; dy <= COLOR_OUTER_RADIUS; dy++) {
+    for (let dx = -COLOR_OUTER_RADIUS; dx <= COLOR_OUTER_RADIUS; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      // Skip center (too white) and corners (outside icon)
+      if (dist < COLOR_INNER_RADIUS || dist > COLOR_OUTER_RADIUS) continue;
+
+      const px = cx + dx, py = cy + dy;
+      if (px < 0 || px >= w || py < 0 || py >= h) continue;
+
+      const idx = (py * w + px) * 4;
+      const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2];
+
+      // Only consider bright pixels (part of the icon, not terrain)
+      const brightness = (r + g + b) / 3;
+      if (brightness < 120) continue;
+
+      // Saturation as weight — more saturated pixels carry more color info
+      const spread = Math.max(r, g, b) - Math.min(r, g, b);
+      const sat = brightness > 0 ? spread / brightness : 0;
+      const weight = 0.1 + sat; // small base weight so even low-sat pixels contribute
+
+      // Deviation from gray
+      const avg = brightness;
+      drSum += (r - avg) * weight;
+      dgSum += (g - avg) * weight;
+      dbSum += (b - avg) * weight;
+      weightSum += weight;
+    }
+  }
+
+  if (weightSum < 0.01) return null;
+  return { dr: drSum / weightSum, dg: dgSum / weightSum, db: dbSum / weightSum };
+}
+
+/** Build tint samples from annotations — used by both detect and reclassify. */
+function buildTintSamples(
+  pixels: Uint8ClampedArray, w: number, h: number,
+  annotations: AnnotationSample[],
+): TintSample[] {
+  const samples: TintSample[] = [];
+  for (const ann of annotations) {
+    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
+    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
+    const tint = sampleIconTint(pixels, w, h, cx, cy);
+    if (tint) samples.push({ type: ann.type, ...tint });
+  }
+  return samples;
 }
 
 /**
@@ -135,9 +180,9 @@ function classifyByColor(
  *   4. Scan with stride 4, pre-filter on local whiteness peaks
  *   5. NCC on whiteness map → candidate positions
  *
- * Stage 2 — Classification (color hue):
- *   6. Build per-type HSL color profiles from annotation center pixels
- *   7. Match each candidate's center color to nearest profile by hue/saturation
+ * Stage 2 — Classification (tint KNN):
+ *   6. Sample icon ring tint (deviation-from-gray) for each annotation
+ *   7. Classify each candidate via K-nearest-neighbors on tint vectors
  *
  * Final: Non-maximum suppression
  */
@@ -217,40 +262,10 @@ export async function detectNodesPixel(
     return [];
   }
 
-  // ── Build per-type color profiles from annotations (for classification) ──
-  const colorProfiles: TypeColorProfile[] = [];
-  const colorAccum: Record<string, { hSum: number; sSum: number; lSum: number; count: number }> = {};
+  // ── Build per-annotation tint samples for KNN classification ──
+  const tintSamples = buildTintSamples(pixels, w, h, annotations);
 
-  for (const ann of annotations) {
-    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
-    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
-    const color = sampleCenterColor(pixels, w, h, cx, cy, COLOR_SAMPLE_RADIUS);
-    if (!color) continue;
-
-    const [hue, sat, lit] = rgbToHsl(color.r, color.g, color.b);
-    if (!colorAccum[ann.type]) {
-      colorAccum[ann.type] = { hSum: 0, sSum: 0, lSum: 0, count: 0 };
-    }
-    const ca = colorAccum[ann.type];
-    // Use sin/cos for circular hue averaging
-    ca.hSum += hue; // simplified — works when samples are clustered
-    ca.sSum += sat;
-    ca.lSum += lit;
-    ca.count++;
-  }
-
-  for (const [type, ca] of Object.entries(colorAccum)) {
-    if (ca.count === 0) continue;
-    colorProfiles.push({
-      type: type as RssNodeType,
-      hue: ca.hSum / ca.count,
-      saturation: ca.sSum / ca.count,
-      lightness: ca.lSum / ca.count,
-      count: ca.count,
-    });
-  }
-
-  onProgress?.(`Built ${wTemplates.length} detection + ${colorProfiles.length} color profiles, scanning ${w}x${h}...`);
+  onProgress?.(`Built ${wTemplates.length} detection templates + ${tintSamples.length} color samples, scanning ${w}x${h}...`);
 
   // ── Stage 1: Detect candidates using whiteness NCC ──
   const candidates: { x: number; y: number; score: number }[] = [];
@@ -310,17 +325,17 @@ export async function detectNodesPixel(
 
   onProgress?.(`After NMS: ${kept.length} nodes. Classifying types...`);
 
-  // ── Stage 2: Classify each kept detection using center-color hue matching ──
+  // ── Stage 2: Classify each kept detection using KNN on tint vectors ──
   const detectedNodes: DetectedPixelNode[] = [];
 
   for (let ci = 0; ci < kept.length; ci++) {
     const { x: sx, y: sy } = kept[ci];
     let bestType: RssNodeType = 'food';
 
-    if (colorProfiles.length > 0) {
-      const color = sampleCenterColor(pixels, w, h, sx, sy, COLOR_SAMPLE_RADIUS);
-      if (color) {
-        bestType = classifyByColor(color.r, color.g, color.b, colorProfiles);
+    if (tintSamples.length > 0) {
+      const tint = sampleIconTint(pixels, w, h, sx, sy);
+      if (tint) {
+        bestType = classifyByKnn(tint, tintSamples);
       }
     }
 
@@ -342,7 +357,7 @@ export async function detectNodesPixel(
 
 /**
  * Re-classify pending detected nodes using corrected nodes as better training data.
- * Loads the image, builds color profiles from corrected annotations, and re-types
+ * Loads the image, builds KNN tint samples from corrected annotations, and re-types
  * only the pending nodes. Skips the full detection scan.
  */
 export async function reclassifyNodeTypes(
@@ -365,50 +380,36 @@ export async function reclassifyNodeTypes(
   ctx.drawImage(img, 0, 0, w, h);
   const pixels = ctx.getImageData(0, 0, w, h).data;
 
-  // Build color profiles from training nodes (manual + corrected)
-  onProgress?.(`Building profiles from ${trainingNodes.length} corrected nodes...`);
-  const colorAccum: Record<string, { hSum: number; sSum: number; lSum: number; count: number }> = {};
+  // Build tint samples from training nodes (manual + corrected)
+  onProgress?.(`Building tint samples from ${trainingNodes.length} corrected nodes...`);
+  const tintSamples = buildTintSamples(pixels, w, h, trainingNodes);
 
-  for (const ann of trainingNodes) {
-    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
-    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
-    const color = sampleCenterColor(pixels, w, h, cx, cy, COLOR_SAMPLE_RADIUS);
-    if (!color) continue;
+  if (tintSamples.length === 0) return pendingNodes.map(() => 'food');
 
-    const [hue, sat, lit] = rgbToHsl(color.r, color.g, color.b);
-    if (!colorAccum[ann.type]) {
-      colorAccum[ann.type] = { hSum: 0, sSum: 0, lSum: 0, count: 0 };
-    }
-    const ca = colorAccum[ann.type];
-    ca.hSum += hue;
-    ca.sSum += sat;
-    ca.lSum += lit;
-    ca.count++;
+  // Log per-type tint stats to help debug classification quality
+  const typeStats: Record<string, { count: number; dr: number; dg: number; db: number }> = {};
+  for (const s of tintSamples) {
+    if (!typeStats[s.type]) typeStats[s.type] = { count: 0, dr: 0, dg: 0, db: 0 };
+    const ts = typeStats[s.type];
+    ts.count++;
+    ts.dr += s.dr;
+    ts.dg += s.dg;
+    ts.db += s.db;
+  }
+  for (const [type, ts] of Object.entries(typeStats)) {
+    const avg = { dr: ts.dr / ts.count, dg: ts.dg / ts.count, db: ts.db / ts.count };
+    console.log(`[RSS] ${type}: n=${ts.count}, avg tint=(${avg.dr.toFixed(2)}, ${avg.dg.toFixed(2)}, ${avg.db.toFixed(2)})`);
   }
 
-  const colorProfiles: TypeColorProfile[] = [];
-  for (const [type, ca] of Object.entries(colorAccum)) {
-    if (ca.count === 0) continue;
-    colorProfiles.push({
-      type: type as RssNodeType,
-      hue: ca.hSum / ca.count,
-      saturation: ca.sSum / ca.count,
-      lightness: ca.lSum / ca.count,
-      count: ca.count,
-    });
-  }
-
-  if (colorProfiles.length === 0) return pendingNodes.map(() => 'food');
-
-  // Re-classify each pending node
-  onProgress?.(`Re-classifying ${pendingNodes.length} nodes with ${colorProfiles.length} profiles...`);
+  // Re-classify each pending node using KNN
+  onProgress?.(`Re-classifying ${pendingNodes.length} nodes with ${tintSamples.length} samples (KNN k=${KNN_K})...`);
   const results: RssNodeType[] = [];
 
   for (const node of pendingNodes) {
     const sx = Math.round((node.x / GAME_MAP_SIZE) * w);
     const sy = Math.round((1 - node.y / GAME_MAP_SIZE) * h);
-    const color = sampleCenterColor(pixels, w, h, sx, sy, COLOR_SAMPLE_RADIUS);
-    results.push(color ? classifyByColor(color.r, color.g, color.b, colorProfiles) : 'food');
+    const tint = sampleIconTint(pixels, w, h, sx, sy);
+    results.push(tint ? classifyByKnn(tint, tintSamples) : 'food');
   }
 
   onProgress?.(`Re-classified ${results.length} nodes`);
