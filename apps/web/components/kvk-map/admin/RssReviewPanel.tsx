@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useCallback, useEffect } from 'react';
-import { Check, X, Trash2, Download, GripVertical, Undo2, Play, Eraser, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, X, Trash2, Download, GripVertical, Undo2, Play, Eraser, Search, Loader2, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import type { RssNode, RssNodeType, RssNodeStatus, RssAnnotationMode } from '@/lib/kvk-map/rss-review';
 import { RSS_TYPES, RSS_TYPE_COLORS, RSS_TYPE_LABELS } from '@/lib/kvk-map/rss-review';
 
@@ -36,6 +36,8 @@ interface RssReviewPanelProps {
   onUndo: () => void;
   onLoadExisting: () => void;
   onBatchChangeType: (fromFilter: RssNodeType | 'all', toType: RssNodeType) => void;
+  onReclassify: () => void;
+  reclassifying: boolean;
 }
 
 export default function RssReviewPanel({
@@ -68,6 +70,8 @@ export default function RssReviewPanel({
   onUndo,
   onLoadExisting,
   onBatchChangeType,
+  onReclassify,
+  reclassifying,
 }: RssReviewPanelProps) {
   const stats = useMemo(() => {
     const s = { total: nodes.length, approved: 0, rejected: 0, pending: 0 };
@@ -409,6 +413,24 @@ export default function RssReviewPanel({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Re-classify from corrections */}
+          {stats.approved > 0 && reviewQueue.length > 0 && (
+            <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+              <button
+                onClick={onReclassify}
+                disabled={reclassifying}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-30"
+                style={{ backgroundColor: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }}
+              >
+                {reclassifying ? (
+                  <><Loader2 size={12} className="animate-spin" /> Re-classifying...</>
+                ) : (
+                  <><RefreshCw size={12} /> Re-classify {reviewQueue.length} pending from {stats.approved} corrected</>
+                )}
+              </button>
             </div>
           )}
 

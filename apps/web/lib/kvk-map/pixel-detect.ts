@@ -341,6 +341,81 @@ export async function detectNodesPixel(
 }
 
 /**
+ * Re-classify pending detected nodes using corrected nodes as better training data.
+ * Loads the image, builds color profiles from corrected annotations, and re-types
+ * only the pending nodes. Skips the full detection scan.
+ */
+export async function reclassifyNodeTypes(
+  imageUrl: string,
+  trainingNodes: AnnotationSample[],
+  pendingNodes: { x: number; y: number }[],
+  onProgress?: (msg: string) => void,
+): Promise<RssNodeType[]> {
+  if (trainingNodes.length === 0) return pendingNodes.map(() => 'food');
+
+  onProgress?.('Loading image for re-classification...');
+  const img = await loadImage(imageUrl);
+  const w = Math.round(img.width / SCALE);
+  const h = Math.round(img.height / SCALE);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0, w, h);
+  const pixels = ctx.getImageData(0, 0, w, h).data;
+
+  // Build color profiles from training nodes (manual + corrected)
+  onProgress?.(`Building profiles from ${trainingNodes.length} corrected nodes...`);
+  const colorAccum: Record<string, { hSum: number; sSum: number; lSum: number; count: number }> = {};
+
+  for (const ann of trainingNodes) {
+    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
+    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
+    const color = sampleCenterColor(pixels, w, h, cx, cy, COLOR_SAMPLE_RADIUS);
+    if (!color) continue;
+
+    const [hue, sat, lit] = rgbToHsl(color.r, color.g, color.b);
+    if (!colorAccum[ann.type]) {
+      colorAccum[ann.type] = { hSum: 0, sSum: 0, lSum: 0, count: 0 };
+    }
+    const ca = colorAccum[ann.type];
+    ca.hSum += hue;
+    ca.sSum += sat;
+    ca.lSum += lit;
+    ca.count++;
+  }
+
+  const colorProfiles: TypeColorProfile[] = [];
+  for (const [type, ca] of Object.entries(colorAccum)) {
+    if (ca.count === 0) continue;
+    colorProfiles.push({
+      type: type as RssNodeType,
+      hue: ca.hSum / ca.count,
+      saturation: ca.sSum / ca.count,
+      lightness: ca.lSum / ca.count,
+      count: ca.count,
+    });
+  }
+
+  if (colorProfiles.length === 0) return pendingNodes.map(() => 'food');
+
+  // Re-classify each pending node
+  onProgress?.(`Re-classifying ${pendingNodes.length} nodes with ${colorProfiles.length} profiles...`);
+  const results: RssNodeType[] = [];
+
+  for (const node of pendingNodes) {
+    const sx = Math.round((node.x / GAME_MAP_SIZE) * w);
+    const sy = Math.round((1 - node.y / GAME_MAP_SIZE) * h);
+    const color = sampleCenterColor(pixels, w, h, sx, sy, COLOR_SAMPLE_RADIUS);
+    results.push(color ? classifyByColor(color.r, color.g, color.b, colorProfiles) : 'food');
+  }
+
+  onProgress?.(`Re-classified ${results.length} nodes`);
+  return results;
+}
+
+/**
  * Pre-filter: is there a bright white blob at (cx,cy) that stands out from
  * its surroundings? RSS icons are bright white on dark terrain → high contrast.
  * Light paths and rocky areas are also bright but blend with neighbors → low contrast.

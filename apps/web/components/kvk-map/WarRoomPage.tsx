@@ -37,7 +37,7 @@ import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
 import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
 import { loadRssNodes, RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus, type RssAnnotationMode } from '@/lib/kvk-map/rss-review';
 import { type SymmetryConfig, getSegment } from '@/lib/kvk-map/rss-symmetry';
-import { detectNodesPixel } from '@/lib/kvk-map/pixel-detect';
+import { detectNodesPixel, reclassifyNodeTypes } from '@/lib/kvk-map/pixel-detect';
 
 function isFlagFeatureType(type: FeatureType): boolean {
   return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
@@ -131,6 +131,7 @@ export default function WarRoomPage() {
   const [rssUndoStack, setRssUndoStack] = useState<RssNode[][]>([]);
   const [rssDetecting, setRssDetecting] = useState(false);
   const [rssDetectProgress, setRssDetectProgress] = useState<string | null>(null);
+  const [rssReclassifying, setRssReclassifying] = useState(false);
   const [rssFlyTarget, setRssFlyTarget] = useState<{ x: number; y: number } | null>(null);
 
   // Auto-save RSS nodes to localStorage
@@ -535,6 +536,45 @@ export default function WarRoomPage() {
       return { ...n, type: toType };
     }));
   }, []);
+
+  const handleRssReclassify = useCallback(async () => {
+    if (!map || rssReclassifying) return;
+    setRssReclassifying(true);
+    try {
+      // Training data: manual nodes + approved detected nodes (user-corrected)
+      const training = rssNodes
+        .filter((n) => n.source === 'manual' || n.status === 'approved')
+        .map((n) => ({ x: n.x, y: n.y, type: n.type }));
+      // Pending detected nodes to re-classify
+      const pending = rssNodes.filter((n) => n.source === 'detected' && n.status === 'pending');
+      if (training.length === 0 || pending.length === 0) return;
+
+      const newTypes = await reclassifyNodeTypes(
+        map.image_path,
+        training,
+        pending.map((n) => ({ x: n.x, y: n.y })),
+        setRssDetectProgress,
+      );
+
+      // Apply new types to pending nodes
+      const typeMap = new Map<number, string>();
+      pending.forEach((n, i) => typeMap.set(n.id, newTypes[i]));
+
+      setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+      setRssNodes((prev) => prev.map((n) =>
+        typeMap.has(n.id) ? { ...n, type: typeMap.get(n.id) as RssNodeType } : n
+      ));
+
+      setRssDetectProgress(`Re-classified ${pending.length} nodes from ${training.length} corrections`);
+      setTimeout(() => setRssDetectProgress(null), 5000);
+    } catch (error) {
+      console.error('Re-classification failed:', error);
+      setRssDetectProgress(`Error: ${error instanceof Error ? error.message : 'Re-classification failed'}`);
+      setTimeout(() => setRssDetectProgress(null), 5000);
+    } finally {
+      setRssReclassifying(false);
+    }
+  }, [map, rssReclassifying, rssNodes]);
 
   const handleRssNodeApprove = useCallback((id: number) => {
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'approved' as RssNodeStatus } : n)));
@@ -971,6 +1011,8 @@ export default function WarRoomPage() {
                   onUndo={handleRssUndo}
                   onLoadExisting={handleRssLoadExisting}
                   onBatchChangeType={handleRssBatchChangeType}
+                  onReclassify={handleRssReclassify}
+                  reclassifying={rssReclassifying}
                 />
               ) : selectedZone ? (
                 isAdminMode ? (
