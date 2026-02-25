@@ -528,6 +528,14 @@ export default function WarRoomPage() {
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, type } : n)));
   }, []);
 
+  const handleRssBatchChangeType = useCallback((fromFilter: RssNodeType | 'all', toType: RssNodeType) => {
+    setRssNodes((prev) => prev.map((n) => {
+      if (n.source !== 'detected' || n.status !== 'pending') return n;
+      if (fromFilter !== 'all' && n.type !== fromFilter) return n;
+      return { ...n, type: toType };
+    }));
+  }, []);
+
   const handleRssNodeApprove = useCallback((id: number) => {
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'approved' as RssNodeStatus } : n)));
   }, []);
@@ -962,6 +970,7 @@ export default function WarRoomPage() {
                   onStartFresh={handleRssStartFresh}
                   onUndo={handleRssUndo}
                   onLoadExisting={handleRssLoadExisting}
+                  onBatchChangeType={handleRssBatchChangeType}
                 />
               ) : selectedZone ? (
                 isAdminMode ? (

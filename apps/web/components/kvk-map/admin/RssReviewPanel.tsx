@@ -35,6 +35,7 @@ interface RssReviewPanelProps {
   onStartFresh: () => void;
   onUndo: () => void;
   onLoadExisting: () => void;
+  onBatchChangeType: (fromFilter: RssNodeType | 'all', toType: RssNodeType) => void;
 }
 
 export default function RssReviewPanel({
@@ -66,6 +67,7 @@ export default function RssReviewPanel({
   onStartFresh,
   onUndo,
   onLoadExisting,
+  onBatchChangeType,
 }: RssReviewPanelProps) {
   const stats = useMemo(() => {
     const s = { total: nodes.length, approved: 0, rejected: 0, pending: 0 };
@@ -145,10 +147,16 @@ export default function RssReviewPanel({
       if (e.key === 'ArrowRight') { e.preventDefault(); handleNext(); }
       if ((e.key === 'a' || e.key === 'A') && currentReviewIndex >= 0) { e.preventDefault(); handleReviewApprove(); }
       if ((e.key === 'r' || e.key === 'R') && currentReviewIndex >= 0) { e.preventDefault(); handleReviewReject(); }
+      // 1-5 keys set type during review
+      const numKey = parseInt(e.key);
+      if (numKey >= 1 && numKey <= 5 && selectedId != null) {
+        e.preventDefault();
+        onChangeType(selectedId, RSS_TYPES[numKey - 1]);
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [annotationMode, handlePrev, handleNext, handleReviewApprove, handleReviewReject, currentReviewIndex]);
+  }, [annotationMode, handlePrev, handleNext, handleReviewApprove, handleReviewReject, currentReviewIndex, selectedId, onChangeType]);
 
   return (
     <div
@@ -379,6 +387,31 @@ export default function RssReviewPanel({
             </div>
           </div>
 
+          {/* Batch type change */}
+          {reviewQueue.length > 0 && (
+            <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="text-[10px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                Set all {reviewQueue.length} pending {typeFilter !== 'all' ? RSS_TYPE_LABELS[typeFilter] : ''} →
+              </div>
+              <div className="flex gap-1 flex-wrap">
+                {RSS_TYPES.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => onBatchChangeType(typeFilter, t)}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors hover:opacity-80"
+                    style={{
+                      backgroundColor: `${RSS_TYPE_COLORS[t]}20`,
+                      color: RSS_TYPE_COLORS[t],
+                    }}
+                  >
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[t] }} />
+                    {RSS_TYPE_LABELS[t]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Quick Review controls */}
           <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between mb-1.5">
@@ -459,7 +492,7 @@ export default function RssReviewPanel({
 
                 {/* Keyboard hints */}
                 <div className="text-[9px] text-center mt-1.5" style={{ color: 'var(--text-muted)' }}>
-                  Keys: ← → navigate · A approve · R reject
+                  Keys: ← → navigate · A approve · R reject · 1-5 set type
                 </div>
               </>
             ) : (

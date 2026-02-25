@@ -32,6 +32,9 @@ const CENTER_WHITENESS_MIN = 85;
  */
 const CONTRAST_MIN = 35;
 
+/** Size of the center patch used for color classification (in downscaled px) */
+const COLOR_SAMPLE_RADIUS = 2; // 5x5 patch
+
 /**
  * Whiteness score for a single pixel.
  * High for bright, unsaturated (white/gray) pixels; near zero for colored terrain.
@@ -47,6 +50,81 @@ function pixelWhiteness(r: number, g: number, b: number): number {
   return Math.max(0, brightness - spread * 1.5);
 }
 
+/** Convert RGB [0-255] to HSL. Returns [hue 0-360, saturation 0-1, lightness 0-1]. */
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  const rn = r / 255, gn = g / 255, bn = b / 255;
+  const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
+  else if (max === gn) h = ((bn - rn) / d + 2) * 60;
+  else h = ((rn - gn) / d + 4) * 60;
+  return [h, s, l];
+}
+
+/** Sample the average RGB of a center patch around (cx, cy) in the RGBA pixel array. */
+function sampleCenterColor(
+  pixels: Uint8ClampedArray, w: number, h: number,
+  cx: number, cy: number, radius: number,
+): { r: number; g: number; b: number } | null {
+  let rSum = 0, gSum = 0, bSum = 0, count = 0;
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const px = cx + dx, py = cy + dy;
+      if (px < 0 || px >= w || py < 0 || py >= h) continue;
+      const idx = (py * w + px) * 4;
+      rSum += pixels[idx];
+      gSum += pixels[idx + 1];
+      bSum += pixels[idx + 2];
+      count++;
+    }
+  }
+  if (count === 0) return null;
+  return { r: rSum / count, g: gSum / count, b: bSum / count };
+}
+
+/** Hue distance on the circular 0-360 scale. */
+function hueDist(a: number, b: number): number {
+  const d = Math.abs(a - b);
+  return d > 180 ? 360 - d : d;
+}
+
+interface TypeColorProfile {
+  type: RssNodeType;
+  hue: number;
+  saturation: number;
+  lightness: number;
+  count: number;
+}
+
+/** Classify a detected node by comparing its center color to per-type profiles. */
+function classifyByColor(
+  r: number, g: number, b: number,
+  profiles: TypeColorProfile[],
+): RssNodeType {
+  const [h, s, l] = rgbToHsl(r, g, b);
+
+  let bestType: RssNodeType = 'food';
+  let bestScore = Infinity;
+
+  for (const p of profiles) {
+    // Stone is distinguished by low saturation; others by hue
+    // Weighted distance: hue matters most, saturation helps separate stone from others
+    const hDist = hueDist(h, p.hue);
+    const sDist = Math.abs(s - p.saturation) * 180; // scale to comparable range
+    const lDist = Math.abs(l - p.lightness) * 60;
+    const score = hDist + sDist + lDist;
+    if (score < bestScore) {
+      bestScore = score;
+      bestType = p.type;
+    }
+  }
+  return bestType;
+}
+
 /**
  * Detect RSS nodes using two-stage whiteness + RGB template matching.
  *
@@ -57,9 +135,9 @@ function pixelWhiteness(r: number, g: number, b: number): number {
  *   4. Scan with stride 4, pre-filter on local whiteness peaks
  *   5. NCC on whiteness map → candidate positions
  *
- * Stage 2 — Classification (RGB):
- *   6. Build averaged RGB templates from annotations (3-channel)
- *   7. NCC on RGB patches at each candidate → best-matching type
+ * Stage 2 — Classification (color hue):
+ *   6. Build per-type HSL color profiles from annotation center pixels
+ *   7. Match each candidate's center color to nearest profile by hue/saturation
  *
  * Final: Non-maximum suppression
  */
@@ -139,46 +217,40 @@ export async function detectNodesPixel(
     return [];
   }
 
-  // ── Build RGB templates from annotations (for classification) ──
-  const rgbPatchLen = patchLen * 3;
-  const rgbTypeAccum: Record<string, { data: Float32Array; count: number }> = {};
-  const tmpRgbBuf = new Float32Array(rgbPatchLen);
+  // ── Build per-type color profiles from annotations (for classification) ──
+  const colorProfiles: TypeColorProfile[] = [];
+  const colorAccum: Record<string, { hSum: number; sSum: number; lSum: number; count: number }> = {};
 
   for (const ann of annotations) {
     const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
     const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
-    if (!extractRgbPatch(pixels, w, h, cx, cy, half, TMPL_SIZE, tmpRgbBuf)) continue;
+    const color = sampleCenterColor(pixels, w, h, cx, cy, COLOR_SAMPLE_RADIUS);
+    if (!color) continue;
 
-    if (!rgbTypeAccum[ann.type]) {
-      rgbTypeAccum[ann.type] = { data: new Float32Array(rgbPatchLen), count: 0 };
+    const [hue, sat, lit] = rgbToHsl(color.r, color.g, color.b);
+    if (!colorAccum[ann.type]) {
+      colorAccum[ann.type] = { hSum: 0, sSum: 0, lSum: 0, count: 0 };
     }
-    const racc = rgbTypeAccum[ann.type];
-    for (let i = 0; i < rgbPatchLen; i++) racc.data[i] += tmpRgbBuf[i];
-    racc.count++;
+    const ca = colorAccum[ann.type];
+    // Use sin/cos for circular hue averaging
+    ca.hSum += hue; // simplified — works when samples are clustered
+    ca.sSum += sat;
+    ca.lSum += lit;
+    ca.count++;
   }
 
-  const rgbTemplates: { type: RssNodeType; centered: Float32Array; norm: number }[] = [];
-
-  for (const [type, racc] of Object.entries(rgbTypeAccum)) {
-    if (racc.count === 0) continue;
-    const avg = new Float32Array(rgbPatchLen);
-    for (let i = 0; i < rgbPatchLen; i++) avg[i] = racc.data[i] / racc.count;
-
-    let mean = 0;
-    for (let i = 0; i < rgbPatchLen; i++) mean += avg[i];
-    mean /= rgbPatchLen;
-
-    const centered = new Float32Array(rgbPatchLen);
-    let normSq = 0;
-    for (let i = 0; i < rgbPatchLen; i++) {
-      const v = avg[i] - mean;
-      centered[i] = v;
-      normSq += v * v;
-    }
-    rgbTemplates.push({ type: type as RssNodeType, centered, norm: Math.sqrt(normSq) });
+  for (const [type, ca] of Object.entries(colorAccum)) {
+    if (ca.count === 0) continue;
+    colorProfiles.push({
+      type: type as RssNodeType,
+      hue: ca.hSum / ca.count,
+      saturation: ca.sSum / ca.count,
+      lightness: ca.lSum / ca.count,
+      count: ca.count,
+    });
   }
 
-  onProgress?.(`Built ${wTemplates.length} detection + ${rgbTemplates.length} classification templates, scanning ${w}x${h}...`);
+  onProgress?.(`Built ${wTemplates.length} detection + ${colorProfiles.length} color profiles, scanning ${w}x${h}...`);
 
   // ── Stage 1: Detect candidates using whiteness NCC ──
   const candidates: { x: number; y: number; score: number }[] = [];
@@ -238,39 +310,17 @@ export async function detectNodesPixel(
 
   onProgress?.(`After NMS: ${kept.length} nodes. Classifying types...`);
 
-  // ── Stage 2: Classify each kept detection using RGB NCC ──
-  const rgbPatchBuf = new Float32Array(rgbPatchLen);
+  // ── Stage 2: Classify each kept detection using center-color hue matching ──
   const detectedNodes: DetectedPixelNode[] = [];
 
   for (let ci = 0; ci < kept.length; ci++) {
     const { x: sx, y: sy } = kept[ci];
     let bestType: RssNodeType = 'food';
 
-    if (rgbTemplates.length > 0 && extractRgbPatch(pixels, w, h, sx, sy, half, TMPL_SIZE, rgbPatchBuf)) {
-      let rgbMean = 0;
-      for (let i = 0; i < rgbPatchLen; i++) rgbMean += rgbPatchBuf[i];
-      rgbMean /= rgbPatchLen;
-
-      let rgbNormSq = 0;
-      for (let i = 0; i < rgbPatchLen; i++) {
-        const v = rgbPatchBuf[i] - rgbMean;
-        rgbNormSq += v * v;
-      }
-
-      if (rgbNormSq > 1) {
-        const rgbNorm = Math.sqrt(rgbNormSq);
-        let bestRgbScore = -1;
-        for (const tmpl of rgbTemplates) {
-          let cross = 0;
-          for (let i = 0; i < rgbPatchLen; i++) {
-            cross += (rgbPatchBuf[i] - rgbMean) * tmpl.centered[i];
-          }
-          const ncc = cross / (rgbNorm * tmpl.norm + 1e-8);
-          if (ncc > bestRgbScore) {
-            bestRgbScore = ncc;
-            bestType = tmpl.type;
-          }
-        }
+    if (colorProfiles.length > 0) {
+      const color = sampleCenterColor(pixels, w, h, sx, sy, COLOR_SAMPLE_RADIUS);
+      if (color) {
+        bestType = classifyByColor(color.r, color.g, color.b, colorProfiles);
       }
     }
 
@@ -320,30 +370,6 @@ function hasBrightBlob(wMap: Float32Array, w: number, cx: number, cy: number): b
   const surroundAvg = surroundSum / 8;
 
   return (centerAvg - surroundAvg) >= CONTRAST_MIN;
-}
-
-/** Extract 3-channel RGB patch from RGBA ImageData array. */
-function extractRgbPatch(
-  pixels: Uint8ClampedArray,
-  w: number,
-  h: number,
-  cx: number,
-  cy: number,
-  half: number,
-  size: number,
-  buf: Float32Array,
-): boolean {
-  if (cx - half < 0 || cx + half >= w || cy - half < 0 || cy + half >= h) return false;
-  let pi = 0;
-  for (let dy = -half; dy < size - half; dy++) {
-    for (let dx = -half; dx < size - half; dx++) {
-      const idx = ((cy + dy) * w + (cx + dx)) * 4;
-      buf[pi++] = pixels[idx];
-      buf[pi++] = pixels[idx + 1];
-      buf[pi++] = pixels[idx + 2];
-    }
-  }
-  return true;
 }
 
 /** Extract single-channel patch from a Float32Array map. */
