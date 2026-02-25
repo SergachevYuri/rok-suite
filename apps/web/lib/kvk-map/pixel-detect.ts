@@ -19,18 +19,18 @@ const SCALE = 2;
 const TMPL_SIZE = 14;
 /** Scan stride — tighter than before for better coverage */
 const STRIDE = 4;
-/** NCC threshold — whiteness map is more discriminative than RGB */
-const MATCH_THRESHOLD = 0.55;
+/** NCC threshold for whiteness-based detection (Stage 1 — be inclusive, Stage 2 refines) */
+const MATCH_THRESHOLD = 0.48;
 /** Minimum distance between detections in downscaled pixels */
 const MIN_DIST = 12;
 /** Minimum average whiteness of center 3x3 to be a potential icon */
-const CENTER_WHITENESS_MIN = 100;
+const CENTER_WHITENESS_MIN = 85;
 /**
  * Minimum contrast between center 3x3 and surrounding ring.
  * RSS icons are bright blobs on dark terrain → high contrast.
  * Light paths/rocks are uniformly bright → low contrast.
  */
-const CONTRAST_MIN = 40;
+const CONTRAST_MIN = 35;
 
 /**
  * Whiteness score for a single pixel.
@@ -48,14 +48,20 @@ function pixelWhiteness(r: number, g: number, b: number): number {
 }
 
 /**
- * Detect RSS nodes using whiteness-map template matching.
+ * Detect RSS nodes using two-stage whiteness + RGB template matching.
  *
- * 1. Downscale 2x → ~4040x4040
- * 2. Compute whiteness map (single channel: white icons bright, terrain dark)
- * 3. Build averaged templates from manual annotations on the whiteness map
- * 4. Scan with stride 4, pre-filter on local whiteness peaks
- * 5. NCC on whiteness map (background-invariant)
- * 6. Non-maximum suppression
+ * Stage 1 — Detection (whiteness):
+ *   1. Downscale 2x → ~4040x4040
+ *   2. Compute whiteness map (single channel: white icons bright, terrain dark)
+ *   3. Build averaged whiteness templates from manual annotations
+ *   4. Scan with stride 4, pre-filter on local whiteness peaks
+ *   5. NCC on whiteness map → candidate positions
+ *
+ * Stage 2 — Classification (RGB):
+ *   6. Build averaged RGB templates from annotations (3-channel)
+ *   7. NCC on RGB patches at each candidate → best-matching type
+ *
+ * Final: Non-maximum suppression
  */
 export async function detectNodesPixel(
   imageUrl: string,
@@ -86,7 +92,7 @@ export async function detectNodesPixel(
     wMap[i] = pixelWhiteness(pixels[idx], pixels[idx + 1], pixels[idx + 2]);
   }
 
-  // ── Build averaged templates from annotations ──
+  // ── Build whiteness templates from annotations (for detection) ──
   onProgress?.('Building templates from annotations...');
   const patchLen = TMPL_SIZE * TMPL_SIZE;
   const half = Math.floor(TMPL_SIZE / 2);
@@ -95,7 +101,7 @@ export async function detectNodesPixel(
 
   for (const ann of annotations) {
     const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
-    const cy = Math.round((ann.y / GAME_MAP_SIZE) * h);
+    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
     if (!extractPatch(wMap, w, h, cx, cy, half, TMPL_SIZE, tmpBuf)) continue;
 
     if (!typeAccum[ann.type]) {
@@ -106,14 +112,10 @@ export async function detectNodesPixel(
     acc.count++;
   }
 
-  // ── Pre-compute centered templates (mean-subtracted) and norms ──
-  const templates: {
-    type: RssNodeType;
-    centered: Float32Array;
-    norm: number;
-  }[] = [];
+  // Pre-compute centered whiteness templates
+  const wTemplates: { centered: Float32Array; norm: number }[] = [];
 
-  for (const [type, acc] of Object.entries(typeAccum)) {
+  for (const acc of Object.values(typeAccum)) {
     if (acc.count === 0) continue;
     const avg = new Float32Array(patchLen);
     for (let i = 0; i < patchLen; i++) avg[i] = acc.data[i] / acc.count;
@@ -129,32 +131,66 @@ export async function detectNodesPixel(
       centered[i] = v;
       normSq += v * v;
     }
-    templates.push({ type: type as RssNodeType, centered, norm: Math.sqrt(normSq) });
+    wTemplates.push({ centered, norm: Math.sqrt(normSq) });
   }
 
-  if (templates.length === 0) {
+  if (wTemplates.length === 0) {
     onProgress?.('No valid templates — annotations may be outside image');
     return [];
   }
 
-  onProgress?.(`Built ${templates.length} templates, scanning ${w}x${h}...`);
+  // ── Build RGB templates from annotations (for classification) ──
+  const rgbPatchLen = patchLen * 3;
+  const rgbTypeAccum: Record<string, { data: Float32Array; count: number }> = {};
+  const tmpRgbBuf = new Float32Array(rgbPatchLen);
 
-  // ── Scan with whiteness pre-filter, then NCC ──
-  const matches: { x: number; y: number; type: RssNodeType; score: number }[] = [];
+  for (const ann of annotations) {
+    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
+    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
+    if (!extractRgbPatch(pixels, w, h, cx, cy, half, TMPL_SIZE, tmpRgbBuf)) continue;
+
+    if (!rgbTypeAccum[ann.type]) {
+      rgbTypeAccum[ann.type] = { data: new Float32Array(rgbPatchLen), count: 0 };
+    }
+    const racc = rgbTypeAccum[ann.type];
+    for (let i = 0; i < rgbPatchLen; i++) racc.data[i] += tmpRgbBuf[i];
+    racc.count++;
+  }
+
+  const rgbTemplates: { type: RssNodeType; centered: Float32Array; norm: number }[] = [];
+
+  for (const [type, racc] of Object.entries(rgbTypeAccum)) {
+    if (racc.count === 0) continue;
+    const avg = new Float32Array(rgbPatchLen);
+    for (let i = 0; i < rgbPatchLen; i++) avg[i] = racc.data[i] / racc.count;
+
+    let mean = 0;
+    for (let i = 0; i < rgbPatchLen; i++) mean += avg[i];
+    mean /= rgbPatchLen;
+
+    const centered = new Float32Array(rgbPatchLen);
+    let normSq = 0;
+    for (let i = 0; i < rgbPatchLen; i++) {
+      const v = avg[i] - mean;
+      centered[i] = v;
+      normSq += v * v;
+    }
+    rgbTemplates.push({ type: type as RssNodeType, centered, norm: Math.sqrt(normSq) });
+  }
+
+  onProgress?.(`Built ${wTemplates.length} detection + ${rgbTemplates.length} classification templates, scanning ${w}x${h}...`);
+
+  // ── Stage 1: Detect candidates using whiteness NCC ──
+  const candidates: { x: number; y: number; score: number }[] = [];
   const patchBuf = new Float32Array(patchLen);
   const totalRows = Math.ceil((h - TMPL_SIZE) / STRIDE);
   let rowCount = 0;
-  let candidateCount = 0;
 
   for (let sy = half; sy < h - half; sy += STRIDE) {
     for (let sx = half; sx < w - half; sx += STRIDE) {
-      // Pre-filter: bright white blob that contrasts with surroundings
       if (!hasBrightBlob(wMap, w, sx, sy)) continue;
-      candidateCount++;
-
       if (!extractPatch(wMap, w, h, sx, sy, half, TMPL_SIZE, patchBuf)) continue;
 
-      // NCC on whiteness channel
       let patchMean = 0;
       for (let i = 0; i < patchLen; i++) patchMean += patchBuf[i];
       patchMean /= patchLen;
@@ -167,48 +203,88 @@ export async function detectNodesPixel(
       if (patchNormSq < 1) continue;
       const patchNorm = Math.sqrt(patchNormSq);
 
-      // NCC against each template
+      // Best NCC across all whiteness templates (type doesn't matter here)
       let bestScore = 0;
-      let bestType: RssNodeType = 'food';
-      for (const tmpl of templates) {
+      for (const tmpl of wTemplates) {
         let cross = 0;
         for (let i = 0; i < patchLen; i++) {
           cross += (patchBuf[i] - patchMean) * tmpl.centered[i];
         }
         const ncc = cross / (patchNorm * tmpl.norm + 1e-8);
-        if (ncc > bestScore) {
-          bestScore = ncc;
-          bestType = tmpl.type;
-        }
+        if (ncc > bestScore) bestScore = ncc;
       }
       if (bestScore >= MATCH_THRESHOLD) {
-        matches.push({ x: sx, y: sy, type: bestType, score: bestScore });
+        candidates.push({ x: sx, y: sy, score: bestScore });
       }
     }
 
     rowCount++;
     if (rowCount % 20 === 0) {
-      onProgress?.(`Scanning... ${Math.round((rowCount / totalRows) * 100)}%`);
+      onProgress?.(`Detecting... ${Math.round((rowCount / totalRows) * 100)}%`);
       await new Promise((r) => setTimeout(r, 0));
     }
   }
 
-  onProgress?.(`${candidateCount} candidates → ${matches.length} matches above threshold`);
+  onProgress?.(`Stage 1: ${candidates.length} detections`);
 
-  // ── Non-maximum suppression ──
-  matches.sort((a, b) => b.score - a.score);
-  const kept: typeof matches = [];
-  for (const m of matches) {
-    if (!kept.some((k) => Math.hypot(k.x - m.x, k.y - m.y) < MIN_DIST)) {
-      kept.push(m);
+  // ── Non-maximum suppression on detection candidates ──
+  candidates.sort((a, b) => b.score - a.score);
+  const kept: typeof candidates = [];
+  for (const c of candidates) {
+    if (!kept.some((k) => Math.hypot(k.x - c.x, k.y - c.y) < MIN_DIST)) {
+      kept.push(c);
     }
   }
 
-  const detectedNodes: DetectedPixelNode[] = kept.map((m) => ({
-    x: Math.round((m.x / w) * GAME_MAP_SIZE),
-    y: Math.round((m.y / h) * GAME_MAP_SIZE),
-    type: m.type,
-  }));
+  onProgress?.(`After NMS: ${kept.length} nodes. Classifying types...`);
+
+  // ── Stage 2: Classify each kept detection using RGB NCC ──
+  const rgbPatchBuf = new Float32Array(rgbPatchLen);
+  const detectedNodes: DetectedPixelNode[] = [];
+
+  for (let ci = 0; ci < kept.length; ci++) {
+    const { x: sx, y: sy } = kept[ci];
+    let bestType: RssNodeType = 'food';
+
+    if (rgbTemplates.length > 0 && extractRgbPatch(pixels, w, h, sx, sy, half, TMPL_SIZE, rgbPatchBuf)) {
+      let rgbMean = 0;
+      for (let i = 0; i < rgbPatchLen; i++) rgbMean += rgbPatchBuf[i];
+      rgbMean /= rgbPatchLen;
+
+      let rgbNormSq = 0;
+      for (let i = 0; i < rgbPatchLen; i++) {
+        const v = rgbPatchBuf[i] - rgbMean;
+        rgbNormSq += v * v;
+      }
+
+      if (rgbNormSq > 1) {
+        const rgbNorm = Math.sqrt(rgbNormSq);
+        let bestRgbScore = -1;
+        for (const tmpl of rgbTemplates) {
+          let cross = 0;
+          for (let i = 0; i < rgbPatchLen; i++) {
+            cross += (rgbPatchBuf[i] - rgbMean) * tmpl.centered[i];
+          }
+          const ncc = cross / (rgbNorm * tmpl.norm + 1e-8);
+          if (ncc > bestRgbScore) {
+            bestRgbScore = ncc;
+            bestType = tmpl.type;
+          }
+        }
+      }
+    }
+
+    detectedNodes.push({
+      x: Math.round((sx / w) * GAME_MAP_SIZE),
+      y: Math.round((1 - sy / h) * GAME_MAP_SIZE),
+      type: bestType,
+    });
+
+    if (ci % 500 === 0 && ci > 0) {
+      onProgress?.(`Classifying... ${Math.round((ci / kept.length) * 100)}%`);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
 
   onProgress?.(`Detected ${detectedNodes.length} nodes`);
   return detectedNodes;
@@ -244,6 +320,30 @@ function hasBrightBlob(wMap: Float32Array, w: number, cx: number, cy: number): b
   const surroundAvg = surroundSum / 8;
 
   return (centerAvg - surroundAvg) >= CONTRAST_MIN;
+}
+
+/** Extract 3-channel RGB patch from RGBA ImageData array. */
+function extractRgbPatch(
+  pixels: Uint8ClampedArray,
+  w: number,
+  h: number,
+  cx: number,
+  cy: number,
+  half: number,
+  size: number,
+  buf: Float32Array,
+): boolean {
+  if (cx - half < 0 || cx + half >= w || cy - half < 0 || cy + half >= h) return false;
+  let pi = 0;
+  for (let dy = -half; dy < size - half; dy++) {
+    for (let dx = -half; dx < size - half; dx++) {
+      const idx = ((cy + dy) * w + (cx + dx)) * 4;
+      buf[pi++] = pixels[idx];
+      buf[pi++] = pixels[idx + 1];
+      buf[pi++] = pixels[idx + 2];
+    }
+  }
+  return true;
 }
 
 /** Extract single-channel patch from a Float32Array map. */
