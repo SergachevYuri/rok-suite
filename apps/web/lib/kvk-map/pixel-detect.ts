@@ -45,12 +45,11 @@ export async function detectNodesPixel(
     food: [], wood: [], stone: [], gold: [], crystal: [],
   };
 
-  const SAMPLE_RADIUS = 12; // pixels around annotation center to sample
+  const SAMPLE_RADIUS = 12;
   for (const ann of annotations) {
     const px = Math.round((ann.x / GAME_MAP_SIZE) * w);
     const py = Math.round((ann.y / GAME_MAP_SIZE) * h);
 
-    // Collect bright pixels near this annotation
     for (let dy = -SAMPLE_RADIUS; dy <= SAMPLE_RADIUS; dy++) {
       for (let dx = -SAMPLE_RADIUS; dx <= SAMPLE_RADIUS; dx++) {
         const sx = px + dx;
@@ -63,7 +62,6 @@ export async function detectNodesPixel(
         const g = pixels[idx + 1];
         const b = pixels[idx + 2];
 
-        // Only sample pixels that are bright (not terrain green or dark walls)
         if (isBrightNonTerrain(r, g, b)) {
           typeColors[ann.type].push([r, g, b]);
         }
@@ -88,99 +86,121 @@ export async function detectNodesPixel(
     typeAvgColors[type] = avg;
   }
 
-  // Step 2: Scan entire image for bright non-terrain pixels
+  // Step 2: Grid-based density scan
+  // Divide the image into cells. Count bright pixels per cell.
+  // Cells with enough bright pixels are node candidates.
+  const CELL_SIZE = 20; // pixels per grid cell (nodes are ~20-40px)
+  const gridW = Math.ceil(w / CELL_SIZE);
+  const gridH = Math.ceil(h / CELL_SIZE);
+  const cellCounts = new Uint16Array(gridW * gridH);
+  const cellColorR = new Float32Array(gridW * gridH);
+  const cellColorG = new Float32Array(gridW * gridH);
+  const cellColorB = new Float32Array(gridW * gridH);
+
   onProgress?.('Scanning for nodes...');
-  const STEP = 2; // scan every 2nd pixel for speed
-  const brightPoints: { px: number; py: number; r: number; g: number; b: number }[] = [];
+  const STEP = 3; // scan every 3rd pixel for speed
 
   for (let y = 0; y < h; y += STEP) {
+    const rowOffset = y * w;
     for (let x = 0; x < w; x += STEP) {
-      const idx = (y * w + x) * 4;
+      const idx = (rowOffset + x) * 4;
       const r = pixels[idx];
       const g = pixels[idx + 1];
       const b = pixels[idx + 2];
 
       if (isBrightNonTerrain(r, g, b)) {
-        brightPoints.push({ px: x, py: y, r, g, b });
+        const gx = Math.floor(x / CELL_SIZE);
+        const gy = Math.floor(y / CELL_SIZE);
+        const ci = gy * gridW + gx;
+        cellCounts[ci]++;
+        cellColorR[ci] += r;
+        cellColorG[ci] += g;
+        cellColorB[ci] += b;
       }
     }
 
-    // Progress every 500 rows
-    if (y % 500 === 0) {
+    if (y % 1000 === 0) {
       onProgress?.(`Scanning... ${Math.round((y / h) * 100)}%`);
-      // Yield to UI thread
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
 
-  onProgress?.(`Found ${brightPoints.length} bright pixels, clustering...`);
+  // Step 3: Find dense cells and flood-fill connected components
+  onProgress?.('Clustering...');
+  const MIN_CELL_COUNT = 3; // minimum bright pixels in a cell to be a candidate
+  const visited = new Uint8Array(gridW * gridH);
 
-  // Step 3: Cluster nearby bright points (DBSCAN-like approach)
-  const CLUSTER_DIST = 15; // pixels — nodes are ~20-40px diameter
-  const visited = new Set<number>();
-  const clusters: { px: number; py: number; r: number; g: number; b: number }[][] = [];
+  const clusters: { cx: number; cy: number; cr: number; cg: number; cb: number; total: number }[] = [];
 
-  for (let i = 0; i < brightPoints.length; i++) {
-    if (visited.has(i)) continue;
-    visited.add(i);
+  for (let gy = 0; gy < gridH; gy++) {
+    for (let gx = 0; gx < gridW; gx++) {
+      const ci = gy * gridW + gx;
+      if (visited[ci] || cellCounts[ci] < MIN_CELL_COUNT) continue;
 
-    const cluster = [brightPoints[i]];
-    const queue = [i];
+      // Flood fill to find connected dense cells
+      visited[ci] = 1;
+      const queue = [{ gx, gy }];
+      let totalCount = 0;
+      let sumX = 0, sumY = 0;
+      let sumR = 0, sumG = 0, sumB = 0;
 
-    while (queue.length > 0) {
-      const ci = queue.pop()!;
-      const cp = brightPoints[ci];
+      while (queue.length > 0) {
+        const cell = queue.pop()!;
+        const idx = cell.gy * gridW + cell.gx;
+        const count = cellCounts[idx];
+        totalCount += count;
+        // Weight position by pixel count in cell
+        sumX += (cell.gx * CELL_SIZE + CELL_SIZE / 2) * count;
+        sumY += (cell.gy * CELL_SIZE + CELL_SIZE / 2) * count;
+        sumR += cellColorR[idx];
+        sumG += cellColorG[idx];
+        sumB += cellColorB[idx];
 
-      for (let j = i + 1; j < brightPoints.length; j++) {
-        if (visited.has(j)) continue;
-        const jp = brightPoints[j];
-        const dist = Math.hypot(cp.px - jp.px, cp.py - jp.py);
-        if (dist <= CLUSTER_DIST) {
-          visited.add(j);
-          cluster.push(jp);
-          queue.push(j);
+        // Check 4-connected neighbors
+        for (const [nx, ny] of [[cell.gx - 1, cell.gy], [cell.gx + 1, cell.gy], [cell.gx, cell.gy - 1], [cell.gx, cell.gy + 1]]) {
+          if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) continue;
+          const ni = ny * gridW + nx;
+          if (visited[ni] || cellCounts[ni] < MIN_CELL_COUNT) continue;
+          visited[ni] = 1;
+          queue.push({ gx: nx, gy: ny });
         }
       }
-    }
 
-    // Minimum cluster size to count as a node (filter noise)
-    if (cluster.length >= 3) {
-      clusters.push(cluster);
+      // Filter: clusters that are too large are probably terrain features, not nodes
+      // Node icons are ~20-40px, so a cluster shouldn't span more than ~4 cells
+      const clusterCells = totalCount / MIN_CELL_COUNT; // rough cell count
+      if (clusterCells > 30) continue; // way too big
+
+      const cx = sumX / totalCount;
+      const cy = sumY / totalCount;
+      const cr = sumR / totalCount;
+      const cg = sumG / totalCount;
+      const cb = sumB / totalCount;
+
+      clusters.push({ cx, cy, cr, cg, cb, total: totalCount });
     }
   }
 
-  onProgress?.(`Found ${clusters.length} clusters, classifying...`);
+  onProgress?.(`Found ${clusters.length} candidates, classifying...`);
 
-  // Step 4: For each cluster, compute centroid and classify by closest type color
+  // Step 4: Classify each cluster by closest type color
   const detectedNodes: DetectedPixelNode[] = [];
   const availableTypes = Object.keys(typeAvgColors) as RssNodeType[];
 
+  if (availableTypes.length === 0) {
+    onProgress?.('No color profiles built — need more annotations');
+    return [];
+  }
+
   for (const cluster of clusters) {
-    // Centroid
-    let cx = 0, cy = 0, cr = 0, cg = 0, cb = 0;
-    for (const p of cluster) {
-      cx += p.px;
-      cy += p.py;
-      cr += p.r;
-      cg += p.g;
-      cb += p.b;
-    }
-    cx /= cluster.length;
-    cy /= cluster.length;
-    cr /= cluster.length;
-    cg /= cluster.length;
-    cb /= cluster.length;
+    const gameX = Math.round((cluster.cx / w) * GAME_MAP_SIZE);
+    const gameY = Math.round((cluster.cy / h) * GAME_MAP_SIZE);
 
-    // Convert pixel coords to game coords
-    const gameX = Math.round((cx / w) * GAME_MAP_SIZE);
-    const gameY = Math.round((cy / h) * GAME_MAP_SIZE);
-
-    // Classify by closest type color
     let bestType: RssNodeType = 'food';
     let bestDist = Infinity;
     for (const type of availableTypes) {
       const [ar, ag, ab] = typeAvgColors[type];
-      const dist = Math.hypot(cr - ar, cg - ag, cb - ab);
+      const dist = Math.hypot(cluster.cr - ar, cluster.cg - ag, cluster.cb - ab);
       if (dist < bestDist) {
         bestDist = dist;
         bestType = type;
@@ -196,32 +216,26 @@ export async function detectNodesPixel(
 
 /**
  * Check if a pixel is a "bright non-terrain" pixel.
- * The map terrain is mostly yellow-green (#9BA030-ish) and dark walls are near black.
- * Node icons are brighter/more saturated and stand out from the terrain.
+ * The map terrain is mostly yellow-green and dark walls are near black.
+ * Node icons are brighter and have different hues than the terrain.
  */
 function isBrightNonTerrain(r: number, g: number, b: number): boolean {
   const brightness = (r + g + b) / 3;
 
-  // Too dark = terrain walls or borders
-  if (brightness < 60) return false;
+  // Too dark (walls, borders, shadows)
+  if (brightness < 80) return false;
 
-  // Check if it's the dominant green terrain color
-  // Terrain is roughly: R=130-190, G=150-200, B=40-100 (yellow-green)
-  const isGreenTerrain =
-    g > r * 0.7 && g > b * 1.3 &&
-    r > 80 && r < 210 &&
-    g > 100 && g < 220 &&
-    b < 130;
+  // Green/yellow-green terrain — the dominant map color
+  // Terrain: green channel dominates, blue is low
+  if (g > b + 40 && g > 100 && b < 140 && r < 220) return false;
 
-  if (isGreenTerrain) return false;
+  // Dark olive/brown terrain edges
+  if (brightness < 120 && g > b) return false;
 
-  // Grayish-green terrain (borders of tiles, paths)
-  const isGrayGreen =
-    Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && brightness < 160;
-  if (isGrayGreen) return false;
-
-  // Must be reasonably bright to be a node icon
-  if (brightness < 100) return false;
+  // Very bright white/cream — could be node icons or map border
+  // Node icons tend to have some color, not pure gray
+  // Filter the beige/cream map border
+  if (brightness > 200 && Math.abs(r - g) < 15 && Math.abs(g - b) < 15) return false;
 
   return true;
 }
