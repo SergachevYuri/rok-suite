@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { Check, X, Trash2, Download, GripVertical, Undo2, Play, Eraser, Sparkles, Loader2 } from 'lucide-react';
+import { useMemo, useCallback, useEffect } from 'react';
+import { Check, X, Trash2, Download, GripVertical, Undo2, Play, Eraser, Sparkles, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RssNode, RssNodeType, RssNodeStatus, RssAnnotationMode } from '@/lib/kvk-map/rss-review';
 import { RSS_TYPES, RSS_TYPE_COLORS, RSS_TYPE_LABELS } from '@/lib/kvk-map/rss-review';
 
@@ -19,6 +19,7 @@ interface RssReviewPanelProps {
   onSelect: (id: number | null) => void;
   onExport: () => void;
   onClose: () => void;
+  onFlyTo: (x: number, y: number) => void;
   // Annotation props
   annotationMode: RssAnnotationMode;
   onAnnotationModeChange: (mode: RssAnnotationMode) => void;
@@ -50,6 +51,7 @@ export default function RssReviewPanel({
   onSelect,
   onExport,
   onClose,
+  onFlyTo,
   annotationMode,
   onAnnotationModeChange,
   activeRssType,
@@ -74,6 +76,79 @@ export default function RssReviewPanel({
   }, [nodes]);
 
   const selectedNode = selectedId != null ? nodes.find((n) => n.id === selectedId) : null;
+
+  // Sequential review queue: pending detected nodes (filtered by type)
+  const reviewQueue = useMemo(() => {
+    return nodes.filter(
+      (n) => n.source === 'detected' && n.status === 'pending' &&
+      (typeFilter === 'all' || n.type === typeFilter)
+    );
+  }, [nodes, typeFilter]);
+
+  const currentReviewIndex = useMemo(() => {
+    if (selectedId == null) return -1;
+    return reviewQueue.findIndex((n) => n.id === selectedId);
+  }, [reviewQueue, selectedId]);
+
+  const goToReviewNode = useCallback((index: number) => {
+    if (index < 0 || index >= reviewQueue.length) return;
+    const node = reviewQueue[index];
+    onSelect(node.id);
+    onFlyTo(node.x, node.y);
+  }, [reviewQueue, onSelect, onFlyTo]);
+
+  const handlePrev = useCallback(() => {
+    goToReviewNode(currentReviewIndex - 1);
+  }, [goToReviewNode, currentReviewIndex]);
+
+  const handleNext = useCallback(() => {
+    goToReviewNode(currentReviewIndex + 1);
+  }, [goToReviewNode, currentReviewIndex]);
+
+  const handleReviewApprove = useCallback(() => {
+    if (selectedId == null) return;
+    // Grab next node before state changes
+    const nextIndex = currentReviewIndex + 1;
+    const nextNode = nextIndex < reviewQueue.length ? reviewQueue[nextIndex] : null;
+
+    onApprove(selectedId);
+
+    if (nextNode) {
+      onSelect(nextNode.id);
+      onFlyTo(nextNode.x, nextNode.y);
+    } else {
+      onSelect(null);
+    }
+  }, [selectedId, currentReviewIndex, reviewQueue, onApprove, onSelect, onFlyTo]);
+
+  const handleReviewReject = useCallback(() => {
+    if (selectedId == null) return;
+    const nextIndex = currentReviewIndex + 1;
+    const nextNode = nextIndex < reviewQueue.length ? reviewQueue[nextIndex] : null;
+
+    onReject(selectedId);
+
+    if (nextNode) {
+      onSelect(nextNode.id);
+      onFlyTo(nextNode.x, nextNode.y);
+    } else {
+      onSelect(null);
+    }
+  }, [selectedId, currentReviewIndex, reviewQueue, onReject, onSelect, onFlyTo]);
+
+  // Keyboard shortcuts for review mode
+  useEffect(() => {
+    if (annotationMode !== 'review') return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); handlePrev(); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); handleNext(); }
+      if ((e.key === 'a' || e.key === 'A') && currentReviewIndex >= 0) { e.preventDefault(); handleReviewApprove(); }
+      if ((e.key === 'r' || e.key === 'R') && currentReviewIndex >= 0) { e.preventDefault(); handleReviewReject(); }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [annotationMode, handlePrev, handleNext, handleReviewApprove, handleReviewReject, currentReviewIndex]);
 
   return (
     <div
@@ -262,7 +337,7 @@ export default function RssReviewPanel({
         </>
       )}
 
-      {/* Review mode UI (original) */}
+      {/* Review mode UI */}
       {annotationMode === 'review' && (
         <>
           {/* Stats */}
@@ -304,24 +379,99 @@ export default function RssReviewPanel({
             </div>
           </div>
 
-          {/* Status filter */}
+          {/* Quick Review controls */}
           <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-            <div className="text-[10px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Status</div>
-            <div className="flex gap-1">
-              {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => onStatusFilterChange(s)}
-                  className="px-2 py-0.5 rounded text-[10px] font-medium capitalize"
-                  style={{
-                    backgroundColor: statusFilter === s ? 'var(--background-hover)' : 'transparent',
-                    color: statusFilter === s ? 'var(--foreground)' : 'var(--text-muted)',
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                Quick Review
+              </span>
+              <span className="text-[10px] font-medium" style={{ color: '#a855f7' }}>
+                {reviewQueue.length} pending
+              </span>
             </div>
+
+            {currentReviewIndex >= 0 ? (
+              <>
+                {/* Progress */}
+                <div className="text-xs font-medium mb-2 text-center" style={{ color: 'var(--foreground)' }}>
+                  Node {currentReviewIndex + 1} of {reviewQueue.length}
+                </div>
+
+                {/* Navigation */}
+                <div className="flex gap-1.5 mb-2">
+                  <button
+                    onClick={handlePrev}
+                    disabled={currentReviewIndex === 0}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-medium disabled:opacity-30"
+                    style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
+                  >
+                    <ChevronLeft size={10} /> Prev
+                  </button>
+                  <button
+                    onClick={handleNext}
+                    disabled={currentReviewIndex >= reviewQueue.length - 1}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-medium disabled:opacity-30"
+                    style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
+                  >
+                    Next <ChevronRight size={10} />
+                  </button>
+                </div>
+
+                {/* Type change (quick re-type) */}
+                <div className="flex gap-1 mb-2">
+                  {RSS_TYPES.map((t) => {
+                    const current = selectedNode?.type === t;
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => selectedId != null && onChangeType(selectedId, t)}
+                        className="flex-1 flex items-center justify-center gap-1 px-1 py-1 rounded text-[9px] font-medium"
+                        style={{
+                          backgroundColor: current ? `${RSS_TYPE_COLORS[t]}20` : 'var(--background-hover)',
+                          color: current ? RSS_TYPE_COLORS[t] : 'var(--text-muted)',
+                          outline: current ? `1px solid ${RSS_TYPE_COLORS[t]}` : 'none',
+                        }}
+                      >
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[t] }} />
+                        {RSS_TYPE_LABELS[t]}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Approve / Reject */}
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={handleReviewApprove}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-medium"
+                    style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: '#22c55e' }}
+                  >
+                    <Check size={12} /> Approve
+                  </button>
+                  <button
+                    onClick={handleReviewReject}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-medium"
+                    style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}
+                  >
+                    <X size={12} /> Reject
+                  </button>
+                </div>
+
+                {/* Keyboard hints */}
+                <div className="text-[9px] text-center mt-1.5" style={{ color: 'var(--text-muted)' }}>
+                  Keys: ← → navigate · A approve · R reject
+                </div>
+              </>
+            ) : (
+              <button
+                onClick={() => goToReviewNode(0)}
+                disabled={reviewQueue.length === 0}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-30"
+                style={{ backgroundColor: 'rgba(168,85,247,0.15)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.3)' }}
+              >
+                <Play size={12} /> Start reviewing ({reviewQueue.length} nodes)
+              </button>
+            )}
           </div>
 
           {/* Selected node details */}
@@ -358,59 +508,64 @@ export default function RssReviewPanel({
                 <GripVertical size={10} /> Drag the marker to reposition
               </div>
 
-              {/* Type selector */}
-              <div>
-                <div className="text-[10px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Change type</div>
-                <div className="flex gap-1">
-                  {RSS_TYPES.map((t) => (
+              {/* Actions (for nodes not in the quick review queue) */}
+              {currentReviewIndex < 0 && (
+                <>
+                  {/* Type selector */}
+                  <div>
+                    <div className="text-[10px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Change type</div>
+                    <div className="flex gap-1">
+                      {RSS_TYPES.map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => onChangeType(selectedNode.id, t)}
+                          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
+                          style={{
+                            backgroundColor: selectedNode.type === t ? `${RSS_TYPE_COLORS[t]}20` : 'var(--background-hover)',
+                            color: selectedNode.type === t ? RSS_TYPE_COLORS[t] : 'var(--text-muted)',
+                            outline: selectedNode.type === t ? `1px solid ${RSS_TYPE_COLORS[t]}` : 'none',
+                          }}
+                        >
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[t] }} />
+                          {RSS_TYPE_LABELS[t]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-1.5 pt-1">
                     <button
-                      key={t}
-                      onClick={() => onChangeType(selectedNode.id, t)}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
+                      onClick={() => onApprove(selectedNode.id)}
+                      className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-medium"
                       style={{
-                        backgroundColor: selectedNode.type === t ? `${RSS_TYPE_COLORS[t]}20` : 'var(--background-hover)',
-                        color: selectedNode.type === t ? RSS_TYPE_COLORS[t] : 'var(--text-muted)',
-                        outline: selectedNode.type === t ? `1px solid ${RSS_TYPE_COLORS[t]}` : 'none',
+                        backgroundColor: selectedNode.status === 'approved' ? 'rgba(34,197,94,0.15)' : 'var(--background-hover)',
+                        color: '#22c55e',
                       }}
                     >
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[t] }} />
-                      {RSS_TYPE_LABELS[t]}
+                      <Check size={12} /> Approve
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-1.5 pt-1">
-                <button
-                  onClick={() => onApprove(selectedNode.id)}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-medium"
-                  style={{
-                    backgroundColor: selectedNode.status === 'approved' ? 'rgba(34,197,94,0.15)' : 'var(--background-hover)',
-                    color: '#22c55e',
-                  }}
-                >
-                  <Check size={12} /> Approve
-                </button>
-                <button
-                  onClick={() => onReject(selectedNode.id)}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-medium"
-                  style={{
-                    backgroundColor: selectedNode.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'var(--background-hover)',
-                    color: '#ef4444',
-                  }}
-                >
-                  <X size={12} /> Reject
-                </button>
-                <button
-                  onClick={() => { onDelete(selectedNode.id); onSelect(null); }}
-                  className="flex items-center justify-center px-2 py-1.5 rounded text-xs"
-                  style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
-                  title="Delete permanently"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
+                    <button
+                      onClick={() => onReject(selectedNode.id)}
+                      className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-medium"
+                      style={{
+                        backgroundColor: selectedNode.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'var(--background-hover)',
+                        color: '#ef4444',
+                      }}
+                    >
+                      <X size={12} /> Reject
+                    </button>
+                    <button
+                      onClick={() => { onDelete(selectedNode.id); onSelect(null); }}
+                      className="flex items-center justify-center px-2 py-1.5 rounded text-xs"
+                      style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
+                      title="Delete permanently"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className="px-3 py-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>

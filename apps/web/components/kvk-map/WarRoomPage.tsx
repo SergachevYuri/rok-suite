@@ -131,6 +131,7 @@ export default function WarRoomPage() {
   const [rssUndoStack, setRssUndoStack] = useState<RssNode[][]>([]);
   const [rssDetecting, setRssDetecting] = useState(false);
   const [rssDetectProgress, setRssDetectProgress] = useState<string | null>(null);
+  const [rssFlyTarget, setRssFlyTarget] = useState<{ x: number; y: number } | null>(null);
 
   // Auto-save RSS nodes to localStorage
   const RSS_STORAGE_KEY = 'kvk-rss-annotation-nodes';
@@ -665,6 +666,11 @@ export default function WarRoomPage() {
     }
   }, [map, rssDetecting, rssNodes, rssNextId]);
 
+  const handleRssFlyTo = useCallback((x: number, y: number) => {
+    setRssFlyTarget({ x, y });
+    setTimeout(() => setRssFlyTarget(null), 600);
+  }, []);
+
   const handleRssClearDetected = useCallback(() => {
     setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
     setRssNodes((prev) => prev.filter((n) => n.source !== 'detected'));
@@ -923,6 +929,8 @@ export default function WarRoomPage() {
                   interactive={!isPlacing && !isDrawingZone}
                   onSelect={setSelectedRssNodeId}
                   onMove={handleRssNodeMove}
+                  zoom={zoom}
+                  flyToTarget={rssFlyTarget}
                 />
               )}
               {isDrawingZone && (
@@ -1005,6 +1013,7 @@ export default function WarRoomPage() {
                   onSelect={setSelectedRssNodeId}
                   onExport={handleRssExport}
                   onClose={handleToggleRssReview}
+                  onFlyTo={handleRssFlyTo}
                   annotationMode={rssAnnotationMode}
                   onAnnotationModeChange={setRssAnnotationMode}
                   activeRssType={activeRssType}
