@@ -19,14 +19,18 @@ const SCALE = 2;
 const TMPL_SIZE = 14;
 /** Scan stride — tighter than before for better coverage */
 const STRIDE = 4;
-/** NCC threshold on whiteness map — lower is OK since whiteness removes background noise */
-const MATCH_THRESHOLD = 0.45;
+/** NCC threshold — whiteness map is more discriminative than RGB */
+const MATCH_THRESHOLD = 0.55;
 /** Minimum distance between detections in downscaled pixels */
 const MIN_DIST = 12;
-/** Minimum whiteness score (0–255) for a pixel to count as "white" in pre-filter */
-const WHITENESS_PIXEL_MIN = 60;
-/** Minimum white pixels in center 5x5 to pass pre-filter (out of 25) */
-const WHITENESS_COUNT_MIN = 3;
+/** Minimum average whiteness of center 3x3 to be a potential icon */
+const CENTER_WHITENESS_MIN = 100;
+/**
+ * Minimum contrast between center 3x3 and surrounding ring.
+ * RSS icons are bright blobs on dark terrain → high contrast.
+ * Light paths/rocks are uniformly bright → low contrast.
+ */
+const CONTRAST_MIN = 40;
 
 /**
  * Whiteness score for a single pixel.
@@ -144,8 +148,8 @@ export async function detectNodesPixel(
 
   for (let sy = half; sy < h - half; sy += STRIDE) {
     for (let sx = half; sx < w - half; sx += STRIDE) {
-      // Pre-filter: center 5x5 must contain enough white-ish pixels
-      if (!hasWhiteCluster(wMap, w, sx, sy)) continue;
+      // Pre-filter: bright white blob that contrasts with surroundings
+      if (!hasBrightBlob(wMap, w, sx, sy)) continue;
       candidateCount++;
 
       if (!extractPatch(wMap, w, h, sx, sy, half, TMPL_SIZE, patchBuf)) continue;
@@ -211,21 +215,35 @@ export async function detectNodesPixel(
 }
 
 /**
- * Pre-filter: does the 5x5 neighborhood around (cx,cy) contain a cluster of
- * white-ish pixels? More forgiving than the old 3x3 bright+white check since
- * icon shapes vary (thin corn stalk, bulky stone cube, etc).
+ * Pre-filter: is there a bright white blob at (cx,cy) that stands out from
+ * its surroundings? RSS icons are bright white on dark terrain → high contrast.
+ * Light paths and rocky areas are also bright but blend with neighbors → low contrast.
  */
-function hasWhiteCluster(wMap: Float32Array, w: number, cx: number, cy: number): boolean {
-  let count = 0;
-  for (let dy = -2; dy <= 2; dy++) {
-    for (let dx = -2; dx <= 2; dx++) {
-      if (wMap[(cy + dy) * w + (cx + dx)] >= WHITENESS_PIXEL_MIN) {
-        count++;
-        if (count >= WHITENESS_COUNT_MIN) return true;
-      }
+function hasBrightBlob(wMap: Float32Array, w: number, cx: number, cy: number): boolean {
+  // Center 3x3 average whiteness
+  let centerSum = 0;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      centerSum += wMap[(cy + dy) * w + (cx + dx)];
     }
   }
-  return false;
+  const centerAvg = centerSum / 9;
+  if (centerAvg < CENTER_WHITENESS_MIN) return false;
+
+  // Surround: sample 8 points at distance 6 (just outside icon radius ~5-6px)
+  const d = 6;
+  let surroundSum = 0;
+  surroundSum += wMap[(cy - d) * w + cx];
+  surroundSum += wMap[(cy + d) * w + cx];
+  surroundSum += wMap[cy * w + (cx - d)];
+  surroundSum += wMap[cy * w + (cx + d)];
+  surroundSum += wMap[(cy - d) * w + (cx - d)];
+  surroundSum += wMap[(cy - d) * w + (cx + d)];
+  surroundSum += wMap[(cy + d) * w + (cx - d)];
+  surroundSum += wMap[(cy + d) * w + (cx + d)];
+  const surroundAvg = surroundSum / 8;
+
+  return (centerAvg - surroundAvg) >= CONTRAST_MIN;
 }
 
 /** Extract single-channel patch from a Float32Array map. */
