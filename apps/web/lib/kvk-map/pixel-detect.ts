@@ -13,35 +13,32 @@ interface AnnotationSample {
   type: RssNodeType;
 }
 
-/** Downscale factor (4x smaller = faster) */
-const SCALE = 4;
-/** Template patch size in the downscaled image */
-const TMPL_SIZE = 8;
+/**
+ * Downscale factor — 2x preserves node detail (~12px nodes vs ~6px at 4x).
+ * The distinctive icon pattern (swirl/gear shape) needs enough pixels to
+ * be distinguishable from random bright spots.
+ */
+const SCALE = 2;
+/** Template patch size — 16px captures the full node icon + surrounding context */
+const TMPL_SIZE = 16;
 /** Scan stride in downscaled pixels */
-const STRIDE = 4;
-/** NCC threshold to accept a match (higher = stricter, fewer false positives) */
-const MATCH_THRESHOLD = 0.72;
+const STRIDE = 6;
+/** NCC threshold — higher resolution templates allow better discrimination */
+const MATCH_THRESHOLD = 0.65;
 /** Minimum distance between detections in downscaled pixels */
-const MIN_DIST = 10;
-/**
- * Minimum average brightness (per channel, 0-255) for center 2x2 pixels.
- * White icons are ~200+, bright terrain is ~130-160, dark terrain ~60-90.
- */
-const BRIGHTNESS_MIN = 155;
-/**
- * Maximum color spread (max channel - min channel) for center pixels.
- * White/gray pixels have low spread (<40). Green grass has high spread (G >> R,B).
- * This eliminates bright but colorful terrain like light grass or sand.
- */
-const MAX_COLOR_SPREAD = 50;
+const MIN_DIST = 16;
+/** Minimum average brightness per channel for center 3x3 pixels */
+const BRIGHTNESS_MIN = 150;
+/** Maximum color spread (max-min channel) — white icons have R ≈ G ≈ B */
+const MAX_COLOR_SPREAD = 55;
 
 /**
  * Detect RSS nodes using template matching with brightness + whiteness pre-filter.
  *
- * 1. Downscale 4x → ~2020x2020
- * 2. Build averaged templates from manual annotations
- * 3. Scan with stride 4, skip patches where center isn't bright AND white
- * 4. NCC on white-bright candidates only (~1-2% of positions)
+ * 1. Downscale 2x → ~4040x4040 (preserves node icon detail)
+ * 2. Build averaged 16x16 templates from manual annotations
+ * 3. Scan with stride 6, skip patches where center isn't bright AND white
+ * 4. NCC on candidates only
  * 5. Non-maximum suppression
  */
 export async function detectNodesPixel(
@@ -116,7 +113,7 @@ export async function detectNodesPixel(
     return [];
   }
 
-  onProgress?.(`Built ${templates.length} templates, scanning...`);
+  onProgress?.(`Built ${templates.length} templates, scanning ${w}x${h}...`);
 
   // ── Scan with brightness + whiteness pre-filter, then NCC ──
   const matches: { x: number; y: number; type: RssNodeType; score: number }[] = [];
@@ -127,7 +124,7 @@ export async function detectNodesPixel(
 
   for (let sy = half; sy < h - half; sy += STRIDE) {
     for (let sx = half; sx < w - half; sx += STRIDE) {
-      // Quick check: center must be bright AND white (low color saturation)
+      // Quick check: center 3x3 must be bright AND white
       if (!isWhiteBrightCenter(pixels, w, sx, sy)) continue;
       candidateCount++;
 
@@ -147,20 +144,26 @@ export async function detectNodesPixel(
       const patchNorm = Math.sqrt(patchNormSq);
 
       // NCC against each pre-computed centered template
+      let bestScore = 0;
+      let bestType: RssNodeType = 'food';
       for (const tmpl of templates) {
         let cross = 0;
         for (let i = 0; i < patchLen; i++) {
           cross += (patchBuf[i] - patchMean) * tmpl.centered[i];
         }
         const ncc = cross / (patchNorm * tmpl.norm + 1e-8);
-        if (ncc >= MATCH_THRESHOLD) {
-          matches.push({ x: sx, y: sy, type: tmpl.type, score: ncc });
+        if (ncc > bestScore) {
+          bestScore = ncc;
+          bestType = tmpl.type;
         }
+      }
+      if (bestScore >= MATCH_THRESHOLD) {
+        matches.push({ x: sx, y: sy, type: bestType, score: bestScore });
       }
     }
 
     rowCount++;
-    if (rowCount % 15 === 0) {
+    if (rowCount % 20 === 0) {
       onProgress?.(`Scanning... ${Math.round((rowCount / totalRows) * 100)}%`);
       await new Promise((r) => setTimeout(r, 0));
     }
@@ -188,29 +191,27 @@ export async function detectNodesPixel(
 }
 
 /**
- * Quick check: are the center 2x2 pixels both bright AND white/gray?
- * White icons have high brightness (R+G+B > 465) and low color spread (max-min < 50).
- * This eliminates bright green grass (high G, low R/B) and bright sand (high R, lower G/B).
+ * Quick check: are the center 3x3 pixels both bright AND white/gray?
+ * Uses 3x3 instead of 2x2 for a more stable sample at 2x downscale.
  */
 function isWhiteBrightCenter(pixels: Uint8ClampedArray, w: number, cx: number, cy: number): boolean {
   let totalR = 0, totalG = 0, totalB = 0;
-  for (let dy = -1; dy <= 0; dy++) {
-    for (let dx = -1; dx <= 0; dx++) {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
       const idx = ((cy + dy) * w + (cx + dx)) * 4;
       totalR += pixels[idx];
       totalG += pixels[idx + 1];
       totalB += pixels[idx + 2];
     }
   }
-  // Average per pixel across 4 samples
-  const avgR = totalR / 4;
-  const avgG = totalG / 4;
-  const avgB = totalB / 4;
+  const avgR = totalR / 9;
+  const avgG = totalG / 9;
+  const avgB = totalB / 9;
 
-  // Brightness check: average channel value must be >= threshold
+  // Brightness: average channel >= threshold
   if ((avgR + avgG + avgB) / 3 < BRIGHTNESS_MIN) return false;
 
-  // Whiteness check: channels should be similar (low saturation)
+  // Whiteness: channels should be close to each other
   const maxC = Math.max(avgR, avgG, avgB);
   const minC = Math.min(avgR, avgG, avgB);
   if (maxC - minC > MAX_COLOR_SPREAD) return false;
