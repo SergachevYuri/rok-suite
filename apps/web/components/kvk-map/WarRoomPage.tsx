@@ -568,7 +568,7 @@ export default function WarRoomPage() {
         return;
       }
 
-      const GRID_SIZE = 4;
+      const GRID_SIZE = 8;
       const { tiles, scaledSize, tilePixelSize } = await splitMapIntoTiles(
         map.image_path,
         GRID_SIZE,

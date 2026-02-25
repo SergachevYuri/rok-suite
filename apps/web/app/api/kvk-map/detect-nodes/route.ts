@@ -18,16 +18,22 @@ interface DetectedNode {
 
 const SYSTEM_PROMPT = `You are a computer vision specialist analyzing sections of a Rise of Kingdoms KvK (Kingdom vs Kingdom) map. Your task is to identify resource nodes (RSS nodes) in the image.
 
-Resource nodes are small colored dots/circles scattered across the map. Each type has a distinct color:
-- food: bright green circles
-- wood: brownish/dark yellow circles
-- stone: gray circles
-- gold: bright yellow/golden circles
-- crystal: purple/violet circles
+Resource nodes appear as small glowing circles/orbs (roughly 10-30 pixels diameter at this zoom level) scattered across the map terrain. Each type has a distinct color:
+- food: bright green glowing orbs
+- wood: brownish/orange/dark yellow glowing orbs
+- stone: gray/silver glowing orbs
+- gold: bright yellow/golden glowing orbs
+- crystal: purple/violet/pink glowing orbs
 
-These nodes are small colored dots scattered throughout the map terrain. They are NOT buildings, cities, or large structures — they are small resource gathering points that players can send troops to collect from.
+These nodes have a characteristic bright glow/halo effect and are scattered randomly across the map terrain (grass, sand, snow areas). They are NOT:
+- Buildings, cities, or large structures
+- UI elements, text, or labels
+- Terrain features like rocks or trees
+- Zone borders or lines
 
-IMPORTANT: Only report nodes you are confident about. It's better to miss some than to report false positives. Look carefully at the image for small colored dots.`;
+Each node is a small distinct circular bright spot. Look carefully for these glowing dots across the entire tile. There may be dozens per tile or none at all depending on the area.
+
+IMPORTANT: Only report nodes you are confident about. It's better to miss some than to report false positives.`;
 
 function buildTilePrompt(
   tilePixelSize: number,
