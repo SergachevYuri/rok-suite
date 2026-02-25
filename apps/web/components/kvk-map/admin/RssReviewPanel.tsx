@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useCallback, useEffect } from 'react';
-import { Check, X, Trash2, Download, GripVertical, Undo2, Play, Eraser, Sparkles, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, X, Trash2, Download, GripVertical, Undo2, Play, Eraser, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { RssNode, RssNodeType, RssNodeStatus, RssAnnotationMode } from '@/lib/kvk-map/rss-review';
 import { RSS_TYPES, RSS_TYPE_COLORS, RSS_TYPE_LABELS } from '@/lib/kvk-map/rss-review';
 
@@ -275,7 +275,7 @@ export default function RssReviewPanel({
               {detecting ? (
                 <><Loader2 size={12} className="animate-spin" /> {detectProgress || 'Detecting...'}</>
               ) : (
-                <><Sparkles size={12} /> Detect with AI</>
+                <><Search size={12} /> Auto-detect nodes</>
               )}
             </button>
             {detectProgress && (

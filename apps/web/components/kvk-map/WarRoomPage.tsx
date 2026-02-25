@@ -37,7 +37,7 @@ import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
 import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
 import { loadRssNodes, RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus, type RssAnnotationMode } from '@/lib/kvk-map/rss-review';
 import { type SymmetryConfig, getSegment } from '@/lib/kvk-map/rss-symmetry';
-import { splitMapIntoTiles } from '@/lib/kvk-map/map-tiling';
+import { detectNodesPixel } from '@/lib/kvk-map/pixel-detect';
 
 function isFlagFeatureType(type: FeatureType): boolean {
   return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
@@ -556,91 +556,22 @@ export default function WarRoomPage() {
     if (manualNodes.length === 0) return;
 
     setRssDetecting(true);
-    setRssDetectProgress('Checking API...');
 
     try {
-      // Pre-flight check: test the API route is reachable and configured
-      const testRes = await fetch('/api/kvk-map/detect-nodes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      if (testRes.status === 503) {
-        setRssDetectProgress('Error: ANTHROPIC_API_KEY not configured on server');
-        setTimeout(() => setRssDetectProgress(null), 8000);
-        setRssDetecting(false);
-        return;
-      }
-
-      const GRID_SIZE = 8;
-      const { tiles, scaledSize, tilePixelSize } = await splitMapIntoTiles(
+      const annotations = manualNodes.map((n) => ({ x: n.x, y: n.y, type: n.type }));
+      const detected = await detectNodesPixel(
         map.image_path,
-        GRID_SIZE,
+        annotations,
         setRssDetectProgress,
       );
 
-      const annotations = manualNodes.map((n) => ({ x: n.x, y: n.y, type: n.type }));
-      const allDetected: { x: number; y: number; type: string; confidence: number }[] = [];
-      let failedTiles = 0;
-      let lastError = '';
-
-      // Send tiles one at a time for per-tile progress
-      for (let i = 0; i < tiles.length; i++) {
-        const tile = tiles[i];
-        setRssDetectProgress(`Scanning tile ${i + 1}/${tiles.length}...`);
-
-        try {
-          const response = await fetch('/api/kvk-map/detect-nodes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tile,
-              annotations,
-              tilePixelSize,
-              scaledSize,
-              mapSize: GAME_MAP_SIZE,
-            }),
-          });
-
-          if (!response.ok) {
-            const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-            lastError = err.error || `HTTP ${response.status}`;
-            console.error(`Tile ${i + 1} failed:`, lastError);
-            failedTiles++;
-            continue;
-          }
-
-          const data = await response.json();
-          if (data.nodes?.length) {
-            allDetected.push(...data.nodes);
-          }
-        } catch (fetchErr) {
-          lastError = fetchErr instanceof Error ? fetchErr.message : 'Network error';
-          console.error(`Tile ${i + 1} fetch error:`, lastError);
-          failedTiles++;
-          continue;
-        }
-      }
-
-      // If ALL tiles failed, show the error
-      if (failedTiles === tiles.length) {
-        setRssDetectProgress(`All tiles failed: ${lastError}`);
-        setTimeout(() => setRssDetectProgress(null), 8000);
-        return;
-      }
-
-      // Deduplicate close nodes (within 5 game units)
-      const deduped: typeof allDetected = [];
-      for (const node of allDetected) {
-        const dup = deduped.find(
-          (d) => d.type === node.type && Math.hypot(d.x - node.x, d.y - node.y) < 5,
-        );
-        if (!dup) deduped.push(node);
-      }
-
-      // Convert to RssNode format, filter overlaps with manual nodes
+      // Filter overlaps with manual nodes (within 5 game units)
       let nextId = rssNextId;
-      const detectedNodes: RssNode[] = deduped
-        .filter((n) => !manualNodes.some((m) => Math.hypot(m.x - n.x, m.y - n.y) < 8))
+      const detectedNodes: RssNode[] = detected
+        .filter((n) => !manualNodes.some((m) => Math.hypot(m.x - n.x, m.y - n.y) < 5))
         .map((n) => ({
           id: nextId++,
-          type: n.type as RssNodeType,
+          type: n.type,
           x: n.x,
           y: n.y,
           status: 'pending' as const,
@@ -654,8 +585,7 @@ export default function WarRoomPage() {
         return [...withoutOldDetected, ...detectedNodes];
       });
       setRssNextId(nextId);
-      const failInfo = failedTiles > 0 ? ` (${failedTiles} tiles failed)` : '';
-      setRssDetectProgress(`Found ${detectedNodes.length} new nodes${failInfo}`);
+      setRssDetectProgress(`Found ${detectedNodes.length} new nodes`);
       setTimeout(() => setRssDetectProgress(null), 5000);
     } catch (error) {
       console.error('RSS detection failed:', error);
