@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Allow up to 60 seconds for Claude Vision API calls on Vercel
+export const maxDuration = 60;
+
 interface AnnotationInput {
   x: number;
   y: number;

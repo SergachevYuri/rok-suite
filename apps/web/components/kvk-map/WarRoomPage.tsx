@@ -566,34 +566,52 @@ export default function WarRoomPage() {
 
       const annotations = manualNodes.map((n) => ({ x: n.x, y: n.y, type: n.type }));
       const allDetected: { x: number; y: number; type: string; confidence: number }[] = [];
+      let failedTiles = 0;
+      let lastError = '';
 
       // Send tiles one at a time for per-tile progress
       for (let i = 0; i < tiles.length; i++) {
         const tile = tiles[i];
         setRssDetectProgress(`Scanning tile ${i + 1}/${tiles.length}...`);
 
-        const response = await fetch('/api/kvk-map/detect-nodes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tile,
-            annotations,
-            tilePixelSize,
-            scaledSize,
-            mapSize: GAME_MAP_SIZE,
-          }),
-        });
+        try {
+          const response = await fetch('/api/kvk-map/detect-nodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tile,
+              annotations,
+              tilePixelSize,
+              scaledSize,
+              mapSize: GAME_MAP_SIZE,
+            }),
+          });
 
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({ error: 'Detection failed' }));
-          console.error(`Tile ${i + 1} failed:`, err.error);
-          continue; // skip failed tile, keep going
-        }
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+            lastError = err.error || `HTTP ${response.status}`;
+            console.error(`Tile ${i + 1} failed:`, lastError);
+            failedTiles++;
+            continue;
+          }
 
-        const data = await response.json();
-        if (data.nodes?.length) {
-          allDetected.push(...data.nodes);
+          const data = await response.json();
+          if (data.nodes?.length) {
+            allDetected.push(...data.nodes);
+          }
+        } catch (fetchErr) {
+          lastError = fetchErr instanceof Error ? fetchErr.message : 'Network error';
+          console.error(`Tile ${i + 1} fetch error:`, lastError);
+          failedTiles++;
+          continue;
         }
+      }
+
+      // If ALL tiles failed, show the error
+      if (failedTiles === tiles.length) {
+        setRssDetectProgress(`All tiles failed: ${lastError}`);
+        setTimeout(() => setRssDetectProgress(null), 8000);
+        return;
       }
 
       // Deduplicate close nodes (within 5 game units)
@@ -625,8 +643,9 @@ export default function WarRoomPage() {
         return [...withoutOldDetected, ...detectedNodes];
       });
       setRssNextId(nextId);
-      setRssDetectProgress(`Found ${detectedNodes.length} new nodes`);
-      setTimeout(() => setRssDetectProgress(null), 3000);
+      const failInfo = failedTiles > 0 ? ` (${failedTiles} tiles failed)` : '';
+      setRssDetectProgress(`Found ${detectedNodes.length} new nodes${failInfo}`);
+      setTimeout(() => setRssDetectProgress(null), 5000);
     } catch (error) {
       console.error('RSS detection failed:', error);
       setRssDetectProgress(`Error: ${error instanceof Error ? error.message : 'Detection failed'}`);
