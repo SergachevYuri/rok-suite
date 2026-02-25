@@ -203,8 +203,8 @@ export default function RssReviewPanel({
                 <><Sparkles size={12} /> Detect with AI</>
               )}
             </button>
-            {detecting && detectProgress && (
-              <div className="text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>
+            {detectProgress && (
+              <div className="text-[10px] text-center" style={{ color: detectProgress.startsWith('Error') || detectProgress.includes('failed') ? '#ef4444' : 'var(--text-muted)' }}>
                 {detectProgress}
               </div>
             )}

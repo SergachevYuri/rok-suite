@@ -555,8 +555,18 @@ export default function WarRoomPage() {
     if (manualNodes.length === 0) return;
 
     setRssDetecting(true);
+    setRssDetectProgress('Checking API...');
 
     try {
+      // Pre-flight check: test the API route is reachable and configured
+      const testRes = await fetch('/api/kvk-map/detect-nodes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (testRes.status === 503) {
+        setRssDetectProgress('Error: ANTHROPIC_API_KEY not configured on server');
+        setTimeout(() => setRssDetectProgress(null), 8000);
+        setRssDetecting(false);
+        return;
+      }
+
       const GRID_SIZE = 4;
       const { tiles, scaledSize, tilePixelSize } = await splitMapIntoTiles(
         map.image_path,
