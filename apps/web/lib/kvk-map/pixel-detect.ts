@@ -19,25 +19,29 @@ const SCALE = 4;
 const TMPL_SIZE = 8;
 /** Scan stride in downscaled pixels */
 const STRIDE = 4;
-/** NCC threshold to accept a match */
-const MATCH_THRESHOLD = 0.55;
+/** NCC threshold to accept a match (higher = stricter, fewer false positives) */
+const MATCH_THRESHOLD = 0.72;
 /** Minimum distance between detections in downscaled pixels */
-const MIN_DIST = 8;
+const MIN_DIST = 10;
 /**
- * Minimum average brightness (per channel, 0-255) for the center 2x2 pixels
- * to qualify as a candidate. RSS nodes are white icons so they're much brighter
- * than typical green/brown terrain (~80-90 avg). 120 is a safe lower bound.
+ * Minimum average brightness (per channel, 0-255) for center 2x2 pixels.
+ * White icons are ~200+, bright terrain is ~130-160, dark terrain ~60-90.
  */
-const BRIGHTNESS_MIN = 120;
-const BRIGHTNESS_SUM_THRESHOLD = BRIGHTNESS_MIN * 3 * 4; // sum of R+G+B across 4 center pixels
+const BRIGHTNESS_MIN = 155;
+/**
+ * Maximum color spread (max channel - min channel) for center pixels.
+ * White/gray pixels have low spread (<40). Green grass has high spread (G >> R,B).
+ * This eliminates bright but colorful terrain like light grass or sand.
+ */
+const MAX_COLOR_SPREAD = 50;
 
 /**
- * Detect RSS nodes using template matching with brightness pre-filter.
+ * Detect RSS nodes using template matching with brightness + whiteness pre-filter.
  *
  * 1. Downscale 4x → ~2020x2020
  * 2. Build averaged templates from manual annotations
- * 3. Scan with stride 4, skip patches where center isn't bright (nodes are white icons)
- * 4. NCC on bright candidates only (~5% of positions)
+ * 3. Scan with stride 4, skip patches where center isn't bright AND white
+ * 4. NCC on white-bright candidates only (~1-2% of positions)
  * 5. Non-maximum suppression
  */
 export async function detectNodesPixel(
@@ -114,7 +118,7 @@ export async function detectNodesPixel(
 
   onProgress?.(`Built ${templates.length} templates, scanning...`);
 
-  // ── Scan with brightness pre-filter + NCC ──
+  // ── Scan with brightness + whiteness pre-filter, then NCC ──
   const matches: { x: number; y: number; type: RssNodeType; score: number }[] = [];
   const patchBuf = new Float32Array(patchLen);
   const totalRows = Math.ceil((h - TMPL_SIZE) / STRIDE);
@@ -123,8 +127,8 @@ export async function detectNodesPixel(
 
   for (let sy = half; sy < h - half; sy += STRIDE) {
     for (let sx = half; sx < w - half; sx += STRIDE) {
-      // Quick brightness check on center 2x2 pixels — skip dark terrain
-      if (!isBrightCenter(pixels, w, sx, sy)) continue;
+      // Quick check: center must be bright AND white (low color saturation)
+      if (!isWhiteBrightCenter(pixels, w, sx, sy)) continue;
       candidateCount++;
 
       if (!extractPatch(pixels, w, h, sx, sy, half, TMPL_SIZE, patchBuf)) continue;
@@ -139,7 +143,7 @@ export async function detectNodesPixel(
         const v = patchBuf[i] - patchMean;
         patchNormSq += v * v;
       }
-      if (patchNormSq < 1) continue; // uniform patch
+      if (patchNormSq < 1) continue;
       const patchNorm = Math.sqrt(patchNormSq);
 
       // NCC against each pre-computed centered template
@@ -162,7 +166,7 @@ export async function detectNodesPixel(
     }
   }
 
-  onProgress?.(`Checked ${candidateCount} bright spots, found ${matches.length} matches`);
+  onProgress?.(`Checked ${candidateCount} candidates, found ${matches.length} matches`);
 
   // ── Non-maximum suppression ──
   matches.sort((a, b) => b.score - a.score);
@@ -183,16 +187,35 @@ export async function detectNodesPixel(
   return detectedNodes;
 }
 
-/** Quick check: are the center 2x2 pixels bright enough to be a white icon? */
-function isBrightCenter(pixels: Uint8ClampedArray, w: number, cx: number, cy: number): boolean {
-  let sum = 0;
+/**
+ * Quick check: are the center 2x2 pixels both bright AND white/gray?
+ * White icons have high brightness (R+G+B > 465) and low color spread (max-min < 50).
+ * This eliminates bright green grass (high G, low R/B) and bright sand (high R, lower G/B).
+ */
+function isWhiteBrightCenter(pixels: Uint8ClampedArray, w: number, cx: number, cy: number): boolean {
+  let totalR = 0, totalG = 0, totalB = 0;
   for (let dy = -1; dy <= 0; dy++) {
     for (let dx = -1; dx <= 0; dx++) {
       const idx = ((cy + dy) * w + (cx + dx)) * 4;
-      sum += pixels[idx] + pixels[idx + 1] + pixels[idx + 2];
+      totalR += pixels[idx];
+      totalG += pixels[idx + 1];
+      totalB += pixels[idx + 2];
     }
   }
-  return sum >= BRIGHTNESS_SUM_THRESHOLD;
+  // Average per pixel across 4 samples
+  const avgR = totalR / 4;
+  const avgG = totalG / 4;
+  const avgB = totalB / 4;
+
+  // Brightness check: average channel value must be >= threshold
+  if ((avgR + avgG + avgB) / 3 < BRIGHTNESS_MIN) return false;
+
+  // Whiteness check: channels should be similar (low saturation)
+  const maxC = Math.max(avgR, avgG, avgB);
+  const minC = Math.min(avgR, avgG, avgB);
+  if (maxC - minC > MAX_COLOR_SPREAD) return false;
+
+  return true;
 }
 
 /** Extract RGB patch into a provided buffer. Returns false if out of bounds. */
