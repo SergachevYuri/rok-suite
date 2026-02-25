@@ -488,7 +488,11 @@ export default function WarRoomPage() {
         if (saved) {
           const { nodes, nextId } = JSON.parse(saved);
           if (Array.isArray(nodes) && nodes.length > 0) {
-            setRssNodes(nodes);
+            // Filter out detected-pending nodes on load; keep manual + approved
+            const cleaned = nodes.filter(
+              (n: RssNode) => n.source === 'manual' || n.status === 'approved',
+            );
+            setRssNodes(cleaned);
             setRssNextId(nextId || nodes.length);
             restored = true;
           }
