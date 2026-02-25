@@ -13,33 +13,45 @@ interface AnnotationSample {
   type: RssNodeType;
 }
 
-/**
- * Downscale factor — 2x preserves node detail (~12px nodes vs ~6px at 4x).
- * The distinctive icon pattern (swirl/gear shape) needs enough pixels to
- * be distinguishable from random bright spots.
- */
+/** Downscale factor — 2x preserves node detail (~12px icons) */
 const SCALE = 2;
-/** Template patch size — 16px captures the full node icon + surrounding context */
-const TMPL_SIZE = 16;
-/** Scan stride in downscaled pixels */
-const STRIDE = 6;
-/** NCC threshold — higher resolution templates allow better discrimination */
-const MATCH_THRESHOLD = 0.65;
+/** Template patch size in downscaled pixels */
+const TMPL_SIZE = 14;
+/** Scan stride — tighter than before for better coverage */
+const STRIDE = 4;
+/** NCC threshold on whiteness map — lower is OK since whiteness removes background noise */
+const MATCH_THRESHOLD = 0.45;
 /** Minimum distance between detections in downscaled pixels */
-const MIN_DIST = 16;
-/** Minimum average brightness per channel for center 3x3 pixels */
-const BRIGHTNESS_MIN = 150;
-/** Maximum color spread (max-min channel) — white icons have R ≈ G ≈ B */
-const MAX_COLOR_SPREAD = 55;
+const MIN_DIST = 12;
+/** Minimum whiteness score (0–255) for a pixel to count as "white" in pre-filter */
+const WHITENESS_PIXEL_MIN = 60;
+/** Minimum white pixels in center 5x5 to pass pre-filter (out of 25) */
+const WHITENESS_COUNT_MIN = 3;
 
 /**
- * Detect RSS nodes using template matching with brightness + whiteness pre-filter.
+ * Whiteness score for a single pixel.
+ * High for bright, unsaturated (white/gray) pixels; near zero for colored terrain.
  *
- * 1. Downscale 2x → ~4040x4040 (preserves node icon detail)
- * 2. Build averaged 16x16 templates from manual annotations
- * 3. Scan with stride 6, skip patches where center isn't bright AND white
- * 4. NCC on candidates only
- * 5. Non-maximum suppression
+ *   white (255,255,255) → 255
+ *   blended white-on-green (200,210,180) → ~155
+ *   green terrain (100,140,60) → 0
+ *   dark terrain (60,80,40) → 0
+ */
+function pixelWhiteness(r: number, g: number, b: number): number {
+  const brightness = (r + g + b) / 3;
+  const spread = Math.max(r, g, b) - Math.min(r, g, b);
+  return Math.max(0, brightness - spread * 1.5);
+}
+
+/**
+ * Detect RSS nodes using whiteness-map template matching.
+ *
+ * 1. Downscale 2x → ~4040x4040
+ * 2. Compute whiteness map (single channel: white icons bright, terrain dark)
+ * 3. Build averaged templates from manual annotations on the whiteness map
+ * 4. Scan with stride 4, pre-filter on local whiteness peaks
+ * 5. NCC on whiteness map (background-invariant)
+ * 6. Non-maximum suppression
  */
 export async function detectNodesPixel(
   imageUrl: string,
@@ -62,9 +74,17 @@ export async function detectNodesPixel(
   ctx.drawImage(img, 0, 0, w, h);
   const pixels = ctx.getImageData(0, 0, w, h).data;
 
+  // ── Compute whiteness map (single channel) ──
+  onProgress?.('Computing whiteness map...');
+  const wMap = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const idx = i * 4;
+    wMap[i] = pixelWhiteness(pixels[idx], pixels[idx + 1], pixels[idx + 2]);
+  }
+
   // ── Build averaged templates from annotations ──
   onProgress?.('Building templates from annotations...');
-  const patchLen = TMPL_SIZE * TMPL_SIZE * 3;
+  const patchLen = TMPL_SIZE * TMPL_SIZE;
   const half = Math.floor(TMPL_SIZE / 2);
   const typeAccum: Record<string, { data: Float32Array; count: number }> = {};
   const tmpBuf = new Float32Array(patchLen);
@@ -72,7 +92,7 @@ export async function detectNodesPixel(
   for (const ann of annotations) {
     const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
     const cy = Math.round((ann.y / GAME_MAP_SIZE) * h);
-    if (!extractPatch(pixels, w, h, cx, cy, half, TMPL_SIZE, tmpBuf)) continue;
+    if (!extractPatch(wMap, w, h, cx, cy, half, TMPL_SIZE, tmpBuf)) continue;
 
     if (!typeAccum[ann.type]) {
       typeAccum[ann.type] = { data: new Float32Array(patchLen), count: 0 };
@@ -115,7 +135,7 @@ export async function detectNodesPixel(
 
   onProgress?.(`Built ${templates.length} templates, scanning ${w}x${h}...`);
 
-  // ── Scan with brightness + whiteness pre-filter, then NCC ──
+  // ── Scan with whiteness pre-filter, then NCC ──
   const matches: { x: number; y: number; type: RssNodeType; score: number }[] = [];
   const patchBuf = new Float32Array(patchLen);
   const totalRows = Math.ceil((h - TMPL_SIZE) / STRIDE);
@@ -124,13 +144,13 @@ export async function detectNodesPixel(
 
   for (let sy = half; sy < h - half; sy += STRIDE) {
     for (let sx = half; sx < w - half; sx += STRIDE) {
-      // Quick check: center 3x3 must be bright AND white
-      if (!isWhiteBrightCenter(pixels, w, sx, sy)) continue;
+      // Pre-filter: center 5x5 must contain enough white-ish pixels
+      if (!hasWhiteCluster(wMap, w, sx, sy)) continue;
       candidateCount++;
 
-      if (!extractPatch(pixels, w, h, sx, sy, half, TMPL_SIZE, patchBuf)) continue;
+      if (!extractPatch(wMap, w, h, sx, sy, half, TMPL_SIZE, patchBuf)) continue;
 
-      // Compute patch mean and norm
+      // NCC on whiteness channel
       let patchMean = 0;
       for (let i = 0; i < patchLen; i++) patchMean += patchBuf[i];
       patchMean /= patchLen;
@@ -143,7 +163,7 @@ export async function detectNodesPixel(
       if (patchNormSq < 1) continue;
       const patchNorm = Math.sqrt(patchNormSq);
 
-      // NCC against each pre-computed centered template
+      // NCC against each template
       let bestScore = 0;
       let bestType: RssNodeType = 'food';
       for (const tmpl of templates) {
@@ -169,7 +189,7 @@ export async function detectNodesPixel(
     }
   }
 
-  onProgress?.(`Checked ${candidateCount} candidates, found ${matches.length} matches`);
+  onProgress?.(`${candidateCount} candidates → ${matches.length} matches above threshold`);
 
   // ── Non-maximum suppression ──
   matches.sort((a, b) => b.score - a.score);
@@ -191,37 +211,26 @@ export async function detectNodesPixel(
 }
 
 /**
- * Quick check: are the center 3x3 pixels both bright AND white/gray?
- * Uses 3x3 instead of 2x2 for a more stable sample at 2x downscale.
+ * Pre-filter: does the 5x5 neighborhood around (cx,cy) contain a cluster of
+ * white-ish pixels? More forgiving than the old 3x3 bright+white check since
+ * icon shapes vary (thin corn stalk, bulky stone cube, etc).
  */
-function isWhiteBrightCenter(pixels: Uint8ClampedArray, w: number, cx: number, cy: number): boolean {
-  let totalR = 0, totalG = 0, totalB = 0;
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const idx = ((cy + dy) * w + (cx + dx)) * 4;
-      totalR += pixels[idx];
-      totalG += pixels[idx + 1];
-      totalB += pixels[idx + 2];
+function hasWhiteCluster(wMap: Float32Array, w: number, cx: number, cy: number): boolean {
+  let count = 0;
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      if (wMap[(cy + dy) * w + (cx + dx)] >= WHITENESS_PIXEL_MIN) {
+        count++;
+        if (count >= WHITENESS_COUNT_MIN) return true;
+      }
     }
   }
-  const avgR = totalR / 9;
-  const avgG = totalG / 9;
-  const avgB = totalB / 9;
-
-  // Brightness: average channel >= threshold
-  if ((avgR + avgG + avgB) / 3 < BRIGHTNESS_MIN) return false;
-
-  // Whiteness: channels should be close to each other
-  const maxC = Math.max(avgR, avgG, avgB);
-  const minC = Math.min(avgR, avgG, avgB);
-  if (maxC - minC > MAX_COLOR_SPREAD) return false;
-
-  return true;
+  return false;
 }
 
-/** Extract RGB patch into a provided buffer. Returns false if out of bounds. */
+/** Extract single-channel patch from a Float32Array map. */
 function extractPatch(
-  pixels: Uint8ClampedArray,
+  map: Float32Array,
   w: number,
   h: number,
   cx: number,
@@ -230,16 +239,11 @@ function extractPatch(
   size: number,
   buf: Float32Array,
 ): boolean {
-  if (cx - half < 0 || cx + half >= w || cy - half < 0 || cy + half >= h) {
-    return false;
-  }
+  if (cx - half < 0 || cx + half >= w || cy - half < 0 || cy + half >= h) return false;
   let pi = 0;
   for (let dy = -half; dy < size - half; dy++) {
     for (let dx = -half; dx < size - half; dx++) {
-      const idx = ((cy + dy) * w + (cx + dx)) * 4;
-      buf[pi++] = pixels[idx];
-      buf[pi++] = pixels[idx + 1];
-      buf[pi++] = pixels[idx + 2];
+      buf[pi++] = map[(cy + dy) * w + (cx + dx)];
     }
   }
   return true;
