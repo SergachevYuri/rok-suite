@@ -311,7 +311,7 @@ export default function RssReviewPanel({
                   className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium disabled:opacity-30"
                   style={{ backgroundColor: 'rgba(234,179,8,0.1)', color: '#eab308' }}
                 >
-                  <Eraser size={10} /> Clear detected
+                  <Eraser size={10} /> Clear unreviewed
                 </button>
               )}
             </div>

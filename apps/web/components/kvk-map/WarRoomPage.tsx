@@ -655,7 +655,10 @@ export default function WarRoomPage() {
 
   const handleRssClearDetected = useCallback(() => {
     setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
-    setRssNodes((prev) => prev.filter((n) => n.source !== 'detected'));
+    // Keep: manual nodes + anything user has reviewed (approved/rejected)
+    setRssNodes((prev) => prev.filter((n) =>
+      n.source === 'manual' || n.status === 'approved' || n.status === 'rejected'
+    ));
   }, [rssNodes]);
 
   const handleRssStartFresh = useCallback(() => {
