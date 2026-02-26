@@ -32,14 +32,10 @@ const CENTER_WHITENESS_MIN = 85;
  */
 const CONTRAST_MIN = 35;
 
-/**
- * Color sampling radii (in downscaled px).
- * The icon center is mostly white — the color tint is in the ring.
- * Inner: skip the pure-white center.  Outer: capture the colored halo.
- */
-const COLOR_INNER_RADIUS = 2; // skip center 5x5
-const COLOR_OUTER_RADIUS = 6; // sample up to 13x13
-
+/** Radius for color sampling at full resolution (~24px icons → sample 16px circle) */
+const FULL_RES_SAMPLE_RADIUS = 8;
+/** Minimum whiteness for a pixel to be considered part of the icon (not terrain) */
+const ICON_WHITENESS_MIN = 50;
 /** KNN K value for classification */
 const KNN_K = 5;
 
@@ -106,26 +102,26 @@ function classifyByKnn(
 }
 
 /**
- * Sample the color tint of an RSS icon by looking at the ring of pixels
- * around the white center.  The center is mostly white (low saturation);
- * the colored halo at radius 2–6 carries the actual type color.
+ * Sample the color tint of an RSS icon at full resolution.
  *
- * Returns a "deviation from gray" vector (dr, dg, db) which is more
- * stable than HSL hue for near-white colors.  Each component is the
- * channel value minus the per-pixel mean, averaged across the ring,
- * weighted by each pixel's saturation (so colorful pixels count more).
+ * Uses a circular area (radius FULL_RES_SAMPLE_RADIUS) including the center.
+ * Filters by whiteness to exclude green terrain pixels.  Weights each pixel
+ * by its color spread so the most tinted icon pixels dominate.
+ *
+ * Returns a "deviation from gray" vector (dr, dg, db) — each component is
+ * the channel value minus the per-pixel brightness, averaged across icon
+ * pixels.  More stable than HSL hue for near-white colors.
  */
 function sampleIconTint(
   pixels: Uint8ClampedArray, w: number, h: number,
   cx: number, cy: number,
 ): { dr: number; dg: number; db: number } | null {
   let drSum = 0, dgSum = 0, dbSum = 0, weightSum = 0;
+  const rSq = FULL_RES_SAMPLE_RADIUS * FULL_RES_SAMPLE_RADIUS;
 
-  for (let dy = -COLOR_OUTER_RADIUS; dy <= COLOR_OUTER_RADIUS; dy++) {
-    for (let dx = -COLOR_OUTER_RADIUS; dx <= COLOR_OUTER_RADIUS; dx++) {
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      // Skip center (too white) and corners (outside icon)
-      if (dist < COLOR_INNER_RADIUS || dist > COLOR_OUTER_RADIUS) continue;
+  for (let dy = -FULL_RES_SAMPLE_RADIUS; dy <= FULL_RES_SAMPLE_RADIUS; dy++) {
+    for (let dx = -FULL_RES_SAMPLE_RADIUS; dx <= FULL_RES_SAMPLE_RADIUS; dx++) {
+      if (dx * dx + dy * dy > rSq) continue; // circular mask
 
       const px = cx + dx, py = cy + dy;
       if (px < 0 || px >= w || py < 0 || py >= h) continue;
@@ -133,17 +129,15 @@ function sampleIconTint(
       const idx = (py * w + px) * 4;
       const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2];
 
-      // Only consider bright pixels (part of the icon, not terrain)
-      const brightness = (r + g + b) / 3;
-      if (brightness < 120) continue;
+      // Only icon pixels — whiteness filters out colored terrain (green/brown)
+      if (pixelWhiteness(r, g, b) < ICON_WHITENESS_MIN) continue;
 
-      // Saturation as weight — more saturated pixels carry more color info
+      // Weight by color spread — more tinted pixels carry more type info
       const spread = Math.max(r, g, b) - Math.min(r, g, b);
-      const sat = brightness > 0 ? spread / brightness : 0;
-      const weight = 0.1 + sat; // small base weight so even low-sat pixels contribute
+      const weight = 0.1 + spread / 255;
 
       // Deviation from gray
-      const avg = brightness;
+      const avg = (r + g + b) / 3;
       drSum += (r - avg) * weight;
       dgSum += (g - avg) * weight;
       dbSum += (b - avg) * weight;
@@ -155,7 +149,9 @@ function sampleIconTint(
   return { dr: drSum / weightSum, dg: dgSum / weightSum, db: dbSum / weightSum };
 }
 
-/** Build tint samples from annotations — used by both detect and reclassify. */
+/**
+ * Build tint samples from annotations using full-resolution pixel data.
+ */
 function buildTintSamples(
   pixels: Uint8ClampedArray, w: number, h: number,
   annotations: AnnotationSample[],
@@ -171,18 +167,35 @@ function buildTintSamples(
 }
 
 /**
- * Detect RSS nodes using two-stage whiteness + RGB template matching.
+ * Load full-resolution pixel data from an image element.
+ * Used for color classification where downscaling loses subtle tint info.
+ */
+function getFullResPixels(img: HTMLImageElement): {
+  pixels: Uint8ClampedArray; w: number; h: number;
+} {
+  const w = img.width, h = img.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+  return { pixels: ctx.getImageData(0, 0, w, h).data, w, h };
+}
+
+/**
+ * Detect RSS nodes using two-stage whiteness detection + full-res color classification.
  *
- * Stage 1 — Detection (whiteness):
+ * Stage 1 — Detection (whiteness, 2x downscale):
  *   1. Downscale 2x → ~4040x4040
  *   2. Compute whiteness map (single channel: white icons bright, terrain dark)
  *   3. Build averaged whiteness templates from manual annotations
  *   4. Scan with stride 4, pre-filter on local whiteness peaks
  *   5. NCC on whiteness map → candidate positions
  *
- * Stage 2 — Classification (tint KNN):
- *   6. Sample icon ring tint (deviation-from-gray) for each annotation
- *   7. Classify each candidate via K-nearest-neighbors on tint vectors
+ * Stage 2 — Classification (full resolution):
+ *   6. Load full-res pixels for color sampling
+ *   7. Sample icon tint (deviation-from-gray) with whiteness-filtered pixels
+ *   8. Classify each candidate via K-nearest-neighbors on tint vectors
  *
  * Final: Non-maximum suppression
  */
@@ -205,14 +218,14 @@ export async function detectNodesPixel(
   canvas.height = h;
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(img, 0, 0, w, h);
-  const pixels = ctx.getImageData(0, 0, w, h).data;
+  const dsPixels = ctx.getImageData(0, 0, w, h).data;
 
   // ── Compute whiteness map (single channel) ──
   onProgress?.('Computing whiteness map...');
   const wMap = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) {
     const idx = i * 4;
-    wMap[i] = pixelWhiteness(pixels[idx], pixels[idx + 1], pixels[idx + 2]);
+    wMap[i] = pixelWhiteness(dsPixels[idx], dsPixels[idx + 1], dsPixels[idx + 2]);
   }
 
   // ── Build whiteness templates from annotations (for detection) ──
@@ -262,8 +275,12 @@ export async function detectNodesPixel(
     return [];
   }
 
-  // ── Build per-annotation tint samples for KNN classification ──
-  const tintSamples = buildTintSamples(pixels, w, h, annotations);
+  // ── Load full-res pixels for color classification ──
+  onProgress?.('Loading full-res pixels for color classification...');
+  const full = getFullResPixels(img);
+
+  // ── Build per-annotation tint samples for KNN classification (full-res) ──
+  const tintSamples = buildTintSamples(full.pixels, full.w, full.h, annotations);
 
   onProgress?.(`Built ${wTemplates.length} detection templates + ${tintSamples.length} color samples, scanning ${w}x${h}...`);
 
@@ -323,9 +340,9 @@ export async function detectNodesPixel(
     }
   }
 
-  onProgress?.(`After NMS: ${kept.length} nodes. Classifying types...`);
+  onProgress?.(`After NMS: ${kept.length} nodes. Classifying types (full-res)...`);
 
-  // ── Stage 2: Classify each kept detection using KNN on tint vectors ──
+  // ── Stage 2: Classify each detection using KNN on full-res tint vectors ──
   const detectedNodes: DetectedPixelNode[] = [];
 
   for (let ci = 0; ci < kept.length; ci++) {
@@ -333,7 +350,10 @@ export async function detectNodesPixel(
     let bestType: RssNodeType = 'food';
 
     if (tintSamples.length > 0) {
-      const tint = sampleIconTint(pixels, w, h, sx, sy);
+      // Convert downscaled coords → full-res coords
+      const fullX = Math.round((sx / w) * full.w);
+      const fullY = Math.round((sy / h) * full.h);
+      const tint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
       if (tint) {
         bestType = classifyByKnn(tint, tintSamples);
       }
@@ -357,8 +377,8 @@ export async function detectNodesPixel(
 
 /**
  * Re-classify pending detected nodes using corrected nodes as better training data.
- * Loads the image, builds KNN tint samples from corrected annotations, and re-types
- * only the pending nodes. Skips the full detection scan.
+ * Loads the image at full resolution, builds KNN tint samples from corrected
+ * annotations, and re-types only the pending nodes. Skips the full detection scan.
  */
 export async function reclassifyNodeTypes(
   imageUrl: string,
@@ -368,21 +388,13 @@ export async function reclassifyNodeTypes(
 ): Promise<RssNodeType[]> {
   if (trainingNodes.length === 0) return pendingNodes.map(() => 'food');
 
-  onProgress?.('Loading image for re-classification...');
+  onProgress?.('Loading full-res image for re-classification...');
   const img = await loadImage(imageUrl);
-  const w = Math.round(img.width / SCALE);
-  const h = Math.round(img.height / SCALE);
+  const full = getFullResPixels(img);
 
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, 0, 0, w, h);
-  const pixels = ctx.getImageData(0, 0, w, h).data;
-
-  // Build tint samples from training nodes (manual + corrected)
-  onProgress?.(`Building tint samples from ${trainingNodes.length} corrected nodes...`);
-  const tintSamples = buildTintSamples(pixels, w, h, trainingNodes);
+  // Build tint samples from training nodes at full resolution
+  onProgress?.(`Building tint samples from ${trainingNodes.length} corrected nodes (full-res)...`);
+  const tintSamples = buildTintSamples(full.pixels, full.w, full.h, trainingNodes);
 
   if (tintSamples.length === 0) return pendingNodes.map(() => 'food');
 
@@ -401,14 +413,14 @@ export async function reclassifyNodeTypes(
     console.log(`[RSS] ${type}: n=${ts.count}, avg tint=(${avg.dr.toFixed(2)}, ${avg.dg.toFixed(2)}, ${avg.db.toFixed(2)})`);
   }
 
-  // Re-classify each pending node using KNN
+  // Re-classify each pending node using KNN at full resolution
   onProgress?.(`Re-classifying ${pendingNodes.length} nodes with ${tintSamples.length} samples (KNN k=${KNN_K})...`);
   const results: RssNodeType[] = [];
 
   for (const node of pendingNodes) {
-    const sx = Math.round((node.x / GAME_MAP_SIZE) * w);
-    const sy = Math.round((1 - node.y / GAME_MAP_SIZE) * h);
-    const tint = sampleIconTint(pixels, w, h, sx, sy);
+    const fx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
+    const fy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
+    const tint = sampleIconTint(full.pixels, full.w, full.h, fx, fy);
     results.push(tint ? classifyByKnn(tint, tintSamples) : 'food');
   }
 
