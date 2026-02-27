@@ -70,41 +70,21 @@ const RssNodeDot = memo(function RssNodeDot({
     );
   }
 
-  // Manual nodes + selected: CircleMarker as before
-  const radius = isSelected ? 6 : 3;
+  // Manual nodes: solid circle with white border for visibility
+  const radius = isSelected ? 6 : 5;
 
   return (
     <CircleMarker
       center={[node.y, node.x]}
       radius={radius}
       pathOptions={{
-        color: isSelected ? '#fff' : isDetected ? '#fff' : color,
-        weight: isSelected ? 2 : isDetected ? 1 : 0,
+        color: '#fff',
+        weight: isSelected ? 2 : 1.5,
         fillColor: color,
         fillOpacity: opacity,
-        dashArray: isDetected && !isSelected ? '2, 2' : undefined,
       }}
       eventHandlers={{ click: onClick }}
-    >
-      {isSelected && (
-        <Tooltip direction="top" offset={[0, -8]} opacity={0.95} permanent>
-          <div style={{ fontSize: '11px', lineHeight: '1.3' }}>
-            <strong>{RSS_TYPE_LABELS[node.type]}</strong>
-            <span style={{ color: '#9ca3af' }}> ({node.x}, {node.y})</span>
-            <br />
-            <span style={{ color: node.status === 'approved' ? '#22c55e' : node.status === 'rejected' ? '#ef4444' : '#9ca3af' }}>
-              {node.status}
-            </span>
-            {isDetected && (
-              <>
-                <br />
-                <span style={{ color: '#a855f7' }}>AI detected</span>
-              </>
-            )}
-          </div>
-        </Tooltip>
-      )}
-    </CircleMarker>
+    />
   );
 });
 
@@ -117,36 +97,61 @@ function SelectedNodeMarker({
 }) {
   const color = RSS_TYPE_COLORS[node.type];
 
+  // Transparent ring + crosshair so the actual map icon is visible underneath
   const icon = useMemo(
     () =>
       new L.DivIcon({
         className: '',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
         html: `<div style="
-          width: 20px; height: 20px;
+          width: 28px; height: 28px;
           border-radius: 50%;
-          background: ${color};
-          border: 2px solid #fff;
-          box-shadow: 0 0 6px rgba(0,0,0,0.5);
+          background: transparent;
+          border: 2px solid ${color};
+          box-shadow: 0 0 6px ${color}, 0 0 2px rgba(0,0,0,0.8);
           cursor: grab;
-        "></div>`,
+          position: relative;
+        ">
+          <div style="
+            position: absolute; top: 50%; left: -4px; right: -4px; height: 1px;
+            background: ${color}; opacity: 0.6;
+          "></div>
+          <div style="
+            position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px;
+            background: ${color}; opacity: 0.6;
+          "></div>
+        </div>`,
       }),
     [color]
   );
 
   return (
-    <Marker
-      position={[node.y, node.x]}
-      icon={icon}
-      draggable
-      eventHandlers={{
-        dragend: (e) => {
-          const pos = e.target.getLatLng();
-          onMove(Math.round(pos.lng), Math.round(pos.lat));
-        },
-      }}
-    />
+    <>
+      <Marker
+        position={[node.y, node.x]}
+        icon={icon}
+        draggable
+        eventHandlers={{
+          dragend: (e) => {
+            const pos = e.target.getLatLng();
+            onMove(Math.round(pos.lng), Math.round(pos.lat));
+          },
+        }}
+      />
+      <CircleMarker
+        center={[node.y, node.x]}
+        radius={0}
+        pathOptions={{ opacity: 0, fillOpacity: 0 }}
+      >
+        <Tooltip direction="right" offset={[18, 0]} opacity={0.9} permanent>
+          <div style={{ fontSize: '10px', lineHeight: '1.2', whiteSpace: 'nowrap' }}>
+            <strong style={{ color }}>{RSS_TYPE_LABELS[node.type]}</strong>
+            <span style={{ color: '#9ca3af' }}> ({node.x}, {node.y})</span>
+          </div>
+        </Tooltip>
+      </CircleMarker>
+    </>
   );
 }
 

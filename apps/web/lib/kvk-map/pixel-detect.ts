@@ -55,37 +55,31 @@ function pixelWhiteness(r: number, g: number, b: number): number {
 }
 
 /**
- * A single training sample with 6-dimensional feature vector:
- * - Raw tint (dr, dg, db): deviation from gray — captures tint magnitude
- * - Normalized direction (nr, ng, nb): unit vector — captures color identity
- *   regardless of how strongly the icon is tinted
+ * A training sample using opponent color channels — much better separation
+ * for the subtle tint differences in near-white RSS icons.
  *
- * This separates "what color" from "how much color", so KNN can distinguish
- * food (green) from gold (yellow) even when both have similar tint magnitudes.
+ * rg: red–green opponent (positive = warm/red, negative = green)
+ * yb: yellow–blue opponent (positive = warm/yellow, negative = cool/purple)
+ * sat: mean saturation — separates stone (gray, low sat) from colored types
+ *
+ * These three channels cleanly separate all five types:
+ *   food:    rg < 0, yb > 0, sat medium  (green)
+ *   wood:    rg > 0, yb > 0, sat high    (brown/amber)
+ *   gold:    rg ~ 0, yb >> 0, sat high   (yellow)
+ *   crystal: rg > 0, yb < 0, sat medium  (purple)
+ *   stone:   rg ~ 0, yb ~ 0, sat low     (gray)
  */
 interface TintSample {
   type: RssNodeType;
-  dr: number;
-  dg: number;
-  db: number;
-  nr: number;
-  ng: number;
-  nb: number;
+  rg: number;
+  yb: number;
+  sat: number;
 }
 
-/** 6D distance: raw tint + scaled normalized direction */
+/** Distance between two tint samples */
 function tintDist(a: TintSample, b: TintSample): number {
-  // Raw tint difference
-  const dd = a.dr - b.dr, dg = a.dg - b.dg, db = a.db - b.db;
-  // Normalized direction difference (scaled up — direction is the stronger signal)
-  const nd = (a.nr - b.nr) * 10, ng = (a.ng - b.ng) * 10, nb = (a.nb - b.nb) * 10;
-  return Math.sqrt(dd * dd + dg * dg + db * db + nd * nd + ng * ng + nb * nb);
-}
-
-/** Build a TintSample from raw tint values */
-function makeTintSample(type: RssNodeType, dr: number, dg: number, db: number): TintSample {
-  const mag = Math.sqrt(dr * dr + dg * dg + db * db) + 0.001;
-  return { type, dr, dg, db, nr: dr / mag, ng: dg / mag, nb: db / mag };
+  const drg = a.rg - b.rg, dyb = a.yb - b.yb, ds = a.sat - b.sat;
+  return Math.sqrt(drg * drg + dyb * dyb + ds * ds);
 }
 
 /**
@@ -122,27 +116,32 @@ function classifyByKnn(
   return bestType;
 }
 
+/** Number of most-tinted pixels to use for classification */
+const TOP_N_PIXELS = 30;
+
 /**
- * Sample the color tint of an RSS icon at full resolution.
+ * Sample the color signature of an RSS icon at full resolution.
  *
- * Uses a circular area (radius FULL_RES_SAMPLE_RADIUS) including the center.
- * Filters by whiteness to exclude green terrain pixels.  Weights each pixel
- * by its color spread so the most tinted icon pixels dominate.
+ * Instead of averaging all pixels (which washes out subtle tints on near-white
+ * icons), we collect all bright pixels in the sample area, sort by color
+ * spread (saturation), and take the top N most-tinted pixels. These carry
+ * the strongest type signal — they're the icon border/rim pixels where the
+ * type color shows through.
  *
- * Returns a "deviation from gray" vector (dr, dg, db) — each component is
- * the channel value minus the per-pixel brightness, averaged across icon
- * pixels.  More stable than HSL hue for near-white colors.
+ * Returns opponent color channels (rg, yb) + mean saturation.
  */
 function sampleIconTint(
   pixels: Uint8ClampedArray, w: number, h: number,
   cx: number, cy: number,
-): { dr: number; dg: number; db: number } | null {
-  let drSum = 0, dgSum = 0, dbSum = 0, weightSum = 0;
+): { rg: number; yb: number; sat: number } | null {
   const rSq = FULL_RES_SAMPLE_RADIUS * FULL_RES_SAMPLE_RADIUS;
+
+  // Collect bright pixels with their color info
+  const candidates: { r: number; g: number; b: number; spread: number }[] = [];
 
   for (let dy = -FULL_RES_SAMPLE_RADIUS; dy <= FULL_RES_SAMPLE_RADIUS; dy++) {
     for (let dx = -FULL_RES_SAMPLE_RADIUS; dx <= FULL_RES_SAMPLE_RADIUS; dx++) {
-      if (dx * dx + dy * dy > rSq) continue; // circular mask
+      if (dx * dx + dy * dy > rSq) continue;
 
       const px = cx + dx, py = cy + dy;
       if (px < 0 || px >= w || py < 0 || py >= h) continue;
@@ -150,24 +149,33 @@ function sampleIconTint(
       const idx = (py * w + px) * 4;
       const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2];
 
-      // Only icon pixels — whiteness filters out colored terrain (green/brown)
-      if (pixelWhiteness(r, g, b) < ICON_WHITENESS_MIN) continue;
+      // Must be bright enough to be part of the icon (not dark terrain)
+      const brightness = (r + g + b) / 3;
+      if (brightness < 140) continue;
 
-      // Weight by color spread — more tinted pixels carry more type info
       const spread = Math.max(r, g, b) - Math.min(r, g, b);
-      const weight = 0.1 + spread / 255;
-
-      // Deviation from gray
-      const avg = (r + g + b) / 3;
-      drSum += (r - avg) * weight;
-      dgSum += (g - avg) * weight;
-      dbSum += (b - avg) * weight;
-      weightSum += weight;
+      candidates.push({ r, g, b, spread });
     }
   }
 
-  if (weightSum < 0.01) return null;
-  return { dr: drSum / weightSum, dg: dgSum / weightSum, db: dbSum / weightSum };
+  if (candidates.length < 5) return null;
+
+  // Sort by spread descending — most-tinted pixels first
+  candidates.sort((a, b) => b.spread - a.spread);
+
+  // Take top N most-tinted pixels
+  const n = Math.min(TOP_N_PIXELS, candidates.length);
+  let rgSum = 0, ybSum = 0, satSum = 0;
+
+  for (let i = 0; i < n; i++) {
+    const { r, g, b, spread } = candidates[i];
+    // Opponent color channels
+    rgSum += r - g;                    // red–green
+    ybSum += (r + g) / 2 - b;         // yellow–blue
+    satSum += spread;
+  }
+
+  return { rg: rgSum / n, yb: ybSum / n, sat: satSum / n };
 }
 
 /**
@@ -182,7 +190,7 @@ function buildTintSamples(
     const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
     const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
     const tint = sampleIconTint(pixels, w, h, cx, cy);
-    if (tint) samples.push(makeTintSample(ann.type, tint.dr, tint.dg, tint.db));
+    if (tint) samples.push({ type: ann.type, ...tint });
   }
   return samples;
 }
@@ -374,9 +382,9 @@ export async function detectNodesPixel(
       // Convert downscaled coords → full-res coords
       const fullX = Math.round((sx / w) * full.w);
       const fullY = Math.round((sy / h) * full.h);
-      const rawTint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
-      if (rawTint) {
-        bestType = classifyByKnn(makeTintSample('food', rawTint.dr, rawTint.dg, rawTint.db), tintSamples);
+      const tint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
+      if (tint) {
+        bestType = classifyByKnn({ type: 'food', ...tint }, tintSamples);
       }
     }
 
@@ -420,18 +428,18 @@ export async function reclassifyNodeTypes(
   if (tintSamples.length === 0) return pendingNodes.map(() => 'food');
 
   // Log per-type tint stats to help debug classification quality
-  const typeStats: Record<string, { count: number; dr: number; dg: number; db: number }> = {};
+  const typeStats: Record<string, { count: number; rg: number; yb: number; sat: number }> = {};
   for (const s of tintSamples) {
-    if (!typeStats[s.type]) typeStats[s.type] = { count: 0, dr: 0, dg: 0, db: 0 };
+    if (!typeStats[s.type]) typeStats[s.type] = { count: 0, rg: 0, yb: 0, sat: 0 };
     const ts = typeStats[s.type];
     ts.count++;
-    ts.dr += s.dr;
-    ts.dg += s.dg;
-    ts.db += s.db;
+    ts.rg += s.rg;
+    ts.yb += s.yb;
+    ts.sat += s.sat;
   }
   for (const [type, ts] of Object.entries(typeStats)) {
-    const avg = { dr: ts.dr / ts.count, dg: ts.dg / ts.count, db: ts.db / ts.count };
-    console.log(`[RSS] ${type}: n=${ts.count}, avg tint=(${avg.dr.toFixed(2)}, ${avg.dg.toFixed(2)}, ${avg.db.toFixed(2)})`);
+    const avg = { rg: ts.rg / ts.count, yb: ts.yb / ts.count, sat: ts.sat / ts.count };
+    console.log(`[RSS] ${type}: n=${ts.count}, avg (rg=${avg.rg.toFixed(2)}, yb=${avg.yb.toFixed(2)}, sat=${avg.sat.toFixed(1)})`);
   }
 
   // Re-classify each pending node using KNN at full resolution
@@ -441,8 +449,8 @@ export async function reclassifyNodeTypes(
   for (const node of pendingNodes) {
     const fx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
     const fy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
-    const rawTint = sampleIconTint(full.pixels, full.w, full.h, fx, fy);
-    results.push(rawTint ? classifyByKnn(makeTintSample('food', rawTint.dr, rawTint.dg, rawTint.db), tintSamples) : 'food');
+    const tint = sampleIconTint(full.pixels, full.w, full.h, fx, fy);
+    results.push(tint ? classifyByKnn({ type: 'food', ...tint }, tintSamples) : 'food');
   }
 
   onProgress?.(`Re-classified ${results.length} nodes`);
