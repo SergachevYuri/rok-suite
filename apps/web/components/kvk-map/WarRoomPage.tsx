@@ -585,23 +585,24 @@ export default function WarRoomPage() {
   // ── RSS annotation handlers ────────────────────────────────────────
   const handleRssDetect = useCallback(async () => {
     if (!map || rssDetecting) return;
-    const manualNodes = rssNodes.filter((n) => n.source === 'manual');
-    if (manualNodes.length === 0) return;
+    // Use manual nodes + approved corrections as training data
+    const trainingNodes = rssNodes.filter((n) => n.source === 'manual' || n.status === 'approved');
+    if (trainingNodes.length === 0) return;
 
     setRssDetecting(true);
 
     try {
-      const annotations = manualNodes.map((n) => ({ x: n.x, y: n.y, type: n.type }));
+      const annotations = trainingNodes.map((n) => ({ x: n.x, y: n.y, type: n.type }));
       const detected = await detectNodesPixel(
         map.image_path,
         annotations,
         setRssDetectProgress,
       );
 
-      // Filter overlaps with manual nodes (within 5 game units)
+      // Filter overlaps with training nodes (within 5 game units)
       let nextId = rssNextId;
       const detectedNodes: RssNode[] = detected
-        .filter((n) => !manualNodes.some((m) => Math.hypot(m.x - n.x, m.y - n.y) < 5))
+        .filter((n) => !trainingNodes.some((m) => Math.hypot(m.x - n.x, m.y - n.y) < 5))
         .map((n) => ({
           id: nextId++,
           type: n.type,

@@ -32,12 +32,12 @@ const CENTER_WHITENESS_MIN = 85;
  */
 const CONTRAST_MIN = 35;
 
-/** Radius for color sampling at full resolution (~24px icons → sample 16px circle) */
-const FULL_RES_SAMPLE_RADIUS = 8;
+/** Radius for color sampling at full resolution (~24px icons → sample 20px circle) */
+const FULL_RES_SAMPLE_RADIUS = 10;
 /** Minimum whiteness for a pixel to be considered part of the icon (not terrain) */
-const ICON_WHITENESS_MIN = 50;
+const ICON_WHITENESS_MIN = 65;
 /** KNN K value for classification */
-const KNN_K = 5;
+const KNN_K = 7;
 
 /**
  * Whiteness score for a single pixel.
@@ -54,26 +54,46 @@ function pixelWhiteness(r: number, g: number, b: number): number {
   return Math.max(0, brightness - spread * 1.5);
 }
 
-/** A single training sample: tint vector + known type */
+/**
+ * A single training sample with 6-dimensional feature vector:
+ * - Raw tint (dr, dg, db): deviation from gray — captures tint magnitude
+ * - Normalized direction (nr, ng, nb): unit vector — captures color identity
+ *   regardless of how strongly the icon is tinted
+ *
+ * This separates "what color" from "how much color", so KNN can distinguish
+ * food (green) from gold (yellow) even when both have similar tint magnitudes.
+ */
 interface TintSample {
   type: RssNodeType;
   dr: number;
   dg: number;
   db: number;
+  nr: number;
+  ng: number;
+  nb: number;
 }
 
-/** Euclidean distance between two tint vectors */
-function tintDist(a: { dr: number; dg: number; db: number }, b: { dr: number; dg: number; db: number }): number {
+/** 6D distance: raw tint + scaled normalized direction */
+function tintDist(a: TintSample, b: TintSample): number {
+  // Raw tint difference
   const dd = a.dr - b.dr, dg = a.dg - b.dg, db = a.db - b.db;
-  return Math.sqrt(dd * dd + dg * dg + db * db);
+  // Normalized direction difference (scaled up — direction is the stronger signal)
+  const nd = (a.nr - b.nr) * 10, ng = (a.ng - b.ng) * 10, nb = (a.nb - b.nb) * 10;
+  return Math.sqrt(dd * dd + dg * dg + db * db + nd * nd + ng * ng + nb * nb);
+}
+
+/** Build a TintSample from raw tint values */
+function makeTintSample(type: RssNodeType, dr: number, dg: number, db: number): TintSample {
+  const mag = Math.sqrt(dr * dr + dg * dg + db * db) + 0.001;
+  return { type, dr, dg, db, nr: dr / mag, ng: dg / mag, nb: db / mag };
 }
 
 /**
  * KNN classifier: find the K nearest training samples by tint distance
- * and return the majority type.
+ * and return the type with highest distance-weighted vote.
  */
 function classifyByKnn(
-  tint: { dr: number; dg: number; db: number },
+  tint: TintSample,
   samples: TintSample[],
 ): RssNodeType {
   if (samples.length === 0) return 'food';
@@ -82,19 +102,20 @@ function classifyByKnn(
   const dists = samples.map((s, i) => ({ i, dist: tintDist(tint, s) }));
   dists.sort((a, b) => a.dist - b.dist);
 
-  // Vote among K nearest
+  // Distance-weighted vote among K nearest (closer neighbors count more)
   const k = Math.min(KNN_K, dists.length);
   const votes: Partial<Record<RssNodeType, number>> = {};
   for (let i = 0; i < k; i++) {
     const type = samples[dists[i].i].type;
-    votes[type] = (votes[type] || 0) + 1;
+    const weight = 1 / (dists[i].dist + 0.01);
+    votes[type] = (votes[type] || 0) + weight;
   }
 
   let bestType: RssNodeType = 'food';
-  let bestCount = 0;
-  for (const [type, count] of Object.entries(votes)) {
-    if (count! > bestCount) {
-      bestCount = count!;
+  let bestWeight = 0;
+  for (const [type, weight] of Object.entries(votes)) {
+    if (weight! > bestWeight) {
+      bestWeight = weight!;
       bestType = type as RssNodeType;
     }
   }
@@ -161,7 +182,7 @@ function buildTintSamples(
     const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
     const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
     const tint = sampleIconTint(pixels, w, h, cx, cy);
-    if (tint) samples.push({ type: ann.type, ...tint });
+    if (tint) samples.push(makeTintSample(ann.type, tint.dr, tint.dg, tint.db));
   }
   return samples;
 }
@@ -353,9 +374,9 @@ export async function detectNodesPixel(
       // Convert downscaled coords → full-res coords
       const fullX = Math.round((sx / w) * full.w);
       const fullY = Math.round((sy / h) * full.h);
-      const tint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
-      if (tint) {
-        bestType = classifyByKnn(tint, tintSamples);
+      const rawTint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
+      if (rawTint) {
+        bestType = classifyByKnn(makeTintSample('food', rawTint.dr, rawTint.dg, rawTint.db), tintSamples);
       }
     }
 
@@ -420,8 +441,8 @@ export async function reclassifyNodeTypes(
   for (const node of pendingNodes) {
     const fx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
     const fy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
-    const tint = sampleIconTint(full.pixels, full.w, full.h, fx, fy);
-    results.push(tint ? classifyByKnn(tint, tintSamples) : 'food');
+    const rawTint = sampleIconTint(full.pixels, full.w, full.h, fx, fy);
+    results.push(rawTint ? classifyByKnn(makeTintSample('food', rawTint.dr, rawTint.dg, rawTint.db), tintSamples) : 'food');
   }
 
   onProgress?.(`Re-classified ${results.length} nodes`);
@@ -444,18 +465,21 @@ function hasBrightBlob(wMap: Float32Array, w: number, cx: number, cy: number): b
   const centerAvg = centerSum / 9;
   if (centerAvg < CENTER_WHITENESS_MIN) return false;
 
-  // Surround: sample 8 points at distance 6 (just outside icon radius ~5-6px)
-  const d = 6;
+  // Surround: sample two rings at distance 6 and 8 for more stable contrast
   let surroundSum = 0;
-  surroundSum += wMap[(cy - d) * w + cx];
-  surroundSum += wMap[(cy + d) * w + cx];
-  surroundSum += wMap[cy * w + (cx - d)];
-  surroundSum += wMap[cy * w + (cx + d)];
-  surroundSum += wMap[(cy - d) * w + (cx - d)];
-  surroundSum += wMap[(cy - d) * w + (cx + d)];
-  surroundSum += wMap[(cy + d) * w + (cx - d)];
-  surroundSum += wMap[(cy + d) * w + (cx + d)];
-  const surroundAvg = surroundSum / 8;
+  let surroundCount = 0;
+  for (const d of [6, 8]) {
+    surroundSum += wMap[(cy - d) * w + cx];
+    surroundSum += wMap[(cy + d) * w + cx];
+    surroundSum += wMap[cy * w + (cx - d)];
+    surroundSum += wMap[cy * w + (cx + d)];
+    surroundSum += wMap[(cy - d) * w + (cx - d)];
+    surroundSum += wMap[(cy - d) * w + (cx + d)];
+    surroundSum += wMap[(cy + d) * w + (cx - d)];
+    surroundSum += wMap[(cy + d) * w + (cx + d)];
+    surroundCount += 8;
+  }
+  const surroundAvg = surroundSum / surroundCount;
 
   return (centerAvg - surroundAvg) >= CONTRAST_MIN;
 }
