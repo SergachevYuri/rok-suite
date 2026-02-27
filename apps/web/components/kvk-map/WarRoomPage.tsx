@@ -482,8 +482,28 @@ export default function WarRoomPage() {
   // ── RSS review handlers (admin only) ────────────────────────────────
   const handleToggleRssReview = useCallback(() => {
     if (!rssReviewActive) {
-      setRssNodes([]);
-      setRssNextId(0);
+      // Restore saved session from localStorage (manual + approved nodes survive)
+      let restored = false;
+      try {
+        const saved = localStorage.getItem(RSS_STORAGE_KEY);
+        if (saved) {
+          const { nodes, nextId } = JSON.parse(saved);
+          if (Array.isArray(nodes) && nodes.length > 0) {
+            const cleaned = nodes.filter(
+              (n: RssNode) => n.source === 'manual' || n.status === 'approved' || n.status === 'rejected',
+            );
+            if (cleaned.length > 0) {
+              setRssNodes(cleaned);
+              setRssNextId(nextId || nodes.length);
+              restored = true;
+            }
+          }
+        }
+      } catch { /* corrupt data — start fresh */ }
+      if (!restored) {
+        setRssNodes([]);
+        setRssNextId(0);
+      }
       setSelectedRssNodeId(null);
       setRssUndoStack([]);
       setRssAnnotationMode('annotate');
