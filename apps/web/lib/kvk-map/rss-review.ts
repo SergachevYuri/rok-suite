@@ -46,7 +46,7 @@ export async function loadRssNodes(): Promise<RssNode[]> {
     x: raw.x,
     y: raw.y,
     status: 'pending' as RssNodeStatus,
-    source: 'manual' as RssNodeSource,
+    source: 'detected' as RssNodeSource,
     segment: 0,
   }));
 }
