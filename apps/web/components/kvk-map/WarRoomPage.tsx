@@ -482,27 +482,8 @@ export default function WarRoomPage() {
   // ── RSS review handlers (admin only) ────────────────────────────────
   const handleToggleRssReview = useCallback(() => {
     if (!rssReviewActive) {
-      // Try to restore saved nodes from localStorage
-      let restored = false;
-      try {
-        const saved = localStorage.getItem(RSS_STORAGE_KEY);
-        if (saved) {
-          const { nodes, nextId } = JSON.parse(saved);
-          if (Array.isArray(nodes) && nodes.length > 0) {
-            // Filter out detected-pending nodes on load; keep manual + approved
-            const cleaned = nodes.filter(
-              (n: RssNode) => n.source === 'manual' || n.status === 'approved',
-            );
-            setRssNodes(cleaned);
-            setRssNextId(nextId || nodes.length);
-            restored = true;
-          }
-        }
-      } catch { /* corrupt data — start fresh */ }
-      if (!restored) {
-        setRssNodes([]);
-        setRssNextId(0);
-      }
+      setRssNodes([]);
+      setRssNextId(0);
       setSelectedRssNodeId(null);
       setRssUndoStack([]);
       setRssAnnotationMode('annotate');
@@ -911,7 +892,7 @@ export default function WarRoomPage() {
                 <RssNodeOverlay
                   nodes={filteredRssNodes}
                   selectedId={selectedRssNodeId}
-                  interactive={!isPlacing && !isDrawingZone}
+                  interactive={!isPlacing && !isDrawingZone && rssAnnotationMode !== 'annotate'}
                   onSelect={setSelectedRssNodeId}
                   onMove={handleRssNodeMove}
                   zoom={zoom}
