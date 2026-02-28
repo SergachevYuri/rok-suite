@@ -38,6 +38,10 @@ const FULL_RES_SAMPLE_RADIUS = 10;
 const ICON_WHITENESS_MIN = 65;
 /** KNN K value for classification */
 const KNN_K = 7;
+/** Maximum training samples per class for balanced KNN */
+const MAX_PER_CLASS = 150;
+/** Distance threshold in normalized space: fall back to centroid if nearest neighbor exceeds this */
+const CENTROID_FALLBACK_DIST = 4;
 
 /**
  * Whiteness score for a single pixel.
@@ -76,27 +80,115 @@ interface TintSample {
   sat: number;
 }
 
-/** Distance between two tint samples */
-function tintDist(a: TintSample, b: TintSample): number {
-  const drg = a.rg - b.rg, dyb = a.yb - b.yb, ds = a.sat - b.sat;
-  return Math.sqrt(drg * drg + dyb * dyb + ds * ds);
+/** Normalization parameters computed from training samples */
+interface NormParams {
+  rgMean: number; rgStd: number;
+  ybMean: number; ybStd: number;
+  satMean: number; satStd: number;
+}
+
+/** Compute z-score normalization parameters from training samples */
+function computeNormParams(samples: TintSample[]): NormParams {
+  const n = samples.length;
+  if (n === 0) return { rgMean: 0, rgStd: 1, ybMean: 0, ybStd: 1, satMean: 0, satStd: 1 };
+
+  let rgSum = 0, ybSum = 0, satSum = 0;
+  for (const s of samples) { rgSum += s.rg; ybSum += s.yb; satSum += s.sat; }
+  const rgMean = rgSum / n, ybMean = ybSum / n, satMean = satSum / n;
+
+  let rgVar = 0, ybVar = 0, satVar = 0;
+  for (const s of samples) {
+    rgVar += (s.rg - rgMean) ** 2;
+    ybVar += (s.yb - ybMean) ** 2;
+    satVar += (s.sat - satMean) ** 2;
+  }
+  return {
+    rgMean, rgStd: Math.max(1, Math.sqrt(rgVar / n)),
+    ybMean, ybStd: Math.max(1, Math.sqrt(ybVar / n)),
+    satMean, satStd: Math.max(1, Math.sqrt(satVar / n)),
+  };
+}
+
+/** Apply z-score normalization to a tint vector */
+function normalizeTint(t: { rg: number; yb: number; sat: number }, p: NormParams) {
+  return {
+    rg: (t.rg - p.rgMean) / p.rgStd,
+    yb: (t.yb - p.ybMean) / p.ybStd,
+    sat: (t.sat - p.satMean) / p.satStd,
+  };
 }
 
 /**
- * KNN classifier: find the K nearest training samples by tint distance
- * and return the type with highest distance-weighted vote.
+ * Subsample training data so each class has at most MAX_PER_CLASS samples.
+ * Uses deterministic stride-based selection for reproducibility.
+ */
+function balanceSamples(samples: TintSample[]): TintSample[] {
+  const byType: Partial<Record<RssNodeType, TintSample[]>> = {};
+  for (const s of samples) (byType[s.type] ??= []).push(s);
+
+  const result: TintSample[] = [];
+  for (const group of Object.values(byType)) {
+    if (!group) continue;
+    if (group.length <= MAX_PER_CLASS) {
+      result.push(...group);
+    } else {
+      const stride = group.length / MAX_PER_CLASS;
+      for (let i = 0; i < MAX_PER_CLASS; i++) result.push(group[Math.floor(i * stride)]);
+    }
+  }
+  return result;
+}
+
+/** Per-class centroid in normalized feature space */
+interface ClassCentroid { type: RssNodeType; rg: number; yb: number; sat: number }
+
+/** Compute per-class centroids from ALL samples in normalized space */
+function computeCentroids(samples: TintSample[], norm: NormParams): ClassCentroid[] {
+  const accum: Partial<Record<RssNodeType, { rg: number; yb: number; sat: number; n: number }>> = {};
+  for (const s of samples) {
+    const nz = normalizeTint(s, norm);
+    const a = accum[s.type] ??= { rg: 0, yb: 0, sat: 0, n: 0 };
+    a.rg += nz.rg; a.yb += nz.yb; a.sat += nz.sat; a.n++;
+  }
+  return Object.entries(accum)
+    .filter(([, a]) => a && a.n > 0)
+    .map(([type, a]) => ({ type: type as RssNodeType, rg: a!.rg / a!.n, yb: a!.yb / a!.n, sat: a!.sat / a!.n }));
+}
+
+/** Nearest-centroid classifier — naturally balanced (one centroid per class) */
+function classifyByCentroid(q: { rg: number; yb: number; sat: number }, centroids: ClassCentroid[]): RssNodeType {
+  let bestType: RssNodeType = 'food';
+  let bestDist = Infinity;
+  for (const c of centroids) {
+    const d = Math.sqrt((q.rg - c.rg) ** 2 + (q.yb - c.yb) ** 2 + (q.sat - c.sat) ** 2);
+    if (d < bestDist) { bestDist = d; bestType = c.type; }
+  }
+  return bestType;
+}
+
+/**
+ * Balanced KNN classifier with centroid fallback.
+ * Expects pre-normalized, pre-balanced samples and a normalized query point.
  */
 function classifyByKnn(
-  tint: TintSample,
+  queryNorm: { rg: number; yb: number; sat: number },
   samples: TintSample[],
+  centroids: ClassCentroid[],
 ): RssNodeType {
-  if (samples.length === 0) return 'food';
+  if (samples.length === 0) return classifyByCentroid(queryNorm, centroids);
 
-  // Compute distances to all training samples
-  const dists = samples.map((s, i) => ({ i, dist: tintDist(tint, s) }));
+  const dists = samples.map((s, i) => ({
+    i,
+    dist: Math.sqrt((queryNorm.rg - s.rg) ** 2 + (queryNorm.yb - s.yb) ** 2 + (queryNorm.sat - s.sat) ** 2),
+  }));
   dists.sort((a, b) => a.dist - b.dist);
 
-  // Distance-weighted vote among K nearest (closer neighbors count more)
+  // Centroid fallback when nearest neighbor is too far
+  if (dists[0].dist > CENTROID_FALLBACK_DIST && centroids.length > 0) {
+    return classifyByCentroid(queryNorm, centroids);
+  }
+
+  // Distance-weighted vote among K nearest
   const k = Math.min(KNN_K, dists.length);
   const votes: Partial<Record<RssNodeType, number>> = {};
   for (let i = 0; i < k; i++) {
@@ -108,12 +200,23 @@ function classifyByKnn(
   let bestType: RssNodeType = 'food';
   let bestWeight = 0;
   for (const [type, weight] of Object.entries(votes)) {
-    if (weight! > bestWeight) {
-      bestWeight = weight!;
-      bestType = type as RssNodeType;
-    }
+    if (weight! > bestWeight) { bestWeight = weight!; bestType = type as RssNodeType; }
   }
   return bestType;
+}
+
+/**
+ * Prepare balanced, normalized training data for classification.
+ */
+function prepareClassifier(rawSamples: TintSample[]) {
+  const norm = computeNormParams(rawSamples);
+  const centroids = computeCentroids(rawSamples, norm);
+  const balanced = balanceSamples(rawSamples);
+  const balancedNorm: TintSample[] = balanced.map((s) => {
+    const nz = normalizeTint(s, norm);
+    return { type: s.type, rg: nz.rg, yb: nz.yb, sat: nz.sat };
+  });
+  return { balancedNorm, centroids, norm };
 }
 
 /** Number of most-tinted pixels to use for classification */
@@ -310,8 +413,9 @@ export async function detectNodesPixel(
 
   // ── Build per-annotation tint samples for KNN classification (full-res) ──
   const tintSamples = buildTintSamples(full.pixels, full.w, full.h, annotations);
+  const { balancedNorm, centroids, norm } = prepareClassifier(tintSamples);
 
-  onProgress?.(`Built ${wTemplates.length} detection templates + ${tintSamples.length} color samples, scanning ${w}x${h}...`);
+  onProgress?.(`Built ${wTemplates.length} detection templates + ${tintSamples.length} color samples (${balancedNorm.length} balanced), scanning ${w}x${h}...`);
 
   // ── Stage 1: Detect candidates using whiteness NCC ──
   const candidates: { x: number; y: number; score: number }[] = [];
@@ -378,13 +482,13 @@ export async function detectNodesPixel(
     const { x: sx, y: sy } = kept[ci];
     let bestType: RssNodeType = 'food';
 
-    if (tintSamples.length > 0) {
+    if (balancedNorm.length > 0) {
       // Convert downscaled coords → full-res coords
       const fullX = Math.round((sx / w) * full.w);
       const fullY = Math.round((sy / h) * full.h);
       const tint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
       if (tint) {
-        bestType = classifyByKnn({ type: 'food', ...tint }, tintSamples);
+        bestType = classifyByKnn(normalizeTint(tint, norm), balancedNorm, centroids);
       }
     }
 
@@ -427,6 +531,8 @@ export async function reclassifyNodeTypes(
 
   if (tintSamples.length === 0) return pendingNodes.map(() => 'food');
 
+  const { balancedNorm, centroids, norm } = prepareClassifier(tintSamples);
+
   // Log per-type tint stats to help debug classification quality
   const typeStats: Record<string, { count: number; rg: number; yb: number; sat: number }> = {};
   for (const s of tintSamples) {
@@ -441,16 +547,21 @@ export async function reclassifyNodeTypes(
     const avg = { rg: ts.rg / ts.count, yb: ts.yb / ts.count, sat: ts.sat / ts.count };
     console.log(`[RSS] ${type}: n=${ts.count}, avg (rg=${avg.rg.toFixed(2)}, yb=${avg.yb.toFixed(2)}, sat=${avg.sat.toFixed(1)})`);
   }
+  console.log(`[RSS] Balanced to ${balancedNorm.length} samples, norm: rg(m=${norm.rgMean.toFixed(1)},s=${norm.rgStd.toFixed(1)}) yb(m=${norm.ybMean.toFixed(1)},s=${norm.ybStd.toFixed(1)}) sat(m=${norm.satMean.toFixed(1)},s=${norm.satStd.toFixed(1)})`);
 
-  // Re-classify each pending node using KNN at full resolution
-  onProgress?.(`Re-classifying ${pendingNodes.length} nodes with ${tintSamples.length} samples (KNN k=${KNN_K})...`);
+  // Re-classify each pending node using balanced KNN at full resolution
+  onProgress?.(`Re-classifying ${pendingNodes.length} nodes with ${balancedNorm.length} balanced samples (KNN k=${KNN_K})...`);
   const results: RssNodeType[] = [];
 
   for (const node of pendingNodes) {
     const fx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
     const fy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
     const tint = sampleIconTint(full.pixels, full.w, full.h, fx, fy);
-    results.push(tint ? classifyByKnn({ type: 'food', ...tint }, tintSamples) : 'food');
+    if (tint) {
+      results.push(classifyByKnn(normalizeTint(tint, norm), balancedNorm, centroids));
+    } else {
+      results.push('food');
+    }
   }
 
   onProgress?.(`Re-classified ${results.length} nodes`);
