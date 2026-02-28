@@ -259,13 +259,13 @@ function buildTypedTemplates(
 
 /**
  * Classify a position by shape — NCC against each type's whiteness template.
- * Returns the best matching type and its NCC score, or null if patch extraction fails.
+ * Returns the best matching type, its NCC score, and all per-type scores.
  */
 function classifyByTemplateNcc(
   wMap: Float32Array, w: number, h: number,
   cx: number, cy: number,
   templates: TypedTemplate[],
-): { type: RssNodeType; score: number } | null {
+): { type: RssNodeType; score: number; allScores: Record<string, number> } | null {
   const patchLen = TMPL_SIZE * TMPL_SIZE;
   const half = Math.floor(TMPL_SIZE / 2);
   const patchBuf = new Float32Array(patchLen);
@@ -286,15 +286,17 @@ function classifyByTemplateNcc(
 
   let bestType: RssNodeType = 'food';
   let bestScore = -1;
+  const allScores: Record<string, number> = {};
   for (const tmpl of templates) {
     let cross = 0;
     for (let i = 0; i < patchLen; i++) {
       cross += (patchBuf[i] - patchMean) * tmpl.centered[i];
     }
     const ncc = cross / (patchNorm * tmpl.norm + 1e-8);
+    allScores[tmpl.type] = ncc;
     if (ncc > bestScore) { bestScore = ncc; bestType = tmpl.type; }
   }
-  return { type: bestType, score: bestScore };
+  return { type: bestType, score: bestScore, allScores };
 }
 
 /**
@@ -630,6 +632,39 @@ export async function reclassifyNodeTypes(
   const full = getFullResPixels(img);
   const tintSamples = buildTintSamples(full.pixels, full.w, full.h, trainingNodes);
   const { balancedNorm, centroids, norm } = prepareClassifier(tintSamples);
+
+  // ── Cross-validate: test shape templates against training nodes ──
+  let cvCorrect = 0, cvTotal = 0;
+  const cvConfusion: Record<string, Record<string, number>> = {};
+  const margins: number[] = []; // gap between best and 2nd-best NCC
+  for (const tn of trainingNodes) {
+    const tx = Math.round((tn.x / GAME_MAP_SIZE) * w);
+    const ty = Math.round((1 - tn.y / GAME_MAP_SIZE) * h);
+    const result = classifyByTemplateNcc(wMap, w, h, tx, ty, wTemplates);
+    if (!result) continue;
+    cvTotal++;
+    if (result.type === tn.type) cvCorrect++;
+    if (!cvConfusion[tn.type]) cvConfusion[tn.type] = {};
+    cvConfusion[tn.type][result.type] = (cvConfusion[tn.type][result.type] || 0) + 1;
+
+    // Compute margin: gap between best and 2nd-best score
+    const scores = Object.values(result.allScores).sort((a, b) => b - a);
+    if (scores.length >= 2) margins.push(scores[0] - scores[1]);
+  }
+  console.log(`[RSS] Shape template cross-validation: ${cvCorrect}/${cvTotal} = ${(cvCorrect / cvTotal * 100).toFixed(1)}% accuracy`);
+  console.log('[RSS] Confusion (true → predicted):');
+  for (const [trueType, preds] of Object.entries(cvConfusion)) {
+    const parts = Object.entries(preds).sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t}:${c}`);
+    console.log(`  ${trueType} → ${parts.join(', ')}`);
+  }
+  if (margins.length > 0) {
+    margins.sort((a, b) => a - b);
+    const med = margins[Math.floor(margins.length / 2)];
+    const p10 = margins[Math.floor(margins.length * 0.1)];
+    const p90 = margins[Math.floor(margins.length * 0.9)];
+    console.log(`[RSS] NCC margin (best - 2nd): median=${med.toFixed(4)}, p10=${p10.toFixed(4)}, p90=${p90.toFixed(4)}`);
+    console.log(`[RSS] ${margins.filter(m => m < 0.01).length}/${margins.length} nodes with margin < 0.01 (basically guessing)`);
+  }
 
   onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${wTemplates.length} shape templates + ${balancedNorm.length} color samples)...`);
   const results: RssNodeType[] = [];
