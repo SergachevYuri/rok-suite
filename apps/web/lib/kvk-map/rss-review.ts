@@ -23,7 +23,7 @@ export const RSS_TYPE_COLORS: Record<RssNodeType, string> = {
   wood: '#a16207',
   stone: '#6b7280',
   gold: '#eab308',
-  crystal: '#a855f7',
+  crystal: '#3b82f6',
 };
 
 export const RSS_TYPE_LABELS: Record<RssNodeType, string> = {
@@ -38,15 +38,18 @@ export const RSS_TYPES: RssNodeType[] = ['food', 'wood', 'stone', 'gold', 'cryst
 
 // ─── Data loader (lazy — JSON loaded only when called) ──────────────
 
+const RSS_STATUSES: RssNodeStatus[] = ['pending', 'approved', 'rejected'];
+const RSS_SOURCES: RssNodeSource[] = ['manual', 'propagated', 'detected'];
+
 export async function loadRssNodes(): Promise<RssNode[]> {
   const { default: rssNodesRaw } = await import('@/data/rss_nodes_all.json');
-  return (rssNodesRaw as { type: string; x: number; y: number }[]).map((raw, i) => ({
+  return (rssNodesRaw as { type: string; x: number; y: number; status?: string; source?: string }[]).map((raw, i) => ({
     id: i,
     type: (RSS_TYPES.includes(raw.type as RssNodeType) ? raw.type : 'food') as RssNodeType,
     x: raw.x,
     y: raw.y,
-    status: 'pending' as RssNodeStatus,
-    source: 'detected' as RssNodeSource,
+    status: (RSS_STATUSES.includes(raw.status as RssNodeStatus) ? raw.status : 'pending') as RssNodeStatus,
+    source: (RSS_SOURCES.includes(raw.source as RssNodeSource) ? raw.source : 'detected') as RssNodeSource,
     segment: 0,
   }));
 }

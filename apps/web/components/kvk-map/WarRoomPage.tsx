@@ -501,8 +501,13 @@ export default function WarRoomPage() {
         }
       } catch { /* corrupt data — start fresh */ }
       if (!restored) {
-        setRssNodes([]);
-        setRssNextId(0);
+        // No localStorage session — load annotations from JSON file
+        loadRssNodes().then((nodes) => {
+          if (nodes.length > 0) {
+            setRssNodes(nodes);
+            setRssNextId(nodes.length);
+          }
+        });
       }
       setSelectedRssNodeId(null);
       setRssUndoStack([]);
@@ -585,6 +590,26 @@ export default function WarRoomPage() {
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'rejected' as RssNodeStatus } : n)));
   }, []);
 
+  const handleRssBulkApprove = useCallback((typeFilter: RssNodeType | 'all') => {
+    setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+    setRssNodes((prev) => prev.map((n) => {
+      if (n.source !== 'detected' || n.status !== 'pending') return n;
+      if (typeFilter !== 'all' && n.type !== typeFilter) return n;
+      return { ...n, status: 'approved' as RssNodeStatus };
+    }));
+    setSelectedRssNodeId(null);
+  }, [rssNodes]);
+
+  const handleRssBulkReject = useCallback((typeFilter: RssNodeType | 'all') => {
+    setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+    setRssNodes((prev) => prev.map((n) => {
+      if (n.source !== 'detected' || n.status !== 'pending') return n;
+      if (typeFilter !== 'all' && n.type !== typeFilter) return n;
+      return { ...n, status: 'rejected' as RssNodeStatus };
+    }));
+    setSelectedRssNodeId(null);
+  }, [rssNodes]);
+
   const handleRssNodeDelete = useCallback((id: number) => {
     setRssNodes((prev) => prev.filter((n) => n.id !== id));
   }, []);
@@ -592,7 +617,7 @@ export default function WarRoomPage() {
   const handleRssExport = useCallback(() => {
     const exportNodes = rssNodes
       .filter((n) => n.status !== 'rejected')
-      .map(({ type, x, y }) => ({ type, x, y }));
+      .map(({ type, x, y, status, source }) => ({ type, x, y, status, source }));
     const blob = new Blob([JSON.stringify(exportNodes, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1018,6 +1043,8 @@ export default function WarRoomPage() {
                   onBatchChangeType={handleRssBatchChangeType}
                   onReclassify={handleRssReclassify}
                   reclassifying={rssReclassifying}
+                  onBulkApprove={handleRssBulkApprove}
+                  onBulkReject={handleRssBulkReject}
                 />
               ) : selectedZone ? (
                 isAdminMode ? (

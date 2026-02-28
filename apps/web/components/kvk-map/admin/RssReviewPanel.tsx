@@ -38,6 +38,8 @@ interface RssReviewPanelProps {
   onBatchChangeType: (fromFilter: RssNodeType | 'all', toType: RssNodeType) => void;
   onReclassify: () => void;
   reclassifying: boolean;
+  onBulkApprove: (typeFilter: RssNodeType | 'all') => void;
+  onBulkReject: (typeFilter: RssNodeType | 'all') => void;
 }
 
 export default function RssReviewPanel({
@@ -72,6 +74,8 @@ export default function RssReviewPanel({
   onBatchChangeType,
   onReclassify,
   reclassifying,
+  onBulkApprove,
+  onBulkReject,
 }: RssReviewPanelProps) {
   const stats = useMemo(() => {
     const s = { total: nodes.length, approved: 0, rejected: 0, pending: 0 };
@@ -352,12 +356,27 @@ export default function RssReviewPanel({
       {/* Review mode UI */}
       {annotationMode === 'review' && (
         <>
-          {/* Stats */}
-          <div className="px-3 py-2 flex gap-3 text-[10px] font-medium border-b" style={{ borderColor: 'var(--border)' }}>
-            <span style={{ color: '#22c55e' }}>{stats.approved} approved</span>
-            <span style={{ color: '#ef4444' }}>{stats.rejected} rejected</span>
-            <span style={{ color: 'var(--text-muted)' }}>{stats.pending} pending</span>
-            <span className="ml-auto" style={{ color: 'var(--text-muted)' }}>{stats.total} total</span>
+          {/* Stats + progress */}
+          <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+            <div className="flex gap-3 text-[10px] font-medium mb-1.5">
+              <span style={{ color: '#22c55e' }}>{stats.approved} approved</span>
+              <span style={{ color: '#ef4444' }}>{stats.rejected} rejected</span>
+              <span style={{ color: 'var(--text-muted)' }}>{stats.pending} pending</span>
+              <span className="ml-auto" style={{ color: 'var(--text-muted)' }}>{stats.total} total</span>
+            </div>
+            {stats.total > 0 && (
+              <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--background-hover)' }}>
+                <div className="h-full flex">
+                  <div style={{ width: `${(stats.approved / stats.total) * 100}%`, backgroundColor: '#22c55e' }} />
+                  <div style={{ width: `${(stats.rejected / stats.total) * 100}%`, backgroundColor: '#ef4444' }} />
+                </div>
+              </div>
+            )}
+            {stats.total > 0 && stats.pending === 0 && (
+              <div className="text-[10px] font-medium mt-1 text-center" style={{ color: '#22c55e' }}>
+                All nodes reviewed — ready to export!
+              </div>
+            )}
           </div>
 
           {/* Type filter */}
@@ -431,6 +450,31 @@ export default function RssReviewPanel({
                   <><RefreshCw size={12} /> Re-classify {reviewQueue.length} pending from {stats.approved} corrected</>
                 )}
               </button>
+            </div>
+          )}
+
+          {/* Bulk approve / reject */}
+          {reviewQueue.length > 0 && (
+            <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="text-[10px] font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                Bulk action — {reviewQueue.length} pending {typeFilter !== 'all' ? RSS_TYPE_LABELS[typeFilter] : ''}
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => onBulkApprove(typeFilter)}
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-medium"
+                  style={{ backgroundColor: 'rgba(34,197,94,0.15)', color: '#22c55e' }}
+                >
+                  <Check size={12} /> Approve All
+                </button>
+                <button
+                  onClick={() => onBulkReject(typeFilter)}
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs font-medium"
+                  style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}
+                >
+                  <X size={12} /> Reject All
+                </button>
+              </div>
             </div>
           )}
 
