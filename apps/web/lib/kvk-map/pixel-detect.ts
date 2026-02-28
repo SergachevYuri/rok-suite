@@ -219,6 +219,112 @@ function prepareClassifier(rawSamples: TintSample[]) {
   return { balancedNorm, centroids, norm };
 }
 
+/** Whiteness template with type info preserved for shape-based classification */
+interface TypedTemplate {
+  type: RssNodeType;
+  centered: Float32Array;
+  norm: number;
+}
+
+/**
+ * Build per-type averaged whiteness templates from accumulated patch data.
+ * Preserves type info so templates can be used for shape-based classification.
+ */
+function buildTypedTemplates(
+  typeAccum: Record<string, { data: Float32Array; count: number }>,
+): TypedTemplate[] {
+  const patchLen = TMPL_SIZE * TMPL_SIZE;
+  const templates: TypedTemplate[] = [];
+
+  for (const [type, acc] of Object.entries(typeAccum)) {
+    if (acc.count === 0) continue;
+    const avg = new Float32Array(patchLen);
+    for (let i = 0; i < patchLen; i++) avg[i] = acc.data[i] / acc.count;
+
+    let mean = 0;
+    for (let i = 0; i < patchLen; i++) mean += avg[i];
+    mean /= patchLen;
+
+    const centered = new Float32Array(patchLen);
+    let normSq = 0;
+    for (let i = 0; i < patchLen; i++) {
+      const v = avg[i] - mean;
+      centered[i] = v;
+      normSq += v * v;
+    }
+    templates.push({ type: type as RssNodeType, centered, norm: Math.sqrt(normSq) });
+  }
+  return templates;
+}
+
+/**
+ * Classify a position by shape — NCC against each type's whiteness template.
+ * Returns the best matching type and its NCC score, or null if patch extraction fails.
+ */
+function classifyByTemplateNcc(
+  wMap: Float32Array, w: number, h: number,
+  cx: number, cy: number,
+  templates: TypedTemplate[],
+): { type: RssNodeType; score: number } | null {
+  const patchLen = TMPL_SIZE * TMPL_SIZE;
+  const half = Math.floor(TMPL_SIZE / 2);
+  const patchBuf = new Float32Array(patchLen);
+
+  if (!extractPatch(wMap, w, h, cx, cy, half, TMPL_SIZE, patchBuf)) return null;
+
+  let patchMean = 0;
+  for (let i = 0; i < patchLen; i++) patchMean += patchBuf[i];
+  patchMean /= patchLen;
+
+  let patchNormSq = 0;
+  for (let i = 0; i < patchLen; i++) {
+    const v = patchBuf[i] - patchMean;
+    patchNormSq += v * v;
+  }
+  if (patchNormSq < 1) return null;
+  const patchNorm = Math.sqrt(patchNormSq);
+
+  let bestType: RssNodeType = 'food';
+  let bestScore = -1;
+  for (const tmpl of templates) {
+    let cross = 0;
+    for (let i = 0; i < patchLen; i++) {
+      cross += (patchBuf[i] - patchMean) * tmpl.centered[i];
+    }
+    const ncc = cross / (patchNorm * tmpl.norm + 1e-8);
+    if (ncc > bestScore) { bestScore = ncc; bestType = tmpl.type; }
+  }
+  return { type: bestType, score: bestScore };
+}
+
+/**
+ * Accumulate whiteness patches from annotations into per-type accumulators.
+ * Shared between detectNodesPixel and reclassifyNodeTypes.
+ */
+function accumulateTemplatePatches(
+  wMap: Float32Array, w: number, h: number,
+  annotations: AnnotationSample[],
+): Record<string, { data: Float32Array; count: number }> {
+  const patchLen = TMPL_SIZE * TMPL_SIZE;
+  const half = Math.floor(TMPL_SIZE / 2);
+  const typeAccum: Record<string, { data: Float32Array; count: number }> = {};
+  const tmpBuf = new Float32Array(patchLen);
+
+  for (const ann of annotations) {
+    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
+    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
+    if (!extractPatch(wMap, w, h, cx, cy, half, TMPL_SIZE, tmpBuf)) continue;
+
+    if (!typeAccum[ann.type]) {
+      typeAccum[ann.type] = { data: new Float32Array(patchLen), count: 0 };
+    }
+    const acc = typeAccum[ann.type];
+    for (let i = 0; i < patchLen; i++) acc.data[i] += tmpBuf[i];
+    acc.count++;
+  }
+  return typeAccum;
+}
+
 /** Number of most-tinted pixels to use for classification */
 const TOP_N_PIXELS = 30;
 
@@ -362,47 +468,12 @@ export async function detectNodesPixel(
     wMap[i] = pixelWhiteness(dsPixels[idx], dsPixels[idx + 1], dsPixels[idx + 2]);
   }
 
-  // ── Build whiteness templates from annotations (for detection) ──
+  // ── Build per-type whiteness templates for detection + shape classification ──
   onProgress?.('Building templates from annotations...');
   const patchLen = TMPL_SIZE * TMPL_SIZE;
   const half = Math.floor(TMPL_SIZE / 2);
-  const typeAccum: Record<string, { data: Float32Array; count: number }> = {};
-  const tmpBuf = new Float32Array(patchLen);
-
-  for (const ann of annotations) {
-    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
-    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
-    if (!extractPatch(wMap, w, h, cx, cy, half, TMPL_SIZE, tmpBuf)) continue;
-
-    if (!typeAccum[ann.type]) {
-      typeAccum[ann.type] = { data: new Float32Array(patchLen), count: 0 };
-    }
-    const acc = typeAccum[ann.type];
-    for (let i = 0; i < patchLen; i++) acc.data[i] += tmpBuf[i];
-    acc.count++;
-  }
-
-  // Pre-compute centered whiteness templates
-  const wTemplates: { centered: Float32Array; norm: number }[] = [];
-
-  for (const acc of Object.values(typeAccum)) {
-    if (acc.count === 0) continue;
-    const avg = new Float32Array(patchLen);
-    for (let i = 0; i < patchLen; i++) avg[i] = acc.data[i] / acc.count;
-
-    let mean = 0;
-    for (let i = 0; i < patchLen; i++) mean += avg[i];
-    mean /= patchLen;
-
-    const centered = new Float32Array(patchLen);
-    let normSq = 0;
-    for (let i = 0; i < patchLen; i++) {
-      const v = avg[i] - mean;
-      centered[i] = v;
-      normSq += v * v;
-    }
-    wTemplates.push({ centered, norm: Math.sqrt(normSq) });
-  }
+  const typeAccum = accumulateTemplatePatches(wMap, w, h, annotations);
+  const wTemplates = buildTypedTemplates(typeAccum);
 
   if (wTemplates.length === 0) {
     onProgress?.('No valid templates — annotations may be outside image');
@@ -419,8 +490,8 @@ export async function detectNodesPixel(
 
   onProgress?.(`Built ${wTemplates.length} detection templates + ${tintSamples.length} color samples (${balancedNorm.length} balanced), scanning ${w}x${h}...`);
 
-  // ── Stage 1: Detect candidates using whiteness NCC ──
-  const candidates: { x: number; y: number; score: number }[] = [];
+  // ── Stage 1: Detect candidates using whiteness NCC + track best template type ──
+  const candidates: { x: number; y: number; score: number; templateType: RssNodeType }[] = [];
   const patchBuf = new Float32Array(patchLen);
   const totalRows = Math.ceil((h - TMPL_SIZE) / STRIDE);
   let rowCount = 0;
@@ -442,18 +513,19 @@ export async function detectNodesPixel(
       if (patchNormSq < 1) continue;
       const patchNorm = Math.sqrt(patchNormSq);
 
-      // Best NCC across all whiteness templates (type doesn't matter here)
+      // Best NCC across all type templates — track which type matched best (shape signal)
       let bestScore = 0;
+      let bestTemplateType: RssNodeType = 'food';
       for (const tmpl of wTemplates) {
         let cross = 0;
         for (let i = 0; i < patchLen; i++) {
           cross += (patchBuf[i] - patchMean) * tmpl.centered[i];
         }
         const ncc = cross / (patchNorm * tmpl.norm + 1e-8);
-        if (ncc > bestScore) bestScore = ncc;
+        if (ncc > bestScore) { bestScore = ncc; bestTemplateType = tmpl.type; }
       }
       if (bestScore >= MATCH_THRESHOLD) {
-        candidates.push({ x: sx, y: sy, score: bestScore });
+        candidates.push({ x: sx, y: sy, score: bestScore, templateType: bestTemplateType });
       }
     }
 
@@ -475,17 +547,19 @@ export async function detectNodesPixel(
     }
   }
 
-  onProgress?.(`After NMS: ${kept.length} nodes. Classifying types (full-res)...`);
+  onProgress?.(`After NMS: ${kept.length} nodes. Classifying types...`);
 
-  // ── Stage 2: Classify each detection using KNN on full-res tint vectors ──
+  // ── Stage 2: Classify using shape (template NCC) as primary, color as fallback ──
   const detectedNodes: DetectedPixelNode[] = [];
 
   for (let ci = 0; ci < kept.length; ci++) {
-    const { x: sx, y: sy } = kept[ci];
-    let bestType: RssNodeType = 'food';
+    const { x: sx, y: sy, templateType } = kept[ci];
 
-    if (balancedNorm.length > 0) {
-      // Convert downscaled coords → full-res coords
+    // Shape-based classification is primary — it was computed during detection
+    let bestType: RssNodeType = templateType;
+
+    // Color KNN as fallback only when template match is unavailable
+    if (!templateType && balancedNorm.length > 0) {
       const fullX = Math.round((sx / w) * full.w);
       const fullY = Math.round((sy / h) * full.h);
       const tint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
@@ -512,8 +586,7 @@ export async function detectNodesPixel(
 
 /**
  * Re-classify pending detected nodes using corrected nodes as better training data.
- * Loads the image at full resolution, builds KNN tint samples from corrected
- * annotations, and re-types only the pending nodes. Skips the full detection scan.
+ * Uses shape-based template matching (primary) with color KNN as fallback.
  */
 export async function reclassifyNodeTypes(
   imageUrl: string,
@@ -523,44 +596,62 @@ export async function reclassifyNodeTypes(
 ): Promise<RssNodeType[]> {
   if (trainingNodes.length === 0) return pendingNodes.map(() => 'food');
 
-  onProgress?.('Loading full-res image for re-classification...');
+  onProgress?.('Loading image for re-classification...');
   const img = await loadImage(imageUrl);
+
+  // ── Build shape templates (downscaled whiteness map) ──
+  const origW = img.width, origH = img.height;
+  const w = Math.round(origW / SCALE);
+  const h = Math.round(origH / SCALE);
+  onProgress?.('Building shape templates...');
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0, w, h);
+  const dsPixels = ctx.getImageData(0, 0, w, h).data;
+
+  const wMap = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const idx = i * 4;
+    wMap[i] = pixelWhiteness(dsPixels[idx], dsPixels[idx + 1], dsPixels[idx + 2]);
+  }
+
+  const typeAccum = accumulateTemplatePatches(wMap, w, h, trainingNodes);
+  const wTemplates = buildTypedTemplates(typeAccum);
+
+  // Log template stats
+  for (const [type, acc] of Object.entries(typeAccum)) {
+    console.log(`[RSS] Template ${type}: ${acc.count} samples`);
+  }
+
+  // ── Build color classifier as fallback ──
   const full = getFullResPixels(img);
-
-  // Build tint samples from training nodes at full resolution
-  onProgress?.(`Building tint samples from ${trainingNodes.length} corrected nodes (full-res)...`);
   const tintSamples = buildTintSamples(full.pixels, full.w, full.h, trainingNodes);
-
-  if (tintSamples.length === 0) return pendingNodes.map(() => 'food');
-
   const { balancedNorm, centroids, norm } = prepareClassifier(tintSamples);
 
-  // Log per-type tint stats to help debug classification quality
-  const typeStats: Record<string, { count: number; rg: number; yb: number; sat: number }> = {};
-  for (const s of tintSamples) {
-    if (!typeStats[s.type]) typeStats[s.type] = { count: 0, rg: 0, yb: 0, sat: 0 };
-    const ts = typeStats[s.type];
-    ts.count++;
-    ts.rg += s.rg;
-    ts.yb += s.yb;
-    ts.sat += s.sat;
-  }
-  for (const [type, ts] of Object.entries(typeStats)) {
-    const avg = { rg: ts.rg / ts.count, yb: ts.yb / ts.count, sat: ts.sat / ts.count };
-    console.log(`[RSS] ${type}: n=${ts.count}, avg (rg=${avg.rg.toFixed(2)}, yb=${avg.yb.toFixed(2)}, sat=${avg.sat.toFixed(1)})`);
-  }
-  console.log(`[RSS] Balanced to ${balancedNorm.length} samples, norm: rg(m=${norm.rgMean.toFixed(1)},s=${norm.rgStd.toFixed(1)}) yb(m=${norm.ybMean.toFixed(1)},s=${norm.ybStd.toFixed(1)}) sat(m=${norm.satMean.toFixed(1)},s=${norm.satStd.toFixed(1)})`);
-
-  // Re-classify each pending node using balanced KNN at full resolution
-  onProgress?.(`Re-classifying ${pendingNodes.length} nodes with ${balancedNorm.length} balanced samples (KNN k=${KNN_K})...`);
+  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${wTemplates.length} shape templates + ${balancedNorm.length} color samples)...`);
   const results: RssNodeType[] = [];
 
   for (const node of pendingNodes) {
-    const fx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
-    const fy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
-    const tint = sampleIconTint(full.pixels, full.w, full.h, fx, fy);
-    if (tint) {
-      results.push(classifyByKnn(normalizeTint(tint, norm), balancedNorm, centroids));
+    // Shape classification (primary) — template NCC on downscaled whiteness
+    const dsCx = Math.round((node.x / GAME_MAP_SIZE) * w);
+    const dsCy = Math.round((1 - node.y / GAME_MAP_SIZE) * h);
+    const shapeResult = classifyByTemplateNcc(wMap, w, h, dsCx, dsCy, wTemplates);
+
+    if (shapeResult) {
+      results.push(shapeResult.type);
+    } else if (balancedNorm.length > 0) {
+      // Color fallback when template matching fails (edge of image, etc.)
+      const fx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
+      const fy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
+      const tint = sampleIconTint(full.pixels, full.w, full.h, fx, fy);
+      if (tint) {
+        results.push(classifyByKnn(normalizeTint(tint, norm), balancedNorm, centroids));
+      } else {
+        results.push('food');
+      }
     } else {
       results.push('food');
     }
