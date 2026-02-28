@@ -239,7 +239,10 @@ function sampleIconTint(
 ): { rg: number; yb: number; sat: number } | null {
   const rSq = FULL_RES_SAMPLE_RADIUS * FULL_RES_SAMPLE_RADIUS;
 
-  // Collect bright pixels with their color info
+  // Collect icon pixels using whiteness filter (not raw brightness).
+  // Raw brightness >= 140 lets in colored terrain (brown dirt, green grass)
+  // which contaminates the tint signal. Whiteness penalizes saturation,
+  // so only genuinely white-ish icon pixels pass through.
   const candidates: { r: number; g: number; b: number; spread: number }[] = [];
 
   for (let dy = -FULL_RES_SAMPLE_RADIUS; dy <= FULL_RES_SAMPLE_RADIUS; dy++) {
@@ -252,9 +255,8 @@ function sampleIconTint(
       const idx = (py * w + px) * 4;
       const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2];
 
-      // Must be bright enough to be part of the icon (not dark terrain)
-      const brightness = (r + g + b) / 3;
-      if (brightness < 140) continue;
+      // Must be white enough to be part of the icon — rejects colored terrain
+      if (pixelWhiteness(r, g, b) < ICON_WHITENESS_MIN) continue;
 
       const spread = Math.max(r, g, b) - Math.min(r, g, b);
       candidates.push({ r, g, b, spread });
