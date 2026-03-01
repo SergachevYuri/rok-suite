@@ -35,6 +35,9 @@ const CONTRAST_MIN = 35;
 /** Template patch size at full resolution for high-detail classification */
 const FULL_TMPL_SIZE = 24;
 
+/** Neighbors per type for balanced KNN */
+const KNN_K = 5;
+
 
 /**
  * Whiteness score for a single pixel.
@@ -63,6 +66,12 @@ interface PatchAccumulator {
   data: Float32Array;     // sum of pixel values
   dataSq: Float32Array;   // sum of squared pixel values
   count: number;
+}
+
+/** A stored training patch: centered, optionally weighted, and unit-normalized */
+interface StoredPatch {
+  type: RssNodeType;
+  data: Float32Array; // unit-normalized (dot product = NCC)
 }
 
 /**
@@ -246,6 +255,220 @@ function classifyByTemplateNcc(
       bestType = tmpl.type;
     }
   }
+  return bestType;
+}
+
+/**
+ * Extract all training patches as unit-normalized vectors.
+ * Each patch is mean-centered, optionally Fisher-weighted, then divided by its norm.
+ * Dot product between two unit-normalized patches equals their NCC.
+ */
+function buildTrainingPatches(
+  wMap: Float32Array, w: number, h: number,
+  trainingNodes: AnnotationSample[],
+  tmplSize: number,
+  discrimWeights?: Float32Array,
+): StoredPatch[] {
+  const patchLen = tmplSize * tmplSize;
+  const half = Math.floor(tmplSize / 2);
+  const patches: StoredPatch[] = [];
+  const buf = new Float32Array(patchLen);
+
+  let sqrtW: Float32Array | undefined;
+  if (discrimWeights) {
+    sqrtW = new Float32Array(patchLen);
+    for (let i = 0; i < patchLen; i++) sqrtW[i] = Math.sqrt(discrimWeights[i]);
+  }
+
+  for (const tn of trainingNodes) {
+    const cx = Math.round((tn.x / GAME_MAP_SIZE) * w);
+    const cy = Math.round((1 - tn.y / GAME_MAP_SIZE) * h);
+    if (!extractPatch(wMap, w, h, cx, cy, half, tmplSize, buf)) continue;
+
+    let mean = 0;
+    for (let i = 0; i < patchLen; i++) mean += buf[i];
+    mean /= patchLen;
+
+    const data = new Float32Array(patchLen);
+    let normSq = 0;
+    for (let i = 0; i < patchLen; i++) {
+      let v = buf[i] - mean;
+      if (sqrtW) v *= sqrtW[i];
+      data[i] = v;
+      normSq += v * v;
+    }
+    if (normSq < 1) continue;
+    const norm = Math.sqrt(normSq);
+    for (let i = 0; i < patchLen; i++) data[i] /= norm;
+
+    patches.push({ type: tn.type, data });
+  }
+
+  return patches;
+}
+
+/**
+ * Compute N×N pairwise NCC matrix for stored training patches.
+ * Since patches are unit-normalized, NCC = dot product.
+ * Matrix is symmetric; diagonal is 1.0.
+ */
+function computePairwiseNcc(patches: StoredPatch[], patchLen: number): Float32Array {
+  const N = patches.length;
+  const matrix = new Float32Array(N * N);
+
+  for (let i = 0; i < N; i++) {
+    matrix[i * N + i] = 1.0;
+    const pi = patches[i].data;
+    for (let j = i + 1; j < N; j++) {
+      const pj = patches[j].data;
+      let dot = 0;
+      for (let k = 0; k < patchLen; k++) dot += pi[k] * pj[k];
+      matrix[i * N + j] = dot;
+      matrix[j * N + i] = dot;
+    }
+  }
+
+  return matrix;
+}
+
+/**
+ * Leave-one-out cross-validation for balanced KNN using pre-computed pairwise NCC.
+ * For each training sample, finds the K nearest neighbors per type (excluding self),
+ * averages their NCC scores, and classifies as the type with highest average.
+ */
+function knnLoocvAccuracy(
+  patches: StoredPatch[],
+  nccMatrix: Float32Array,
+  K: number,
+): { correct: number; total: number; confusion: Record<string, Record<string, number>> } {
+  const N = patches.length;
+  let correct = 0;
+  let total = 0;
+  const confusion: Record<string, Record<string, number>> = {};
+
+  // Group patch indices by type
+  const typeIndices: Record<string, number[]> = {};
+  for (let i = 0; i < N; i++) {
+    const t = patches[i].type;
+    if (!typeIndices[t]) typeIndices[t] = [];
+    typeIndices[t].push(i);
+  }
+
+  for (let i = 0; i < N; i++) {
+    let bestType: RssNodeType = 'food';
+    let bestAvg = -Infinity;
+
+    for (const [type, indices] of Object.entries(typeIndices)) {
+      // Collect NCC scores for this type, excluding self
+      const scores: number[] = [];
+      for (const j of indices) {
+        if (j === i) continue;
+        scores.push(nccMatrix[i * N + j]);
+      }
+      if (scores.length === 0) continue;
+
+      // Take top-K, average
+      scores.sort((a, b) => b - a);
+      const topK = Math.min(K, scores.length);
+      let sum = 0;
+      for (let k = 0; k < topK; k++) sum += scores[k];
+      const avg = sum / topK;
+
+      if (avg > bestAvg) {
+        bestAvg = avg;
+        bestType = type as RssNodeType;
+      }
+    }
+
+    total++;
+    if (bestType === patches[i].type) correct++;
+    const trueType = patches[i].type;
+    if (!confusion[trueType]) confusion[trueType] = {};
+    confusion[trueType][bestType] = (confusion[trueType][bestType] || 0) + 1;
+  }
+
+  return { correct, total, confusion };
+}
+
+/**
+ * Classify a patch using balanced KNN against stored training patches.
+ * For each type, finds the K nearest training patches (highest NCC),
+ * averages their scores, and picks the type with the highest average.
+ */
+function classifyByBalancedKnn(
+  wMap: Float32Array, w: number, h: number,
+  cx: number, cy: number,
+  trainingPatches: StoredPatch[],
+  tmplSize: number,
+  K: number,
+  discrimWeights?: Float32Array,
+): RssNodeType {
+  const patchLen = tmplSize * tmplSize;
+  const half = Math.floor(tmplSize / 2);
+  const buf = new Float32Array(patchLen);
+
+  if (!extractPatch(wMap, w, h, cx, cy, half, tmplSize, buf)) return 'food';
+
+  // Mean-center, optionally weight, normalize
+  let mean = 0;
+  for (let i = 0; i < patchLen; i++) mean += buf[i];
+  mean /= patchLen;
+
+  let normSq = 0;
+  if (discrimWeights) {
+    for (let i = 0; i < patchLen; i++) {
+      const v = (buf[i] - mean) * Math.sqrt(discrimWeights[i]);
+      buf[i] = v;
+      normSq += v * v;
+    }
+  } else {
+    for (let i = 0; i < patchLen; i++) {
+      buf[i] -= mean;
+      normSq += buf[i] * buf[i];
+    }
+  }
+  if (normSq < 1) return 'food';
+  const norm = Math.sqrt(normSq);
+  for (let i = 0; i < patchLen; i++) buf[i] /= norm;
+
+  // Compute NCC against all training patches (dot product since both unit-normalized)
+  // Collect top-K scores per type
+  const typeTopK: Record<string, number[]> = {};
+  for (const tp of trainingPatches) {
+    let dot = 0;
+    for (let i = 0; i < patchLen; i++) dot += buf[i] * tp.data[i];
+
+    if (!typeTopK[tp.type]) typeTopK[tp.type] = [];
+    const scores = typeTopK[tp.type];
+
+    // Maintain sorted top-K (insertion into small array)
+    if (scores.length < K) {
+      scores.push(dot);
+      // Bubble into place
+      for (let j = scores.length - 1; j > 0 && scores[j] > scores[j - 1]; j--) {
+        const tmp = scores[j]; scores[j] = scores[j - 1]; scores[j - 1] = tmp;
+      }
+    } else if (dot > scores[K - 1]) {
+      scores[K - 1] = dot;
+      for (let j = K - 1; j > 0 && scores[j] > scores[j - 1]; j--) {
+        const tmp = scores[j]; scores[j] = scores[j - 1]; scores[j - 1] = tmp;
+      }
+    }
+  }
+
+  // Pick type with highest average top-K score
+  let bestType: RssNodeType = 'food';
+  let bestAvg = -Infinity;
+  for (const [type, scores] of Object.entries(typeTopK)) {
+    let sum = 0;
+    for (let i = 0; i < scores.length; i++) sum += scores[i];
+    const avg = sum / scores.length;
+    if (avg > bestAvg) {
+      bestAvg = avg;
+      bestType = type as RssNodeType;
+    }
+  }
+
   return bestType;
 }
 
@@ -519,9 +742,11 @@ export async function detectNodesPixel(
 
 /**
  * Re-classify pending detected nodes using corrected nodes as better training data.
- * Uses Fisher discriminant weighting to emphasize pixels that distinguish between types.
- * Cross-validates downscaled vs full-resolution, plain vs Fisher-weighted via LOOCV,
- * then uses the best approach for actual classification.
+ * Compares multiple approaches via LOOCV and auto-selects the best:
+ *   - Averaged template NCC (plain and Fisher-weighted, at both resolutions)
+ *   - Balanced KNN: keeps all individual training patches, classifies by the
+ *     K nearest neighbors per type. Handles multi-modal icon appearances that
+ *     averaged templates can't capture.
  */
 export async function reclassifyNodeTypes(
   imageUrl: string,
@@ -560,85 +785,117 @@ export async function reclassifyNodeTypes(
   const dsWeights = buildDiscriminantWeights(dsAccum, dsPatchLen);
   const fullWeights = buildDiscriminantWeights(fullAccum, fullPatchLen);
 
-  // Log weight distribution stats
-  for (const [label, weights, len] of [
-    ['ds', dsWeights, dsPatchLen],
-    ['full', fullWeights, fullPatchLen],
-  ] as const) {
-    let maxW = 0, minW = Infinity;
-    for (let i = 0; i < len; i++) {
-      if (weights[i] > maxW) maxW = weights[i];
-      if (weights[i] < minW) minW = weights[i];
-    }
-    console.log(`[RSS] Fisher weights ${label}: min=${minW.toFixed(3)}, max=${maxW.toFixed(3)}`);
+  // ── Cross-validate averaged template approaches via LOOCV ──
+  onProgress?.('Running leave-one-out cross-validation (averaged templates)...');
+
+  interface CvResult {
+    correct: number;
+    total: number;
+    confusion: Record<string, Record<string, number>>;
   }
 
-  // ── Cross-validate 4 approaches via leave-one-out ──
-  onProgress?.('Running leave-one-out cross-validation...');
-
-  interface Approach {
-    label: string;
-    map: Float32Array;
-    w: number;
-    h: number;
-    accum: Record<string, PatchAccumulator>;
-    size: number;
-    weights: Float32Array | undefined;
-  }
-  const approaches: Approach[] = [
-    { label: 'ds-plain', map: dsWMap, w: dsW, h: dsH, accum: dsAccum, size: TMPL_SIZE, weights: undefined },
-    { label: 'ds-fisher', map: dsWMap, w: dsW, h: dsH, accum: dsAccum, size: TMPL_SIZE, weights: dsWeights },
-    { label: 'full-plain', map: fullWMap, w: full.w, h: full.h, accum: fullAccum, size: FULL_TMPL_SIZE, weights: undefined },
-    { label: 'full-fisher', map: fullWMap, w: full.w, h: full.h, accum: fullAccum, size: FULL_TMPL_SIZE, weights: fullWeights },
+  const cvResults: Record<string, CvResult> = {};
+  const avgApproaches = [
+    { label: 'avg-ds-plain', map: dsWMap, w: dsW, h: dsH, accum: dsAccum, size: TMPL_SIZE, weights: undefined as Float32Array | undefined },
+    { label: 'avg-ds-fisher', map: dsWMap, w: dsW, h: dsH, accum: dsAccum, size: TMPL_SIZE, weights: dsWeights as Float32Array | undefined },
+    { label: 'avg-full-plain', map: fullWMap, w: full.w, h: full.h, accum: fullAccum, size: FULL_TMPL_SIZE, weights: undefined as Float32Array | undefined },
+    { label: 'avg-full-fisher', map: fullWMap, w: full.w, h: full.h, accum: fullAccum, size: FULL_TMPL_SIZE, weights: fullWeights as Float32Array | undefined },
   ];
 
-  let bestApproach = approaches[0];
-  let bestCorrect = -1;
-  let bestCv = { correct: 0, total: 0, confusion: {} as Record<string, Record<string, number>> };
-
-  for (const approach of approaches) {
-    const cv = loocvAccuracy(
-      approach.map, approach.w, approach.h,
-      trainingNodes, approach.accum, approach.size, approach.weights);
-
+  for (const a of avgApproaches) {
+    const cv = loocvAccuracy(a.map, a.w, a.h, trainingNodes, a.accum, a.size, a.weights);
+    cvResults[a.label] = cv;
     const pct = cv.total > 0 ? (cv.correct / cv.total * 100).toFixed(1) : '0.0';
-    console.log(`[RSS] LOOCV ${approach.label}: ${cv.correct}/${cv.total} = ${pct}%`);
+    console.log(`[RSS] LOOCV ${a.label}: ${cv.correct}/${cv.total} = ${pct}%`);
+  }
 
+  // ── Cross-validate balanced KNN approaches ──
+  onProgress?.('Running LOOCV (balanced KNN)...');
+
+  const knnConfigs = [
+    { label: 'knn-ds-plain', map: dsWMap, w: dsW, h: dsH, size: TMPL_SIZE, patchLen: dsPatchLen, weights: undefined as Float32Array | undefined },
+    { label: 'knn-ds-fisher', map: dsWMap, w: dsW, h: dsH, size: TMPL_SIZE, patchLen: dsPatchLen, weights: dsWeights as Float32Array | undefined },
+    { label: 'knn-full-plain', map: fullWMap, w: full.w, h: full.h, size: FULL_TMPL_SIZE, patchLen: fullPatchLen, weights: undefined as Float32Array | undefined },
+    { label: 'knn-full-fisher', map: fullWMap, w: full.w, h: full.h, size: FULL_TMPL_SIZE, patchLen: fullPatchLen, weights: fullWeights as Float32Array | undefined },
+  ];
+
+  // Store KNN patches and matrices for reuse
+  const knnData: Record<string, { patches: StoredPatch[]; matrix: Float32Array }> = {};
+
+  for (const cfg of knnConfigs) {
+    const patches = buildTrainingPatches(cfg.map, cfg.w, cfg.h, trainingNodes, cfg.size, cfg.weights);
+    const matrix = computePairwiseNcc(patches, cfg.patchLen);
+    knnData[cfg.label] = { patches, matrix };
+
+    const cv = knnLoocvAccuracy(patches, matrix, KNN_K);
+    cvResults[cfg.label] = cv;
+    const pct = cv.total > 0 ? (cv.correct / cv.total * 100).toFixed(1) : '0.0';
+    console.log(`[RSS] LOOCV ${cfg.label}: ${cv.correct}/${cv.total} = ${pct}%`);
+
+    await new Promise((r) => setTimeout(r, 0)); // Yield for UI
+  }
+
+  // ── Find best approach ──
+  let bestLabel = '';
+  let bestCorrect = -1;
+  let bestCv: CvResult = { correct: 0, total: 0, confusion: {} };
+
+  for (const [label, cv] of Object.entries(cvResults)) {
     if (cv.correct > bestCorrect) {
       bestCorrect = cv.correct;
-      bestApproach = approach;
+      bestLabel = label;
       bestCv = cv;
     }
   }
 
-  // Log best approach confusion matrix
-  console.log(`[RSS] Best: ${bestApproach.label} (${bestCv.correct}/${bestCv.total})`);
+  console.log(`[RSS] Best: ${bestLabel} (${bestCv.correct}/${bestCv.total} = ${(bestCv.correct / bestCv.total * 100).toFixed(1)}%)`);
   console.log('[RSS] Confusion (true -> predicted):');
   for (const [trueType, preds] of Object.entries(bestCv.confusion)) {
     const parts = Object.entries(preds).sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t}:${c}`);
     console.log(`  ${trueType} -> ${parts.join(', ')}`);
   }
 
-  // ── Build final templates with best approach ──
-  const finalTemplates = buildTypedTemplates(
-    bestApproach.accum, bestApproach.size, bestApproach.weights);
-
-  // ── Classify pending nodes ──
-  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${bestApproach.label})...`);
+  // ── Classify pending nodes using the best approach ──
+  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${bestLabel})...`);
   const results: RssNodeType[] = [];
 
-  for (let i = 0; i < pendingNodes.length; i++) {
-    const node = pendingNodes[i];
-    const cx = Math.round((node.x / GAME_MAP_SIZE) * bestApproach.w);
-    const cy = Math.round((1 - node.y / GAME_MAP_SIZE) * bestApproach.h);
+  const isKnn = bestLabel.startsWith('knn-');
 
-    results.push(classifyByTemplateNcc(
-      bestApproach.map, bestApproach.w, bestApproach.h,
-      cx, cy, finalTemplates, bestApproach.size, bestApproach.weights));
+  if (isKnn) {
+    // Find matching KNN config
+    const cfg = knnConfigs.find(c => c.label === bestLabel)!;
+    const { patches: trainPatches } = knnData[bestLabel];
 
-    if (i % 200 === 0 && i > 0) {
-      onProgress?.(`Re-classifying... ${Math.round((i / pendingNodes.length) * 100)}%`);
-      await new Promise((r) => setTimeout(r, 0));
+    for (let i = 0; i < pendingNodes.length; i++) {
+      const node = pendingNodes[i];
+      const cx = Math.round((node.x / GAME_MAP_SIZE) * cfg.w);
+      const cy = Math.round((1 - node.y / GAME_MAP_SIZE) * cfg.h);
+
+      results.push(classifyByBalancedKnn(
+        cfg.map, cfg.w, cfg.h, cx, cy, trainPatches, cfg.size, KNN_K, cfg.weights));
+
+      if (i % 200 === 0 && i > 0) {
+        onProgress?.(`Re-classifying... ${Math.round((i / pendingNodes.length) * 100)}%`);
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
+  } else {
+    // Find matching averaged template config
+    const cfg = avgApproaches.find(a => a.label === bestLabel)!;
+    const finalTemplates = buildTypedTemplates(cfg.accum, cfg.size, cfg.weights);
+
+    for (let i = 0; i < pendingNodes.length; i++) {
+      const node = pendingNodes[i];
+      const cx = Math.round((node.x / GAME_MAP_SIZE) * cfg.w);
+      const cy = Math.round((1 - node.y / GAME_MAP_SIZE) * cfg.h);
+
+      results.push(classifyByTemplateNcc(
+        cfg.map, cfg.w, cfg.h, cx, cy, finalTemplates, cfg.size, cfg.weights));
+
+      if (i % 200 === 0 && i > 0) {
+        onProgress?.(`Re-classifying... ${Math.round((i / pendingNodes.length) * 100)}%`);
+        await new Promise((r) => setTimeout(r, 0));
+      }
     }
   }
 
