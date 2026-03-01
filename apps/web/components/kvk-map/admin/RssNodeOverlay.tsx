@@ -16,11 +16,18 @@ interface RssNodeOverlayProps {
   flyToTarget: { x: number; y: number } | null;
 }
 
-/** Invisible component that flies the map to a target position */
+/** Invisible component that flies the map to a target position, offset to avoid sidebar */
 function FlyToNode({ x, y }: { x: number; y: number }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo([y, x], Math.max(map.getZoom(), 1), { duration: 0.4 });
+    const zoom = Math.max(map.getZoom(), 1);
+    // Offset the target leftward so the node ends up visible (not behind the right sidebar).
+    // Convert sidebar width (288px = lg:w-72) to map coordinates at current zoom.
+    const sidebarPx = 288;
+    const targetPoint = map.project([y, x], zoom);
+    targetPoint.x += sidebarPx / 2;
+    const offsetLatLng = map.unproject(targetPoint, zoom);
+    map.flyTo(offsetLatLng, zoom, { duration: 0.4 });
   }, [map, x, y]);
   return null;
 }
