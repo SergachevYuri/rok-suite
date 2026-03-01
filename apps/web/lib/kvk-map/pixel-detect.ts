@@ -127,12 +127,10 @@ function buildDiscriminantWeights(
   const totalCount = types.reduce((s, a) => s + a.count, 0);
 
   for (let i = 0; i < patchLen; i++) {
-    // Global mean at this pixel position
     let globalSum = 0;
     for (const t of types) globalSum += t.data[i];
     const globalMean = globalSum / totalCount;
 
-    // Between-class variance: how much do type means differ at this pixel?
     let betweenVar = 0;
     for (const t of types) {
       const typeMean = t.data[i] / t.count;
@@ -140,7 +138,6 @@ function buildDiscriminantWeights(
       betweenVar += (t.count / totalCount) * diff * diff;
     }
 
-    // Within-class variance: how much do samples vary within each type at this pixel?
     let withinVar = 0;
     for (const t of types) {
       const typeMean = t.data[i] / t.count;
@@ -151,7 +148,6 @@ function buildDiscriminantWeights(
     weights[i] = betweenVar / (withinVar + 1);
   }
 
-  // Normalize so weights have mean=1 (keeps NCC magnitudes comparable)
   let wSum = 0;
   for (let i = 0; i < patchLen; i++) wSum += weights[i];
   if (wSum > 0) {
@@ -175,7 +171,6 @@ function buildTypedTemplates(
   const patchLen = tmplSize * tmplSize;
   const templates: TypedTemplate[] = [];
 
-  // Pre-compute sqrt weights
   let sqrtW: Float32Array | undefined;
   if (discrimWeights) {
     sqrtW = new Float32Array(patchLen);
@@ -206,8 +201,6 @@ function buildTypedTemplates(
 
 /**
  * Classify a position using Fisher-weighted averaged template NCC.
- * When discrimination weights are provided, applies sqrt(w_i) to the input
- * patch after mean-centering to match the pre-weighted templates.
  */
 function classifyByTemplateNcc(
   wMap: Float32Array, w: number, h: number,
@@ -226,7 +219,6 @@ function classifyByTemplateNcc(
   for (let i = 0; i < patchLen; i++) patchMean += patchBuf[i];
   patchMean /= patchLen;
 
-  // Mean-center, then apply discrimination weights
   let patchNormSq = 0;
   if (discrimWeights) {
     for (let i = 0; i < patchLen; i++) {
@@ -310,7 +302,6 @@ function buildTrainingPatches(
 /**
  * Compute N×N pairwise NCC matrix for stored training patches.
  * Since patches are unit-normalized, NCC = dot product.
- * Matrix is symmetric; diagonal is 1.0.
  */
 function computePairwiseNcc(patches: StoredPatch[], patchLen: number): Float32Array {
   const N = patches.length;
@@ -332,21 +323,88 @@ function computePairwiseNcc(patches: StoredPatch[], patchLen: number): Float32Ar
 }
 
 /**
+ * Compute per-type self-similarity baselines from pairwise NCC matrix.
+ * For each type, measures the average top-K NCC that its own patches achieve
+ * against each other. Used to normalize KNN scores so types with inherently
+ * high self-similarity (few diverse patches) don't get unfair advantage.
+ */
+function computeTypeBaselines(
+  patches: StoredPatch[],
+  nccMatrix: Float32Array,
+  K: number,
+): Record<string, number> {
+  const N = patches.length;
+  const typeIndices: Record<string, number[]> = {};
+  for (let i = 0; i < N; i++) {
+    const t = patches[i].type;
+    if (!typeIndices[t]) typeIndices[t] = [];
+    typeIndices[t].push(i);
+  }
+
+  const baselines: Record<string, number> = {};
+  for (const [type, indices] of Object.entries(typeIndices)) {
+    let totalAvg = 0;
+    let count = 0;
+    for (const i of indices) {
+      // Get top-K NCC with same-type patches (excluding self)
+      const scores: number[] = [];
+      for (const j of indices) {
+        if (j === i) continue;
+        scores.push(nccMatrix[i * N + j]);
+      }
+      if (scores.length === 0) continue;
+      scores.sort((a, b) => b - a);
+      const topK = Math.min(K, scores.length);
+      let sum = 0;
+      for (let k = 0; k < topK; k++) sum += scores[k];
+      totalAvg += sum / topK;
+      count++;
+    }
+    baselines[type] = count > 0 ? totalAvg / count : 1;
+  }
+  return baselines;
+}
+
+/**
+ * Compute balanced accuracy from a confusion matrix.
+ * Average of per-class recall — gives equal weight to each class regardless
+ * of how many training samples it has. Prevents majority classes from
+ * dominating the evaluation metric.
+ */
+function balancedAccuracy(confusion: Record<string, Record<string, number>>): number {
+  let totalRecall = 0;
+  let numTypes = 0;
+  for (const [trueType, preds] of Object.entries(confusion)) {
+    let classTotal = 0;
+    let classCorrect = 0;
+    for (const [predType, count] of Object.entries(preds)) {
+      classTotal += count;
+      if (predType === trueType) classCorrect = count;
+    }
+    if (classTotal > 0) {
+      totalRecall += classCorrect / classTotal;
+      numTypes++;
+    }
+  }
+  return numTypes > 0 ? totalRecall / numTypes : 0;
+}
+
+/**
  * Leave-one-out cross-validation for balanced KNN using pre-computed pairwise NCC.
- * For each training sample, finds the K nearest neighbors per type (excluding self),
- * averages their NCC scores, and classifies as the type with highest average.
+ * Normalizes each type's top-K average by its self-similarity baseline to prevent
+ * types with few homogeneous patches from being over-predicted.
  */
 function knnLoocvAccuracy(
   patches: StoredPatch[],
   nccMatrix: Float32Array,
   K: number,
+  baselines: Record<string, number>,
 ): { correct: number; total: number; confusion: Record<string, Record<string, number>> } {
   const N = patches.length;
   let correct = 0;
   let total = 0;
   const confusion: Record<string, Record<string, number>> = {};
 
-  // Group patch indices by type
   const typeIndices: Record<string, number[]> = {};
   for (let i = 0; i < N; i++) {
     const t = patches[i].type;
@@ -356,10 +414,9 @@ function knnLoocvAccuracy(
 
   for (let i = 0; i < N; i++) {
     let bestType: RssNodeType = 'food';
-    let bestAvg = -Infinity;
+    let bestScore = -Infinity;
 
     for (const [type, indices] of Object.entries(typeIndices)) {
-      // Collect NCC scores for this type, excluding self
       const scores: number[] = [];
       for (const j of indices) {
         if (j === i) continue;
@@ -367,15 +424,18 @@ function knnLoocvAccuracy(
       }
       if (scores.length === 0) continue;
 
-      // Take top-K, average
       scores.sort((a, b) => b - a);
       const topK = Math.min(K, scores.length);
       let sum = 0;
       for (let k = 0; k < topK; k++) sum += scores[k];
       const avg = sum / topK;
 
-      if (avg > bestAvg) {
-        bestAvg = avg;
+      // Normalize by type self-similarity baseline
+      const baseline = baselines[type] ?? 1;
+      const normalizedScore = avg / (baseline + 1e-8);
+
+      if (normalizedScore > bestScore) {
+        bestScore = normalizedScore;
         bestType = type as RssNodeType;
       }
     }
@@ -391,9 +451,10 @@ function knnLoocvAccuracy(
 }
 
 /**
- * Classify a patch using balanced KNN against stored training patches.
+ * Classify a patch using baseline-normalized balanced KNN.
  * For each type, finds the K nearest training patches (highest NCC),
- * averages their scores, and picks the type with the highest average.
+ * averages their scores, divides by the type's self-similarity baseline,
+ * and picks the type with the highest normalized score.
  */
 function classifyByBalancedKnn(
   wMap: Float32Array, w: number, h: number,
@@ -401,6 +462,7 @@ function classifyByBalancedKnn(
   trainingPatches: StoredPatch[],
   tmplSize: number,
   K: number,
+  baselines: Record<string, number>,
   discrimWeights?: Float32Array,
 ): RssNodeType {
   const patchLen = tmplSize * tmplSize;
@@ -431,8 +493,7 @@ function classifyByBalancedKnn(
   const norm = Math.sqrt(normSq);
   for (let i = 0; i < patchLen; i++) buf[i] /= norm;
 
-  // Compute NCC against all training patches (dot product since both unit-normalized)
-  // Collect top-K scores per type
+  // Compute NCC against all training patches, maintain top-K per type
   const typeTopK: Record<string, number[]> = {};
   for (const tp of trainingPatches) {
     let dot = 0;
@@ -441,10 +502,8 @@ function classifyByBalancedKnn(
     if (!typeTopK[tp.type]) typeTopK[tp.type] = [];
     const scores = typeTopK[tp.type];
 
-    // Maintain sorted top-K (insertion into small array)
     if (scores.length < K) {
       scores.push(dot);
-      // Bubble into place
       for (let j = scores.length - 1; j > 0 && scores[j] > scores[j - 1]; j--) {
         const tmp = scores[j]; scores[j] = scores[j - 1]; scores[j - 1] = tmp;
       }
@@ -456,15 +515,17 @@ function classifyByBalancedKnn(
     }
   }
 
-  // Pick type with highest average top-K score
+  // Pick type with highest baseline-normalized average top-K score
   let bestType: RssNodeType = 'food';
   let bestAvg = -Infinity;
   for (const [type, scores] of Object.entries(typeTopK)) {
     let sum = 0;
     for (let i = 0; i < scores.length; i++) sum += scores[i];
     const avg = sum / scores.length;
-    if (avg > bestAvg) {
-      bestAvg = avg;
+    const baseline = baselines[type] ?? 1;
+    const normalizedAvg = avg / (baseline + 1e-8);
+    if (normalizedAvg > bestAvg) {
+      bestAvg = normalizedAvg;
       bestType = type as RssNodeType;
     }
   }
@@ -503,8 +564,6 @@ function getFullResPixels(img: HTMLImageElement): {
 
 /**
  * Efficient leave-one-out cross-validation for averaged template NCC.
- * For each training sample, adjusts its type's template by removing the sample's
- * contribution to the accumulated sum, classifies against all templates, and checks accuracy.
  */
 function loocvAccuracy(
   wMap: Float32Array, mapW: number, mapH: number,
@@ -517,14 +576,12 @@ function loocvAccuracy(
   const half = Math.floor(tmplSize / 2);
   const patchBuf = new Float32Array(patchLen);
 
-  // Pre-compute sqrt weights
   let sqrtW: Float32Array | undefined;
   if (discrimWeights) {
     sqrtW = new Float32Array(patchLen);
     for (let i = 0; i < patchLen; i++) sqrtW[i] = Math.sqrt(discrimWeights[i]);
   }
 
-  // Build all templates (for types we won't be adjusting)
   const allTemplates = buildTypedTemplates(typeAccum, tmplSize, discrimWeights);
 
   let correct = 0;
@@ -539,8 +596,6 @@ function loocvAccuracy(
     const acc = typeAccum[tn.type];
     if (!acc || acc.count <= 1) continue;
 
-    // Build leave-one-out template for this sample's type:
-    // avg_without_i = (sum - patch_i) / (count - 1)
     const looAvg = new Float32Array(patchLen);
     for (let i = 0; i < patchLen; i++) {
       looAvg[i] = (acc.data[i] - patchBuf[i]) / (acc.count - 1);
@@ -563,7 +618,6 @@ function loocvAccuracy(
       norm: Math.sqrt(looNormSq),
     };
 
-    // Mean-center and weight the input patch
     let pMean = 0;
     for (let i = 0; i < patchLen; i++) pMean += patchBuf[i];
     pMean /= patchLen;
@@ -579,7 +633,6 @@ function loocvAccuracy(
     if (pNormSq < 1) continue;
     const pNorm = Math.sqrt(pNormSq);
 
-    // Classify against all templates (with LOO adjustment for this type)
     let bestType: RssNodeType = 'food';
     let bestScore = -1;
 
@@ -634,7 +687,6 @@ export async function detectNodesPixel(
   ctx.drawImage(img, 0, 0, w, h);
   const dsPixels = ctx.getImageData(0, 0, w, h).data;
 
-  // ── Compute whiteness map ──
   onProgress?.('Computing whiteness map...');
   const wMap = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) {
@@ -642,7 +694,6 @@ export async function detectNodesPixel(
     wMap[i] = pixelWhiteness(dsPixels[idx], dsPixels[idx + 1], dsPixels[idx + 2]);
   }
 
-  // ── Build averaged templates for Stage 1 detection scanning (unweighted) ──
   onProgress?.('Building detection templates...');
   const patchLen = TMPL_SIZE * TMPL_SIZE;
   const half = Math.floor(TMPL_SIZE / 2);
@@ -654,11 +705,10 @@ export async function detectNodesPixel(
     return [];
   }
 
-  // ── Build Fisher-weighted templates for Stage 2 classification ──
   const dsWeights = buildDiscriminantWeights(typeAccum, patchLen);
   const classTemplates = buildTypedTemplates(typeAccum, TMPL_SIZE, dsWeights);
 
-  onProgress?.(`Built ${detectTemplates.length} detection + ${classTemplates.length} Fisher-weighted classification templates, scanning ${w}x${h}...`);
+  onProgress?.(`Built ${detectTemplates.length} detection + ${classTemplates.length} Fisher-weighted templates, scanning ${w}x${h}...`);
 
   // ── Stage 1: Detect candidates using averaged template NCC ──
   const candidates: { x: number; y: number; score: number }[] = [];
@@ -742,11 +792,10 @@ export async function detectNodesPixel(
 
 /**
  * Re-classify pending detected nodes using corrected nodes as better training data.
- * Compares multiple approaches via LOOCV and auto-selects the best:
+ * Compares multiple approaches via LOOCV (using balanced accuracy) and auto-selects:
  *   - Averaged template NCC (plain and Fisher-weighted, at both resolutions)
- *   - Balanced KNN: keeps all individual training patches, classifies by the
- *     K nearest neighbors per type. Handles multi-modal icon appearances that
- *     averaged templates can't capture.
+ *   - Balanced KNN with baseline normalization: divides each type's top-K NCC
+ *     by its self-similarity to prevent homogeneous types from being over-predicted
  */
 export async function reclassifyNodeTypes(
   imageUrl: string,
@@ -786,12 +835,13 @@ export async function reclassifyNodeTypes(
   const fullWeights = buildDiscriminantWeights(fullAccum, fullPatchLen);
 
   // ── Cross-validate averaged template approaches via LOOCV ──
-  onProgress?.('Running leave-one-out cross-validation (averaged templates)...');
+  onProgress?.('Running LOOCV (averaged templates)...');
 
   interface CvResult {
     correct: number;
     total: number;
     confusion: Record<string, Record<string, number>>;
+    balancedAcc: number;
   }
 
   const cvResults: Record<string, CvResult> = {};
@@ -804,9 +854,10 @@ export async function reclassifyNodeTypes(
 
   for (const a of avgApproaches) {
     const cv = loocvAccuracy(a.map, a.w, a.h, trainingNodes, a.accum, a.size, a.weights);
-    cvResults[a.label] = cv;
-    const pct = cv.total > 0 ? (cv.correct / cv.total * 100).toFixed(1) : '0.0';
-    console.log(`[RSS] LOOCV ${a.label}: ${cv.correct}/${cv.total} = ${pct}%`);
+    const bAcc = balancedAccuracy(cv.confusion);
+    cvResults[a.label] = { ...cv, balancedAcc: bAcc };
+    const rawPct = cv.total > 0 ? (cv.correct / cv.total * 100).toFixed(1) : '0.0';
+    console.log(`[RSS] LOOCV ${a.label}: ${cv.correct}/${cv.total} = ${rawPct}% raw, ${(bAcc * 100).toFixed(1)}% balanced`);
   }
 
   // ── Cross-validate balanced KNN approaches ──
@@ -819,36 +870,40 @@ export async function reclassifyNodeTypes(
     { label: 'knn-full-fisher', map: fullWMap, w: full.w, h: full.h, size: FULL_TMPL_SIZE, patchLen: fullPatchLen, weights: fullWeights as Float32Array | undefined },
   ];
 
-  // Store KNN patches and matrices for reuse
-  const knnData: Record<string, { patches: StoredPatch[]; matrix: Float32Array }> = {};
+  const knnData: Record<string, { patches: StoredPatch[]; baselines: Record<string, number> }> = {};
 
   for (const cfg of knnConfigs) {
     const patches = buildTrainingPatches(cfg.map, cfg.w, cfg.h, trainingNodes, cfg.size, cfg.weights);
     const matrix = computePairwiseNcc(patches, cfg.patchLen);
-    knnData[cfg.label] = { patches, matrix };
+    const baselines = computeTypeBaselines(patches, matrix, KNN_K);
+    knnData[cfg.label] = { patches, baselines };
 
-    const cv = knnLoocvAccuracy(patches, matrix, KNN_K);
-    cvResults[cfg.label] = cv;
-    const pct = cv.total > 0 ? (cv.correct / cv.total * 100).toFixed(1) : '0.0';
-    console.log(`[RSS] LOOCV ${cfg.label}: ${cv.correct}/${cv.total} = ${pct}%`);
+    // Log baselines
+    const blParts = Object.entries(baselines).map(([t, v]) => `${t}:${v.toFixed(4)}`).join(', ');
+    console.log(`[RSS] Baselines ${cfg.label}: ${blParts}`);
 
-    await new Promise((r) => setTimeout(r, 0)); // Yield for UI
+    const cv = knnLoocvAccuracy(patches, matrix, KNN_K, baselines);
+    const bAcc = balancedAccuracy(cv.confusion);
+    cvResults[cfg.label] = { ...cv, balancedAcc: bAcc };
+    const rawPct = cv.total > 0 ? (cv.correct / cv.total * 100).toFixed(1) : '0.0';
+    console.log(`[RSS] LOOCV ${cfg.label}: ${cv.correct}/${cv.total} = ${rawPct}% raw, ${(bAcc * 100).toFixed(1)}% balanced`);
+
+    await new Promise((r) => setTimeout(r, 0));
   }
 
-  // ── Find best approach ──
+  // ── Find best approach by balanced accuracy ──
   let bestLabel = '';
-  let bestCorrect = -1;
-  let bestCv: CvResult = { correct: 0, total: 0, confusion: {} };
+  let bestBalancedAcc = -1;
 
   for (const [label, cv] of Object.entries(cvResults)) {
-    if (cv.correct > bestCorrect) {
-      bestCorrect = cv.correct;
+    if (cv.balancedAcc > bestBalancedAcc) {
+      bestBalancedAcc = cv.balancedAcc;
       bestLabel = label;
-      bestCv = cv;
     }
   }
 
-  console.log(`[RSS] Best: ${bestLabel} (${bestCv.correct}/${bestCv.total} = ${(bestCv.correct / bestCv.total * 100).toFixed(1)}%)`);
+  const bestCv = cvResults[bestLabel];
+  console.log(`[RSS] Best: ${bestLabel} (balanced=${(bestCv.balancedAcc * 100).toFixed(1)}%, raw=${bestCv.correct}/${bestCv.total})`);
   console.log('[RSS] Confusion (true -> predicted):');
   for (const [trueType, preds] of Object.entries(bestCv.confusion)) {
     const parts = Object.entries(preds).sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t}:${c}`);
@@ -862,9 +917,8 @@ export async function reclassifyNodeTypes(
   const isKnn = bestLabel.startsWith('knn-');
 
   if (isKnn) {
-    // Find matching KNN config
     const cfg = knnConfigs.find(c => c.label === bestLabel)!;
-    const { patches: trainPatches } = knnData[bestLabel];
+    const { patches: trainPatches, baselines } = knnData[bestLabel];
 
     for (let i = 0; i < pendingNodes.length; i++) {
       const node = pendingNodes[i];
@@ -872,7 +926,7 @@ export async function reclassifyNodeTypes(
       const cy = Math.round((1 - node.y / GAME_MAP_SIZE) * cfg.h);
 
       results.push(classifyByBalancedKnn(
-        cfg.map, cfg.w, cfg.h, cx, cy, trainPatches, cfg.size, KNN_K, cfg.weights));
+        cfg.map, cfg.w, cfg.h, cx, cy, trainPatches, cfg.size, KNN_K, baselines, cfg.weights));
 
       if (i % 200 === 0 && i > 0) {
         onProgress?.(`Re-classifying... ${Math.round((i / pendingNodes.length) * 100)}%`);
@@ -880,7 +934,6 @@ export async function reclassifyNodeTypes(
       }
     }
   } else {
-    // Find matching averaged template config
     const cfg = avgApproaches.find(a => a.label === bestLabel)!;
     const finalTemplates = buildTypedTemplates(cfg.accum, cfg.size, cfg.weights);
 
@@ -905,11 +958,9 @@ export async function reclassifyNodeTypes(
 
 /**
  * Pre-filter: is there a bright white blob at (cx,cy) that stands out from
- * its surroundings? RSS icons are bright white on dark terrain → high contrast.
- * Light paths and rocky areas are also bright but blend with neighbors → low contrast.
+ * its surroundings?
  */
 function hasBrightBlob(wMap: Float32Array, w: number, cx: number, cy: number): boolean {
-  // Center 3x3 average whiteness
   let centerSum = 0;
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
@@ -919,7 +970,6 @@ function hasBrightBlob(wMap: Float32Array, w: number, cx: number, cy: number): b
   const centerAvg = centerSum / 9;
   if (centerAvg < CENTER_WHITENESS_MIN) return false;
 
-  // Surround: sample two rings at distance 6 and 8 for more stable contrast
   let surroundSum = 0;
   let surroundCount = 0;
   for (const d of [6, 8]) {
