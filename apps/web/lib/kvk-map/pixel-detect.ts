@@ -32,6 +32,9 @@ const CENTER_WHITENESS_MIN = 85;
  */
 const CONTRAST_MIN = 35;
 
+/** Template patch size at full resolution for high-detail classification */
+const FULL_TMPL_SIZE = 24;
+
 
 /**
  * Whiteness score for a single pixel.
@@ -48,25 +51,6 @@ function pixelWhiteness(r: number, g: number, b: number): number {
   return Math.max(0, brightness - spread * 1.5);
 }
 
-/** Template patch size at full resolution for high-detail classification */
-const FULL_TMPL_SIZE = 24;
-
-/**
- * Compute Sobel gradient magnitude map from a single-channel Float32Array.
- * Captures edges and internal icon structure that whiteness blobs miss.
- */
-function computeEdgeMap(src: Float32Array, w: number, h: number): Float32Array {
-  const edges = new Float32Array(w * h);
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const gx = src[y * w + (x + 1)] - src[y * w + (x - 1)];
-      const gy = src[(y + 1) * w + x] - src[(y - 1) * w + x];
-      edges[y * w + x] = Math.sqrt(gx * gx + gy * gy);
-    }
-  }
-  return edges;
-}
-
 /** Whiteness template with type info preserved for shape-based classification */
 interface TypedTemplate {
   type: RssNodeType;
@@ -74,16 +58,120 @@ interface TypedTemplate {
   norm: number;
 }
 
+/** Accumulator with sum and sum-of-squares for Fisher discriminant computation */
+interface PatchAccumulator {
+  data: Float32Array;     // sum of pixel values
+  dataSq: Float32Array;   // sum of squared pixel values
+  count: number;
+}
+
+/**
+ * Accumulate whiteness patches from annotations into per-type accumulators.
+ * Tracks both sum and sum-of-squares for Fisher discriminant weight computation.
+ */
+function accumulateTemplatePatches(
+  wMap: Float32Array, w: number, h: number,
+  annotations: AnnotationSample[],
+  tmplSize = TMPL_SIZE,
+): Record<string, PatchAccumulator> {
+  const patchLen = tmplSize * tmplSize;
+  const half = Math.floor(tmplSize / 2);
+  const typeAccum: Record<string, PatchAccumulator> = {};
+  const tmpBuf = new Float32Array(patchLen);
+
+  for (const ann of annotations) {
+    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
+    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
+    if (!extractPatch(wMap, w, h, cx, cy, half, tmplSize, tmpBuf)) continue;
+
+    if (!typeAccum[ann.type]) {
+      typeAccum[ann.type] = {
+        data: new Float32Array(patchLen),
+        dataSq: new Float32Array(patchLen),
+        count: 0,
+      };
+    }
+    const acc = typeAccum[ann.type];
+    for (let i = 0; i < patchLen; i++) {
+      acc.data[i] += tmpBuf[i];
+      acc.dataSq[i] += tmpBuf[i] * tmpBuf[i];
+    }
+    acc.count++;
+  }
+  return typeAccum;
+}
+
+/**
+ * Build Fisher discriminant weights from accumulated patch statistics.
+ * For each pixel position, weight = between-class variance / within-class variance.
+ * High-weight pixels are where icon types actually differ; low-weight pixels are
+ * where all types look the same (e.g., background, generic blob center).
+ */
+function buildDiscriminantWeights(
+  typeAccum: Record<string, PatchAccumulator>,
+  patchLen: number,
+): Float32Array {
+  const weights = new Float32Array(patchLen);
+  const types = Object.values(typeAccum).filter(a => a.count > 0);
+  if (types.length < 2) { weights.fill(1); return weights; }
+
+  const totalCount = types.reduce((s, a) => s + a.count, 0);
+
+  for (let i = 0; i < patchLen; i++) {
+    // Global mean at this pixel position
+    let globalSum = 0;
+    for (const t of types) globalSum += t.data[i];
+    const globalMean = globalSum / totalCount;
+
+    // Between-class variance: how much do type means differ at this pixel?
+    let betweenVar = 0;
+    for (const t of types) {
+      const typeMean = t.data[i] / t.count;
+      const diff = typeMean - globalMean;
+      betweenVar += (t.count / totalCount) * diff * diff;
+    }
+
+    // Within-class variance: how much do samples vary within each type at this pixel?
+    let withinVar = 0;
+    for (const t of types) {
+      const typeMean = t.data[i] / t.count;
+      const typeVar = t.dataSq[i] / t.count - typeMean * typeMean;
+      withinVar += (t.count / totalCount) * Math.max(0, typeVar);
+    }
+
+    weights[i] = betweenVar / (withinVar + 1);
+  }
+
+  // Normalize so weights have mean=1 (keeps NCC magnitudes comparable)
+  let wSum = 0;
+  for (let i = 0; i < patchLen; i++) wSum += weights[i];
+  if (wSum > 0) {
+    const scale = patchLen / wSum;
+    for (let i = 0; i < patchLen; i++) weights[i] *= scale;
+  }
+
+  return weights;
+}
+
 /**
  * Build per-type averaged whiteness templates from accumulated patch data.
- * Preserves type info so templates can be used for shape-based classification.
+ * When discriminant weights are provided, applies sqrt(w_i) to each pixel
+ * position after mean-centering, so NCC naturally emphasizes discriminative pixels.
  */
 function buildTypedTemplates(
-  typeAccum: Record<string, { data: Float32Array; count: number }>,
+  typeAccum: Record<string, PatchAccumulator>,
   tmplSize = TMPL_SIZE,
+  discrimWeights?: Float32Array,
 ): TypedTemplate[] {
   const patchLen = tmplSize * tmplSize;
   const templates: TypedTemplate[] = [];
+
+  // Pre-compute sqrt weights
+  let sqrtW: Float32Array | undefined;
+  if (discrimWeights) {
+    sqrtW = new Float32Array(patchLen);
+    for (let i = 0; i < patchLen; i++) sqrtW[i] = Math.sqrt(discrimWeights[i]);
+  }
 
   for (const [type, acc] of Object.entries(typeAccum)) {
     if (acc.count === 0) continue;
@@ -97,7 +185,8 @@ function buildTypedTemplates(
     const centered = new Float32Array(patchLen);
     let normSq = 0;
     for (let i = 0; i < patchLen; i++) {
-      const v = avg[i] - mean;
+      let v = avg[i] - mean;
+      if (sqrtW) v *= sqrtW[i];
       centered[i] = v;
       normSq += v * v;
     }
@@ -107,57 +196,16 @@ function buildTypedTemplates(
 }
 
 /**
- * Accumulate whiteness patches from annotations into per-type accumulators.
- * Shared between detectNodesPixel and reclassifyNodeTypes.
- */
-function accumulateTemplatePatches(
-  wMap: Float32Array, w: number, h: number,
-  annotations: AnnotationSample[],
-  tmplSize = TMPL_SIZE,
-): Record<string, { data: Float32Array; count: number }> {
-  const patchLen = tmplSize * tmplSize;
-  const half = Math.floor(tmplSize / 2);
-  const typeAccum: Record<string, { data: Float32Array; count: number }> = {};
-  const tmpBuf = new Float32Array(patchLen);
-
-  for (const ann of annotations) {
-    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
-    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
-    if (!extractPatch(wMap, w, h, cx, cy, half, tmplSize, tmpBuf)) continue;
-
-    if (!typeAccum[ann.type]) {
-      typeAccum[ann.type] = { data: new Float32Array(patchLen), count: 0 };
-    }
-    const acc = typeAccum[ann.type];
-    for (let i = 0; i < patchLen; i++) acc.data[i] += tmpBuf[i];
-    acc.count++;
-  }
-  return typeAccum;
-}
-
-/**
- * Build a whiteness map from raw RGBA pixel data.
- */
-function buildWhitenessMap(
-  pixels: Uint8ClampedArray, w: number, h: number,
-): Float32Array {
-  const wMap = new Float32Array(w * h);
-  for (let i = 0; i < w * h; i++) {
-    const idx = i * 4;
-    wMap[i] = pixelWhiteness(pixels[idx], pixels[idx + 1], pixels[idx + 2]);
-  }
-  return wMap;
-}
-
-/**
- * Classify a position using averaged template NCC at a given resolution.
- * Returns the type with the highest NCC score.
+ * Classify a position using Fisher-weighted averaged template NCC.
+ * When discrimination weights are provided, applies sqrt(w_i) to the input
+ * patch after mean-centering to match the pre-weighted templates.
  */
 function classifyByTemplateNcc(
   wMap: Float32Array, w: number, h: number,
   cx: number, cy: number,
   templates: TypedTemplate[],
   tmplSize: number,
+  discrimWeights?: Float32Array,
 ): RssNodeType {
   const patchLen = tmplSize * tmplSize;
   const half = Math.floor(tmplSize / 2);
@@ -169,10 +217,19 @@ function classifyByTemplateNcc(
   for (let i = 0; i < patchLen; i++) patchMean += patchBuf[i];
   patchMean /= patchLen;
 
+  // Mean-center, then apply discrimination weights
   let patchNormSq = 0;
-  for (let i = 0; i < patchLen; i++) {
-    patchBuf[i] -= patchMean;
-    patchNormSq += patchBuf[i] * patchBuf[i];
+  if (discrimWeights) {
+    for (let i = 0; i < patchLen; i++) {
+      const v = (patchBuf[i] - patchMean) * Math.sqrt(discrimWeights[i]);
+      patchBuf[i] = v;
+      patchNormSq += v * v;
+    }
+  } else {
+    for (let i = 0; i < patchLen; i++) {
+      patchBuf[i] -= patchMean;
+      patchNormSq += patchBuf[i] * patchBuf[i];
+    }
   }
   if (patchNormSq < 1) return 'food';
   const patchNorm = Math.sqrt(patchNormSq);
@@ -193,69 +250,21 @@ function classifyByTemplateNcc(
 }
 
 /**
- * Classify using combined whiteness + edge NCC scores.
- * Edge templates capture internal icon structure (wheat lines, crystal facets, etc.)
- * that whiteness blobs miss. The combined score gives more discriminative matching.
+ * Build a whiteness map from raw RGBA pixel data.
  */
-function classifyCombinedNcc(
-  wMap: Float32Array, edgeMap: Float32Array, w: number, h: number,
-  cx: number, cy: number,
-  wTemplates: TypedTemplate[], eTemplates: TypedTemplate[],
-  tmplSize: number,
-  edgeWeight: number,
-): RssNodeType {
-  const patchLen = tmplSize * tmplSize;
-  const half = Math.floor(tmplSize / 2);
-  const wBuf = new Float32Array(patchLen);
-  const eBuf = new Float32Array(patchLen);
-
-  if (!extractPatch(wMap, w, h, cx, cy, half, tmplSize, wBuf)) return 'food';
-  if (!extractPatch(edgeMap, w, h, cx, cy, half, tmplSize, eBuf)) return 'food';
-
-  // Mean-center both patches
-  let wMean = 0, eMean = 0;
-  for (let i = 0; i < patchLen; i++) { wMean += wBuf[i]; eMean += eBuf[i]; }
-  wMean /= patchLen; eMean /= patchLen;
-
-  let wNSq = 0, eNSq = 0;
-  for (let i = 0; i < patchLen; i++) {
-    wBuf[i] -= wMean; wNSq += wBuf[i] * wBuf[i];
-    eBuf[i] -= eMean; eNSq += eBuf[i] * eBuf[i];
+function buildWhitenessMap(
+  pixels: Uint8ClampedArray, w: number, h: number,
+): Float32Array {
+  const wMap = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const idx = i * 4;
+    wMap[i] = pixelWhiteness(pixels[idx], pixels[idx + 1], pixels[idx + 2]);
   }
-  const wN = Math.sqrt(wNSq);
-  const eN = Math.sqrt(eNSq);
-
-  // Build type -> edge template lookup
-  const eMap = new Map(eTemplates.map(t => [t.type, t]));
-
-  let bestType: RssNodeType = 'food';
-  let bestScore = -Infinity;
-
-  for (const wT of wTemplates) {
-    let wCross = 0;
-    for (let i = 0; i < patchLen; i++) wCross += wBuf[i] * wT.centered[i];
-    const wNcc = wNSq > 1 ? wCross / (wN * wT.norm + 1e-8) : 0;
-
-    let eNcc = 0;
-    const eT = eMap.get(wT.type);
-    if (eT && eNSq > 1) {
-      let eCross = 0;
-      for (let i = 0; i < patchLen; i++) eCross += eBuf[i] * eT.centered[i];
-      eNcc = eCross / (eN * eT.norm + 1e-8);
-    }
-
-    const score = (1 - edgeWeight) * wNcc + edgeWeight * eNcc;
-    if (score > bestScore) {
-      bestScore = score;
-      bestType = wT.type;
-    }
-  }
-  return bestType;
+  return wMap;
 }
 
 /**
  * Load full-resolution pixel data from an image element.
- * Used for color classification where downscaling loses subtle tint info.
  */
 function getFullResPixels(img: HTMLImageElement): {
   pixels: Uint8ClampedArray; w: number; h: number;
@@ -270,14 +279,116 @@ function getFullResPixels(img: HTMLImageElement): {
 }
 
 /**
- * Detect RSS nodes using two-stage whiteness detection + combined NCC classification.
+ * Efficient leave-one-out cross-validation for averaged template NCC.
+ * For each training sample, adjusts its type's template by removing the sample's
+ * contribution to the accumulated sum, classifies against all templates, and checks accuracy.
+ */
+function loocvAccuracy(
+  wMap: Float32Array, mapW: number, mapH: number,
+  trainingNodes: AnnotationSample[],
+  typeAccum: Record<string, PatchAccumulator>,
+  tmplSize: number,
+  discrimWeights?: Float32Array,
+): { correct: number; total: number; confusion: Record<string, Record<string, number>> } {
+  const patchLen = tmplSize * tmplSize;
+  const half = Math.floor(tmplSize / 2);
+  const patchBuf = new Float32Array(patchLen);
+
+  // Pre-compute sqrt weights
+  let sqrtW: Float32Array | undefined;
+  if (discrimWeights) {
+    sqrtW = new Float32Array(patchLen);
+    for (let i = 0; i < patchLen; i++) sqrtW[i] = Math.sqrt(discrimWeights[i]);
+  }
+
+  // Build all templates (for types we won't be adjusting)
+  const allTemplates = buildTypedTemplates(typeAccum, tmplSize, discrimWeights);
+
+  let correct = 0;
+  let total = 0;
+  const confusion: Record<string, Record<string, number>> = {};
+
+  for (const tn of trainingNodes) {
+    const cx = Math.round((tn.x / GAME_MAP_SIZE) * mapW);
+    const cy = Math.round((1 - tn.y / GAME_MAP_SIZE) * mapH);
+    if (!extractPatch(wMap, mapW, mapH, cx, cy, half, tmplSize, patchBuf)) continue;
+
+    const acc = typeAccum[tn.type];
+    if (!acc || acc.count <= 1) continue;
+
+    // Build leave-one-out template for this sample's type:
+    // avg_without_i = (sum - patch_i) / (count - 1)
+    const looAvg = new Float32Array(patchLen);
+    for (let i = 0; i < patchLen; i++) {
+      looAvg[i] = (acc.data[i] - patchBuf[i]) / (acc.count - 1);
+    }
+    let looMean = 0;
+    for (let i = 0; i < patchLen; i++) looMean += looAvg[i];
+    looMean /= patchLen;
+
+    const looCentered = new Float32Array(patchLen);
+    let looNormSq = 0;
+    for (let i = 0; i < patchLen; i++) {
+      let v = looAvg[i] - looMean;
+      if (sqrtW) v *= sqrtW[i];
+      looCentered[i] = v;
+      looNormSq += v * v;
+    }
+    const looTemplate: TypedTemplate = {
+      type: tn.type,
+      centered: looCentered,
+      norm: Math.sqrt(looNormSq),
+    };
+
+    // Mean-center and weight the input patch
+    let pMean = 0;
+    for (let i = 0; i < patchLen; i++) pMean += patchBuf[i];
+    pMean /= patchLen;
+
+    const centeredPatch = new Float32Array(patchLen);
+    let pNormSq = 0;
+    for (let i = 0; i < patchLen; i++) {
+      let v = patchBuf[i] - pMean;
+      if (sqrtW) v *= sqrtW[i];
+      centeredPatch[i] = v;
+      pNormSq += v * v;
+    }
+    if (pNormSq < 1) continue;
+    const pNorm = Math.sqrt(pNormSq);
+
+    // Classify against all templates (with LOO adjustment for this type)
+    let bestType: RssNodeType = 'food';
+    let bestScore = -1;
+
+    for (const tmpl of allTemplates) {
+      const useTemplate = tmpl.type === tn.type ? looTemplate : tmpl;
+      let cross = 0;
+      for (let i = 0; i < patchLen; i++) cross += centeredPatch[i] * useTemplate.centered[i];
+      const ncc = cross / (pNorm * useTemplate.norm + 1e-8);
+      if (ncc > bestScore) {
+        bestScore = ncc;
+        bestType = useTemplate.type;
+      }
+    }
+
+    total++;
+    if (bestType === tn.type) correct++;
+    if (!confusion[tn.type]) confusion[tn.type] = {};
+    confusion[tn.type][bestType] = (confusion[tn.type][bestType] || 0) + 1;
+  }
+
+  return { correct, total, confusion };
+}
+
+/**
+ * Detect RSS nodes using two-stage detection + Fisher-weighted NCC classification.
  *
  * Stage 1 — Detection (whiteness, 2x downscale):
  *   Uses averaged templates for fast NCC scanning to find candidate positions.
  *
- * Stage 2 — Classification (full-res whiteness + edge NCC):
- *   Combined whiteness and edge gradient template matching at full resolution.
- *   Edge templates capture internal icon structure for better type discrimination.
+ * Stage 2 — Classification (Fisher-weighted NCC):
+ *   Applies per-pixel discrimination weights that emphasize pixels where icon
+ *   types actually differ, improving discrimination between similar white blobs.
  */
 export async function detectNodesPixel(
   imageUrl: string,
@@ -308,28 +419,23 @@ export async function detectNodesPixel(
     wMap[i] = pixelWhiteness(dsPixels[idx], dsPixels[idx + 1], dsPixels[idx + 2]);
   }
 
-  // ── Build averaged templates for Stage 1 detection scanning ──
+  // ── Build averaged templates for Stage 1 detection scanning (unweighted) ──
   onProgress?.('Building detection templates...');
   const patchLen = TMPL_SIZE * TMPL_SIZE;
   const half = Math.floor(TMPL_SIZE / 2);
   const typeAccum = accumulateTemplatePatches(wMap, w, h, annotations);
-  const wTemplates = buildTypedTemplates(typeAccum);
+  const detectTemplates = buildTypedTemplates(typeAccum);
 
-  if (wTemplates.length === 0) {
+  if (detectTemplates.length === 0) {
     onProgress?.('No valid templates — annotations may be outside image');
     return [];
   }
 
-  // ── Build full-resolution whiteness + edge templates for Stage 2 classification ──
-  const full = getFullResPixels(img);
-  const fullWMap = buildWhitenessMap(full.pixels, full.w, full.h);
-  const fullEdgeMap = computeEdgeMap(fullWMap, full.w, full.h);
-  const fullWTemplates = buildTypedTemplates(
-    accumulateTemplatePatches(fullWMap, full.w, full.h, annotations, FULL_TMPL_SIZE), FULL_TMPL_SIZE);
-  const fullETemplates = buildTypedTemplates(
-    accumulateTemplatePatches(fullEdgeMap, full.w, full.h, annotations, FULL_TMPL_SIZE), FULL_TMPL_SIZE);
+  // ── Build Fisher-weighted templates for Stage 2 classification ──
+  const dsWeights = buildDiscriminantWeights(typeAccum, patchLen);
+  const classTemplates = buildTypedTemplates(typeAccum, TMPL_SIZE, dsWeights);
 
-  onProgress?.(`Built ${wTemplates.length} detection + ${fullWTemplates.length} full-res whiteness+edge templates, scanning ${w}x${h}...`);
+  onProgress?.(`Built ${detectTemplates.length} detection + ${classTemplates.length} Fisher-weighted classification templates, scanning ${w}x${h}...`);
 
   // ── Stage 1: Detect candidates using averaged template NCC ──
   const candidates: { x: number; y: number; score: number }[] = [];
@@ -355,7 +461,7 @@ export async function detectNodesPixel(
       const patchNorm = Math.sqrt(patchNormSq);
 
       let bestScore = 0;
-      for (const tmpl of wTemplates) {
+      for (const tmpl of detectTemplates) {
         let cross = 0;
         for (let i = 0; i < patchLen; i++) {
           cross += (patchBuf[i] - patchMean) * tmpl.centered[i];
@@ -388,7 +494,7 @@ export async function detectNodesPixel(
 
   onProgress?.(`After NMS: ${kept.length} nodes. Classifying types...`);
 
-  // ── Stage 2: Classify using full-resolution averaged template NCC ──
+  // ── Stage 2: Classify using Fisher-weighted NCC ──
   const detectedNodes: DetectedPixelNode[] = [];
 
   for (let ci = 0; ci < kept.length; ci++) {
@@ -396,13 +502,8 @@ export async function detectNodesPixel(
     const gameX = Math.round((sx / w) * GAME_MAP_SIZE);
     const gameY = Math.round((1 - sy / h) * GAME_MAP_SIZE);
 
-    // Classify at full resolution using combined whiteness + edge NCC
-    const fullCx = Math.round((gameX / GAME_MAP_SIZE) * full.w);
-    const fullCy = Math.round((1 - gameY / GAME_MAP_SIZE) * full.h);
-    const bestType = fullWTemplates.length > 0
-      ? classifyCombinedNcc(fullWMap, fullEdgeMap, full.w, full.h, fullCx, fullCy,
-          fullWTemplates, fullETemplates, FULL_TMPL_SIZE, 0.5)
-      : classifyByTemplateNcc(wMap, w, h, sx, sy, wTemplates, TMPL_SIZE);
+    const bestType = classifyByTemplateNcc(
+      wMap, w, h, sx, sy, classTemplates, TMPL_SIZE, dsWeights);
 
     detectedNodes.push({ x: gameX, y: gameY, type: bestType });
 
@@ -418,8 +519,9 @@ export async function detectNodesPixel(
 
 /**
  * Re-classify pending detected nodes using corrected nodes as better training data.
- * Compares whiteness-only, edge-only, and combined NCC at multiple edge weights,
- * then uses the best-performing approach for actual classification.
+ * Uses Fisher discriminant weighting to emphasize pixels that distinguish between types.
+ * Cross-validates downscaled vs full-resolution, plain vs Fisher-weighted via LOOCV,
+ * then uses the best approach for actual classification.
  */
 export async function reclassifyNodeTypes(
   imageUrl: string,
@@ -432,83 +534,107 @@ export async function reclassifyNodeTypes(
   onProgress?.('Loading image for re-classification...');
   const img = await loadImage(imageUrl);
 
-  // ── Build full-resolution whiteness + edge maps ──
-  onProgress?.('Building full-res whiteness + edge maps...');
+  // ── Build downscaled whiteness map ──
+  const dsW = Math.round(img.width / SCALE);
+  const dsH = Math.round(img.height / SCALE);
+  const dsCanvas = document.createElement('canvas');
+  dsCanvas.width = dsW;
+  dsCanvas.height = dsH;
+  const dsCtx = dsCanvas.getContext('2d')!;
+  dsCtx.drawImage(img, 0, 0, dsW, dsH);
+  const dsPixels = dsCtx.getImageData(0, 0, dsW, dsH).data;
+  const dsWMap = buildWhitenessMap(dsPixels, dsW, dsH);
+
+  // ── Build full-resolution whiteness map ──
   const full = getFullResPixels(img);
   const fullWMap = buildWhitenessMap(full.pixels, full.w, full.h);
-  const fullEdgeMap = computeEdgeMap(fullWMap, full.w, full.h);
 
-  // ── Build averaged templates for both channels ──
-  onProgress?.('Building averaged templates...');
-  const fullWTemplates = buildTypedTemplates(
-    accumulateTemplatePatches(fullWMap, full.w, full.h, trainingNodes, FULL_TMPL_SIZE), FULL_TMPL_SIZE);
-  const fullETemplates = buildTypedTemplates(
-    accumulateTemplatePatches(fullEdgeMap, full.w, full.h, trainingNodes, FULL_TMPL_SIZE), FULL_TMPL_SIZE);
+  // ── Accumulate patches at both resolutions ──
+  onProgress?.('Building templates at both resolutions...');
+  const dsAccum = accumulateTemplatePatches(dsWMap, dsW, dsH, trainingNodes, TMPL_SIZE);
+  const fullAccum = accumulateTemplatePatches(fullWMap, full.w, full.h, trainingNodes, FULL_TMPL_SIZE);
 
-  // Log template stats
-  for (const t of fullWTemplates) {
-    const eT = fullETemplates.find(e => e.type === t.type);
-    console.log(`[RSS] Template ${t.type}: wNorm=${t.norm.toFixed(1)}, eNorm=${eT?.norm.toFixed(1) ?? 'N/A'}`);
-  }
+  // ── Build Fisher discriminant weights ──
+  const dsPatchLen = TMPL_SIZE * TMPL_SIZE;
+  const fullPatchLen = FULL_TMPL_SIZE * FULL_TMPL_SIZE;
+  const dsWeights = buildDiscriminantWeights(dsAccum, dsPatchLen);
+  const fullWeights = buildDiscriminantWeights(fullAccum, fullPatchLen);
 
-  // ── Cross-validate: compare whiteness-only, edge-only, and combined at different weights ──
-  const edgeWeights = [0.0, 0.25, 0.5, 0.75, 1.0];
-  const cvScores: Record<string, { correct: number; total: number; confusion: Record<string, Record<string, number>> }> = {};
-
-  for (const ew of edgeWeights) {
-    const label = ew === 0 ? 'whiteness-only' : ew === 1 ? 'edge-only' : `combined(ew=${ew})`;
-    const result = { correct: 0, total: 0, confusion: {} as Record<string, Record<string, number>> };
-
-    for (const tn of trainingNodes) {
-      const fullCx = Math.round((tn.x / GAME_MAP_SIZE) * full.w);
-      const fullCy = Math.round((1 - tn.y / GAME_MAP_SIZE) * full.h);
-
-      const pred = classifyCombinedNcc(
-        fullWMap, fullEdgeMap, full.w, full.h, fullCx, fullCy,
-        fullWTemplates, fullETemplates, FULL_TMPL_SIZE, ew);
-
-      result.total++;
-      if (pred === tn.type) result.correct++;
-      if (!result.confusion[tn.type]) result.confusion[tn.type] = {};
-      result.confusion[tn.type][pred] = (result.confusion[tn.type][pred] || 0) + 1;
+  // Log weight distribution stats
+  for (const [label, weights, len] of [
+    ['ds', dsWeights, dsPatchLen],
+    ['full', fullWeights, fullPatchLen],
+  ] as const) {
+    let maxW = 0, minW = Infinity;
+    for (let i = 0; i < len; i++) {
+      if (weights[i] > maxW) maxW = weights[i];
+      if (weights[i] < minW) minW = weights[i];
     }
-
-    cvScores[label] = result;
-    console.log(`[RSS] CV ${label}: ${result.correct}/${result.total} = ${(result.correct / result.total * 100).toFixed(1)}%`);
+    console.log(`[RSS] Fisher weights ${label}: min=${minW.toFixed(3)}, max=${maxW.toFixed(3)}`);
   }
 
-  // Find best edge weight
-  let bestLabel = '';
+  // ── Cross-validate 4 approaches via leave-one-out ──
+  onProgress?.('Running leave-one-out cross-validation...');
+
+  interface Approach {
+    label: string;
+    map: Float32Array;
+    w: number;
+    h: number;
+    accum: Record<string, PatchAccumulator>;
+    size: number;
+    weights: Float32Array | undefined;
+  }
+  const approaches: Approach[] = [
+    { label: 'ds-plain', map: dsWMap, w: dsW, h: dsH, accum: dsAccum, size: TMPL_SIZE, weights: undefined },
+    { label: 'ds-fisher', map: dsWMap, w: dsW, h: dsH, accum: dsAccum, size: TMPL_SIZE, weights: dsWeights },
+    { label: 'full-plain', map: fullWMap, w: full.w, h: full.h, accum: fullAccum, size: FULL_TMPL_SIZE, weights: undefined },
+    { label: 'full-fisher', map: fullWMap, w: full.w, h: full.h, accum: fullAccum, size: FULL_TMPL_SIZE, weights: fullWeights },
+  ];
+
+  let bestApproach = approaches[0];
   let bestCorrect = -1;
-  let bestWeight = 0.5;
-  for (const [label, r] of Object.entries(cvScores)) {
-    if (r.correct > bestCorrect) {
-      bestCorrect = r.correct;
-      bestLabel = label;
-      bestWeight = edgeWeights[Object.keys(cvScores).indexOf(label)];
+  let bestCv = { correct: 0, total: 0, confusion: {} as Record<string, Record<string, number>> };
+
+  for (const approach of approaches) {
+    const cv = loocvAccuracy(
+      approach.map, approach.w, approach.h,
+      trainingNodes, approach.accum, approach.size, approach.weights);
+
+    const pct = cv.total > 0 ? (cv.correct / cv.total * 100).toFixed(1) : '0.0';
+    console.log(`[RSS] LOOCV ${approach.label}: ${cv.correct}/${cv.total} = ${pct}%`);
+
+    if (cv.correct > bestCorrect) {
+      bestCorrect = cv.correct;
+      bestApproach = approach;
+      bestCv = cv;
     }
   }
 
-  // Log confusion for best approach
-  console.log(`[RSS] Best: ${bestLabel} (${bestCorrect}/${cvScores[bestLabel].total})`);
+  // Log best approach confusion matrix
+  console.log(`[RSS] Best: ${bestApproach.label} (${bestCv.correct}/${bestCv.total})`);
   console.log('[RSS] Confusion (true -> predicted):');
-  for (const [trueType, preds] of Object.entries(cvScores[bestLabel].confusion)) {
+  for (const [trueType, preds] of Object.entries(bestCv.confusion)) {
     const parts = Object.entries(preds).sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t}:${c}`);
     console.log(`  ${trueType} -> ${parts.join(', ')}`);
   }
 
-  // ── Classify pending nodes using the best approach ──
-  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${bestLabel})...`);
+  // ── Build final templates with best approach ──
+  const finalTemplates = buildTypedTemplates(
+    bestApproach.accum, bestApproach.size, bestApproach.weights);
+
+  // ── Classify pending nodes ──
+  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${bestApproach.label})...`);
   const results: RssNodeType[] = [];
 
   for (let i = 0; i < pendingNodes.length; i++) {
     const node = pendingNodes[i];
-    const fullCx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
-    const fullCy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
+    const cx = Math.round((node.x / GAME_MAP_SIZE) * bestApproach.w);
+    const cy = Math.round((1 - node.y / GAME_MAP_SIZE) * bestApproach.h);
 
-    results.push(classifyCombinedNcc(
-      fullWMap, fullEdgeMap, full.w, full.h, fullCx, fullCy,
-      fullWTemplates, fullETemplates, FULL_TMPL_SIZE, bestWeight));
+    results.push(classifyByTemplateNcc(
+      bestApproach.map, bestApproach.w, bestApproach.h,
+      cx, cy, finalTemplates, bestApproach.size, bestApproach.weights));
 
     if (i % 200 === 0 && i > 0) {
       onProgress?.(`Re-classifying... ${Math.round((i / pendingNodes.length) * 100)}%`);

@@ -8400,556 +8400,521 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 387,
     "y": 160,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "gold",
+    "x": 932,
+    "y": 56,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "crystal",
-    "x": 932,
-    "y": 56,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
     "x": 771,
     "y": 934,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 464,
     "y": 380,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 987,
     "y": 932,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 205,
     "y": 913,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "crystal",
     "x": 211,
     "y": 1067,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "gold",
+    "x": 602,
+    "y": 423,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "crystal",
-    "x": 602,
-    "y": 423,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "wood",
     "x": 615,
     "y": 565,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 303,
     "y": 654,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "crystal",
+    "x": 63,
+    "y": 534,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "wood",
-    "x": 63,
-    "y": 534,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "stone",
     "x": 1049,
     "y": 1054,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "wood",
+    "x": 841,
+    "y": 92,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
-    "x": 841,
-    "y": 92,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
     "x": 287,
     "y": 486,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 382,
     "y": 59,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 736,
     "y": 862,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 539,
     "y": 1158,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "wood",
     "x": 651,
     "y": 365,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1102,
     "y": 787,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1134,
     "y": 419,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "food",
     "x": 1184,
     "y": 28,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "crystal",
     "x": 607,
     "y": 410,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "gold",
+    "x": 355,
+    "y": 775,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "crystal",
-    "x": 355,
-    "y": 775,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
     "x": 509,
     "y": 289,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 305,
-    "y": 369,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 65,
-    "y": 249,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
-    "x": 512,
-    "y": 422,
-    "status": "pending",
+    "x": 305,
+    "y": 369,
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
-    "x": 393,
-    "y": 875,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 1113,
-    "y": 635,
-    "status": "pending",
+    "type": "stone",
+    "x": 65,
+    "y": 249,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "crystal",
+    "x": 512,
+    "y": 422,
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "crystal",
+    "x": 393,
+    "y": 875,
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "crystal",
+    "x": 1113,
+    "y": 635,
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "gold",
     "x": 972,
     "y": 814,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
     "x": 114,
     "y": 782,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "wood",
     "x": 784,
     "y": 424,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "wood",
     "x": 424,
     "y": 184,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
     "x": 374,
     "y": 346,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1114,
     "y": 754,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 638,
     "y": 693,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 278,
     "y": 333,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 394,
     "y": 394,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 650,
     "y": 651,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1019,
     "y": 1016,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 846,
     "y": 434,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 366,
     "y": 74,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 498,
     "y": 849,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 247,
     "y": 838,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 594,
     "y": 352,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "wood",
+    "x": 132,
+    "y": 179,
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "crystal",
+    "x": 61,
+    "y": 801,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
-    "x": 132,
-    "y": 179,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 61,
-    "y": 801,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "wood",
-    "x": 555,
-    "y": 1090,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "wood",
-    "x": 75,
-    "y": 730,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "wood",
-    "x": 1155,
-    "y": 730,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "wood",
-    "x": 1035,
-    "y": 490,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
     "x": 48,
     "y": 246,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "food",
     "x": 61,
     "y": 628,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
     "x": 234,
     "y": 237,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "gold",
+    "x": 181,
+    "y": 681,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "crystal",
-    "x": 181,
-    "y": 681,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "wood",
-    "x": 945,
-    "y": 130,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "wood",
     "x": 909,
     "y": 420,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
     "x": 639,
     "y": 556,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "gold",
+    "x": 659,
+    "y": 318,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "wood",
-    "x": 659,
-    "y": 318,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "stone",
     "x": 88,
     "y": 203,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 267,
     "y": 17,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
     "x": 778,
     "y": 601,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 67,
     "y": 1143,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1027,
     "y": 63,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 475,
     "y": 952,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 955,
     "y": 952,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 387,
     "y": 575,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "food",
+    "x": 1073,
+    "y": 717,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
-    "x": 1073,
-    "y": 717,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
     "x": 1063,
     "y": 874,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 974,
-    "y": 442,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 444,
-    "y": 326,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "wood",
+    "x": 974,
+    "y": 442,
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "crystal",
+    "x": 444,
+    "y": 326,
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "stone",
     "x": 378,
     "y": 281,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1145,
     "y": 656,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 802,
     "y": 382,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "food",
     "x": 1182,
     "y": 179,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "food",
     "x": 1182,
     "y": 59,
-    "status": "pending",
+    "status": "approved",
+    "source": "detected"
+  },
+  {
+    "type": "crystal",
+    "x": 1132,
+    "y": 161,
+    "status": "approved",
     "source": "detected"
   },
   {
     "type": "stone",
-    "x": 1132,
-    "y": 161,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
     "x": 660,
     "y": 908,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 572,
     "y": 953,
-    "status": "pending",
+    "status": "approved",
     "source": "detected"
   },
   {
@@ -8967,7 +8932,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 66,
     "y": 493,
     "status": "pending",
@@ -9058,7 +9023,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 473,
     "y": 378,
     "status": "pending",
@@ -9191,7 +9156,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 457,
     "y": 1014,
     "status": "pending",
@@ -9233,7 +9198,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 684,
     "y": 98,
     "status": "pending",
@@ -9317,7 +9282,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 612,
     "y": 63,
     "status": "pending",
@@ -9345,14 +9310,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1106,
     "y": 373,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 525,
     "y": 649,
     "status": "pending",
@@ -9408,21 +9373,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1155,
     "y": 790,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1155,
     "y": 190,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 470,
     "y": 331,
     "status": "pending",
@@ -9457,7 +9422,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 638,
     "y": 447,
     "status": "pending",
@@ -9555,7 +9520,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 938,
     "y": 171,
     "status": "pending",
@@ -9618,7 +9583,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 684,
     "y": 656,
     "status": "pending",
@@ -9639,7 +9604,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 1021,
     "y": 1035,
     "status": "pending",
@@ -9674,7 +9639,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 729,
     "y": 1114,
     "status": "pending",
@@ -9695,7 +9660,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1082,
     "y": 531,
     "status": "pending",
@@ -9716,7 +9681,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 594,
     "y": 148,
     "status": "pending",
@@ -9786,14 +9751,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 252,
     "y": 329,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1092,
     "y": 193,
     "status": "pending",
@@ -9814,28 +9779,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 639,
     "y": 713,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 474,
     "y": 748,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 454,
     "y": 815,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 329,
     "y": 694,
     "status": "pending",
@@ -9891,7 +9856,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 993,
     "y": 807,
     "status": "pending",
@@ -9933,7 +9898,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 739,
     "y": 1083,
     "status": "pending",
@@ -9947,7 +9912,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 979,
     "y": 120,
     "status": "pending",
@@ -10129,7 +10094,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 746,
     "y": 528,
     "status": "pending",
@@ -10164,7 +10129,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 241,
     "y": 558,
     "status": "pending",
@@ -10227,7 +10192,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 57,
     "y": 793,
     "status": "pending",
@@ -10248,7 +10213,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 834,
     "y": 866,
     "status": "pending",
@@ -10269,7 +10234,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 382,
     "y": 903,
     "status": "pending",
@@ -10297,7 +10262,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 89,
     "y": 758,
     "status": "pending",
@@ -10360,7 +10325,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 507,
     "y": 135,
     "status": "pending",
@@ -10395,7 +10360,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 88,
     "y": 582,
     "status": "pending",
@@ -10416,7 +10381,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1132,
     "y": 15,
     "status": "pending",
@@ -10430,7 +10395,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 507,
     "y": 73,
     "status": "pending",
@@ -10451,7 +10416,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 265,
     "y": 663,
     "status": "pending",
@@ -10472,7 +10437,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 1094,
     "y": 1144,
     "status": "pending",
@@ -10556,21 +10521,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 985,
     "y": 580,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 865,
     "y": 100,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 235,
     "y": 852,
     "status": "pending",
@@ -10605,28 +10570,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 481,
     "y": 929,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 709,
     "y": 754,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 229,
     "y": 634,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "crystal",
     "x": 930,
     "y": 1105,
     "status": "pending",
@@ -10682,14 +10647,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 848,
     "y": 534,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 114,
     "y": 1078,
     "status": "pending",
@@ -10738,7 +10703,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1051,
     "y": 1133,
     "status": "pending",
@@ -10752,14 +10717,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1083,
     "y": 63,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 233,
     "y": 486,
     "status": "pending",
@@ -10801,7 +10766,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 189,
     "y": 743,
     "status": "pending",
@@ -10822,7 +10787,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 854,
     "y": 256,
     "status": "pending",
@@ -10892,7 +10857,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 967,
     "y": 1093,
     "status": "pending",
@@ -10906,7 +10871,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 537,
     "y": 20,
     "status": "pending",
@@ -10920,7 +10885,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 418,
     "y": 500,
     "status": "pending",
@@ -10990,7 +10955,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 539,
     "y": 938,
     "status": "pending",
@@ -11053,21 +11018,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 128,
     "y": 18,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 848,
     "y": 18,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 488,
     "y": 294,
     "status": "pending",
@@ -11151,7 +11116,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 531,
     "y": 988,
     "status": "pending",
@@ -11200,7 +11165,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 284,
     "y": 213,
     "status": "pending",
@@ -11256,7 +11221,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 653,
     "y": 419,
     "status": "pending",
@@ -11284,21 +11249,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 951,
     "y": 994,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 111,
     "y": 34,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 186,
     "y": 436,
     "status": "pending",
@@ -11319,7 +11284,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 739,
     "y": 754,
     "status": "pending",
@@ -11361,7 +11326,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 507,
     "y": 751,
     "status": "pending",
@@ -11389,7 +11354,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 676,
     "y": 1060,
     "status": "pending",
@@ -11438,7 +11403,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 891,
     "y": 508,
     "status": "pending",
@@ -11585,7 +11550,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 379,
     "y": 394,
     "status": "pending",
@@ -11627,7 +11592,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 391,
     "y": 998,
     "status": "pending",
@@ -11697,7 +11662,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 57,
     "y": 86,
     "status": "pending",
@@ -11809,7 +11774,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 489,
     "y": 55,
     "status": "pending",
@@ -11928,21 +11893,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 621,
     "y": 405,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 138,
     "y": 761,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 607,
     "y": 591,
     "status": "pending",
@@ -11970,7 +11935,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 177,
     "y": 613,
     "status": "pending",
@@ -12033,7 +11998,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 435,
     "y": 1023,
     "status": "pending",
@@ -12117,7 +12082,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 831,
     "y": 795,
     "status": "pending",
@@ -12145,7 +12110,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 399,
     "y": 318,
     "status": "pending",
@@ -12257,7 +12222,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 152,
     "y": 174,
     "status": "pending",
@@ -12299,7 +12264,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 959,
     "y": 378,
     "status": "pending",
@@ -12320,7 +12285,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1049,
     "y": 337,
     "status": "pending",
@@ -12341,7 +12306,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 539,
     "y": 563,
     "status": "pending",
@@ -12425,7 +12390,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1023,
     "y": 885,
     "status": "pending",
@@ -12439,7 +12404,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 568,
     "y": 693,
     "status": "pending",
@@ -12460,7 +12425,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1168,
     "y": 369,
     "status": "pending",
@@ -12502,7 +12467,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 393,
     "y": 233,
     "status": "pending",
@@ -12530,14 +12495,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 159,
     "y": 548,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 159,
     "y": 68,
     "status": "pending",
@@ -12558,7 +12523,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 701,
     "y": 723,
     "status": "pending",
@@ -12579,14 +12544,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 959,
     "y": 318,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1107,
     "y": 523,
     "status": "pending",
@@ -12607,14 +12572,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 789,
     "y": 858,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 399,
     "y": 882,
     "status": "pending",
@@ -12684,14 +12649,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 418,
     "y": 980,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 204,
     "y": 919,
     "status": "pending",
@@ -12747,7 +12712,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1177,
     "y": 28,
     "status": "pending",
@@ -12782,7 +12747,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 898,
     "y": 530,
     "status": "pending",
@@ -12824,7 +12789,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1105,
     "y": 634,
     "status": "pending",
@@ -12838,7 +12803,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 265,
     "y": 754,
     "status": "pending",
@@ -12922,14 +12887,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 929,
     "y": 158,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 292,
     "y": 988,
     "status": "pending",
@@ -12985,7 +12950,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 229,
     "y": 339,
     "status": "pending",
@@ -13034,7 +12999,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 265,
     "y": 573,
     "status": "pending",
@@ -13090,28 +13055,28 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 239,
     "y": 295,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 735,
     "y": 566,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1130,
     "y": 866,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 50,
     "y": 146,
     "status": "pending",
@@ -13125,7 +13090,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 391,
     "y": 48,
     "status": "pending",
@@ -13139,7 +13104,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 202,
     "y": 940,
     "status": "pending",
@@ -13167,7 +13132,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 720,
     "y": 1105,
     "status": "pending",
@@ -13202,7 +13167,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 574,
     "y": 1016,
     "status": "pending",
@@ -13244,7 +13209,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 574,
     "y": 776,
     "status": "pending",
@@ -13314,7 +13279,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 536,
     "y": 1062,
     "status": "pending",
@@ -13356,14 +13321,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 877,
     "y": 1091,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 480,
     "y": 351,
     "status": "pending",
@@ -13377,7 +13342,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 404,
     "y": 334,
     "status": "pending",
@@ -13475,14 +13440,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 284,
     "y": 239,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1187,
     "y": 240,
     "status": "pending",
@@ -13517,21 +13482,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 505,
     "y": 573,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 145,
     "y": 453,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 265,
     "y": 93,
     "status": "pending",
@@ -13566,7 +13531,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 751,
     "y": 48,
     "status": "pending",
@@ -13650,7 +13615,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 726,
     "y": 601,
     "status": "pending",
@@ -13692,14 +13657,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 708,
     "y": 910,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 348,
     "y": 310,
     "status": "pending",
@@ -13727,7 +13692,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 568,
     "y": 37,
     "status": "pending",
@@ -13776,14 +13741,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1069,
     "y": 754,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 589,
     "y": 514,
     "status": "pending",
@@ -13797,7 +13762,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1010,
     "y": 104,
     "status": "pending",
@@ -13825,7 +13790,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1029,
     "y": 798,
     "status": "pending",
@@ -13839,14 +13804,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 593,
     "y": 819,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 593,
     "y": 459,
     "status": "pending",
@@ -13874,7 +13839,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 220,
     "y": 764,
     "status": "pending",
@@ -13930,7 +13895,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 724,
     "y": 1086,
     "status": "pending",
@@ -13958,14 +13923,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 934,
     "y": 986,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 814,
     "y": 866,
     "status": "pending",
@@ -14007,7 +13972,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 1109,
     "y": 1109,
     "status": "pending",
@@ -14021,7 +13986,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 791,
     "y": 241,
     "status": "pending",
@@ -14035,7 +14000,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 911,
     "y": 361,
     "status": "pending",
@@ -14077,7 +14042,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 565,
     "y": 926,
     "status": "pending",
@@ -14140,7 +14105,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 272,
     "y": 255,
     "status": "pending",
@@ -14196,7 +14161,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 805,
     "y": 566,
     "status": "pending",
@@ -14238,7 +14203,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 873,
     "y": 833,
     "status": "pending",
@@ -14259,7 +14224,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 114,
     "y": 773,
     "status": "pending",
@@ -14294,7 +14259,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 601,
     "y": 909,
     "status": "pending",
@@ -14315,14 +14280,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 398,
     "y": 117,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1138,
     "y": 422,
     "status": "pending",
@@ -14378,7 +14343,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 916,
     "y": 1136,
     "status": "pending",
@@ -14392,7 +14357,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 881,
     "y": 1111,
     "status": "pending",
@@ -14413,7 +14378,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 38,
     "y": 717,
     "status": "pending",
@@ -14427,7 +14392,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 110,
     "y": 563,
     "status": "pending",
@@ -14455,7 +14420,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 934,
     "y": 266,
     "status": "pending",
@@ -14532,7 +14497,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 117,
     "y": 846,
     "status": "pending",
@@ -14553,7 +14518,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 846,
     "y": 904,
     "status": "pending",
@@ -14574,7 +14539,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 218,
     "y": 1118,
     "status": "pending",
@@ -14595,28 +14560,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 501,
     "y": 915,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1080,
     "y": 828,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 892,
     "y": 465,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 172,
     "y": 105,
     "status": "pending",
@@ -14637,7 +14602,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 1163,
     "y": 93,
     "status": "pending",
@@ -14686,21 +14651,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 115,
     "y": 865,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 475,
     "y": 884,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1101,
     "y": 856,
     "status": "pending",
@@ -14714,14 +14679,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 511,
     "y": 209,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 46,
     "y": 1084,
     "status": "pending",
@@ -14735,7 +14700,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1152,
     "y": 845,
     "status": "pending",
@@ -14763,7 +14728,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 101,
     "y": 693,
     "status": "pending",
@@ -14777,7 +14742,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 601,
     "y": 12,
     "status": "pending",
@@ -14854,14 +14819,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 52,
     "y": 651,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 487,
     "y": 674,
     "status": "pending",
@@ -14875,7 +14840,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 214,
     "y": 110,
     "status": "pending",
@@ -14945,7 +14910,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 743,
     "y": 776,
     "status": "pending",
@@ -14987,14 +14952,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 111,
     "y": 424,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 711,
     "y": 184,
     "status": "pending",
@@ -15190,14 +15155,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 671,
     "y": 662,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 519,
     "y": 925,
     "status": "pending",
@@ -15211,7 +15176,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 39,
     "y": 12,
     "status": "pending",
@@ -15225,7 +15190,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 593,
     "y": 378,
     "status": "pending",
@@ -15239,21 +15204,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 328,
     "y": 704,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 701,
     "y": 815,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 320,
     "y": 1024,
     "status": "pending",
@@ -15281,28 +15246,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 108,
     "y": 790,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 588,
     "y": 70,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 909,
     "y": 1066,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 424,
     "y": 594,
     "status": "pending",
@@ -15358,42 +15323,42 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 214,
     "y": 1174,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 440,
     "y": 956,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 265,
     "y": 453,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 421,
     "y": 862,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 802,
     "y": 179,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 766,
     "y": 454,
     "status": "pending",
@@ -15463,14 +15428,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 1143,
     "y": 717,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 301,
     "y": 742,
     "status": "pending",
@@ -15491,28 +15456,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 58,
     "y": 516,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 691,
     "y": 655,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1058,
     "y": 863,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1138,
     "y": 276,
     "status": "pending",
@@ -15575,7 +15540,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 732,
     "y": 663,
     "status": "pending",
@@ -15624,7 +15589,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 440,
     "y": 31,
     "status": "pending",
@@ -15638,7 +15603,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 265,
     "y": 604,
     "status": "pending",
@@ -15666,7 +15631,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 249,
     "y": 265,
     "status": "pending",
@@ -15680,14 +15645,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 230,
     "y": 405,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 324,
     "y": 938,
     "status": "pending",
@@ -15701,7 +15666,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 564,
     "y": 776,
     "status": "pending",
@@ -15729,7 +15694,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 620,
     "y": 836,
     "status": "pending",
@@ -15757,7 +15722,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 663,
     "y": 63,
     "status": "pending",
@@ -15792,7 +15757,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 780,
     "y": 836,
     "status": "pending",
@@ -15827,7 +15792,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 658,
     "y": 156,
     "status": "pending",
@@ -15855,7 +15820,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 507,
     "y": 260,
     "status": "pending",
@@ -15897,7 +15862,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 620,
     "y": 207,
     "status": "pending",
@@ -15988,7 +15953,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 660,
     "y": 481,
     "status": "pending",
@@ -16044,7 +16009,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 900,
     "y": 961,
     "status": "pending",
@@ -16163,14 +16128,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 329,
     "y": 158,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 1108,
     "y": 192,
     "status": "pending",
@@ -16226,14 +16191,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 1115,
     "y": 594,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 863,
     "y": 983,
     "status": "pending",
@@ -16247,7 +16212,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 612,
     "y": 118,
     "status": "pending",
@@ -16303,7 +16268,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 179,
     "y": 916,
     "status": "pending",
@@ -16373,7 +16338,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1074,
     "y": 389,
     "status": "pending",
@@ -16422,7 +16387,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 682,
     "y": 1150,
     "status": "pending",
@@ -16457,7 +16422,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 615,
     "y": 384,
     "status": "pending",
@@ -16499,7 +16464,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 508,
     "y": 1120,
     "status": "pending",
@@ -16520,7 +16485,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 91,
     "y": 445,
     "status": "pending",
@@ -16541,7 +16506,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 632,
     "y": 375,
     "status": "pending",
@@ -16555,7 +16520,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 947,
     "y": 116,
     "status": "pending",
@@ -16569,7 +16534,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 695,
     "y": 505,
     "status": "pending",
@@ -16639,14 +16604,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 724,
     "y": 906,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 484,
     "y": 306,
     "status": "pending",
@@ -16681,7 +16646,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 694,
     "y": 574,
     "status": "pending",
@@ -16695,7 +16660,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 792,
     "y": 679,
     "status": "pending",
@@ -16709,14 +16674,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 539,
     "y": 308,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 590,
     "y": 1023,
     "status": "pending",
@@ -16765,7 +16730,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 671,
     "y": 350,
     "status": "pending",
@@ -16821,7 +16786,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 789,
     "y": 468,
     "status": "pending",
@@ -16870,7 +16835,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 419,
     "y": 154,
     "status": "pending",
@@ -16884,14 +16849,14 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 223,
     "y": 443,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 645,
     "y": 474,
     "status": "pending",
@@ -16905,7 +16870,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 924,
     "y": 919,
     "status": "pending",
@@ -16919,7 +16884,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 1025,
     "y": 834,
     "status": "pending",
@@ -16940,7 +16905,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 38,
     "y": 926,
     "status": "pending",
@@ -16989,7 +16954,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1182,
     "y": 1181,
     "status": "pending",
@@ -17010,7 +16975,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 211,
     "y": 385,
     "status": "pending",
@@ -17024,7 +16989,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 776,
     "y": 706,
     "status": "pending",
@@ -17115,7 +17080,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 995,
     "y": 81,
     "status": "pending",
@@ -17157,7 +17122,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 129,
     "y": 746,
     "status": "pending",
@@ -17178,7 +17143,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 937,
     "y": 158,
     "status": "pending",
@@ -17206,14 +17171,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 923,
     "y": 1174,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1043,
     "y": 1174,
     "status": "pending",
@@ -17241,14 +17206,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 704,
     "y": 884,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 824,
     "y": 524,
     "status": "pending",
@@ -17269,7 +17234,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 1171,
     "y": 304,
     "status": "pending",
@@ -17290,7 +17255,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 906,
     "y": 1163,
     "status": "pending",
@@ -17409,7 +17374,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 511,
     "y": 511,
     "status": "pending",
@@ -17437,7 +17402,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1143,
     "y": 1068,
     "status": "pending",
@@ -17479,14 +17444,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1076,
     "y": 632,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 947,
     "y": 552,
     "status": "pending",
@@ -17500,7 +17465,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 974,
     "y": 1127,
     "status": "pending",
@@ -17542,7 +17507,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 594,
     "y": 988,
     "status": "pending",
@@ -17577,7 +17542,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 332,
     "y": 910,
     "status": "pending",
@@ -17668,7 +17633,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 489,
     "y": 1135,
     "status": "pending",
@@ -17682,7 +17647,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 904,
     "y": 1174,
     "status": "pending",
@@ -17752,7 +17717,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 695,
     "y": 375,
     "status": "pending",
@@ -17780,7 +17745,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 241,
     "y": 1015,
     "status": "pending",
@@ -17794,7 +17759,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 202,
     "y": 1027,
     "status": "pending",
@@ -17808,14 +17773,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 35,
     "y": 1008,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 505,
     "y": 724,
     "status": "pending",
@@ -17934,7 +17899,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 134,
     "y": 113,
     "status": "pending",
@@ -17969,7 +17934,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 429,
     "y": 634,
     "status": "pending",
@@ -18004,7 +17969,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1147,
     "y": 1174,
     "status": "pending",
@@ -18060,7 +18025,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 860,
     "y": 284,
     "status": "pending",
@@ -18074,14 +18039,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 35,
     "y": 227,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 35,
     "y": 107,
     "status": "pending",
@@ -18116,7 +18081,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 849,
     "y": 295,
     "status": "pending",
@@ -18235,7 +18200,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 331,
     "y": 812,
     "status": "pending",
@@ -18284,7 +18249,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 129,
     "y": 719,
     "status": "pending",
@@ -18333,7 +18298,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 839,
     "y": 738,
     "status": "pending",
@@ -18382,7 +18347,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 721,
     "y": 1039,
     "status": "pending",
@@ -18396,7 +18361,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 267,
     "y": 1004,
     "status": "pending",
@@ -18438,7 +18403,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 657,
     "y": 297,
     "status": "pending",
@@ -18466,35 +18431,35 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 791,
     "y": 890,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 671,
     "y": 530,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 165,
     "y": 1178,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 525,
     "y": 1178,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 645,
     "y": 1178,
     "status": "pending",
@@ -18515,7 +18480,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 57,
     "y": 1142,
     "status": "pending",
@@ -18536,7 +18501,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 437,
     "y": 385,
     "status": "pending",
@@ -18564,7 +18529,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 551,
     "y": 632,
     "status": "pending",
@@ -18585,7 +18550,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1170,
     "y": 681,
     "status": "pending",
@@ -18599,7 +18564,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 998,
     "y": 717,
     "status": "pending",
@@ -18620,7 +18585,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 683,
     "y": 631,
     "status": "pending",
@@ -18718,7 +18683,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 873,
     "y": 1043,
     "status": "pending",
@@ -18753,7 +18718,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 221,
     "y": 121,
     "status": "pending",
@@ -18767,7 +18732,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 67,
     "y": 478,
     "status": "pending",
@@ -18830,7 +18795,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 638,
     "y": 272,
     "status": "pending",
@@ -18921,7 +18886,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 180,
     "y": 758,
     "status": "pending",
@@ -18963,21 +18928,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 331,
     "y": 1015,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 91,
     "y": 55,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 340,
     "y": 1080,
     "status": "pending",
@@ -18998,7 +18963,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 233,
     "y": 417,
     "status": "pending",
@@ -19089,14 +19054,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1112,
     "y": 423,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 179,
     "y": 466,
     "status": "pending",
@@ -19138,7 +19103,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 249,
     "y": 76,
     "status": "pending",
@@ -19173,7 +19138,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 507,
     "y": 783,
     "status": "pending",
@@ -19208,7 +19173,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 269,
     "y": 145,
     "status": "pending",
@@ -19243,7 +19208,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 932,
     "y": 1150,
     "status": "pending",
@@ -19292,21 +19257,21 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 420,
     "y": 86,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1144,
     "y": 306,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 323,
     "y": 1118,
     "status": "pending",
@@ -19334,7 +19299,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 380,
     "y": 1141,
     "status": "pending",
@@ -19362,7 +19327,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 781,
     "y": 53,
     "status": "pending",
@@ -19376,7 +19341,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 865,
     "y": 124,
     "status": "pending",
@@ -19397,7 +19362,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 474,
     "y": 452,
     "status": "pending",
@@ -19425,7 +19390,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 745,
     "y": 93,
     "status": "pending",
@@ -19453,7 +19418,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 328,
     "y": 517,
     "status": "pending",
@@ -19467,7 +19432,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 711,
     "y": 657,
     "status": "pending",
@@ -19509,14 +19474,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 184,
     "y": 392,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 786,
     "y": 395,
     "status": "pending",
@@ -19544,7 +19509,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 599,
     "y": 596,
     "status": "pending",
@@ -19572,7 +19537,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 783,
     "y": 290,
     "status": "pending",
@@ -19621,7 +19586,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 637,
     "y": 533,
     "status": "pending",
@@ -19698,7 +19663,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 181,
     "y": 559,
     "status": "pending",
@@ -19712,14 +19677,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 425,
     "y": 556,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 45,
     "y": 610,
     "status": "pending",
@@ -19747,7 +19712,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1153,
     "y": 1073,
     "status": "pending",
@@ -19768,7 +19733,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 435,
     "y": 659,
     "status": "pending",
@@ -19817,7 +19782,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 229,
     "y": 514,
     "status": "pending",
@@ -19887,7 +19852,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 784,
     "y": 316,
     "status": "pending",
@@ -19915,7 +19880,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1004,
     "y": 1114,
     "status": "pending",
@@ -19985,7 +19950,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 507,
     "y": 834,
     "status": "pending",
@@ -20048,7 +20013,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 220,
     "y": 360,
     "status": "pending",
@@ -20062,14 +20027,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 574,
     "y": 490,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 477,
     "y": 560,
     "status": "pending",
@@ -20090,14 +20055,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 625,
     "y": 495,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1010,
     "y": 465,
     "status": "pending",
@@ -20125,14 +20090,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 582,
     "y": 1181,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1051,
     "y": 295,
     "status": "pending",
@@ -20160,7 +20125,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 632,
     "y": 702,
     "status": "pending",
@@ -20216,7 +20181,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1171,
     "y": 234,
     "status": "pending",
@@ -20279,7 +20244,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 989,
     "y": 836,
     "status": "pending",
@@ -20307,7 +20272,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 272,
     "y": 342,
     "status": "pending",
@@ -20363,7 +20328,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 663,
     "y": 860,
     "status": "pending",
@@ -20454,7 +20419,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 652,
     "y": 291,
     "status": "pending",
@@ -20482,7 +20447,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 438,
     "y": 682,
     "status": "pending",
@@ -20503,7 +20468,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 423,
     "y": 890,
     "status": "pending",
@@ -20524,7 +20489,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 423,
     "y": 410,
     "status": "pending",
@@ -20545,7 +20510,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 587,
     "y": 206,
     "status": "pending",
@@ -20566,7 +20531,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 531,
     "y": 631,
     "status": "pending",
@@ -20615,14 +20580,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 633,
     "y": 920,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 153,
     "y": 386,
     "status": "pending",
@@ -20636,14 +20601,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 420,
     "y": 1097,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 987,
     "y": 290,
     "status": "pending",
@@ -20699,7 +20664,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 743,
     "y": 506,
     "status": "pending",
@@ -20783,28 +20748,28 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 691,
     "y": 678,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 757,
     "y": 581,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 366,
     "y": 1089,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 334,
     "y": 1020,
     "status": "pending",
@@ -20860,7 +20825,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 347,
     "y": 253,
     "status": "pending",
@@ -20930,7 +20895,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 633,
     "y": 383,
     "status": "pending",
@@ -20993,21 +20958,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 316,
     "y": 23,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1036,
     "y": 23,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 802,
     "y": 1102,
     "status": "pending",
@@ -21049,14 +21014,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 506,
     "y": 796,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 211,
     "y": 1149,
     "status": "pending",
@@ -21077,21 +21042,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 279,
     "y": 725,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 399,
     "y": 605,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 357,
     "y": 451,
     "status": "pending",
@@ -21112,7 +21077,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 454,
     "y": 260,
     "status": "pending",
@@ -21126,14 +21091,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 721,
     "y": 647,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 752,
     "y": 57,
     "status": "pending",
@@ -21154,14 +21119,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 879,
     "y": 742,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 435,
     "y": 773,
     "status": "pending",
@@ -21175,7 +21140,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 512,
     "y": 297,
     "status": "pending",
@@ -21224,7 +21189,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 694,
     "y": 334,
     "status": "pending",
@@ -21238,7 +21203,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 361,
     "y": 383,
     "status": "pending",
@@ -21294,7 +21259,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 84,
     "y": 567,
     "status": "pending",
@@ -21336,21 +21301,21 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 142,
     "y": 623,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 862,
     "y": 623,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 502,
     "y": 143,
     "status": "pending",
@@ -21385,7 +21350,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 368,
     "y": 1136,
     "status": "pending",
@@ -21399,7 +21364,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 557,
     "y": 655,
     "status": "pending",
@@ -21462,7 +21427,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1146,
     "y": 163,
     "status": "pending",
@@ -21511,7 +21476,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 634,
     "y": 468,
     "status": "pending",
@@ -21602,7 +21567,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 703,
     "y": 789,
     "status": "pending",
@@ -21665,7 +21630,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 628,
     "y": 1086,
     "status": "pending",
@@ -21728,7 +21693,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 244,
     "y": 1084,
     "status": "pending",
@@ -21742,14 +21707,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 860,
     "y": 674,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 140,
     "y": 74,
     "status": "pending",
@@ -21805,21 +21770,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1147,
     "y": 923,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1147,
     "y": 443,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 907,
     "y": 203,
     "status": "pending",
@@ -21966,7 +21931,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 78,
     "y": 130,
     "status": "pending",
@@ -21994,7 +21959,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 531,
     "y": 461,
     "status": "pending",
@@ -22078,14 +22043,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 113,
     "y": 518,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 353,
     "y": 278,
     "status": "pending",
@@ -22127,7 +22092,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 907,
     "y": 1134,
     "status": "pending",
@@ -22176,7 +22141,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 51,
     "y": 1066,
     "status": "pending",
@@ -22232,7 +22197,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1125,
     "y": 693,
     "status": "pending",
@@ -22295,7 +22260,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 521,
     "y": 74,
     "status": "pending",
@@ -22330,14 +22295,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 988,
     "y": 922,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 628,
     "y": 442,
     "status": "pending",
@@ -22365,7 +22330,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 628,
     "y": 998,
     "status": "pending",
@@ -22386,28 +22351,28 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 925,
     "y": 935,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 532,
     "y": 1103,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 772,
     "y": 863,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 772,
     "y": 263,
     "status": "pending",
@@ -22449,7 +22414,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 335,
     "y": 280,
     "status": "pending",
@@ -22526,7 +22491,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 267,
     "y": 246,
     "status": "pending",
@@ -22561,7 +22526,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 67,
     "y": 340,
     "status": "pending",
@@ -22582,7 +22547,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 511,
     "y": 571,
     "status": "pending",
@@ -22715,14 +22680,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 80,
     "y": 636,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 31,
     "y": 112,
     "status": "pending",
@@ -22834,14 +22799,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1125,
     "y": 952,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 885,
     "y": 112,
     "status": "pending",
@@ -22855,7 +22820,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 517,
     "y": 301,
     "status": "pending",
@@ -22946,14 +22911,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 369,
     "y": 622,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 683,
     "y": 1174,
     "status": "pending",
@@ -22967,7 +22932,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 574,
     "y": 536,
     "status": "pending",
@@ -22995,7 +22960,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 677,
     "y": 686,
     "status": "pending",
@@ -23065,14 +23030,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 577,
     "y": 923,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 217,
     "y": 803,
     "status": "pending",
@@ -23093,14 +23058,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 111,
     "y": 743,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 443,
     "y": 1028,
     "status": "pending",
@@ -23114,7 +23079,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 483,
     "y": 426,
     "status": "pending",
@@ -23135,7 +23100,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1136,
     "y": 708,
     "status": "pending",
@@ -23184,7 +23149,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 273,
     "y": 263,
     "status": "pending",
@@ -23198,21 +23163,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 1149,
     "y": 916,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 1149,
     "y": 436,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 909,
     "y": 196,
     "status": "pending",
@@ -23240,7 +23205,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 849,
     "y": 61,
     "status": "pending",
@@ -23303,7 +23268,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 171,
     "y": 895,
     "status": "pending",
@@ -23331,7 +23296,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 146,
     "y": 342,
     "status": "pending",
@@ -23352,7 +23317,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 936,
     "y": 1002,
     "status": "pending",
@@ -23401,14 +23366,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 652,
     "y": 711,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 215,
     "y": 825,
     "status": "pending",
@@ -23429,7 +23394,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 909,
     "y": 1127,
     "status": "pending",
@@ -23457,7 +23422,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 404,
     "y": 244,
     "status": "pending",
@@ -23478,7 +23443,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 543,
     "y": 380,
     "status": "pending",
@@ -23492,14 +23457,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 603,
     "y": 365,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 724,
     "y": 486,
     "status": "pending",
@@ -23527,14 +23492,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 1073,
     "y": 1028,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 233,
     "y": 428,
     "status": "pending",
@@ -23597,7 +23562,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1031,
     "y": 448,
     "status": "pending",
@@ -23611,28 +23576,28 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1149,
     "y": 782,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1149,
     "y": 182,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 158,
     "y": 1008,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 518,
     "y": 1008,
     "status": "pending",
@@ -23667,7 +23632,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 847,
     "y": 612,
     "status": "pending",
@@ -23681,21 +23646,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 953,
     "y": 1013,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 113,
     "y": 53,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 530,
     "y": 702,
     "status": "pending",
@@ -23709,7 +23674,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 45,
     "y": 40,
     "status": "pending",
@@ -23758,7 +23723,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 600,
     "y": 262,
     "status": "pending",
@@ -23800,7 +23765,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 667,
     "y": 263,
     "status": "pending",
@@ -23814,14 +23779,14 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 367,
     "y": 771,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 727,
     "y": 651,
     "status": "pending",
@@ -23835,7 +23800,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 154,
     "y": 714,
     "status": "pending",
@@ -23891,7 +23856,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1118,
     "y": 1022,
     "status": "pending",
@@ -23919,14 +23884,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1013,
     "y": 849,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 53,
     "y": 489,
     "status": "pending",
@@ -24038,7 +24003,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 40,
     "y": 455,
     "status": "pending",
@@ -24108,21 +24073,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 473,
     "y": 578,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 233,
     "y": 458,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 1183,
     "y": 107,
     "status": "pending",
@@ -24262,7 +24227,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 395,
     "y": 269,
     "status": "pending",
@@ -24304,7 +24269,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 102,
     "y": 913,
     "status": "pending",
@@ -24318,14 +24283,14 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 262,
     "y": 1013,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 742,
     "y": 413,
     "status": "pending",
@@ -24339,7 +24304,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 1008,
     "y": 82,
     "status": "pending",
@@ -24374,7 +24339,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 715,
     "y": 663,
     "status": "pending",
@@ -24465,35 +24430,35 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 879,
     "y": 1007,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 39,
     "y": 767,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 399,
     "y": 527,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 39,
     "y": 407,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 879,
     "y": 47,
     "status": "pending",
@@ -24507,7 +24472,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 28,
     "y": 736,
     "status": "pending",
@@ -24556,7 +24521,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 720,
     "y": 889,
     "status": "pending",
@@ -24570,7 +24535,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1062,
     "y": 1181,
     "status": "pending",
@@ -24640,7 +24605,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 544,
     "y": 951,
     "status": "pending",
@@ -24675,7 +24640,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 243,
     "y": 260,
     "status": "pending",
@@ -24703,14 +24668,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1100,
     "y": 1034,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 345,
     "y": 139,
     "status": "pending",
@@ -24731,21 +24696,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 972,
     "y": 1083,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 831,
     "y": 1168,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 143,
     "y": 296,
     "status": "pending",
@@ -24787,7 +24752,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 980,
     "y": 1043,
     "status": "pending",
@@ -24801,14 +24766,14 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 727,
     "y": 472,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 509,
     "y": 265,
     "status": "pending",
@@ -24822,7 +24787,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 480,
     "y": 889,
     "status": "pending",
@@ -24836,21 +24801,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 381,
     "y": 29,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 861,
     "y": 29,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 881,
     "y": 443,
     "status": "pending",
@@ -24871,14 +24836,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 683,
     "y": 221,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 190,
     "y": 841,
     "status": "pending",
@@ -24892,7 +24857,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 1089,
     "y": 360,
     "status": "pending",
@@ -24906,49 +24871,49 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1152,
     "y": 919,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1152,
     "y": 439,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 912,
     "y": 199,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 496,
     "y": 1156,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 616,
     "y": 1036,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 976,
     "y": 1036,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 496,
     "y": 76,
     "status": "pending",
@@ -24997,21 +24962,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 568,
     "y": 969,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 1065,
     "y": 184,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 23,
     "y": 183,
     "status": "pending",
@@ -25046,35 +25011,35 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 874,
     "y": 1002,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 34,
     "y": 762,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 394,
     "y": 522,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 34,
     "y": 402,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 874,
     "y": 42,
     "status": "pending",
@@ -25130,14 +25095,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 689,
     "y": 1041,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 23,
     "y": 93,
     "status": "pending",
@@ -25179,7 +25144,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1133,
     "y": 699,
     "status": "pending",
@@ -25214,7 +25179,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 28,
     "y": 256,
     "status": "pending",
@@ -25235,21 +25200,21 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 23,
     "y": 1143,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 23,
     "y": 423,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 558,
     "y": 914,
     "status": "pending",
@@ -25263,14 +25228,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 798,
     "y": 554,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 271,
     "y": 497,
     "status": "pending",
@@ -25284,7 +25249,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1131,
     "y": 126,
     "status": "pending",
@@ -25319,28 +25284,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 274,
     "y": 834,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 645,
     "y": 625,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 694,
     "y": 776,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 389,
     "y": 984,
     "status": "pending",
@@ -25354,7 +25319,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 899,
     "y": 908,
     "status": "pending",
@@ -25396,7 +25361,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 669,
     "y": 257,
     "status": "pending",
@@ -25410,7 +25375,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 874,
     "y": 547,
     "status": "pending",
@@ -25445,21 +25410,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 852,
     "y": 326,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 947,
     "y": 1011,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 107,
     "y": 51,
     "status": "pending",
@@ -25480,7 +25445,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 956,
     "y": 1004,
     "status": "pending",
@@ -25550,21 +25515,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 471,
     "y": 584,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 231,
     "y": 464,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 856,
     "y": 321,
     "status": "pending",
@@ -25648,14 +25613,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1158,
     "y": 906,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 918,
     "y": 186,
     "status": "pending",
@@ -25676,14 +25641,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 443,
     "y": 688,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 45,
     "y": 1150,
     "status": "pending",
@@ -25718,7 +25683,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 888,
     "y": 643,
     "status": "pending",
@@ -25732,35 +25697,35 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 1125,
     "y": 348,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 429,
     "y": 630,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 1067,
     "y": 561,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 107,
     "y": 441,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 707,
     "y": 201,
     "status": "pending",
@@ -25788,49 +25753,49 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 882,
     "y": 1009,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 42,
     "y": 769,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 402,
     "y": 529,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 42,
     "y": 409,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 882,
     "y": 49,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 216,
     "y": 129,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 135,
     "y": 379,
     "status": "pending",
@@ -25872,7 +25837,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 549,
     "y": 642,
     "status": "pending",
@@ -25893,21 +25858,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1071,
     "y": 563,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 111,
     "y": 443,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 711,
     "y": 203,
     "status": "pending",
@@ -25928,14 +25893,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 364,
     "y": 762,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 724,
     "y": 642,
     "status": "pending",
@@ -25963,42 +25928,42 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 678,
     "y": 700,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 323,
     "y": 773,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 683,
     "y": 413,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1062,
     "y": 566,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 102,
     "y": 446,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 702,
     "y": 206,
     "status": "pending",
@@ -26033,14 +25998,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 373,
     "y": 769,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 733,
     "y": 649,
     "status": "pending",
@@ -26082,7 +26047,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 195,
     "y": 601,
     "status": "pending",
@@ -26138,7 +26103,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 420,
     "y": 997,
     "status": "pending",
@@ -26173,7 +26138,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 414,
     "y": 986,
     "status": "pending",
@@ -26187,7 +26152,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 626,
     "y": 673,
     "status": "pending",
@@ -26208,7 +26173,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 903,
     "y": 132,
     "status": "pending",
@@ -26236,14 +26201,14 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 255,
     "y": 730,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 255,
     "y": 490,
     "status": "pending",
@@ -26278,7 +26243,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 462,
     "y": 88,
     "status": "pending",
@@ -26313,14 +26278,14 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 285,
     "y": 820,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 765,
     "y": 340,
     "status": "pending",
@@ -26348,14 +26313,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1159,
     "y": 781,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 909,
     "y": 814,
     "status": "pending",
@@ -26383,7 +26348,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 715,
     "y": 1053,
     "status": "pending",
@@ -26432,7 +26397,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 148,
     "y": 846,
     "status": "pending",
@@ -26509,7 +26474,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 540,
     "y": 334,
     "status": "pending",
@@ -26544,21 +26509,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 616,
     "y": 694,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 202,
     "y": 833,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 185,
     "y": 1153,
     "status": "pending",
@@ -26572,28 +26537,28 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 653,
     "y": 1118,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 1133,
     "y": 398,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 773,
     "y": 158,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 720,
     "y": 51,
     "status": "pending",
@@ -26621,14 +26586,14 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 772,
     "y": 953,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 1012,
     "y": 233,
     "status": "pending",
@@ -26642,7 +26607,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 859,
     "y": 318,
     "status": "pending",
@@ -26670,7 +26635,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 486,
     "y": 132,
     "status": "pending",
@@ -26684,7 +26649,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 100,
     "y": 1099,
     "status": "pending",
@@ -26698,7 +26663,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 157,
     "y": 877,
     "status": "pending",
@@ -26754,42 +26719,42 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 256,
     "y": 1011,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 736,
     "y": 411,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 437,
     "y": 1032,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 136,
     "y": 622,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 856,
     "y": 622,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 496,
     "y": 142,
     "status": "pending",
@@ -26810,7 +26775,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 189,
     "y": 60,
     "status": "pending",
@@ -26859,7 +26824,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 526,
     "y": 224,
     "status": "pending",
@@ -26887,14 +26852,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 463,
     "y": 593,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 128,
     "y": 926,
     "status": "pending",
@@ -26908,14 +26873,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 710,
     "y": 348,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 950,
     "y": 108,
     "status": "pending",
@@ -26957,7 +26922,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1187,
     "y": 750,
     "status": "pending",
@@ -26971,7 +26936,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 632,
     "y": 540,
     "status": "pending",
@@ -26985,14 +26950,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 124,
     "y": 711,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 223,
     "y": 473,
     "status": "pending",
@@ -27020,21 +26985,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1016,
     "y": 858,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 56,
     "y": 498,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 192,
     "y": 836,
     "status": "pending",
@@ -27055,7 +27020,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 102,
     "y": 745,
     "status": "pending",
@@ -27097,7 +27062,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1175,
     "y": 60,
     "status": "pending",
@@ -27111,14 +27076,14 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 578,
     "y": 916,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 218,
     "y": 796,
     "status": "pending",
@@ -27160,14 +27125,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 694,
     "y": 1114,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 507,
     "y": 396,
     "status": "pending",
@@ -27181,14 +27146,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 791,
     "y": 629,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1065,
     "y": 830,
     "status": "pending",
@@ -27265,7 +27230,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 752,
     "y": 417,
     "status": "pending",
@@ -27279,14 +27244,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 66,
     "y": 352,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 331,
     "y": 85,
     "status": "pending",
@@ -27377,7 +27342,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 530,
     "y": 201,
     "status": "pending",
@@ -27391,7 +27356,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 546,
     "y": 359,
     "status": "pending",
@@ -27419,28 +27384,28 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 105,
     "y": 522,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 345,
     "y": 282,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 645,
     "y": 940,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 645,
     "y": 340,
     "status": "pending",
@@ -27454,7 +27419,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 147,
     "y": 520,
     "status": "pending",
@@ -27482,7 +27447,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 859,
     "y": 883,
     "status": "pending",
@@ -27503,28 +27468,28 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "crystal",
     "x": 139,
     "y": 617,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "crystal",
     "x": 859,
     "y": 617,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "crystal",
     "x": 499,
     "y": 137,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 747,
     "y": 160,
     "status": "pending",
@@ -27566,14 +27531,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 583,
     "y": 919,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 223,
     "y": 799,
     "status": "pending",
@@ -27587,7 +27552,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 166,
     "y": 1093,
     "status": "pending",
@@ -27615,7 +27580,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1168,
     "y": 872,
     "status": "pending",
@@ -27671,14 +27636,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 450,
     "y": 951,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 666,
     "y": 882,
     "status": "pending",
@@ -27692,28 +27657,28 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 645,
     "y": 1122,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1125,
     "y": 402,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 765,
     "y": 162,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 581,
     "y": 1153,
     "status": "pending",
@@ -27741,7 +27706,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 325,
     "y": 1128,
     "status": "pending",
@@ -27769,21 +27734,21 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 1067,
     "y": 676,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 107,
     "y": 556,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 1067,
     "y": 76,
     "status": "pending",
@@ -27804,14 +27769,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 991,
     "y": 199,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 910,
     "y": 326,
     "status": "pending",
@@ -27832,7 +27797,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 629,
     "y": 754,
     "status": "pending",
@@ -27853,14 +27818,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 768,
     "y": 947,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1008,
     "y": 227,
     "status": "pending",
@@ -27895,28 +27860,28 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1096,
     "y": 1066,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 947,
     "y": 137,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 685,
     "y": 559,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1127,
     "y": 701,
     "status": "pending",
@@ -27930,14 +27895,14 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 23,
     "y": 1083,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 23,
     "y": 603,
     "status": "pending",
@@ -27972,14 +27937,14 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 997,
     "y": 1102,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 277,
     "y": 502,
     "status": "pending",
@@ -27993,7 +27958,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 685,
     "y": 260,
     "status": "pending",
@@ -28035,7 +28000,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 631,
     "y": 831,
     "status": "pending",
@@ -28063,7 +28028,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 69,
     "y": 871,
     "status": "pending",
@@ -28077,7 +28042,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 993,
     "y": 1174,
     "status": "pending",
@@ -28119,7 +28084,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 727,
     "y": 402,
     "status": "pending",
@@ -28161,14 +28126,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 575,
     "y": 912,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 215,
     "y": 792,
     "status": "pending",
@@ -28182,7 +28147,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 862,
     "y": 323,
     "status": "pending",
@@ -28252,35 +28217,35 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 196,
     "y": 104,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 126,
     "y": 158,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 585,
     "y": 830,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 585,
     "y": 470,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 661,
     "y": 628,
     "status": "pending",
@@ -28322,28 +28287,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 152,
     "y": 12,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 872,
     "y": 12,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1112,
     "y": 12,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 733,
     "y": 468,
     "status": "pending",
@@ -28357,21 +28322,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 528,
     "y": 1098,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 768,
     "y": 858,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 768,
     "y": 258,
     "status": "pending",
@@ -28427,7 +28392,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 955,
     "y": 453,
     "status": "pending",
@@ -28441,7 +28406,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 663,
     "y": 296,
     "status": "pending",
@@ -28462,49 +28427,49 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 303,
     "y": 320,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 46,
     "y": 1034,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 1126,
     "y": 554,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 46,
     "y": 434,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 46,
     "y": 194,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 166,
     "y": 194,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 1174,
     "y": 726,
     "status": "pending",
@@ -28518,21 +28483,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 587,
     "y": 49,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 115,
     "y": 528,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 355,
     "y": 288,
     "status": "pending",
@@ -28567,7 +28532,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 678,
     "y": 490,
     "status": "pending",
@@ -28581,7 +28546,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 110,
     "y": 1116,
     "status": "pending",
@@ -28609,28 +28574,28 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1065,
     "y": 1032,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 225,
     "y": 432,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 531,
     "y": 821,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 281,
     "y": 883,
     "status": "pending",
@@ -28651,7 +28616,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 820,
     "y": 871,
     "status": "pending",
@@ -28700,21 +28665,21 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 23,
     "y": 994,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 368,
     "y": 767,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 728,
     "y": 647,
     "status": "pending",
@@ -28735,21 +28700,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 912,
     "y": 1129,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 791,
     "y": 283,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1024,
     "y": 1174,
     "status": "pending",
@@ -28763,14 +28728,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 465,
     "y": 581,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 225,
     "y": 461,
     "status": "pending",
@@ -28784,21 +28749,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1131,
     "y": 704,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 1159,
     "y": 642,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 1159,
     "y": 42,
     "status": "pending",
@@ -28812,7 +28777,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 178,
     "y": 408,
     "status": "pending",
@@ -28847,28 +28812,28 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 556,
     "y": 1093,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 76,
     "y": 733,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 1156,
     "y": 733,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 1036,
     "y": 493,
     "status": "pending",
@@ -28903,35 +28868,35 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 875,
     "y": 984,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 740,
     "y": 344,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 445,
     "y": 1038,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 766,
     "y": 951,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 1006,
     "y": 231,
     "status": "pending",
@@ -28952,7 +28917,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 1096,
     "y": 253,
     "status": "pending",
@@ -28980,7 +28945,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 27,
     "y": 638,
     "status": "pending",
@@ -28994,7 +28959,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 170,
     "y": 1136,
     "status": "pending",
@@ -29064,7 +29029,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 128,
     "y": 686,
     "status": "pending",
@@ -29092,21 +29057,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 1071,
     "y": 1034,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 231,
     "y": 434,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 80,
     "y": 126,
     "status": "pending",
@@ -29120,14 +29085,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 1002,
     "y": 1099,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 282,
     "y": 499,
     "status": "pending",
@@ -29141,7 +29106,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 899,
     "y": 146,
     "status": "pending",
@@ -29155,14 +29120,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 999,
     "y": 1097,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 279,
     "y": 497,
     "status": "pending",
@@ -29176,70 +29141,70 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 23,
     "y": 394,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 23,
     "y": 154,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1054,
     "y": 275,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 587,
     "y": 1159,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 522,
     "y": 1105,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 762,
     "y": 865,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 762,
     "y": 265,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 23,
     "y": 34,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 728,
     "y": 467,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 1155,
     "y": 1150,
     "status": "pending",
@@ -29260,21 +29225,21 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 196,
     "y": 1154,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 1036,
     "y": 1154,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 1036,
     "y": 194,
     "status": "pending",
@@ -29330,7 +29295,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 198,
     "y": 825,
     "status": "pending",
@@ -29344,28 +29309,28 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 526,
     "y": 1102,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 766,
     "y": 862,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 766,
     "y": 262,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 353,
     "y": 642,
     "status": "pending",
@@ -29386,7 +29351,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 114,
     "y": 1009,
     "status": "pending",
@@ -29400,35 +29365,35 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 317,
     "y": 771,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 677,
     "y": 411,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 132,
     "y": 625,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 852,
     "y": 625,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 492,
     "y": 145,
     "status": "pending",
@@ -29456,7 +29421,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 904,
     "y": 708,
     "status": "pending",
@@ -29470,14 +29435,14 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 271,
     "y": 461,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 109,
     "y": 737,
     "status": "pending",
@@ -29554,7 +29519,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 345,
     "y": 1178,
     "status": "pending",
@@ -29582,7 +29547,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 820,
     "y": 419,
     "status": "pending",
@@ -29631,14 +29596,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 288,
     "y": 327,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 685,
     "y": 490,
     "status": "pending",
@@ -29666,35 +29631,35 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 50,
     "y": 612,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 1155,
     "y": 640,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 1155,
     "y": 40,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 736,
     "y": 78,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 274,
     "y": 303,
     "status": "pending",
@@ -29736,7 +29701,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 673,
     "y": 980,
     "status": "pending",
@@ -29750,21 +29715,21 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 581,
     "y": 43,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 915,
     "y": 700,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 860,
     "y": 827,
     "status": "pending",
@@ -29778,7 +29743,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 50,
     "y": 42,
     "status": "pending",
@@ -29827,35 +29792,35 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 1151,
     "y": 642,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 1151,
     "y": 42,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 288,
     "y": 883,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 585,
     "y": 40,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 28,
     "y": 389,
     "status": "pending",
@@ -29897,7 +29862,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 799,
     "y": 283,
     "status": "pending",
@@ -29911,7 +29876,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 1151,
     "y": 1153,
     "status": "pending",
@@ -29967,77 +29932,77 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 1156,
     "y": 1005,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 676,
     "y": 45,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 947,
     "y": 1158,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 227,
     "y": 1038,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 347,
     "y": 918,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 943,
     "y": 1158,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 223,
     "y": 1038,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 343,
     "y": 918,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 676,
     "y": 1125,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 852,
     "y": 883,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 915,
     "y": 613,
     "status": "pending",
@@ -30058,7 +30023,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 500,
     "y": 1067,
     "status": "pending",
@@ -30072,7 +30037,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 467,
     "y": 318,
     "status": "pending",
@@ -30093,28 +30058,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 673,
     "y": 259,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 380,
     "y": 318,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 376,
     "y": 318,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 947,
     "y": 438,
     "status": "pending",
@@ -30142,14 +30107,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 740,
     "y": 78,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1068,
     "y": 568,
     "status": "pending",
@@ -30163,7 +30128,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 943,
     "y": 438,
     "status": "pending",
@@ -30177,7 +30142,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 304,
     "y": 481,
     "status": "pending",
@@ -30191,14 +30156,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 463,
     "y": 318,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 319,
     "y": 313,
     "status": "pending",
@@ -30233,14 +30198,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 475,
     "y": 588,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 235,
     "y": 468,
     "status": "pending",
@@ -30261,7 +30226,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 1159,
     "y": 1152,
     "status": "pending",
@@ -30275,7 +30240,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 904,
     "y": 1122,
     "status": "pending",
@@ -30289,14 +30254,14 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 947,
     "y": 133,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 585,
     "y": 650,
     "status": "pending",
@@ -30310,7 +30275,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 318,
     "y": 318,
     "status": "pending",
@@ -30331,7 +30296,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 388,
     "y": 516,
     "status": "pending",
@@ -30387,7 +30352,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 442,
     "y": 1034,
     "status": "pending",
@@ -30401,7 +30366,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 885,
     "y": 1070,
     "status": "pending",
@@ -30422,14 +30387,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1005,
     "y": 350,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 285,
     "y": 1070,
     "status": "pending",
@@ -30443,14 +30408,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1007,
     "y": 851,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 47,
     "y": 491,
     "status": "pending",
@@ -30471,14 +30436,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 765,
     "y": 139,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 165,
     "y": 859,
     "status": "pending",
@@ -30527,14 +30492,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 252,
     "y": 1016,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 732,
     "y": 416,
     "status": "pending",
@@ -30555,14 +30520,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 572,
     "y": 944,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 932,
     "y": 344,
     "status": "pending",
@@ -30583,7 +30548,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 827,
     "y": 467,
     "status": "pending",
@@ -30604,42 +30569,42 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1075,
     "y": 1038,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 235,
     "y": 438,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 557,
     "y": 1097,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 77,
     "y": 737,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1157,
     "y": 737,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1037,
     "y": 497,
     "status": "pending",
@@ -30660,7 +30625,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 467,
     "y": 707,
     "status": "pending",
@@ -30709,7 +30674,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 707,
     "y": 707,
     "status": "pending",
@@ -30744,35 +30709,35 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 950,
     "y": 1158,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 230,
     "y": 1038,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 350,
     "y": 918,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 470,
     "y": 318,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 496,
     "y": 1067,
     "status": "pending",
@@ -30786,7 +30751,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 71,
     "y": 883,
     "status": "pending",
@@ -30814,7 +30779,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 950,
     "y": 438,
     "status": "pending",
@@ -30828,14 +30793,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 979,
     "y": 853,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1099,
     "y": 373,
     "status": "pending",
@@ -30849,7 +30814,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 856,
     "y": 827,
     "status": "pending",
@@ -30877,7 +30842,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 311,
     "y": 314,
     "status": "pending",
@@ -30891,7 +30856,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 913,
     "y": 1038,
     "status": "pending",
@@ -30940,7 +30905,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 196,
     "y": 831,
     "status": "pending",
@@ -30961,7 +30926,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 23,
     "y": 754,
     "status": "pending",
@@ -30996,21 +30961,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 349,
     "y": 1003,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 829,
     "y": 1003,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 733,
     "y": 78,
     "status": "pending",
@@ -31024,63 +30989,63 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 1139,
     "y": 285,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 858,
     "y": 888,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 552,
     "y": 919,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 792,
     "y": 559,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 341,
     "y": 1093,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1157,
     "y": 649,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1157,
     "y": 49,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 221,
     "y": 373,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 103,
     "y": 742,
     "status": "pending",
@@ -31094,7 +31059,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 373,
     "y": 318,
     "status": "pending",
@@ -31122,14 +31087,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 349,
     "y": 1093,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 229,
     "y": 373,
     "status": "pending",
@@ -31143,7 +31108,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 585,
     "y": 1150,
     "status": "pending",
@@ -31185,14 +31150,14 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 312,
     "y": 775,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 672,
     "y": 415,
     "status": "pending",
@@ -31213,7 +31178,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 710,
     "y": 707,
     "status": "pending",
@@ -31234,7 +31199,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 665,
     "y": 252,
     "status": "pending",
@@ -31248,35 +31213,35 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 463,
     "y": 707,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 703,
     "y": 707,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 823,
     "y": 467,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 917,
     "y": 1038,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 95,
     "y": 588,
     "status": "pending",
@@ -31304,14 +31269,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 50,
     "y": 1152,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 587,
     "y": 1155,
     "status": "pending",
@@ -31325,70 +31290,70 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 589,
     "y": 42,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 1145,
     "y": 913,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 1145,
     "y": 433,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 905,
     "y": 193,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 587,
     "y": 45,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 549,
     "y": 192,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 703,
     "y": 1008,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 334,
     "y": 679,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 470,
     "y": 707,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 765,
     "y": 649,
     "status": "pending",
@@ -31402,7 +31367,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 405,
     "y": 649,
     "status": "pending",
@@ -31423,7 +31388,7 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 830,
     "y": 467,
     "status": "pending",
@@ -31479,14 +31444,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 859,
     "y": 1123,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 170,
     "y": 947,
     "status": "pending",
@@ -31500,7 +31465,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 589,
     "y": 643,
     "status": "pending",
@@ -31514,7 +31479,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 316,
     "y": 314,
     "status": "pending",
@@ -31535,35 +31500,35 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 720,
     "y": 1062,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 290,
     "y": 827,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 170,
     "y": 707,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 770,
     "y": 347,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 437,
     "y": 107,
     "status": "pending",
@@ -31577,28 +31542,28 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 1157,
     "y": 645,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 1157,
     "y": 45,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 677,
     "y": 587,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 1157,
     "y": 1155,
     "status": "pending",
@@ -31612,28 +31577,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 917,
     "y": 707,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 1157,
     "y": 947,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 77,
     "y": 827,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 437,
     "y": 227,
     "status": "pending",
@@ -31654,28 +31619,28 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 341,
     "y": 1003,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 821,
     "y": 1003,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 347,
     "y": 1007,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 827,
     "y": 1007,
     "status": "pending",
@@ -31703,21 +31668,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 552,
     "y": 379,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 672,
     "y": 859,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 312,
     "y": 619,
     "status": "pending",
@@ -31731,21 +31696,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 433,
     "y": 107,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 347,
     "y": 1097,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 227,
     "y": 377,
     "status": "pending",
@@ -31759,7 +31724,7 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 673,
     "y": 587,
     "status": "pending",
@@ -31773,70 +31738,70 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 70,
     "y": 375,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 50,
     "y": 947,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 650,
     "y": 947,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 1130,
     "y": 467,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 650,
     "y": 347,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 650,
     "y": 227,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 460,
     "y": 612,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 871,
     "y": 47,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 349,
     "y": 193,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 349,
     "y": 73,
     "status": "pending",
@@ -31850,14 +31815,14 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 871,
     "y": 1007,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1067,
     "y": 1008,
     "status": "pending",
@@ -31871,21 +31836,21 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 910,
     "y": 1032,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 46,
     "y": 1159,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 191,
     "y": 793,
     "status": "pending",
@@ -31899,7 +31864,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 40,
     "y": 1153,
     "status": "pending",
@@ -31927,14 +31892,14 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 530,
     "y": 558,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 798,
     "y": 288,
     "status": "pending",
@@ -31948,21 +31913,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 290,
     "y": 1158,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1130,
     "y": 798,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 493,
     "y": 1067,
     "status": "pending",
@@ -31976,7 +31941,7 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 581,
     "y": 643,
     "status": "pending",
@@ -31990,7 +31955,7 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1063,
     "y": 1008,
     "status": "pending",
@@ -32004,21 +31969,21 @@
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 707,
     "y": 1008,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 164,
     "y": 255,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 433,
     "y": 227,
     "status": "pending",
@@ -32032,14 +31997,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 913,
     "y": 707,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1128,
     "y": 883,
     "status": "pending",
@@ -32053,14 +32018,14 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 73,
     "y": 827,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 1153,
     "y": 947,
     "status": "pending",
@@ -32074,98 +32039,98 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 526,
     "y": 558,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 1004,
     "y": 735,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 460,
     "y": 972,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 442,
     "y": 1038,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "gold",
     "x": 334,
     "y": 26,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 40,
     "y": 43,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "wood",
     "x": 518,
     "y": 331,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 48,
     "y": 344,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 888,
     "y": 344,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 856,
     "y": 1127,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "gold",
     "x": 44,
     "y": 613,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1130,
     "y": 318,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1126,
     "y": 318,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 853,
     "y": 827,
     "status": "pending",
@@ -32179,56 +32144,56 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 133,
     "y": 622,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 853,
     "y": 622,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 493,
     "y": 142,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 256,
     "y": 48,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 976,
     "y": 48,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "gold",
     "x": 140,
     "y": 375,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 913,
     "y": 528,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 313,
     "y": 408,
     "status": "pending",
@@ -32263,35 +32228,35 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 882,
     "y": 649,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 616,
     "y": 528,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 1060,
     "y": 1002,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 286,
     "y": 1158,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1126,
     "y": 798,
     "status": "pending",
@@ -32312,42 +32277,42 @@
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 700,
     "y": 1002,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 260,
     "y": 48,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 980,
     "y": 48,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 910,
     "y": 522,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 310,
     "y": 402,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 160,
     "y": 255,
     "status": "pending",
@@ -32375,273 +32340,273 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 44,
     "y": 348,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 884,
     "y": 348,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 354,
     "y": 1190,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 594,
     "y": 1190,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 834,
     "y": 1190,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 134,
     "y": 495,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 856,
     "y": 168,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 614,
     "y": 735,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 166,
     "y": 947,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 46,
     "y": 947,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 646,
     "y": 947,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 1126,
     "y": 467,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 646,
     "y": 347,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 646,
     "y": 227,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 734,
     "y": 199,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 854,
     "y": 79,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 254,
     "y": 735,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 254,
     "y": 495,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 940,
     "y": 432,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 1121,
     "y": 883,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 585,
-    "y": 824,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 585,
-    "y": 464,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 849,
-    "y": 162,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 249,
-    "y": 42,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "stone",
-    "x": 77,
-    "y": 377,
-    "status": "pending",
-    "source": "detected"
-  },
-  {
-    "type": "food",
-    "x": 1065,
     "y": 824,
     "status": "pending",
     "source": "detected"
   },
   {
     "type": "gold",
+    "x": 585,
+    "y": 464,
+    "status": "pending",
+    "source": "detected"
+  },
+  {
+    "type": "stone",
+    "x": 849,
+    "y": 162,
+    "status": "pending",
+    "source": "detected"
+  },
+  {
+    "type": "stone",
+    "x": 249,
+    "y": 42,
+    "status": "pending",
+    "source": "detected"
+  },
+  {
+    "type": "crystal",
+    "x": 77,
+    "y": 377,
+    "status": "pending",
+    "source": "detected"
+  },
+  {
+    "type": "gold",
+    "x": 1065,
+    "y": 824,
+    "status": "pending",
+    "source": "detected"
+  },
+  {
+    "type": "crystal",
     "x": 783,
     "y": 667,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 739,
     "y": 193,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 859,
     "y": 73,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 340,
     "y": 912,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 220,
     "y": 1032,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 969,
     "y": 42,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 1071,
     "y": 1002,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1175,
     "y": 1110,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 940,
     "y": 1152,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 710,
     "y": 1008,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 711,
     "y": 1002,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 249,
     "y": 732,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 249,
     "y": 492,
     "status": "pending",
@@ -32655,35 +32620,35 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 1070,
     "y": 1008,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 197,
     "y": 107,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 286,
     "y": 1188,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 406,
     "y": 1188,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "food",
     "x": 1157,
     "y": 1159,
     "status": "pending",
@@ -32697,63 +32662,63 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 620,
     "y": 528,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 260,
     "y": 737,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 260,
     "y": 497,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 135,
     "y": 373,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 129,
     "y": 492,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "stone",
     "x": 609,
     "y": 522,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 609,
     "y": 732,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "crystal",
     "x": 1012,
     "y": 857,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "crystal",
     "x": 52,
     "y": 497,
     "status": "pending",
@@ -32774,175 +32739,175 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 140,
     "y": 497,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "stone",
     "x": 1000,
     "y": 735,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 620,
     "y": 737,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 286,
     "y": 827,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 166,
     "y": 707,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "crystal",
     "x": 766,
     "y": 347,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 460,
     "y": 312,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 136,
     "y": 1003,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 136,
     "y": 643,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 616,
     "y": 163,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 136,
     "y": 43,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 796,
     "y": 284,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 1175,
     "y": 510,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "stone",
     "x": 910,
     "y": 701,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 471,
     "y": 587,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 231,
     "y": 467,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 917,
     "y": 528,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 317,
     "y": 408,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "wood",
     "x": 589,
     "y": 1152,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 285,
     "y": 1064,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 885,
     "y": 1064,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 1005,
     "y": 344,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 430,
     "y": 101,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 520,
     "y": 552,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "wood",
+    "type": "stone",
     "x": 860,
     "y": 168,
     "status": "pending",
@@ -32956,14 +32921,14 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 942,
     "y": 1015,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "wood",
     "x": 102,
     "y": 55,
     "status": "pending",
@@ -32977,21 +32942,21 @@
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "wood",
     "x": 73,
     "y": 375,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 1120,
     "y": 792,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "crystal",
+    "type": "food",
     "x": 280,
     "y": 1152,
     "status": "pending",
@@ -33005,7 +32970,7 @@
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "crystal",
     "x": 322,
     "y": 1127,
     "status": "pending",
@@ -33019,28 +32984,28 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 471,
     "y": 312,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 347,
     "y": 196,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "gold",
+    "type": "food",
     "x": 347,
     "y": 76,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "crystal",
     "x": 310,
     "y": 812,
     "status": "pending",
@@ -33054,35 +33019,35 @@
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "crystal",
     "x": 467,
     "y": 617,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "food",
+    "type": "gold",
     "x": 40,
     "y": 613,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 951,
     "y": 1152,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 231,
     "y": 1032,
     "status": "pending",
     "source": "detected"
   },
   {
-    "type": "stone",
+    "type": "food",
     "x": 351,
     "y": 912,
     "status": "pending",
