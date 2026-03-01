@@ -36,12 +36,8 @@ const CONTRAST_MIN = 35;
 const FULL_RES_SAMPLE_RADIUS = 10;
 /** Minimum whiteness for a pixel to be considered part of the icon (not terrain) */
 const ICON_WHITENESS_MIN = 65;
-/** KNN K value for classification */
+/** KNN K value for color tiebreaker */
 const KNN_K = 7;
-/** Maximum training samples per class for balanced KNN */
-const MAX_PER_CLASS = 150;
-/** Distance threshold in normalized space: fall back to centroid if nearest neighbor exceeds this */
-const CENTROID_FALLBACK_DIST = 4;
 
 /**
  * Whiteness score for a single pixel.
@@ -58,191 +54,125 @@ function pixelWhiteness(r: number, g: number, b: number): number {
   return Math.max(0, brightness - spread * 1.5);
 }
 
-// ─── Combined feature vector classifier ────────────────────────────
+// ─── Shape-primary classifier with color tiebreaker ─────────────────
 //
-// Each node gets an N-dimensional feature vector combining:
-//   - Color: opponent channels (rg, yb, sat) from full-res pixel sampling
-//   - Shape: NCC scores against each type's whiteness template (one per type)
-//
-// All dimensions are z-score normalized so shape (stronger signal) naturally
-// dominates, while color acts as a tiebreaker for similar shapes.
+// Shape (NCC template matching) is the primary classifier.
+// Color (opponent channels) is used as a surgical tiebreaker ONLY when
+// the NCC margin between the top 2 types is below a threshold.
+// This avoids the 8-dim combined approach which added correlated noise.
 
-/** Generic N-dimensional training sample */
-interface FeatureSample {
+/** NCC margin threshold: if best - 2nd best NCC < this, use color to break tie */
+const NCC_MARGIN_THRESHOLD = 0.015;
+
+/** Color training sample for tiebreaker KNN */
+interface TintSample {
   type: RssNodeType;
-  features: number[];
+  rg: number;
+  yb: number;
+  sat: number;
 }
 
-/** Z-score normalization: per-dimension mean + std */
-interface FeatureNormParams {
-  means: number[];
-  stds: number[];
+/** Z-score normalization for color channels */
+interface ColorNormParams {
+  rgMean: number; rgStd: number;
+  ybMean: number; ybStd: number;
+  satMean: number; satStd: number;
 }
 
-/** Compute z-score params from training samples */
-function computeFeatureNorm(samples: FeatureSample[]): FeatureNormParams {
+function computeColorNorm(samples: TintSample[]): ColorNormParams {
   const n = samples.length;
-  if (n === 0) return { means: [], stds: [] };
-  const dim = samples[0].features.length;
+  if (n === 0) return { rgMean: 0, rgStd: 1, ybMean: 0, ybStd: 1, satMean: 0, satStd: 1 };
 
-  const means = new Array(dim).fill(0);
-  for (const s of samples) for (let d = 0; d < dim; d++) means[d] += s.features[d];
-  for (let d = 0; d < dim; d++) means[d] /= n;
+  let rgSum = 0, ybSum = 0, satSum = 0;
+  for (const s of samples) { rgSum += s.rg; ybSum += s.yb; satSum += s.sat; }
+  const rgMean = rgSum / n, ybMean = ybSum / n, satMean = satSum / n;
 
-  const stds = new Array(dim).fill(0);
-  for (const s of samples) for (let d = 0; d < dim; d++) stds[d] += (s.features[d] - means[d]) ** 2;
-  for (let d = 0; d < dim; d++) stds[d] = Math.max(0.01, Math.sqrt(stds[d] / n));
-
-  return { means, stds };
-}
-
-/** Apply z-score normalization to a feature vector */
-function normalizeFeatures(f: number[], p: FeatureNormParams): number[] {
-  return f.map((v, i) => (v - p.means[i]) / p.stds[i]);
-}
-
-/** Euclidean distance between two feature vectors */
-function featureDist(a: number[], b: number[]): number {
-  let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += (a[i] - b[i]) ** 2;
-  return Math.sqrt(sum);
-}
-
-/**
- * Subsample training data so each class has at most MAX_PER_CLASS samples.
- * Uses deterministic stride-based selection for reproducibility.
- */
-function balanceFeatureSamples(samples: FeatureSample[]): FeatureSample[] {
-  const byType: Partial<Record<RssNodeType, FeatureSample[]>> = {};
-  for (const s of samples) (byType[s.type] ??= []).push(s);
-
-  const result: FeatureSample[] = [];
-  for (const group of Object.values(byType)) {
-    if (!group) continue;
-    if (group.length <= MAX_PER_CLASS) {
-      result.push(...group);
-    } else {
-      const stride = group.length / MAX_PER_CLASS;
-      for (let i = 0; i < MAX_PER_CLASS; i++) result.push(group[Math.floor(i * stride)]);
-    }
-  }
-  return result;
-}
-
-/** Per-class centroid in normalized feature space */
-interface FeatureCentroid { type: RssNodeType; features: number[] }
-
-/** Compute per-class centroids from all samples in normalized space */
-function computeFeatureCentroids(samples: FeatureSample[], norm: FeatureNormParams): FeatureCentroid[] {
-  const accum: Partial<Record<RssNodeType, { sums: number[]; n: number }>> = {};
+  let rgVar = 0, ybVar = 0, satVar = 0;
   for (const s of samples) {
-    const nz = normalizeFeatures(s.features, norm);
-    const a = accum[s.type] ??= { sums: new Array(nz.length).fill(0), n: 0 };
-    for (let d = 0; d < nz.length; d++) a.sums[d] += nz[d];
-    a.n++;
+    rgVar += (s.rg - rgMean) ** 2;
+    ybVar += (s.yb - ybMean) ** 2;
+    satVar += (s.sat - satMean) ** 2;
   }
-  return Object.entries(accum)
-    .filter(([, a]) => a && a.n > 0)
-    .map(([type, a]) => ({ type: type as RssNodeType, features: a!.sums.map((v) => v / a!.n) }));
+  return {
+    rgMean, rgStd: Math.max(1, Math.sqrt(rgVar / n)),
+    ybMean, ybStd: Math.max(1, Math.sqrt(ybVar / n)),
+    satMean, satStd: Math.max(1, Math.sqrt(satVar / n)),
+  };
 }
 
-/** Nearest-centroid classifier */
-function classifyByCentroid(q: number[], centroids: FeatureCentroid[]): RssNodeType {
-  let bestType: RssNodeType = 'food';
-  let bestDist = Infinity;
-  for (const c of centroids) {
-    const d = featureDist(q, c.features);
-    if (d < bestDist) { bestDist = d; bestType = c.type; }
-  }
-  return bestType;
+function normalizeColor(t: { rg: number; yb: number; sat: number }, p: ColorNormParams) {
+  return {
+    rg: (t.rg - p.rgMean) / p.rgStd,
+    yb: (t.yb - p.ybMean) / p.ybStd,
+    sat: (t.sat - p.satMean) / p.satStd,
+  };
+}
+
+function colorDist(a: { rg: number; yb: number; sat: number }, b: { rg: number; yb: number; sat: number }): number {
+  return Math.sqrt((a.rg - b.rg) ** 2 + (a.yb - b.yb) ** 2 + (a.sat - b.sat) ** 2);
 }
 
 /**
- * Balanced KNN classifier with centroid fallback on combined feature vectors.
- * Expects pre-normalized, pre-balanced samples and a normalized query vector.
+ * Color tiebreaker: given a query tint and two candidate types,
+ * pick the type whose training samples are closer in color space.
+ * Only considers samples of the two candidate types (binary decision).
  */
-function classifyByKnn(
-  queryNorm: number[],
-  samples: FeatureSample[],
-  centroids: FeatureCentroid[],
+function colorTiebreak(
+  query: { rg: number; yb: number; sat: number },
+  typeA: RssNodeType, typeB: RssNodeType,
+  colorSamples: TintSample[],
+  colorNorm: ColorNormParams,
 ): RssNodeType {
-  if (samples.length === 0) return classifyByCentroid(queryNorm, centroids);
+  const qn = normalizeColor(query, colorNorm);
+  const candidates = colorSamples.filter((s) => s.type === typeA || s.type === typeB);
+  if (candidates.length === 0) return typeA;
 
-  const dists = samples.map((s, i) => ({ i, dist: featureDist(queryNorm, s.features) }));
+  // Distance-weighted vote between just the two types
+  const dists = candidates.map((s) => ({
+    type: s.type,
+    dist: colorDist(qn, normalizeColor(s, colorNorm)),
+  }));
   dists.sort((a, b) => a.dist - b.dist);
 
-  // Centroid fallback when nearest neighbor is too far
-  if (dists[0].dist > CENTROID_FALLBACK_DIST && centroids.length > 0) {
-    return classifyByCentroid(queryNorm, centroids);
-  }
-
-  // Distance-weighted vote among K nearest
   const k = Math.min(KNN_K, dists.length);
-  const votes: Partial<Record<RssNodeType, number>> = {};
+  let voteA = 0, voteB = 0;
   for (let i = 0; i < k; i++) {
-    const type = samples[dists[i].i].type;
-    const weight = 1 / (dists[i].dist + 0.01);
-    votes[type] = (votes[type] || 0) + weight;
+    const w = 1 / (dists[i].dist + 0.01);
+    if (dists[i].type === typeA) voteA += w; else voteB += w;
   }
-
-  let bestType: RssNodeType = 'food';
-  let bestWeight = 0;
-  for (const [type, weight] of Object.entries(votes)) {
-    if (weight! > bestWeight) { bestWeight = weight!; bestType = type as RssNodeType; }
-  }
-  return bestType;
-}
-
-/** The ordered list of RSS types used as NCC score dimensions */
-const RSS_TYPES_ORDERED: RssNodeType[] = ['food', 'wood', 'stone', 'gold', 'crystal'];
-
-/**
- * Build a combined feature vector for a node position.
- * Returns [rg, yb, sat, ncc_food, ncc_wood, ncc_stone, ncc_gold, ncc_crystal]
- * or null if both color and shape fail.
- */
-function buildFeatureVector(
-  fullPixels: Uint8ClampedArray, fullW: number, fullH: number,
-  wMap: Float32Array, dsW: number, dsH: number,
-  gameX: number, gameY: number,
-  templates: TypedTemplate[],
-): number[] | null {
-  // Color features (3 dims)
-  const fullCx = Math.round((gameX / GAME_MAP_SIZE) * fullW);
-  const fullCy = Math.round((1 - gameY / GAME_MAP_SIZE) * fullH);
-  const tint = sampleIconTint(fullPixels, fullW, fullH, fullCx, fullCy);
-
-  // Shape features (5 dims — NCC score per type)
-  const dsCx = Math.round((gameX / GAME_MAP_SIZE) * dsW);
-  const dsCy = Math.round((1 - gameY / GAME_MAP_SIZE) * dsH);
-  const shapeResult = classifyByTemplateNcc(wMap, dsW, dsH, dsCx, dsCy, templates);
-
-  // Need at least one signal
-  if (!tint && !shapeResult) return null;
-
-  // Build NCC scores array in fixed order; 0 if template missing or match failed
-  const nccScores = RSS_TYPES_ORDERED.map((t) => shapeResult?.allScores[t] ?? 0);
-
-  // Default color to neutral if sampling failed
-  const rg = tint?.rg ?? 0;
-  const yb = tint?.yb ?? 0;
-  const sat = tint?.sat ?? 0;
-
-  return [rg, yb, sat, ...nccScores];
+  return voteA >= voteB ? typeA : typeB;
 }
 
 /**
- * Prepare balanced, normalized training data for combined KNN classification.
+ * Classify a node: shape (NCC) primary, color tiebreaker when margin is low.
  */
-function prepareClassifier(rawSamples: FeatureSample[]) {
-  const norm = computeFeatureNorm(rawSamples);
-  const centroids = computeFeatureCentroids(rawSamples, norm);
-  const balanced = balanceFeatureSamples(rawSamples);
-  const balancedNorm: FeatureSample[] = balanced.map((s) => ({
-    type: s.type,
-    features: normalizeFeatures(s.features, norm),
-  }));
-  return { balancedNorm, centroids, norm };
+function classifyNode(
+  shapeResult: { type: RssNodeType; score: number; allScores: Record<string, number> },
+  tint: { rg: number; yb: number; sat: number } | null,
+  colorSamples: TintSample[],
+  colorNorm: ColorNormParams,
+): RssNodeType {
+  // Sort NCC scores to find top 2
+  const sorted = Object.entries(shapeResult.allScores)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (sorted.length < 2) return shapeResult.type;
+
+  const margin = sorted[0][1] - sorted[1][1];
+
+  // High confidence shape match — trust shape alone
+  if (margin >= NCC_MARGIN_THRESHOLD || !tint || colorSamples.length === 0) {
+    return shapeResult.type;
+  }
+
+  // Low margin — use color to break tie between top 2 shape candidates
+  return colorTiebreak(
+    tint,
+    sorted[0][0] as RssNodeType,
+    sorted[1][0] as RssNodeType,
+    colorSamples,
+    colorNorm,
+  );
 }
 
 /** Whiteness template with type info preserved for shape-based classification */
@@ -418,22 +348,18 @@ function sampleIconTint(
 }
 
 /**
- * Build combined feature samples from annotations.
- * Each sample has [rg, yb, sat, ncc_food, ncc_wood, ncc_stone, ncc_gold, ncc_crystal].
+ * Build color tint samples from annotations for the color tiebreaker.
  */
-function buildFeatureSamples(
-  fullPixels: Uint8ClampedArray, fullW: number, fullH: number,
-  wMap: Float32Array, dsW: number, dsH: number,
+function buildTintSamples(
+  pixels: Uint8ClampedArray, w: number, h: number,
   annotations: AnnotationSample[],
-  templates: TypedTemplate[],
-): FeatureSample[] {
-  const samples: FeatureSample[] = [];
+): TintSample[] {
+  const samples: TintSample[] = [];
   for (const ann of annotations) {
-    const features = buildFeatureVector(
-      fullPixels, fullW, fullH, wMap, dsW, dsH,
-      ann.x, ann.y, templates,
-    );
-    if (features) samples.push({ type: ann.type, features });
+    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
+    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
+    const tint = sampleIconTint(pixels, w, h, cx, cy);
+    if (tint) samples.push({ type: ann.type, ...tint });
   }
   return samples;
 }
@@ -511,17 +437,13 @@ export async function detectNodesPixel(
     return [];
   }
 
-  // ── Load full-res pixels for color features ──
-  onProgress?.('Loading full-res pixels for color features...');
+  // ── Load full-res pixels for color tiebreaker ──
+  onProgress?.('Loading full-res pixels for color tiebreaker...');
   const full = getFullResPixels(img);
+  const colorSamples = buildTintSamples(full.pixels, full.w, full.h, annotations);
+  const colorNorm = computeColorNorm(colorSamples);
 
-  // ── Build combined feature samples and train KNN ──
-  const featureSamples = buildFeatureSamples(
-    full.pixels, full.w, full.h, wMap, w, h, annotations, wTemplates,
-  );
-  const { balancedNorm, centroids, norm } = prepareClassifier(featureSamples);
-
-  onProgress?.(`Built ${wTemplates.length} templates + ${featureSamples.length} training samples (${balancedNorm.length} balanced), scanning ${w}x${h}...`);
+  onProgress?.(`Built ${wTemplates.length} templates + ${colorSamples.length} color samples, scanning ${w}x${h}...`);
 
   // ── Stage 1: Detect candidates using whiteness NCC ──
   const candidates: { x: number; y: number; score: number }[] = [];
@@ -581,7 +503,7 @@ export async function detectNodesPixel(
 
   onProgress?.(`After NMS: ${kept.length} nodes. Classifying types...`);
 
-  // ── Stage 2: Classify using combined shape+color KNN ──
+  // ── Stage 2: Classify — shape primary, color tiebreaker on low margin ──
   const detectedNodes: DetectedPixelNode[] = [];
 
   for (let ci = 0; ci < kept.length; ci++) {
@@ -589,12 +511,15 @@ export async function detectNodesPixel(
     const gameX = Math.round((sx / w) * GAME_MAP_SIZE);
     const gameY = Math.round((1 - sy / h) * GAME_MAP_SIZE);
 
+    // Shape classification
+    const shapeResult = classifyByTemplateNcc(wMap, w, h, sx, sy, wTemplates);
     let bestType: RssNodeType = 'food';
-    const features = buildFeatureVector(
-      full.pixels, full.w, full.h, wMap, w, h, gameX, gameY, wTemplates,
-    );
-    if (features && balancedNorm.length > 0) {
-      bestType = classifyByKnn(normalizeFeatures(features, norm), balancedNorm, centroids);
+    if (shapeResult) {
+      // Sample color for potential tiebreaker
+      const fullX = Math.round((sx / w) * full.w);
+      const fullY = Math.round((sy / h) * full.h);
+      const tint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
+      bestType = classifyNode(shapeResult, tint, colorSamples, colorNorm);
     }
 
     detectedNodes.push({ x: gameX, y: gameY, type: bestType });
@@ -611,7 +536,7 @@ export async function detectNodesPixel(
 
 /**
  * Re-classify pending detected nodes using corrected nodes as better training data.
- * Uses combined shape+color KNN on 8-dim feature vectors.
+ * Shape (NCC) primary, color tiebreaker when margin is low.
  */
 export async function reclassifyNodeTypes(
   imageUrl: string,
@@ -651,53 +576,73 @@ export async function reclassifyNodeTypes(
     console.log(`[RSS] Template ${type}: ${acc.count} samples`);
   }
 
-  // ── Build combined feature classifier ──
+  // ── Build color tiebreaker ──
   const full = getFullResPixels(img);
-  const featureSamples = buildFeatureSamples(
-    full.pixels, full.w, full.h, wMap, w, h, trainingNodes, wTemplates,
-  );
-  const { balancedNorm, centroids, norm } = prepareClassifier(featureSamples);
+  const colorSamples = buildTintSamples(full.pixels, full.w, full.h, trainingNodes);
+  const colorNorm = computeColorNorm(colorSamples);
 
-  // ── Cross-validate: test combined KNN against training nodes (leave-one-out) ──
+  // ── Cross-validate against training nodes ──
   let cvCorrect = 0, cvTotal = 0;
+  let tiebreakUsed = 0, tiebreakCorrect = 0;
   const cvConfusion: Record<string, Record<string, number>> = {};
+  const margins: number[] = [];
+
   for (const tn of trainingNodes) {
-    const features = buildFeatureVector(
-      full.pixels, full.w, full.h, wMap, w, h, tn.x, tn.y, wTemplates,
-    );
-    if (!features) continue;
+    const dsCx = Math.round((tn.x / GAME_MAP_SIZE) * w);
+    const dsCy = Math.round((1 - tn.y / GAME_MAP_SIZE) * h);
+    const shapeResult = classifyByTemplateNcc(wMap, w, h, dsCx, dsCy, wTemplates);
+    if (!shapeResult) continue;
     cvTotal++;
 
-    // Classify using all training data (not true LOO, but good enough for diagnostics)
-    const normF = normalizeFeatures(features, norm);
-    const predicted = classifyByKnn(normF, balancedNorm, centroids);
+    const fullX = Math.round((tn.x / GAME_MAP_SIZE) * full.w);
+    const fullY = Math.round((1 - tn.y / GAME_MAP_SIZE) * full.h);
+    const tint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
+    const predicted = classifyNode(shapeResult, tint, colorSamples, colorNorm);
+
     if (predicted === tn.type) cvCorrect++;
     if (!cvConfusion[tn.type]) cvConfusion[tn.type] = {};
     cvConfusion[tn.type][predicted] = (cvConfusion[tn.type][predicted] || 0) + 1;
+
+    // Track tiebreaker usage
+    const sorted = Object.values(shapeResult.allScores).sort((a, b) => b - a);
+    if (sorted.length >= 2) {
+      const margin = sorted[0] - sorted[1];
+      margins.push(margin);
+      if (margin < NCC_MARGIN_THRESHOLD && tint) {
+        tiebreakUsed++;
+        if (predicted === tn.type) tiebreakCorrect++;
+      }
+    }
   }
-  console.log(`[RSS] Combined KNN cross-validation: ${cvCorrect}/${cvTotal} = ${(cvCorrect / cvTotal * 100).toFixed(1)}% accuracy`);
-  console.log('[RSS] Confusion (true → predicted):');
+
+  console.log(`[RSS] Shape+tiebreaker cross-validation: ${cvCorrect}/${cvTotal} = ${(cvCorrect / cvTotal * 100).toFixed(1)}% accuracy`);
+  console.log(`[RSS] Color tiebreaker used: ${tiebreakUsed}/${cvTotal} times, correct: ${tiebreakCorrect}/${tiebreakUsed}`);
+  console.log('[RSS] Confusion (true -> predicted):');
   for (const [trueType, preds] of Object.entries(cvConfusion)) {
     const parts = Object.entries(preds).sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t}:${c}`);
-    console.log(`  ${trueType} → ${parts.join(', ')}`);
+    console.log(`  ${trueType} -> ${parts.join(', ')}`);
+  }
+  if (margins.length > 0) {
+    margins.sort((a, b) => a - b);
+    const med = margins[Math.floor(margins.length / 2)];
+    const p10 = margins[Math.floor(margins.length * 0.1)];
+    const belowThreshold = margins.filter((m) => m < NCC_MARGIN_THRESHOLD).length;
+    console.log(`[RSS] NCC margin: median=${med.toFixed(4)}, p10=${p10.toFixed(4)}, below threshold: ${belowThreshold}/${margins.length}`);
   }
 
-  // Log feature importance: show per-dimension std (higher = more discriminative after normalization)
-  if (featureSamples.length > 0) {
-    const dimNames = ['rg', 'yb', 'sat', 'ncc_food', 'ncc_wood', 'ncc_stone', 'ncc_gold', 'ncc_crystal'];
-    const stds = norm.stds.map((s, i) => `${dimNames[i] ?? i}=${s.toFixed(3)}`);
-    console.log(`[RSS] Feature stds (pre-norm): ${stds.join(', ')}`);
-  }
-
-  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${featureSamples.length} training, ${balancedNorm.length} balanced)...`);
+  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${wTemplates.length} shape templates + ${colorSamples.length} color samples)...`);
   const results: RssNodeType[] = [];
 
   for (const node of pendingNodes) {
-    const features = buildFeatureVector(
-      full.pixels, full.w, full.h, wMap, w, h, node.x, node.y, wTemplates,
-    );
-    if (features && balancedNorm.length > 0) {
-      results.push(classifyByKnn(normalizeFeatures(features, norm), balancedNorm, centroids));
+    const dsCx = Math.round((node.x / GAME_MAP_SIZE) * w);
+    const dsCy = Math.round((1 - node.y / GAME_MAP_SIZE) * h);
+    const shapeResult = classifyByTemplateNcc(wMap, w, h, dsCx, dsCy, wTemplates);
+
+    if (shapeResult) {
+      const fullX = Math.round((node.x / GAME_MAP_SIZE) * full.w);
+      const fullY = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
+      const tint = sampleIconTint(full.pixels, full.w, full.h, fullX, fullY);
+      results.push(classifyNode(shapeResult, tint, colorSamples, colorNorm));
     } else {
       results.push('food');
     }
