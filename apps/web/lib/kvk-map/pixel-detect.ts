@@ -51,6 +51,22 @@ function pixelWhiteness(r: number, g: number, b: number): number {
 /** Template patch size at full resolution for high-detail classification */
 const FULL_TMPL_SIZE = 24;
 
+/**
+ * Compute Sobel gradient magnitude map from a single-channel Float32Array.
+ * Captures edges and internal icon structure that whiteness blobs miss.
+ */
+function computeEdgeMap(src: Float32Array, w: number, h: number): Float32Array {
+  const edges = new Float32Array(w * h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const gx = src[y * w + (x + 1)] - src[y * w + (x - 1)];
+      const gy = src[(y + 1) * w + x] - src[(y - 1) * w + x];
+      edges[y * w + x] = Math.sqrt(gx * gx + gy * gy);
+    }
+  }
+  return edges;
+}
+
 /** Whiteness template with type info preserved for shape-based classification */
 interface TypedTemplate {
   type: RssNodeType;
@@ -177,6 +193,67 @@ function classifyByTemplateNcc(
 }
 
 /**
+ * Classify using combined whiteness + edge NCC scores.
+ * Edge templates capture internal icon structure (wheat lines, crystal facets, etc.)
+ * that whiteness blobs miss. The combined score gives more discriminative matching.
+ */
+function classifyCombinedNcc(
+  wMap: Float32Array, edgeMap: Float32Array, w: number, h: number,
+  cx: number, cy: number,
+  wTemplates: TypedTemplate[], eTemplates: TypedTemplate[],
+  tmplSize: number,
+  edgeWeight: number,
+): RssNodeType {
+  const patchLen = tmplSize * tmplSize;
+  const half = Math.floor(tmplSize / 2);
+  const wBuf = new Float32Array(patchLen);
+  const eBuf = new Float32Array(patchLen);
+
+  if (!extractPatch(wMap, w, h, cx, cy, half, tmplSize, wBuf)) return 'food';
+  if (!extractPatch(edgeMap, w, h, cx, cy, half, tmplSize, eBuf)) return 'food';
+
+  // Mean-center both patches
+  let wMean = 0, eMean = 0;
+  for (let i = 0; i < patchLen; i++) { wMean += wBuf[i]; eMean += eBuf[i]; }
+  wMean /= patchLen; eMean /= patchLen;
+
+  let wNSq = 0, eNSq = 0;
+  for (let i = 0; i < patchLen; i++) {
+    wBuf[i] -= wMean; wNSq += wBuf[i] * wBuf[i];
+    eBuf[i] -= eMean; eNSq += eBuf[i] * eBuf[i];
+  }
+  const wN = Math.sqrt(wNSq);
+  const eN = Math.sqrt(eNSq);
+
+  // Build type -> edge template lookup
+  const eMap = new Map(eTemplates.map(t => [t.type, t]));
+
+  let bestType: RssNodeType = 'food';
+  let bestScore = -Infinity;
+
+  for (const wT of wTemplates) {
+    let wCross = 0;
+    for (let i = 0; i < patchLen; i++) wCross += wBuf[i] * wT.centered[i];
+    const wNcc = wNSq > 1 ? wCross / (wN * wT.norm + 1e-8) : 0;
+
+    let eNcc = 0;
+    const eT = eMap.get(wT.type);
+    if (eT && eNSq > 1) {
+      let eCross = 0;
+      for (let i = 0; i < patchLen; i++) eCross += eBuf[i] * eT.centered[i];
+      eNcc = eCross / (eN * eT.norm + 1e-8);
+    }
+
+    const score = (1 - edgeWeight) * wNcc + edgeWeight * eNcc;
+    if (score > bestScore) {
+      bestScore = score;
+      bestType = wT.type;
+    }
+  }
+  return bestType;
+}
+
+/**
  * Load full-resolution pixel data from an image element.
  * Used for color classification where downscaling loses subtle tint info.
  */
@@ -193,14 +270,14 @@ function getFullResPixels(img: HTMLImageElement): {
 }
 
 /**
- * Detect RSS nodes using two-stage whiteness detection + per-sample patch KNN.
+ * Detect RSS nodes using two-stage whiteness detection + combined NCC classification.
  *
  * Stage 1 — Detection (whiteness, 2x downscale):
  *   Uses averaged templates for fast NCC scanning to find candidate positions.
  *
- * Stage 2 — Classification (per-sample patch KNN):
- *   Compares each candidate's patch against every training patch individually.
- *   Color tiebreaker when patch KNN is ambiguous.
+ * Stage 2 — Classification (full-res whiteness + edge NCC):
+ *   Combined whiteness and edge gradient template matching at full resolution.
+ *   Edge templates capture internal icon structure for better type discrimination.
  */
 export async function detectNodesPixel(
   imageUrl: string,
@@ -243,13 +320,16 @@ export async function detectNodesPixel(
     return [];
   }
 
-  // ── Build full-resolution templates for Stage 2 classification ──
+  // ── Build full-resolution whiteness + edge templates for Stage 2 classification ──
   const full = getFullResPixels(img);
   const fullWMap = buildWhitenessMap(full.pixels, full.w, full.h);
-  const fullTypeAccum = accumulateTemplatePatches(fullWMap, full.w, full.h, annotations, FULL_TMPL_SIZE);
-  const fullTemplates = buildTypedTemplates(fullTypeAccum, FULL_TMPL_SIZE);
+  const fullEdgeMap = computeEdgeMap(fullWMap, full.w, full.h);
+  const fullWTemplates = buildTypedTemplates(
+    accumulateTemplatePatches(fullWMap, full.w, full.h, annotations, FULL_TMPL_SIZE), FULL_TMPL_SIZE);
+  const fullETemplates = buildTypedTemplates(
+    accumulateTemplatePatches(fullEdgeMap, full.w, full.h, annotations, FULL_TMPL_SIZE), FULL_TMPL_SIZE);
 
-  onProgress?.(`Built ${wTemplates.length} detection templates + ${fullTemplates.length} full-res templates, scanning ${w}x${h}...`);
+  onProgress?.(`Built ${wTemplates.length} detection + ${fullWTemplates.length} full-res whiteness+edge templates, scanning ${w}x${h}...`);
 
   // ── Stage 1: Detect candidates using averaged template NCC ──
   const candidates: { x: number; y: number; score: number }[] = [];
@@ -316,11 +396,12 @@ export async function detectNodesPixel(
     const gameX = Math.round((sx / w) * GAME_MAP_SIZE);
     const gameY = Math.round((1 - sy / h) * GAME_MAP_SIZE);
 
-    // Classify at full resolution for better shape discrimination
+    // Classify at full resolution using combined whiteness + edge NCC
     const fullCx = Math.round((gameX / GAME_MAP_SIZE) * full.w);
     const fullCy = Math.round((1 - gameY / GAME_MAP_SIZE) * full.h);
-    const bestType = fullTemplates.length > 0
-      ? classifyByTemplateNcc(fullWMap, full.w, full.h, fullCx, fullCy, fullTemplates, FULL_TMPL_SIZE)
+    const bestType = fullWTemplates.length > 0
+      ? classifyCombinedNcc(fullWMap, fullEdgeMap, full.w, full.h, fullCx, fullCy,
+          fullWTemplates, fullETemplates, FULL_TMPL_SIZE, 0.5)
       : classifyByTemplateNcc(wMap, w, h, sx, sy, wTemplates, TMPL_SIZE);
 
     detectedNodes.push({ x: gameX, y: gameY, type: bestType });
@@ -337,7 +418,8 @@ export async function detectNodesPixel(
 
 /**
  * Re-classify pending detected nodes using corrected nodes as better training data.
- * Full-resolution averaged template NCC for best shape discrimination.
+ * Compares whiteness-only, edge-only, and combined NCC at multiple edge weights,
+ * then uses the best-performing approach for actual classification.
  */
 export async function reclassifyNodeTypes(
   imageUrl: string,
@@ -350,83 +432,83 @@ export async function reclassifyNodeTypes(
   onProgress?.('Loading image for re-classification...');
   const img = await loadImage(imageUrl);
 
-  // ── Build full-resolution whiteness map + templates ──
-  onProgress?.('Building full-res whiteness map...');
+  // ── Build full-resolution whiteness + edge maps ──
+  onProgress?.('Building full-res whiteness + edge maps...');
   const full = getFullResPixels(img);
   const fullWMap = buildWhitenessMap(full.pixels, full.w, full.h);
+  const fullEdgeMap = computeEdgeMap(fullWMap, full.w, full.h);
 
+  // ── Build averaged templates for both channels ──
   onProgress?.('Building averaged templates...');
-  const fullTypeAccum = accumulateTemplatePatches(fullWMap, full.w, full.h, trainingNodes, FULL_TMPL_SIZE);
-  const fullTemplates = buildTypedTemplates(fullTypeAccum, FULL_TMPL_SIZE);
-
-  // Also build downscale templates for comparison
-  const w = Math.round(full.w / SCALE);
-  const h = Math.round(full.h / SCALE);
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, 0, 0, w, h);
-  const dsPixels = ctx.getImageData(0, 0, w, h).data;
-  const wMap = buildWhitenessMap(dsPixels, w, h);
-  const dsTemplates = buildTypedTemplates(accumulateTemplatePatches(wMap, w, h, trainingNodes));
+  const fullWTemplates = buildTypedTemplates(
+    accumulateTemplatePatches(fullWMap, full.w, full.h, trainingNodes, FULL_TMPL_SIZE), FULL_TMPL_SIZE);
+  const fullETemplates = buildTypedTemplates(
+    accumulateTemplatePatches(fullEdgeMap, full.w, full.h, trainingNodes, FULL_TMPL_SIZE), FULL_TMPL_SIZE);
 
   // Log template stats
-  for (const t of fullTemplates) {
-    const acc = fullTypeAccum[t.type];
-    console.log(`[RSS] Full-res template ${t.type}: ${acc?.count ?? 0} patches, norm=${t.norm.toFixed(1)}`);
+  for (const t of fullWTemplates) {
+    const eT = fullETemplates.find(e => e.type === t.type);
+    console.log(`[RSS] Template ${t.type}: wNorm=${t.norm.toFixed(1)}, eNorm=${eT?.norm.toFixed(1) ?? 'N/A'}`);
   }
 
-  // ── Cross-validate: compare downscale vs full-res template NCC ──
-  let dsCorrect = 0, fullCorrect = 0, cvTotal = 0;
-  const cvConfusion: Record<string, Record<string, number>> = {};
+  // ── Cross-validate: compare whiteness-only, edge-only, and combined at different weights ──
+  const edgeWeights = [0.0, 0.25, 0.5, 0.75, 1.0];
+  const cvScores: Record<string, { correct: number; total: number; confusion: Record<string, Record<string, number>> }> = {};
 
-  for (const tn of trainingNodes) {
-    const fullCx = Math.round((tn.x / GAME_MAP_SIZE) * full.w);
-    const fullCy = Math.round((1 - tn.y / GAME_MAP_SIZE) * full.h);
-    const dsCx = Math.round((tn.x / GAME_MAP_SIZE) * w);
-    const dsCy = Math.round((1 - tn.y / GAME_MAP_SIZE) * h);
+  for (const ew of edgeWeights) {
+    const label = ew === 0 ? 'whiteness-only' : ew === 1 ? 'edge-only' : `combined(ew=${ew})`;
+    const result = { correct: 0, total: 0, confusion: {} as Record<string, Record<string, number>> };
 
-    const dsPred = classifyByTemplateNcc(wMap, w, h, dsCx, dsCy, dsTemplates, TMPL_SIZE);
-    const fullPred = classifyByTemplateNcc(fullWMap, full.w, full.h, fullCx, fullCy, fullTemplates, FULL_TMPL_SIZE);
+    for (const tn of trainingNodes) {
+      const fullCx = Math.round((tn.x / GAME_MAP_SIZE) * full.w);
+      const fullCy = Math.round((1 - tn.y / GAME_MAP_SIZE) * full.h);
 
-    cvTotal++;
-    if (dsPred === tn.type) dsCorrect++;
-    if (fullPred === tn.type) fullCorrect++;
+      const pred = classifyCombinedNcc(
+        fullWMap, fullEdgeMap, full.w, full.h, fullCx, fullCy,
+        fullWTemplates, fullETemplates, FULL_TMPL_SIZE, ew);
 
-    // Track confusion for the full-res approach
-    if (!cvConfusion[tn.type]) cvConfusion[tn.type] = {};
-    cvConfusion[tn.type][fullPred] = (cvConfusion[tn.type][fullPred] || 0) + 1;
+      result.total++;
+      if (pred === tn.type) result.correct++;
+      if (!result.confusion[tn.type]) result.confusion[tn.type] = {};
+      result.confusion[tn.type][pred] = (result.confusion[tn.type][pred] || 0) + 1;
+    }
+
+    cvScores[label] = result;
+    console.log(`[RSS] CV ${label}: ${result.correct}/${result.total} = ${(result.correct / result.total * 100).toFixed(1)}%`);
   }
 
-  console.log(`[RSS] Cross-validation (downscale ${TMPL_SIZE}x${TMPL_SIZE}): ${dsCorrect}/${cvTotal} = ${(dsCorrect / cvTotal * 100).toFixed(1)}%`);
-  console.log(`[RSS] Cross-validation (full-res ${FULL_TMPL_SIZE}x${FULL_TMPL_SIZE}): ${fullCorrect}/${cvTotal} = ${(fullCorrect / cvTotal * 100).toFixed(1)}%`);
-  console.log('[RSS] Full-res confusion (true -> predicted):');
-  for (const [trueType, preds] of Object.entries(cvConfusion)) {
+  // Find best edge weight
+  let bestLabel = '';
+  let bestCorrect = -1;
+  let bestWeight = 0.5;
+  for (const [label, r] of Object.entries(cvScores)) {
+    if (r.correct > bestCorrect) {
+      bestCorrect = r.correct;
+      bestLabel = label;
+      bestWeight = edgeWeights[Object.keys(cvScores).indexOf(label)];
+    }
+  }
+
+  // Log confusion for best approach
+  console.log(`[RSS] Best: ${bestLabel} (${bestCorrect}/${cvScores[bestLabel].total})`);
+  console.log('[RSS] Confusion (true -> predicted):');
+  for (const [trueType, preds] of Object.entries(cvScores[bestLabel].confusion)) {
     const parts = Object.entries(preds).sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t}:${c}`);
     console.log(`  ${trueType} -> ${parts.join(', ')}`);
   }
 
-  // Use whichever approach has better cross-validation accuracy
-  const useFull = fullCorrect >= dsCorrect && fullTemplates.length > 0;
-  const approach = useFull ? 'full-res' : 'downscale';
-  console.log(`[RSS] Using ${approach} templates for classification`);
-
-  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${approach} templates)...`);
+  // ── Classify pending nodes using the best approach ──
+  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${bestLabel})...`);
   const results: RssNodeType[] = [];
 
   for (let i = 0; i < pendingNodes.length; i++) {
     const node = pendingNodes[i];
+    const fullCx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
+    const fullCy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
 
-    if (useFull) {
-      const fullCx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
-      const fullCy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
-      results.push(classifyByTemplateNcc(fullWMap, full.w, full.h, fullCx, fullCy, fullTemplates, FULL_TMPL_SIZE));
-    } else {
-      const dsCx = Math.round((node.x / GAME_MAP_SIZE) * w);
-      const dsCy = Math.round((1 - node.y / GAME_MAP_SIZE) * h);
-      results.push(classifyByTemplateNcc(wMap, w, h, dsCx, dsCy, dsTemplates, TMPL_SIZE));
-    }
+    results.push(classifyCombinedNcc(
+      fullWMap, fullEdgeMap, full.w, full.h, fullCx, fullCy,
+      fullWTemplates, fullETemplates, FULL_TMPL_SIZE, bestWeight));
 
     if (i % 200 === 0 && i > 0) {
       onProgress?.(`Re-classifying... ${Math.round((i / pendingNodes.length) * 100)}%`);
