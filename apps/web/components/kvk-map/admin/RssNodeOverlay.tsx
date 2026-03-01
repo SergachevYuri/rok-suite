@@ -21,11 +21,15 @@ function FlyToNode({ x, y }: { x: number; y: number }) {
   const map = useMap();
   useEffect(() => {
     const zoom = Math.max(map.getZoom(), 1);
-    // Offset the target leftward so the node ends up visible (not behind the right sidebar).
-    // Convert sidebar width (288px = lg:w-72) to map coordinates at current zoom.
+    // Right sidebar is lg:w-72 = 288px. Offset the target so node appears
+    // in the center of the *visible* area (container minus sidebar).
     const sidebarPx = 288;
+    const containerW = map.getSize().x;
+    // Visible width = container - sidebar; offset = shift target rightward
+    // by half-sidebar so node centers in the visible portion
+    const offsetPx = Math.min(sidebarPx / 2, containerW * 0.3);
     const targetPoint = map.project([y, x], zoom);
-    targetPoint.x += sidebarPx / 2;
+    targetPoint.x += offsetPx;
     const offsetLatLng = map.unproject(targetPoint, zoom);
     map.flyTo(offsetLatLng, zoom, { duration: 0.4 });
   }, [map, x, y]);

@@ -222,8 +222,8 @@ export default function WarRoomPage() {
   // ── Keyboard shortcuts ─────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd+Z: undo in annotation mode
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && rssAnnotationMode === 'annotate') {
+      // Ctrl/Cmd+Z: undo in annotation or review mode
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && (rssAnnotationMode === 'annotate' || rssAnnotationMode === 'review')) {
         e.preventDefault();
         setRssUndoStack((stack) => {
           if (stack.length === 0) return stack;
@@ -583,12 +583,14 @@ export default function WarRoomPage() {
   }, [map, rssReclassifying, rssNodes]);
 
   const handleRssNodeApprove = useCallback((id: number) => {
+    setRssUndoStack((stack) => [...stack.slice(-19), rssNodes]);
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'approved' as RssNodeStatus } : n)));
-  }, []);
+  }, [rssNodes]);
 
   const handleRssNodeReject = useCallback((id: number) => {
+    setRssUndoStack((stack) => [...stack.slice(-19), rssNodes]);
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'rejected' as RssNodeStatus } : n)));
-  }, []);
+  }, [rssNodes]);
 
   const handleRssBulkApprove = useCallback((typeFilter: RssNodeType | 'all') => {
     setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);

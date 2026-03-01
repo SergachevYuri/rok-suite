@@ -32,12 +32,6 @@ const CENTER_WHITENESS_MIN = 85;
  */
 const CONTRAST_MIN = 35;
 
-/** Radius for color sampling at full resolution (~24px icons → sample 20px circle) */
-const FULL_RES_SAMPLE_RADIUS = 10;
-/** Minimum whiteness for a pixel to be considered part of the icon (not terrain) */
-const ICON_WHITENESS_MIN = 65;
-/** KNN K value for color tiebreaker */
-const KNN_K = 7;
 
 /**
  * Whiteness score for a single pixel.
@@ -54,243 +48,8 @@ function pixelWhiteness(r: number, g: number, b: number): number {
   return Math.max(0, brightness - spread * 1.5);
 }
 
-// ─── Per-sample patch KNN classifier ────────────────────────────────
-//
-// Instead of averaging training patches into one template per type (which
-// blurs type-specific detail into generic white blobs), compare each query
-// node's whiteness patch against EVERY individual training patch via NCC.
-// Then distance-weighted KNN vote determines the type.
-//
-// Averaged templates are kept ONLY for Stage 1 detection scanning.
-
-/** Individual whiteness patch sample for KNN matching */
-interface PatchSample {
-  type: RssNodeType;
-  centered: Float32Array;  // mean-centered patch
-  norm: number;            // L2 norm of centered patch
-}
-
-/** KNN K for patch-based classification */
-const PATCH_KNN_K = 9;
-/** Maximum patches per type for balanced KNN */
-const MAX_PATCHES_PER_TYPE = 120;
-
-/**
- * Extract and preprocess all training patches from the whiteness map.
- * Returns balanced per-type samples with mean-centered patches.
- */
-function buildPatchSamples(
-  wMap: Float32Array, w: number, h: number,
-  annotations: AnnotationSample[],
-): PatchSample[] {
-  const patchLen = TMPL_SIZE * TMPL_SIZE;
-  const half = Math.floor(TMPL_SIZE / 2);
-  const tmpBuf = new Float32Array(patchLen);
-
-  const byType: Partial<Record<RssNodeType, PatchSample[]>> = {};
-
-  for (const ann of annotations) {
-    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
-    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
-    if (!extractPatch(wMap, w, h, cx, cy, half, TMPL_SIZE, tmpBuf)) continue;
-
-    let mean = 0;
-    for (let i = 0; i < patchLen; i++) mean += tmpBuf[i];
-    mean /= patchLen;
-
-    const centered = new Float32Array(patchLen);
-    let normSq = 0;
-    for (let i = 0; i < patchLen; i++) {
-      const v = tmpBuf[i] - mean;
-      centered[i] = v;
-      normSq += v * v;
-    }
-    if (normSq < 1) continue;
-
-    (byType[ann.type] ??= []).push({
-      type: ann.type, centered, norm: Math.sqrt(normSq),
-    });
-  }
-
-  // Balance: limit each type to MAX_PATCHES_PER_TYPE
-  const result: PatchSample[] = [];
-  for (const group of Object.values(byType)) {
-    if (!group) continue;
-    if (group.length <= MAX_PATCHES_PER_TYPE) {
-      result.push(...group);
-    } else {
-      const stride = group.length / MAX_PATCHES_PER_TYPE;
-      for (let i = 0; i < MAX_PATCHES_PER_TYPE; i++) {
-        result.push(group[Math.floor(i * stride)]);
-      }
-    }
-  }
-  return result;
-}
-
-/**
- * Classify by comparing query patch against all training patches via NCC,
- * then distance-weighted KNN vote. Returns winning type + top-2 types
- * and vote weights for potential color tiebreaker.
- */
-function classifyByPatchKnn(
-  wMap: Float32Array, w: number, h: number,
-  cx: number, cy: number,
-  patchSamples: PatchSample[],
-): { type: RssNodeType; type2: RssNodeType; weight1: number; weight2: number } | null {
-  const patchLen = TMPL_SIZE * TMPL_SIZE;
-  const half = Math.floor(TMPL_SIZE / 2);
-  const patchBuf = new Float32Array(patchLen);
-
-  if (!extractPatch(wMap, w, h, cx, cy, half, TMPL_SIZE, patchBuf)) return null;
-
-  // Mean-center query patch
-  let qMean = 0;
-  for (let i = 0; i < patchLen; i++) qMean += patchBuf[i];
-  qMean /= patchLen;
-
-  let qNormSq = 0;
-  for (let i = 0; i < patchLen; i++) {
-    patchBuf[i] -= qMean;
-    qNormSq += patchBuf[i] * patchBuf[i];
-  }
-  if (qNormSq < 1) return null;
-  const qNorm = Math.sqrt(qNormSq);
-
-  // NCC against every training patch
-  const scores: { idx: number; ncc: number }[] = [];
-  for (let s = 0; s < patchSamples.length; s++) {
-    const sample = patchSamples[s];
-    let cross = 0;
-    for (let i = 0; i < patchLen; i++) cross += patchBuf[i] * sample.centered[i];
-    scores.push({ idx: s, ncc: cross / (qNorm * sample.norm + 1e-8) });
-  }
-
-  // Sort by NCC descending (most similar first)
-  scores.sort((a, b) => b.ncc - a.ncc);
-
-  // Distance-weighted vote among K nearest (weight = max(0, ncc))
-  const k = Math.min(PATCH_KNN_K, scores.length);
-  const votes: Partial<Record<RssNodeType, number>> = {};
-  for (let i = 0; i < k; i++) {
-    const type = patchSamples[scores[i].idx].type;
-    const weight = Math.max(0, scores[i].ncc);
-    votes[type] = (votes[type] || 0) + weight;
-  }
-
-  const typeVotes = Object.entries(votes)
-    .sort((a, b) => b[1]! - a[1]!) as [RssNodeType, number][];
-  if (typeVotes.length === 0) return null;
-
-  return {
-    type: typeVotes[0][0],
-    type2: typeVotes.length > 1 ? typeVotes[1][0] : typeVotes[0][0],
-    weight1: typeVotes[0][1],
-    weight2: typeVotes.length > 1 ? typeVotes[1][1] : 0,
-  };
-}
-
-// ─── Color tiebreaker (used when patch KNN is ambiguous) ────────────
-
-/** Confidence threshold: if winner margin < this, use color to break tie */
-const CONFIDENCE_THRESHOLD = 0.15;
-
-interface TintSample {
-  type: RssNodeType;
-  rg: number; yb: number; sat: number;
-}
-
-interface ColorNormParams {
-  rgMean: number; rgStd: number;
-  ybMean: number; ybStd: number;
-  satMean: number; satStd: number;
-}
-
-function computeColorNorm(samples: TintSample[]): ColorNormParams {
-  const n = samples.length;
-  if (n === 0) return { rgMean: 0, rgStd: 1, ybMean: 0, ybStd: 1, satMean: 0, satStd: 1 };
-  let rgSum = 0, ybSum = 0, satSum = 0;
-  for (const s of samples) { rgSum += s.rg; ybSum += s.yb; satSum += s.sat; }
-  const rgMean = rgSum / n, ybMean = ybSum / n, satMean = satSum / n;
-  let rgVar = 0, ybVar = 0, satVar = 0;
-  for (const s of samples) {
-    rgVar += (s.rg - rgMean) ** 2; ybVar += (s.yb - ybMean) ** 2; satVar += (s.sat - satMean) ** 2;
-  }
-  return {
-    rgMean, rgStd: Math.max(1, Math.sqrt(rgVar / n)),
-    ybMean, ybStd: Math.max(1, Math.sqrt(ybVar / n)),
-    satMean, satStd: Math.max(1, Math.sqrt(satVar / n)),
-  };
-}
-
-function normalizeColor(t: { rg: number; yb: number; sat: number }, p: ColorNormParams) {
-  return {
-    rg: (t.rg - p.rgMean) / p.rgStd,
-    yb: (t.yb - p.ybMean) / p.ybStd,
-    sat: (t.sat - p.satMean) / p.satStd,
-  };
-}
-
-/** Color tiebreaker: binary KNN between two candidate types */
-function colorTiebreak(
-  query: { rg: number; yb: number; sat: number },
-  typeA: RssNodeType, typeB: RssNodeType,
-  colorSamples: TintSample[],
-  colorNorm: ColorNormParams,
-): RssNodeType {
-  const qn = normalizeColor(query, colorNorm);
-  const candidates = colorSamples.filter((s) => s.type === typeA || s.type === typeB);
-  if (candidates.length === 0) return typeA;
-
-  const dists = candidates.map((s) => {
-    const sn = normalizeColor(s, colorNorm);
-    return {
-      type: s.type,
-      dist: Math.sqrt((qn.rg - sn.rg) ** 2 + (qn.yb - sn.yb) ** 2 + (qn.sat - sn.sat) ** 2),
-    };
-  });
-  dists.sort((a, b) => a.dist - b.dist);
-
-  const k = Math.min(KNN_K, dists.length);
-  let voteA = 0, voteB = 0;
-  for (let i = 0; i < k; i++) {
-    const w = 1 / (dists[i].dist + 0.01);
-    if (dists[i].type === typeA) voteA += w; else voteB += w;
-  }
-  return voteA >= voteB ? typeA : typeB;
-}
-
-/**
- * Full classification: patch KNN primary, color tiebreaker when ambiguous.
- */
-function classifyFull(
-  wMap: Float32Array, dsW: number, dsH: number,
-  dsCx: number, dsCy: number,
-  patchSamples: PatchSample[],
-  fullPixels: Uint8ClampedArray, fullW: number, fullH: number,
-  gameX: number, gameY: number,
-  colorSamples: TintSample[],
-  colorNorm: ColorNormParams,
-): RssNodeType {
-  const knnResult = classifyByPatchKnn(wMap, dsW, dsH, dsCx, dsCy, patchSamples);
-  if (!knnResult) return 'food';
-
-  // Check if patch KNN is confident
-  const totalWeight = knnResult.weight1 + knnResult.weight2;
-  const confidence = totalWeight > 0 ? (knnResult.weight1 - knnResult.weight2) / totalWeight : 0;
-
-  if (confidence >= CONFIDENCE_THRESHOLD || colorSamples.length === 0) {
-    return knnResult.type;
-  }
-
-  // Low confidence — try color tiebreaker between top 2
-  const fullCx = Math.round((gameX / GAME_MAP_SIZE) * fullW);
-  const fullCy = Math.round((1 - gameY / GAME_MAP_SIZE) * fullH);
-  const tint = sampleIconTint(fullPixels, fullW, fullH, fullCx, fullCy);
-  if (!tint) return knnResult.type;
-
-  return colorTiebreak(tint, knnResult.type, knnResult.type2, colorSamples, colorNorm);
-}
+/** Template patch size at full resolution for high-detail classification */
+const FULL_TMPL_SIZE = 24;
 
 /** Whiteness template with type info preserved for shape-based classification */
 interface TypedTemplate {
@@ -305,8 +64,9 @@ interface TypedTemplate {
  */
 function buildTypedTemplates(
   typeAccum: Record<string, { data: Float32Array; count: number }>,
+  tmplSize = TMPL_SIZE,
 ): TypedTemplate[] {
-  const patchLen = TMPL_SIZE * TMPL_SIZE;
+  const patchLen = tmplSize * tmplSize;
   const templates: TypedTemplate[] = [];
 
   for (const [type, acc] of Object.entries(typeAccum)) {
@@ -337,16 +97,17 @@ function buildTypedTemplates(
 function accumulateTemplatePatches(
   wMap: Float32Array, w: number, h: number,
   annotations: AnnotationSample[],
+  tmplSize = TMPL_SIZE,
 ): Record<string, { data: Float32Array; count: number }> {
-  const patchLen = TMPL_SIZE * TMPL_SIZE;
-  const half = Math.floor(TMPL_SIZE / 2);
+  const patchLen = tmplSize * tmplSize;
+  const half = Math.floor(tmplSize / 2);
   const typeAccum: Record<string, { data: Float32Array; count: number }> = {};
   const tmpBuf = new Float32Array(patchLen);
 
   for (const ann of annotations) {
     const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
     const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
-    if (!extractPatch(wMap, w, h, cx, cy, half, TMPL_SIZE, tmpBuf)) continue;
+    if (!extractPatch(wMap, w, h, cx, cy, half, tmplSize, tmpBuf)) continue;
 
     if (!typeAccum[ann.type]) {
       typeAccum[ann.type] = { data: new Float32Array(patchLen), count: 0 };
@@ -358,85 +119,61 @@ function accumulateTemplatePatches(
   return typeAccum;
 }
 
-/** Number of most-tinted pixels to use for classification */
-const TOP_N_PIXELS = 30;
-
 /**
- * Sample the color signature of an RSS icon at full resolution.
- *
- * Instead of averaging all pixels (which washes out subtle tints on near-white
- * icons), we collect all bright pixels in the sample area, sort by color
- * spread (saturation), and take the top N most-tinted pixels. These carry
- * the strongest type signal — they're the icon border/rim pixels where the
- * type color shows through.
- *
- * Returns opponent color channels (rg, yb) + mean saturation.
+ * Build a whiteness map from raw RGBA pixel data.
  */
-function sampleIconTint(
+function buildWhitenessMap(
   pixels: Uint8ClampedArray, w: number, h: number,
-  cx: number, cy: number,
-): { rg: number; yb: number; sat: number } | null {
-  const rSq = FULL_RES_SAMPLE_RADIUS * FULL_RES_SAMPLE_RADIUS;
-
-  // Collect icon pixels using whiteness filter (not raw brightness).
-  // Raw brightness >= 140 lets in colored terrain (brown dirt, green grass)
-  // which contaminates the tint signal. Whiteness penalizes saturation,
-  // so only genuinely white-ish icon pixels pass through.
-  const candidates: { r: number; g: number; b: number; spread: number }[] = [];
-
-  for (let dy = -FULL_RES_SAMPLE_RADIUS; dy <= FULL_RES_SAMPLE_RADIUS; dy++) {
-    for (let dx = -FULL_RES_SAMPLE_RADIUS; dx <= FULL_RES_SAMPLE_RADIUS; dx++) {
-      if (dx * dx + dy * dy > rSq) continue;
-
-      const px = cx + dx, py = cy + dy;
-      if (px < 0 || px >= w || py < 0 || py >= h) continue;
-
-      const idx = (py * w + px) * 4;
-      const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2];
-
-      // Must be white enough to be part of the icon — rejects colored terrain
-      if (pixelWhiteness(r, g, b) < ICON_WHITENESS_MIN) continue;
-
-      const spread = Math.max(r, g, b) - Math.min(r, g, b);
-      candidates.push({ r, g, b, spread });
-    }
+): Float32Array {
+  const wMap = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const idx = i * 4;
+    wMap[i] = pixelWhiteness(pixels[idx], pixels[idx + 1], pixels[idx + 2]);
   }
-
-  if (candidates.length < 5) return null;
-
-  // Sort by spread descending — most-tinted pixels first
-  candidates.sort((a, b) => b.spread - a.spread);
-
-  // Take top N most-tinted pixels
-  const n = Math.min(TOP_N_PIXELS, candidates.length);
-  let rgSum = 0, ybSum = 0, satSum = 0;
-
-  for (let i = 0; i < n; i++) {
-    const { r, g, b, spread } = candidates[i];
-    // Opponent color channels
-    rgSum += r - g;                    // red–green
-    ybSum += (r + g) / 2 - b;         // yellow–blue
-    satSum += spread;
-  }
-
-  return { rg: rgSum / n, yb: ybSum / n, sat: satSum / n };
+  return wMap;
 }
 
 /**
- * Build color tint samples from annotations for the color tiebreaker.
+ * Classify a position using averaged template NCC at a given resolution.
+ * Returns the type with the highest NCC score.
  */
-function buildTintSamples(
-  pixels: Uint8ClampedArray, w: number, h: number,
-  annotations: AnnotationSample[],
-): TintSample[] {
-  const samples: TintSample[] = [];
-  for (const ann of annotations) {
-    const cx = Math.round((ann.x / GAME_MAP_SIZE) * w);
-    const cy = Math.round((1 - ann.y / GAME_MAP_SIZE) * h);
-    const tint = sampleIconTint(pixels, w, h, cx, cy);
-    if (tint) samples.push({ type: ann.type, ...tint });
+function classifyByTemplateNcc(
+  wMap: Float32Array, w: number, h: number,
+  cx: number, cy: number,
+  templates: TypedTemplate[],
+  tmplSize: number,
+): RssNodeType {
+  const patchLen = tmplSize * tmplSize;
+  const half = Math.floor(tmplSize / 2);
+  const patchBuf = new Float32Array(patchLen);
+
+  if (!extractPatch(wMap, w, h, cx, cy, half, tmplSize, patchBuf)) return 'food';
+
+  let patchMean = 0;
+  for (let i = 0; i < patchLen; i++) patchMean += patchBuf[i];
+  patchMean /= patchLen;
+
+  let patchNormSq = 0;
+  for (let i = 0; i < patchLen; i++) {
+    patchBuf[i] -= patchMean;
+    patchNormSq += patchBuf[i] * patchBuf[i];
   }
-  return samples;
+  if (patchNormSq < 1) return 'food';
+  const patchNorm = Math.sqrt(patchNormSq);
+
+  let bestType: RssNodeType = 'food';
+  let bestScore = -1;
+
+  for (const tmpl of templates) {
+    let cross = 0;
+    for (let i = 0; i < patchLen; i++) cross += patchBuf[i] * tmpl.centered[i];
+    const ncc = cross / (patchNorm * tmpl.norm + 1e-8);
+    if (ncc > bestScore) {
+      bestScore = ncc;
+      bestType = tmpl.type;
+    }
+  }
+  return bestType;
 }
 
 /**
@@ -506,13 +243,13 @@ export async function detectNodesPixel(
     return [];
   }
 
-  // ── Build per-sample patch KNN + color tiebreaker for Stage 2 ──
-  const patchSamples = buildPatchSamples(wMap, w, h, annotations);
+  // ── Build full-resolution templates for Stage 2 classification ──
   const full = getFullResPixels(img);
-  const colorSamples = buildTintSamples(full.pixels, full.w, full.h, annotations);
-  const colorNorm = computeColorNorm(colorSamples);
+  const fullWMap = buildWhitenessMap(full.pixels, full.w, full.h);
+  const fullTypeAccum = accumulateTemplatePatches(fullWMap, full.w, full.h, annotations, FULL_TMPL_SIZE);
+  const fullTemplates = buildTypedTemplates(fullTypeAccum, FULL_TMPL_SIZE);
 
-  onProgress?.(`Built ${wTemplates.length} detection templates + ${patchSamples.length} patch samples, scanning ${w}x${h}...`);
+  onProgress?.(`Built ${wTemplates.length} detection templates + ${fullTemplates.length} full-res templates, scanning ${w}x${h}...`);
 
   // ── Stage 1: Detect candidates using averaged template NCC ──
   const candidates: { x: number; y: number; score: number }[] = [];
@@ -571,7 +308,7 @@ export async function detectNodesPixel(
 
   onProgress?.(`After NMS: ${kept.length} nodes. Classifying types...`);
 
-  // ── Stage 2: Classify using per-sample patch KNN + color tiebreaker ──
+  // ── Stage 2: Classify using full-resolution averaged template NCC ──
   const detectedNodes: DetectedPixelNode[] = [];
 
   for (let ci = 0; ci < kept.length; ci++) {
@@ -579,11 +316,12 @@ export async function detectNodesPixel(
     const gameX = Math.round((sx / w) * GAME_MAP_SIZE);
     const gameY = Math.round((1 - sy / h) * GAME_MAP_SIZE);
 
-    const bestType = classifyFull(
-      wMap, w, h, sx, sy, patchSamples,
-      full.pixels, full.w, full.h, gameX, gameY,
-      colorSamples, colorNorm,
-    );
+    // Classify at full resolution for better shape discrimination
+    const fullCx = Math.round((gameX / GAME_MAP_SIZE) * full.w);
+    const fullCy = Math.round((1 - gameY / GAME_MAP_SIZE) * full.h);
+    const bestType = fullTemplates.length > 0
+      ? classifyByTemplateNcc(fullWMap, full.w, full.h, fullCx, fullCy, fullTemplates, FULL_TMPL_SIZE)
+      : classifyByTemplateNcc(wMap, w, h, sx, sy, wTemplates, TMPL_SIZE);
 
     detectedNodes.push({ x: gameX, y: gameY, type: bestType });
 
@@ -599,7 +337,7 @@ export async function detectNodesPixel(
 
 /**
  * Re-classify pending detected nodes using corrected nodes as better training data.
- * Per-sample patch KNN with color tiebreaker when ambiguous.
+ * Full-resolution averaged template NCC for best shape discrimination.
  */
 export async function reclassifyNodeTypes(
   imageUrl: string,
@@ -612,94 +350,83 @@ export async function reclassifyNodeTypes(
   onProgress?.('Loading image for re-classification...');
   const img = await loadImage(imageUrl);
 
-  const origW = img.width, origH = img.height;
-  const w = Math.round(origW / SCALE);
-  const h = Math.round(origH / SCALE);
+  // ── Build full-resolution whiteness map + templates ──
+  onProgress?.('Building full-res whiteness map...');
+  const full = getFullResPixels(img);
+  const fullWMap = buildWhitenessMap(full.pixels, full.w, full.h);
 
+  onProgress?.('Building averaged templates...');
+  const fullTypeAccum = accumulateTemplatePatches(fullWMap, full.w, full.h, trainingNodes, FULL_TMPL_SIZE);
+  const fullTemplates = buildTypedTemplates(fullTypeAccum, FULL_TMPL_SIZE);
+
+  // Also build downscale templates for comparison
+  const w = Math.round(full.w / SCALE);
+  const h = Math.round(full.h / SCALE);
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(img, 0, 0, w, h);
   const dsPixels = ctx.getImageData(0, 0, w, h).data;
+  const wMap = buildWhitenessMap(dsPixels, w, h);
+  const dsTemplates = buildTypedTemplates(accumulateTemplatePatches(wMap, w, h, trainingNodes));
 
-  onProgress?.('Computing whiteness map...');
-  const wMap = new Float32Array(w * h);
-  for (let i = 0; i < w * h; i++) {
-    const idx = i * 4;
-    wMap[i] = pixelWhiteness(dsPixels[idx], dsPixels[idx + 1], dsPixels[idx + 2]);
+  // Log template stats
+  for (const t of fullTemplates) {
+    const acc = fullTypeAccum[t.type];
+    console.log(`[RSS] Full-res template ${t.type}: ${acc?.count ?? 0} patches, norm=${t.norm.toFixed(1)}`);
   }
 
-  // ── Build per-sample patch KNN ──
-  onProgress?.('Building patch samples...');
-  const patchSamples = buildPatchSamples(wMap, w, h, trainingNodes);
-
-  // Log stats per type
-  const typeCounts: Partial<Record<RssNodeType, number>> = {};
-  for (const s of patchSamples) typeCounts[s.type] = (typeCounts[s.type] || 0) + 1;
-  for (const [type, count] of Object.entries(typeCounts)) {
-    console.log(`[RSS] Patch samples ${type}: ${count}`);
-  }
-
-  // ── Build color tiebreaker ──
-  const full = getFullResPixels(img);
-  const colorSamples = buildTintSamples(full.pixels, full.w, full.h, trainingNodes);
-  const colorNorm = computeColorNorm(colorSamples);
-
-  // ── Cross-validate: patch KNN on training data ──
-  let cvCorrect = 0, cvTotal = 0;
-  let tiebreakUsed = 0, tiebreakCorrect = 0;
+  // ── Cross-validate: compare downscale vs full-res template NCC ──
+  let dsCorrect = 0, fullCorrect = 0, cvTotal = 0;
   const cvConfusion: Record<string, Record<string, number>> = {};
 
   for (const tn of trainingNodes) {
+    const fullCx = Math.round((tn.x / GAME_MAP_SIZE) * full.w);
+    const fullCy = Math.round((1 - tn.y / GAME_MAP_SIZE) * full.h);
     const dsCx = Math.round((tn.x / GAME_MAP_SIZE) * w);
     const dsCy = Math.round((1 - tn.y / GAME_MAP_SIZE) * h);
-    const knnResult = classifyByPatchKnn(wMap, w, h, dsCx, dsCy, patchSamples);
-    if (!knnResult) continue;
+
+    const dsPred = classifyByTemplateNcc(wMap, w, h, dsCx, dsCy, dsTemplates, TMPL_SIZE);
+    const fullPred = classifyByTemplateNcc(fullWMap, full.w, full.h, fullCx, fullCy, fullTemplates, FULL_TMPL_SIZE);
+
     cvTotal++;
+    if (dsPred === tn.type) dsCorrect++;
+    if (fullPred === tn.type) fullCorrect++;
 
-    // Check tiebreaker
-    const totalW = knnResult.weight1 + knnResult.weight2;
-    const conf = totalW > 0 ? (knnResult.weight1 - knnResult.weight2) / totalW : 0;
-    let predicted = knnResult.type;
-
-    if (conf < CONFIDENCE_THRESHOLD && colorSamples.length > 0) {
-      const fx = Math.round((tn.x / GAME_MAP_SIZE) * full.w);
-      const fy = Math.round((1 - tn.y / GAME_MAP_SIZE) * full.h);
-      const tint = sampleIconTint(full.pixels, full.w, full.h, fx, fy);
-      if (tint) {
-        predicted = colorTiebreak(tint, knnResult.type, knnResult.type2, colorSamples, colorNorm);
-        tiebreakUsed++;
-        if (predicted === tn.type) tiebreakCorrect++;
-      }
-    }
-
-    if (predicted === tn.type) cvCorrect++;
+    // Track confusion for the full-res approach
     if (!cvConfusion[tn.type]) cvConfusion[tn.type] = {};
-    cvConfusion[tn.type][predicted] = (cvConfusion[tn.type][predicted] || 0) + 1;
+    cvConfusion[tn.type][fullPred] = (cvConfusion[tn.type][fullPred] || 0) + 1;
   }
 
-  console.log(`[RSS] Patch KNN cross-validation: ${cvCorrect}/${cvTotal} = ${(cvCorrect / cvTotal * 100).toFixed(1)}% accuracy`);
-  console.log(`[RSS] Color tiebreaker used: ${tiebreakUsed} times, correct: ${tiebreakCorrect}/${tiebreakUsed}`);
-  console.log('[RSS] Confusion (true -> predicted):');
+  console.log(`[RSS] Cross-validation (downscale ${TMPL_SIZE}x${TMPL_SIZE}): ${dsCorrect}/${cvTotal} = ${(dsCorrect / cvTotal * 100).toFixed(1)}%`);
+  console.log(`[RSS] Cross-validation (full-res ${FULL_TMPL_SIZE}x${FULL_TMPL_SIZE}): ${fullCorrect}/${cvTotal} = ${(fullCorrect / cvTotal * 100).toFixed(1)}%`);
+  console.log('[RSS] Full-res confusion (true -> predicted):');
   for (const [trueType, preds] of Object.entries(cvConfusion)) {
     const parts = Object.entries(preds).sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t}:${c}`);
     console.log(`  ${trueType} -> ${parts.join(', ')}`);
   }
 
-  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${patchSamples.length} patch samples + ${colorSamples.length} color samples)...`);
+  // Use whichever approach has better cross-validation accuracy
+  const useFull = fullCorrect >= dsCorrect && fullTemplates.length > 0;
+  const approach = useFull ? 'full-res' : 'downscale';
+  console.log(`[RSS] Using ${approach} templates for classification`);
+
+  onProgress?.(`Re-classifying ${pendingNodes.length} nodes (${approach} templates)...`);
   const results: RssNodeType[] = [];
 
   for (let i = 0; i < pendingNodes.length; i++) {
     const node = pendingNodes[i];
-    const dsCx = Math.round((node.x / GAME_MAP_SIZE) * w);
-    const dsCy = Math.round((1 - node.y / GAME_MAP_SIZE) * h);
 
-    results.push(classifyFull(
-      wMap, w, h, dsCx, dsCy, patchSamples,
-      full.pixels, full.w, full.h, node.x, node.y,
-      colorSamples, colorNorm,
-    ));
+    if (useFull) {
+      const fullCx = Math.round((node.x / GAME_MAP_SIZE) * full.w);
+      const fullCy = Math.round((1 - node.y / GAME_MAP_SIZE) * full.h);
+      results.push(classifyByTemplateNcc(fullWMap, full.w, full.h, fullCx, fullCy, fullTemplates, FULL_TMPL_SIZE));
+    } else {
+      const dsCx = Math.round((node.x / GAME_MAP_SIZE) * w);
+      const dsCy = Math.round((1 - node.y / GAME_MAP_SIZE) * h);
+      results.push(classifyByTemplateNcc(wMap, w, h, dsCx, dsCy, dsTemplates, TMPL_SIZE));
+    }
 
     if (i % 200 === 0 && i > 0) {
       onProgress?.(`Re-classifying... ${Math.round((i / pendingNodes.length) * 100)}%`);

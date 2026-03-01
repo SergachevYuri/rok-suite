@@ -155,6 +155,7 @@ export default function RssReviewPanel({
       if (e.key === 'ArrowRight') { e.preventDefault(); handleNext(); }
       if ((e.key === 'a' || e.key === 'A') && currentReviewIndex >= 0) { e.preventDefault(); handleReviewApprove(); }
       if ((e.key === 'r' || e.key === 'R') && currentReviewIndex >= 0) { e.preventDefault(); handleReviewReject(); }
+      if ((e.key === 'z' || e.key === 'Z') && !e.metaKey && !e.ctrlKey && canUndo) { e.preventDefault(); onUndo(); }
       // 1-5 keys set type during review
       const numKey = parseInt(e.key);
       if (numKey >= 1 && numKey <= 5 && selectedId != null) {
@@ -556,9 +557,20 @@ export default function RssReviewPanel({
                   </button>
                 </div>
 
+                {/* Undo */}
+                {canUndo && (
+                  <button
+                    onClick={onUndo}
+                    className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-medium mt-1.5"
+                    style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
+                  >
+                    <Undo2 size={10} /> Undo last action
+                  </button>
+                )}
+
                 {/* Keyboard hints */}
                 <div className="text-[9px] text-center mt-1.5" style={{ color: 'var(--text-muted)' }}>
-                  Keys: ← → navigate · A approve · R reject · 1-5 set type
+                  Keys: ← → navigate · A approve · R reject · Z undo · 1-5 set type
                 </div>
               </>
             ) : (

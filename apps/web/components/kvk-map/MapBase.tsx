@@ -87,7 +87,13 @@ export default function MapBase({
   className = '',
   cursorStyle,
 }: MapBaseProps) {
+  // Extend maxBounds beyond map edges so sidebars don't prevent viewing edge nodes
+  const PAD = 300;
   const bounds = useMemo<L.LatLngBoundsExpression>(
+    () => [[-PAD, -PAD], [GAME_MAP_SIZE + PAD, GAME_MAP_SIZE + PAD]],
+    []
+  );
+  const imageBounds = useMemo<L.LatLngBoundsExpression>(
     () => [[0, 0], [GAME_MAP_SIZE, GAME_MAP_SIZE]],
     []
   );
@@ -110,8 +116,8 @@ export default function MapBase({
       attributionControl={false}
       zoomControl={true}
     >
-      <ImageOverlay url={imageUrl} bounds={bounds} />
-      <FitBounds bounds={bounds} />
+      <ImageOverlay url={imageUrl} bounds={imageBounds} />
+      <FitBounds bounds={imageBounds} />
       <CursorStyle cursor={cursorStyle} />
       <MapEventHandler onClick={onClick} onDoubleClick={onDoubleClick} onMouseMove={onMouseMove} onZoomChange={onZoomChange} />
       {children}
