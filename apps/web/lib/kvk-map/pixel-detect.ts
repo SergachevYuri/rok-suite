@@ -35,8 +35,19 @@ const CONTRAST_MIN = 35;
 /** Template patch size at full resolution for high-detail classification */
 const FULL_TMPL_SIZE = 24;
 
-/** Neighbors per type for balanced KNN */
-const KNN_K = 5;
+/** Fraction of each type's training patches to use as K in balanced KNN */
+const KNN_PCT = 0.03;
+/** Minimum K per type (ensures enough neighbors even for small types) */
+const KNN_MIN_K = 3;
+
+/** Compute per-type K values: top KNN_PCT of each type, min KNN_MIN_K */
+function computePerTypeK(typeCounts: Record<string, number>): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const [type, count] of Object.entries(typeCounts)) {
+    result[type] = Math.max(KNN_MIN_K, Math.round(count * KNN_PCT));
+  }
+  return result;
+}
 
 
 /**
@@ -331,7 +342,7 @@ function computePairwiseNcc(patches: StoredPatch[], patchLen: number): Float32Ar
 function computeTypeBaselines(
   patches: StoredPatch[],
   nccMatrix: Float32Array,
-  K: number,
+  perTypeK: Record<string, number>,
 ): Record<string, number> {
   const N = patches.length;
   const typeIndices: Record<string, number[]> = {};
@@ -343,10 +354,10 @@ function computeTypeBaselines(
 
   const baselines: Record<string, number> = {};
   for (const [type, indices] of Object.entries(typeIndices)) {
+    const K = perTypeK[type] ?? KNN_MIN_K;
     let totalAvg = 0;
     let count = 0;
     for (const i of indices) {
-      // Get top-K NCC with same-type patches (excluding self)
       const scores: number[] = [];
       for (const j of indices) {
         if (j === i) continue;
@@ -397,7 +408,7 @@ function balancedAccuracy(confusion: Record<string, Record<string, number>>): nu
 function knnLoocvAccuracy(
   patches: StoredPatch[],
   nccMatrix: Float32Array,
-  K: number,
+  perTypeK: Record<string, number>,
   baselines: Record<string, number>,
 ): { correct: number; total: number; confusion: Record<string, Record<string, number>> } {
   const N = patches.length;
@@ -417,6 +428,7 @@ function knnLoocvAccuracy(
     let bestScore = -Infinity;
 
     for (const [type, indices] of Object.entries(typeIndices)) {
+      const K = perTypeK[type] ?? KNN_MIN_K;
       const scores: number[] = [];
       for (const j of indices) {
         if (j === i) continue;
@@ -430,7 +442,6 @@ function knnLoocvAccuracy(
       for (let k = 0; k < topK; k++) sum += scores[k];
       const avg = sum / topK;
 
-      // Normalize by type self-similarity baseline
       const baseline = baselines[type] ?? 1;
       const normalizedScore = avg / (baseline + 1e-8);
 
@@ -461,7 +472,7 @@ function classifyByBalancedKnn(
   cx: number, cy: number,
   trainingPatches: StoredPatch[],
   tmplSize: number,
-  K: number,
+  perTypeK: Record<string, number>,
   baselines: Record<string, number>,
   discrimWeights?: Float32Array,
 ): RssNodeType {
@@ -502,14 +513,15 @@ function classifyByBalancedKnn(
     if (!typeTopK[tp.type]) typeTopK[tp.type] = [];
     const scores = typeTopK[tp.type];
 
-    if (scores.length < K) {
+    const typeK = perTypeK[tp.type] ?? KNN_MIN_K;
+    if (scores.length < typeK) {
       scores.push(dot);
       for (let j = scores.length - 1; j > 0 && scores[j] > scores[j - 1]; j--) {
         const tmp = scores[j]; scores[j] = scores[j - 1]; scores[j - 1] = tmp;
       }
-    } else if (dot > scores[K - 1]) {
-      scores[K - 1] = dot;
-      for (let j = K - 1; j > 0 && scores[j] > scores[j - 1]; j--) {
+    } else if (dot > scores[typeK - 1]) {
+      scores[typeK - 1] = dot;
+      for (let j = typeK - 1; j > 0 && scores[j] > scores[j - 1]; j--) {
         const tmp = scores[j]; scores[j] = scores[j - 1]; scores[j - 1] = tmp;
       }
     }
@@ -870,19 +882,22 @@ export async function reclassifyNodeTypes(
     { label: 'knn-full-fisher', map: fullWMap, w: full.w, h: full.h, size: FULL_TMPL_SIZE, patchLen: fullPatchLen, weights: fullWeights as Float32Array | undefined },
   ];
 
-  const knnData: Record<string, { patches: StoredPatch[]; baselines: Record<string, number> }> = {};
+  const knnData: Record<string, { patches: StoredPatch[]; baselines: Record<string, number>; perTypeK: Record<string, number> }> = {};
 
   for (const cfg of knnConfigs) {
     const patches = buildTrainingPatches(cfg.map, cfg.w, cfg.h, trainingNodes, cfg.size, cfg.weights);
+    const typeCounts: Record<string, number> = {};
+    for (const p of patches) typeCounts[p.type] = (typeCounts[p.type] ?? 0) + 1;
+    const perTypeK = computePerTypeK(typeCounts);
     const matrix = computePairwiseNcc(patches, cfg.patchLen);
-    const baselines = computeTypeBaselines(patches, matrix, KNN_K);
-    knnData[cfg.label] = { patches, baselines };
+    const baselines = computeTypeBaselines(patches, matrix, perTypeK);
+    knnData[cfg.label] = { patches, baselines, perTypeK };
 
     // Log baselines
     const blParts = Object.entries(baselines).map(([t, v]) => `${t}:${v.toFixed(4)}`).join(', ');
     console.log(`[RSS] Baselines ${cfg.label}: ${blParts}`);
 
-    const cv = knnLoocvAccuracy(patches, matrix, KNN_K, baselines);
+    const cv = knnLoocvAccuracy(patches, matrix, perTypeK, baselines);
     const bAcc = balancedAccuracy(cv.confusion);
     cvResults[cfg.label] = { ...cv, balancedAcc: bAcc };
     const rawPct = cv.total > 0 ? (cv.correct / cv.total * 100).toFixed(1) : '0.0';
@@ -918,7 +933,7 @@ export async function reclassifyNodeTypes(
 
   if (isKnn) {
     const cfg = knnConfigs.find(c => c.label === bestLabel)!;
-    const { patches: trainPatches, baselines } = knnData[bestLabel];
+    const { patches: trainPatches, baselines, perTypeK } = knnData[bestLabel];
 
     for (let i = 0; i < pendingNodes.length; i++) {
       const node = pendingNodes[i];
@@ -926,7 +941,7 @@ export async function reclassifyNodeTypes(
       const cy = Math.round((1 - node.y / GAME_MAP_SIZE) * cfg.h);
 
       results.push(classifyByBalancedKnn(
-        cfg.map, cfg.w, cfg.h, cx, cy, trainPatches, cfg.size, KNN_K, baselines, cfg.weights));
+        cfg.map, cfg.w, cfg.h, cx, cy, trainPatches, cfg.size, perTypeK, baselines, cfg.weights));
 
       if (i % 200 === 0 && i > 0) {
         onProgress?.(`Re-classifying... ${Math.round((i / pendingNodes.length) * 100)}%`);
