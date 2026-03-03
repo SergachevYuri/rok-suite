@@ -42,7 +42,7 @@ const RSS_STATUSES: RssNodeStatus[] = ['pending', 'approved', 'rejected'];
 const RSS_SOURCES: RssNodeSource[] = ['manual', 'propagated', 'detected'];
 
 export async function loadRssNodes(): Promise<RssNode[]> {
-  const { default: rssNodesRaw } = await import('@/data/rss_nodes_all.json');
+  const { default: rssNodesRaw } = await import('@/data/rss_nodes_complete.json');
   return (rssNodesRaw as { type: string; x: number; y: number; status?: string; source?: string }[]).map((raw, i) => ({
     id: i,
     type: (RSS_TYPES.includes(raw.type as RssNodeType) ? raw.type : 'food') as RssNodeType,
