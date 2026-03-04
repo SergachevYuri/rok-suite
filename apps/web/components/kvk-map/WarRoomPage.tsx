@@ -135,7 +135,7 @@ export default function WarRoomPage() {
   const [rssFlyTarget, setRssFlyTarget] = useState<{ x: number; y: number } | null>(null);
 
   // Auto-save RSS nodes to localStorage
-  const RSS_STORAGE_KEY = 'kvk-rss-annotation-nodes-v9';
+  const RSS_STORAGE_KEY = 'kvk-rss-annotation-nodes-v10';
   useEffect(() => {
     if (!rssReviewActive || rssNodes.length === 0) return;
     try {
