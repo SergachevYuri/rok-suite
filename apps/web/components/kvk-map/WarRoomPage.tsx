@@ -35,9 +35,18 @@ import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy
 import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentStatus } from '@/lib/kvk-map-types';
 import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
 import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
-import { loadRssNodes, RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus, type RssAnnotationMode } from '@/lib/kvk-map/rss-review';
+import { RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus, type RssAnnotationMode } from '@/lib/kvk-map/rss-review';
+import { useKvkRssNodes, useKvkRssFlags, saveRssNodes, flagRssNode } from '@/lib/supabase/use-kvk-rss';
 import { type SymmetryConfig, getSegment } from '@/lib/kvk-map/rss-symmetry';
 import { detectNodesPixel, reclassifyNodeTypes } from '@/lib/kvk-map/pixel-detect';
+import FlagPathOverlay from '@/components/kvk-map/FlagPathOverlay';
+import FlagPathPanel from '@/components/kvk-map/FlagPathPanel';
+import {
+  type Waypoint, type PlannedFlag, type PlannedFlagStatus,
+  type FlagPathConfig, type FlagPathResult,
+  DEFAULT_FLAG_STEP, DEFAULT_MAX_DEVIATION,
+  computeFlagPath, recalculateCoverage,
+} from '@/lib/kvk-map/flag-path';
 
 function isFlagFeatureType(type: FeatureType): boolean {
   return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
@@ -55,6 +64,8 @@ export default function WarRoomPage() {
   const { alliances, loading: alliancesLoading, refetch: refetchAlliances } = useKvkAlliances(map?.id);
   const { assignments, refetch: refetchAssignments } = useKvkAssignments(map?.id);
   const { strategies, refetch: refetchStrategies } = useKvkStrategies(map?.id);
+  const { rssNodes, setRssNodes, refetch: refetchRss } = useKvkRssNodes(map?.id);
+  const { flags: rssFlags, refetch: refetchRssFlags } = useKvkRssFlags(map?.id);
 
   // ── Strategy state ─────────────────────────────────────────────────
   const [activeStrategyId, setActiveStrategyId] = useState<string | null>(null);
@@ -117,9 +128,8 @@ export default function WarRoomPage() {
   const [isDrawingZone, setIsDrawingZone] = useState(false);
   const [zoneVertices, setZoneVertices] = useState<[number, number][]>([]);
 
-  // ── RSS review state (admin only) ─────────────────────────────────
+  // ── RSS review state ──────────────────────────────────────────────
   const [rssReviewActive, setRssReviewActive] = useState(false);
-  const [rssNodes, setRssNodes] = useState<RssNode[]>([]);
   const [selectedRssNodeId, setSelectedRssNodeId] = useState<number | null>(null);
   const [rssTypeFilter, setRssTypeFilter] = useState<RssNodeType | 'all'>('all');
   const [rssStatusFilter, setRssStatusFilter] = useState<RssNodeStatus | 'all'>('all');
@@ -134,14 +144,26 @@ export default function WarRoomPage() {
   const [rssReclassifying, setRssReclassifying] = useState(false);
   const [rssFlyTarget, setRssFlyTarget] = useState<{ x: number; y: number } | null>(null);
 
-  // Auto-save RSS nodes to localStorage
-  const RSS_STORAGE_KEY = 'kvk-rss-annotation-nodes-v13';
+  // Sync rssNextId when nodes load from Supabase/JSON
   useEffect(() => {
-    if (!rssReviewActive || rssNodes.length === 0) return;
-    try {
-      localStorage.setItem(RSS_STORAGE_KEY, JSON.stringify({ nodes: rssNodes, nextId: rssNextId }));
-    } catch { /* quota exceeded — ignore */ }
-  }, [rssNodes, rssNextId, rssReviewActive]);
+    if (rssNodes.length > 0) {
+      setRssNextId((prev) => Math.max(prev, rssNodes.length));
+    }
+  }, [rssNodes.length]);
+
+  // ── Flag path planner state ─────────────────────────────────────
+  const [flagPathActive, setFlagPathActive] = useState(false);
+  const [flagPathWaypoints, setFlagPathWaypoints] = useState<Waypoint[]>([]);
+  const [flagPathFlags, setFlagPathFlags] = useState<PlannedFlag[]>([]);
+  const [flagPathResult, setFlagPathResult] = useState<FlagPathResult | null>(null);
+  const [flagPathConfig, setFlagPathConfig] = useState<FlagPathConfig>({
+    flagStep: DEFAULT_FLAG_STEP,
+    maxDeviation: DEFAULT_MAX_DEVIATION,
+  });
+  const [flagPathAddingWaypoint, setFlagPathAddingWaypoint] = useState(false);
+  const [flagPathAddingFlag, setFlagPathAddingFlag] = useState(false);
+  const [flagPathSelectedFlagId, setFlagPathSelectedFlagId] = useState<string | null>(null);
+  const [flagPathCalculating, setFlagPathCalculating] = useState(false);
 
   // ── Symmetry config ───────────────────────────────────────────────
   const symmetryConfig = useMemo<SymmetryConfig | null>(() => {
@@ -184,6 +206,11 @@ export default function WarRoomPage() {
   const selectedZone = useMemo(
     () => zones.find((z) => z.id === selectedZoneId) || null,
     [zones, selectedZoneId]
+  );
+
+  const selectedRssNode = useMemo(
+    () => (selectedRssNodeId != null ? rssNodes.find((n) => n.id === selectedRssNodeId) ?? null : null),
+    [rssNodes, selectedRssNodeId]
   );
 
   const featureCounts = useMemo(() => {
@@ -234,6 +261,22 @@ export default function WarRoomPage() {
         return;
       }
       if (e.key === 'Escape') {
+        if (flagPathAddingWaypoint) {
+          setFlagPathAddingWaypoint(false);
+          return;
+        }
+        if (flagPathAddingFlag) {
+          setFlagPathAddingFlag(false);
+          return;
+        }
+        if (flagPathActive) {
+          setFlagPathActive(false);
+          setFlagPathWaypoints([]);
+          setFlagPathFlags([]);
+          setFlagPathResult(null);
+          setFlagPathSelectedFlagId(null);
+          return;
+        }
         if (isDrawingZone) {
           setIsDrawingZone(false);
           setZoneVertices([]);
@@ -253,7 +296,7 @@ export default function WarRoomPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawingZone, rssAnnotationMode]);
+  }, [isDrawingZone, rssAnnotationMode, flagPathActive, flagPathAddingWaypoint, flagPathAddingFlag]);
 
   // ── Visibility toggles ─────────────────────────────────────────────
   const handleToggleGroup = useCallback((groupKey: string) => {
@@ -276,6 +319,7 @@ export default function WarRoomPage() {
   const handleSelectType = useCallback((type: FeatureType) => {
     const canPlace = isAtLeast('admin') || (isAtLeast('officer') && isFlagFeatureType(type));
     if (!canPlace) return;
+    if (flagPathActive) clearFlagPathState();
     setPlacingType(type);
     setIsPlacing(true);
     setSelectedFeatureId(null);
@@ -482,34 +526,7 @@ export default function WarRoomPage() {
   // ── RSS review handlers (admin only) ────────────────────────────────
   const handleToggleRssReview = useCallback(() => {
     if (!rssReviewActive) {
-      // Restore saved session from localStorage (manual + approved nodes survive)
-      let restored = false;
-      try {
-        const saved = localStorage.getItem(RSS_STORAGE_KEY);
-        if (saved) {
-          const { nodes, nextId } = JSON.parse(saved);
-          if (Array.isArray(nodes) && nodes.length > 0) {
-            const cleaned = nodes.filter(
-              (n: RssNode) =>
-                n.source === 'manual' || n.status === 'approved' || n.status === 'rejected' || n.status === 'pending',
-            );
-            if (cleaned.length > 0) {
-              setRssNodes(cleaned);
-              setRssNextId(nextId || nodes.length);
-              restored = true;
-            }
-          }
-        }
-      } catch { /* corrupt data — start fresh */ }
-      if (!restored) {
-        // No localStorage session — load annotations from JSON file
-        loadRssNodes().then((nodes) => {
-          if (nodes.length > 0) {
-            setRssNodes(nodes);
-            setRssNextId(nodes.length);
-          }
-        });
-      }
+      if (flagPathActive) clearFlagPathState();
       setSelectedRssNodeId(null);
       setRssUndoStack([]);
       setRssAnnotationMode('annotate');
@@ -521,12 +538,10 @@ export default function WarRoomPage() {
   }, [rssReviewActive]);
 
   const handleRssLoadExisting = useCallback(async () => {
-    const nodes = await loadRssNodes();
-    setRssNodes(nodes);
-    setRssNextId(nodes.length);
+    await refetchRss();
     setSelectedRssNodeId(null);
     setRssUndoStack([]);
-  }, []);
+  }, [refetchRss]);
 
   const handleRssNodeMove = useCallback((id: number, x: number, y: number) => {
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
@@ -696,8 +711,7 @@ export default function WarRoomPage() {
     setRssNodes([]);
     setRssNextId(0);
     setSelectedRssNodeId(null);
-    try { localStorage.removeItem(RSS_STORAGE_KEY); } catch { /* ignore */ }
-  }, []);
+  }, [setRssNodes]);
 
   const handleRssUndo = useCallback(() => {
     if (rssUndoStack.length === 0) return;
@@ -706,6 +720,115 @@ export default function WarRoomPage() {
     setRssNodes(prev);
   }, [rssUndoStack]);
 
+  const handleRssSaveToServer = useCallback(async () => {
+    if (!map?.id) return;
+    setRssDetectProgress('Saving to server...');
+    const success = await saveRssNodes(map.id, rssNodes);
+    setRssDetectProgress(success ? 'Saved to server!' : 'Save failed — check console');
+    setTimeout(() => setRssDetectProgress(null), 3000);
+  }, [map?.id, rssNodes]);
+
+  const handleFlagRssNode = useCallback(async () => {
+    if (!map?.id || !selectedRssNode) return;
+    await flagRssNode(map.id, selectedRssNode.x, selectedRssNode.y, selectedRssNode.type);
+    await refetchRssFlags();
+  }, [map?.id, selectedRssNode, refetchRssFlags]);
+
+  // ── Flag path planner handlers ────────────────────────────────────
+  const clearFlagPathState = useCallback(() => {
+    setFlagPathActive(false);
+    setFlagPathWaypoints([]);
+    setFlagPathFlags([]);
+    setFlagPathResult(null);
+    setFlagPathAddingWaypoint(false);
+    setFlagPathAddingFlag(false);
+    setFlagPathSelectedFlagId(null);
+  }, []);
+
+  const handleToggleFlagPath = useCallback(() => {
+    if (!flagPathActive) {
+      setFlagPathActive(true);
+      setFlagPathAddingWaypoint(true);
+      setFlagPathWaypoints([]);
+      setFlagPathFlags([]);
+      setFlagPathResult(null);
+      setFlagPathSelectedFlagId(null);
+      // Clear conflicting modes
+      setIsPlacing(false);
+      setPlacingType(null);
+      setIsDrawingZone(false);
+      setZoneVertices([]);
+      setSelectedFeatureId(null);
+      setSelectedZoneId(null);
+      setSelectedRssNodeId(null);
+      setRssReviewActive(false);
+      setRssAnnotationMode('off');
+    } else {
+      clearFlagPathState();
+    }
+  }, [flagPathActive, clearFlagPathState]);
+
+  const handleFlagPathCalculate = useCallback(async () => {
+    if (flagPathWaypoints.length < 2 || flagPathCalculating) return;
+    setFlagPathCalculating(true);
+    await new Promise((r) => setTimeout(r, 0));
+    try {
+      const result = computeFlagPath(flagPathWaypoints, rssNodes, flagPathConfig);
+      setFlagPathFlags(result.flags);
+      setFlagPathResult(result);
+      setFlagPathAddingWaypoint(false);
+    } finally {
+      setFlagPathCalculating(false);
+    }
+  }, [flagPathWaypoints, rssNodes, flagPathConfig, flagPathCalculating]);
+
+  const handleFlagPathWaypointDragEnd = useCallback((id: string, newX: number, newY: number) => {
+    setFlagPathWaypoints((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, x: newX, y: newY } : w)),
+    );
+    setFlagPathResult(null);
+    setFlagPathFlags([]);
+  }, []);
+
+  const handleFlagPathFlagDragEnd = useCallback((id: string, newX: number, newY: number) => {
+    setFlagPathFlags((prev) => {
+      const updated = prev.map((f) => (f.id === id ? { ...f, x: newX, y: newY } : f));
+      const result = recalculateCoverage(updated, rssNodes);
+      setFlagPathResult(result);
+      return result.flags;
+    });
+  }, [rssNodes]);
+
+  const handleFlagPathFlagStatusChange = useCallback((id: string, status: PlannedFlagStatus) => {
+    setFlagPathFlags((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)));
+  }, []);
+
+  const handleFlagPathFlagDelete = useCallback((id: string) => {
+    setFlagPathFlags((prev) => {
+      const updated = prev.filter((f) => f.id !== id);
+      if (updated.length > 0) {
+        const result = recalculateCoverage(updated, rssNodes);
+        setFlagPathResult(result);
+        return result.flags;
+      }
+      setFlagPathResult(null);
+      return [];
+    });
+    if (flagPathSelectedFlagId === id) setFlagPathSelectedFlagId(null);
+  }, [rssNodes, flagPathSelectedFlagId]);
+
+  const handleFlagPathRemoveWaypoint = useCallback((id: string) => {
+    setFlagPathWaypoints((prev) => prev.filter((w) => w.id !== id));
+    setFlagPathResult(null);
+    setFlagPathFlags([]);
+  }, []);
+
+  const handleFlagPathConfigChange = useCallback((updates: Partial<FlagPathConfig>) => {
+    setFlagPathConfig((prev) => ({ ...prev, ...updates }));
+    setFlagPathResult(null);
+    setFlagPathFlags([]);
+  }, []);
+
   // ── Map click/move ─────────────────────────────────────────────────
   const handleMouseMove = useCallback((x: number, y: number) => {
     setMousePos({ x, y });
@@ -713,6 +836,33 @@ export default function WarRoomPage() {
 
   const handleMapClick = useCallback(
     async (x: number, y: number) => {
+      // Flag path: add waypoint or manual flag
+      if (flagPathActive) {
+        if (flagPathAddingWaypoint) {
+          const wp: Waypoint = { id: crypto.randomUUID(), x: Math.round(x), y: Math.round(y) };
+          setFlagPathWaypoints((prev) => [...prev, wp]);
+          return;
+        }
+        if (flagPathAddingFlag) {
+          const newFlag: PlannedFlag = {
+            id: crypto.randomUUID(),
+            x: Math.round(x),
+            y: Math.round(y),
+            status: 'planned',
+            coveredNodeIds: [],
+            rssPerHour: 0,
+          };
+          setFlagPathFlags((prev) => {
+            const updated = [...prev, newFlag];
+            const result = recalculateCoverage(updated, rssNodes);
+            setFlagPathResult(result);
+            return result.flags;
+          });
+          setFlagPathAddingFlag(false);
+          return;
+        }
+        return;
+      }
       if (isDrawingZone && isAtLeast('admin')) {
         setZoneVertices((prev) => [...prev, [x, y]]);
         return;
@@ -755,7 +905,7 @@ export default function WarRoomPage() {
         setSelectedFeatureId(newFeature.id);
       }
     },
-    [isDrawingZone, isPlacing, placingType, map, features, refetchFeatures, isAtLeast, placingForAllianceId, refetchAssignments, rssAnnotationMode, symmetryConfig, rssNextId, activeRssType, rssNodes]
+    [isDrawingZone, isPlacing, placingType, map, features, refetchFeatures, isAtLeast, placingForAllianceId, refetchAssignments, rssAnnotationMode, symmetryConfig, rssNextId, activeRssType, rssNodes, flagPathActive, flagPathAddingWaypoint, flagPathAddingFlag]
   );
 
   const handleMapDoubleClick = useCallback(
@@ -842,6 +992,24 @@ export default function WarRoomPage() {
                 onDelete={handleDeleteAlliance}
               />
             )}
+            {/* Flag Path Planner toggle (officer+) */}
+            {isOfficerMode && (
+              <button
+                onClick={handleToggleFlagPath}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  backgroundColor: flagPathActive ? 'rgba(6,182,212,0.15)' : 'var(--background-card)',
+                  color: flagPathActive ? '#06b6d4' : 'var(--text-muted)',
+                  border: `1px solid ${flagPathActive ? 'rgba(6,182,212,0.3)' : 'var(--border)'}`,
+                }}
+              >
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: flagPathActive ? '#06b6d4' : 'var(--text-muted)' }} />
+                Plan Flag Path
+                {flagPathActive && flagPathFlags.length > 0 && (
+                  <span className="ml-auto text-[10px]">{flagPathFlags.length} flags</span>
+                )}
+              </button>
+            )}
             {/* RSS Review toggle (admin only) */}
             {isAdminMode && (
               <button
@@ -884,7 +1052,7 @@ export default function WarRoomPage() {
               onDoubleClick={handleMapDoubleClick}
               onMouseMove={handleMouseMove}
               onZoomChange={setZoom}
-              cursorStyle={(isPlacing && placingType) || (isDrawingZone && isAdminMode) || rssAnnotationMode === 'annotate' ? 'crosshair' : undefined}
+              cursorStyle={(flagPathActive && (flagPathAddingWaypoint || flagPathAddingFlag)) || (isPlacing && placingType) || (isDrawingZone && isAdminMode) || rssAnnotationMode === 'annotate' ? 'crosshair' : undefined}
             >
               {showZones && zones.map((zone) => (
                 <ZonePolygon
@@ -937,15 +1105,31 @@ export default function WarRoomPage() {
                   />
                 );
               })}
-              {rssReviewActive && (
+              {rssNodes.length > 0 && (
                 <RssNodeOverlay
-                  nodes={filteredRssNodes}
+                  nodes={rssReviewActive ? filteredRssNodes : rssNodes}
                   selectedId={selectedRssNodeId}
-                  interactive={!isPlacing && !isDrawingZone && rssAnnotationMode !== 'annotate'}
-                  onSelect={setSelectedRssNodeId}
-                  onMove={handleRssNodeMove}
+                  interactive={isAtLeast('officer') && !isPlacing && !isDrawingZone && rssAnnotationMode !== 'annotate'}
+                  onSelect={isAtLeast('officer') ? setSelectedRssNodeId : undefined}
+                  onMove={rssReviewActive ? handleRssNodeMove : undefined}
                   zoom={zoom}
                   flyToTarget={rssFlyTarget}
+                />
+              )}
+              {flagPathActive && (
+                <FlagPathOverlay
+                  waypoints={flagPathWaypoints}
+                  flags={flagPathFlags}
+                  rssNodes={rssNodes}
+                  coveredNodeIds={flagPathResult?.coveredNodes ?? new Set()}
+                  currentPoint={mousePos}
+                  isAddingWaypoint={flagPathAddingWaypoint}
+                  isAddingFlag={flagPathAddingFlag}
+                  zoom={zoom}
+                  selectedFlagId={flagPathSelectedFlagId}
+                  onWaypointDragEnd={handleFlagPathWaypointDragEnd}
+                  onFlagDragEnd={handleFlagPathFlagDragEnd}
+                  onFlagClick={(id) => setFlagPathSelectedFlagId((prev) => (prev === id ? null : id))}
                 />
               )}
               {isDrawingZone && (
@@ -955,6 +1139,26 @@ export default function WarRoomPage() {
             <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
 
             {/* Mode indicator */}
+            {flagPathActive && (
+              <div
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: 'rgba(0,0,0,0.8)',
+                  color: '#06b6d4',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#06b6d4' }} />
+                <span>
+                  {flagPathAddingWaypoint
+                    ? 'Click to place waypoints'
+                    : flagPathAddingFlag
+                      ? 'Click to place a flag'
+                      : `Flag Path: ${flagPathFlags.length} flags`}
+                </span>
+                <span style={{ color: 'var(--text-muted)' }}>(Esc to exit)</span>
+              </div>
+            )}
             {isPlacing && placingType && (
               <div
                 className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
@@ -1010,45 +1214,123 @@ export default function WarRoomPage() {
             )}
           </div>
 
-          {/* Right sidebar — feature/zone detail or RSS review */}
-          {(selectedZone || selectedFeature || rssReviewActive) && (
+          {/* Right sidebar — feature/zone detail, RSS review, flag path, or officer node info */}
+          {(selectedZone || selectedFeature || rssReviewActive || flagPathActive || (!rssReviewActive && selectedRssNode && isAtLeast('officer'))) && (
             <div className="lg:w-72 shrink-0 overflow-y-auto">
-              {rssReviewActive ? (
-                <RssReviewPanel
-                  nodes={rssNodes}
-                  selectedId={selectedRssNodeId}
-                  typeFilter={rssTypeFilter}
-                  statusFilter={rssStatusFilter}
-                  onTypeFilterChange={setRssTypeFilter}
-                  onStatusFilterChange={setRssStatusFilter}
-                  onChangeType={handleRssNodeChangeType}
-                  onApprove={handleRssNodeApprove}
-                  onReject={handleRssNodeReject}
-                  onDelete={handleRssNodeDelete}
-                  onSelect={setSelectedRssNodeId}
-                  onExport={handleRssExport}
-                  onClose={handleToggleRssReview}
-                  onFlyTo={handleRssFlyTo}
-                  annotationMode={rssAnnotationMode}
-                  onAnnotationModeChange={setRssAnnotationMode}
-                  activeRssType={activeRssType}
-                  onActiveRssTypeChange={setActiveRssType}
-                  sourceCount={rssSourceCount}
-                  detectedCount={rssDetectedCount}
-                  canUndo={rssUndoStack.length > 0}
-                  onDetect={handleRssDetect}
-                  detecting={rssDetecting}
-                  detectProgress={rssDetectProgress}
-                  onClearDetected={handleRssClearDetected}
-                  onStartFresh={handleRssStartFresh}
-                  onUndo={handleRssUndo}
-                  onLoadExisting={handleRssLoadExisting}
-                  onBatchChangeType={handleRssBatchChangeType}
-                  onReclassify={handleRssReclassify}
-                  reclassifying={rssReclassifying}
-                  onBulkApprove={handleRssBulkApprove}
-                  onBulkReject={handleRssBulkReject}
+              {flagPathActive ? (
+                <FlagPathPanel
+                  waypoints={flagPathWaypoints}
+                  flags={flagPathFlags}
+                  result={flagPathResult}
+                  config={flagPathConfig}
+                  isAddingWaypoint={flagPathAddingWaypoint}
+                  isAddingFlag={flagPathAddingFlag}
+                  selectedFlagId={flagPathSelectedFlagId}
+                  calculating={flagPathCalculating}
+                  onConfigChange={handleFlagPathConfigChange}
+                  onCalculate={handleFlagPathCalculate}
+                  onRemoveWaypoint={handleFlagPathRemoveWaypoint}
+                  onClearWaypoints={() => { setFlagPathWaypoints([]); setFlagPathFlags([]); setFlagPathResult(null); }}
+                  onToggleAddWaypoint={() => { setFlagPathAddingWaypoint((v) => !v); setFlagPathAddingFlag(false); }}
+                  onToggleAddFlag={() => { setFlagPathAddingFlag((v) => !v); setFlagPathAddingWaypoint(false); }}
+                  onFlagStatusChange={handleFlagPathFlagStatusChange}
+                  onFlagDelete={handleFlagPathFlagDelete}
+                  onSelectFlag={setFlagPathSelectedFlagId}
+                  onClose={handleToggleFlagPath}
                 />
+              ) : rssReviewActive ? (
+                <>
+                  <button
+                    onClick={handleRssSaveToServer}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 mb-2 rounded-lg text-xs font-medium transition-all"
+                    style={{
+                      backgroundColor: 'rgba(59,130,246,0.15)',
+                      color: '#3b82f6',
+                      border: '1px solid rgba(59,130,246,0.3)',
+                    }}
+                  >
+                    Save to Server
+                  </button>
+                  <RssReviewPanel
+                    nodes={rssNodes}
+                    selectedId={selectedRssNodeId}
+                    typeFilter={rssTypeFilter}
+                    statusFilter={rssStatusFilter}
+                    onTypeFilterChange={setRssTypeFilter}
+                    onStatusFilterChange={setRssStatusFilter}
+                    onChangeType={handleRssNodeChangeType}
+                    onApprove={handleRssNodeApprove}
+                    onReject={handleRssNodeReject}
+                    onDelete={handleRssNodeDelete}
+                    onSelect={setSelectedRssNodeId}
+                    onExport={handleRssExport}
+                    onClose={handleToggleRssReview}
+                    onFlyTo={handleRssFlyTo}
+                    annotationMode={rssAnnotationMode}
+                    onAnnotationModeChange={setRssAnnotationMode}
+                    activeRssType={activeRssType}
+                    onActiveRssTypeChange={setActiveRssType}
+                    sourceCount={rssSourceCount}
+                    detectedCount={rssDetectedCount}
+                    canUndo={rssUndoStack.length > 0}
+                    onDetect={handleRssDetect}
+                    detecting={rssDetecting}
+                    detectProgress={rssDetectProgress}
+                    onClearDetected={handleRssClearDetected}
+                    onStartFresh={handleRssStartFresh}
+                    onUndo={handleRssUndo}
+                    onLoadExisting={handleRssLoadExisting}
+                    onBatchChangeType={handleRssBatchChangeType}
+                    onReclassify={handleRssReclassify}
+                    reclassifying={rssReclassifying}
+                    onBulkApprove={handleRssBulkApprove}
+                    onBulkReject={handleRssBulkReject}
+                  />
+                </>
+              ) : !rssReviewActive && selectedRssNode && isAtLeast('officer') ? (
+                <div
+                  className="rounded-xl p-4 border"
+                  style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[selectedRssNode.type] }} />
+                      <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+                        {RSS_TYPE_LABELS[selectedRssNode.type]}
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setSelectedRssNodeId(null)}
+                      className="text-xs px-1.5 py-0.5 rounded"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                    ({selectedRssNode.x}, {selectedRssNode.y})
+                  </p>
+                  {rssFlags.some((f) => f.node_x === selectedRssNode.x && f.node_y === selectedRssNode.y) ? (
+                    <div
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-center"
+                      style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+                    >
+                      Already flagged
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleFlagRssNode}
+                      className="w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                      style={{
+                        backgroundColor: 'rgba(239,68,68,0.15)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                      }}
+                    >
+                      Flag as Incorrect
+                    </button>
+                  )}
+                </div>
               ) : selectedZone ? (
                 isAdminMode ? (
                   <ZoneEditorPanel

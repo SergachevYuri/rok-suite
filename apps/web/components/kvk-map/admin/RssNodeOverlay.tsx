@@ -8,12 +8,12 @@ import { RSS_TYPE_COLORS, RSS_TYPE_LABELS } from '@/lib/kvk-map/rss-review';
 
 interface RssNodeOverlayProps {
   nodes: RssNode[];
-  selectedId: number | null;
+  selectedId?: number | null;
   interactive?: boolean;
-  onSelect: (id: number | null) => void;
-  onMove: (id: number, x: number, y: number) => void;
+  onSelect?: (id: number | null) => void;
+  onMove?: (id: number, x: number, y: number) => void;
   zoom: number;
-  flyToTarget: { x: number; y: number } | null;
+  flyToTarget?: { x: number; y: number } | null;
 }
 
 /** Invisible component that flies the map to a target position, offset to avoid sidebar */
@@ -185,11 +185,11 @@ export default memo(function RssNodeOverlay({
           key={node.id}
           node={node}
           isSelected={node.id === selectedId}
-          onClick={() => interactive && onSelect(node.id === selectedId ? null : node.id)}
+          onClick={() => interactive && onSelect?.(node.id === selectedId ? null : node.id)}
           zoom={zoom}
         />
       ))}
-      {selectedNode && (
+      {selectedNode && onMove && (
         <SelectedNodeMarker
           node={selectedNode}
           onMove={(x, y) => onMove(selectedNode.id, x, y)}
