@@ -48,41 +48,8 @@ const RssNodeDot = memo(function RssNodeDot({
   zoom: number;
 }) {
   const color = RSS_TYPE_COLORS[node.type];
-  const isDetected = node.source === 'detected';
-  const baseOpacity = node.status === 'rejected' ? 0.2 : node.status === 'approved' ? 1 : 0.7;
-  const opacity = isDetected ? baseOpacity * 0.8 : baseOpacity;
-
-  // Detected nodes: zoom-responsive DivIcon with glow
-  if (isDetected && !isSelected) {
-    const baseSize = Math.max(6, 6 + (zoom + 2) * 3);
-    const glowSize = Math.max(2, (zoom + 2) * 2);
-
-    const icon = new L.DivIcon({
-      className: '',
-      iconSize: [baseSize, baseSize],
-      iconAnchor: [baseSize / 2, baseSize / 2],
-      html: `<div style="
-        width: ${baseSize}px; height: ${baseSize}px;
-        border-radius: 50%;
-        background: ${color};
-        opacity: ${opacity};
-        border: 1.5px dashed rgba(255,255,255,0.6);
-        box-shadow: 0 0 ${glowSize}px ${color}, 0 0 ${glowSize * 2}px ${color}40;
-        cursor: pointer;
-      "></div>`,
-    });
-
-    return (
-      <Marker
-        position={[node.y, node.x]}
-        icon={icon}
-        eventHandlers={{ click: onClick }}
-      />
-    );
-  }
-
-  // Manual nodes: solid circle with white border for visibility
-  const radius = isSelected ? 6 : 5;
+  const opacity = node.status === 'rejected' ? 0.2 : node.status === 'approved' ? 1 : 0.7;
+  const radius = isSelected ? 6 : Math.max(3, 3 + (zoom + 1) * 1.5);
 
   return (
     <CircleMarker
@@ -90,7 +57,7 @@ const RssNodeDot = memo(function RssNodeDot({
       radius={radius}
       pathOptions={{
         color: '#fff',
-        weight: isSelected ? 2 : 1.5,
+        weight: isSelected ? 2 : 1,
         fillColor: color,
         fillOpacity: opacity,
       }}
@@ -176,11 +143,13 @@ export default memo(function RssNodeOverlay({
   flyToTarget,
 }: RssNodeOverlayProps) {
   const selectedNode = selectedId != null ? nodes.find((n) => n.id === selectedId) : null;
+  // Hide nodes when zoomed out too far (zoom < 0 means very zoomed out)
+  const showNodes = zoom >= 0;
 
   return (
     <>
       {flyToTarget && <FlyToNode x={flyToTarget.x} y={flyToTarget.y} />}
-      {nodes.map((node) => (
+      {showNodes && nodes.map((node) => (
         <RssNodeDot
           key={node.id}
           node={node}
