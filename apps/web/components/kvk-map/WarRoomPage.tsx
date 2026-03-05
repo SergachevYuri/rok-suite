@@ -731,11 +731,15 @@ export default function WarRoomPage() {
         level: lastOfType?.level ?? config.defaultLevel,
         zone: lastOfType?.zone ?? null,
       };
-      const newFeature = await createMapFeature(map.id, placement.placingType, x, y, defaults);
+      const placingType = placement.placingType;
+      const newFeature = await createMapFeature(map.id, placingType, x, y, defaults);
       if (newFeature) {
-        if (isFlagFeatureType(placement.placingType) && placement.placingForAllianceId) {
+        if (isFlagFeatureType(placingType) && placement.placingForAllianceId) {
           await upsertAssignment(map.id, newFeature.id, placement.placingForAllianceId);
           await refetchAssignments();
+        }
+        if (isFlagFeatureType(placingType)) {
+          placement.cancelPlacement();
         }
         await refetchFeatures();
         selection.setSelectedFeatureId(newFeature.id);
