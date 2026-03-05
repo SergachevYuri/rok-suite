@@ -18,6 +18,8 @@ import FeatureDetailPanel from './FeatureDetailPanel';
 import AchievementProgressPanel from './AchievementProgressPanel';
 import PlannerSidebar from './PlannerSidebar';
 import AllocationPlanPanel from './AllocationPlanPanel';
+import ZonePlanPanel from './ZonePlanPanel';
+import { isPointInPolygon } from '@/lib/kvk-map/point-in-zone';
 import { useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import { useMapSelection, useMapPlacement, useRssAnnotation, useFlagPath, useMapLayers } from '@/lib/kvk-map/hooks';
 import {
@@ -249,6 +251,14 @@ export default function WarRoomPage() {
       placement.cancelPlacement();
     } else {
       handleSelectType('flag' as FeatureType);
+    }
+  }, [placement, handleSelectType]);
+
+  const handlePlaceFortress = useCallback(() => {
+    if (placement.isPlacing && placement.placingType === 'fortress') {
+      placement.cancelPlacement();
+    } else {
+      handleSelectType('fortress' as FeatureType);
     }
   }, [placement, handleSelectType]);
 
@@ -732,6 +742,7 @@ export default function WarRoomPage() {
   // ── Role checks (must be before early returns to satisfy Rules of Hooks) ──
   const isAdminMode = isAtLeast('admin');
   const isOfficerMode = isAtLeast('officer');
+  const isOfficerZoneFocus = isOfficerMode && !isAdminMode && !!selection.selectedZoneId;
 
   // ── Render ─────────────────────────────────────────────────────────
   if (mapLoading) {
@@ -797,6 +808,8 @@ export default function WarRoomPage() {
                 onToggleGroup={layers.toggleGroup}
                 onPlaceFlag={handlePlaceFlag}
                 isPlacingFlag={placement.isPlacing && placement.placingType === 'flag'}
+                onPlaceFortress={handlePlaceFortress}
+                isPlacingFortress={placement.isPlacing && placement.placingType === 'fortress'}
                 flagPathActive={flagPath.active}
                 flagCount={flagPath.flags.length}
                 onToggleFlagPath={handleToggleFlagPath}
@@ -866,8 +879,8 @@ export default function WarRoomPage() {
                 <ZonePolygon
                   key={zone.id}
                   zone={zone}
-                  onClick={isAdminMode ? handleZoneClick : undefined}
-                  isSelected={isAdminMode && zone.id === selection.selectedZoneId}
+                  onClick={(isAdminMode || isOfficerMode) ? handleZoneClick : undefined}
+                  isSelected={(isAdminMode || isOfficerZoneFocus) && zone.id === selection.selectedZoneId}
                   isHighlighted={selection.hoveredZoneNumber != null && zone.zone_number === selection.hoveredZoneNumber}
                 />
               ))}
@@ -878,8 +891,10 @@ export default function WarRoomPage() {
                 const assignment = isOfficerMode ? assignmentMap.get(feature.id) : undefined;
                 const alliance = assignment ? allianceMap.get(assignment.alliance_id) : undefined;
                 const cfg = FEATURE_TYPE_CONFIG[feature.feature_type];
+                const dimmedByAlliance = !!highlightedAllianceId && assignment?.alliance_id !== highlightedAllianceId;
+                const dimmedByZone = isOfficerZoneFocus && selectedZone != null && !isPointInPolygon(feature.x, feature.y, selectedZone.polygon);
+                const isDimmed = dimmedByAlliance || dimmedByZone;
                 if (cfg?.tileSize) {
-                  const isDimmed = !!highlightedAllianceId && assignment?.alliance_id !== highlightedAllianceId;
                   return (
                     <FlagOverlay
                       key={feature.id}
@@ -898,7 +913,6 @@ export default function WarRoomPage() {
                     />
                   );
                 }
-                const isDimmed = !!highlightedAllianceId && assignment?.alliance_id !== highlightedAllianceId;
                 return (
                   <FeatureMarker
                     key={feature.id}
@@ -1022,6 +1036,20 @@ export default function WarRoomPage() {
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[rssState.activeRssType] }} />
                 <span>Placing: {RSS_TYPE_LABELS[rssState.activeRssType]}</span>
                 <span style={{ color: 'var(--text-muted)' }}>(click map to place · Esc to stop)</span>
+              </div>
+            )}
+            {isOfficerZoneFocus && selectedZone && !placement.isPlacing && (
+              <div
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: 'rgba(0,0,0,0.8)',
+                  color: selectedZone.color,
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: selectedZone.color }} />
+                <span>{selectedZone.name || `Zone ${selectedZone.zone_number}`}</span>
+                <span style={{ color: 'var(--text-muted)' }}>(Esc to clear)</span>
               </div>
             )}
           </div>
@@ -1160,20 +1188,21 @@ export default function WarRoomPage() {
                     }}
                   />
                 ) : (
-                  <div
-                    className="rounded-xl p-4 border"
-                    style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-4 h-4 rounded" style={{ backgroundColor: selectedZone.color }} />
-                      <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
-                        {selectedZone.name || `Zone ${selectedZone.zone_number}`}
-                      </h3>
-                    </div>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {selectedZone.polygon.length} vertices
-                    </p>
-                  </div>
+                  <ZonePlanPanel
+                    zone={selectedZone}
+                    features={features}
+                    assignments={activeAssignments}
+                    alliances={alliances}
+                    onPlaceFortress={handlePlaceFortress}
+                    onPlaceFlag={handlePlaceFlag}
+                    isPlacingFortress={placement.isPlacing && placement.placingType === 'fortress'}
+                    isPlacingFlag={placement.isPlacing && placement.placingType === 'flag'}
+                    onSelectFeature={(id) => {
+                      selection.setSelectedFeatureId(id);
+                      selection.setSelectedZoneId(null);
+                    }}
+                    onClearFocus={() => selection.setSelectedZoneId(null)}
+                  />
                 )
               ) : selectedFeature ? (
                 <FeatureDetailPanel
@@ -1196,6 +1225,8 @@ export default function WarRoomPage() {
                   targets={allocationTargets}
                   onUpsertTarget={handleUpsertTarget}
                   onDeleteTarget={handleDeleteTarget}
+                  zones={zones}
+                  onFocusZone={selection.setSelectedZoneId}
                 />
               ) : null}
             </div>

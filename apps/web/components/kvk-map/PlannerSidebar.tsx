@@ -20,9 +20,11 @@ interface PlannerSidebarProps {
   hiddenGroups: Set<string>;
   onToggleGroup: (groupKey: string) => void;
 
-  // Flag placement
+  // Flag/fortress placement
   onPlaceFlag: () => void;
   isPlacingFlag: boolean;
+  onPlaceFortress: () => void;
+  isPlacingFortress: boolean;
 
   // Flag path
   flagPathActive: boolean;
@@ -46,6 +48,8 @@ export default function PlannerSidebar({
   onToggleGroup,
   onPlaceFlag,
   isPlacingFlag,
+  onPlaceFortress,
+  isPlacingFortress,
   flagPathActive,
   flagCount,
   onToggleFlagPath,
@@ -101,19 +105,33 @@ export default function PlannerSidebar({
         </div>
       </div>
 
-      {/* Place Flag Button */}
-      <button
-        onClick={onPlaceFlag}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
-        style={{
-          backgroundColor: isPlacingFlag ? 'rgba(100,116,139,0.2)' : 'var(--background-card)',
-          color: isPlacingFlag ? '#94a3b8' : 'var(--text-muted)',
-          border: `1px solid ${isPlacingFlag ? 'rgba(100,116,139,0.4)' : 'var(--border)'}`,
-        }}
-      >
-        <Flag size={14} />
-        {isPlacingFlag ? 'Placing Flag...' : 'Place Flag'}
-      </button>
+      {/* Place Fortress / Flag */}
+      <div className="flex gap-2">
+        <button
+          onClick={onPlaceFortress}
+          className="flex-1 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+          style={{
+            backgroundColor: isPlacingFortress ? 'rgba(71,85,105,0.2)' : 'var(--background-card)',
+            color: isPlacingFortress ? '#94a3b8' : 'var(--text-muted)',
+            border: `1px solid ${isPlacingFortress ? 'rgba(71,85,105,0.4)' : 'var(--border)'}`,
+          }}
+        >
+          <Flag size={13} />
+          {isPlacingFortress ? 'Placing...' : 'Fortress'}
+        </button>
+        <button
+          onClick={onPlaceFlag}
+          className="flex-1 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+          style={{
+            backgroundColor: isPlacingFlag ? 'rgba(100,116,139,0.2)' : 'var(--background-card)',
+            color: isPlacingFlag ? '#94a3b8' : 'var(--text-muted)',
+            border: `1px solid ${isPlacingFlag ? 'rgba(100,116,139,0.4)' : 'var(--border)'}`,
+          }}
+        >
+          <Flag size={13} />
+          {isPlacingFlag ? 'Placing...' : 'Flag'}
+        </button>
+      </div>
 
       {/* Flag Path Planner toggle */}
       <button

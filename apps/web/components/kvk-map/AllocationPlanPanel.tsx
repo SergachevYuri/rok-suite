@@ -6,7 +6,9 @@ import { FEATURE_GROUPS, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config'
 import { REQUIREMENT_FEATURE_MAP, KVK2_TIER_REQUIREMENTS, isMappableRequirement } from '@/lib/kvk-achievements/requirement-mapping';
 import { computeMinimumAllocations } from '@/lib/kvk-achievements/compute-minimums';
 import { getAchievementData } from '@/lib/kvk-achievements/data';
-import type { KvkMapFeature, KvkAssignment, KvkAlliance, KvkAllocationTarget, FeatureType } from '@/lib/kvk-map-types';
+import { isPointInPolygon } from '@/lib/kvk-map/point-in-zone';
+import { FEATURE_TYPE_CONFIG } from '@/lib/kvk-feature-config';
+import type { KvkMapFeature, KvkAssignment, KvkAlliance, KvkAllocationTarget, KvkMapZone, FeatureType } from '@/lib/kvk-map-types';
 
 // ── Reverse mapping: group key → requirement types it satisfies ──────
 
@@ -35,6 +37,8 @@ interface AllocationPlanPanelProps {
   targets: KvkAllocationTarget[];
   onUpsertTarget: (allianceId: string, featureGroup: string, count: number) => void;
   onDeleteTarget: (allianceId: string, featureGroup: string) => void;
+  zones?: KvkMapZone[];
+  onFocusZone?: (zoneId: string | null) => void;
 }
 
 export default function AllocationPlanPanel({
@@ -44,6 +48,8 @@ export default function AllocationPlanPanel({
   targets,
   onUpsertTarget,
   onDeleteTarget,
+  zones,
+  onFocusZone,
 }: AllocationPlanPanelProps) {
   // Groups to show (exclude flags)
   const planGroups = useMemo(
@@ -173,6 +179,35 @@ export default function AllocationPlanPanel({
 
   const totalTiers = achievementImpact.reduce((s, c) => s + c.tiers.filter((t) => t.satisfied || t.partial).length + c.tiers.filter((t) => !t.satisfied && !t.partial).length, 0);
   const completedTiers = achievementImpact.reduce((s, c) => s + c.tiers.filter((t) => t.satisfied).length, 0);
+
+  // ── Zone 1 fort plans ──────────────────────────────────────────────
+
+  const zone1Regions = useMemo(
+    () => (zones || []).filter((z) => z.zone_number === 1),
+    [zones],
+  );
+
+  const zoneFortPlans = useMemo(() => {
+    if (zone1Regions.length === 0) return [];
+    const assignmentMap = new Map(assignments.map((a) => [a.feature_id, a]));
+    const allianceMap = new Map(alliances.map((a) => [a.id, a]));
+    const flagFeatures = features.filter((f) => !!FEATURE_TYPE_CONFIG[f.feature_type as keyof typeof FEATURE_TYPE_CONFIG]?.tileSize);
+
+    return zone1Regions.map((zone) => {
+      const fortsInZone = flagFeatures.filter((f) => isPointInPolygon(f.x, f.y, zone.polygon));
+      const alliancesInZone: { tag: string; color: string }[] = [];
+      const seen = new Set<string>();
+      for (const fort of fortsInZone) {
+        const assignment = assignmentMap.get(fort.id);
+        if (!assignment) continue;
+        const alliance = allianceMap.get(assignment.alliance_id);
+        if (!alliance || seen.has(alliance.id)) continue;
+        seen.add(alliance.id);
+        alliancesInZone.push({ tag: alliance.tag, color: alliance.color });
+      }
+      return { zone, fortCount: fortsInZone.length, alliances: alliancesInZone };
+    });
+  }, [zone1Regions, features, assignments, alliances]);
 
   // ── Cell handlers ──────────────────────────────────────────────────
 
@@ -386,6 +421,45 @@ export default function AllocationPlanPanel({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Zone 1 Plans */}
+      {zoneFortPlans.length > 0 && onFocusZone && (
+        <div
+          className="rounded-lg border overflow-hidden"
+          style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
+        >
+          <div className="px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Zone 1 Plans
+            </p>
+          </div>
+          {zoneFortPlans.map(({ zone, fortCount, alliances: zoneAlliances }) => (
+            <button
+              key={zone.id}
+              onClick={() => onFocusZone(zone.id)}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs border-t transition-all hover:bg-white/5"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <span className="flex-1 text-left font-medium" style={{ color: fortCount > 0 ? 'var(--foreground)' : 'var(--text-muted)' }}>
+                {zone.name}
+              </span>
+              {zoneAlliances.length > 0 ? (
+                <div className="flex gap-1">
+                  {zoneAlliances.map((a) => (
+                    <span key={a.tag} className="text-[10px] font-bold" style={{ color: a.color }}>
+                      {a.tag}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)', opacity: 0.4 }}>
+                  —
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       )}
     </div>
