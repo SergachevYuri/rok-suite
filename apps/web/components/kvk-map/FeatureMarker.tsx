@@ -10,6 +10,7 @@ interface FeatureMarkerProps {
   feature: KvkMapFeature;
   isSelected?: boolean;
   isDraggable?: boolean;
+  dimmed?: boolean;
   zoom?: number;
   allianceColor?: string | null;
   allianceTag?: string | null;
@@ -37,6 +38,7 @@ function createDivIcon(
   zoom: number,
   allianceColor?: string | null,
   assignmentStatus?: AssignmentStatus | null,
+  dimmed?: boolean,
 ): L.DivIcon {
   const config = FEATURE_TYPE_CONFIG[featureType as keyof typeof FEATURE_TYPE_CONFIG];
   if (!config) return new L.DivIcon();
@@ -58,7 +60,7 @@ function createDivIcon(
   const ringPad = hasRing ? 3 : 0;
   const totalSize = innerSize + ringPad * 2;
   const ringBorder = hasRing ? `3px solid ${allianceColor}` : 'none';
-  const statusOpacity = assignmentStatus === 'lost' ? 0.4 : 1;
+  const statusOpacity = assignmentStatus === 'lost' ? 0.4 : dimmed ? 0.2 : 1;
 
   const innerHtml = `<div class="kvk-badge" style="
     --c: ${config.color};
@@ -104,6 +106,7 @@ export default function FeatureMarker({
   feature,
   isSelected = false,
   isDraggable = false,
+  dimmed = false,
   zoom = -1,
   allianceColor,
   allianceTag,
@@ -114,8 +117,8 @@ export default function FeatureMarker({
   onMouseOut,
 }: FeatureMarkerProps) {
   const icon = useMemo(
-    () => createDivIcon(feature.feature_type, isSelected, feature.level, zoom, allianceColor, assignmentStatus),
-    [feature.feature_type, isSelected, feature.level, zoom, allianceColor, assignmentStatus]
+    () => createDivIcon(feature.feature_type, isSelected, feature.level, zoom, allianceColor, assignmentStatus, dimmed),
+    [feature.feature_type, isSelected, feature.level, zoom, allianceColor, assignmentStatus, dimmed]
   );
 
   const config = FEATURE_TYPE_CONFIG[feature.feature_type];

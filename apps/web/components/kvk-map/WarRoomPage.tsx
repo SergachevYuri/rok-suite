@@ -14,10 +14,12 @@ import ZoneEditorPanel from '@/components/kvk-map/admin/ZoneEditorPanel';
 import RssNodeOverlay from '@/components/kvk-map/admin/RssNodeOverlay';
 import RssReviewPanel from '@/components/kvk-map/admin/RssReviewPanel';
 import WarRoomHeader from './WarRoomHeader';
-import AllianceList from './AllianceList';
 import FeatureDetailPanel from './FeatureDetailPanel';
 import AchievementProgressPanel from './AchievementProgressPanel';
+import PlannerSidebar from './PlannerSidebar';
+import PlanningOverview from './PlanningOverview';
 import { useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
+import { useMapSelection, useMapPlacement, useRssAnnotation, useFlagPath, useMapLayers } from '@/lib/kvk-map/hooks';
 import {
   useActiveKvkMap,
   useKvkMapFeatures,
@@ -34,19 +36,13 @@ import { useKvkAssignments, upsertAssignment, updateAssignment, deleteAssignment
 import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy } from '@/lib/supabase/use-kvk-strategies';
 import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentStatus } from '@/lib/kvk-map-types';
 import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
-import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP, FEATURE_GROUPS } from '@/lib/kvk-feature-config';
-import { RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus, type RssAnnotationMode } from '@/lib/kvk-map/rss-review';
+import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config';
+import { RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus } from '@/lib/kvk-map/rss-review';
 import { useKvkRssNodes, useKvkRssFlags, saveRssNodes, flagRssNode } from '@/lib/supabase/use-kvk-rss';
 import { type SymmetryConfig, getSegment } from '@/lib/kvk-map/rss-symmetry';
 import { detectNodesPixel, reclassifyNodeTypes } from '@/lib/kvk-map/pixel-detect';
 import FlagPathOverlay from '@/components/kvk-map/FlagPathOverlay';
 import FlagPathPanel from '@/components/kvk-map/FlagPathPanel';
-import {
-  type Waypoint, type PlannedFlag, type PlannedFlagStatus,
-  type FlagPathConfig, type FlagPathResult,
-  DEFAULT_FLAG_STEP, DEFAULT_MAX_DEVIATION,
-  computeFlagPath, recalculateCoverage,
-} from '@/lib/kvk-map/flag-path';
 
 function isFlagFeatureType(type: FeatureType): boolean {
   return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
@@ -66,6 +62,13 @@ export default function WarRoomPage() {
   const { strategies, refetch: refetchStrategies } = useKvkStrategies(map?.id);
   const { rssNodes, setRssNodes, refetch: refetchRss } = useKvkRssNodes(map?.id);
   const { flags: rssFlags, refetch: refetchRssFlags } = useKvkRssFlags(map?.id);
+
+  // ── Extracted hooks ──────────────────────────────────────────────
+  const selection = useMapSelection();
+  const placement = useMapPlacement();
+  const layers = useMapLayers();
+  const rssState = useRssAnnotation(rssNodes.length);
+  const flagPath = useFlagPath();
 
   // ── Strategy state ─────────────────────────────────────────────────
   const [activeStrategyId, setActiveStrategyId] = useState<string | null>(null);
@@ -88,7 +91,6 @@ export default function WarRoomPage() {
     if (!map?.id || alliancesLoading || alliances.length > 0) return;
     let cancelled = false;
     (async () => {
-      // Double-check DB directly to avoid race conditions with Strict Mode
       const { data: existing } = await supabase
         .from('kvk_alliances')
         .select('id')
@@ -108,67 +110,19 @@ export default function WarRoomPage() {
 
   const activeAssignments = strategyAssignments ?? assignments;
 
-  // ── Bottom panel state ─────────────────────────────────────────────
+  // ── Remaining local state ────────────────────────────────────────
   const [bottomPanelOpen, setBottomPanelOpen] = useState(true);
-
-  // ── Feature UI state ───────────────────────────────────────────────
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
-  const [placingType, setPlacingType] = useState<FeatureType | null>(null);
-  const [isPlacing, setIsPlacing] = useState(false);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(-1);
-  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
-  const [placingForAllianceId, setPlacingForAllianceId] = useState<string | null>(null);
-
-  // ── Zone hover state (for marker → zone highlight) ────────────────
-  const [hoveredZoneNumber, setHoveredZoneNumber] = useState<number | null>(null);
+  const [highlightedAllianceId, setHighlightedAllianceId] = useState<string | null>(null);
 
   // ── Zone editing state ─────────────────────────────────────────────
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [isDrawingZone, setIsDrawingZone] = useState(false);
   const [zoneVertices, setZoneVertices] = useState<[number, number][]>([]);
-
-  // ── RSS review state ──────────────────────────────────────────────
-  const [rssReviewActive, setRssReviewActive] = useState(false);
-  const [selectedRssNodeId, setSelectedRssNodeId] = useState<number | null>(null);
-  const [rssTypeFilter, setRssTypeFilter] = useState<RssNodeType | 'all'>('all');
-  const [rssStatusFilter, setRssStatusFilter] = useState<RssNodeStatus | 'all'>('all');
-
-  // ── RSS annotation state (admin only) ───────────────────────────
-  const [rssAnnotationMode, setRssAnnotationMode] = useState<RssAnnotationMode>('off');
-  const [activeRssType, setActiveRssType] = useState<RssNodeType>('food');
-  const [rssNextId, setRssNextId] = useState(0);
-  const [rssUndoStack, setRssUndoStack] = useState<RssNode[][]>([]);
-  const [rssDetecting, setRssDetecting] = useState(false);
-  const [rssDetectProgress, setRssDetectProgress] = useState<string | null>(null);
-  const [rssReclassifying, setRssReclassifying] = useState(false);
-  const [rssFlyTarget, setRssFlyTarget] = useState<{ x: number; y: number } | null>(null);
-
-  // Sync rssNextId when nodes load from Supabase/JSON
-  useEffect(() => {
-    if (rssNodes.length > 0) {
-      setRssNextId((prev) => Math.max(prev, rssNodes.length));
-    }
-  }, [rssNodes.length]);
-
-  // ── Flag path planner state ─────────────────────────────────────
-  const [flagPathActive, setFlagPathActive] = useState(false);
-  const [flagPathWaypoints, setFlagPathWaypoints] = useState<Waypoint[]>([]);
-  const [flagPathFlags, setFlagPathFlags] = useState<PlannedFlag[]>([]);
-  const [flagPathResult, setFlagPathResult] = useState<FlagPathResult | null>(null);
-  const [flagPathConfig, setFlagPathConfig] = useState<FlagPathConfig>({
-    flagStep: DEFAULT_FLAG_STEP,
-    maxDeviation: DEFAULT_MAX_DEVIATION,
-  });
-  const [flagPathAddingWaypoint, setFlagPathAddingWaypoint] = useState(false);
-  const [flagPathAddingFlag, setFlagPathAddingFlag] = useState(false);
-  const [flagPathSelectedFlagId, setFlagPathSelectedFlagId] = useState<string | null>(null);
-  const [flagPathCalculating, setFlagPathCalculating] = useState(false);
 
   // ── Symmetry config ───────────────────────────────────────────────
   const symmetryConfig = useMemo<SymmetryConfig | null>(() => {
     if (!map) return null;
-    // DB default is 1000 from old 2000-era coordinate system — always use map center
     const center = GAME_MAP_SIZE / 2;
     return {
       segments: map.symmetry_segments || 8,
@@ -191,12 +145,12 @@ export default function WarRoomPage() {
   );
 
   const selectedFeature = useMemo(
-    () => features.find((f) => f.id === selectedFeatureId) || null,
-    [features, selectedFeatureId]
+    () => features.find((f) => f.id === selection.selectedFeatureId) || null,
+    [features, selection.selectedFeatureId]
   );
   const selectedAssignment = useMemo(
-    () => (selectedFeatureId ? assignmentMap.get(selectedFeatureId) ?? null : null),
-    [selectedFeatureId, assignmentMap]
+    () => (selection.selectedFeatureId ? assignmentMap.get(selection.selectedFeatureId) ?? null : null),
+    [selection.selectedFeatureId, assignmentMap]
   );
   const selectedAlliance = useMemo(
     () => (selectedAssignment ? allianceMap.get(selectedAssignment.alliance_id) ?? null : null),
@@ -204,13 +158,13 @@ export default function WarRoomPage() {
   );
 
   const selectedZone = useMemo(
-    () => zones.find((z) => z.id === selectedZoneId) || null,
-    [zones, selectedZoneId]
+    () => zones.find((z) => z.id === selection.selectedZoneId) || null,
+    [zones, selection.selectedZoneId]
   );
 
   const selectedRssNode = useMemo(
-    () => (selectedRssNodeId != null ? rssNodes.find((n) => n.id === selectedRssNodeId) ?? null : null),
-    [rssNodes, selectedRssNodeId]
+    () => (selection.selectedRssNodeId != null ? rssNodes.find((n) => n.id === selection.selectedRssNodeId) ?? null : null),
+    [rssNodes, selection.selectedRssNodeId]
   );
 
   const featureCounts = useMemo(() => {
@@ -223,58 +177,37 @@ export default function WarRoomPage() {
 
   const filteredRssNodes = useMemo(
     () => rssNodes.filter((n) =>
-      (rssTypeFilter === 'all' || n.type === rssTypeFilter) &&
-      (rssStatusFilter === 'all' || n.status === rssStatusFilter)
+      (rssState.rssTypeFilter === 'all' || n.type === rssState.rssTypeFilter) &&
+      (rssState.rssStatusFilter === 'all' || n.status === rssState.rssStatusFilter)
     ),
-    [rssNodes, rssTypeFilter, rssStatusFilter]
+    [rssNodes, rssState.rssTypeFilter, rssState.rssStatusFilter]
   );
-
-  const showZones = !hiddenGroups.has('zones');
 
   const visibleFeatures = useMemo(
-    () => features.filter((f) => !hiddenGroups.has(FEATURE_TYPE_TO_GROUP[f.feature_type as FeatureType])),
-    [features, hiddenGroups]
-  );
-
-  const allGroupKeys = useMemo(
-    () => ['zones', ...FEATURE_GROUPS.map((g) => g.key)],
-    []
-  );
-
-  const allHidden = useMemo(
-    () => allGroupKeys.every((k) => hiddenGroups.has(k)),
-    [allGroupKeys, hiddenGroups]
+    () => features.filter((f) => !layers.hiddenGroups.has(FEATURE_TYPE_TO_GROUP[f.feature_type as FeatureType])),
+    [features, layers.hiddenGroups]
   );
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl/Cmd+Z: undo in annotation or review mode
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && (rssAnnotationMode === 'annotate' || rssAnnotationMode === 'review')) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && (rssState.rssAnnotationMode === 'annotate' || rssState.rssAnnotationMode === 'review')) {
         e.preventDefault();
-        setRssUndoStack((stack) => {
-          if (stack.length === 0) return stack;
-          const prev = stack[stack.length - 1];
-          setRssNodes(prev);
-          return stack.slice(0, -1);
-        });
+        rssState.undo(setRssNodes);
         return;
       }
       if (e.key === 'Escape') {
-        if (flagPathAddingWaypoint) {
-          setFlagPathAddingWaypoint(false);
+        if (flagPath.addingWaypoint) {
+          flagPath.setAddingWaypoint(false);
           return;
         }
-        if (flagPathAddingFlag) {
-          setFlagPathAddingFlag(false);
+        if (flagPath.addingFlag) {
+          flagPath.setAddingFlag(false);
           return;
         }
-        if (flagPathActive) {
-          setFlagPathActive(false);
-          setFlagPathWaypoints([]);
-          setFlagPathFlags([]);
-          setFlagPathResult(null);
-          setFlagPathSelectedFlagId(null);
+        if (flagPath.active) {
+          flagPath.clear();
           return;
         }
         if (isDrawingZone) {
@@ -282,91 +215,60 @@ export default function WarRoomPage() {
           setZoneVertices([]);
           return;
         }
-        if (rssAnnotationMode === 'annotate') {
-          setRssAnnotationMode('review');
+        if (rssState.rssAnnotationMode === 'annotate') {
+          rssState.setRssAnnotationMode('review');
           return;
         }
-        setPlacingType(null);
-        setIsPlacing(false);
-        setPlacingForAllianceId(null);
-        setSelectedFeatureId(null);
-        setSelectedZoneId(null);
-        setSelectedRssNodeId(null);
+        placement.cancelPlacement();
+        selection.clearSelection();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawingZone, rssAnnotationMode, flagPathActive, flagPathAddingWaypoint, flagPathAddingFlag]);
-
-  // ── Visibility toggles ─────────────────────────────────────────────
-  const handleToggleGroup = useCallback((groupKey: string) => {
-    setHiddenGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupKey)) next.delete(groupKey);
-      else next.add(groupKey);
-      return next;
-    });
-  }, []);
-
-  const handleToggleAll = useCallback(() => {
-    setHiddenGroups((prev) => {
-      const allCurrentlyHidden = allGroupKeys.every((k) => prev.has(k));
-      return allCurrentlyHidden ? new Set() : new Set(allGroupKeys);
-    });
-  }, [allGroupKeys]);
+  }, [isDrawingZone, rssState.rssAnnotationMode, flagPath.active, flagPath.addingWaypoint, flagPath.addingFlag]);
 
   // ── Feature handlers (admin, or officer for flags) ─────────────────
   const handleSelectType = useCallback((type: FeatureType) => {
     const canPlace = isAtLeast('admin') || (isAtLeast('officer') && isFlagFeatureType(type));
     if (!canPlace) return;
-    if (flagPathActive) clearFlagPathState();
-    setPlacingType(type);
-    setIsPlacing(true);
-    setSelectedFeatureId(null);
-    setSelectedZoneId(null);
+    if (flagPath.active) flagPath.clear();
+    selection.setSelectedFeatureId(null);
+    selection.setSelectedZoneId(null);
     setIsDrawingZone(false);
     setZoneVertices([]);
-    if (isFlagFeatureType(type) && alliances.length > 0) {
-      setPlacingForAllianceId(alliances[0].id);
-    } else {
-      setPlacingForAllianceId(null);
-    }
+    const allianceId = isFlagFeatureType(type) && alliances.length > 0 ? alliances[0].id : null;
+    placement.startPlacement(type, allianceId);
     const group = FEATURE_TYPE_TO_GROUP[type];
-    if (group) {
-      setHiddenGroups((prev) => {
-        if (!prev.has(group)) return prev;
-        const next = new Set(prev);
-        next.delete(group);
-        return next;
-      });
-    }
-  }, [isAtLeast, alliances]);
+    if (group) layers.ensureVisible(group);
+  }, [isAtLeast, alliances, flagPath, selection, placement, layers]);
 
-  const handleCancelPlacement = useCallback(() => {
-    setPlacingType(null);
-    setIsPlacing(false);
-    setPlacingForAllianceId(null);
-  }, []);
+  const handlePlaceFlag = useCallback(() => {
+    if (placement.isPlacing && placement.placingType === 'flag') {
+      placement.cancelPlacement();
+    } else {
+      handleSelectType('flag' as FeatureType);
+    }
+  }, [placement, handleSelectType]);
 
   const handleFeatureClick = useCallback(
     (feature: KvkMapFeature) => {
-      if (isPlacing || isDrawingZone) return;
-      setSelectedFeatureId((prev) => (prev === feature.id ? null : feature.id));
-      setSelectedZoneId(null);
+      if (placement.isPlacing || isDrawingZone) return;
+      selection.setSelectedFeatureId(selection.selectedFeatureId === feature.id ? null : feature.id);
+      selection.setSelectedZoneId(null);
     },
-    [isPlacing, isDrawingZone]
+    [placement.isPlacing, isDrawingZone, selection]
   );
 
   const handleFeatureMouseOver = useCallback(
     (feature: KvkMapFeature) => {
-      if (feature.zone != null) setHoveredZoneNumber(feature.zone);
+      if (feature.zone != null) selection.setHoveredZoneNumber(feature.zone);
     },
-    []
+    [selection]
   );
 
   const handleFeatureMouseOut = useCallback(() => {
-    setHoveredZoneNumber(null);
-  }, []);
+    selection.setHoveredZoneNumber(null);
+  }, [selection]);
 
   const handleFeatureDragEnd = useCallback(
     async (feature: KvkMapFeature, newX: number, newY: number) => {
@@ -389,29 +291,28 @@ export default function WarRoomPage() {
   const handleDeleteFeature = useCallback(
     async (featureId: string) => {
       await deleteMapFeature(featureId);
-      setSelectedFeatureId(null);
+      selection.setSelectedFeatureId(null);
       await refetchFeatures();
     },
-    [refetchFeatures]
+    [refetchFeatures, selection]
   );
 
   // ── Zone handlers (admin only) ─────────────────────────────────────
   const handleZoneClick = useCallback(
     (zone: KvkMapZone) => {
-      if (isPlacing || isDrawingZone) return;
-      setSelectedZoneId((prev) => (prev === zone.id ? null : zone.id));
-      setSelectedFeatureId(null);
+      if (placement.isPlacing || isDrawingZone) return;
+      selection.setSelectedZoneId(selection.selectedZoneId === zone.id ? null : zone.id);
+      selection.setSelectedFeatureId(null);
     },
-    [isPlacing, isDrawingZone]
+    [placement.isPlacing, isDrawingZone, selection]
   );
 
   const handleStartDrawing = useCallback(() => {
     if (!isAtLeast('admin')) return;
     setIsDrawingZone(true);
     setZoneVertices([]);
-    setIsPlacing(false);
-    setPlacingType(null);
-  }, [isAtLeast]);
+    placement.cancelPlacement();
+  }, [isAtLeast, placement]);
 
   const handleUndoVertex = useCallback(() => {
     setZoneVertices((prev) => prev.slice(0, -1));
@@ -424,9 +325,9 @@ export default function WarRoomPage() {
       await refetchZones();
       setIsDrawingZone(false);
       setZoneVertices([]);
-      setSelectedZoneId(null);
+      selection.setSelectedZoneId(null);
     }
-  }, [zoneVertices, selectedZone, refetchZones]);
+  }, [zoneVertices, selectedZone, refetchZones, selection]);
 
   const handleCancelDrawing = useCallback(() => {
     setIsDrawingZone(false);
@@ -525,31 +426,26 @@ export default function WarRoomPage() {
 
   // ── RSS review handlers (admin only) ────────────────────────────────
   const handleToggleRssReview = useCallback(() => {
-    if (!rssReviewActive) {
-      if (flagPathActive) clearFlagPathState();
-      setSelectedRssNodeId(null);
-      setRssUndoStack([]);
-      setRssAnnotationMode('annotate');
-      setRssReviewActive(true);
-    } else {
-      setRssReviewActive(false);
-      setRssAnnotationMode('off');
+    if (!rssState.rssReviewActive) {
+      if (flagPath.active) flagPath.clear();
+      selection.setSelectedRssNodeId(null);
     }
-  }, [rssReviewActive]);
+    rssState.toggleRssReview();
+  }, [rssState, flagPath, selection]);
 
   const handleRssLoadExisting = useCallback(async () => {
     await refetchRss();
-    setSelectedRssNodeId(null);
-    setRssUndoStack([]);
-  }, [refetchRss]);
+    selection.setSelectedRssNodeId(null);
+    rssState.setRssUndoStack([]);
+  }, [refetchRss, selection, rssState]);
 
   const handleRssNodeMove = useCallback((id: number, x: number, y: number) => {
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
-  }, []);
+  }, [setRssNodes]);
 
   const handleRssNodeChangeType = useCallback((id: number, type: RssNodeType) => {
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, type } : n)));
-  }, []);
+  }, [setRssNodes]);
 
   const handleRssBatchChangeType = useCallback((fromFilter: RssNodeType | 'all', toType: RssNodeType) => {
     setRssNodes((prev) => prev.map((n) => {
@@ -557,17 +453,15 @@ export default function WarRoomPage() {
       if (fromFilter !== 'all' && n.type !== fromFilter) return n;
       return { ...n, type: toType };
     }));
-  }, []);
+  }, [setRssNodes]);
 
   const handleRssReclassify = useCallback(async () => {
-    if (!map || rssReclassifying) return;
-    setRssReclassifying(true);
+    if (!map || rssState.rssReclassifying) return;
+    rssState.setRssReclassifying(true);
     try {
-      // Training data: manual nodes + approved detected nodes (user-corrected)
       const training = rssNodes
         .filter((n) => n.source === 'manual' || n.status === 'approved')
         .map((n) => ({ x: n.x, y: n.y, type: n.type }));
-      // Pending detected nodes to re-classify
       const pending = rssNodes.filter((n) => n.source === 'detected' && n.status === 'pending');
       if (training.length === 0 || pending.length === 0) return;
 
@@ -575,62 +469,61 @@ export default function WarRoomPage() {
         map.image_path,
         training,
         pending.map((n) => ({ x: n.x, y: n.y })),
-        setRssDetectProgress,
+        rssState.setRssDetectProgress,
       );
 
-      // Apply new types to pending nodes
       const typeMap = new Map<number, string>();
       pending.forEach((n, i) => typeMap.set(n.id, newTypes[i]));
 
-      setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+      rssState.setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
       setRssNodes((prev) => prev.map((n) =>
         typeMap.has(n.id) ? { ...n, type: typeMap.get(n.id) as RssNodeType } : n
       ));
 
-      setRssDetectProgress(`Re-classified ${pending.length} nodes from ${training.length} corrections`);
-      setTimeout(() => setRssDetectProgress(null), 5000);
+      rssState.setRssDetectProgress(`Re-classified ${pending.length} nodes from ${training.length} corrections`);
+      setTimeout(() => rssState.setRssDetectProgress(null), 5000);
     } catch (error) {
       console.error('Re-classification failed:', error);
-      setRssDetectProgress(`Error: ${error instanceof Error ? error.message : 'Re-classification failed'}`);
-      setTimeout(() => setRssDetectProgress(null), 5000);
+      rssState.setRssDetectProgress(`Error: ${error instanceof Error ? error.message : 'Re-classification failed'}`);
+      setTimeout(() => rssState.setRssDetectProgress(null), 5000);
     } finally {
-      setRssReclassifying(false);
+      rssState.setRssReclassifying(false);
     }
-  }, [map, rssReclassifying, rssNodes]);
+  }, [map, rssState, rssNodes, setRssNodes]);
 
   const handleRssNodeApprove = useCallback((id: number) => {
-    setRssUndoStack((stack) => [...stack.slice(-19), rssNodes]);
+    rssState.setRssUndoStack((stack) => [...stack.slice(-19), rssNodes]);
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'approved' as RssNodeStatus } : n)));
-  }, [rssNodes]);
+  }, [rssNodes, rssState, setRssNodes]);
 
   const handleRssNodeReject = useCallback((id: number) => {
-    setRssUndoStack((stack) => [...stack.slice(-19), rssNodes]);
+    rssState.setRssUndoStack((stack) => [...stack.slice(-19), rssNodes]);
     setRssNodes((prev) => prev.map((n) => (n.id === id ? { ...n, status: 'rejected' as RssNodeStatus } : n)));
-  }, [rssNodes]);
+  }, [rssNodes, rssState, setRssNodes]);
 
   const handleRssBulkApprove = useCallback((typeFilter: RssNodeType | 'all') => {
-    setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+    rssState.setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
     setRssNodes((prev) => prev.map((n) => {
       if (n.source !== 'detected' || n.status !== 'pending') return n;
       if (typeFilter !== 'all' && n.type !== typeFilter) return n;
       return { ...n, status: 'approved' as RssNodeStatus };
     }));
-    setSelectedRssNodeId(null);
-  }, [rssNodes]);
+    selection.setSelectedRssNodeId(null);
+  }, [rssNodes, rssState, setRssNodes, selection]);
 
   const handleRssBulkReject = useCallback((typeFilter: RssNodeType | 'all') => {
-    setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+    rssState.setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
     setRssNodes((prev) => prev.map((n) => {
       if (n.source !== 'detected' || n.status !== 'pending') return n;
       if (typeFilter !== 'all' && n.type !== typeFilter) return n;
       return { ...n, status: 'rejected' as RssNodeStatus };
     }));
-    setSelectedRssNodeId(null);
-  }, [rssNodes]);
+    selection.setSelectedRssNodeId(null);
+  }, [rssNodes, rssState, setRssNodes, selection]);
 
   const handleRssNodeDelete = useCallback((id: number) => {
     setRssNodes((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+  }, [setRssNodes]);
 
   const handleRssExport = useCallback(() => {
     const exportNodes = rssNodes
@@ -647,23 +540,21 @@ export default function WarRoomPage() {
 
   // ── RSS annotation handlers ────────────────────────────────────────
   const handleRssDetect = useCallback(async () => {
-    if (!map || rssDetecting) return;
-    // Use manual nodes + approved corrections as training data
+    if (!map || rssState.rssDetecting) return;
     const trainingNodes = rssNodes.filter((n) => n.source === 'manual' || n.status === 'approved');
     if (trainingNodes.length === 0) return;
 
-    setRssDetecting(true);
+    rssState.setRssDetecting(true);
 
     try {
       const annotations = trainingNodes.map((n) => ({ x: n.x, y: n.y, type: n.type }));
       const detected = await detectNodesPixel(
         map.image_path,
         annotations,
-        setRssDetectProgress,
+        rssState.setRssDetectProgress,
       );
 
-      // Filter overlaps with training nodes (within 5 game units)
-      let nextId = rssNextId;
+      let nextId = rssState.rssNextId;
       const detectedNodes: RssNode[] = detected
         .filter((n) => !trainingNodes.some((m) => Math.hypot(m.x - n.x, m.y - n.y) < 5))
         .map((n) => ({
@@ -676,57 +567,46 @@ export default function WarRoomPage() {
           segment: 0,
         }));
 
-      setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+      rssState.setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
       setRssNodes((prev) => {
         const withoutOldDetected = prev.filter((n) => n.source !== 'detected');
         return [...withoutOldDetected, ...detectedNodes];
       });
-      setRssNextId(nextId);
-      setRssDetectProgress(`Found ${detectedNodes.length} new nodes`);
-      setTimeout(() => setRssDetectProgress(null), 5000);
+      rssState.setRssNextId(nextId);
+      rssState.setRssDetectProgress(`Found ${detectedNodes.length} new nodes`);
+      setTimeout(() => rssState.setRssDetectProgress(null), 5000);
     } catch (error) {
       console.error('RSS detection failed:', error);
-      setRssDetectProgress(`Error: ${error instanceof Error ? error.message : 'Detection failed'}`);
-      setTimeout(() => setRssDetectProgress(null), 5000);
+      rssState.setRssDetectProgress(`Error: ${error instanceof Error ? error.message : 'Detection failed'}`);
+      setTimeout(() => rssState.setRssDetectProgress(null), 5000);
     } finally {
-      setRssDetecting(false);
+      rssState.setRssDetecting(false);
     }
-  }, [map, rssDetecting, rssNodes, rssNextId]);
-
-  const handleRssFlyTo = useCallback((x: number, y: number) => {
-    setRssFlyTarget({ x, y });
-    setTimeout(() => setRssFlyTarget(null), 600);
-  }, []);
+  }, [map, rssState, rssNodes, setRssNodes]);
 
   const handleRssClearDetected = useCallback(() => {
-    setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
-    // Keep: manual nodes + anything user has reviewed (approved/rejected)
+    rssState.setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
     setRssNodes((prev) => prev.filter((n) =>
       n.source === 'manual' || n.status === 'approved' || n.status === 'rejected'
     ));
-  }, [rssNodes]);
+  }, [rssNodes, rssState, setRssNodes]);
 
   const handleRssStartFresh = useCallback(() => {
-    setRssUndoStack([]);
-    setRssNodes([]);
-    setRssNextId(0);
-    setSelectedRssNodeId(null);
-  }, [setRssNodes]);
+    rssState.startFresh(setRssNodes);
+    selection.setSelectedRssNodeId(null);
+  }, [rssState, setRssNodes, selection]);
 
   const handleRssUndo = useCallback(() => {
-    if (rssUndoStack.length === 0) return;
-    const prev = rssUndoStack[rssUndoStack.length - 1];
-    setRssUndoStack((s) => s.slice(0, -1));
-    setRssNodes(prev);
-  }, [rssUndoStack]);
+    rssState.undo(setRssNodes);
+  }, [rssState, setRssNodes]);
 
   const handleRssSaveToServer = useCallback(async () => {
     if (!map?.id) return;
-    setRssDetectProgress('Saving to server...');
+    rssState.setRssDetectProgress('Saving to server...');
     const success = await saveRssNodes(map.id, rssNodes);
-    setRssDetectProgress(success ? 'Saved to server!' : 'Save failed — check console');
-    setTimeout(() => setRssDetectProgress(null), 3000);
-  }, [map?.id, rssNodes]);
+    rssState.setRssDetectProgress(success ? 'Saved to server!' : 'Save failed — check console');
+    setTimeout(() => rssState.setRssDetectProgress(null), 3000);
+  }, [map?.id, rssNodes, rssState]);
 
   const handleFlagRssNode = useCallback(async () => {
     if (!map?.id || !selectedRssNode) return;
@@ -734,100 +614,19 @@ export default function WarRoomPage() {
     await refetchRssFlags();
   }, [map?.id, selectedRssNode, refetchRssFlags]);
 
-  // ── Flag path planner handlers ────────────────────────────────────
-  const clearFlagPathState = useCallback(() => {
-    setFlagPathActive(false);
-    setFlagPathWaypoints([]);
-    setFlagPathFlags([]);
-    setFlagPathResult(null);
-    setFlagPathAddingWaypoint(false);
-    setFlagPathAddingFlag(false);
-    setFlagPathSelectedFlagId(null);
-  }, []);
-
+  // ── Flag path planner: orchestrator handlers ──────────────────────
   const handleToggleFlagPath = useCallback(() => {
-    if (!flagPathActive) {
-      setFlagPathActive(true);
-      setFlagPathAddingWaypoint(true);
-      setFlagPathWaypoints([]);
-      setFlagPathFlags([]);
-      setFlagPathResult(null);
-      setFlagPathSelectedFlagId(null);
+    if (!flagPath.active) {
       // Clear conflicting modes
-      setIsPlacing(false);
-      setPlacingType(null);
+      placement.cancelPlacement();
       setIsDrawingZone(false);
       setZoneVertices([]);
-      setSelectedFeatureId(null);
-      setSelectedZoneId(null);
-      setSelectedRssNodeId(null);
-      setRssReviewActive(false);
-      setRssAnnotationMode('off');
-    } else {
-      clearFlagPathState();
+      selection.clearSelection();
+      rssState.setRssReviewActive(false);
+      rssState.setRssAnnotationMode('off');
     }
-  }, [flagPathActive, clearFlagPathState]);
-
-  const handleFlagPathCalculate = useCallback(async () => {
-    if (flagPathWaypoints.length < 2 || flagPathCalculating) return;
-    setFlagPathCalculating(true);
-    await new Promise((r) => setTimeout(r, 0));
-    try {
-      const result = computeFlagPath(flagPathWaypoints, rssNodes, flagPathConfig);
-      setFlagPathFlags(result.flags);
-      setFlagPathResult(result);
-      setFlagPathAddingWaypoint(false);
-    } finally {
-      setFlagPathCalculating(false);
-    }
-  }, [flagPathWaypoints, rssNodes, flagPathConfig, flagPathCalculating]);
-
-  const handleFlagPathWaypointDragEnd = useCallback((id: string, newX: number, newY: number) => {
-    setFlagPathWaypoints((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, x: newX, y: newY } : w)),
-    );
-    setFlagPathResult(null);
-    setFlagPathFlags([]);
-  }, []);
-
-  const handleFlagPathFlagDragEnd = useCallback((id: string, newX: number, newY: number) => {
-    setFlagPathFlags((prev) => {
-      const updated = prev.map((f) => (f.id === id ? { ...f, x: newX, y: newY } : f));
-      const result = recalculateCoverage(updated, rssNodes);
-      setFlagPathResult(result);
-      return result.flags;
-    });
-  }, [rssNodes]);
-
-  const handleFlagPathFlagStatusChange = useCallback((id: string, status: PlannedFlagStatus) => {
-    setFlagPathFlags((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)));
-  }, []);
-
-  const handleFlagPathFlagDelete = useCallback((id: string) => {
-    setFlagPathFlags((prev) => {
-      const updated = prev.filter((f) => f.id !== id);
-      if (updated.length > 0) {
-        const result = recalculateCoverage(updated, rssNodes);
-        setFlagPathResult(result);
-        return result.flags;
-      }
-      setFlagPathResult(null);
-      return [];
-    });
-    if (flagPathSelectedFlagId === id) setFlagPathSelectedFlagId(null);
-  }, [rssNodes, flagPathSelectedFlagId]);
-
-  const handleFlagPathRemoveWaypoint = useCallback((id: string) => {
-    setFlagPathWaypoints((prev) => prev.filter((w) => w.id !== id));
-    setFlagPathResult(null);
-    setFlagPathFlags([]);
-  }, []);
-
-  const handleFlagPathConfigChange = useCallback((updates: Partial<FlagPathConfig>) => {
-    setFlagPathConfig((prev) => ({ ...prev, ...updates }));
-    setFlagPathResult(null);
-    setFlagPathFlags([]);
-  }, []);
+    flagPath.toggle();
+  }, [flagPath, placement, selection, rssState]);
 
   // ── Map click/move ─────────────────────────────────────────────────
   const handleMouseMove = useCallback((x: number, y: number) => {
@@ -837,28 +636,13 @@ export default function WarRoomPage() {
   const handleMapClick = useCallback(
     async (x: number, y: number) => {
       // Flag path: add waypoint or manual flag
-      if (flagPathActive) {
-        if (flagPathAddingWaypoint) {
-          const wp: Waypoint = { id: crypto.randomUUID(), x: Math.round(x), y: Math.round(y) };
-          setFlagPathWaypoints((prev) => [...prev, wp]);
+      if (flagPath.active) {
+        if (flagPath.addingWaypoint) {
+          flagPath.addWaypoint(x, y);
           return;
         }
-        if (flagPathAddingFlag) {
-          const newFlag: PlannedFlag = {
-            id: crypto.randomUUID(),
-            x: Math.round(x),
-            y: Math.round(y),
-            status: 'planned',
-            coveredNodeIds: [],
-            rssPerHour: 0,
-          };
-          setFlagPathFlags((prev) => {
-            const updated = [...prev, newFlag];
-            const result = recalculateCoverage(updated, rssNodes);
-            setFlagPathResult(result);
-            return result.flags;
-          });
-          setFlagPathAddingFlag(false);
+        if (flagPath.addingFlag) {
+          flagPath.addFlagManual(x, y, rssNodes);
           return;
         }
         return;
@@ -868,44 +652,44 @@ export default function WarRoomPage() {
         return;
       }
       // RSS annotation: click to place node anywhere
-      if (rssAnnotationMode === 'annotate' && symmetryConfig) {
+      if (rssState.rssAnnotationMode === 'annotate' && symmetryConfig) {
         const seg = getSegment(x, y, symmetryConfig);
         const newNode: RssNode = {
-          id: rssNextId,
-          type: activeRssType,
+          id: rssState.rssNextId,
+          type: rssState.activeRssType,
           x: Math.round(x),
           y: Math.round(y),
           status: 'pending',
           source: 'manual',
           segment: seg,
         };
-        setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
+        rssState.setRssUndoStack((prev) => [...prev.slice(-19), rssNodes]);
         setRssNodes((prev) => [...prev, newNode]);
-        setRssNextId((prev) => prev + 1);
-        setSelectedRssNodeId(newNode.id);
+        rssState.setRssNextId((prev) => prev + 1);
+        selection.setSelectedRssNodeId(newNode.id);
         return;
       }
-      if (!isPlacing || !placingType || !map) return;
-      const canPlace = isAtLeast('admin') || (isAtLeast('officer') && isFlagFeatureType(placingType));
+      if (!placement.isPlacing || !placement.placingType || !map) return;
+      const canPlace = isAtLeast('admin') || (isAtLeast('officer') && isFlagFeatureType(placement.placingType));
       if (!canPlace) return;
-      const sameType = features.filter((f) => f.feature_type === placingType);
+      const sameType = features.filter((f) => f.feature_type === placement.placingType);
       const lastOfType = sameType[sameType.length - 1];
-      const config = FEATURE_TYPE_CONFIG[placingType];
+      const config = FEATURE_TYPE_CONFIG[placement.placingType];
       const defaults = {
         level: lastOfType?.level ?? config.defaultLevel,
         zone: lastOfType?.zone ?? null,
       };
-      const newFeature = await createMapFeature(map.id, placingType, x, y, defaults);
+      const newFeature = await createMapFeature(map.id, placement.placingType, x, y, defaults);
       if (newFeature) {
-        if (isFlagFeatureType(placingType) && placingForAllianceId) {
-          await upsertAssignment(map.id, newFeature.id, placingForAllianceId);
+        if (isFlagFeatureType(placement.placingType) && placement.placingForAllianceId) {
+          await upsertAssignment(map.id, newFeature.id, placement.placingForAllianceId);
           await refetchAssignments();
         }
         await refetchFeatures();
-        setSelectedFeatureId(newFeature.id);
+        selection.setSelectedFeatureId(newFeature.id);
       }
     },
-    [isDrawingZone, isPlacing, placingType, map, features, refetchFeatures, isAtLeast, placingForAllianceId, refetchAssignments, rssAnnotationMode, symmetryConfig, rssNextId, activeRssType, rssNodes, flagPathActive, flagPathAddingWaypoint, flagPathAddingFlag]
+    [isDrawingZone, placement, map, features, refetchFeatures, isAtLeast, refetchAssignments, rssState, symmetryConfig, rssNodes, setRssNodes, flagPath, selection]
   );
 
   const handleMapDoubleClick = useCallback(
@@ -918,20 +702,15 @@ export default function WarRoomPage() {
         await refetchZones();
         setIsDrawingZone(false);
         setZoneVertices([]);
-        setSelectedZoneId(null);
+        selection.setSelectedZoneId(null);
       }
     },
-    [isDrawingZone, zoneVertices, selectedZone, refetchZones, isAtLeast]
+    [isDrawingZone, zoneVertices, selectedZone, refetchZones, isAtLeast, selection]
   );
 
   // ── Role checks (must be before early returns to satisfy Rules of Hooks) ──
   const isAdminMode = isAtLeast('admin');
   const isOfficerMode = isAtLeast('officer');
-
-  const officerEditableGroups = useMemo(
-    () => (!isAdminMode && isOfficerMode ? new Set(['flags']) : undefined),
-    [isAdminMode, isOfficerMode]
-  );
 
   // ── Render ─────────────────────────────────────────────────────────
   if (mapLoading) {
@@ -983,62 +762,70 @@ export default function WarRoomPage() {
         {/* Map row: left sidebar + map + right sidebar */}
         <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
           {/* Left sidebar */}
-          <div className="lg:w-56 shrink-0 overflow-y-auto space-y-3">
-            {isOfficerMode && (
-              <AllianceList
+          <div className="lg:w-56 shrink-0 overflow-y-auto">
+            {isOfficerMode ? (
+              <PlannerSidebar
                 alliances={alliances}
-                onCreate={handleCreateAlliance}
-                onUpdate={handleUpdateAlliance}
-                onDelete={handleDeleteAlliance}
+                highlightedAllianceId={highlightedAllianceId}
+                onHighlight={setHighlightedAllianceId}
+                onCreateAlliance={handleCreateAlliance}
+                onUpdateAlliance={handleUpdateAlliance}
+                onDeleteAlliance={handleDeleteAlliance}
+                featureCounts={featureCounts}
+                hiddenGroups={layers.hiddenGroups}
+                onToggleGroup={layers.toggleGroup}
+                onPlaceFlag={handlePlaceFlag}
+                isPlacingFlag={placement.isPlacing && placement.placingType === 'flag'}
+                flagPathActive={flagPath.active}
+                flagCount={flagPath.flags.length}
+                onToggleFlagPath={handleToggleFlagPath}
+                isAdmin={isAdminMode}
+                adminContent={
+                  <>
+                    <button
+                      onClick={handleToggleRssReview}
+                      className="w-full flex items-center gap-2 px-3 py-2 mb-2 rounded-lg text-xs font-medium transition-all"
+                      style={{
+                        backgroundColor: rssState.rssReviewActive ? 'rgba(34,197,94,0.15)' : 'var(--background-card)',
+                        color: rssState.rssReviewActive ? '#22c55e' : 'var(--text-muted)',
+                        border: `1px solid ${rssState.rssReviewActive ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
+                      }}
+                    >
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: rssState.rssReviewActive ? '#22c55e' : 'var(--text-muted)' }} />
+                      RSS Node Review
+                      {rssState.rssReviewActive && <span className="ml-auto text-[10px]">{rssNodes.length}</span>}
+                    </button>
+                    <FeaturePalette
+                      selectedType={placement.placingType}
+                      isPlacing={placement.isPlacing}
+                      onSelectType={handleSelectType}
+                      onCancelPlacement={placement.cancelPlacement}
+                      featureCounts={featureCounts}
+                      hiddenGroups={layers.hiddenGroups}
+                      onToggleGroup={layers.toggleGroup}
+                      allHidden={layers.allHidden}
+                      onToggleAll={layers.toggleAll}
+                      readOnly={false}
+                    />
+                  </>
+                }
               />
+            ) : (
+              <div className="space-y-3">
+                <FeaturePalette
+                  selectedType={placement.placingType}
+                  isPlacing={placement.isPlacing}
+                  onSelectType={handleSelectType}
+                  onCancelPlacement={placement.cancelPlacement}
+                  featureCounts={featureCounts}
+                  hiddenGroups={layers.hiddenGroups}
+                  onToggleGroup={layers.toggleGroup}
+                  allHidden={layers.allHidden}
+                  onToggleAll={layers.toggleAll}
+                  readOnly={true}
+                />
+              </div>
             )}
-            {/* Flag Path Planner toggle (officer+) */}
-            {isOfficerMode && (
-              <button
-                onClick={handleToggleFlagPath}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  backgroundColor: flagPathActive ? 'rgba(6,182,212,0.15)' : 'var(--background-card)',
-                  color: flagPathActive ? '#06b6d4' : 'var(--text-muted)',
-                  border: `1px solid ${flagPathActive ? 'rgba(6,182,212,0.3)' : 'var(--border)'}`,
-                }}
-              >
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: flagPathActive ? '#06b6d4' : 'var(--text-muted)' }} />
-                Plan Flag Path
-                {flagPathActive && flagPathFlags.length > 0 && (
-                  <span className="ml-auto text-[10px]">{flagPathFlags.length} flags</span>
-                )}
-              </button>
-            )}
-            {/* RSS Review toggle (admin only) */}
-            {isAdminMode && (
-              <button
-                onClick={handleToggleRssReview}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  backgroundColor: rssReviewActive ? 'rgba(34,197,94,0.15)' : 'var(--background-card)',
-                  color: rssReviewActive ? '#22c55e' : 'var(--text-muted)',
-                  border: `1px solid ${rssReviewActive ? 'rgba(34,197,94,0.3)' : 'var(--border)'}`,
-                }}
-              >
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: rssReviewActive ? '#22c55e' : 'var(--text-muted)' }} />
-                RSS Node Review
-                {rssReviewActive && <span className="ml-auto text-[10px]">{rssNodes.length}</span>}
-              </button>
-            )}
-            <FeaturePalette
-              selectedType={placingType}
-              isPlacing={isPlacing}
-              onSelectType={handleSelectType}
-              onCancelPlacement={handleCancelPlacement}
-              featureCounts={featureCounts}
-              hiddenGroups={hiddenGroups}
-              onToggleGroup={handleToggleGroup}
-              allHidden={allHidden}
-              onToggleAll={handleToggleAll}
-              readOnly={!isAdminMode}
-              editableGroupKeys={officerEditableGroups}
-            />
           </div>
 
           {/* Center: Map */}
@@ -1052,18 +839,18 @@ export default function WarRoomPage() {
               onDoubleClick={handleMapDoubleClick}
               onMouseMove={handleMouseMove}
               onZoomChange={setZoom}
-              cursorStyle={(flagPathActive && (flagPathAddingWaypoint || flagPathAddingFlag)) || (isPlacing && placingType) || (isDrawingZone && isAdminMode) || rssAnnotationMode === 'annotate' ? 'crosshair' : undefined}
+              cursorStyle={(flagPath.active && (flagPath.addingWaypoint || flagPath.addingFlag)) || (placement.isPlacing && placement.placingType) || (isDrawingZone && isAdminMode) || rssState.rssAnnotationMode === 'annotate' ? 'crosshair' : undefined}
             >
-              {showZones && zones.map((zone) => (
+              {layers.showZones && zones.map((zone) => (
                 <ZonePolygon
                   key={zone.id}
                   zone={zone}
                   onClick={handleZoneClick}
-                  isSelected={zone.id === selectedZoneId}
-                  isHighlighted={hoveredZoneNumber != null && zone.zone_number === hoveredZoneNumber}
+                  isSelected={zone.id === selection.selectedZoneId}
+                  isHighlighted={selection.hoveredZoneNumber != null && zone.zone_number === selection.hoveredZoneNumber}
                 />
               ))}
-              {showZones && zones.map((zone) => (
+              {layers.showZones && zones.map((zone) => (
                 <ZoneLabel key={`label-${zone.id}`} zone={zone} zoom={zoom} />
               ))}
               {visibleFeatures.map((feature) => {
@@ -1071,12 +858,14 @@ export default function WarRoomPage() {
                 const alliance = assignment ? allianceMap.get(assignment.alliance_id) : undefined;
                 const cfg = FEATURE_TYPE_CONFIG[feature.feature_type];
                 if (cfg?.tileSize) {
+                  const isDimmed = !!highlightedAllianceId && assignment?.alliance_id !== highlightedAllianceId;
                   return (
                     <FlagOverlay
                       key={feature.id}
                       feature={feature}
-                      isSelected={feature.id === selectedFeatureId}
-                      isDraggable={(isAdminMode || isOfficerMode) && !isPlacing && !isDrawingZone}
+                      isSelected={feature.id === selection.selectedFeatureId}
+                      isDraggable={(isAdminMode || isOfficerMode) && !placement.isPlacing && !isDrawingZone}
+                      dimmed={isDimmed}
                       zoom={zoom}
                       allianceColor={alliance?.color}
                       allianceTag={alliance?.tag}
@@ -1088,12 +877,14 @@ export default function WarRoomPage() {
                     />
                   );
                 }
+                const isDimmed = !!highlightedAllianceId && assignment?.alliance_id !== highlightedAllianceId;
                 return (
                   <FeatureMarker
                     key={feature.id}
                     feature={feature}
-                    isSelected={feature.id === selectedFeatureId}
-                    isDraggable={isAdminMode && !isPlacing && !isDrawingZone}
+                    isSelected={feature.id === selection.selectedFeatureId}
+                    isDraggable={isAdminMode && !placement.isPlacing && !isDrawingZone}
+                    dimmed={isDimmed}
                     zoom={zoom}
                     allianceColor={alliance?.color}
                     allianceTag={alliance?.tag}
@@ -1107,29 +898,29 @@ export default function WarRoomPage() {
               })}
               {rssNodes.length > 0 && (
                 <RssNodeOverlay
-                  nodes={rssReviewActive ? filteredRssNodes : rssNodes}
-                  selectedId={selectedRssNodeId}
-                  interactive={isAtLeast('officer') && !isPlacing && !isDrawingZone && rssAnnotationMode !== 'annotate'}
-                  onSelect={isAtLeast('officer') ? setSelectedRssNodeId : undefined}
-                  onMove={rssReviewActive ? handleRssNodeMove : undefined}
+                  nodes={rssState.rssReviewActive ? filteredRssNodes : rssNodes}
+                  selectedId={selection.selectedRssNodeId}
+                  interactive={isAtLeast('officer') && !placement.isPlacing && !isDrawingZone && rssState.rssAnnotationMode !== 'annotate'}
+                  onSelect={isAtLeast('officer') ? selection.setSelectedRssNodeId : undefined}
+                  onMove={rssState.rssReviewActive ? handleRssNodeMove : undefined}
                   zoom={zoom}
-                  flyToTarget={rssFlyTarget}
+                  flyToTarget={rssState.rssFlyTarget}
                 />
               )}
-              {flagPathActive && (
+              {flagPath.active && (
                 <FlagPathOverlay
-                  waypoints={flagPathWaypoints}
-                  flags={flagPathFlags}
+                  waypoints={flagPath.waypoints}
+                  flags={flagPath.flags}
                   rssNodes={rssNodes}
-                  coveredNodeIds={flagPathResult?.coveredNodes ?? new Set()}
+                  coveredNodeIds={flagPath.result?.coveredNodes ?? new Set()}
                   currentPoint={mousePos}
-                  isAddingWaypoint={flagPathAddingWaypoint}
-                  isAddingFlag={flagPathAddingFlag}
+                  isAddingWaypoint={flagPath.addingWaypoint}
+                  isAddingFlag={flagPath.addingFlag}
                   zoom={zoom}
-                  selectedFlagId={flagPathSelectedFlagId}
-                  onWaypointDragEnd={handleFlagPathWaypointDragEnd}
-                  onFlagDragEnd={handleFlagPathFlagDragEnd}
-                  onFlagClick={(id) => setFlagPathSelectedFlagId((prev) => (prev === id ? null : id))}
+                  selectedFlagId={flagPath.selectedFlagId}
+                  onWaypointDragEnd={flagPath.waypointDragEnd}
+                  onFlagDragEnd={(id, x, y) => flagPath.flagDragEnd(id, x, y, rssNodes)}
+                  onFlagClick={(id) => flagPath.setSelectedFlagId(flagPath.selectedFlagId === id ? null : id)}
                 />
               )}
               {isDrawingZone && (
@@ -1139,7 +930,7 @@ export default function WarRoomPage() {
             <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
 
             {/* Mode indicator */}
-            {flagPathActive && (
+            {flagPath.active && (
               <div
                 className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
                 style={{
@@ -1150,29 +941,29 @@ export default function WarRoomPage() {
               >
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#06b6d4' }} />
                 <span>
-                  {flagPathAddingWaypoint
+                  {flagPath.addingWaypoint
                     ? 'Click to place waypoints'
-                    : flagPathAddingFlag
+                    : flagPath.addingFlag
                       ? 'Click to place a flag'
-                      : `Flag Path: ${flagPathFlags.length} flags`}
+                      : `Flag Path: ${flagPath.flags.length} flags`}
                 </span>
                 <span style={{ color: 'var(--text-muted)' }}>(Esc to exit)</span>
               </div>
             )}
-            {isPlacing && placingType && (
+            {placement.isPlacing && placement.placingType && (
               <div
                 className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
                 style={{
                   backgroundColor: 'rgba(0,0,0,0.8)',
-                  color: FEATURE_TYPE_CONFIG[placingType].color,
+                  color: FEATURE_TYPE_CONFIG[placement.placingType].color,
                   border: '1px solid var(--border)',
                 }}
               >
-                <span>Placing: {FEATURE_TYPE_CONFIG[placingType].label}</span>
-                {isFlagFeatureType(placingType) && alliances.length > 0 && (
+                <span>Placing: {FEATURE_TYPE_CONFIG[placement.placingType].label}</span>
+                {isFlagFeatureType(placement.placingType) && alliances.length > 0 && (
                   <select
-                    value={placingForAllianceId || ''}
-                    onChange={(e) => setPlacingForAllianceId(e.target.value || null)}
+                    value={placement.placingForAllianceId || ''}
+                    onChange={(e) => placement.setPlacingForAllianceId(e.target.value || null)}
                     className="bg-transparent border rounded px-1.5 py-0.5 text-xs"
                     style={{ borderColor: 'var(--border)', color: 'inherit' }}
                   >
@@ -1198,47 +989,47 @@ export default function WarRoomPage() {
                 Drawing: {selectedZone.name || `Zone ${selectedZone.zone_number}`} — {zoneVertices.length} vertices (double-click to finish, Esc to cancel)
               </div>
             )}
-            {rssAnnotationMode === 'annotate' && (
+            {rssState.rssAnnotationMode === 'annotate' && (
               <div
                 className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
                 style={{
                   backgroundColor: 'rgba(0,0,0,0.8)',
-                  color: RSS_TYPE_COLORS[activeRssType],
+                  color: RSS_TYPE_COLORS[rssState.activeRssType],
                   border: '1px solid var(--border)',
                 }}
               >
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[activeRssType] }} />
-                <span>Placing: {RSS_TYPE_LABELS[activeRssType]}</span>
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[rssState.activeRssType] }} />
+                <span>Placing: {RSS_TYPE_LABELS[rssState.activeRssType]}</span>
                 <span style={{ color: 'var(--text-muted)' }}>(click map to place · Esc to stop)</span>
               </div>
             )}
           </div>
 
-          {/* Right sidebar — feature/zone detail, RSS review, flag path, or officer node info */}
-          {(selectedZone || selectedFeature || rssReviewActive || flagPathActive || (!rssReviewActive && selectedRssNode && isAtLeast('officer'))) && (
+          {/* Right sidebar — feature/zone detail, RSS review, flag path, planning overview */}
+          {(isOfficerMode || selectedZone || selectedFeature || rssState.rssReviewActive || flagPath.active || (!rssState.rssReviewActive && selectedRssNode && isAtLeast('officer'))) && (
             <div className="lg:w-72 shrink-0 overflow-y-auto">
-              {flagPathActive ? (
+              {flagPath.active ? (
                 <FlagPathPanel
-                  waypoints={flagPathWaypoints}
-                  flags={flagPathFlags}
-                  result={flagPathResult}
-                  config={flagPathConfig}
-                  isAddingWaypoint={flagPathAddingWaypoint}
-                  isAddingFlag={flagPathAddingFlag}
-                  selectedFlagId={flagPathSelectedFlagId}
-                  calculating={flagPathCalculating}
-                  onConfigChange={handleFlagPathConfigChange}
-                  onCalculate={handleFlagPathCalculate}
-                  onRemoveWaypoint={handleFlagPathRemoveWaypoint}
-                  onClearWaypoints={() => { setFlagPathWaypoints([]); setFlagPathFlags([]); setFlagPathResult(null); }}
-                  onToggleAddWaypoint={() => { setFlagPathAddingWaypoint((v) => !v); setFlagPathAddingFlag(false); }}
-                  onToggleAddFlag={() => { setFlagPathAddingFlag((v) => !v); setFlagPathAddingWaypoint(false); }}
-                  onFlagStatusChange={handleFlagPathFlagStatusChange}
-                  onFlagDelete={handleFlagPathFlagDelete}
-                  onSelectFlag={setFlagPathSelectedFlagId}
+                  waypoints={flagPath.waypoints}
+                  flags={flagPath.flags}
+                  result={flagPath.result}
+                  config={flagPath.config}
+                  isAddingWaypoint={flagPath.addingWaypoint}
+                  isAddingFlag={flagPath.addingFlag}
+                  selectedFlagId={flagPath.selectedFlagId}
+                  calculating={flagPath.calculating}
+                  onConfigChange={flagPath.configChange}
+                  onCalculate={() => flagPath.calculate(rssNodes)}
+                  onRemoveWaypoint={flagPath.removeWaypoint}
+                  onClearWaypoints={flagPath.clearWaypoints}
+                  onToggleAddWaypoint={flagPath.toggleAddWaypoint}
+                  onToggleAddFlag={flagPath.toggleAddFlag}
+                  onFlagStatusChange={flagPath.flagStatusChange}
+                  onFlagDelete={(id) => flagPath.flagDelete(id, rssNodes)}
+                  onSelectFlag={flagPath.setSelectedFlagId}
                   onClose={handleToggleFlagPath}
                 />
-              ) : rssReviewActive ? (
+              ) : rssState.rssReviewActive ? (
                 <>
                   <button
                     onClick={handleRssSaveToServer}
@@ -1253,41 +1044,41 @@ export default function WarRoomPage() {
                   </button>
                   <RssReviewPanel
                     nodes={rssNodes}
-                    selectedId={selectedRssNodeId}
-                    typeFilter={rssTypeFilter}
-                    statusFilter={rssStatusFilter}
-                    onTypeFilterChange={setRssTypeFilter}
-                    onStatusFilterChange={setRssStatusFilter}
+                    selectedId={selection.selectedRssNodeId}
+                    typeFilter={rssState.rssTypeFilter}
+                    statusFilter={rssState.rssStatusFilter}
+                    onTypeFilterChange={rssState.setRssTypeFilter}
+                    onStatusFilterChange={rssState.setRssStatusFilter}
                     onChangeType={handleRssNodeChangeType}
                     onApprove={handleRssNodeApprove}
                     onReject={handleRssNodeReject}
                     onDelete={handleRssNodeDelete}
-                    onSelect={setSelectedRssNodeId}
+                    onSelect={selection.setSelectedRssNodeId}
                     onExport={handleRssExport}
                     onClose={handleToggleRssReview}
-                    onFlyTo={handleRssFlyTo}
-                    annotationMode={rssAnnotationMode}
-                    onAnnotationModeChange={setRssAnnotationMode}
-                    activeRssType={activeRssType}
-                    onActiveRssTypeChange={setActiveRssType}
+                    onFlyTo={rssState.flyTo}
+                    annotationMode={rssState.rssAnnotationMode}
+                    onAnnotationModeChange={rssState.setRssAnnotationMode}
+                    activeRssType={rssState.activeRssType}
+                    onActiveRssTypeChange={rssState.setActiveRssType}
                     sourceCount={rssSourceCount}
                     detectedCount={rssDetectedCount}
-                    canUndo={rssUndoStack.length > 0}
+                    canUndo={rssState.rssUndoStack.length > 0}
                     onDetect={handleRssDetect}
-                    detecting={rssDetecting}
-                    detectProgress={rssDetectProgress}
+                    detecting={rssState.rssDetecting}
+                    detectProgress={rssState.rssDetectProgress}
                     onClearDetected={handleRssClearDetected}
                     onStartFresh={handleRssStartFresh}
                     onUndo={handleRssUndo}
                     onLoadExisting={handleRssLoadExisting}
                     onBatchChangeType={handleRssBatchChangeType}
                     onReclassify={handleRssReclassify}
-                    reclassifying={rssReclassifying}
+                    reclassifying={rssState.rssReclassifying}
                     onBulkApprove={handleRssBulkApprove}
                     onBulkReject={handleRssBulkReject}
                   />
                 </>
-              ) : !rssReviewActive && selectedRssNode && isAtLeast('officer') ? (
+              ) : !rssState.rssReviewActive && selectedRssNode && isAtLeast('officer') ? (
                 <div
                   className="rounded-xl p-4 border"
                   style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
@@ -1300,7 +1091,7 @@ export default function WarRoomPage() {
                       </h3>
                     </div>
                     <button
-                      onClick={() => setSelectedRssNodeId(null)}
+                      onClick={() => selection.setSelectedRssNodeId(null)}
                       className="text-xs px-1.5 py-0.5 rounded"
                       style={{ color: 'var(--text-muted)' }}
                     >
@@ -1342,7 +1133,7 @@ export default function WarRoomPage() {
                     onFinishDrawing={handleFinishDrawing}
                     onCancelDrawing={handleCancelDrawing}
                     onClose={() => {
-                      setSelectedZoneId(null);
+                      selection.setSelectedZoneId(null);
                       setIsDrawingZone(false);
                       setZoneVertices([]);
                     }}
@@ -1374,7 +1165,13 @@ export default function WarRoomPage() {
                   onAssign={isAtLeast('officer') ? handleAssign : undefined}
                   onUpdateAssignment={isAtLeast('officer') ? handleUpdateAssignment : undefined}
                   onUnassign={isAtLeast('officer') ? handleUnassign : undefined}
-                  onClose={() => setSelectedFeatureId(null)}
+                  onClose={() => selection.setSelectedFeatureId(null)}
+                />
+              ) : isOfficerMode ? (
+                <PlanningOverview
+                  features={features}
+                  assignments={activeAssignments}
+                  alliances={alliances}
                 />
               ) : null}
             </div>

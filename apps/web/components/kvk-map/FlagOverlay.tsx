@@ -10,6 +10,7 @@ interface FlagOverlayProps {
   feature: KvkMapFeature;
   isSelected?: boolean;
   isDraggable?: boolean;
+  dimmed?: boolean;
   zoom?: number;
   allianceColor?: string | null;
   allianceTag?: string | null;
@@ -24,6 +25,7 @@ export default function FlagOverlay({
   feature,
   isSelected = false,
   isDraggable = false,
+  dimmed = false,
   zoom = -1,
   allianceColor,
   allianceTag,
@@ -38,7 +40,8 @@ export default function FlagOverlay({
   const half = tileSize / 2;
 
   const color = allianceColor || config?.color || '#64748b';
-  const statusOpacity = assignmentStatus === 'lost' ? 0.3 : 1;
+  const dimScale = dimmed ? 0.25 : 1;
+  const statusOpacity = (assignmentStatus === 'lost' ? 0.3 : 1) * dimScale;
 
   // Rectangle bounds: [southWest, northEast] = [[y-half, x-half], [y+half, x+half]]
   const rectBounds = useMemo<L.LatLngBoundsExpression>(
@@ -76,9 +79,10 @@ export default function FlagOverlay({
         font-weight: 700;
         color: ${color};
         cursor: pointer;
+        opacity: ${dimScale};
       ">${label}</div>`,
     });
-  }, [zoom, color, allianceTag, config?.abbreviation]);
+  }, [zoom, color, allianceTag, config?.abbreviation, dimScale]);
 
   return (
     <>

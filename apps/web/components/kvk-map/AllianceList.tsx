@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, X, Check, Trash2 } from 'lucide-react';
+import { Plus, X, Check, Trash2, Pencil } from 'lucide-react';
 import { useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import { fetchAllRosterAlliances, type RosterAllianceSummary } from '@/lib/supabase/use-kvk-alliances';
 import type { KvkAlliance, AllianceRole } from '@/lib/kvk-map-types';
@@ -10,12 +10,14 @@ const ALLIANCE_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', 
 
 interface AllianceListProps {
   alliances: KvkAlliance[];
+  highlightedAllianceId?: string | null;
+  onHighlight?: (id: string | null) => void;
   onCreate: (data: { tag: string; name: string; role: AllianceRole; color: string }) => void;
   onUpdate: (id: string, updates: Partial<KvkAlliance>) => void;
   onDelete: (id: string) => void;
 }
 
-export default function AllianceList({ alliances, onCreate, onUpdate, onDelete }: AllianceListProps) {
+export default function AllianceList({ alliances, highlightedAllianceId, onHighlight, onCreate, onUpdate, onDelete }: AllianceListProps) {
   const { isAtLeast } = useWarRoomAuth();
   const canEdit = isAtLeast('officer');
 
@@ -129,11 +131,14 @@ export default function AllianceList({ alliances, onCreate, onUpdate, onDelete }
               </div>
             </div>
           ) : (
-            <button
+            <div
               key={a.id}
-              onClick={() => canEdit && startEdit(a)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all"
-              style={{ cursor: canEdit ? 'pointer' : 'default' }}
+              onClick={() => onHighlight?.(highlightedAllianceId === a.id ? null : a.id)}
+              className="group w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all cursor-pointer"
+              style={{
+                borderLeft: highlightedAllianceId === a.id ? `3px solid ${a.color}` : '3px solid transparent',
+                backgroundColor: highlightedAllianceId === a.id ? `${a.color}12` : 'transparent',
+              }}
             >
               <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
               <span className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>[{a.tag}]</span>
@@ -147,7 +152,16 @@ export default function AllianceList({ alliances, onCreate, onUpdate, onDelete }
               >
                 {a.role === 'top' ? 'Top' : 'Sup'}
               </span>
-            </button>
+              {canEdit && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); startEdit(a); }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <Pencil size={12} />
+                </button>
+              )}
+            </div>
           )
         ))}
       </div>
