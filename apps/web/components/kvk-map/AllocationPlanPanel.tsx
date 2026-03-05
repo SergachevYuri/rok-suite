@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { Check } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { FEATURE_GROUPS, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config';
 import { REQUIREMENT_FEATURE_MAP, KVK2_TIER_REQUIREMENTS, isMappableRequirement } from '@/lib/kvk-achievements/requirement-mapping';
 import { computeMinimumAllocations } from '@/lib/kvk-achievements/compute-minimums';
@@ -233,8 +233,53 @@ export default function AllocationPlanPanel({
 
   const cols = `100px repeat(${alliances.length}, 1fr) 54px`;
 
+  // Getting Started guide — collapsible, remembered in localStorage
+  const [guideOpen, setGuideOpen] = useState(true);
+  useEffect(() => {
+    const stored = localStorage.getItem('kvk-warroom-guide-dismissed');
+    if (stored === '1') setGuideOpen(false);
+  }, []);
+  const toggleGuide = () => {
+    const next = !guideOpen;
+    setGuideOpen(next);
+    localStorage.setItem('kvk-warroom-guide-dismissed', next ? '0' : '1');
+  };
+
   return (
     <div className="space-y-3 p-3">
+      {/* Getting Started guide */}
+      <div
+        className="rounded-lg border overflow-hidden"
+        style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
+      >
+        <button
+          onClick={toggleGuide}
+          className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {guideOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+          Getting Started
+        </button>
+        {guideOpen && (
+          <div className="px-3 pb-2.5 space-y-2">
+            <div className="flex gap-2">
+              <span className="text-[10px] font-bold shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.2)', color: '#60a5fa' }}>1</span>
+              <div>
+                <p className="text-[11px] font-medium" style={{ color: 'var(--foreground)' }}>Set building targets</p>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Click cells in the grid to assign counts per alliance. Right-click to decrease.</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <span className="text-[10px] font-bold shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.2)', color: '#60a5fa' }}>2</span>
+              <div>
+                <p className="text-[11px] font-medium" style={{ color: 'var(--foreground)' }}>Plan fort drops</p>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Click a zone on the map to place fortresses for each alliance.</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Fort Drop Plans — always visible so officers know to click zones */}
       {zone1Regions.length > 0 && onFocusZone && (
         <div
@@ -283,9 +328,14 @@ export default function AllocationPlanPanel({
         </div>
       )}
 
-      <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-        Allocation Plan
-      </h3>
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+          Allocation Plan
+        </h3>
+        <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
+          Click to add · Right-click to remove
+        </p>
+      </div>
 
       {/* Allocation Grid */}
       <div
@@ -301,7 +351,7 @@ export default function AllocationPlanPanel({
             </div>
           ))}
           <div className="px-1 py-1.5 text-center text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
-            Asgn
+            Done
           </div>
         </div>
 
