@@ -192,8 +192,12 @@ export default function WarRoomPage() {
   );
 
   const visibleFeatures = useMemo(
-    () => features.filter((f) => !layers.hiddenGroups.has(FEATURE_TYPE_TO_GROUP[f.feature_type as FeatureType])),
-    [features, layers.hiddenGroups]
+    () => features.filter((f) => {
+      if (layers.hiddenGroups.has(FEATURE_TYPE_TO_GROUP[f.feature_type as FeatureType])) return false;
+      if (!isAtLeast('officer') && isFlagFeatureType(f.feature_type as FeatureType)) return false;
+      return true;
+    }),
+    [features, layers.hiddenGroups, isAtLeast]
   );
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────
