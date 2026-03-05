@@ -48,16 +48,16 @@ const RssNodeDot = memo(function RssNodeDot({
   zoom: number;
 }) {
   const color = RSS_TYPE_COLORS[node.type];
-  const opacity = node.status === 'rejected' ? 0.2 : node.status === 'approved' ? 1 : 0.7;
-  const radius = isSelected ? 6 : Math.max(3, 3 + (zoom + 1) * 1.5);
+  const opacity = node.status === 'rejected' ? 0.1 : node.status === 'approved' ? 0.45 : 0.3;
+  const radius = isSelected ? 5 : Math.max(2, 1.5 + (zoom - 1) * 1.2);
 
   return (
     <CircleMarker
       center={[node.y, node.x]}
       radius={radius}
       pathOptions={{
-        color: '#fff',
-        weight: isSelected ? 2 : 1,
+        color: isSelected ? '#fff' : color,
+        weight: isSelected ? 2 : 0.5,
         fillColor: color,
         fillOpacity: opacity,
       }}
@@ -143,8 +143,8 @@ export default memo(function RssNodeOverlay({
   flyToTarget,
 }: RssNodeOverlayProps) {
   const selectedNode = selectedId != null ? nodes.find((n) => n.id === selectedId) : null;
-  // Hide nodes when zoomed out too far (zoom < 0 means very zoomed out)
-  const showNodes = zoom >= 0;
+  // Only show nodes when zoomed in enough (zoom >= 1)
+  const showNodes = zoom >= 1;
 
   return (
     <>
