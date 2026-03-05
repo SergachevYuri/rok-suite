@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import MapBase from '@/components/kvk-map/MapBase';
 import FeatureMarker from '@/components/kvk-map/FeatureMarker';
@@ -120,6 +120,9 @@ export default function WarRoomPage() {
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(-1);
   const [highlightedAllianceId, setHighlightedAllianceId] = useState<string | null>(null);
+
+  // Guard: prevent zone click from overriding a feature click (Leaflet event bubbling)
+  const featureJustClicked = useRef(false);
 
   // ── Zone editing state ─────────────────────────────────────────────
   const [isDrawingZone, setIsDrawingZone] = useState(false);
@@ -266,6 +269,8 @@ export default function WarRoomPage() {
   const handleFeatureClick = useCallback(
     (feature: KvkMapFeature) => {
       if (placement.isPlacing || isDrawingZone) return;
+      featureJustClicked.current = true;
+      setTimeout(() => { featureJustClicked.current = false; }, 0);
       selection.setSelectedFeatureId(selection.selectedFeatureId === feature.id ? null : feature.id);
       selection.setSelectedZoneId(null);
     },
@@ -314,6 +319,7 @@ export default function WarRoomPage() {
   const handleZoneClick = useCallback(
     (zone: KvkMapZone) => {
       if (placement.isPlacing || isDrawingZone) return;
+      if (featureJustClicked.current) return;
       selection.setSelectedZoneId(selection.selectedZoneId === zone.id ? null : zone.id);
       selection.setSelectedFeatureId(null);
     },
