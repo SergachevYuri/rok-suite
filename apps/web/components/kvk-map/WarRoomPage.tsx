@@ -31,6 +31,7 @@ import {
   updateMapZone,
   deleteMapFeature,
   updateFeaturePosition,
+  updateMapStage,
 } from '@/lib/supabase/use-kvk-map';
 import { supabase } from '@/lib/supabase';
 import { useKvkAlliances, createAlliance, updateAlliance, deleteAlliance, fetchTopAlliancesFromRoster } from '@/lib/supabase/use-kvk-alliances';
@@ -57,7 +58,7 @@ export default function WarRoomPage() {
   const strategyCode = searchParams.get('strategy');
 
   // ── Data ───────────────────────────────────────────────────────────
-  const { map, loading: mapLoading } = useActiveKvkMap();
+  const { map, loading: mapLoading, refetch: refetchMap } = useActiveKvkMap();
   const { features, refetch: refetchFeatures } = useKvkMapFeatures(map?.id);
   const { zones, refetch: refetchZones } = useKvkMapZones(map?.id);
   const { alliances, loading: alliancesLoading, refetch: refetchAlliances } = useKvkAlliances(map?.id);
@@ -415,6 +416,16 @@ export default function WarRoomPage() {
       await refetchTargets();
     },
     [map, refetchTargets]
+  );
+
+  // ── Stage handler ─────────────────────────────────────────────────
+  const handleStageChange = useCallback(
+    async (stage: number) => {
+      if (!map) return;
+      await updateMapStage(map.id, stage);
+      await refetchMap();
+    },
+    [map, refetchMap]
   );
 
   // ── Strategy handlers ──────────────────────────────────────────────
@@ -1227,6 +1238,8 @@ export default function WarRoomPage() {
                   onDeleteTarget={handleDeleteTarget}
                   zones={zones}
                   onFocusZone={selection.setSelectedZoneId}
+                  currentStage={map?.current_stage ?? 1}
+                  onStageChange={handleStageChange}
                 />
               ) : null}
             </div>

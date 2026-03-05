@@ -48,6 +48,7 @@ export interface KvkMap {
   symmetry_center_x: number;
   symmetry_center_y: number;
   status: MapStatus;
+  current_stage: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;

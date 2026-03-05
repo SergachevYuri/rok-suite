@@ -1,13 +1,14 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { useMemo } from 'react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FEATURE_GROUPS, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config';
 import { REQUIREMENT_FEATURE_MAP, KVK2_TIER_REQUIREMENTS, isMappableRequirement } from '@/lib/kvk-achievements/requirement-mapping';
 import { computeMinimumAllocations } from '@/lib/kvk-achievements/compute-minimums';
 import { getAchievementData } from '@/lib/kvk-achievements/data';
 import { isPointInPolygon } from '@/lib/kvk-map/point-in-zone';
 import { FEATURE_TYPE_CONFIG } from '@/lib/kvk-feature-config';
+import { KVK_STAGES, getStage } from '@/lib/kvk-stages';
 import type { KvkMapFeature, KvkAssignment, KvkAlliance, KvkAllocationTarget, KvkMapZone, FeatureType } from '@/lib/kvk-map-types';
 
 // ── Reverse mapping: group key → requirement types it satisfies ──────
@@ -39,6 +40,8 @@ interface AllocationPlanPanelProps {
   onDeleteTarget: (allianceId: string, featureGroup: string) => void;
   zones?: KvkMapZone[];
   onFocusZone?: (zoneId: string | null) => void;
+  currentStage?: number;
+  onStageChange?: (stage: number) => void;
 }
 
 export default function AllocationPlanPanel({
@@ -50,6 +53,8 @@ export default function AllocationPlanPanel({
   onDeleteTarget,
   zones,
   onFocusZone,
+  currentStage = 1,
+  onStageChange,
 }: AllocationPlanPanelProps) {
   // Groups to show (exclude flags)
   const planGroups = useMemo(
@@ -180,20 +185,22 @@ export default function AllocationPlanPanel({
   const totalTiers = achievementImpact.reduce((s, c) => s + c.tiers.filter((t) => t.satisfied || t.partial).length + c.tiers.filter((t) => !t.satisfied && !t.partial).length, 0);
   const completedTiers = achievementImpact.reduce((s, c) => s + c.tiers.filter((t) => t.satisfied).length, 0);
 
-  // ── Zone 1 fort plans ──────────────────────────────────────────────
+  // ── Stage-based zone fort plans ────────────────────────────────────
 
-  const zone1Regions = useMemo(
-    () => (zones || []).filter((z) => z.zone_number === 1),
-    [zones],
+  const stageConfig = getStage(currentStage);
+
+  const stageZoneRegions = useMemo(
+    () => (zones || []).filter((z) => z.zone_number === stageConfig.zoneNumber),
+    [zones, stageConfig.zoneNumber],
   );
 
   const zoneFortPlans = useMemo(() => {
-    if (zone1Regions.length === 0) return [];
+    if (stageZoneRegions.length === 0) return [];
     const assignmentMap = new Map(assignments.map((a) => [a.feature_id, a]));
     const allianceMap = new Map(alliances.map((a) => [a.id, a]));
     const flagFeatures = features.filter((f) => !!FEATURE_TYPE_CONFIG[f.feature_type as keyof typeof FEATURE_TYPE_CONFIG]?.tileSize);
 
-    return zone1Regions.map((zone) => {
+    return stageZoneRegions.map((zone) => {
       const fortsInZone = flagFeatures.filter((f) => isPointInPolygon(f.x, f.y, zone.polygon));
       const alliancesInZone: { tag: string; color: string }[] = [];
       const seen = new Set<string>();
@@ -207,7 +214,7 @@ export default function AllocationPlanPanel({
       }
       return { zone, fortCount: fortsInZone.length, alliances: alliancesInZone };
     });
-  }, [zone1Regions, features, assignments, alliances]);
+  }, [stageZoneRegions, features, assignments, alliances]);
 
   // ── Cell handlers ──────────────────────────────────────────────────
 
@@ -233,55 +240,78 @@ export default function AllocationPlanPanel({
 
   const cols = `100px repeat(${alliances.length}, 1fr) 54px`;
 
-  // Getting Started guide — collapsible, remembered in localStorage
-  const [guideOpen, setGuideOpen] = useState(true);
-  useEffect(() => {
-    const stored = localStorage.getItem('kvk-warroom-guide-dismissed');
-    if (stored === '1') setGuideOpen(false);
-  }, []);
-  const toggleGuide = () => {
-    const next = !guideOpen;
-    setGuideOpen(next);
-    localStorage.setItem('kvk-warroom-guide-dismissed', next ? '0' : '1');
-  };
-
   return (
     <div className="space-y-3 p-3">
-      {/* Getting Started guide */}
+      {/* Stage Stepper */}
       <div
         className="rounded-lg border overflow-hidden"
         style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
       >
-        <button
-          onClick={toggleGuide}
-          className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          {guideOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-          Getting Started
-        </button>
-        {guideOpen && (
-          <div className="px-3 pb-2.5 space-y-2">
-            <div className="flex gap-2">
-              <span className="text-[10px] font-bold shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.2)', color: '#60a5fa' }}>1</span>
-              <div>
-                <p className="text-[11px] font-medium" style={{ color: 'var(--foreground)' }}>Set building targets</p>
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Click cells in the grid to assign counts per alliance. Right-click to decrease.</p>
+        {/* Dot stepper */}
+        <div className="px-3 pt-2.5 pb-1">
+          <div className="flex items-center justify-center gap-1">
+            {KVK_STAGES.map((s, i) => (
+              <div key={s.stage} className="flex items-center">
+                <div
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold transition-all"
+                  style={{
+                    backgroundColor: s.stage === currentStage
+                      ? '#3b82f6'
+                      : s.stage < currentStage
+                        ? '#22c55e'
+                        : 'var(--background-hover)',
+                    color: s.stage <= currentStage ? '#fff' : 'var(--text-muted)',
+                  }}
+                >
+                  {s.stage < currentStage ? <Check size={10} strokeWidth={3} /> : s.stage}
+                </div>
+                {i < KVK_STAGES.length - 1 && (
+                  <div
+                    className="w-2 h-0.5 mx-0.5"
+                    style={{ backgroundColor: s.stage < currentStage ? '#22c55e' : 'var(--background-hover)' }}
+                  />
+                )}
               </div>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-[10px] font-bold shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(59,130,246,0.2)', color: '#60a5fa' }}>2</span>
-              <div>
-                <p className="text-[11px] font-medium" style={{ color: 'var(--foreground)' }}>Plan fort drops</p>
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Click a zone on the map to place fortresses for each alliance.</p>
-              </div>
-            </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stage name + instructions */}
+        <div className="px-3 pb-2.5">
+          <p className="text-[11px] font-semibold text-center" style={{ color: 'var(--foreground)' }}>
+            {stageConfig.name}
+          </p>
+          <p className="text-[10px] text-center mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {stageConfig.instructions}
+          </p>
+        </div>
+
+        {/* Navigation */}
+        {onStageChange && (
+          <div className="flex items-center border-t" style={{ borderColor: 'var(--border)' }}>
+            <button
+              onClick={() => currentStage > 1 && onStageChange(currentStage - 1)}
+              disabled={currentStage <= 1}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-medium transition-colors"
+              style={{ color: currentStage > 1 ? 'var(--text-muted)' : 'transparent', cursor: currentStage > 1 ? 'pointer' : 'default' }}
+            >
+              <ChevronLeft size={10} /> Back
+            </button>
+            <div className="w-px h-4" style={{ backgroundColor: 'var(--border)' }} />
+            <button
+              onClick={() => currentStage < KVK_STAGES.length && onStageChange(currentStage + 1)}
+              disabled={currentStage >= KVK_STAGES.length}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-medium transition-colors"
+              style={{ color: currentStage < KVK_STAGES.length ? '#3b82f6' : 'transparent', cursor: currentStage < KVK_STAGES.length ? 'pointer' : 'default' }}
+            >
+              Next <ChevronRight size={10} />
+            </button>
           </div>
         )}
       </div>
 
-      {/* Fort Drop Plans — always visible so officers know to click zones */}
-      {zone1Regions.length > 0 && onFocusZone && (
+      {/* Fort Drop Plans — adapts to current stage's zone */}
+      {stageZoneRegions.length > 0 && onFocusZone && (
         <div
           className="rounded-lg border overflow-hidden"
           style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}

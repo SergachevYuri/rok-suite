@@ -138,6 +138,24 @@ export async function updateFeaturePosition(
   return updateMapFeature(featureId, { x, y });
 }
 
+// ─── Map Stage ─────────────────────────────────────────────────────
+
+export async function updateMapStage(
+  mapId: string,
+  stage: number,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('kvk_maps')
+    .update({ current_stage: stage, updated_at: new Date().toISOString() })
+    .eq('id', mapId);
+
+  if (error) {
+    console.error('Failed to update map stage:', error.message);
+    return false;
+  }
+  return true;
+}
+
 // ─── Zone Mutations ────────────────────────────────────────────────
 
 export async function updateMapZone(
