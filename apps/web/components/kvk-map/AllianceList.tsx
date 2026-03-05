@@ -143,15 +143,6 @@ export default function AllianceList({ alliances, highlightedAllianceId, onHighl
               <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
               <span className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>[{a.tag}]</span>
               <span className="text-xs flex-1 truncate" style={{ color: 'var(--text-secondary)' }}>{a.name}</span>
-              <span
-                className="text-[9px] px-1.5 py-0.5 rounded font-medium"
-                style={{
-                  backgroundColor: a.role === 'top' ? 'rgba(245,158,11,0.15)' : 'var(--background-hover)',
-                  color: a.role === 'top' ? '#f59e0b' : 'var(--text-muted)',
-                }}
-              >
-                {a.role === 'top' ? 'Top' : 'Sup'}
-              </span>
               {canEdit && (
                 <button
                   onClick={(e) => { e.stopPropagation(); startEdit(a); }}

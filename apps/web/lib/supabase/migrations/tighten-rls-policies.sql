@@ -38,8 +38,8 @@ DROP POLICY IF EXISTS "Allow public delete on kvk_map_zones" ON kvk_map_zones;
 -- kvk_alliances: app creates, updates, and deletes alliances. Keep all.
 -- (no changes)
 
--- kvk_assignments: app reads and upserts. Remove DELETE.
-DROP POLICY IF EXISTS "Allow public delete on kvk_assignments" ON kvk_assignments;
+-- kvk_assignments: app needs full CRUD (assign, update status, unassign). Keep all.
+-- (no changes)
 
 -- kvk_achievements: app never reads/writes this table from client code.
 -- These are static game data — remove all write policies.
@@ -113,7 +113,6 @@ DROP POLICY IF EXISTS "Public delete" ON kingdom_player_overrides;
 -- TABLES WITH DELETE REMOVED (insert/update still work):
 --   kingdom_scans         — removed UPDATE, DELETE (immutable scans)
 --   kingdom_scan_players  — removed DELETE
---   kvk_assignments       — removed DELETE
 --   mge_events            — removed DELETE
 --   roster_snapshots      — removed DELETE
 --   kingdom_player_overrides — removed DELETE

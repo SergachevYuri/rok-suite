@@ -144,6 +144,17 @@ export interface KvkAchievementProgress {
 
 export type WarRoomRole = 'viewer' | 'officer' | 'admin';
 
+// ─── Allocation Targets ─────────────────────────────────────────────
+
+export interface KvkAllocationTarget {
+  id: string;
+  map_id: string;
+  alliance_id: string;
+  feature_group: string;
+  target_count: number;
+  updated_at: string;
+}
+
 // ─── Strategies ─────────────────────────────────────────────────────
 
 export interface KvkStrategy {

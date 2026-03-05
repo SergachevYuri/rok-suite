@@ -17,7 +17,7 @@ import WarRoomHeader from './WarRoomHeader';
 import FeatureDetailPanel from './FeatureDetailPanel';
 import AchievementProgressPanel from './AchievementProgressPanel';
 import PlannerSidebar from './PlannerSidebar';
-import PlanningOverview from './PlanningOverview';
+import AllocationPlanPanel from './AllocationPlanPanel';
 import { useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import { useMapSelection, useMapPlacement, useRssAnnotation, useFlagPath, useMapLayers } from '@/lib/kvk-map/hooks';
 import {
@@ -33,6 +33,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useKvkAlliances, createAlliance, updateAlliance, deleteAlliance, fetchTopAlliancesFromRoster } from '@/lib/supabase/use-kvk-alliances';
 import { useKvkAssignments, upsertAssignment, updateAssignment, deleteAssignment } from '@/lib/supabase/use-kvk-assignments';
+import { useKvkAllocationTargets, upsertAllocationTarget, deleteAllocationTarget } from '@/lib/supabase/use-kvk-allocation-targets';
 import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy } from '@/lib/supabase/use-kvk-strategies';
 import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentStatus } from '@/lib/kvk-map-types';
 import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
@@ -62,6 +63,7 @@ export default function WarRoomPage() {
   const { strategies, refetch: refetchStrategies } = useKvkStrategies(map?.id);
   const { rssNodes, setRssNodes, refetch: refetchRss } = useKvkRssNodes(map?.id);
   const { flags: rssFlags, refetch: refetchRssFlags } = useKvkRssFlags(map?.id);
+  const { targets: allocationTargets, refetch: refetchTargets } = useKvkAllocationTargets(map?.id);
 
   // ── Extracted hooks ──────────────────────────────────────────────
   const selection = useMapSelection();
@@ -384,6 +386,25 @@ export default function WarRoomPage() {
       await refetchAssignments();
     },
     [refetchAssignments]
+  );
+
+  // ── Allocation target handlers ──────────────────────────────────────
+  const handleUpsertTarget = useCallback(
+    async (allianceId: string, featureGroup: string, count: number) => {
+      if (!map) return;
+      await upsertAllocationTarget(map.id, allianceId, featureGroup, count);
+      await refetchTargets();
+    },
+    [map, refetchTargets]
+  );
+
+  const handleDeleteTarget = useCallback(
+    async (allianceId: string, featureGroup: string) => {
+      if (!map) return;
+      await deleteAllocationTarget(map.id, allianceId, featureGroup);
+      await refetchTargets();
+    },
+    [map, refetchTargets]
   );
 
   // ── Strategy handlers ──────────────────────────────────────────────
@@ -845,8 +866,8 @@ export default function WarRoomPage() {
                 <ZonePolygon
                   key={zone.id}
                   zone={zone}
-                  onClick={handleZoneClick}
-                  isSelected={zone.id === selection.selectedZoneId}
+                  onClick={isAdminMode ? handleZoneClick : undefined}
+                  isSelected={isAdminMode && zone.id === selection.selectedZoneId}
                   isHighlighted={selection.hoveredZoneNumber != null && zone.zone_number === selection.hoveredZoneNumber}
                 />
               ))}
@@ -1168,10 +1189,13 @@ export default function WarRoomPage() {
                   onClose={() => selection.setSelectedFeatureId(null)}
                 />
               ) : isOfficerMode ? (
-                <PlanningOverview
+                <AllocationPlanPanel
                   features={features}
                   assignments={activeAssignments}
                   alliances={alliances}
+                  targets={allocationTargets}
+                  onUpsertTarget={handleUpsertTarget}
+                  onDeleteTarget={handleDeleteTarget}
                 />
               ) : null}
             </div>
