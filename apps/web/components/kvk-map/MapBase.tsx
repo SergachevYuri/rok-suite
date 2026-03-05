@@ -77,6 +77,19 @@ function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression }) {
   return null;
 }
 
+function ResizeHandler() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+}
+
 export default function MapBase({
   imageUrl,
   children,
@@ -118,6 +131,7 @@ export default function MapBase({
     >
       <ImageOverlay url={imageUrl} bounds={imageBounds} />
       <FitBounds bounds={imageBounds} />
+      <ResizeHandler />
       <CursorStyle cursor={cursorStyle} />
       <MapEventHandler onClick={onClick} onDoubleClick={onDoubleClick} onMouseMove={onMouseMove} onZoomChange={onZoomChange} />
       {children}
