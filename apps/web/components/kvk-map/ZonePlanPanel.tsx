@@ -4,17 +4,22 @@ import { useMemo } from 'react';
 import { Flag, X } from 'lucide-react';
 import { isPointInPolygon } from '@/lib/kvk-map/point-in-zone';
 import { FEATURE_TYPE_CONFIG } from '@/lib/kvk-feature-config';
+import { RSS_EARNINGS_PER_HOUR } from '@/lib/kvk-map/flag-path';
+import { RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType } from '@/lib/kvk-map/rss-review';
 import type { KvkMapZone, KvkMapFeature, KvkAssignment, KvkAlliance, FeatureType } from '@/lib/kvk-map-types';
 
 function isFlagFeature(type: string): boolean {
   return !!FEATURE_TYPE_CONFIG[type as keyof typeof FEATURE_TYPE_CONFIG]?.tileSize;
 }
 
+const RSS_TYPE_ORDER: RssNodeType[] = ['food', 'wood', 'stone', 'gold', 'crystal'];
+
 interface ZonePlanPanelProps {
   zone: KvkMapZone;
   features: KvkMapFeature[];
   assignments: KvkAssignment[];
   alliances: KvkAlliance[];
+  rssNodes: RssNode[];
   onPlaceFortress: () => void;
   onPlaceFlag: () => void;
   isPlacingFortress: boolean;
@@ -28,6 +33,7 @@ export default function ZonePlanPanel({
   features,
   assignments,
   alliances,
+  rssNodes,
   onPlaceFortress,
   onPlaceFlag,
   isPlacingFortress,
@@ -74,6 +80,18 @@ export default function ZonePlanPanel({
     }
     return Object.entries(counts);
   }, [buildings]);
+
+  // RSS production for this zone
+  const rssProduction = useMemo(() => {
+    const approved = rssNodes.filter((n) => n.status === 'approved' && isPointInPolygon(n.x, n.y, zone.polygon));
+    const byType: Record<RssNodeType, number> = { food: 0, wood: 0, stone: 0, gold: 0, crystal: 0 };
+    for (const n of approved) byType[n.type]++;
+    const entries = RSS_TYPE_ORDER
+      .filter((t) => byType[t] > 0)
+      .map((t) => ({ type: t, count: byType[t], rssPerHour: byType[t] * RSS_EARNINGS_PER_HOUR[t] }));
+    const total = entries.reduce((sum, e) => sum + e.rssPerHour, 0);
+    return { entries, total };
+  }, [rssNodes, zone.polygon]);
 
   return (
     <div
@@ -180,6 +198,36 @@ export default function ZonePlanPanel({
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {buildingSummary.map(([label, count]) => `${count} ${label}${count > 1 ? 's' : ''}`).join(' · ')}
           </p>
+        </div>
+      )}
+
+      {/* RSS Production */}
+      {rssProduction.total > 0 && (
+        <div className="px-3 pb-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
+            RSS Production
+          </p>
+          <div className="space-y-1">
+            {rssProduction.entries.map((e) => (
+              <div key={e.type} className="flex items-center gap-2 text-xs">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: RSS_TYPE_COLORS[e.type] }} />
+                <span style={{ color: 'var(--text-secondary)' }}>{RSS_TYPE_LABELS[e.type]}</span>
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>×{e.count}</span>
+                <span className="ml-auto tabular-nums font-medium" style={{ color: RSS_TYPE_COLORS[e.type] }}>
+                  {e.rssPerHour.toLocaleString()}/hr
+                </span>
+              </div>
+            ))}
+          </div>
+          <div
+            className="flex items-center justify-between mt-2 pt-1.5 border-t text-xs"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>Total</span>
+            <span className="tabular-nums font-semibold" style={{ color: 'var(--foreground)' }}>
+              {rssProduction.total.toLocaleString()}/hr
+            </span>
+          </div>
         </div>
       )}
     </div>

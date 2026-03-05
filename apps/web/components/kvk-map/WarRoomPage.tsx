@@ -1218,6 +1218,7 @@ export default function WarRoomPage() {
                     features={features}
                     assignments={activeAssignments}
                     alliances={alliances}
+                    rssNodes={rssNodes}
                     onPlaceFortress={handlePlaceFortress}
                     onPlaceFlag={handlePlaceFlag}
                     isPlacingFortress={placement.isPlacing && placement.placingType === 'fortress'}
