@@ -235,6 +235,54 @@ export default function AllocationPlanPanel({
 
   return (
     <div className="space-y-3 p-3">
+      {/* Fort Drop Plans — always visible so officers know to click zones */}
+      {zone1Regions.length > 0 && onFocusZone && (
+        <div
+          className="rounded-lg border overflow-hidden"
+          style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
+        >
+          <div className="px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              Fort Drop Plans
+            </p>
+            <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+              Click a zone on the map to plan
+            </p>
+          </div>
+          {zoneFortPlans.map(({ zone, fortCount, alliances: zoneAlliances }) => (
+            <button
+              key={zone.id}
+              onClick={() => onFocusZone(zone.id)}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs border-t transition-all hover:bg-white/5"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: zone.color }} />
+              <span className="flex-1 text-left font-medium" style={{ color: fortCount > 0 ? 'var(--foreground)' : 'var(--text-muted)' }}>
+                {zone.name}
+              </span>
+              {fortCount > 0 && (
+                <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                  {fortCount} {fortCount === 1 ? 'fort' : 'forts'}
+                </span>
+              )}
+              {zoneAlliances.length > 0 ? (
+                <div className="flex gap-1">
+                  {zoneAlliances.map((a) => (
+                    <span key={a.tag} className="text-[10px] font-bold" style={{ color: a.color }}>
+                      {a.tag}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)', opacity: 0.4 }}>
+                  —
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
         Allocation Plan
       </h3>
@@ -424,44 +472,6 @@ export default function AllocationPlanPanel({
         </div>
       )}
 
-      {/* Zone 1 Plans */}
-      {zoneFortPlans.length > 0 && onFocusZone && (
-        <div
-          className="rounded-lg border overflow-hidden"
-          style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
-        >
-          <div className="px-3 py-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Zone 1 Plans
-            </p>
-          </div>
-          {zoneFortPlans.map(({ zone, fortCount, alliances: zoneAlliances }) => (
-            <button
-              key={zone.id}
-              onClick={() => onFocusZone(zone.id)}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs border-t transition-all hover:bg-white/5"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              <span className="flex-1 text-left font-medium" style={{ color: fortCount > 0 ? 'var(--foreground)' : 'var(--text-muted)' }}>
-                {zone.name}
-              </span>
-              {zoneAlliances.length > 0 ? (
-                <div className="flex gap-1">
-                  {zoneAlliances.map((a) => (
-                    <span key={a.tag} className="text-[10px] font-bold" style={{ color: a.color }}>
-                      {a.tag}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-[10px]" style={{ color: 'var(--text-muted)', opacity: 0.4 }}>
-                  —
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

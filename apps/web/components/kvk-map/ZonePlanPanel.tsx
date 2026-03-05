@@ -103,8 +103,8 @@ export default function ZonePlanPanel({
         </p>
 
         {forts.length === 0 ? (
-          <p className="text-xs" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
-            No forts planned in this zone
+          <p className="text-xs" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+            Place a fortress for each alliance that will drop here
           </p>
         ) : (
           <div className="space-y-1">

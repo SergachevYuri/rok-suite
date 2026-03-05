@@ -31,18 +31,31 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
       color: '#ffffff',
       weight: 1,
       opacity: 0.3,
+      dashArray: undefined,
     });
   }, [isSelected]);
+
+  const interactive = !!onClick;
 
   const handleMouseOut = useCallback(() => {
     if (isSelected || isHighlighted) return;
     setIsHovered(false);
-    polygonRef.current?.setStyle({
-      fillOpacity: 0,
-      weight: 0,
-      opacity: 0,
-    });
-  }, [isSelected, isHighlighted]);
+    if (interactive) {
+      polygonRef.current?.setStyle({
+        color: zone.color,
+        fillOpacity: 0,
+        weight: 1,
+        opacity: 0.3,
+        dashArray: '6 3',
+      });
+    } else {
+      polygonRef.current?.setStyle({
+        fillOpacity: 0,
+        weight: 0,
+        opacity: 0,
+      });
+    }
+  }, [isSelected, isHighlighted, interactive, zone.color]);
 
   const showHighlight = isSelected || isHovered || isHighlighted;
 
@@ -51,13 +64,14 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
       ref={polygonRef}
       positions={positions}
       pathOptions={{
-        color: showHighlight ? '#ffffff' : 'transparent',
+        color: showHighlight ? '#ffffff' : interactive ? zone.color : 'transparent',
         fillColor: showHighlight ? '#ffffff' : 'transparent',
         fillOpacity: isSelected ? 0.18 : showHighlight ? 0.12 : 0,
-        weight: isSelected ? 2 : showHighlight ? 1 : 0,
-        opacity: isSelected ? 0.5 : showHighlight ? 0.3 : 0,
+        weight: isSelected ? 2 : showHighlight ? 1 : interactive ? 1 : 0,
+        opacity: isSelected ? 0.5 : showHighlight ? 0.3 : interactive ? 0.3 : 0,
+        dashArray: showHighlight || !interactive ? undefined : '6 3',
       }}
-      interactive={!!onClick}
+      interactive={interactive}
       eventHandlers={{
         ...(onClick ? { click: () => onClick?.(zone) } : {}),
         mouseover: handleMouseOver,
