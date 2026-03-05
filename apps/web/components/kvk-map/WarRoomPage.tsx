@@ -735,7 +735,7 @@ export default function WarRoomPage() {
       const newFeature = await createMapFeature(map.id, placingType, x, y, defaults);
       if (newFeature) {
         if (isFlagFeatureType(placingType) && placement.placingForAllianceId) {
-          await upsertAssignment(map.id, newFeature.id, placement.placingForAllianceId);
+          await upsertAssignment(map.id, newFeature.id, placement.placingForAllianceId, { assigned_by: officerName });
           await refetchAssignments();
         }
         if (isFlagFeatureType(placingType)) {
@@ -745,7 +745,7 @@ export default function WarRoomPage() {
         selection.setSelectedFeatureId(newFeature.id);
       }
     },
-    [isDrawingZone, placement, map, features, refetchFeatures, isAtLeast, refetchAssignments, rssState, symmetryConfig, rssNodes, setRssNodes, flagPath, selection]
+    [isDrawingZone, placement, map, features, refetchFeatures, isAtLeast, refetchAssignments, rssState, symmetryConfig, rssNodes, setRssNodes, flagPath, selection, officerName]
   );
 
   const handleMapDoubleClick = useCallback(

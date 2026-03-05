@@ -22,6 +22,7 @@ import {
 } from '@/lib/supabase/use-king-trophies';
 import { Crown, Trophy, Award, Medal, Star, ChevronDown, ChevronUp, Plus, Trash2, Lock, Calendar, Users, ScrollText } from 'lucide-react';
 import { allianceDisplay } from '@/lib/alliances';
+import SearchableSelect, { type SearchableOption } from '@/components/ui/SearchableSelect';
 
 import { ADMIN_PASSWORD as EDITOR_PASSWORD } from '@/lib/auth-passwords';
 
@@ -55,7 +56,6 @@ export default function RecognitionPage() {
 
     // Roster for member selection
     const [roster, setRoster] = useState<RosterMember[]>([]);
-    const [memberSearch, setMemberSearch] = useState('');
 
     // View mode
     const [viewMode, setViewMode] = useState<'winners' | 'history'>('winners');
@@ -135,12 +135,11 @@ export default function RecognitionPage() {
         return entries.sort((a, b) => b.score - a.score);
     }, [trophyCounts, trophies]);
 
-    // Filter roster for member selection
-    const filteredRoster = useMemo(() => {
-        if (!memberSearch) return roster.slice(0, 20);
-        const search = memberSearch.toLowerCase();
-        return roster.filter(m => m.name.toLowerCase().includes(search)).slice(0, 20);
-    }, [roster, memberSearch]);
+    // Roster options for searchable member selector
+    const rosterOptions = useMemo<SearchableOption[]>(
+        () => roster.map((m) => ({ value: m.id, label: m.name, secondary: m.alliance ? allianceDisplay(m.alliance) : undefined })),
+        [roster],
+    );
 
     const handleEditorLogin = () => {
         if (editorPassword === EDITOR_PASSWORD) {
@@ -165,7 +164,6 @@ export default function RecognitionPage() {
             setAwardStatus('Trophy awarded!');
             setAwardMemberId('');
             setAwardReason('');
-            setMemberSearch('');
             refetchTrophies();
             refetchCounts();
             setTimeout(() => setAwardStatus(null), 2000);
@@ -316,26 +314,12 @@ export default function RecognitionPage() {
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
                                     <label className={`block text-sm ${theme.textMuted} mb-1`}>Member</label>
-                                    <input
-                                        type="text"
-                                        value={memberSearch}
-                                        onChange={(e) => setMemberSearch(e.target.value)}
+                                    <SearchableSelect
+                                        options={rosterOptions}
+                                        value={awardMemberId || null}
+                                        onChange={(val) => setAwardMemberId(val)}
                                         placeholder="Search member..."
-                                        className={`w-full px-4 py-2 rounded-lg border ${theme.input}`}
                                     />
-                                    {memberSearch && (
-                                        <div className={`mt-1 max-h-40 overflow-y-auto rounded-lg border ${theme.card}`}>
-                                            {filteredRoster.map(m => (
-                                                <button
-                                                    key={m.id}
-                                                    onClick={() => { setAwardMemberId(m.id); setMemberSearch(m.name); }}
-                                                    className={`w-full text-left px-3 py-2 hover:bg-[var(--background-secondary)] ${awardMemberId === m.id ? 'bg-amber-500/20' : ''}`}
-                                                >
-                                                    {m.name} <span className={theme.textMuted}>({allianceDisplay(m.alliance)})</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
                                 </div>
                                 <div>
                                     <label className={`block text-sm ${theme.textMuted} mb-1`}>Trophy Type</label>

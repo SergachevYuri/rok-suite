@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Send, CheckCircle, Clock, XCircle, AlertCircle, Camera, X, Pencil, Trash2 } from 'lucide-react';
+import { Send, CheckCircle, Clock, XCircle, AlertCircle, Camera, X, Pencil, Trash2 } from 'lucide-react';
 import { MgeSkillInput } from './MgeSkillInput';
+import SearchableSelect, { type SearchableOption } from '@/components/ui/SearchableSelect';
 import { supabase } from '@/lib/supabase';
 import {
   submitApplication,
@@ -40,8 +41,6 @@ function formatPower(power: number): string {
 export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps) {
   // Applicant identity
   const [applicantName, setApplicantName] = useState('');
-  const [nameSearch, setNameSearch] = useState('');
-  const [showNameDropdown, setShowNameDropdown] = useState(false);
 
   // Auto-filled from roster
   const [applicantAlliance, setApplicantAlliance] = useState('');
@@ -124,18 +123,19 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
     }
   }, [isEditing, existingApp]);
 
-  const filteredRoster = useMemo(() => {
-    if (!nameSearch) return roster.slice(0, 15);
-    const search = nameSearch.toLowerCase();
-    return roster.filter(m => m.name.toLowerCase().includes(search)).slice(0, 15);
-  }, [roster, nameSearch]);
+  const rosterOptions = useMemo<SearchableOption[]>(
+    () => roster.map((m) => ({
+      value: m.name,
+      label: m.name,
+      secondary: [m.alliance ? allianceDisplay(m.alliance) : '', formatPower(m.power)].filter(Boolean).join(' '),
+    })),
+    [roster],
+  );
 
   const deadlinePassed = isDeadlinePassed(event.application_deadline);
 
   const handleSelectName = (name: string) => {
     setApplicantName(name);
-    setNameSearch('');
-    setShowNameDropdown(false);
     localStorage.setItem(APPLICANT_KEY, name);
 
     const existing = event.mge_applications.find(
@@ -400,39 +400,12 @@ export function MgeApplyTab({ event, onApplicationSubmitted }: MgeApplyTabProps)
           <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
             Your Name
           </label>
-          <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              placeholder="Search your name..."
-              value={applicantName || nameSearch}
-              onChange={e => {
-                setNameSearch(e.target.value);
-                setApplicantName('');
-                setShowNameDropdown(true);
-              }}
-              onFocus={() => { if (!applicantName) setShowNameDropdown(true); }}
-              onBlur={() => setTimeout(() => setShowNameDropdown(false), 200)}
-              className={inputClass + ' w-full pl-8'}
-              style={inputStyle}
-            />
-            {showNameDropdown && filteredRoster.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border shadow-lg"
-                style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-                {filteredRoster.map(m => (
-                  <button key={m.id} type="button"
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={() => handleSelectName(m.name)}
-                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-500/10 transition-fast flex justify-between">
-                    <span style={{ color: 'var(--foreground)' }}>{m.name}</span>
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {m.alliance ? allianceDisplay(m.alliance) : ''} {formatPower(m.power)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <SearchableSelect
+            options={rosterOptions}
+            value={applicantName || null}
+            onChange={(_val, label) => handleSelectName(label)}
+            placeholder="Search your name..."
+          />
           {applicantName && applicantPower && (
             <div className="flex gap-3 mt-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
               {applicantAlliance && <span>{allianceDisplay(applicantAlliance)}</span>}

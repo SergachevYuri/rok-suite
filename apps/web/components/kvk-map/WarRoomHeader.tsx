@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Map, Lock, Unlock, X, User, ChevronDown } from 'lucide-react';
 import { useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import { supabase } from '@/lib/supabase';
+import SearchableSelect, { type SearchableOption } from '@/components/ui/SearchableSelect';
 import StrategySelector from './StrategySelector';
 import type { KvkStrategy, KvkAssignment, KvkAlliance } from '@/lib/kvk-map-types';
 
@@ -34,7 +35,7 @@ export default function WarRoomHeader({
 }: WarRoomHeaderProps) {
   const { role, officerName, setOfficerName, login, logout, showLoginPrompt, setShowLoginPrompt } = useWarRoomAuth();
   const [password, setPassword] = useState('');
-  const [officerNames, setOfficerNames] = useState<string[]>([]);
+  const [officerNames, setOfficerNames] = useState<{ name: string; role: string }[]>([]);
   const [showNamePicker, setShowNamePicker] = useState(false);
 
   // Fetch R4/R5 names from roster when logged in as officer+
@@ -47,9 +48,14 @@ export default function WarRoomHeader({
       .in('role', ['R4', 'R5'])
       .order('name', { ascending: true })
       .then(({ data }) => {
-        if (data) setOfficerNames(data.map((r) => r.name));
+        if (data) setOfficerNames(data.map((r) => ({ name: r.name, role: r.role })));
       });
   }, [role]);
+
+  const officerOptions = useMemo<SearchableOption[]>(
+    () => officerNames.map((o) => ({ value: o.name, label: o.name, secondary: o.role })),
+    [officerNames],
+  );
 
   // Show name picker after login if no name is set
   useEffect(() => {
@@ -192,30 +198,22 @@ export default function WarRoomHeader({
           }}
         >
           <User size={14} style={{ color: '#3b82f6' }} />
-          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-xs font-medium shrink-0" style={{ color: 'var(--text-secondary)' }}>
             Who are you?
           </span>
-          <select
-            value={officerName ?? ''}
-            onChange={(e) => {
-              if (e.target.value) {
-                setOfficerName(e.target.value);
+          <SearchableSelect
+            options={officerOptions}
+            value={officerName}
+            onChange={(val) => {
+              if (val) {
+                setOfficerName(val);
                 setShowNamePicker(false);
               }
             }}
+            placeholder="Search your name..."
+            compact
             autoFocus
-            className="flex-1 text-sm rounded-md px-2 py-1.5 border outline-none"
-            style={{
-              backgroundColor: 'var(--background-secondary)',
-              borderColor: 'var(--border)',
-              color: 'var(--foreground)',
-            }}
-          >
-            <option value="">Select your name...</option>
-            {officerNames.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
+          />
           {officerName && (
             <button
               onClick={() => setShowNamePicker(false)}

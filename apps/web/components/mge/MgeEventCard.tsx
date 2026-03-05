@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Crown, Pencil, Trash2, Eye, EyeOff, ScrollText, Plus, Settings, FileText, Users, ClipboardList, Star } from 'lucide-react';
+import { ChevronDown, ChevronUp, Crown, Pencil, Trash2, Eye, EyeOff, ScrollText, Plus, Settings, FileText, Users, ClipboardList, Star, X } from 'lucide-react';
 import { MgeApplyTab } from './MgeApplyTab';
 import { MgeReviewTab } from './MgeReviewTab';
 import { MgeEventSetup } from './MgeEventSetup';
+import SearchableSelect, { type SearchableOption } from '@/components/ui/SearchableSelect';
 import {
   updateMgeEvent,
   updateMgeEventStatus,
@@ -21,7 +22,6 @@ import {
 import { statusColor, statusLabel, tierSortValue } from '@/lib/mge/helpers';
 import { allianceDisplay } from '@/lib/alliances';
 import { supabase } from '@/lib/supabase';
-import { Search, X } from 'lucide-react';
 
 type EventTab = 'overview' | 'apply' | 'applications' | 'settings';
 
@@ -69,7 +69,6 @@ export function MgeEventCard({
 
   // Legacy add selection state
   const [isAddingSelection, setIsAddingSelection] = useState(false);
-  const [selMemberSearch, setSelMemberSearch] = useState('');
   const [selMemberName, setSelMemberName] = useState('');
   const [selTier, setSelTier] = useState('1st Place');
   const [selPointsLimit, setSelPointsLimit] = useState('');
@@ -141,7 +140,6 @@ export function MgeEventCard({
       const nextTier = tierIdx >= 0 && tierIdx < RANKING_TIERS.length - 1
         ? RANKING_TIERS[tierIdx + 1] : selTier;
       const nextPoints = selPointsLimit ? Math.max(0, parseFloat(selPointsLimit) - 1) : '';
-      setSelMemberSearch('');
       setSelMemberName('');
       setSelTier(nextTier);
       setSelPointsLimit(nextPoints ? nextPoints.toString() : '');
@@ -172,16 +170,20 @@ export function MgeEventCard({
       }
     }
     setIsAddingSelection(true);
-    setSelMemberSearch('');
     setSelMemberName('');
     setSelTier(nextTier);
     setSelPointsLimit(nextPoints);
     setSelFreeForAll(false);
   };
 
-  const filteredRoster = selMemberSearch
-    ? roster.filter(m => m.name.toLowerCase().includes(selMemberSearch.toLowerCase())).slice(0, 15)
-    : roster.slice(0, 15);
+  const rosterOptions = useMemo<SearchableOption[]>(
+    () => roster.map((m) => ({
+      value: m.name,
+      label: m.name,
+      secondary: [m.alliance ? allianceDisplay(m.alliance) : '', formatPower(m.power)].filter(Boolean).join(' '),
+    })),
+    [roster],
+  );
 
   const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
   const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
@@ -346,34 +348,14 @@ export function MgeEventCard({
                         {selTier.replace(' Place', '')}+ — Free for all
                       </div>
                     ) : (
-                      <div className="relative md:col-span-2">
-                        <div className="relative">
-                          <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-muted)' }} />
-                          <input
-                            type="text"
-                            placeholder="Search member..."
-                            value={selMemberName || selMemberSearch}
-                            onChange={e => { setSelMemberSearch(e.target.value); setSelMemberName(''); }}
-                            className={inputClass + ' w-full pl-8'}
-                            style={inputStyle}
-                            autoFocus
-                          />
-                        </div>
-                        {selMemberSearch && !selMemberName && (
-                          <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border shadow-lg"
-                            style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
-                            {filteredRoster.map(m => (
-                              <button key={m.id} type="button"
-                                onClick={() => { setSelMemberName(m.name); setSelMemberSearch(''); }}
-                                className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-500/10 transition-fast flex justify-between">
-                                <span style={{ color: 'var(--foreground)' }}>{m.name}</span>
-                                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                  {m.alliance ? allianceDisplay(m.alliance) : ''} {formatPower(m.power)}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                      <div className="md:col-span-2">
+                        <SearchableSelect
+                          options={rosterOptions}
+                          value={selMemberName || null}
+                          onChange={(_val, label) => setSelMemberName(label)}
+                          placeholder="Search member..."
+                          autoFocus
+                        />
                       </div>
                     )}
                     <select value={selTier} onChange={e => setSelTier(e.target.value)}
