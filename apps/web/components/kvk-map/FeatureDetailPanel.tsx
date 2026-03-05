@@ -187,8 +187,8 @@ export default function FeatureDetailPanel({
         </div>
       </div>
 
-      {/* Admin actions */}
-      {isAdmin && (onSave || onDelete) && (
+      {/* Actions (save/delete) */}
+      {(onSave || onDelete) && (
         <div className="flex items-center justify-between mt-4 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
           {onDelete && (
             <button
@@ -199,7 +199,7 @@ export default function FeatureDetailPanel({
               Delete
             </button>
           )}
-          {onSave && (
+          {onSave && isAdmin && (
             <button
               onClick={handleSave}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-all"

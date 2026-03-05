@@ -111,6 +111,13 @@ export default function AssignmentPanel({
         />
       </div>
 
+      {/* Suggested by */}
+      {assignment?.assigned_by && (
+        <p className="text-[10px] italic" style={{ color: 'var(--text-muted)' }}>
+          Suggested by {assignment.assigned_by}
+        </p>
+      )}
+
       {/* Actions */}
       <div className="flex gap-2">
         <button

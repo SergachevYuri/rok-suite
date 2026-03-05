@@ -53,7 +53,7 @@ function isFlagFeatureType(type: FeatureType): boolean {
 }
 
 export default function WarRoomPage() {
-  const { isAtLeast } = useWarRoomAuth();
+  const { isAtLeast, officerName } = useWarRoomAuth();
   const searchParams = useSearchParams();
   const strategyCode = searchParams.get('strategy');
 
@@ -377,18 +377,18 @@ export default function WarRoomPage() {
   const handleAssign = useCallback(
     async (featureId: string, allianceId: string, data?: { status?: AssignmentStatus; priority?: number; notes?: string }) => {
       if (!map) return;
-      await upsertAssignment(map.id, featureId, allianceId, data);
+      await upsertAssignment(map.id, featureId, allianceId, { ...data, assigned_by: officerName });
       await refetchAssignments();
     },
-    [map, refetchAssignments]
+    [map, refetchAssignments, officerName]
   );
 
   const handleUpdateAssignment = useCallback(
     async (assignmentId: string, updates: Partial<KvkAssignment>) => {
-      await updateAssignment(assignmentId, updates);
+      await updateAssignment(assignmentId, { ...updates, assigned_by: officerName });
       await refetchAssignments();
     },
-    [refetchAssignments]
+    [refetchAssignments, officerName]
   );
 
   const handleUnassign = useCallback(

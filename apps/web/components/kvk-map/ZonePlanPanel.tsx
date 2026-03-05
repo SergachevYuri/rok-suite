@@ -128,6 +128,11 @@ export default function ZonePlanPanel({
                   <span style={{ color: 'var(--text-muted)' }}>
                     {cfg?.label || fort.feature_type}
                   </span>
+                  {assignment?.assigned_by && (
+                    <span className="text-[10px] italic" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+                      — {assignment.assigned_by}
+                    </span>
+                  )}
                   <span className="ml-auto text-[10px] tabular-nums" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
                     ({Math.round(fort.x)}, {Math.round(fort.y)})
                   </span>

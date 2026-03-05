@@ -46,7 +46,7 @@ export async function upsertAssignment(
   mapId: string,
   featureId: string,
   allianceId: string,
-  data?: { status?: AssignmentStatus; priority?: number; notes?: string },
+  data?: { status?: AssignmentStatus; priority?: number; notes?: string; assigned_by?: string | null },
 ): Promise<KvkAssignment | null> {
   const { data: result, error } = await supabase
     .from('kvk_assignments')
@@ -58,6 +58,7 @@ export async function upsertAssignment(
         status: data?.status ?? 'planned',
         priority: data?.priority ?? 0,
         notes: data?.notes ?? null,
+        assigned_by: data?.assigned_by ?? null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'id' },
@@ -74,7 +75,7 @@ export async function upsertAssignment(
 
 export async function updateAssignment(
   assignmentId: string,
-  updates: Partial<Pick<KvkAssignment, 'alliance_id' | 'status' | 'priority' | 'notes'>>,
+  updates: Partial<Pick<KvkAssignment, 'alliance_id' | 'status' | 'priority' | 'notes' | 'assigned_by'>>,
 ): Promise<boolean> {
   const { error } = await supabase
     .from('kvk_assignments')

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { Map, Lock, Unlock, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Map, Lock, Unlock, X, User, ChevronDown } from 'lucide-react';
 import { useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
+import { supabase } from '@/lib/supabase';
 import StrategySelector from './StrategySelector';
 import type { KvkStrategy, KvkAssignment, KvkAlliance } from '@/lib/kvk-map-types';
 
@@ -31,8 +32,31 @@ export default function WarRoomHeader({
   onSaveStrategy,
   onDeleteStrategy,
 }: WarRoomHeaderProps) {
-  const { role, login, logout, showLoginPrompt, setShowLoginPrompt } = useWarRoomAuth();
+  const { role, officerName, setOfficerName, login, logout, showLoginPrompt, setShowLoginPrompt } = useWarRoomAuth();
   const [password, setPassword] = useState('');
+  const [officerNames, setOfficerNames] = useState<string[]>([]);
+  const [showNamePicker, setShowNamePicker] = useState(false);
+
+  // Fetch R4/R5 names from roster when logged in as officer+
+  useEffect(() => {
+    if (role === 'viewer') return;
+    supabase
+      .from('alliance_roster')
+      .select('name, role')
+      .eq('is_active', true)
+      .in('role', ['R4', 'R5'])
+      .order('name', { ascending: true })
+      .then(({ data }) => {
+        if (data) setOfficerNames(data.map((r) => r.name));
+      });
+  }, [role]);
+
+  // Show name picker after login if no name is set
+  useEffect(() => {
+    if (role !== 'viewer' && !officerName && officerNames.length > 0) {
+      setShowNamePicker(true);
+    }
+  }, [role, officerName, officerNames]);
 
   const handleLogin = () => {
     const success = login(password);
@@ -97,6 +121,18 @@ export default function WarRoomHeader({
               >
                 {ROLE_LABELS[role]}
               </span>
+              {officerName && (
+                <button
+                  onClick={() => setShowNamePicker(true)}
+                  className="flex items-center gap-1 text-xs px-2 py-1 rounded transition-all hover:bg-white/5"
+                  style={{ color: 'var(--foreground)' }}
+                  title="Change identity"
+                >
+                  <User size={12} />
+                  {officerName}
+                  <ChevronDown size={10} style={{ color: 'var(--text-muted)' }} />
+                </button>
+              )}
               <button
                 onClick={logout}
                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-all"
@@ -143,6 +179,51 @@ export default function WarRoomHeader({
           >
             <X size={14} />
           </button>
+        </div>
+      )}
+
+      {/* Officer name picker */}
+      {showNamePicker && role !== 'viewer' && (
+        <div
+          className="flex items-center gap-2 mt-3 p-3 rounded-lg border"
+          style={{
+            backgroundColor: 'var(--background-card)',
+            borderColor: 'var(--border)',
+          }}
+        >
+          <User size={14} style={{ color: '#3b82f6' }} />
+          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Who are you?
+          </span>
+          <select
+            value={officerName ?? ''}
+            onChange={(e) => {
+              if (e.target.value) {
+                setOfficerName(e.target.value);
+                setShowNamePicker(false);
+              }
+            }}
+            autoFocus
+            className="flex-1 text-sm rounded-md px-2 py-1.5 border outline-none"
+            style={{
+              backgroundColor: 'var(--background-secondary)',
+              borderColor: 'var(--border)',
+              color: 'var(--foreground)',
+            }}
+          >
+            <option value="">Select your name...</option>
+            {officerNames.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          {officerName && (
+            <button
+              onClick={() => setShowNamePicker(false)}
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       )}
     </div>
