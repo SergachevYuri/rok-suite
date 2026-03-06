@@ -316,6 +316,32 @@ function TeamBuilderTab({
     const selectedTeleportFirst = selectedTeleportFirstByTeam[activeTeam] || new Set<string>();
     const zoneSizes = zoneSizesByTeam[activeTeam] || { 0: '', 1: '', 2: '', 3: '' };
 
+    // Per-zone sort mode: 'default' = rally→tp→power, 'power' = power desc, 'kp' = kill points desc, 'name' = alphabetical
+    const [zoneSortModes, setZoneSortModes] = useState<Record<number, string>>({});
+
+    const sortZonePlayers = (players: { name: string; power: number; kills: number }[], zone: number) => {
+        const mode = zoneSortModes[zone] || 'default';
+        const sorted = [...players];
+        const rallyLead = selectedRallyLeads[zone] || '';
+
+        sorted.sort((a, b) => {
+            // Rally leader always first
+            if (a.name === rallyLead) return -1;
+            if (b.name === rallyLead) return 1;
+
+            if (mode === 'power') return b.power - a.power;
+            if (mode === 'kp') return (b.kills || killsByName[b.name] || 0) - (a.kills || killsByName[a.name] || 0);
+            if (mode === 'name') return a.name.localeCompare(b.name);
+
+            // Default: TP first, then power desc
+            const aTP = selectedTeleportFirst.has(a.name) ? 1 : 0;
+            const bTP = selectedTeleportFirst.has(b.name) ? 1 : 0;
+            if (aTP !== bTP) return bTP - aTP;
+            return b.power - a.power;
+        });
+        return sorted;
+    };
+
     // Setters for current team
     const setSuggestedZones = (zones: Record<number, { name: string; power: number; kills: number }[]>) => {
         setSuggestedZonesByTeam({ ...suggestedZonesByTeam, [activeTeam]: zones });
@@ -1262,7 +1288,7 @@ function TeamBuilderTab({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         {[1, 2, 3].map((zone) => {
                             const zoneColor = ZONE_COLORS[zone as keyof typeof ZONE_COLORS];
-                            const zonePlayers = suggestedZones[zone] || [];
+                            const zonePlayers = sortZonePlayers(suggestedZones[zone] || [], zone);
                             const zonePower = getZonePower(zone);
                             const balancePercent = totalPower > 0 ? ((zonePower / totalPower) * 100).toFixed(1) : '0';
 
@@ -1272,9 +1298,22 @@ function TeamBuilderTab({
                                         <h3 className={`font-semibold ${zoneColor.text}`}>
                                             Zone {zone} ({zonePlayers.length})
                                         </h3>
-                                        <div className="text-right">
-                                            <span className={`text-sm ${theme.textAccent}`}>{formatPower(zonePower)}</span>
-                                            <span className={`text-xs ${theme.textMuted} ml-1`}>({balancePercent}%)</span>
+                                        <div className="flex items-center gap-2">
+                                            <select
+                                                value={zoneSortModes[zone] || 'default'}
+                                                onChange={(e) => setZoneSortModes({ ...zoneSortModes, [zone]: e.target.value })}
+                                                className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
+                                                title="Sort order"
+                                            >
+                                                <option value="default">TP → Power</option>
+                                                <option value="power">Power</option>
+                                                <option value="kp">Kill Points</option>
+                                                <option value="name">Name</option>
+                                            </select>
+                                            <div className="text-right">
+                                                <span className={`text-sm ${theme.textAccent}`}>{formatPower(zonePower)}</span>
+                                                <span className={`text-xs ${theme.textMuted} ml-1`}>({balancePercent}%)</span>
+                                            </div>
                                         </div>
                                     </div>
 
