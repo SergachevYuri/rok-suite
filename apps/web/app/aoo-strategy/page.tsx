@@ -2237,10 +2237,15 @@ export default function AooStrategyPage() {
                             const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
                             let name = rosterMember?.name || r.name;
 
-                            // If this resolved name was already used by another registrant,
-                            // use the original registration name instead to avoid overwriting
-                            if (usedNames.has(name) && name !== r.name) {
-                                name = r.name;
+                            // If this name was already used by another registrant, make it unique
+                            if (usedNames.has(name)) {
+                                // Try original registration name as fallback
+                                if (name !== r.name && !usedNames.has(r.name)) {
+                                    name = r.name;
+                                } else {
+                                    // Both collide — append gov ID to guarantee uniqueness
+                                    name = r.govId ? `${r.name} (${r.govId})` : `${r.name} #${usedNames.size}`;
+                                }
                             }
                             usedNames.add(name);
 
