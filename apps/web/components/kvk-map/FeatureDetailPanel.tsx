@@ -102,7 +102,7 @@ export default function FeatureDetailPanel({
 
       <div className="space-y-3">
         {/* Buffs & Honor info (always visible) */}
-        {(config?.buffs.length > 0 || config?.kingdomHonor || config?.allianceHonor) && (
+        {(config?.buffs.length > 0 || config?.kingdomHonor || config?.allianceHonor || config?.individualHonor) && (
           <div
             className="rounded-md p-2.5 text-xs space-y-1"
             style={{ backgroundColor: 'var(--background-secondary)' }}
@@ -115,6 +115,9 @@ export default function FeatureDetailPanel({
             )}
             {config.allianceHonor && (
               <div style={{ color: 'var(--text-muted)' }}>Alliance Honor {config.allianceHonor}</div>
+            )}
+            {config.individualHonor && (
+              <div style={{ color: 'var(--text-muted)' }}>Individual Honor {config.individualHonor}</div>
             )}
           </div>
         )}

@@ -8,6 +8,7 @@ export interface FeatureTypeConfig {
   buffs: string[];
   kingdomHonor: string | null;
   allianceHonor: string | null;
+  individualHonor?: string | null;
   defaultLevel: number | null;
   firstTimeRewards: string[];
   /** Tile size in game coordinates (e.g. 9 for flags, 15 for fortresses). */
@@ -33,7 +34,14 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: null,
     allianceHonor: null,
     defaultLevel: 4,
-    firstTimeRewards: [],
+    firstTimeRewards: [
+      '1,000 Gems',
+      '15,000 Alliance Honor',
+      '15,000 Kingdom Honor',
+      '1x Golden Key',
+      '1x Territorial Teleport',
+      '100x 5m Speed Up',
+    ],
   },
   pass_5: {
     label: 'Pass (Lv5)',
@@ -80,7 +88,14 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+5/m',
     allianceHonor: '+5/m',
     defaultLevel: 5,
-    firstTimeRewards: [],
+    firstTimeRewards: [
+      '1,000 Gems',
+      '100,000 Alliance Honor',
+      '100,000 Kingdom Honor',
+      '1x Targeted Teleport',
+      '1x Golden Key',
+      '50x 30m Speed Up',
+    ],
   },
   crusader_camp: {
     label: 'Crusader Camp',
@@ -91,7 +106,14 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+1/m',
     allianceHonor: '+1/m',
     defaultLevel: 4,
-    firstTimeRewards: [],
+    firstTimeRewards: [
+      '500 Gems',
+      '20,000 Alliance Honor',
+      '20,000 Kingdom Honor',
+      '1x Golden Key',
+      '1x Territorial Teleport',
+      '50x 5m Speed Up',
+    ],
   },
   hieron_steel: {
     label: 'Hieron of Steel',
@@ -102,7 +124,14 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+3/m',
     allianceHonor: '+3/m',
     defaultLevel: 5,
-    firstTimeRewards: [],
+    firstTimeRewards: [
+      '1,500 Gems',
+      '60,000 Alliance Honor',
+      '60,000 Kingdom Honor',
+      '1x Targeted Teleport',
+      '1x Golden Key',
+      '100x 30m Speed Up',
+    ],
   },
   hieron_thorns: {
     label: 'Hieron of Thorns',
@@ -113,7 +142,14 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+3/m',
     allianceHonor: '+3/m',
     defaultLevel: 5,
-    firstTimeRewards: [],
+    firstTimeRewards: [
+      '1,500 Gems',
+      '60,000 Alliance Honor',
+      '60,000 Kingdom Honor',
+      '1x Targeted Teleport',
+      '1x Golden Key',
+      '100x 30m Speed Up',
+    ],
   },
   ancient_ruins: {
     label: 'Ancient Ruins',
@@ -121,8 +157,9 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     color: '#a855f7',
     description: 'Ancient Ruins',
     buffs: [],
-    kingdomHonor: '+15/m',
-    allianceHonor: '+40/m',
+    kingdomHonor: null,
+    allianceHonor: '+15/m',
+    individualHonor: '+40/m',
     defaultLevel: null,
     firstTimeRewards: [],
   },
@@ -179,7 +216,14 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     kingdomHonor: '+5/m',
     allianceHonor: '+5/m',
     defaultLevel: 6,
-    firstTimeRewards: [],
+    firstTimeRewards: [
+      '2,000 Gems',
+      '80,000 Alliance Honor',
+      '80,000 Kingdom Honor',
+      '2x Targeted Teleport',
+      '1x Golden Key',
+      '100x 30m Speed Up',
+    ],
   },
   altar_darkness: {
     label: 'Altar of Darkness',
@@ -187,8 +231,9 @@ export const FEATURE_TYPE_CONFIG: Record<FeatureType, FeatureTypeConfig> = {
     color: '#8b5cf6',
     description: 'Altar of Darkness',
     buffs: [],
-    kingdomHonor: '+25/m',
-    allianceHonor: '+75/m',
+    kingdomHonor: null,
+    allianceHonor: '+25/m',
+    individualHonor: '+75/m',
     defaultLevel: null,
     firstTimeRewards: [],
   },
