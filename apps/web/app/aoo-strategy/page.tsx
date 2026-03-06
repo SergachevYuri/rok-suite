@@ -2261,6 +2261,31 @@ export default function AooStrategyPage() {
                             }
                         }
 
+                        // Debug: verify all registrants are in confirmations
+                        const t1Confirmed = Object.entries(newConfirmations[1]).filter(([,v]) => v === 'confirmed');
+                        const t2Confirmed = Object.entries(newConfirmations[2]).filter(([,v]) => v === 'confirmed');
+                        const t1Reg = registrations.filter(r => r.team1);
+                        const t2Reg = registrations.filter(r => r.team2);
+                        console.log(`[AoO] Confirmations: T1=${t1Confirmed.length}/${t1Reg.length}, T2=${t2Confirmed.length}/${t2Reg.length}, pending=${pendingToAdd.length}`);
+                        if (t1Confirmed.length !== t1Reg.length) {
+                            const confNames = new Set(t1Confirmed.map(([n]) => n));
+                            for (const r of t1Reg) {
+                                const rm = r.govId ? rosterByGovId.get(r.govId) : undefined;
+                                const resolved = rm?.name || r.name;
+                                const used = confNames.has(resolved) || confNames.has(r.name);
+                                if (!used) console.warn(`[AoO] T1 MISSING: "${r.name}" (govId=${r.govId}), resolved="${resolved}", inRoster=${rosterNameSet.has(resolved)}, usedByCollision=${usedNames.has(resolved)}`);
+                            }
+                        }
+                        if (t2Confirmed.length !== t2Reg.length) {
+                            const confNames = new Set(t2Confirmed.map(([n]) => n));
+                            for (const r of t2Reg) {
+                                const rm = r.govId ? rosterByGovId.get(r.govId) : undefined;
+                                const resolved = rm?.name || r.name;
+                                const used = confNames.has(resolved) || confNames.has(r.name);
+                                if (!used) console.warn(`[AoO] T2 MISSING: "${r.name}" (govId=${r.govId}), resolved="${resolved}", inRoster=${rosterNameSet.has(resolved)}, usedByCollision=${usedNames.has(resolved)}`);
+                            }
+                        }
+
                         setConfirmationsByTeam(newConfirmations);
 
                         // Auto-detect team count from registrations
