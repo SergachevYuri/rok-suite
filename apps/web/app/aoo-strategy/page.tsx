@@ -2208,7 +2208,7 @@ export default function AooStrategyPage() {
                 <RegistrationTab
                     theme={theme}
                     onApplyToBuilder={(registrations) => {
-                        // Build gov ID → roster member lookup for enriching pending additions
+                        // Build gov ID → roster member lookup
                         const rosterByGovId = new Map<number, typeof roster[0]>();
                         const rosterNameSet = new Set<string>();
                         for (const m of roster) {
@@ -2216,23 +2216,30 @@ export default function AooStrategyPage() {
                             if (m.governor_id) rosterByGovId.set(m.governor_id, m);
                         }
 
-                        // For each registrant, find their canonical name (from roster via gov ID)
-                        // and determine if they need to be added as pending
+                        // Track which resolved names have already been used to detect collisions
+                        // (multiple sheet entries mapping to the same roster member via gov ID)
+                        const usedNames = new Set<string>();
                         const newConfirmations: ConfirmationsByTeam = { 1: {}, 2: {}, 3: {} };
                         const pendingToAdd: PendingMember[] = [];
 
                         for (const r of registrations) {
                             // Try to find in roster by gov ID
                             const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
-                            const name = rosterMember?.name || r.name;
+                            let name = rosterMember?.name || r.name;
 
-                            // Set confirmation using the resolved name
+                            // If this resolved name was already used by another registrant,
+                            // use the original registration name instead to avoid overwriting
+                            if (usedNames.has(name) && name !== r.name) {
+                                name = r.name;
+                            }
+                            usedNames.add(name);
+
+                            // Set confirmation
                             if (r.team1) newConfirmations[1][name] = 'confirmed';
                             if (r.team2) newConfirmations[2][name] = 'confirmed';
                             if (!r.team1 && !r.team2) newConfirmations[1][name] = 'maybe';
 
                             // If this exact name isn't in the roster, add as pending
-                            // so it appears in combinedRoster and the confirmation can match
                             if (!rosterNameSet.has(name)) {
                                 pendingToAdd.push({
                                     name,
@@ -2242,30 +2249,6 @@ export default function AooStrategyPage() {
                                     isPending: true as const,
                                 });
                             }
-                        }
-
-                        // Debug: log confirmation counts vs expected
-                        const t1Count = Object.values(newConfirmations[1]).filter(v => v === 'confirmed').length;
-                        const t2Count = Object.values(newConfirmations[2]).filter(v => v === 'confirmed').length;
-                        const t1Expected = registrations.filter(r => r.team1).length;
-                        const t2Expected = registrations.filter(r => r.team2).length;
-                        if (t1Count !== t1Expected || t2Count !== t2Expected) {
-                            console.warn(`[AoO Registration] Confirmation mismatch! T1: ${t1Count}/${t1Expected}, T2: ${t2Count}/${t2Expected}`);
-                            // Find which names collided
-                            const seen = new Map<string, string[]>();
-                            for (const r of registrations) {
-                                const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
-                                const name = rosterMember?.name || r.name;
-                                if (!seen.has(name)) seen.set(name, []);
-                                seen.get(name)!.push(`${r.name} (${r.govId})`);
-                            }
-                            for (const [name, sources] of seen) {
-                                if (sources.length > 1) {
-                                    console.warn(`[AoO Registration] Name collision: "${name}" from:`, sources);
-                                }
-                            }
-                        } else {
-                            console.log(`[AoO Registration] Confirmations OK: T1=${t1Count}, T2=${t2Count}, pending=${pendingToAdd.length}`);
                         }
 
                         setConfirmationsByTeam(newConfirmations);
