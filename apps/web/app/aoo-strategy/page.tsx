@@ -346,7 +346,7 @@ function TeamBuilderTab({
     // Combine with pending additions
     const combinedRoster = [
         ...baseRoster.map(m => ({ ...m, isPending: false as const })),
-        ...pendingAdditions.filter(p => builderAlliance === 'all' || !p.governorId), // Show pending in "all" or if no specific alliance
+        ...pendingAdditions, // Always show pending additions (manually added or imported from registration)
     ];
 
     // Autocomplete suggestions from full roster (independent of alliance filter)
@@ -2247,7 +2247,8 @@ export default function AooStrategyPage() {
                             });
                         }
 
-                        // Switch to builder tab
+                        // Switch to builder tab with "all" alliance filter so no one is hidden
+                        setBuilderAlliance('all');
                         setBuilderStep('select');
                         setActiveTab('builder');
                     }}
