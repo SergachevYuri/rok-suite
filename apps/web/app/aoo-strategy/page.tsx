@@ -449,10 +449,13 @@ function TeamBuilderTab({
     const maybePower = maybePlayers.reduce((sum: number, p) => sum + (p.power || 0), 0);
 
     // Count per team (for display in select step)
+    // Count directly from confirmation dict — not from combinedRoster — to ensure
+    // imported registrations are always reflected accurately in the badge counts.
     const getTeamCounts = (team: TeamNumber) => {
         const teamConf = confirmationsByTeam[team] || {};
-        const confirmed = combinedRoster.filter(m => teamConf[m.name] === 'confirmed').length;
-        const maybe = combinedRoster.filter(m => teamConf[m.name] === 'maybe').length;
+        const values = Object.values(teamConf);
+        const confirmed = values.filter(v => v === 'confirmed').length;
+        const maybe = values.filter(v => v === 'maybe').length;
         return { confirmed, maybe, total: confirmed + maybe };
     };
 
