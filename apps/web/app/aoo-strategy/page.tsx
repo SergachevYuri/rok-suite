@@ -2244,6 +2244,30 @@ export default function AooStrategyPage() {
                             }
                         }
 
+                        // Debug: log confirmation counts vs expected
+                        const t1Count = Object.values(newConfirmations[1]).filter(v => v === 'confirmed').length;
+                        const t2Count = Object.values(newConfirmations[2]).filter(v => v === 'confirmed').length;
+                        const t1Expected = registrations.filter(r => r.team1).length;
+                        const t2Expected = registrations.filter(r => r.team2).length;
+                        if (t1Count !== t1Expected || t2Count !== t2Expected) {
+                            console.warn(`[AoO Registration] Confirmation mismatch! T1: ${t1Count}/${t1Expected}, T2: ${t2Count}/${t2Expected}`);
+                            // Find which names collided
+                            const seen = new Map<string, string[]>();
+                            for (const r of registrations) {
+                                const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
+                                const name = rosterMember?.name || r.name;
+                                if (!seen.has(name)) seen.set(name, []);
+                                seen.get(name)!.push(`${r.name} (${r.govId})`);
+                            }
+                            for (const [name, sources] of seen) {
+                                if (sources.length > 1) {
+                                    console.warn(`[AoO Registration] Name collision: "${name}" from:`, sources);
+                                }
+                            }
+                        } else {
+                            console.log(`[AoO Registration] Confirmations OK: T1=${t1Count}, T2=${t2Count}, pending=${pendingToAdd.length}`);
+                        }
+
                         setConfirmationsByTeam(newConfirmations);
 
                         // Auto-detect team count from registrations
