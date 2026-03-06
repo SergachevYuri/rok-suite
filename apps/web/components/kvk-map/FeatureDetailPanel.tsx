@@ -119,6 +119,20 @@ export default function FeatureDetailPanel({
           </div>
         )}
 
+        {/* First-time rewards (visible to all) */}
+        {config?.firstTimeRewards.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+              First Occupation Rewards
+            </label>
+            <div className="rounded-md p-2.5 text-xs space-y-0.5" style={{ backgroundColor: 'var(--background-secondary)' }}>
+              {config.firstTimeRewards.map((reward, i) => (
+                <div key={i} style={{ color: '#d4d4d8' }}>{reward}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Assignment panel (officer+) */}
         {isOfficer && onAssign && onUpdateAssignment && onUnassign && (
           <div className="pt-1" style={{ borderTop: '1px solid var(--border)' }}>
@@ -165,19 +179,6 @@ export default function FeatureDetailPanel({
                 </div>
               </div>
             </div>
-
-            {config?.firstTimeRewards.length > 0 && (
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
-                  First Occupation (per player)
-                </label>
-                <div className="rounded-md p-2.5 text-xs space-y-0.5" style={{ backgroundColor: 'var(--background-secondary)' }}>
-                  {config.firstTimeRewards.map((reward, i) => (
-                    <div key={i} style={{ color: '#d4d4d8' }}>{reward}</div>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         )}
 

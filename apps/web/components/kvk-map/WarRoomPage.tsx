@@ -124,6 +124,9 @@ export default function WarRoomPage() {
   // Guard: prevent zone click from overriding a feature click (Leaflet event bubbling)
   const featureJustClicked = useRef(false);
 
+  // ── Undo stack for feature position changes ──────────────────────
+  const undoStack = useRef<{ featureId: string; oldX: number; oldY: number }[]>([]);
+
   // ── Zone editing state ─────────────────────────────────────────────
   const [isDrawingZone, setIsDrawingZone] = useState(false);
   const [zoneVertices, setZoneVertices] = useState<[number, number][]>([]);
@@ -200,15 +203,57 @@ export default function WarRoomPage() {
     [features, layers.hiddenGroups, isAtLeast]
   );
 
+  // ── Nudge & undo helpers ──────────────────────────────────────────
+  const nudgeFeatureRef = useRef<((dx: number, dy: number) => void) | null>(null);
+  const undoFeatureMoveRef = useRef<(() => void) | null>(null);
+
+  // Keep refs up to date so the keydown handler doesn't need these in deps
+  useEffect(() => {
+    nudgeFeatureRef.current = (dx: number, dy: number) => {
+      const feature = features.find((f) => f.id === selection.selectedFeatureId);
+      if (!feature) return;
+      const canDrag = isAtLeast('admin') || (isAtLeast('officer') && isFlagFeatureType(feature.feature_type as FeatureType));
+      if (!canDrag) return;
+      undoStack.current.push({ featureId: feature.id, oldX: feature.x, oldY: feature.y });
+      updateFeaturePosition(feature.id, feature.x + dx, feature.y + dy).then(() => refetchFeatures());
+    };
+  }, [features, selection.selectedFeatureId, isAtLeast, refetchFeatures]);
+
+  useEffect(() => {
+    undoFeatureMoveRef.current = () => {
+      const entry = undoStack.current.pop();
+      if (!entry) return;
+      updateFeaturePosition(entry.featureId, entry.oldX, entry.oldY).then(() => refetchFeatures());
+    };
+  }, [refetchFeatures]);
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd+Z: undo in annotation or review mode
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && (rssState.rssAnnotationMode === 'annotate' || rssState.rssAnnotationMode === 'review')) {
+      // Ctrl/Cmd+Z: undo
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        if (rssState.rssAnnotationMode === 'annotate' || rssState.rssAnnotationMode === 'review') {
+          e.preventDefault();
+          rssState.undo(setRssNodes);
+          return;
+        }
+        if (undoStack.current.length > 0) {
+          e.preventDefault();
+          undoFeatureMoveRef.current?.();
+          return;
+        }
+      }
+
+      // Arrow keys: nudge selected feature (hold Shift for 5x)
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selection.selectedFeatureId) {
         e.preventDefault();
-        rssState.undo(setRssNodes);
+        const step = e.shiftKey ? 5 : 1;
+        const dx = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0;
+        const dy = e.key === 'ArrowUp' ? step : e.key === 'ArrowDown' ? -step : 0;
+        nudgeFeatureRef.current?.(dx, dy);
         return;
       }
+
       if (e.key === 'Escape') {
         if (flagPath.addingWaypoint) {
           flagPath.setAddingWaypoint(false);
@@ -237,7 +282,7 @@ export default function WarRoomPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawingZone, rssState.rssAnnotationMode, flagPath.active, flagPath.addingWaypoint, flagPath.addingFlag]);
+  }, [isDrawingZone, rssState.rssAnnotationMode, flagPath.active, flagPath.addingWaypoint, flagPath.addingFlag, selection.selectedFeatureId]);
 
   // ── Feature handlers (admin, or officer for flags) ─────────────────
   const handleSelectType = useCallback((type: FeatureType) => {
@@ -296,6 +341,7 @@ export default function WarRoomPage() {
     async (feature: KvkMapFeature, newX: number, newY: number) => {
       const canDrag = isAtLeast('admin') || (isAtLeast('officer') && isFlagFeatureType(feature.feature_type as FeatureType));
       if (!canDrag) return;
+      undoStack.current.push({ featureId: feature.id, oldX: feature.x, oldY: feature.y });
       await updateFeaturePosition(feature.id, newX, newY);
       await refetchFeatures();
     },
@@ -899,6 +945,7 @@ export default function WarRoomPage() {
               onMouseMove={handleMouseMove}
               onZoomChange={setZoom}
               cursorStyle={(flagPath.active && (flagPath.addingWaypoint || flagPath.addingFlag)) || (placement.isPlacing && placement.placingType) || (isDrawingZone && isAdminMode) || rssState.rssAnnotationMode === 'annotate' ? 'crosshair' : undefined}
+              keyboardEnabled={!selection.selectedFeatureId}
             >
               {layers.showZones && zones.map((zone) => (
                 <ZonePolygon

@@ -20,6 +20,7 @@ interface MapBaseProps {
   onZoomChange?: (zoom: number) => void;
   className?: string;
   cursorStyle?: string;
+  keyboardEnabled?: boolean;
 }
 
 function CursorStyle({ cursor }: { cursor?: string }) {
@@ -90,6 +91,18 @@ function ResizeHandler() {
   return null;
 }
 
+function KeyboardToggle({ enabled }: { enabled: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (enabled) {
+      map.keyboard.enable();
+    } else {
+      map.keyboard.disable();
+    }
+  }, [map, enabled]);
+  return null;
+}
+
 export default function MapBase({
   imageUrl,
   children,
@@ -99,6 +112,7 @@ export default function MapBase({
   onZoomChange,
   className = '',
   cursorStyle,
+  keyboardEnabled = true,
 }: MapBaseProps) {
   // Extend maxBounds beyond map edges so sidebars don't prevent viewing edge nodes
   const PAD = 300;
@@ -133,6 +147,7 @@ export default function MapBase({
       <FitBounds bounds={imageBounds} />
       <ResizeHandler />
       <CursorStyle cursor={cursorStyle} />
+      <KeyboardToggle enabled={keyboardEnabled} />
       <MapEventHandler onClick={onClick} onDoubleClick={onDoubleClick} onMouseMove={onMouseMove} onZoomChange={onZoomChange} />
       {children}
     </MapContainer>
