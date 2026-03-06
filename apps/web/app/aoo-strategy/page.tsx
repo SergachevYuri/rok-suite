@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
-import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam, AooRegistration } from '@/lib/aoo-strategy/types';
+import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 import { useScanRoster, formatPower, RosterMember } from '@/lib/supabase/use-alliance-roster';
 import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-participation';
@@ -2208,56 +2208,53 @@ export default function AooStrategyPage() {
                 <RegistrationTab
                     theme={theme}
                     onApplyToBuilder={(registrations) => {
-                        // Build lookups: gov ID → roster name, lowercase name → roster name
-                        const rosterByGovId = new Map<number, string>();
-                        const rosterByName = new Map<string, string>();
+                        // Build gov ID → roster member lookup for enriching pending additions
+                        const rosterByGovId = new Map<number, typeof roster[0]>();
+                        const rosterNameSet = new Set<string>();
                         for (const m of roster) {
-                            if (m.governor_id) rosterByGovId.set(m.governor_id, m.name);
-                            rosterByName.set(m.name.toLowerCase(), m.name);
+                            rosterNameSet.add(m.name);
+                            if (m.governor_id) rosterByGovId.set(m.governor_id, m);
                         }
 
-                        // Resolve registration to roster name: gov ID first, then name match
-                        const resolveName = (r: AooRegistration): string | null => {
-                            if (r.govId && rosterByGovId.has(r.govId)) return rosterByGovId.get(r.govId)!;
-                            if (rosterByName.has(r.name.toLowerCase())) return rosterByName.get(r.name.toLowerCase())!;
-                            return null; // not in roster
-                        };
-
-                        // Pre-populate Team Builder confirmations from registration data
+                        // For each registrant, find their canonical name (from roster via gov ID)
+                        // and determine if they need to be added as pending
                         const newConfirmations: ConfirmationsByTeam = { 1: {}, 2: {}, 3: {} };
-                        const unmatched: AooRegistration[] = [];
+                        const pendingToAdd: PendingMember[] = [];
+
                         for (const r of registrations) {
-                            const rosterName = resolveName(r);
-                            const name = rosterName || r.name;
-                            if (!rosterName) unmatched.push(r);
-                            if (r.team1) {
-                                newConfirmations[1][name] = 'confirmed';
-                            }
-                            if (r.team2) {
-                                newConfirmations[2][name] = 'confirmed';
-                            }
-                            if (!r.team1 && !r.team2) {
-                                newConfirmations[1][name] = 'maybe';
+                            // Try to find in roster by gov ID
+                            const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
+                            const name = rosterMember?.name || r.name;
+
+                            // Set confirmation using the resolved name
+                            if (r.team1) newConfirmations[1][name] = 'confirmed';
+                            if (r.team2) newConfirmations[2][name] = 'confirmed';
+                            if (!r.team1 && !r.team2) newConfirmations[1][name] = 'maybe';
+
+                            // If this exact name isn't in the roster, add as pending
+                            // so it appears in combinedRoster and the confirmation can match
+                            if (!rosterNameSet.has(name)) {
+                                pendingToAdd.push({
+                                    name,
+                                    power: rosterMember?.power || r.power,
+                                    kills: rosterMember?.kills || 0,
+                                    governorId: r.govId ? String(r.govId) : undefined,
+                                    isPending: true as const,
+                                });
                             }
                         }
+
                         setConfirmationsByTeam(newConfirmations);
 
                         // Auto-detect team count from registrations
                         const hasTeam2 = registrations.some(r => r.team2);
                         if (hasTeam2) setTeamCount(2);
 
-                        // Add unmatched registrants as pending additions
-                        if (unmatched.length > 0) {
-                            const newPending: PendingMember[] = unmatched.map(r => ({
-                                name: r.name,
-                                power: r.power,
-                                kills: 0,
-                                governorId: r.govId ? String(r.govId) : undefined,
-                                isPending: true as const,
-                            }));
+                        // Add any registrants not in roster as pending additions
+                        if (pendingToAdd.length > 0) {
                             setPendingAdditions(prev => {
-                                const existingNames = new Set(prev.map(p => p.name.toLowerCase()));
-                                const toAdd = newPending.filter(p => !existingNames.has(p.name.toLowerCase()));
+                                const existingNames = new Set(prev.map(p => p.name));
+                                const toAdd = pendingToAdd.filter(p => !existingNames.has(p.name));
                                 return [...prev, ...toAdd];
                             });
                         }
