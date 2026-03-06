@@ -2208,18 +2208,29 @@ export default function AooStrategyPage() {
                 <RegistrationTab
                     theme={theme}
                     onApplyToBuilder={(registrations) => {
+                        // Build a case-insensitive lookup from roster names
+                        const rosterNameMap = new Map<string, string>();
+                        for (const n of rosterNames) {
+                            rosterNameMap.set(n.toLowerCase(), n);
+                        }
+
+                        // Resolve registration name to roster name (case-insensitive) or keep original
+                        const resolveName = (regName: string) =>
+                            rosterNameMap.get(regName.toLowerCase()) || regName;
+
                         // Pre-populate Team Builder confirmations from registration data
                         const newConfirmations: ConfirmationsByTeam = { 1: {}, 2: {}, 3: {} };
                         for (const r of registrations) {
+                            const name = resolveName(r.name);
                             if (r.team1) {
-                                newConfirmations[1][r.name] = 'confirmed';
+                                newConfirmations[1][name] = 'confirmed';
                             }
                             if (r.team2) {
-                                newConfirmations[2][r.name] = 'confirmed';
+                                newConfirmations[2][name] = 'confirmed';
                             }
                             // If neither team selected, add as maybe to team 1
                             if (!r.team1 && !r.team2) {
-                                newConfirmations[1][r.name] = 'maybe';
+                                newConfirmations[1][name] = 'maybe';
                             }
                         }
                         setConfirmationsByTeam(newConfirmations);
@@ -2229,9 +2240,8 @@ export default function AooStrategyPage() {
                         if (hasTeam2) setTeamCount(2);
 
                         // Add registrants not in roster as pending additions
-                        const rosterNameSet = new Set(rosterNames.map(n => n.toLowerCase()));
                         const newPending: PendingMember[] = registrations
-                            .filter(r => !rosterNameSet.has(r.name.toLowerCase()))
+                            .filter(r => !rosterNameMap.has(r.name.toLowerCase()))
                             .map(r => ({
                                 name: r.name,
                                 power: r.power,
