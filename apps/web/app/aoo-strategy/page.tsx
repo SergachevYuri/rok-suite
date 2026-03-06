@@ -2218,7 +2218,9 @@ export default function AooStrategyPage() {
                 <RegistrationTab
                     theme={theme}
                     onApplyToBuilder={(registrations) => {
-                        // Build gov ID → roster member lookup
+                        // Use sheet names directly as confirmation keys (1 row = 1 entry).
+                        // Gov ID is only used to look up power/kills from roster, NOT for name resolution,
+                        // because incorrect gov IDs in the sheet can merge different people.
                         const rosterByGovId = new Map<number, typeof roster[0]>();
                         const rosterNameSet = new Set<string>();
                         for (const m of roster) {
@@ -2231,18 +2233,17 @@ export default function AooStrategyPage() {
                         const pendingNames = new Set<string>();
 
                         for (const r of registrations) {
-                            // Resolve to roster name via gov ID
-                            const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
-                            const name = rosterMember?.name || r.name;
+                            // Use sheet name as-is — each row is a distinct registration
+                            const name = r.name;
 
-                            // Merge team selections (same person may appear on multiple rows)
+                            // Look up roster data by gov ID (for power/kills only)
+                            const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
+
                             if (r.team1) newConfirmations[1][name] = 'confirmed';
                             if (r.team2) newConfirmations[2][name] = 'confirmed';
-                            if (!r.team1 && !r.team2 && !newConfirmations[1][name] && !newConfirmations[2][name]) {
-                                newConfirmations[1][name] = 'maybe';
-                            }
+                            if (!r.team1 && !r.team2) newConfirmations[1][name] = 'maybe';
 
-                            // If this exact name isn't in the roster, add as pending (once)
+                            // If this exact name isn't in the roster, add as pending
                             if (!rosterNameSet.has(name) && !pendingNames.has(name)) {
                                 pendingNames.add(name);
                                 pendingToAdd.push({
