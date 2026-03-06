@@ -2208,27 +2208,34 @@ export default function AooStrategyPage() {
                 <RegistrationTab
                     theme={theme}
                     onApplyToBuilder={(registrations) => {
-                        // Build a case-insensitive lookup from roster names
-                        const rosterNameMap = new Map<string, string>();
-                        for (const n of rosterNames) {
-                            rosterNameMap.set(n.toLowerCase(), n);
+                        // Build lookups: gov ID → roster name, lowercase name → roster name
+                        const rosterByGovId = new Map<number, string>();
+                        const rosterByName = new Map<string, string>();
+                        for (const m of roster) {
+                            if (m.governor_id) rosterByGovId.set(m.governor_id, m.name);
+                            rosterByName.set(m.name.toLowerCase(), m.name);
                         }
 
-                        // Resolve registration name to roster name (case-insensitive) or keep original
-                        const resolveName = (regName: string) =>
-                            rosterNameMap.get(regName.toLowerCase()) || regName;
+                        // Resolve registration to roster name: gov ID first, then name match
+                        const resolveName = (r: AooRegistration): string | null => {
+                            if (r.govId && rosterByGovId.has(r.govId)) return rosterByGovId.get(r.govId)!;
+                            if (rosterByName.has(r.name.toLowerCase())) return rosterByName.get(r.name.toLowerCase())!;
+                            return null; // not in roster
+                        };
 
                         // Pre-populate Team Builder confirmations from registration data
                         const newConfirmations: ConfirmationsByTeam = { 1: {}, 2: {}, 3: {} };
+                        const unmatched: AooRegistration[] = [];
                         for (const r of registrations) {
-                            const name = resolveName(r.name);
+                            const rosterName = resolveName(r);
+                            const name = rosterName || r.name;
+                            if (!rosterName) unmatched.push(r);
                             if (r.team1) {
                                 newConfirmations[1][name] = 'confirmed';
                             }
                             if (r.team2) {
                                 newConfirmations[2][name] = 'confirmed';
                             }
-                            // If neither team selected, add as maybe to team 1
                             if (!r.team1 && !r.team2) {
                                 newConfirmations[1][name] = 'maybe';
                             }
@@ -2239,17 +2246,15 @@ export default function AooStrategyPage() {
                         const hasTeam2 = registrations.some(r => r.team2);
                         if (hasTeam2) setTeamCount(2);
 
-                        // Add registrants not in roster as pending additions
-                        const newPending: PendingMember[] = registrations
-                            .filter(r => !rosterNameMap.has(r.name.toLowerCase()))
-                            .map(r => ({
+                        // Add unmatched registrants as pending additions
+                        if (unmatched.length > 0) {
+                            const newPending: PendingMember[] = unmatched.map(r => ({
                                 name: r.name,
                                 power: r.power,
                                 kills: 0,
                                 governorId: r.govId ? String(r.govId) : undefined,
                                 isPending: true as const,
                             }));
-                        if (newPending.length > 0) {
                             setPendingAdditions(prev => {
                                 const existingNames = new Set(prev.map(p => p.name.toLowerCase()));
                                 const toAdd = newPending.filter(p => !existingNames.has(p.name.toLowerCase()));
