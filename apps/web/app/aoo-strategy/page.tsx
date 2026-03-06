@@ -443,8 +443,16 @@ function TeamBuilderTab({
     };
 
     // Count confirmations for CURRENT team (used in distribute step)
-    const confirmedPlayers = combinedRoster.filter(m => currentTeamConfirmations[m.name] === 'confirmed');
-    const maybePlayers = combinedRoster.filter(m => currentTeamConfirmations[m.name] === 'maybe');
+    // Build from confirmation dict, then look up player data from combinedRoster.
+    // This ensures imported registrations are always counted even if their names
+    // don't exactly match a combinedRoster entry.
+    const combinedByName = new Map(combinedRoster.map(m => [m.name, m]));
+    const confirmedPlayers = Object.entries(currentTeamConfirmations)
+        .filter(([, v]) => v === 'confirmed')
+        .map(([name]) => combinedByName.get(name) || { name, power: 0, kills: 0, isPending: true as const });
+    const maybePlayers = Object.entries(currentTeamConfirmations)
+        .filter(([, v]) => v === 'maybe')
+        .map(([name]) => combinedByName.get(name) || { name, power: 0, kills: 0, isPending: true as const });
     const confirmedPower = confirmedPlayers.reduce((sum: number, p) => sum + (p.power || 0), 0);
     const maybePower = maybePlayers.reduce((sum: number, p) => sum + (p.power || 0), 0);
 
@@ -542,19 +550,18 @@ function TeamBuilderTab({
             if (team > teamCount) continue;
 
             const teamConf = confirmationsByTeam[team] || {};
-            const teamConfirmedPlayers = combinedRoster.filter(m => teamConf[m.name] === 'confirmed');
-            const teamMaybePlayers = combinedRoster.filter(m => teamConf[m.name] === 'maybe');
-
-            const confirmedList = teamConfirmedPlayers.map(p => ({
-                name: p.name,
-                power: p.power || 0,
-                kills: p.kills || killsByName[p.name] || 0,
-            }));
-            const maybeList = teamMaybePlayers.map(p => ({
-                name: p.name,
-                power: p.power || 0,
-                kills: p.kills || killsByName[p.name] || 0,
-            }));
+            const confirmedList = Object.entries(teamConf)
+                .filter(([, v]) => v === 'confirmed')
+                .map(([name]) => {
+                    const m = combinedByName.get(name);
+                    return { name, power: m?.power || 0, kills: m?.kills || killsByName[name] || 0 };
+                });
+            const maybeList = Object.entries(teamConf)
+                .filter(([, v]) => v === 'maybe')
+                .map(([name]) => {
+                    const m = combinedByName.get(name);
+                    return { name, power: m?.power || 0, kills: m?.kills || killsByName[name] || 0 };
+                });
 
             totalPlayers += confirmedList.length + maybeList.length;
 
