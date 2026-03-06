@@ -103,6 +103,26 @@ const MIRROR_PAIRS: Record<string, string> = {
   'desert-2': 'desert-2',
 };
 
+interface BuildingInfo {
+  type: string;
+  points: string;
+  info: string;
+  rewards: string[];
+  buffs: string[];
+}
+
+const getBuildingInfoById = (id: string, swapCorners: boolean): BuildingInfo => {
+  if (id.includes('obelisk')) return { type: 'Obelisk', points: '+100 pts/tick', info: 'Teleport source', rewards: ['100 Honor per tick while occupied', '5–8 Teleports on first capture', 'Generates teleports over time'], buffs: ['Enables teleport to Obelisk for your alliance'] };
+  if (id.includes('iset')) return { type: 'Outpost of Iset', points: '+50 pts/tick', info: swapCorners ? 'Enemy side' : 'Your side', rewards: ['50 Honor per tick while occupied'], buffs: ['+3% Troop ATK within territory', '+3% Troop DEF within territory'] };
+  if (id.includes('seth')) return { type: 'Outpost of Seth', points: '+50 pts/tick', info: swapCorners ? 'Your side' : 'Enemy side', rewards: ['50 Honor per tick while occupied'], buffs: ['+3% Troop ATK within territory', '+3% Troop DEF within territory'] };
+  if (id.includes('war')) return { type: 'Shrine of War', points: '+25 pts/tick', info: '+5% ATK buff', rewards: ['25 Honor per tick while occupied'], buffs: ['+5% Troop ATK (alliance-wide)'] };
+  if (id.includes('life')) return { type: 'Shrine of Life', points: '+25 pts/tick', info: '+5% HP buff', rewards: ['25 Honor per tick while occupied'], buffs: ['+5% Troop HP (alliance-wide)'] };
+  if (id.includes('desert')) return { type: 'Desert Altar', points: '+25 pts/tick', info: 'Relic spawn', rewards: ['25 Honor per tick while occupied', 'Spawns Desert Relic (bonus points)'], buffs: ['+3% Troop ATK within territory'] };
+  if (id.includes('sky')) return { type: 'Sky Altar', points: '+25 pts/tick', info: 'Relic spawn', rewards: ['25 Honor per tick while occupied', 'Spawns Sky Relic (bonus points)'], buffs: ['+3% Troop DEF within territory'] };
+  if (id === 'ark') return { type: 'Ark', points: '+200 pts/tick', info: 'Main objective', rewards: ['200 Honor per tick while occupied', 'Massive point generation'], buffs: ['+10% Troop ATK (alliance-wide)', '+10% Troop DEF (alliance-wide)'] };
+  return { type: 'Building', points: '', info: '', rewards: [], buffs: [] };
+};
+
 const getDefaultAssignments = (): MapAssignments => {
   const initial: MapAssignments = {};
   buildings.forEach(b => {
@@ -399,19 +419,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
 
                   if (isFiltered && !assignment?.team) return null;
 
-                  // Get building type for tooltip - swap "Your side" / "Enemy side" labels when swapped
-                  const getBuildingInfo = () => {
-                    if (building.id.includes('obelisk')) return { type: 'Obelisk', points: '+100 pts/tick', info: 'Teleport source' };
-                    if (building.id.includes('iset')) return { type: 'Outpost of Iset', points: '+50 pts/tick', info: swapCorners ? 'Enemy side' : 'Your side' };
-                    if (building.id.includes('seth')) return { type: 'Outpost of Seth', points: '+50 pts/tick', info: swapCorners ? 'Your side' : 'Enemy side' };
-                    if (building.id.includes('war')) return { type: 'Shrine of War', points: '+25 pts/tick', info: '+5% ATK buff' };
-                    if (building.id.includes('life')) return { type: 'Shrine of Life', points: '+25 pts/tick', info: '+5% HP buff' };
-                    if (building.id.includes('desert')) return { type: 'Desert Altar', points: '+25 pts/tick', info: 'Relic spawn' };
-                    if (building.id.includes('sky')) return { type: 'Sky Altar', points: '+25 pts/tick', info: 'Relic spawn' };
-                    if (building.id === 'ark') return { type: 'Ark', points: '+200 pts/tick', info: 'Main objective' };
-                    return { type: 'Building', points: '', info: '' };
-                  };
-                  const buildingInfo = getBuildingInfo();
+                  const buildingInfo = getBuildingInfoById(building.id, swapCorners);
 
                   return (
                     <div
@@ -593,7 +601,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     <div className={`p-2 rounded-lg ${theme.bgTertiary}`}>
                       <div className="flex justify-between items-center">
                         <span className={`text-sm ${theme.textMuted}`}>Assigned to:</span>
-                        <span 
+                        <span
                           className="text-sm font-bold px-2 py-0.5 rounded"
                           style={{ backgroundColor: teamColors[assignments[selectedBuilding.id].team!].bg, color: 'white' }}
                         >
@@ -607,6 +615,41 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                         </span>
                       </div>
                     </div>
+
+                    {/* Rewards & Buffs */}
+                    {(() => {
+                      const info = getBuildingInfoById(selectedBuilding.id, swapCorners);
+                      return (
+                        <>
+                          {info.rewards.length > 0 && (
+                            <div className={`p-2 rounded-lg ${theme.bgTertiary}`}>
+                              <h4 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-1.5`}>Rewards</h4>
+                              <ul className="space-y-0.5">
+                                {info.rewards.map((r, i) => (
+                                  <li key={i} className={`text-xs ${theme.text} flex items-start gap-1.5`}>
+                                    <span className="text-yellow-500 mt-px">&#9679;</span>
+                                    <span>{r}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {info.buffs.length > 0 && (
+                            <div className={`p-2 rounded-lg ${theme.bgTertiary}`}>
+                              <h4 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-1.5`}>Occupation Buffs</h4>
+                              <ul className="space-y-0.5">
+                                {info.buffs.map((b, i) => (
+                                  <li key={i} className={`text-xs ${theme.text} flex items-start gap-1.5`}>
+                                    <span className="text-emerald-500 mt-px">&#9679;</span>
+                                    <span>{b}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {/* Player Assignments for this building */}
                     {players.length > 0 && (() => {
@@ -759,31 +802,69 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       </button>
                     )}
                   </div>
-                ) : isEditor ? (
-                  <>
-                    <p className={`text-sm ${theme.textMuted} mb-4`}>Assign to a zone:</p>
-                    <div className="space-y-2">
-                      {[1, 2, 3].map(team => (
-                        <button
-                          key={team}
-                          onClick={() => assignTeam(selectedBuilding.id, team as TeamNumber)}
-                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all`}
-                          style={{ 
-                            backgroundColor: isDark ? '#27272a' : '#f1f5f9',
-                            color: isDark ? 'white' : '#1e293b'
-                          }}
-                        >
-                          <div 
-                            className="w-5 h-5 rounded-full"
-                            style={{ backgroundColor: teamColors[team].bg }}
-                          />
-                          <span className="font-medium">{teamColors[team].name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
                 ) : (
-                  <p className={`text-sm ${theme.textMuted}`}>Not assigned to any zone</p>
+                  <>
+                    {/* Rewards & Buffs for unassigned buildings */}
+                    {(() => {
+                      const info = getBuildingInfoById(selectedBuilding.id, swapCorners);
+                      return (
+                        <div className="space-y-3 mb-4">
+                          {info.rewards.length > 0 && (
+                            <div className={`p-2 rounded-lg ${theme.bgTertiary}`}>
+                              <h4 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-1.5`}>Rewards</h4>
+                              <ul className="space-y-0.5">
+                                {info.rewards.map((r, i) => (
+                                  <li key={i} className={`text-xs ${theme.text} flex items-start gap-1.5`}>
+                                    <span className="text-yellow-500 mt-px">&#9679;</span>
+                                    <span>{r}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {info.buffs.length > 0 && (
+                            <div className={`p-2 rounded-lg ${theme.bgTertiary}`}>
+                              <h4 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-1.5`}>Occupation Buffs</h4>
+                              <ul className="space-y-0.5">
+                                {info.buffs.map((buff, i) => (
+                                  <li key={i} className={`text-xs ${theme.text} flex items-start gap-1.5`}>
+                                    <span className="text-emerald-500 mt-px">&#9679;</span>
+                                    <span>{buff}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {isEditor ? (
+                      <>
+                        <p className={`text-sm ${theme.textMuted} mb-4`}>Assign to a zone:</p>
+                        <div className="space-y-2">
+                          {[1, 2, 3].map(team => (
+                            <button
+                              key={team}
+                              onClick={() => assignTeam(selectedBuilding.id, team as TeamNumber)}
+                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all`}
+                              style={{
+                                backgroundColor: isDark ? '#27272a' : '#f1f5f9',
+                                color: isDark ? 'white' : '#1e293b'
+                              }}
+                            >
+                              <div
+                                className="w-5 h-5 rounded-full"
+                                style={{ backgroundColor: teamColors[team].bg }}
+                              />
+                              <span className="font-medium">{teamColors[team].name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <p className={`text-sm ${theme.textMuted}`}>Not assigned to any zone</p>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
