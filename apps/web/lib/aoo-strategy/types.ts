@@ -39,3 +39,13 @@ export interface StrategyData {
   mapImage: string | null;
   mapAssignments: MapAssignments;
 }
+
+export interface AooRegistration {
+  name: string;
+  govId: number;
+  power: number;
+  team1: boolean;
+  team2: boolean;
+  rallyLeader: boolean;
+  mid: boolean;
+}

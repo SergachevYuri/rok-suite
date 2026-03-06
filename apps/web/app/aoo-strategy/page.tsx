@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
-import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
+import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam, AooRegistration } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 import { useScanRoster, formatPower, RosterMember } from '@/lib/supabase/use-alliance-roster';
 import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-participation';
@@ -24,7 +24,8 @@ function generateShareId(): string {
     return result;
 }
 
-// Dynamic import to avoid SSR issues with the map
+// Dynamic imports
+const RegistrationTab = dynamic(() => import('@/components/aoo-strategy/RegistrationTab'), { ssr: false });
 const AOOInteractiveMap = dynamic(() => import('@/components/aoo-strategy/AOOInteractiveMap'), {
   ssr: false,
   loading: () => (
@@ -1451,7 +1452,7 @@ export default function AooStrategyPage() {
 
     // Fetch roster from Supabase
     const { roster, rosterNames, powerByName, killsByName, allianceByName, alliances: dbAlliances, loading: rosterLoading, scanLabel } = useScanRoster();
-    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'builder'>('builder');
+    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'builder' | 'registration'>('builder');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
@@ -2148,6 +2149,16 @@ export default function AooStrategyPage() {
                     {/* Tabs */}
                     <div className="flex items-center gap-2 mt-4 border-b border-[var(--border)] pb-0 overflow-x-auto hide-scrollbar">
                         <button
+                            onClick={() => setActiveTab('registration')}
+                            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
+                                activeTab === 'registration'
+                                    ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
+                            }`}
+                        >
+                            📋 Registration
+                        </button>
+                        <button
                             onClick={() => setActiveTab('builder')}
                             className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
                                 activeTab === 'builder'
@@ -2193,6 +2204,56 @@ export default function AooStrategyPage() {
             )}
 
             {/* Tab Content */}
+            {activeTab === 'registration' && (
+                <RegistrationTab
+                    theme={theme}
+                    onApplyToBuilder={(registrations) => {
+                        // Pre-populate Team Builder confirmations from registration data
+                        const newConfirmations: ConfirmationsByTeam = { 1: {}, 2: {}, 3: {} };
+                        for (const r of registrations) {
+                            if (r.team1) {
+                                newConfirmations[1][r.name] = 'confirmed';
+                            }
+                            if (r.team2) {
+                                newConfirmations[2][r.name] = 'confirmed';
+                            }
+                            // If neither team selected, add as maybe to team 1
+                            if (!r.team1 && !r.team2) {
+                                newConfirmations[1][r.name] = 'maybe';
+                            }
+                        }
+                        setConfirmationsByTeam(newConfirmations);
+
+                        // Auto-detect team count from registrations
+                        const hasTeam2 = registrations.some(r => r.team2);
+                        if (hasTeam2) setTeamCount(2);
+
+                        // Add registrants not in roster as pending additions
+                        const rosterNameSet = new Set(rosterNames.map(n => n.toLowerCase()));
+                        const newPending: PendingMember[] = registrations
+                            .filter(r => !rosterNameSet.has(r.name.toLowerCase()))
+                            .map(r => ({
+                                name: r.name,
+                                power: r.power,
+                                kills: 0,
+                                governorId: r.govId ? String(r.govId) : undefined,
+                                isPending: true as const,
+                            }));
+                        if (newPending.length > 0) {
+                            setPendingAdditions(prev => {
+                                const existingNames = new Set(prev.map(p => p.name.toLowerCase()));
+                                const toAdd = newPending.filter(p => !existingNames.has(p.name.toLowerCase()));
+                                return [...prev, ...toAdd];
+                            });
+                        }
+
+                        // Switch to builder tab
+                        setBuilderStep('select');
+                        setActiveTab('builder');
+                    }}
+                />
+            )}
+
             {activeTab === 'map' && (
                 <AOOInteractiveMap
                     initialAssignments={mapAssignments}
