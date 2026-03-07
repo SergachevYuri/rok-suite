@@ -1750,14 +1750,17 @@ export default function AooStrategyPage() {
     };
 
     // Auto-save Team Builder state when it changes
-    const builderLoadedRef = useRef(false);
+    const builderInitRef = useRef(false);
+    // Mark as initialized once loading finishes
     useEffect(() => {
-        if (isLoading || !shareIdRef.current) return;
-        // Skip the first render after load
-        if (!builderLoadedRef.current) {
-            builderLoadedRef.current = true;
-            return;
+        if (!isLoading && shareIdRef.current) {
+            // Use a timeout so the effect that sets initial state runs first
+            const t = setTimeout(() => { builderInitRef.current = true; }, 0);
+            return () => clearTimeout(t);
         }
+    }, [isLoading]);
+    useEffect(() => {
+        if (!builderInitRef.current) return;
         saveData({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam]);
