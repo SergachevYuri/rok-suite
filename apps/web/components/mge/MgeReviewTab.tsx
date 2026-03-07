@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Users, CheckCircle, Info, X, ChevronDown, ChevronUp, Trash2, Plus } from 'lucide-react';
+import { Users, CheckCircle, Info, X, ChevronDown, ChevronUp, Trash2, Plus, Camera } from 'lucide-react';
 import { MgeSkillInput } from './MgeSkillInput';
 import SearchableSelect, { type SearchableOption } from '@/components/ui/SearchableSelect';
 import { supabase } from '@/lib/supabase';
@@ -10,6 +10,7 @@ import {
   convertApprovedToSelections,
   deleteApplication,
   submitApplication,
+  uploadMgeScreenshot,
   type MgeEvent,
   type MgeApplication,
 } from '@/lib/supabase/use-mge';
@@ -428,6 +429,8 @@ function AddApplicantForm({
   const [preferredTier, setPreferredTier] = useState('');
   const [maxTier, setMaxTier] = useState('');
   const [notes, setNotes] = useState('');
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -471,9 +474,31 @@ function AddApplicantForm({
   const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
   const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
 
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be under 5MB');
+      return;
+    }
+    setScreenshotFile(file);
+    setScreenshotPreview(URL.createObjectURL(file));
+  };
+
+  const removeScreenshot = () => {
+    setScreenshotFile(null);
+    if (screenshotPreview) URL.revokeObjectURL(screenshotPreview);
+    setScreenshotPreview(null);
+  };
+
   const handleSubmit = async () => {
     if (!name.trim() || !focusCommander) return;
     setSubmitting(true);
+
+    let screenshotUrl: string | null = null;
+    if (screenshotFile) {
+      screenshotUrl = await uploadMgeScreenshot(screenshotFile, event.id, name.trim());
+    }
 
     const result = await submitApplication(event.id, {
       applicant_name: name.trim(),
@@ -486,6 +511,7 @@ function AddApplicantForm({
       preferred_tier: preferredTier || null,
       max_tier: maxTier || null,
       notes: notes.trim() || null,
+      screenshot_url: screenshotUrl,
     });
 
     if (result) {
@@ -535,6 +561,44 @@ function AddApplicantForm({
           onStarsChange={setStars}
           compact
         />
+      </div>
+
+      {/* Screenshot */}
+      <div>
+        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+          Commander Screenshot (optional)
+        </label>
+        {screenshotPreview ? (
+          <div className="relative inline-block">
+            <img
+              src={screenshotPreview}
+              alt="Commander screenshot"
+              className="rounded-lg border max-h-48 object-contain"
+              style={{ borderColor: 'var(--border)' }}
+            />
+            <button
+              type="button"
+              onClick={removeScreenshot}
+              className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500/80 text-white hover:bg-red-500 transition-fast"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        ) : (
+          <label className="flex items-center gap-2 px-4 py-3 rounded-lg border border-dashed cursor-pointer hover:bg-[var(--background-card)] transition-fast"
+            style={{ borderColor: 'var(--border)' }}>
+            <Camera size={18} style={{ color: 'var(--text-muted)' }} />
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Tap to upload screenshot
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleScreenshotChange}
+              className="hidden"
+            />
+          </label>
+        )}
       </div>
 
       {/* Tier Preferences */}
