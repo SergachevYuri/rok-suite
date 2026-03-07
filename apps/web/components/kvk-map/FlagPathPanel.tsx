@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNodeType } from '@/lib/kvk-map/rss-review';
 import type { Waypoint, PlannedFlag, PlannedFlagStatus, FlagPathConfig, FlagPathResult } from '@/lib/kvk-map/flag-path';
+import type { KvkAlliance } from '@/lib/kvk-map-types';
 
 interface FlagPathPanelProps {
   waypoints: Waypoint[];
@@ -22,6 +24,8 @@ interface FlagPathPanelProps {
   onFlagDelete: (id: string) => void;
   onSelectFlag: (id: string | null) => void;
   onClose: () => void;
+  alliances?: KvkAlliance[];
+  onApply?: (allianceId: string | null) => void;
 }
 
 const RSS_TYPE_ORDER: RssNodeType[] = ['food', 'wood', 'stone', 'gold', 'crystal'];
@@ -45,9 +49,13 @@ export default function FlagPathPanel({
   onFlagDelete,
   onSelectFlag,
   onClose,
+  alliances,
+  onApply,
 }: FlagPathPanelProps) {
   const plannedCount = flags.filter((f) => f.status === 'planned').length;
   const existingCount = flags.filter((f) => f.status === 'existing').length;
+  const [applyAllianceId, setApplyAllianceId] = useState<string | null>(alliances?.[0]?.id ?? null);
+  const [applying, setApplying] = useState(false);
 
   return (
     <div
@@ -337,6 +345,58 @@ export default function FlagPathPanel({
                 {isAddingFlag ? 'Click map to place flag...' : '+ Add Flag Manually'}
               </button>
             </div>
+
+            {/* Apply to Map */}
+            {onApply && plannedCount > 0 && (
+              <div
+                className="rounded-lg p-2.5 space-y-2"
+                style={{ backgroundColor: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)' }}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                  Apply to Map
+                </span>
+                {alliances && alliances.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-[10px] shrink-0" style={{ color: 'var(--text-muted)' }}>Alliance</label>
+                    <select
+                      value={applyAllianceId || ''}
+                      onChange={(e) => setApplyAllianceId(e.target.value || null)}
+                      className="flex-1 bg-transparent border rounded px-1.5 py-0.5 text-[10px]"
+                      style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                    >
+                      <option value="" style={{ backgroundColor: '#1a1a2e', color: '#9ca3af' }}>None</option>
+                      {alliances.map((a) => (
+                        <option key={a.id} value={a.id} style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>
+                          [{a.tag}] {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <button
+                  onClick={async () => {
+                    setApplying(true);
+                    try { await onApply(applyAllianceId); } finally { setApplying(false); }
+                  }}
+                  disabled={applying}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-40"
+                  style={{
+                    backgroundColor: 'rgba(34,197,94,0.15)',
+                    color: '#22c55e',
+                    border: '1px solid rgba(34,197,94,0.3)',
+                  }}
+                >
+                  {applying ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                      Applying...
+                    </span>
+                  ) : (
+                    `Apply ${plannedCount} flag${plannedCount !== 1 ? 's' : ''} to map`
+                  )}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

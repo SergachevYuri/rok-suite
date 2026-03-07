@@ -727,6 +727,21 @@ export default function WarRoomPage() {
     flagPath.toggle();
   }, [flagPath, placement, selection, rssState]);
 
+  const handleApplyFlagPath = useCallback(async (allianceId: string | null) => {
+    if (!map || flagPath.flags.length === 0) return;
+    const planned = flagPath.flags.filter((f) => f.status === 'planned');
+    if (planned.length === 0) return;
+    for (const flag of planned) {
+      const newFeature = await createMapFeature(map.id, 'flag', flag.x, flag.y);
+      if (newFeature && allianceId) {
+        await upsertAssignment(map.id, newFeature.id, allianceId, { assigned_by: officerName });
+      }
+    }
+    await refetchFeatures();
+    await refetchAssignments();
+    flagPath.clear();
+  }, [map, flagPath, refetchFeatures, refetchAssignments, officerName]);
+
   // ── Map click/move ─────────────────────────────────────────────────
   const handleMouseMove = useCallback((x: number, y: number) => {
     setMousePos({ x, y });
@@ -785,11 +800,14 @@ export default function WarRoomPage() {
           await upsertAssignment(map.id, newFeature.id, placement.placingForAllianceId, { assigned_by: officerName });
           await refetchAssignments();
         }
-        if (isFlagFeatureType(placingType)) {
+        const keepPlacing = isFlagFeatureType(placingType);
+        if (!keepPlacing) {
           placement.cancelPlacement();
         }
         await refetchFeatures();
-        selection.setSelectedFeatureId(newFeature.id);
+        if (!keepPlacing) {
+          selection.setSelectedFeatureId(newFeature.id);
+        }
       }
     },
     [isDrawingZone, placement, map, features, refetchFeatures, isAtLeast, refetchAssignments, rssState, symmetryConfig, rssNodes, setRssNodes, flagPath, selection, officerName]
@@ -1083,7 +1101,7 @@ export default function WarRoomPage() {
                     ))}
                   </select>
                 )}
-                <span style={{ color: 'var(--text-muted)' }}>(click map · Esc to cancel)</span>
+                <span style={{ color: 'var(--text-muted)' }}>(click to place · keep clicking · Esc to stop)</span>
               </div>
             )}
             {isDrawingZone && selectedZone && (
@@ -1151,6 +1169,8 @@ export default function WarRoomPage() {
                   onFlagDelete={(id) => flagPath.flagDelete(id, rssNodes)}
                   onSelectFlag={flagPath.setSelectedFlagId}
                   onClose={handleToggleFlagPath}
+                  alliances={alliances}
+                  onApply={handleApplyFlagPath}
                 />
               ) : rssState.rssReviewActive ? (
                 <>

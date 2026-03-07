@@ -13,8 +13,8 @@ export const RSS_EARNINGS_PER_HOUR: Record<RssNodeType, number> = {
 export const FLAG_TILE_SIZE = 9;
 export const FLAG_HALF = FLAG_TILE_SIZE / 2; // 4.5
 export const DEFAULT_FLAG_STEP = 8;
-export const DEFAULT_MAX_DEVIATION = 3;
-const DEVIATION_PENALTY = 200; // RSS/h cost per tile of deviation from baseline
+export const DEFAULT_MAX_DEVIATION = 6;
+const DEVIATION_PENALTY = 50; // RSS/h cost per tile of deviation from baseline
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -182,6 +182,103 @@ function scoreCandidate(
 
 // ── Main Algorithm ─────────────────────────────────────────────────
 
+/** Check Chebyshev connectivity between two flags */
+function isConnected(ax: number, ay: number, bx: number, by: number, maxDist: number): boolean {
+  return Math.max(Math.abs(ax - bx), Math.abs(ay - by)) <= maxDist;
+}
+
+/** Run one greedy pass: for each flag position, pick the best candidate */
+function greedyPass(
+  baselineFlags: { x: number; y: number }[],
+  positions: { x: number; y: number }[],
+  config: FlagPathConfig,
+  spatialIndex: SpatialIndex,
+): { x: number; y: number }[] {
+  const maxConnDist = config.flagStep + 2; // slightly relaxed for better RSS seeking
+  const result: { x: number; y: number }[] = [];
+  const covered = new Set<number>();
+
+  for (let i = 0; i < baselineFlags.length; i++) {
+    const base = baselineFlags[i];
+    const candidates = config.maxDeviation > 0
+      ? generateCandidates(base.x, base.y, config.maxDeviation)
+      : [{ x: base.x, y: base.y }];
+
+    let bestX = positions[i]?.x ?? base.x;
+    let bestY = positions[i]?.y ?? base.y;
+    let bestScore = -Infinity;
+
+    for (const c of candidates) {
+      // Must connect to previous placed flag
+      if (i > 0 && !isConnected(c.x, c.y, result[i - 1].x, result[i - 1].y, maxConnDist)) {
+        continue;
+      }
+      const score = scoreCandidate(c.x, c.y, base.x, base.y, spatialIndex, covered);
+      if (score > bestScore || (score === bestScore && Math.hypot(c.x - base.x, c.y - base.y) < Math.hypot(bestX - base.x, bestY - base.y))) {
+        bestScore = score;
+        bestX = c.x;
+        bestY = c.y;
+      }
+    }
+
+    // Track coverage
+    const nodes = queryNodesNear(bestX, bestY, FLAG_HALF, spatialIndex);
+    for (const n of nodes) covered.add(n.id);
+
+    result.push({ x: bestX, y: bestY });
+  }
+
+  return result;
+}
+
+/** Refinement pass: re-optimize each flag considering both neighbors */
+function refinePass(
+  baselineFlags: { x: number; y: number }[],
+  positions: { x: number; y: number }[],
+  config: FlagPathConfig,
+  spatialIndex: SpatialIndex,
+): { x: number; y: number }[] {
+  const maxConnDist = config.flagStep + 2;
+  const result = positions.map((p) => ({ ...p }));
+
+  // Rebuild coverage excluding current flag, then pick best for it
+  for (let i = 0; i < result.length; i++) {
+    const covered = new Set<number>();
+    // Collect coverage from all OTHER flags
+    for (let j = 0; j < result.length; j++) {
+      if (j === i) continue;
+      const nodes = queryNodesNear(result[j].x, result[j].y, FLAG_HALF, spatialIndex);
+      for (const n of nodes) covered.add(n.id);
+    }
+
+    const base = baselineFlags[i];
+    const candidates = config.maxDeviation > 0
+      ? generateCandidates(base.x, base.y, config.maxDeviation)
+      : [{ x: base.x, y: base.y }];
+
+    let bestX = result[i].x;
+    let bestY = result[i].y;
+    let bestScore = -Infinity;
+
+    for (const c of candidates) {
+      // Must connect to both neighbors
+      if (i > 0 && !isConnected(c.x, c.y, result[i - 1].x, result[i - 1].y, maxConnDist)) continue;
+      if (i < result.length - 1 && !isConnected(c.x, c.y, result[i + 1].x, result[i + 1].y, maxConnDist)) continue;
+
+      const score = scoreCandidate(c.x, c.y, base.x, base.y, spatialIndex, covered);
+      if (score > bestScore || (score === bestScore && Math.hypot(c.x - base.x, c.y - base.y) < Math.hypot(bestX - base.x, bestY - base.y))) {
+        bestScore = score;
+        bestX = c.x;
+        bestY = c.y;
+      }
+    }
+
+    result[i] = { x: bestX, y: bestY };
+  }
+
+  return result;
+}
+
 export function computeFlagPath(
   waypoints: Waypoint[],
   rssNodes: RssNode[],
@@ -192,38 +289,26 @@ export function computeFlagPath(
   const pathPoints = interpolatePath(waypoints);
   const baselineFlags = placeFlagsAlongPath(pathPoints, config.flagStep);
 
+  if (baselineFlags.length === 0) {
+    return buildResult([], new Set(), eligible);
+  }
+
+  // Initial greedy pass
+  let positions = greedyPass(baselineFlags, baselineFlags, config, spatialIndex);
+
+  // Refinement passes — re-optimize each flag considering both neighbors
+  const REFINE_PASSES = 3;
+  for (let pass = 0; pass < REFINE_PASSES; pass++) {
+    positions = refinePass(baselineFlags, positions, config, spatialIndex);
+  }
+
+  // Build final flags with coverage
   const alreadyCovered = new Set<number>();
-  const maxConnDist = config.flagStep + 1;
   const flags: PlannedFlag[] = [];
 
-  for (let i = 0; i < baselineFlags.length; i++) {
-    const base = baselineFlags[i];
-    const candidates = config.maxDeviation > 0
-      ? generateCandidates(base.x, base.y, config.maxDeviation)
-      : [{ x: base.x, y: base.y }];
-
-    let bestX = base.x;
-    let bestY = base.y;
-    let bestScore = -Infinity;
-
-    for (const c of candidates) {
-      // Connectivity: must be within maxConnDist of previous flag (Chebyshev)
-      if (i > 0) {
-        const prev = flags[i - 1];
-        if (Math.max(Math.abs(c.x - prev.x), Math.abs(c.y - prev.y)) > maxConnDist) {
-          continue;
-        }
-      }
-      const score = scoreCandidate(c.x, c.y, base.x, base.y, spatialIndex, alreadyCovered);
-      if (score > bestScore || (score === bestScore && Math.hypot(c.x - base.x, c.y - base.y) < Math.hypot(bestX - base.x, bestY - base.y))) {
-        bestScore = score;
-        bestX = c.x;
-        bestY = c.y;
-      }
-    }
-
-    // Compute coverage for the chosen position
-    const covered = queryNodesNear(bestX, bestY, FLAG_HALF, spatialIndex);
+  for (let i = 0; i < positions.length; i++) {
+    const pos = positions[i];
+    const covered = queryNodesNear(pos.x, pos.y, FLAG_HALF, spatialIndex);
     const newCoveredIds: number[] = [];
     let flagRss = 0;
     for (const n of covered) {
@@ -236,8 +321,8 @@ export function computeFlagPath(
 
     flags.push({
       id: crypto.randomUUID(),
-      x: bestX,
-      y: bestY,
+      x: pos.x,
+      y: pos.y,
       status: 'planned',
       coveredNodeIds: newCoveredIds,
       rssPerHour: flagRss,
