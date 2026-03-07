@@ -1678,6 +1678,22 @@ export default function AooStrategyPage() {
                 setMapImage(strategyData?.mapImage || null);
                 setNotes(strategyData?.notes || '');
                 setMapAssignments(strategyData?.mapAssignments || undefined);
+                // Restore Team Builder state
+                if (strategyData?.builderAlliance) setBuilderAlliance(strategyData.builderAlliance);
+                if (strategyData?.teamCount) setTeamCount(strategyData.teamCount as TeamNumber);
+                if (strategyData?.builderStep) setBuilderStep(strategyData.builderStep);
+                if (strategyData?.confirmationsByTeam) setConfirmationsByTeam(strategyData.confirmationsByTeam as ConfirmationsByTeam);
+                if (strategyData?.suggestedZonesByTeam) setSuggestedZonesByTeam(strategyData.suggestedZonesByTeam as ZonesByTeam);
+                if (strategyData?.selectedRallyLeadsByTeam) setSelectedRallyLeadsByTeam(strategyData.selectedRallyLeadsByTeam as RallyLeadsByTeam);
+                if (strategyData?.selectedTeleportFirstByTeam) {
+                    const restored: TeleportFirstByTeam = {
+                        1: new Set(strategyData.selectedTeleportFirstByTeam[1] || []),
+                        2: new Set(strategyData.selectedTeleportFirstByTeam[2] || []),
+                        3: new Set(strategyData.selectedTeleportFirstByTeam[3] || []),
+                    };
+                    setSelectedTeleportFirstByTeam(restored);
+                }
+                if (strategyData?.zoneSizesByTeam) setZoneSizesByTeam(strategyData.zoneSizesByTeam as ZoneSizesByTeam);
             } else {
                 // Plan not found
                 console.log('Plan not found:', planShareId);
@@ -1705,6 +1721,19 @@ export default function AooStrategyPage() {
             notes: updatedData.notes ?? notes,
             mapAssignments: updatedData.mapAssignments ?? mapAssignments ?? {},
             substitutes: updatedData.substitutes ?? substitutes,
+            // Team Builder state
+            builderAlliance: updatedData.builderAlliance ?? builderAlliance,
+            teamCount: updatedData.teamCount ?? teamCount,
+            builderStep: updatedData.builderStep ?? builderStep,
+            confirmationsByTeam: updatedData.confirmationsByTeam ?? confirmationsByTeam,
+            suggestedZonesByTeam: updatedData.suggestedZonesByTeam ?? suggestedZonesByTeam,
+            selectedRallyLeadsByTeam: updatedData.selectedRallyLeadsByTeam ?? selectedRallyLeadsByTeam,
+            selectedTeleportFirstByTeam: updatedData.selectedTeleportFirstByTeam ?? {
+                1: Array.from(selectedTeleportFirstByTeam[1] || []),
+                2: Array.from(selectedTeleportFirstByTeam[2] || []),
+                3: Array.from(selectedTeleportFirstByTeam[3] || []),
+            },
+            zoneSizesByTeam: updatedData.zoneSizesByTeam ?? zoneSizesByTeam,
         };
 
         try {
@@ -1719,6 +1748,19 @@ export default function AooStrategyPage() {
             console.error('Error saving data:', error);
         }
     };
+
+    // Auto-save Team Builder state when it changes
+    const builderLoadedRef = useRef(false);
+    useEffect(() => {
+        if (isLoading || !shareIdRef.current) return;
+        // Skip the first render after load
+        if (!builderLoadedRef.current) {
+            builderLoadedRef.current = true;
+            return;
+        }
+        saveData({});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam]);
 
     const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isEditor) return;

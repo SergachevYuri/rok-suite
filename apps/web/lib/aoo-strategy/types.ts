@@ -38,6 +38,15 @@ export interface StrategyData {
   notes: string;
   mapImage: string | null;
   mapAssignments: MapAssignments;
+  // Team Builder state (persisted for sharing)
+  builderAlliance?: string;
+  teamCount?: number;
+  builderStep?: 'select' | 'distribute' | 'leads' | 'done';
+  confirmationsByTeam?: Record<number, Record<string, string>>;
+  suggestedZonesByTeam?: Record<number, Record<number, { name: string; power: number; kills: number }[]>>;
+  selectedRallyLeadsByTeam?: Record<number, Record<number, string>>;
+  selectedTeleportFirstByTeam?: Record<number, string[]>; // Sets serialized as arrays
+  zoneSizesByTeam?: Record<number, Record<number, string>>;
 }
 
 export interface AooRegistration {
