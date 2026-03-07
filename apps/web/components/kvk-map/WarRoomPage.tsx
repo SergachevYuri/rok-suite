@@ -41,6 +41,7 @@ import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy
 import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentStatus } from '@/lib/kvk-map-types';
 import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
 import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config';
+import { getStage } from '@/lib/kvk-stages';
 import { RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus } from '@/lib/kvk-map/rss-review';
 import { useKvkRssNodes, useKvkRssFlags, saveRssNodes, flagRssNode } from '@/lib/supabase/use-kvk-rss';
 import { type SymmetryConfig, getSegment } from '@/lib/kvk-map/rss-symmetry';
@@ -954,6 +955,7 @@ export default function WarRoomPage() {
                   onClick={(isAdminMode || isOfficerMode) ? handleZoneClick : undefined}
                   isSelected={(isAdminMode || isOfficerZoneFocus) && zone.id === selection.selectedZoneId}
                   isHighlighted={selection.hoveredZoneNumber != null && zone.zone_number === selection.hoveredZoneNumber}
+                  activeZoneNumber={isAtLeast('officer') ? getStage(map?.current_stage ?? 1).zoneNumber : null}
                 />
               ))}
               {layers.showZones && zones.map((zone) => (
