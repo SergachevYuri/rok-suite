@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { Users, CheckCircle, Info, X, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Users, CheckCircle, Info, X, ChevronDown, ChevronUp, Trash2, Plus } from 'lucide-react';
+import { MgeSkillInput } from './MgeSkillInput';
+import SearchableSelect, { type SearchableOption } from '@/components/ui/SearchableSelect';
+import { supabase } from '@/lib/supabase';
 import {
   updateApplicationStatus,
   convertApprovedToSelections,
   deleteApplication,
+  submitApplication,
   type MgeEvent,
   type MgeApplication,
 } from '@/lib/supabase/use-mge';
@@ -17,6 +21,13 @@ import {
   type InvestmentBreakdown,
 } from '@/lib/mge/helpers';
 import { allianceDisplay } from '@/lib/alliances';
+
+interface RosterMember {
+  id: string;
+  name: string;
+  alliance: string | null;
+  power: number;
+}
 
 interface MgeReviewTabProps {
   event: MgeEvent;
@@ -398,8 +409,184 @@ function ReviewSection({
   );
 }
 
+function AddApplicantForm({
+  event,
+  onDone,
+  onCancel,
+}: {
+  event: MgeEvent;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [roster, setRoster] = useState<RosterMember[]>([]);
+  const [name, setName] = useState('');
+  const [alliance, setAlliance] = useState('');
+  const [power, setPower] = useState<number | null>(null);
+  const [level, setLevel] = useState(60);
+  const [skills, setSkills] = useState([5, 5, 5, 5]);
+  const [stars, setStars] = useState(5);
+  const [preferredTier, setPreferredTier] = useState('');
+  const [maxTier, setMaxTier] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function fetchRoster() {
+      const { data } = await supabase
+        .from('alliance_roster')
+        .select('id, name, alliance, power')
+        .eq('is_active', true)
+        .order('power', { ascending: false });
+      setRoster(data || []);
+    }
+    fetchRoster();
+  }, []);
+
+  useEffect(() => {
+    if (name) {
+      const member = roster.find(m => m.name.toLowerCase() === name.toLowerCase());
+      if (member) {
+        setAlliance(member.alliance || '');
+        setPower(member.power);
+      }
+    }
+  }, [name, roster]);
+
+  const rosterOptions = useMemo<SearchableOption[]>(
+    () => roster.map((m) => ({
+      value: m.name,
+      label: m.name,
+      secondary: [m.alliance ? allianceDisplay(m.alliance) : '', formatPower(m.power)].filter(Boolean).join(' '),
+    })),
+    [roster],
+  );
+
+  const focusCommander = event.mge_event_commanders.find(c => c.is_focus)?.commander_name
+    || event.mge_event_commanders[0]?.commander_name
+    || event.focused_commander.split(',')[0]?.trim()
+    || '';
+
+  const tiers = event.mge_rank_tiers || [];
+
+  const inputClass = 'rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50';
+  const inputStyle = { backgroundColor: 'var(--background-secondary)', borderColor: 'var(--border)', color: 'var(--foreground)' };
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !focusCommander) return;
+    setSubmitting(true);
+
+    const result = await submitApplication(event.id, {
+      applicant_name: name.trim(),
+      applicant_alliance: alliance || null,
+      applicant_power: power,
+      commander_name: focusCommander,
+      commander_level: level,
+      skill_levels: skills,
+      commander_stars: stars,
+      preferred_tier: preferredTier || null,
+      max_tier: maxTier || null,
+      notes: notes.trim() || null,
+    });
+
+    if (result) {
+      onDone();
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="p-4 border-b space-y-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background-secondary)' }}>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-blue-400">Add Applicant Manually</p>
+        <button type="button" onClick={onCancel} className="p-1 rounded-md hover:bg-[var(--background-card)] transition-fast" style={{ color: 'var(--text-muted)' }}>
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Name */}
+      <div>
+        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Player Name</label>
+        <SearchableSelect
+          options={rosterOptions}
+          value={name || null}
+          onChange={(_val, label) => setName(label)}
+          placeholder="Search player..."
+          autoFocus
+        />
+        {name && power && (
+          <div className="flex gap-3 mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+            {alliance && <span>{allianceDisplay(alliance)}</span>}
+            <span>{formatPower(power)} power</span>
+          </div>
+        )}
+      </div>
+
+      {/* Commander Stats */}
+      <div>
+        <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+          {focusCommander} Stats
+        </label>
+        <MgeSkillInput
+          level={level}
+          skills={skills}
+          stars={stars}
+          onLevelChange={setLevel}
+          onSkillsChange={setSkills}
+          onStarsChange={setStars}
+          compact
+        />
+      </div>
+
+      {/* Tier Preferences */}
+      {tiers.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Preferred Tier</label>
+            <select value={preferredTier} onChange={e => setPreferredTier(e.target.value)} className={inputClass + ' w-full'} style={inputStyle}>
+              <option value="">Select...</option>
+              {tiers.map(t => (
+                <option key={t.tier_label} value={t.tier_label}>
+                  {t.tier_label}{t.point_cap ? ` (${formatPower(t.point_cap)} pts)` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Lowest Acceptable</label>
+            <select value={maxTier} onChange={e => setMaxTier(e.target.value)} className={inputClass + ' w-full'} style={inputStyle}>
+              <option value="">Any</option>
+              {tiers.map(t => (
+                <option key={t.tier_label} value={t.tier_label}>{t.tier_label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      <div>
+        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Notes (optional)</label>
+        <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Officer notes..."
+          className={inputClass + ' w-full'} style={inputStyle} />
+      </div>
+
+      {/* Submit */}
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={submitting || !name.trim()}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-fast disabled:opacity-40"
+      >
+        <Plus size={14} />
+        {submitting ? 'Adding...' : 'Add Applicant'}
+      </button>
+    </div>
+  );
+}
+
 export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
   const [finalizing, setFinalizing] = useState(false);
+  const [showAddApplicant, setShowAddApplicant] = useState(false);
 
   const apps = event.mge_applications || [];
   const tiers = event.mge_rank_tiers || [];
@@ -478,7 +665,7 @@ export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
     setFinalizing(false);
   };
 
-  if (apps.length === 0) {
+  if (apps.length === 0 && !showAddApplicant) {
     return (
       <div className="p-8 text-center">
         <Users size={36} className="mx-auto mb-3 text-zinc-500" />
@@ -486,6 +673,27 @@ export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
           Applications will appear here once players submit them.
         </p>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setShowAddApplicant(true)}
+            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-fast"
+          >
+            <Plus size={14} /> Add Applicant
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (apps.length === 0 && showAddApplicant && isAdmin) {
+    return (
+      <div className="p-4">
+        <AddApplicantForm
+          event={event}
+          onDone={() => { setShowAddApplicant(false); onUpdate(); }}
+          onCancel={() => setShowAddApplicant(false)}
+        />
       </div>
     );
   }
@@ -529,7 +737,30 @@ export function MgeReviewTab({ event, isAdmin, onUpdate }: MgeReviewTabProps) {
         <span className="text-emerald-400 font-medium">{assigned.length} assigned</span>
         <span className="text-red-400">{skipped.length} skipped</span>
         <span style={{ color: 'var(--text-muted)' }}>{needsReview.length} undecided</span>
+        {isAdmin && (
+          <>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={() => setShowAddApplicant(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-fast"
+            >
+              <Plus size={14} /> Add Applicant
+            </button>
+          </>
+        )}
       </div>
+
+      {/* Add applicant form (admin) */}
+      {showAddApplicant && isAdmin && (
+        <div className="mb-4">
+          <AddApplicantForm
+            event={event}
+            onDone={() => { setShowAddApplicant(false); onUpdate(); }}
+            onCancel={() => setShowAddApplicant(false)}
+          />
+        </div>
+      )}
 
       {/* Sections */}
       <ReviewSection title="Needs Review" count={needsReview.length} defaultOpen={true} accentColor="text-orange-400">
