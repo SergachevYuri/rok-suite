@@ -79,6 +79,7 @@ export interface KvkMapZone {
   map_id: string;
   zone_number: number;
   name: string | null;
+  kingdom: string | null;
   zone_type: 'zone' | 'starting_zone';
   polygon: [number, number][];
   color: string;

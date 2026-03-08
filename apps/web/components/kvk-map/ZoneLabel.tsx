@@ -28,21 +28,25 @@ export default function ZoneLabel({ zone, zoom = -1 }: ZoneLabelProps) {
 
   const icon = useMemo(() => {
     const label = zone.name || `Zone ${zone.zone_number}`;
+    const kingdomLine = zone.kingdom
+      ? `<div style="font-size: ${Math.max(fontSize - 3, 7)}px; font-weight: 700; color: rgba(255,200,50,0.9); margin-top: 1px;">K${zone.kingdom}</div>`
+      : '';
     return new L.DivIcon({
       className: '',
       iconAnchor: [0, 0],
       html: `<div style="
         transform: translate(-50%, -50%);
         white-space: nowrap;
+        text-align: center;
         font-size: ${fontSize}px;
         font-weight: 600;
         color: rgba(255,255,255,0.85);
         text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
         pointer-events: none;
         user-select: none;
-      ">${label}</div>`,
+      ">${label}${kingdomLine}</div>`,
     });
-  }, [zone.name, zone.zone_number, fontSize]);
+  }, [zone.name, zone.zone_number, zone.kingdom, fontSize]);
 
   // Leaflet CRS.Simple: [lat, lng] = [y, x]
   const position: L.LatLngExpression = [cy, cx];

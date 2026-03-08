@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { Flag, X } from 'lucide-react';
 import { isPointInPolygon } from '@/lib/kvk-map/point-in-zone';
 import { FEATURE_TYPE_CONFIG } from '@/lib/kvk-feature-config';
@@ -26,6 +26,36 @@ interface ZonePlanPanelProps {
   isPlacingFlag: boolean;
   onSelectFeature: (id: string) => void;
   onClearFocus: () => void;
+  onUpdateKingdom?: (kingdom: string | null) => void;
+}
+
+function KingdomInput({ kingdom, onUpdate }: { kingdom: string | null; onUpdate: (k: string | null) => void }) {
+  const [value, setValue] = useState(kingdom || '');
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Sync from prop when zone changes
+  useEffect(() => { setValue(kingdom || ''); }, [kingdom]);
+
+  const handleChange = (v: string) => {
+    setValue(v);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => onUpdate(v || null), 500);
+  };
+
+  return (
+    <input
+      type="text"
+      placeholder="K#"
+      value={value}
+      onChange={(e) => handleChange(e.target.value)}
+      onBlur={() => { clearTimeout(timerRef.current); onUpdate(value || null); }}
+      className="w-14 text-[11px] font-bold px-1.5 py-0.5 rounded border bg-transparent text-center"
+      style={{
+        borderColor: 'var(--border)',
+        color: value ? 'rgba(255,200,50,0.9)' : 'var(--text-muted)',
+      }}
+    />
+  );
 }
 
 export default function ZonePlanPanel({
@@ -40,6 +70,7 @@ export default function ZonePlanPanel({
   isPlacingFlag,
   onSelectFeature,
   onClearFocus,
+  onUpdateKingdom,
 }: ZonePlanPanelProps) {
   const assignmentMap = useMemo(
     () => new Map(assignments.map((a) => [a.feature_id, a])),
@@ -109,9 +140,14 @@ export default function ZonePlanPanel({
             Zone {zone.zone_number}
           </span>
         </div>
-        <button onClick={onClearFocus} className="p-1 rounded hover:bg-white/10 transition-colors">
-          <X size={14} style={{ color: 'var(--text-muted)' }} />
-        </button>
+        <div className="flex items-center gap-2">
+          {onUpdateKingdom && (
+            <KingdomInput kingdom={zone.kingdom} onUpdate={onUpdateKingdom} />
+          )}
+          <button onClick={onClearFocus} className="p-1 rounded hover:bg-white/10 transition-colors">
+            <X size={14} style={{ color: 'var(--text-muted)' }} />
+          </button>
+        </div>
       </div>
 
       {/* Fort Drops */}

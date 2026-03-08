@@ -1297,6 +1297,10 @@ export default function WarRoomPage() {
                       selection.setSelectedZoneId(null);
                     }}
                     onClearFocus={() => selection.setSelectedZoneId(null)}
+                    onUpdateKingdom={async (kingdom) => {
+                      const ok = await updateMapZone(selectedZone.id, { kingdom });
+                      if (ok) refetchZones();
+                    }}
                   />
                 )
               ) : selectedFeature ? (

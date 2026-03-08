@@ -160,7 +160,7 @@ export async function updateMapStage(
 
 export async function updateMapZone(
   zoneId: string,
-  updates: Partial<Pick<KvkMapZone, 'polygon' | 'name' | 'color' | 'opacity'>>,
+  updates: Partial<Pick<KvkMapZone, 'polygon' | 'name' | 'color' | 'opacity' | 'kingdom'>>,
 ): Promise<boolean> {
   const { error } = await supabase
     .from('kvk_map_zones')
