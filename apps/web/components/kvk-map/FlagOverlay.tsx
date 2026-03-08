@@ -40,8 +40,11 @@ export default function FlagOverlay({
   const half = tileSize / 2;
 
   const color = allianceColor || config?.color || '#64748b';
-  const dimScale = dimmed ? 0.25 : 1;
-  const statusOpacity = (assignmentStatus === 'lost' ? 0.3 : 1) * dimScale;
+  const dimScale = dimmed ? 0.2 : 1;
+  const statusOpacity = (assignmentStatus === 'lost' ? 0.25 : 0.7) * dimScale;
+
+  // At low zoom, show only thin outlines; at higher zoom, show labels
+  const showLabel = zoom >= 1;
 
   // Rectangle bounds: [southWest, northEast] = [[y-half, x-half], [y+half, x+half]]
   const rectBounds = useMemo<L.LatLngBoundsExpression>(
@@ -58,9 +61,18 @@ export default function FlagOverlay({
     [feature.x, feature.y]
   );
 
-  // Small center icon for click/drag
+  // Small center icon for click/drag — only visible when zoomed in
   const icon = useMemo(() => {
-    const size = 14 + (zoom + 2) * 2;
+    if (!showLabel) {
+      // Invisible 1px icon just for click target
+      return new L.DivIcon({
+        className: '',
+        iconSize: [1, 1],
+        iconAnchor: [0, 0],
+        html: `<div style="width:1px;height:1px;cursor:pointer;"></div>`,
+      });
+    }
+    const size = 12 + (zoom + 2) * 1.5;
     const label = allianceTag || config?.abbreviation || 'FL';
     return new L.DivIcon({
       className: '',
@@ -70,19 +82,25 @@ export default function FlagOverlay({
         width: ${size}px;
         height: ${size}px;
         border-radius: 2px;
-        background: rgba(0,0,0,0.6);
-        border: 1px solid ${color};
+        background: rgba(0,0,0,0.45);
+        border: 0.5px solid ${color};
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: ${Math.max(8, Math.round(size * 0.55))}px;
-        font-weight: 700;
+        font-size: ${Math.max(7, Math.round(size * 0.5))}px;
+        font-weight: 600;
         color: ${color};
         cursor: pointer;
-        opacity: ${dimScale};
+        opacity: ${dimScale * 0.85};
       ">${label}</div>`,
     });
-  }, [zoom, color, allianceTag, config?.abbreviation, dimScale]);
+  }, [zoom, showLabel, color, allianceTag, config?.abbreviation, dimScale]);
+
+  // Zoom-dependent rectangle style: subtle outlines when zoomed out, more visible when zoomed in
+  const rectWeight = showLabel ? (isSelected ? 1.5 : 0.5) : (isSelected ? 1 : 0.3);
+  const rectFillOpacity = showLabel
+    ? (isSelected ? 0.2 : 0.08) * statusOpacity
+    : (isSelected ? 0.1 : 0.03) * statusOpacity;
 
   return (
     <>
@@ -90,11 +108,11 @@ export default function FlagOverlay({
         bounds={rectBounds}
         pathOptions={{
           color,
-          weight: isSelected ? 2 : 1,
+          weight: rectWeight,
           opacity: statusOpacity,
           fillColor: color,
-          fillOpacity: (isSelected ? 0.35 : 0.2) * statusOpacity,
-          dashArray: isSelected ? undefined : '4 2',
+          fillOpacity: rectFillOpacity,
+          dashArray: isSelected ? undefined : showLabel ? '4 3' : '2 2',
         }}
         eventHandlers={{
           click: () => onClick?.(feature),

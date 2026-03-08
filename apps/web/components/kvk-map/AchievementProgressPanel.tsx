@@ -226,7 +226,7 @@ export default function AchievementProgressPanel({
     >
       {/* Header bar */}
       <div
-        className="flex items-center gap-3 px-3 py-2"
+        className="flex items-center gap-3 px-3 py-1.5"
         style={{ backgroundColor: 'var(--background-card)' }}
       >
         <button onClick={onToggle} className="flex items-center gap-2">
@@ -290,7 +290,7 @@ export default function AchievementProgressPanel({
       {/* Body — horizontal layout */}
       {!collapsed && (
         <div
-          className="flex gap-3 px-3 py-2 overflow-x-auto"
+          className="flex gap-2 px-3 py-1.5 overflow-x-auto"
           style={{ backgroundColor: 'var(--background-card)' }}
         >
           {/* Left: Alliance Income */}
@@ -311,7 +311,7 @@ export default function AchievementProgressPanel({
           )}
 
           {/* Center: Achievement categories */}
-          <div className="flex-1 min-w-0 overflow-y-auto" style={{ maxHeight: '280px' }}>
+          <div className="flex-1 min-w-0 overflow-y-auto" style={{ maxHeight: '200px' }}>
             {mappable.length > 0 && (
               <div>
                 {mappable.map((cat) => (
