@@ -20,6 +20,15 @@ function computeCentroid(polygon: [number, number][]): [number, number] {
   return [sumX / polygon.length, sumY / polygon.length];
 }
 
+/**
+ * Estimate the pixel width of a text string at a given font size and weight.
+ * Uses approximate average character widths for sans-serif at weight 600.
+ */
+function estimateTextWidth(text: string, size: number): number {
+  // At 600 weight, average char width is ~0.62 * fontSize for sans-serif
+  return text.length * size * 0.62;
+}
+
 export default function ZoneLabel({ zone, zoom = -1 }: ZoneLabelProps) {
   const [cx, cy] = useMemo(() => computeCentroid(zone.polygon), [zone.polygon]);
 
@@ -28,17 +37,29 @@ export default function ZoneLabel({ zone, zoom = -1 }: ZoneLabelProps) {
 
   const icon = useMemo(() => {
     const label = zone.name || `Zone ${zone.zone_number}`;
-    const kingdomLine = zone.kingdom
+    const hasKingdom = !!zone.kingdom;
+    const kingdomLine = hasKingdom
       ? `<div style="font-size: ${Math.max(fontSize - 3, 7)}px; font-weight: 700; color: rgba(255,200,50,0.9); margin-top: 1px;">K${zone.kingdom}</div>`
       : '';
+
+    // Estimate dimensions for iconAnchor centering
+    const nameWidth = estimateTextWidth(label, fontSize);
+    const kingdomWidth = hasKingdom ? estimateTextWidth(`K${zone.kingdom}`, Math.max(fontSize - 3, 7)) : 0;
+    const estWidth = Math.max(nameWidth, kingdomWidth) + 4; // small padding
+    const lineHeight = fontSize * 1.3;
+    const estHeight = hasKingdom ? lineHeight * 2 + 2 : lineHeight;
+
     return new L.DivIcon({
-      className: 'zone-label-anchor',
-      iconSize: [0, 0],
-      iconAnchor: [0, 0],
+      className: '',
+      iconSize: [estWidth, estHeight],
+      iconAnchor: [estWidth / 2, estHeight / 2],
       html: `<div style="
-        position: absolute;
-        left: 0; top: 0;
-        transform: translate(-50%, -50%);
+        width: ${estWidth}px;
+        height: ${estHeight}px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         white-space: nowrap;
         text-align: center;
         font-size: ${fontSize}px;
