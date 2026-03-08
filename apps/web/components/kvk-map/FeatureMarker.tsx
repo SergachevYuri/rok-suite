@@ -11,6 +11,8 @@ interface FeatureMarkerProps {
   isSelected?: boolean;
   isDraggable?: boolean;
   dimmed?: boolean;
+  /** Render in minimal mode (smaller, subtler) for viewer/read-only contexts */
+  minimal?: boolean;
   zoom?: number;
   allianceColor?: string | null;
   allianceTag?: string | null;
@@ -39,28 +41,32 @@ function createDivIcon(
   allianceColor?: string | null,
   assignmentStatus?: AssignmentStatus | null,
   dimmed?: boolean,
+  minimal?: boolean,
 ): L.DivIcon {
   const config = FEATURE_TYPE_CONFIG[featureType as keyof typeof FEATURE_TYPE_CONFIG];
   if (!config) return new L.DivIcon();
 
-  // Scale: 16px at zoom -2, 20px at -1, 24 at 0, 28 at 1, 32 at 2
-  const baseSize = 16 + (zoom + 2) * 4;
+  // Minimal mode: smaller dots for read-only viewers
+  const baseSize = minimal
+    ? 8 + (zoom + 2) * 2   // 8px at -2, 10 at -1, 12 at 0
+    : 16 + (zoom + 2) * 4; // 16px at -2, 20 at -1, 24 at 0
   const innerSize = isSelected ? baseSize + 8 : baseSize;
-  const displayText = level != null ? String(level) : config.abbreviation;
-  const bg = isSelected ? config.color : hexToRgba(config.color, 0.55);
+  const displayText = minimal ? '' : level != null ? String(level) : config.abbreviation;
+  const bgAlpha = minimal ? 0.4 : 0.55;
+  const bg = isSelected ? config.color : hexToRgba(config.color, bgAlpha);
   const border = isSelected
     ? `2px solid rgba(255,255,255,0.8)`
-    : `1.5px solid rgba(0,0,0,0.25)`;
+    : minimal ? `1px solid rgba(0,0,0,0.15)` : `1.5px solid rgba(0,0,0,0.25)`;
   const shadow = isSelected
     ? '0 0 10px rgba(255,255,255,0.35)'
-    : '0 1px 3px rgba(0,0,0,0.3)';
+    : minimal ? 'none' : '0 1px 3px rgba(0,0,0,0.3)';
 
-  // Alliance color ring
-  const hasRing = !!allianceColor;
+  // Alliance color ring (skip in minimal)
+  const hasRing = !minimal && !!allianceColor;
   const ringPad = hasRing ? 3 : 0;
   const totalSize = innerSize + ringPad * 2;
   const ringBorder = hasRing ? `3px solid ${allianceColor}` : 'none';
-  const statusOpacity = assignmentStatus === 'lost' ? 0.4 : dimmed ? 0.2 : 1;
+  const statusOpacity = assignmentStatus === 'lost' ? 0.4 : dimmed ? 0.2 : minimal ? 0.6 : 1;
 
   const innerHtml = `<div class="kvk-badge" style="
     --c: ${config.color};
@@ -107,6 +113,7 @@ export default function FeatureMarker({
   isSelected = false,
   isDraggable = false,
   dimmed = false,
+  minimal = false,
   zoom = -1,
   allianceColor,
   allianceTag,
@@ -117,8 +124,8 @@ export default function FeatureMarker({
   onMouseOut,
 }: FeatureMarkerProps) {
   const icon = useMemo(
-    () => createDivIcon(feature.feature_type, isSelected, feature.level, zoom, allianceColor, assignmentStatus, dimmed),
-    [feature.feature_type, isSelected, feature.level, zoom, allianceColor, assignmentStatus, dimmed]
+    () => createDivIcon(feature.feature_type, isSelected, feature.level, zoom, allianceColor, assignmentStatus, dimmed, minimal),
+    [feature.feature_type, isSelected, feature.level, zoom, allianceColor, assignmentStatus, dimmed, minimal]
   );
 
   const config = FEATURE_TYPE_CONFIG[feature.feature_type];

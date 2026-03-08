@@ -1012,6 +1012,7 @@ export default function WarRoomPage() {
                     isSelected={feature.id === selection.selectedFeatureId}
                     isDraggable={isAdminMode && !placement.isPlacing && !isDrawingZone}
                     dimmed={isDimmed}
+                    minimal={!isOfficerMode}
                     zoom={zoom}
                     allianceColor={alliance?.color}
                     allianceTag={alliance?.tag}
@@ -1334,15 +1335,15 @@ export default function WarRoomPage() {
           )}
         </div>
 
-        {/* Bottom panel: Achievement Progress */}
-        <AchievementProgressPanel
+        {/* Bottom panel: Achievement Progress (officers only) */}
+        {isOfficerMode && <AchievementProgressPanel
           features={features}
           assignments={isOfficerMode ? activeAssignments : []}
           alliances={isOfficerMode ? alliances : []}
           rssNodes={rssNodes}
           collapsed={!bottomPanelOpen}
           onToggle={() => setBottomPanelOpen((v) => !v)}
-        />
+        />}
       </div>
     </div>
   );

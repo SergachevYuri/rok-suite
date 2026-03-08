@@ -48,18 +48,18 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
       polygonRef.current?.setStyle({
         color: zone.color,
         fillColor: zone.color,
-        fillOpacity: hasKingdomFill ? 0.08 : 0,
-        weight: 1,
-        opacity: 0.3,
+        fillOpacity: hasKingdomFill ? 0.15 : 0,
+        weight: hasKingdomFill ? 1.5 : 1,
+        opacity: hasKingdomFill ? 0.5 : 0.3,
         dashArray: hasKingdomFill ? undefined : '6 3',
       });
     } else if (hasKingdomFill) {
       polygonRef.current?.setStyle({
         color: zone.color,
         fillColor: zone.color,
-        fillOpacity: 0.08,
-        weight: 1,
-        opacity: 0.3,
+        fillOpacity: 0.15,
+        weight: 1.5,
+        opacity: 0.5,
       });
     } else {
       polygonRef.current?.setStyle({
@@ -76,9 +76,9 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
   // Zones with kingdoms get a subtle tinted fill even when not interactive
   const baseColor = showHighlight ? '#ffffff' : isDimmed ? '#ffffff' : interactive || hasKingdomFill ? zone.color : 'transparent';
   const baseFill = showHighlight ? '#ffffff' : isDimmed ? '#ffffff' : hasKingdomFill ? zone.color : 'transparent';
-  const baseFillOpacity = isSelected ? 0.18 : showHighlight ? 0.12 : isDimmed ? 0.35 : hasKingdomFill ? 0.08 : 0;
-  const baseWeight = isSelected ? 2 : showHighlight ? 1 : isDimmed ? 0 : interactive || hasKingdomFill ? 1 : 0;
-  const baseOpacity = isSelected ? 0.5 : showHighlight ? 0.3 : isDimmed ? 0 : interactive || hasKingdomFill ? 0.3 : 0;
+  const baseFillOpacity = isSelected ? 0.22 : showHighlight ? 0.15 : isDimmed ? 0.35 : hasKingdomFill ? 0.15 : 0;
+  const baseWeight = isSelected ? 2 : showHighlight ? 1.5 : isDimmed ? 0 : hasKingdomFill ? 1.5 : interactive ? 1 : 0;
+  const baseOpacity = isSelected ? 0.6 : showHighlight ? 0.4 : isDimmed ? 0 : hasKingdomFill ? 0.5 : interactive ? 0.3 : 0;
 
   return (
     <Polygon
