@@ -8,6 +8,8 @@ import { formatTarget } from '@/lib/kvk-achievements/normalize';
 import type { KvkSeason } from '@/lib/kvk-achievements/types';
 import type { CategoryProgress, TierProgress, RequirementProgress } from '@/lib/kvk-achievements/compute-progress';
 import type { KvkMapFeature, KvkAssignment, KvkAlliance } from '@/lib/kvk-map-types';
+import type { RssNode } from '@/lib/kvk-map/rss-review';
+import AllianceIncomeSummary from './AllianceIncomeSummary';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
 
@@ -15,6 +17,7 @@ interface AchievementProgressPanelProps {
   features: KvkMapFeature[];
   assignments: KvkAssignment[];
   alliances: KvkAlliance[];
+  rssNodes: RssNode[];
   collapsed: boolean;
   onToggle: () => void;
 }
@@ -195,6 +198,7 @@ export default function AchievementProgressPanel({
   features,
   assignments,
   alliances,
+  rssNodes,
   collapsed,
   onToggle,
 }: AchievementProgressPanelProps) {
@@ -287,8 +291,20 @@ export default function AchievementProgressPanel({
       {!collapsed && (
         <div
           className="overflow-y-auto px-2 pb-2"
-          style={{ maxHeight: '280px', backgroundColor: 'var(--background-card)' }}
+          style={{ maxHeight: '360px', backgroundColor: 'var(--background-card)' }}
         >
+          {/* Alliance Income Summary */}
+          {alliances.length > 0 && (
+            <div className="mb-2 pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
+              <AllianceIncomeSummary
+                features={features}
+                assignments={assignments}
+                alliances={alliances}
+                rssNodes={rssNodes}
+              />
+            </div>
+          )}
+
           {mappable.length > 0 && (
             <div>
               {mappable.map((cat) => (

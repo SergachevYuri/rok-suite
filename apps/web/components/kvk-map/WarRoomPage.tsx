@@ -1335,6 +1335,7 @@ export default function WarRoomPage() {
           features={features}
           assignments={isOfficerMode ? activeAssignments : []}
           alliances={isOfficerMode ? alliances : []}
+          rssNodes={rssNodes}
           collapsed={!bottomPanelOpen}
           onToggle={() => setBottomPanelOpen((v) => !v)}
         />
