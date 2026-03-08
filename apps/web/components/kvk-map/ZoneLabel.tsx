@@ -33,6 +33,7 @@ export default function ZoneLabel({ zone, zoom = -1 }: ZoneLabelProps) {
       : '';
     return new L.DivIcon({
       className: '',
+      iconSize: [0, 0],
       iconAnchor: [0, 0],
       html: `<div style="
         transform: translate(-50%, -50%);
