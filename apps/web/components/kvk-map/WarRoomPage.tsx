@@ -970,8 +970,8 @@ export default function WarRoomPage() {
                 <ZonePolygon
                   key={zone.id}
                   zone={zone}
-                  onClick={(isAdminMode || isOfficerMode) ? handleZoneClick : undefined}
-                  isSelected={(isAdminMode || isOfficerZoneFocus) && zone.id === selection.selectedZoneId}
+                  onClick={handleZoneClick}
+                  isSelected={zone.id === selection.selectedZoneId}
                   isHighlighted={selection.hoveredZoneNumber != null && zone.zone_number === selection.hoveredZoneNumber}
                   activeZoneNumber={isAtLeast('officer') ? getStage(map?.current_stage ?? 1).zoneNumber : null}
                 />
@@ -1288,8 +1288,8 @@ export default function WarRoomPage() {
                     assignments={activeAssignments}
                     alliances={alliances}
                     rssNodes={rssNodes}
-                    onPlaceFortress={handlePlaceFortress}
-                    onPlaceFlag={handlePlaceFlag}
+                    onPlaceFortress={isOfficerMode ? handlePlaceFortress : undefined}
+                    onPlaceFlag={isOfficerMode ? handlePlaceFlag : undefined}
                     isPlacingFortress={placement.isPlacing && placement.placingType === 'fortress'}
                     isPlacingFlag={placement.isPlacing && placement.placingType === 'flag'}
                     onSelectFeature={(id) => {
@@ -1297,10 +1297,10 @@ export default function WarRoomPage() {
                       selection.setSelectedZoneId(null);
                     }}
                     onClearFocus={() => selection.setSelectedZoneId(null)}
-                    onUpdateKingdom={async (kingdom) => {
+                    onUpdateKingdom={isOfficerMode ? async (kingdom) => {
                       const ok = await updateMapZone(selectedZone.id, { kingdom });
                       if (ok) refetchZones();
-                    }}
+                    } : undefined}
                   />
                 )
               ) : selectedFeature ? (

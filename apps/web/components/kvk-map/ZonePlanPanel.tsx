@@ -20,8 +20,8 @@ interface ZonePlanPanelProps {
   assignments: KvkAssignment[];
   alliances: KvkAlliance[];
   rssNodes: RssNode[];
-  onPlaceFortress: () => void;
-  onPlaceFlag: () => void;
+  onPlaceFortress?: () => void;
+  onPlaceFlag?: () => void;
   isPlacingFortress: boolean;
   isPlacingFlag: boolean;
   onSelectFeature: (id: string) => void;
@@ -141,9 +141,13 @@ export default function ZonePlanPanel({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {onUpdateKingdom && (
+          {onUpdateKingdom ? (
             <KingdomInput kingdom={zone.kingdom} onUpdate={onUpdateKingdom} />
-          )}
+          ) : zone.kingdom ? (
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,200,50,0.15)', color: 'rgba(255,200,50,0.9)' }}>
+              K{zone.kingdom}
+            </span>
+          ) : null}
           <button onClick={onClearFocus} className="p-1 rounded hover:bg-white/10 transition-colors">
             <X size={14} style={{ color: 'var(--text-muted)' }} />
           </button>
@@ -158,7 +162,7 @@ export default function ZonePlanPanel({
 
         {forts.length === 0 ? (
           <p className="text-xs" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
-            Place a fortress for each alliance that will drop here
+            {onPlaceFortress ? 'Place a fortress for each alliance that will drop here' : 'No forts placed yet'}
           </p>
         ) : (
           <div className="space-y-1">
@@ -196,7 +200,8 @@ export default function ZonePlanPanel({
           </div>
         )}
 
-        {/* Placement buttons */}
+        {/* Placement buttons — officers only */}
+        {(onPlaceFortress || onPlaceFlag) && (
         <div className="flex gap-2 pt-1">
           <button
             onClick={onPlaceFortress}
@@ -223,6 +228,7 @@ export default function ZonePlanPanel({
             {isPlacingFlag ? 'Placing...' : 'Flag'}
           </button>
         </div>
+        )}
       </div>
 
       {/* Buildings summary */}
