@@ -9,7 +9,8 @@ import type { KvkSeason } from '@/lib/kvk-achievements/types';
 import type { CategoryProgress, TierProgress, RequirementProgress } from '@/lib/kvk-achievements/compute-progress';
 import type { KvkMapFeature, KvkAssignment, KvkAlliance } from '@/lib/kvk-map-types';
 import type { RssNode } from '@/lib/kvk-map/rss-review';
-import AllianceIncomeSummary from './AllianceIncomeSummary';
+import AllianceIncomeSummary, { useAllianceIncomes } from './AllianceIncomeSummary';
+import OccupationCalculator from './OccupationCalculator';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
 
@@ -22,7 +23,7 @@ interface AchievementProgressPanelProps {
   onToggle: () => void;
 }
 
-// ── Tier badge (larger, readable) ───────────────────────────────────
+// ── Tier badge ───────────────────────────────────────────────────────
 
 function TierBadge({ tier }: { tier: TierProgress }) {
   const mapReqs = tier.requirements.filter((r) => r.mappable);
@@ -30,7 +31,7 @@ function TierBadge({ tier }: { tier: TierProgress }) {
   if (mapReqs.length === 0) {
     return (
       <span
-        className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[10px]"
+        className="w-6 h-6 rounded-full inline-flex items-center justify-center text-[9px]"
         style={{ backgroundColor: 'var(--background-hover)', color: 'var(--text-muted)' }}
         title={tier.task}
       >
@@ -42,11 +43,11 @@ function TierBadge({ tier }: { tier: TierProgress }) {
   if (tier.mapSatisfied) {
     return (
       <span
-        className="w-7 h-7 rounded-full inline-flex items-center justify-center"
+        className="w-6 h-6 rounded-full inline-flex items-center justify-center"
         style={{ backgroundColor: '#22c55e', color: '#fff' }}
         title={`Tier ${tier.level}: ${tier.task}`}
       >
-        <Check size={14} strokeWidth={3} />
+        <Check size={12} strokeWidth={3} />
       </span>
     );
   }
@@ -56,7 +57,7 @@ function TierBadge({ tier }: { tier: TierProgress }) {
 
   return (
     <span
-      className="w-7 h-7 rounded-full inline-flex items-center justify-center text-[10px] font-bold"
+      className="w-6 h-6 rounded-full inline-flex items-center justify-center text-[9px] font-bold"
       style={{
         backgroundColor: primary.current > 0 ? 'rgba(251, 191, 36, 0.25)' : 'var(--background-hover)',
         color: primary.current > 0 ? '#fbbf24' : 'var(--text-muted)',
@@ -69,7 +70,7 @@ function TierBadge({ tier }: { tier: TierProgress }) {
   );
 }
 
-// ── Progress bar for expanded tier detail ────────────────────────────
+// ── Progress bar ─────────────────────────────────────────────────────
 
 function ProgressBar({ req }: { req: RequirementProgress }) {
   const pct = Math.min((req.current / req.target) * 100, 100);
@@ -104,7 +105,7 @@ function ProgressBar({ req }: { req: RequirementProgress }) {
   );
 }
 
-// ── Category row ────────────────────────────────────────────────────
+// ── Category row ─────────────────────────────────────────────────────
 
 function CategoryRow({ category }: { category: CategoryProgress }) {
   const [expanded, setExpanded] = useState(false);
@@ -118,11 +119,11 @@ function CategoryRow({ category }: { category: CategoryProgress }) {
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+        className="w-full flex items-center gap-2 px-2 py-1.5 text-left transition-colors"
         style={{ opacity: category.hasMapReqs ? 1 : 0.5 }}
       >
         <ChevronRight
-          size={14}
+          size={12}
           className="shrink-0 transition-transform"
           style={{
             color: 'var(--text-muted)',
@@ -130,7 +131,7 @@ function CategoryRow({ category }: { category: CategoryProgress }) {
           }}
         />
         <span
-          className="text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
+          className="text-[9px] font-medium px-1 py-0.5 rounded shrink-0"
           style={{
             backgroundColor: category.scope === 'kingdom' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)',
             color: category.scope === 'kingdom' ? '#a78bfa' : '#60a5fa',
@@ -138,24 +139,22 @@ function CategoryRow({ category }: { category: CategoryProgress }) {
         >
           {scopeLabel}
         </span>
-        <span className="text-sm font-medium shrink-0" style={{ color: 'var(--foreground)' }}>
+        <span className="text-xs font-medium shrink-0" style={{ color: 'var(--foreground)' }}>
           {category.name}
         </span>
-        {/* Badges right next to the name */}
-        <div className="flex gap-1">
+        <div className="flex gap-0.5">
           {category.tiers.map((tier) => (
             <TierBadge key={tier.level} tier={tier} />
           ))}
         </div>
       </button>
 
-      {/* Expanded: show each tier with full progress bars */}
       {expanded && (
-        <div className="px-3 pb-2 space-y-2">
+        <div className="px-2 pb-2 space-y-2">
           {category.tiers.map((tier) => {
             const roman = ROMAN[tier.level - 1] || String(tier.level);
             return (
-              <div key={tier.level} className="pl-6">
+              <div key={tier.level} className="pl-5">
                 <div className="flex items-center gap-2 mb-1">
                   <span
                     className="text-xs font-bold w-6"
@@ -192,7 +191,7 @@ function CategoryRow({ category }: { category: CategoryProgress }) {
   );
 }
 
-// ── Main panel ──────────────────────────────────────────────────────
+// ── Main panel ───────────────────────────────────────────────────────
 
 export default function AchievementProgressPanel({
   features,
@@ -212,10 +211,11 @@ export default function AchievementProgressPanel({
     [filterAllianceId, assignments, features, dataset],
   );
 
+  const { totals } = useAllianceIncomes(features, assignments, alliances, rssNodes);
+
   const mappable = progress.filter((c) => c.hasMapReqs);
   const nonMappable = progress.filter((c) => !c.hasMapReqs);
 
-  // Summary for collapsed state
   const totalMapTiers = mappable.reduce((sum, c) => sum + c.tiers.filter((t) => t.requirements.some((r) => r.mappable)).length, 0);
   const completedMapTiers = mappable.reduce((sum, c) => sum + c.tiers.filter((t) => t.mapSatisfied).length, 0);
 
@@ -224,7 +224,7 @@ export default function AchievementProgressPanel({
       className="shrink-0 border-t mt-2"
       style={{ borderColor: 'var(--border)' }}
     >
-      {/* Header bar — always visible */}
+      {/* Header bar */}
       <div
         className="flex items-center gap-3 px-3 py-2"
         style={{ backgroundColor: 'var(--background-card)' }}
@@ -287,15 +287,15 @@ export default function AchievementProgressPanel({
         </div>
       </div>
 
-      {/* Body — only when expanded */}
+      {/* Body — horizontal layout */}
       {!collapsed && (
         <div
-          className="overflow-y-auto px-2 pb-2"
-          style={{ maxHeight: '360px', backgroundColor: 'var(--background-card)' }}
+          className="flex gap-3 px-3 py-2 overflow-x-auto"
+          style={{ backgroundColor: 'var(--background-card)' }}
         >
-          {/* Alliance Income Summary */}
+          {/* Left: Alliance Income */}
           {alliances.length > 0 && (
-            <div className="mb-2 pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="shrink-0">
               <AllianceIncomeSummary
                 features={features}
                 assignments={assignments}
@@ -305,30 +305,46 @@ export default function AchievementProgressPanel({
             </div>
           )}
 
-          {mappable.length > 0 && (
-            <div>
-              {mappable.map((cat) => (
-                <CategoryRow key={cat.id} category={cat} />
-              ))}
-            </div>
+          {/* Divider */}
+          {alliances.length > 0 && (
+            <div className="shrink-0 w-px self-stretch" style={{ backgroundColor: 'var(--border)' }} />
           )}
 
-          {nonMappable.length > 0 && (
-            <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
-              <p className="text-[11px] font-medium px-3 mb-1" style={{ color: 'var(--text-muted)' }}>
-                Manual Tracking (honor, kills, resources)
+          {/* Center: Achievement categories */}
+          <div className="flex-1 min-w-0 overflow-y-auto" style={{ maxHeight: '280px' }}>
+            {mappable.length > 0 && (
+              <div>
+                {mappable.map((cat) => (
+                  <CategoryRow key={cat.id} category={cat} />
+                ))}
+              </div>
+            )}
+
+            {nonMappable.length > 0 && (
+              <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+                <p className="text-[10px] font-medium px-2 mb-1" style={{ color: 'var(--text-muted)' }}>
+                  Manual Tracking
+                </p>
+                {nonMappable.map((cat) => (
+                  <CategoryRow key={cat.id} category={cat} />
+                ))}
+              </div>
+            )}
+
+            {progress.length === 0 && (
+              <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>
+                No achievement data for this season
               </p>
-              {nonMappable.map((cat) => (
-                <CategoryRow key={cat.id} category={cat} />
-              ))}
-            </div>
-          )}
+            )}
+          </div>
 
-          {progress.length === 0 && (
-            <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>
-              No achievement data for this season
-            </p>
-          )}
+          {/* Divider */}
+          <div className="shrink-0 w-px self-stretch" style={{ backgroundColor: 'var(--border)' }} />
+
+          {/* Right: Occupation Calculator */}
+          <div className="shrink-0 w-52">
+            <OccupationCalculator totals={totals} />
+          </div>
         </div>
       )}
     </div>
