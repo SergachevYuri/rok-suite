@@ -31,21 +31,29 @@ export default function ZoneLabel({ zone, zoom = -1 }: ZoneLabelProps) {
     const kingdomLine = zone.kingdom
       ? `<div style="font-size: ${Math.max(fontSize - 3, 7)}px; font-weight: 700; color: rgba(255,200,50,0.9); margin-top: 1px;">K${zone.kingdom}</div>`
       : '';
+    // Use a large fixed-size container with flexbox centering.
+    // iconSize [0,0] breaks CSS translate since parent has no width.
+    const w = 300;
+    const h = 80;
     return new L.DivIcon({
       className: '',
-      iconSize: [0, 0],
-      iconAnchor: [0, 0],
+      iconSize: [w, h],
+      iconAnchor: [w / 2, h / 2],
       html: `<div style="
-        transform: translate(-50%, -50%);
-        white-space: nowrap;
+        width: ${w}px;
+        height: ${h}px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         text-align: center;
+        white-space: nowrap;
         font-size: ${fontSize}px;
         font-weight: 600;
         color: rgba(255,255,255,0.85);
         text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
         pointer-events: none;
         user-select: none;
-      ">${label}${kingdomLine}</div>`,
+      "><div>${label}${kingdomLine}</div></div>`,
     });
   }, [zone.name, zone.zone_number, zone.kingdom, fontSize]);
 
