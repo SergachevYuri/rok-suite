@@ -73,7 +73,8 @@ function OccupationCalculator({
   useEffect(() => {
     if (!startTime) { setElapsed(null); return; }
     const compute = () => {
-      const start = new Date(startTime).getTime();
+      // Input is in UTC (game time), append Z to parse as UTC
+      const start = new Date(startTime + 'Z').getTime();
       if (isNaN(start)) { setElapsed(null); return; }
       const mins = (Date.now() - start) / 60_000;
       setElapsed(mins > 0 ? mins : 0);
@@ -108,7 +109,7 @@ function OccupationCalculator({
 
       <div className="flex items-center gap-3">
         <label className="text-[11px] shrink-0" style={{ color: 'var(--text-muted)' }}>
-          Started
+          Started (UTC)
         </label>
         <input
           type="datetime-local"
