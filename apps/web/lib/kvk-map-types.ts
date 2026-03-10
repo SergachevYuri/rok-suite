@@ -172,6 +172,80 @@ export interface KvkStrategy {
   updated_at: string;
 }
 
+// ─── War Planning Types ─────────────────────────────────────────────
+
+export type ArrowType = 'attack' | 'defend' | 'reinforce' | 'rally';
+export type DashStyle = 'solid' | 'dashed';
+
+export interface KvkMapArrow {
+  id: string;
+  map_id: string;
+  alliance_id: string | null;
+  stage: number;
+  arrow_type: ArrowType;
+  waypoints: [number, number][];
+  label: string | null;
+  color_override: string | null;
+  dash_style: DashStyle;
+  weight: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KvkMapDrawing {
+  id: string;
+  map_id: string;
+  stage: number;
+  points: [number, number][];
+  color: string;
+  weight: number;
+  opacity: number;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface KvkMapLabel {
+  id: string;
+  map_id: string;
+  stage: number;
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  font_size: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KvkZoneNote {
+  id: string;
+  map_id: string;
+  zone_id: string;
+  stage: number;
+  content: string;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+export interface KvkZoneAction {
+  id: string;
+  map_id: string;
+  zone_id: string;
+  stage: number;
+  sort_order: number;
+  label: string;
+  is_checked: boolean;
+  checked_by: string | null;
+  checked_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AnnotationTool = 'select' | 'arrow' | 'draw' | 'text' | 'eraser';
+
 // ─── UI State Types ─────────────────────────────────────────────────
 
 export type AdminTool = 'select' | 'place';

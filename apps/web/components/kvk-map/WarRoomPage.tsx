@@ -48,6 +48,17 @@ import { type SymmetryConfig, getSegment } from '@/lib/kvk-map/rss-symmetry';
 import { detectNodesPixel, reclassifyNodeTypes } from '@/lib/kvk-map/pixel-detect';
 import FlagPathOverlay from '@/components/kvk-map/FlagPathOverlay';
 import FlagPathPanel from '@/components/kvk-map/FlagPathPanel';
+import AnnotationOverlay from '@/components/kvk-map/AnnotationOverlay';
+import AnnotationToolbar from '@/components/kvk-map/AnnotationToolbar';
+import AnnotationPanel from '@/components/kvk-map/AnnotationPanel';
+import {
+  useKvkArrows, createArrow, deleteArrow,
+  useKvkDrawings, createDrawing, deleteDrawing,
+  useKvkLabels, createLabel, updateLabel, deleteLabel,
+  useKvkZoneNotes, upsertZoneNote,
+  useKvkZoneActions, createZoneAction, toggleZoneAction, deleteZoneAction,
+} from '@/lib/supabase/use-kvk-annotations';
+import type { AnnotationTool, ArrowType } from '@/lib/kvk-map-types';
 
 function isFlagFeatureType(type: FeatureType): boolean {
   return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
@@ -68,6 +79,13 @@ export default function WarRoomPage() {
   const { rssNodes, setRssNodes, refetch: refetchRss } = useKvkRssNodes(map?.id);
   const { flags: rssFlags, refetch: refetchRssFlags } = useKvkRssFlags(map?.id);
   const { targets: allocationTargets, refetch: refetchTargets } = useKvkAllocationTargets(map?.id);
+
+  // ── Annotation data ─────────────────────────────────────────────
+  const { arrows, refetch: refetchArrows } = useKvkArrows(map?.id);
+  const { drawings, refetch: refetchDrawings } = useKvkDrawings(map?.id);
+  const { labels: mapLabels, refetch: refetchLabels } = useKvkLabels(map?.id);
+  const { notes: zoneNotes, refetch: refetchNotes } = useKvkZoneNotes(map?.id);
+  const { actions: zoneActions, refetch: refetchActions } = useKvkZoneActions(map?.id);
 
   // ── Extracted hooks ──────────────────────────────────────────────
   const selection = useMapSelection();
@@ -121,6 +139,18 @@ export default function WarRoomPage() {
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(-1);
   const [highlightedAllianceId, setHighlightedAllianceId] = useState<string | null>(null);
+
+  // ── Annotation state ────────────────────────────────────────────
+  const [annotationTool, setAnnotationTool] = useState<AnnotationTool>('select');
+  const [annotationArrowType, setAnnotationArrowType] = useState<ArrowType>('attack');
+  const [annotationColor, setAnnotationColor] = useState('#ef4444');
+  const [annotationSelectedId, setAnnotationSelectedId] = useState<string | null>(null);
+  const [warPlanOpen, setWarPlanOpen] = useState(false);
+  // Live drawing state
+  const [liveDrawingPoints, setLiveDrawingPoints] = useState<[number, number][]>([]);
+  const isDrawingFreehand = useRef(false);
+  // Live arrow state
+  const [liveArrowPoints, setLiveArrowPoints] = useState<[number, number][]>([]);
 
   // Guard: prevent zone click from overriding a feature click (Leaflet event bubbling)
   const featureJustClicked = useRef(false);
@@ -228,6 +258,71 @@ export default function WarRoomPage() {
     };
   }, [refetchFeatures]);
 
+  // ── Annotation handlers ─────────────────────────────────────────────
+  const currentStage = map?.current_stage ?? 1;
+
+  const handleAnnotationToolChange = useCallback((tool: AnnotationTool) => {
+    // Clear any in-progress drawing/arrow
+    setLiveDrawingPoints([]);
+    setLiveArrowPoints([]);
+    isDrawingFreehand.current = false;
+    setAnnotationTool(tool);
+    if (tool !== 'select') {
+      // Clear conflicting modes
+      placement.cancelPlacement();
+      selection.clearSelection();
+      setAnnotationSelectedId(null);
+      if (!warPlanOpen) setWarPlanOpen(true);
+    }
+  }, [placement, selection, warPlanOpen]);
+
+  const handleAnnotationClick = useCallback((type: 'arrow' | 'drawing' | 'label', id: string) => {
+    setAnnotationSelectedId(annotationSelectedId === id ? null : id);
+  }, [annotationSelectedId]);
+
+  const handleDeleteAnnotation = useCallback(async (id: string) => {
+    // Try all three tables (only one will match)
+    const arrowMatch = arrows.find((a) => a.id === id);
+    const drawMatch = drawings.find((d) => d.id === id);
+    const labelMatch = mapLabels.find((l) => l.id === id);
+    if (arrowMatch) { await deleteArrow(id); await refetchArrows(); }
+    else if (drawMatch) { await deleteDrawing(id); await refetchDrawings(); }
+    else if (labelMatch) { await deleteLabel(id); await refetchLabels(); }
+    if (annotationSelectedId === id) setAnnotationSelectedId(null);
+  }, [arrows, drawings, mapLabels, annotationSelectedId, refetchArrows, refetchDrawings, refetchLabels]);
+
+  const handleSaveNote = useCallback(async (zoneId: string, content: string) => {
+    if (!map) return;
+    await upsertZoneNote(map.id, zoneId, currentStage, content, officerName || undefined);
+    await refetchNotes();
+  }, [map, currentStage, officerName, refetchNotes]);
+
+  const handleToggleAction = useCallback(async (id: string, checked: boolean) => {
+    await toggleZoneAction(id, checked, officerName || undefined);
+    await refetchActions();
+  }, [officerName, refetchActions]);
+
+  const handleCreateAction = useCallback(async (zoneId: string, label: string) => {
+    if (!map) return;
+    const existing = zoneActions.filter((a) => a.zone_id === zoneId && a.stage === currentStage);
+    await createZoneAction(map.id, zoneId, currentStage, label, existing.length, officerName || undefined);
+    await refetchActions();
+  }, [map, currentStage, zoneActions, officerName, refetchActions]);
+
+  const handleDeleteAction = useCallback(async (id: string) => {
+    await deleteZoneAction(id);
+    await refetchActions();
+  }, [refetchActions]);
+
+  const handleLabelDragEnd = useCallback(async (id: string, x: number, y: number) => {
+    await updateLabel(id, { x, y });
+    await refetchLabels();
+  }, [refetchLabels]);
+
+  const handleToggleWarPlan = useCallback(() => {
+    setWarPlanOpen((v) => !v);
+  }, []);
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -256,6 +351,13 @@ export default function WarRoomPage() {
       }
 
       if (e.key === 'Escape') {
+        // Annotation tool: cancel current drawing/arrow, then reset to select
+        if (annotationTool !== 'select') {
+          if (liveDrawingPoints.length > 0) { setLiveDrawingPoints([]); isDrawingFreehand.current = false; return; }
+          if (liveArrowPoints.length > 0) { setLiveArrowPoints([]); return; }
+          setAnnotationTool('select');
+          return;
+        }
         if (flagPath.addingWaypoint) {
           flagPath.setAddingWaypoint(false);
           return;
@@ -277,13 +379,22 @@ export default function WarRoomPage() {
           rssState.setRssAnnotationMode('review');
           return;
         }
+        if (annotationSelectedId) {
+          setAnnotationSelectedId(null);
+          return;
+        }
         placement.cancelPlacement();
         selection.clearSelection();
+      }
+
+      // Delete/Backspace: delete selected annotation
+      if ((e.key === 'Delete' || e.key === 'Backspace') && annotationSelectedId && !e.target) {
+        handleDeleteAnnotation(annotationSelectedId);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawingZone, rssState.rssAnnotationMode, flagPath.active, flagPath.addingWaypoint, flagPath.addingFlag, selection.selectedFeatureId]);
+  }, [isDrawingZone, rssState.rssAnnotationMode, flagPath.active, flagPath.addingWaypoint, flagPath.addingFlag, selection.selectedFeatureId, annotationTool, liveDrawingPoints, liveArrowPoints, annotationSelectedId]);
 
   // ── Feature handlers (admin, or officer for flags) ─────────────────
   const handleSelectType = useCallback((type: FeatureType) => {
@@ -745,10 +856,66 @@ export default function WarRoomPage() {
   // ── Map click/move ─────────────────────────────────────────────────
   const handleMouseMove = useCallback((x: number, y: number) => {
     setMousePos({ x, y });
-  }, []);
+    // Freehand drawing: append points while mouse is down
+    if (isDrawingFreehand.current && annotationTool === 'draw') {
+      setLiveDrawingPoints((prev) => [...prev, [Math.round(x), Math.round(y)]]);
+    }
+  }, [annotationTool]);
+
+  // Mouse up: finish freehand drawing
+  useEffect(() => {
+    const handleMouseUp = async () => {
+      if (!isDrawingFreehand.current || !map) return;
+      isDrawingFreehand.current = false;
+      if (liveDrawingPoints.length >= 2) {
+        await createDrawing(map.id, {
+          points: liveDrawingPoints,
+          color: annotationColor,
+          weight: 3,
+          stage: currentStage,
+          created_by: officerName || undefined,
+        });
+        await refetchDrawings();
+      }
+      setLiveDrawingPoints([]);
+    };
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, [map, liveDrawingPoints, annotationColor, currentStage, officerName, refetchDrawings]);
 
   const handleMapClick = useCallback(
     async (x: number, y: number) => {
+      // ── Annotation tools ────────────────────────────────────────
+      if (annotationTool === 'arrow' && map) {
+        setLiveArrowPoints((prev) => [...prev, [Math.round(x), Math.round(y)]]);
+        return;
+      }
+      if (annotationTool === 'draw') {
+        // mousedown starts freehand; handled via mousemove + mouseup
+        isDrawingFreehand.current = true;
+        setLiveDrawingPoints([[Math.round(x), Math.round(y)]]);
+        return;
+      }
+      if (annotationTool === 'text' && map) {
+        const text = window.prompt('Text:');
+        if (text) {
+          await createLabel(map.id, {
+            x: Math.round(x),
+            y: Math.round(y),
+            text,
+            color: annotationColor,
+            stage: currentStage,
+            created_by: officerName || undefined,
+          });
+          await refetchLabels();
+        }
+        return;
+      }
+      if (annotationTool === 'eraser') {
+        // Eraser clicks are handled by the overlay item click handlers
+        return;
+      }
+
       // Flag path: add waypoint or manual flag
       if (flagPath.active) {
         if (flagPath.addingWaypoint) {
@@ -810,11 +977,28 @@ export default function WarRoomPage() {
         }
       }
     },
-    [isDrawingZone, placement, map, features, refetchFeatures, isAtLeast, refetchAssignments, rssState, symmetryConfig, rssNodes, setRssNodes, flagPath, selection, officerName]
+    [isDrawingZone, placement, map, features, refetchFeatures, isAtLeast, refetchAssignments, rssState, symmetryConfig, rssNodes, setRssNodes, flagPath, selection, officerName, annotationTool, annotationColor, currentStage, refetchLabels]
   );
 
   const handleMapDoubleClick = useCallback(
     async (x: number, y: number) => {
+      // Finish arrow on double-click
+      if (annotationTool === 'arrow' && map && liveArrowPoints.length >= 1) {
+        const finalPoints: [number, number][] = [...liveArrowPoints, [Math.round(x), Math.round(y)]];
+        if (finalPoints.length >= 2) {
+          const arrowColor = { attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType] || '#ef4444';
+          await createArrow(map.id, {
+            waypoints: finalPoints,
+            arrow_type: annotationArrowType,
+            color_override: arrowColor,
+            stage: currentStage,
+            created_by: officerName || undefined,
+          });
+          await refetchArrows();
+        }
+        setLiveArrowPoints([]);
+        return;
+      }
       if (!isDrawingZone || !selectedZone || !isAtLeast('admin')) return;
       const finalVertices: [number, number][] = [...zoneVertices, [x, y]];
       if (finalVertices.length < 3) return;
@@ -826,7 +1010,7 @@ export default function WarRoomPage() {
         selection.setSelectedZoneId(null);
       }
     },
-    [isDrawingZone, zoneVertices, selectedZone, refetchZones, isAtLeast, selection]
+    [isDrawingZone, zoneVertices, selectedZone, refetchZones, isAtLeast, selection, annotationTool, map, liveArrowPoints, annotationArrowType, currentStage, officerName, refetchArrows]
   );
 
   // ── Role checks (must be before early returns to satisfy Rules of Hooks) ──
@@ -903,6 +1087,8 @@ export default function WarRoomPage() {
                 flagPathActive={flagPath.active}
                 flagCount={flagPath.flags.length}
                 onToggleFlagPath={handleToggleFlagPath}
+                warPlanActive={warPlanOpen}
+                onToggleWarPlan={handleToggleWarPlan}
                 isAdmin={isAdminMode}
                 adminContent={
                   <>
@@ -963,7 +1149,7 @@ export default function WarRoomPage() {
               onDoubleClick={handleMapDoubleClick}
               onMouseMove={handleMouseMove}
               onZoomChange={setZoom}
-              cursorStyle={(flagPath.active && (flagPath.addingWaypoint || flagPath.addingFlag)) || (placement.isPlacing && placement.placingType) || (isDrawingZone && isAdminMode) || rssState.rssAnnotationMode === 'annotate' ? 'crosshair' : undefined}
+              cursorStyle={(annotationTool !== 'select') || (flagPath.active && (flagPath.addingWaypoint || flagPath.addingFlag)) || (placement.isPlacing && placement.placingType) || (isDrawingZone && isAdminMode) || rssState.rssAnnotationMode === 'annotate' ? 'crosshair' : undefined}
               keyboardEnabled={!selection.selectedFeatureId}
             >
               {layers.showZones && zones.map((zone) => (
@@ -1054,6 +1240,29 @@ export default function WarRoomPage() {
               {isDrawingZone && (
                 <DrawingOverlay vertices={zoneVertices} currentPoint={mousePos} />
               )}
+              {/* War plan annotations */}
+              <AnnotationOverlay
+                arrows={arrows}
+                drawings={drawings}
+                labels={mapLabels}
+                selectedId={annotationSelectedId}
+                isDraggable={isOfficerMode && annotationTool === 'select'}
+                stage={currentStage}
+                onClickItem={(type, id) => {
+                  if (annotationTool === 'eraser') {
+                    handleDeleteAnnotation(id);
+                  } else {
+                    handleAnnotationClick(type, id);
+                  }
+                }}
+                onLabelDragEnd={handleLabelDragEnd}
+                liveDrawingPoints={liveDrawingPoints.length > 0 ? liveDrawingPoints : undefined}
+                liveDrawingColor={annotationColor}
+                liveDrawingWeight={3}
+                liveArrowPoints={liveArrowPoints.length > 0 ? liveArrowPoints : undefined}
+                liveArrowColor={{ attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType] || '#ef4444'}
+                cursorPoint={mousePos}
+              />
             </MapBase>
             <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
 
@@ -1145,12 +1354,52 @@ export default function WarRoomPage() {
                 <span style={{ color: 'var(--text-muted)' }}>(Esc to clear)</span>
               </div>
             )}
+            {/* Annotation toolbar — officers only, shown when war plan is open */}
+            {isOfficerMode && warPlanOpen && (
+              <AnnotationToolbar
+                activeTool={annotationTool}
+                onToolChange={handleAnnotationToolChange}
+                arrowType={annotationArrowType}
+                onArrowTypeChange={setAnnotationArrowType}
+                drawColor={annotationColor}
+                onDrawColorChange={setAnnotationColor}
+              />
+            )}
+            {/* Arrow mode hint */}
+            {annotationTool === 'arrow' && liveArrowPoints.length > 0 && (
+              <div
+                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{ backgroundColor: 'rgba(0,0,0,0.8)', color: { attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType], border: '1px solid var(--border)' }}
+              >
+                Click to add waypoints · Double-click to finish · Esc to cancel
+              </div>
+            )}
           </div>
 
-          {/* Right sidebar — feature/zone detail, RSS review, flag path, planning overview */}
-          {(isOfficerMode || selectedZone || selectedFeature || rssState.rssReviewActive || flagPath.active || (!rssState.rssReviewActive && selectedRssNode && isAtLeast('officer'))) && (
+          {/* Right sidebar — feature/zone detail, RSS review, flag path, war plan, planning overview */}
+          {(isOfficerMode || selectedZone || selectedFeature || rssState.rssReviewActive || flagPath.active || warPlanOpen || (!rssState.rssReviewActive && selectedRssNode && isAtLeast('officer'))) && (
             <div className="lg:w-72 shrink-0 overflow-y-auto">
-              {flagPath.active ? (
+              {warPlanOpen && !flagPath.active && !rssState.rssReviewActive && !selectedFeature && !selectedZone ? (
+                <AnnotationPanel
+                  arrows={arrows}
+                  drawings={drawings}
+                  labels={mapLabels}
+                  notes={zoneNotes}
+                  actions={zoneActions}
+                  zones={zones}
+                  stage={currentStage}
+                  selectedId={annotationSelectedId}
+                  onSelectItem={handleAnnotationClick}
+                  onDeleteArrow={async (id) => { await deleteArrow(id); await refetchArrows(); if (annotationSelectedId === id) setAnnotationSelectedId(null); }}
+                  onDeleteDrawing={async (id) => { await deleteDrawing(id); await refetchDrawings(); if (annotationSelectedId === id) setAnnotationSelectedId(null); }}
+                  onDeleteLabel={async (id) => { await deleteLabel(id); await refetchLabels(); if (annotationSelectedId === id) setAnnotationSelectedId(null); }}
+                  onSaveNote={handleSaveNote}
+                  onToggleAction={handleToggleAction}
+                  onCreateAction={handleCreateAction}
+                  onDeleteAction={handleDeleteAction}
+                  onClose={handleToggleWarPlan}
+                />
+              ) : flagPath.active ? (
                 <FlagPathPanel
                   waypoints={flagPath.waypoints}
                   flags={flagPath.flags}
@@ -1335,15 +1584,15 @@ export default function WarRoomPage() {
           )}
         </div>
 
-        {/* Bottom panel: Achievement Progress (officers only) */}
-        {isOfficerMode && <AchievementProgressPanel
+        {/* Bottom panel: Achievement Progress (all users — viewers see no progress) */}
+        <AchievementProgressPanel
           features={features}
           assignments={isOfficerMode ? activeAssignments : []}
           alliances={isOfficerMode ? alliances : []}
           rssNodes={rssNodes}
           collapsed={!bottomPanelOpen}
           onToggle={() => setBottomPanelOpen((v) => !v)}
-        />}
+        />
       </div>
     </div>
   );

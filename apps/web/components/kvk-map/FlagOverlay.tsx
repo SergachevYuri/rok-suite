@@ -43,8 +43,8 @@ export default function FlagOverlay({
   const dimScale = dimmed ? 0.2 : 1;
   const statusOpacity = (assignmentStatus === 'lost' ? 0.25 : 0.7) * dimScale;
 
-  // At low zoom, show only thin outlines; at higher zoom, show labels
-  const showLabel = zoom >= 1;
+  // Zoomed in: full rectangle + label; zoomed out: small colored dot
+  const detailed = zoom >= 1;
 
   // Rectangle bounds: [southWest, northEast] = [[y-half, x-half], [y+half, x+half]]
   const rectBounds = useMemo<L.LatLngBoundsExpression>(
@@ -61,15 +61,24 @@ export default function FlagOverlay({
     [feature.x, feature.y]
   );
 
-  // Small center icon for click/drag — only visible when zoomed in
+  // Center icon: small colored dot when zoomed out, labeled box when zoomed in
   const icon = useMemo(() => {
-    if (!showLabel) {
-      // Invisible 1px icon just for click target
+    if (!detailed) {
+      // Small colored dot
+      const dotSize = Math.max(4, 3 + (zoom + 2) * 2);
       return new L.DivIcon({
         className: '',
-        iconSize: [1, 1],
-        iconAnchor: [0, 0],
-        html: `<div style="width:1px;height:1px;cursor:pointer;"></div>`,
+        iconSize: [dotSize, dotSize],
+        iconAnchor: [dotSize / 2, dotSize / 2],
+        html: `<div style="
+          width: ${dotSize}px;
+          height: ${dotSize}px;
+          border-radius: 50%;
+          background: ${color};
+          opacity: ${statusOpacity * 0.9};
+          border: 0.5px solid rgba(0,0,0,0.3);
+          cursor: pointer;
+        "></div>`,
       });
     }
     const size = 12 + (zoom + 2) * 1.5;
@@ -94,30 +103,27 @@ export default function FlagOverlay({
         opacity: ${dimScale * 0.85};
       ">${label}</div>`,
     });
-  }, [zoom, showLabel, color, allianceTag, config?.abbreviation, dimScale]);
-
-  // Zoom-dependent rectangle style: subtle outlines when zoomed out, more visible when zoomed in
-  const rectWeight = showLabel ? (isSelected ? 1.5 : 0.5) : (isSelected ? 1 : 0.3);
-  const rectFillOpacity = showLabel
-    ? (isSelected ? 0.2 : 0.08) * statusOpacity
-    : (isSelected ? 0.1 : 0.03) * statusOpacity;
+  }, [zoom, detailed, color, statusOpacity, allianceTag, config?.abbreviation, dimScale]);
 
   return (
     <>
-      <Rectangle
-        bounds={rectBounds}
-        pathOptions={{
-          color,
-          weight: rectWeight,
-          opacity: statusOpacity,
-          fillColor: color,
-          fillOpacity: rectFillOpacity,
-          dashArray: isSelected ? undefined : showLabel ? '4 3' : '2 2',
-        }}
-        eventHandlers={{
-          click: () => onClick?.(feature),
-        }}
-      />
+      {/* Only show rectangle outlines when zoomed in */}
+      {detailed && (
+        <Rectangle
+          bounds={rectBounds}
+          pathOptions={{
+            color,
+            weight: isSelected ? 1.5 : 0.5,
+            opacity: statusOpacity,
+            fillColor: color,
+            fillOpacity: (isSelected ? 0.2 : 0.08) * statusOpacity,
+            dashArray: isSelected ? undefined : '4 3',
+          }}
+          eventHandlers={{
+            click: () => onClick?.(feature),
+          }}
+        />
+      )}
       <Marker
         position={position}
         icon={icon}

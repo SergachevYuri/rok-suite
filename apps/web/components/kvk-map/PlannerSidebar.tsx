@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, ChevronDown, ChevronRight, Flag } from 'lucide-react';
+import { Eye, EyeOff, ChevronDown, ChevronRight, Flag, Swords } from 'lucide-react';
 import { FEATURE_GROUPS } from '@/lib/kvk-feature-config';
 import type { KvkAlliance, AllianceRole } from '@/lib/kvk-map-types';
 import AllianceList from './AllianceList';
@@ -31,6 +31,10 @@ interface PlannerSidebarProps {
   flagCount: number;
   onToggleFlagPath: () => void;
 
+  // War plan
+  warPlanActive: boolean;
+  onToggleWarPlan: () => void;
+
   // Admin tools
   isAdmin: boolean;
   adminContent?: React.ReactNode;
@@ -53,6 +57,8 @@ export default function PlannerSidebar({
   flagPathActive,
   flagCount,
   onToggleFlagPath,
+  warPlanActive,
+  onToggleWarPlan,
   isAdmin,
   adminContent,
 }: PlannerSidebarProps) {
@@ -132,6 +138,20 @@ export default function PlannerSidebar({
           {isPlacingFlag ? 'Placing...' : 'Flag'}
         </button>
       </div>
+
+      {/* War Plan toggle */}
+      <button
+        onClick={onToggleWarPlan}
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+        style={{
+          backgroundColor: warPlanActive ? 'rgba(239,68,68,0.15)' : 'var(--background-card)',
+          color: warPlanActive ? '#ef4444' : 'var(--text-muted)',
+          border: `1px solid ${warPlanActive ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`,
+        }}
+      >
+        <Swords size={13} />
+        War Plan
+      </button>
 
       {/* Flag Path Planner toggle */}
       <button
