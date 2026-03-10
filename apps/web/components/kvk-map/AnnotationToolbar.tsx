@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { MousePointer2, MoveRight, Pencil, Type, Eraser } from 'lucide-react';
 import type { AnnotationTool, ArrowType } from '@/lib/kvk-map-types';
 
@@ -21,6 +22,14 @@ interface AnnotationToolbarProps {
   onDrawColorChange: (color: string) => void;
 }
 
+const TOOLS: { key: AnnotationTool; icon: typeof MousePointer2; label: string; shortcut: string }[] = [
+  { key: 'select', icon: MousePointer2, label: 'Select', shortcut: 'V' },
+  { key: 'arrow', icon: MoveRight, label: 'Arrow', shortcut: 'A' },
+  { key: 'draw', icon: Pencil, label: 'Draw', shortcut: 'D' },
+  { key: 'text', icon: Type, label: 'Text', shortcut: 'T' },
+  { key: 'eraser', icon: Eraser, label: 'Erase', shortcut: 'X' },
+];
+
 export default function AnnotationToolbar({
   activeTool,
   onToolChange,
@@ -29,68 +38,88 @@ export default function AnnotationToolbar({
   drawColor,
   onDrawColorChange,
 }: AnnotationToolbarProps) {
-  const tools: { key: AnnotationTool; icon: typeof MousePointer2; label: string }[] = [
-    { key: 'select', icon: MousePointer2, label: 'Select' },
-    { key: 'arrow', icon: MoveRight, label: 'Arrow' },
-    { key: 'draw', icon: Pencil, label: 'Draw' },
-    { key: 'text', icon: Type, label: 'Text' },
-    { key: 'eraser', icon: Eraser, label: 'Erase' },
-  ];
+  const [hoveredTool, setHoveredTool] = useState<AnnotationTool | null>(null);
+
+  // Show sub-options popover for the active tool
+  const showArrowOptions = activeTool === 'arrow';
+  const showColorOptions = activeTool === 'draw' || activeTool === 'text';
 
   return (
     <div
-      className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-1 px-2 py-1.5 rounded-xl"
+      className="absolute left-3 top-1/2 -translate-y-1/2 z-[1000] flex flex-col gap-0.5 p-1.5 rounded-xl"
       style={{
         backgroundColor: 'rgba(10, 14, 26, 0.92)',
         border: '1px solid rgba(255,255,255,0.1)',
         backdropFilter: 'blur(8px)',
       }}
     >
-      {/* Tool buttons */}
-      {tools.map(({ key, icon: Icon, label }) => {
+      {TOOLS.map(({ key, icon: Icon, label, shortcut }) => {
         const isActive = activeTool === key;
         return (
           <button
             key={key}
             onClick={() => onToolChange(key)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all"
+            onMouseEnter={() => setHoveredTool(key)}
+            onMouseLeave={() => setHoveredTool(null)}
+            className="relative w-8 h-8 flex items-center justify-center rounded-lg transition-all"
             style={{
-              backgroundColor: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
-              color: isActive ? '#fff' : 'rgba(255,255,255,0.5)',
+              backgroundColor: isActive ? 'rgba(255,255,255,0.15)' : 'transparent',
+              color: isActive ? '#fff' : 'rgba(255,255,255,0.45)',
             }}
-            title={label}
+            title={`${label} (${shortcut})`}
           >
-            <Icon size={14} />
-            {isActive && <span>{label}</span>}
+            <Icon size={15} />
+            {/* Tooltip on hover */}
+            {hoveredTool === key && !isActive && (
+              <div
+                className="absolute left-full ml-2 px-2 py-1 rounded text-[11px] font-medium whitespace-nowrap pointer-events-none"
+                style={{ backgroundColor: 'rgba(0,0,0,0.9)', color: '#fff' }}
+              >
+                {label} <span style={{ color: 'rgba(255,255,255,0.4)' }}>{shortcut}</span>
+              </div>
+            )}
           </button>
         );
       })}
 
-      {/* Arrow type sub-options */}
-      {activeTool === 'arrow' && (
-        <>
-          <div className="w-px h-5 mx-1" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+      {/* Arrow type popover — expands right */}
+      {showArrowOptions && (
+        <div
+          className="absolute left-full top-[36px] ml-2 flex flex-col gap-0.5 p-1 rounded-lg"
+          style={{
+            backgroundColor: 'rgba(10, 14, 26, 0.92)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
           {(['attack', 'defend', 'reinforce', 'rally'] as ArrowType[]).map((type) => (
             <button
               key={type}
               onClick={() => onArrowTypeChange(type)}
-              className="px-2 py-1 rounded text-[10px] font-medium capitalize transition-all"
+              className="px-2.5 py-1 rounded text-[10px] font-medium capitalize transition-all text-left"
               style={{
                 backgroundColor: arrowType === type ? `${ARROW_TYPE_COLORS[type]}22` : 'transparent',
                 color: arrowType === type ? ARROW_TYPE_COLORS[type] : 'rgba(255,255,255,0.4)',
-                border: arrowType === type ? `1px solid ${ARROW_TYPE_COLORS[type]}44` : '1px solid transparent',
               }}
             >
+              <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ backgroundColor: ARROW_TYPE_COLORS[type] }} />
               {type}
             </button>
           ))}
-        </>
+        </div>
       )}
 
-      {/* Draw color sub-options */}
-      {activeTool === 'draw' && (
-        <>
-          <div className="w-px h-5 mx-1" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
+      {/* Color popover — expands right */}
+      {showColorOptions && (
+        <div
+          className="absolute left-full ml-2 flex flex-col gap-1 p-1.5 rounded-lg"
+          style={{
+            top: activeTool === 'draw' ? '72px' : '108px',
+            backgroundColor: 'rgba(10, 14, 26, 0.92)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
           {DRAW_COLORS.map((c) => (
             <button
               key={c}
@@ -103,34 +132,7 @@ export default function AnnotationToolbar({
               }}
             />
           ))}
-        </>
-      )}
-
-      {/* Text color sub-options */}
-      {activeTool === 'text' && (
-        <>
-          <div className="w-px h-5 mx-1" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
-          {DRAW_COLORS.map((c) => (
-            <button
-              key={c}
-              onClick={() => onDrawColorChange(c)}
-              className="w-5 h-5 rounded-full transition-all"
-              style={{
-                backgroundColor: c,
-                border: drawColor === c ? '2px solid #fff' : '2px solid transparent',
-                opacity: drawColor === c ? 1 : 0.5,
-              }}
-            />
-          ))}
-        </>
-      )}
-
-      {/* Escape hint */}
-      {activeTool !== 'select' && (
-        <>
-          <div className="w-px h-5 mx-1" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }} />
-          <span className="text-[10px] px-1" style={{ color: 'rgba(255,255,255,0.3)' }}>Esc</span>
-        </>
+        </div>
       )}
     </div>
   );

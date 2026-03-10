@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, memo, useState, useRef, useEffect } from 'react';
-import { Polyline, CircleMarker, Marker, Tooltip } from 'react-leaflet';
+import { createPortal } from 'react-dom';
+import { Polyline, CircleMarker, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { KvkMapArrow, KvkMapDrawing, KvkMapLabel } from '@/lib/kvk-map-types';
 
@@ -250,6 +251,119 @@ const ArrowPreview = memo(function ArrowPreview({
   );
 });
 
+// ─── Inline Text Input (placed on map for new labels) ───────────────
+
+interface PendingLabel {
+  x: number;
+  y: number;
+  color: string;
+}
+
+const InlineTextInput = memo(function InlineTextInput({
+  pending,
+  onConfirm,
+  onCancel,
+}: {
+  pending: PendingLabel;
+  onConfirm: (text: string) => void;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Focus after a tick to avoid Leaflet swallowing the focus
+    const t = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  const icon = useMemo(
+    () =>
+      new L.DivIcon({
+        className: '',
+        iconSize: [0, 0],
+        html: '<div id="inline-text-anchor" style="position:absolute;transform:translate(-50%,-50%);"></div>',
+      }),
+    [],
+  );
+
+  const handleSubmit = () => {
+    if (text.trim()) onConfirm(text.trim());
+    else onCancel();
+  };
+
+  return (
+    <>
+      <Marker position={[pending.y, pending.x]} icon={icon} interactive={false} />
+      {/* Render the input as a Leaflet-independent overlay to avoid DivIcon re-render issues */}
+      <InlineInputPortal x={pending.x} y={pending.y} color={pending.color}>
+        <input
+          ref={inputRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === 'Enter') handleSubmit();
+            if (e.key === 'Escape') onCancel();
+          }}
+          onBlur={handleSubmit}
+          placeholder="Type label..."
+          className="bg-transparent border-b outline-none text-sm font-semibold"
+          style={{
+            color: pending.color,
+            borderColor: pending.color,
+            caretColor: pending.color,
+            minWidth: '80px',
+            textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+          }}
+        />
+      </InlineInputPortal>
+    </>
+  );
+});
+
+// Portal that positions an HTML element at map coordinates
+function InlineInputPortal({
+  x,
+  y,
+  children,
+}: {
+  x: number;
+  y: number;
+  color: string;
+  children: React.ReactNode;
+}) {
+  const map = useMap();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const update = () => {
+      if (!containerRef.current) return;
+      const point = map.latLngToContainerPoint([y, x]);
+      containerRef.current.style.left = `${point.x}px`;
+      containerRef.current.style.top = `${point.y}px`;
+    };
+    update();
+    map.on('move zoom', update);
+    return () => { map.off('move zoom', update); };
+  }, [map, x, y]);
+
+  return createPortal(
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        zIndex: 1000,
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'auto',
+      }}
+    >
+      {children}
+    </div>,
+    map.getContainer(),
+  );
+}
+
 // ─── Main Overlay ───────────────────────────────────────────────────
 
 interface AnnotationOverlayProps {
@@ -268,6 +382,10 @@ interface AnnotationOverlayProps {
   liveArrowPoints?: [number, number][];
   liveArrowColor?: string;
   cursorPoint?: { x: number; y: number } | null;
+  // Inline text input for new labels
+  pendingLabel?: PendingLabel | null;
+  onPendingLabelConfirm?: (text: string) => void;
+  onPendingLabelCancel?: () => void;
 }
 
 export default memo(function AnnotationOverlay({
@@ -285,6 +403,9 @@ export default memo(function AnnotationOverlay({
   liveArrowPoints,
   liveArrowColor = '#ef4444',
   cursorPoint,
+  pendingLabel,
+  onPendingLabelConfirm,
+  onPendingLabelCancel,
 }: AnnotationOverlayProps) {
   // Filter by stage
   const stageArrows = useMemo(() => arrows.filter((a) => a.stage === stage), [arrows, stage]);
@@ -324,6 +445,15 @@ export default memo(function AnnotationOverlay({
           onDragEnd={onLabelDragEnd}
         />
       ))}
+
+      {/* Inline text input for new label */}
+      {pendingLabel && onPendingLabelConfirm && onPendingLabelCancel && (
+        <InlineTextInput
+          pending={pendingLabel}
+          onConfirm={onPendingLabelConfirm}
+          onCancel={onPendingLabelCancel}
+        />
+      )}
 
       {/* Live drawing preview */}
       {liveDrawingPoints && liveDrawingPoints.length > 0 && (

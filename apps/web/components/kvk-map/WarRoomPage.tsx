@@ -151,6 +151,8 @@ export default function WarRoomPage() {
   const isDrawingFreehand = useRef(false);
   // Live arrow state
   const [liveArrowPoints, setLiveArrowPoints] = useState<[number, number][]>([]);
+  // Pending inline text label
+  const [pendingLabel, setPendingLabel] = useState<{ x: number; y: number; color: string } | null>(null);
 
   // Guard: prevent zone click from overriding a feature click (Leaflet event bubbling)
   const featureJustClicked = useRef(false);
@@ -262,9 +264,10 @@ export default function WarRoomPage() {
   const currentStage = map?.current_stage ?? 1;
 
   const handleAnnotationToolChange = useCallback((tool: AnnotationTool) => {
-    // Clear any in-progress drawing/arrow
+    // Clear any in-progress drawing/arrow/label
     setLiveDrawingPoints([]);
     setLiveArrowPoints([]);
+    setPendingLabel(null);
     isDrawingFreehand.current = false;
     setAnnotationTool(tool);
     if (tool !== 'select') {
@@ -323,9 +326,47 @@ export default function WarRoomPage() {
     setWarPlanOpen((v) => !v);
   }, []);
 
+  // ── Finish arrow helper ────────────────────────────────────────────
+  const finishArrow = useCallback(async () => {
+    if (!map || liveArrowPoints.length < 2) return;
+    const arrowColor = { attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType] || '#ef4444';
+    await createArrow(map.id, {
+      waypoints: liveArrowPoints,
+      arrow_type: annotationArrowType,
+      color_override: arrowColor,
+      stage: currentStage,
+      created_by: officerName || undefined,
+    });
+    await refetchArrows();
+    setLiveArrowPoints([]);
+  }, [map, liveArrowPoints, annotationArrowType, currentStage, officerName, refetchArrows]);
+
+  // ── Confirm pending label helper ──────────────────────────────────
+  const handlePendingLabelConfirm = useCallback(async (text: string) => {
+    if (!map || !pendingLabel) return;
+    await createLabel(map.id, {
+      x: pendingLabel.x,
+      y: pendingLabel.y,
+      text,
+      color: pendingLabel.color,
+      stage: currentStage,
+      created_by: officerName || undefined,
+    });
+    await refetchLabels();
+    setPendingLabel(null);
+  }, [map, pendingLabel, currentStage, officerName, refetchLabels]);
+
+  const handlePendingLabelCancel = useCallback(() => {
+    setPendingLabel(null);
+  }, []);
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
       // Ctrl/Cmd+Z: undo
       if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
         if (rssState.rssAnnotationMode === 'annotate' || rssState.rssAnnotationMode === 'review') {
@@ -350,7 +391,19 @@ export default function WarRoomPage() {
         return;
       }
 
+      // Enter: finish arrow
+      if (e.key === 'Enter' && !isTyping && annotationTool === 'arrow' && liveArrowPoints.length >= 2) {
+        e.preventDefault();
+        finishArrow();
+        return;
+      }
+
       if (e.key === 'Escape') {
+        // Cancel pending text label
+        if (pendingLabel) {
+          setPendingLabel(null);
+          return;
+        }
         // Annotation tool: cancel current drawing/arrow, then reset to select
         if (annotationTool !== 'select') {
           if (liveDrawingPoints.length > 0) { setLiveDrawingPoints([]); isDrawingFreehand.current = false; return; }
@@ -387,14 +440,27 @@ export default function WarRoomPage() {
         selection.clearSelection();
       }
 
-      // Delete/Backspace: delete selected annotation
-      if ((e.key === 'Delete' || e.key === 'Backspace') && annotationSelectedId && !e.target) {
+      // Delete/Backspace: delete selected annotation (only when not in an input)
+      if ((e.key === 'Delete' || e.key === 'Backspace') && annotationSelectedId && !isTyping) {
+        e.preventDefault();
         handleDeleteAnnotation(annotationSelectedId);
+        return;
+      }
+
+      // Annotation tool shortcuts (only when war plan is open and not typing)
+      if (warPlanOpen && !isTyping && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const toolMap: Record<string, AnnotationTool> = { v: 'select', a: 'arrow', d: 'draw', t: 'text', x: 'eraser' };
+        const tool = toolMap[e.key.toLowerCase()];
+        if (tool) {
+          e.preventDefault();
+          handleAnnotationToolChange(tool);
+          return;
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawingZone, rssState.rssAnnotationMode, flagPath.active, flagPath.addingWaypoint, flagPath.addingFlag, selection.selectedFeatureId, annotationTool, liveDrawingPoints, liveArrowPoints, annotationSelectedId]);
+  }, [isDrawingZone, rssState.rssAnnotationMode, flagPath.active, flagPath.addingWaypoint, flagPath.addingFlag, selection.selectedFeatureId, annotationTool, liveDrawingPoints, liveArrowPoints, annotationSelectedId, warPlanOpen, handleAnnotationToolChange, finishArrow, pendingLabel, handleDeleteAnnotation]);
 
   // ── Feature handlers (admin, or officer for flags) ─────────────────
   const handleSelectType = useCallback((type: FeatureType) => {
@@ -896,19 +962,9 @@ export default function WarRoomPage() {
         setLiveDrawingPoints([[Math.round(x), Math.round(y)]]);
         return;
       }
-      if (annotationTool === 'text' && map) {
-        const text = window.prompt('Text:');
-        if (text) {
-          await createLabel(map.id, {
-            x: Math.round(x),
-            y: Math.round(y),
-            text,
-            color: annotationColor,
-            stage: currentStage,
-            created_by: officerName || undefined,
-          });
-          await refetchLabels();
-        }
+      if (annotationTool === 'text') {
+        // Place an inline text input at the click position
+        setPendingLabel({ x: Math.round(x), y: Math.round(y), color: annotationColor });
         return;
       }
       if (annotationTool === 'eraser') {
@@ -982,23 +1038,8 @@ export default function WarRoomPage() {
 
   const handleMapDoubleClick = useCallback(
     async (x: number, y: number) => {
-      // Finish arrow on double-click
-      if (annotationTool === 'arrow' && map && liveArrowPoints.length >= 1) {
-        const finalPoints: [number, number][] = [...liveArrowPoints, [Math.round(x), Math.round(y)]];
-        if (finalPoints.length >= 2) {
-          const arrowColor = { attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType] || '#ef4444';
-          await createArrow(map.id, {
-            waypoints: finalPoints,
-            arrow_type: annotationArrowType,
-            color_override: arrowColor,
-            stage: currentStage,
-            created_by: officerName || undefined,
-          });
-          await refetchArrows();
-        }
-        setLiveArrowPoints([]);
-        return;
-      }
+      // Arrow double-click: no longer used (Enter to finish instead)
+      // Zone drawing still uses double-click to finish
       if (!isDrawingZone || !selectedZone || !isAtLeast('admin')) return;
       const finalVertices: [number, number][] = [...zoneVertices, [x, y]];
       if (finalVertices.length < 3) return;
@@ -1010,7 +1051,7 @@ export default function WarRoomPage() {
         selection.setSelectedZoneId(null);
       }
     },
-    [isDrawingZone, zoneVertices, selectedZone, refetchZones, isAtLeast, selection, annotationTool, map, liveArrowPoints, annotationArrowType, currentStage, officerName, refetchArrows]
+    [isDrawingZone, zoneVertices, selectedZone, refetchZones, isAtLeast, selection]
   );
 
   // ── Role checks (must be before early returns to satisfy Rules of Hooks) ──
@@ -1151,6 +1192,8 @@ export default function WarRoomPage() {
               onZoomChange={setZoom}
               cursorStyle={(annotationTool !== 'select') || (flagPath.active && (flagPath.addingWaypoint || flagPath.addingFlag)) || (placement.isPlacing && placement.placingType) || (isDrawingZone && isAdminMode) || rssState.rssAnnotationMode === 'annotate' ? 'crosshair' : undefined}
               keyboardEnabled={!selection.selectedFeatureId}
+              disableDoubleClickZoom={warPlanOpen || isDrawingZone}
+              disableDragging={annotationTool === 'draw' && warPlanOpen}
             >
               {layers.showZones && zones.map((zone) => (
                 <ZonePolygon
@@ -1160,6 +1203,7 @@ export default function WarRoomPage() {
                   isSelected={zone.id === selection.selectedZoneId}
                   isHighlighted={selection.hoveredZoneNumber != null && zone.zone_number === selection.hoveredZoneNumber}
                   activeZoneNumber={isAtLeast('officer') ? getStage(map?.current_stage ?? 1).zoneNumber : null}
+                  disableHover={warPlanOpen && annotationTool !== 'select'}
                 />
               ))}
               {layers.showZones && zones.map((zone) => (
@@ -1262,6 +1306,9 @@ export default function WarRoomPage() {
                 liveArrowPoints={liveArrowPoints.length > 0 ? liveArrowPoints : undefined}
                 liveArrowColor={{ attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType] || '#ef4444'}
                 cursorPoint={mousePos}
+                pendingLabel={pendingLabel}
+                onPendingLabelConfirm={handlePendingLabelConfirm}
+                onPendingLabelCancel={handlePendingLabelCancel}
               />
             </MapBase>
             <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
@@ -1371,7 +1418,7 @@ export default function WarRoomPage() {
                 className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
                 style={{ backgroundColor: 'rgba(0,0,0,0.8)', color: { attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType], border: '1px solid var(--border)' }}
               >
-                Click to add waypoints · Double-click to finish · Esc to cancel
+                Click to add points ({liveArrowPoints.length}) · Enter to finish · Esc to cancel
               </div>
             )}
           </div>

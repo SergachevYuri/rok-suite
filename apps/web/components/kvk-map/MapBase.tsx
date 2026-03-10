@@ -21,6 +21,10 @@ interface MapBaseProps {
   className?: string;
   cursorStyle?: string;
   keyboardEnabled?: boolean;
+  /** Disable double-click-to-zoom (for annotation modes) */
+  disableDoubleClickZoom?: boolean;
+  /** Disable map dragging (for freehand drawing) */
+  disableDragging?: boolean;
 }
 
 function CursorStyle({ cursor }: { cursor?: string }) {
@@ -103,6 +107,30 @@ function KeyboardToggle({ enabled }: { enabled: boolean }) {
   return null;
 }
 
+function DoubleClickZoomToggle({ disabled }: { disabled: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (disabled) {
+      map.doubleClickZoom.disable();
+    } else {
+      map.doubleClickZoom.enable();
+    }
+  }, [map, disabled]);
+  return null;
+}
+
+function DraggingToggle({ disabled }: { disabled: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (disabled) {
+      map.dragging.disable();
+    } else {
+      map.dragging.enable();
+    }
+  }, [map, disabled]);
+  return null;
+}
+
 export default function MapBase({
   imageUrl,
   children,
@@ -113,6 +141,8 @@ export default function MapBase({
   className = '',
   cursorStyle,
   keyboardEnabled = true,
+  disableDoubleClickZoom = false,
+  disableDragging = false,
 }: MapBaseProps) {
   // Extend maxBounds beyond map edges so sidebars don't prevent viewing edge nodes
   const PAD = 300;
@@ -148,6 +178,8 @@ export default function MapBase({
       <ResizeHandler />
       <CursorStyle cursor={cursorStyle} />
       <KeyboardToggle enabled={keyboardEnabled} />
+      <DoubleClickZoomToggle disabled={disableDoubleClickZoom} />
+      <DraggingToggle disabled={disableDragging} />
       <MapEventHandler onClick={onClick} onDoubleClick={onDoubleClick} onMouseMove={onMouseMove} onZoomChange={onZoomChange} />
       {children}
     </MapContainer>

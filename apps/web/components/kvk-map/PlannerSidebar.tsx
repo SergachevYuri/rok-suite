@@ -66,6 +66,23 @@ export default function PlannerSidebar({
 
   return (
     <div className="space-y-3">
+      {/* War Plan toggle — top of sidebar for visibility */}
+      <button
+        onClick={onToggleWarPlan}
+        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all"
+        style={{
+          backgroundColor: warPlanActive ? 'rgba(239,68,68,0.15)' : 'var(--background-card)',
+          color: warPlanActive ? '#ef4444' : 'var(--text-muted)',
+          border: `1px solid ${warPlanActive ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`,
+        }}
+      >
+        <Swords size={14} />
+        War Plan
+        {warPlanActive && (
+          <span className="ml-auto text-[10px] font-normal opacity-70">Active</span>
+        )}
+      </button>
+
       {/* Alliance List */}
       <AllianceList
         alliances={alliances}
@@ -138,20 +155,6 @@ export default function PlannerSidebar({
           {isPlacingFlag ? 'Placing...' : 'Flag'}
         </button>
       </div>
-
-      {/* War Plan toggle */}
-      <button
-        onClick={onToggleWarPlan}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
-        style={{
-          backgroundColor: warPlanActive ? 'rgba(239,68,68,0.15)' : 'var(--background-card)',
-          color: warPlanActive ? '#ef4444' : 'var(--text-muted)',
-          border: `1px solid ${warPlanActive ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`,
-        }}
-      >
-        <Swords size={13} />
-        War Plan
-      </button>
 
       {/* Flag Path Planner toggle */}
       <button

@@ -12,9 +12,11 @@ interface ZonePolygonProps {
   isHighlighted?: boolean;
   /** When set, zones NOT matching this number get a semi-opaque mask. */
   activeZoneNumber?: number | null;
+  /** Suppress hover highlighting (e.g. during annotation drawing) */
+  disableHover?: boolean;
 }
 
-export default function ZonePolygon({ zone, onClick, isSelected = false, isHighlighted = false, activeZoneNumber }: ZonePolygonProps) {
+export default function ZonePolygon({ zone, onClick, isSelected = false, isHighlighted = false, activeZoneNumber, disableHover = false }: ZonePolygonProps) {
   const polygonRef = useRef<L.Polygon | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -25,7 +27,7 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
   );
 
   const handleMouseOver = useCallback(() => {
-    if (isSelected) return;
+    if (isSelected || disableHover) return;
     setIsHovered(true);
     polygonRef.current?.setStyle({
       fillColor: '#ffffff',
@@ -35,7 +37,7 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
       opacity: 0.3,
       dashArray: undefined,
     });
-  }, [isSelected]);
+  }, [isSelected, disableHover]);
 
   const interactive = !!onClick;
 
