@@ -1,53 +1,52 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Flag, Wheat, TreePine, Mountain, Coins, Clock, TrendingUp } from 'lucide-react';
+import { Flag, Wheat, TreePine, Mountain, Coins, Clock, TrendingUp, Gem, Medal } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 
-// Flag cost per flag from the rok.guide table (max tech).
-// Costs step up every 20 flags. Within a 20-flag band the per-flag cost is constant.
-//   food = wood = 75,000 + 18,750 * tier   (tier = floor((flagNumber-1) / 20))
-//   stone = food * 0.75
-//   gold  = food * 0.50
-function getFlagCost(flagNumber: number) {
-  const tier = Math.floor((flagNumber - 1) / 20);
-  const food = 75_000 + 18_750 * tier;
-  const wood = food;
-  const stone = Math.round(food * 0.75);
-  const gold = Math.round(food * 0.5);
-  return { food, wood, stone, gold };
+// Per-flag costs from the rok.guide table (max tech, LK crusader flags).
+// 6 resources: food, wood, stone, gold, crystals, credits
+//
+// food = wood = 75,000 + 18,750 * floor((flag-1) / 20)
+// stone = food * 0.75
+// gold  = food * 0.50
+// crystals = 0 for flags 1-20, then 3,750 * floor((flag-1) / 10)
+// credits  = 75,000 for flags 1-10, 150,000 for flags 11-20, 0 after
+
+interface FlagCost {
+  food: number; wood: number; stone: number; gold: number;
+  crystals: number; credits: number;
 }
 
-function totalCostForFlags(fromFlag: number, count: number) {
-  const total = { food: 0, wood: 0, stone: 0, gold: 0 };
+function getFlagCost(flagNumber: number): FlagCost {
+  const tier20 = Math.floor((flagNumber - 1) / 20);
+  const food = 75_000 + 18_750 * tier20;
+  return {
+    food,
+    wood: food,
+    stone: Math.round(food * 0.75),
+    gold: Math.round(food * 0.5),
+    crystals: flagNumber <= 20 ? 0 : 3_750 * Math.floor((flagNumber - 1) / 10),
+    credits: flagNumber <= 10 ? 75_000 : flagNumber <= 20 ? 150_000 : 0,
+  };
+}
+
+function totalCostForFlags(fromFlag: number, count: number): FlagCost {
+  const total: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
   for (let i = 0; i < count; i++) {
     const cost = getFlagCost(fromFlag + i);
-    total.food += cost.food;
-    total.wood += cost.wood;
-    total.stone += cost.stone;
-    total.gold += cost.gold;
+    for (const k of RSS_KEYS) total[k] += cost[k];
   }
   return total;
 }
 
-function maxFlagsAffordable(
-  currentFlags: number,
-  resources: { food: number; wood: number; stone: number; gold: number },
-) {
+function maxFlagsAffordable(currentFlags: number, resources: FlagCost) {
   let count = 0;
   const remaining = { ...resources };
   while (true) {
     const cost = getFlagCost(currentFlags + count + 1);
-    if (
-      remaining.food < cost.food ||
-      remaining.wood < cost.wood ||
-      remaining.stone < cost.stone ||
-      remaining.gold < cost.gold
-    ) break;
-    remaining.food -= cost.food;
-    remaining.wood -= cost.wood;
-    remaining.stone -= cost.stone;
-    remaining.gold -= cost.gold;
+    if (RSS_KEYS.some(k => remaining[k] < cost[k])) break;
+    for (const k of RSS_KEYS) remaining[k] -= cost[k];
     count++;
   }
   return { count, remaining };
@@ -71,95 +70,87 @@ function formatHours(hours: number): string {
   return h > 0 ? `${days}d ${h}h` : `${days}d`;
 }
 
-const RSS_CONFIG = [
-  { key: 'food' as const, label: 'Food', icon: Wheat, color: 'text-yellow-400' },
-  { key: 'wood' as const, label: 'Wood', icon: TreePine, color: 'text-green-400' },
-  { key: 'stone' as const, label: 'Stone', icon: Mountain, color: 'text-stone-400' },
-  { key: 'gold' as const, label: 'Gold', icon: Coins, color: 'text-amber-300' },
-];
+const RSS_KEYS: (keyof FlagCost)[] = ['food', 'wood', 'stone', 'gold', 'crystals', 'credits'];
 
-type RssKey = 'food' | 'wood' | 'stone' | 'gold';
+const RSS_CONFIG = [
+  { key: 'food' as const, label: 'Food', icon: Wheat, color: 'text-yellow-400', hasProduction: true },
+  { key: 'wood' as const, label: 'Wood', icon: TreePine, color: 'text-green-400', hasProduction: true },
+  { key: 'stone' as const, label: 'Stone', icon: Mountain, color: 'text-stone-400', hasProduction: true },
+  { key: 'gold' as const, label: 'Gold', icon: Coins, color: 'text-amber-300', hasProduction: true },
+  { key: 'crystals' as const, label: 'Crystals', icon: Gem, color: 'text-cyan-400', hasProduction: true },
+  { key: 'credits' as const, label: 'Credits', icon: Medal, color: 'text-orange-400', hasProduction: false },
+];
 
 export default function FlagCalculatorPage() {
   const [currentFlags, setCurrentFlags] = useState(0);
-  // Resource inputs in raw values (what the user types, e.g. "5.2")
-  const [resourceInputs, setResourceInputs] = useState({ food: '5.2', wood: '5.2', stone: '3.9', gold: '1.9' });
-  const [productionInputs, setProductionInputs] = useState({ food: '22000', wood: '22000', stone: '21000', gold: '16000' });
+  const [resourceInputs, setResourceInputs] = useState({
+    food: '9.7', wood: '7.6', stone: '5.3', gold: '2.6', crystals: '0.72', credits: '128.2',
+  });
+  const [productionInputs, setProductionInputs] = useState({
+    food: '102000', wood: '102000', stone: '85500', gold: '70000', crystals: '13500', credits: '0',
+  });
 
-  const availableResources = useMemo(() => ({
-    food: (parseFloat(resourceInputs.food) || 0) * 1_000_000,
-    wood: (parseFloat(resourceInputs.wood) || 0) * 1_000_000,
-    stone: (parseFloat(resourceInputs.stone) || 0) * 1_000_000,
-    gold: (parseFloat(resourceInputs.gold) || 0) * 1_000_000,
-  }), [resourceInputs]);
+  const availableResources = useMemo(() => {
+    const r: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
+    for (const k of RSS_KEYS) r[k] = (parseFloat(resourceInputs[k]) || 0) * 1_000_000;
+    return r;
+  }, [resourceInputs]);
 
-  const productionPerHour = useMemo(() => ({
-    food: parseInt(productionInputs.food) || 0,
-    wood: parseInt(productionInputs.wood) || 0,
-    stone: parseInt(productionInputs.stone) || 0,
-    gold: parseInt(productionInputs.gold) || 0,
-  }), [productionInputs]);
+  const productionPerHour = useMemo(() => {
+    const p: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
+    for (const k of RSS_KEYS) p[k] = parseInt(productionInputs[k]) || 0;
+    return p;
+  }, [productionInputs]);
 
-  const result = useMemo(() => {
-    return maxFlagsAffordable(currentFlags, availableResources);
-  }, [currentFlags, availableResources]);
+  const result = useMemo(
+    () => maxFlagsAffordable(currentFlags, availableResources),
+    [currentFlags, availableResources],
+  );
 
-  const nextFlagCost = useMemo(() => {
-    return getFlagCost(currentFlags + result.count + 1);
-  }, [currentFlags, result.count]);
+  const nextFlagCost = useMemo(
+    () => getFlagCost(currentFlags + result.count + 1),
+    [currentFlags, result.count],
+  );
 
   const totalCost = useMemo(() => {
-    if (result.count === 0) return { food: 0, wood: 0, stone: 0, gold: 0 };
+    if (result.count === 0) return { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 } as FlagCost;
     return totalCostForFlags(currentFlags + 1, result.count);
   }, [currentFlags, result.count]);
 
   const timeToNextFlag = useMemo(() => {
-    const deficit = {
-      food: Math.max(0, nextFlagCost.food - result.remaining.food),
-      wood: Math.max(0, nextFlagCost.wood - result.remaining.wood),
-      stone: Math.max(0, nextFlagCost.stone - result.remaining.stone),
-      gold: Math.max(0, nextFlagCost.gold - result.remaining.gold),
-    };
-    const hours = Math.max(
-      productionPerHour.food > 0 ? deficit.food / productionPerHour.food : deficit.food > 0 ? Infinity : 0,
-      productionPerHour.wood > 0 ? deficit.wood / productionPerHour.wood : deficit.wood > 0 ? Infinity : 0,
-      productionPerHour.stone > 0 ? deficit.stone / productionPerHour.stone : deficit.stone > 0 ? Infinity : 0,
-      productionPerHour.gold > 0 ? deficit.gold / productionPerHour.gold : deficit.gold > 0 ? Infinity : 0,
-    );
+    const deficit: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
+    for (const k of RSS_KEYS) deficit[k] = Math.max(0, nextFlagCost[k] - result.remaining[k]);
+    let hours = 0;
+    for (const k of RSS_KEYS) {
+      if (deficit[k] <= 0) continue;
+      const p = productionPerHour[k];
+      hours = Math.max(hours, p > 0 ? deficit[k] / p : Infinity);
+    }
     return { deficit, hours };
   }, [nextFlagCost, result.remaining, productionPerHour]);
 
   const upcomingFlags = useMemo(() => {
-    const flags: { number: number; cost: ReturnType<typeof getFlagCost>; affordable: boolean }[] = [];
-    const tempResources = { ...availableResources };
+    const flags: { number: number; cost: FlagCost; affordable: boolean }[] = [];
+    const temp = { ...availableResources };
     for (let i = 0; i < 20; i++) {
       const flagNum = currentFlags + i + 1;
       const cost = getFlagCost(flagNum);
-      const affordable =
-        tempResources.food >= cost.food &&
-        tempResources.wood >= cost.wood &&
-        tempResources.stone >= cost.stone &&
-        tempResources.gold >= cost.gold;
+      const affordable = RSS_KEYS.every(k => temp[k] >= cost[k]);
       flags.push({ number: flagNum, cost, affordable });
-      if (affordable) {
-        tempResources.food -= cost.food;
-        tempResources.wood -= cost.wood;
-        tempResources.stone -= cost.stone;
-        tempResources.gold -= cost.gold;
-      }
+      if (affordable) for (const k of RSS_KEYS) temp[k] -= cost[k];
     }
     return flags;
   }, [currentFlags, availableResources]);
 
-  // Find the bottleneck resource
   const bottleneck = useMemo(() => {
     if (result.count > 0) return null;
     const cost = nextFlagCost;
-    let worst: RssKey = 'food';
-    let worstRatio = availableResources.food / cost.food;
-    for (const key of ['wood', 'stone', 'gold'] as RssKey[]) {
-      const ratio = availableResources[key] / cost[key];
-      if (ratio < worstRatio) { worstRatio = ratio; worst = key; }
+    let worst: keyof FlagCost = 'food';
+    let worstRatio = Infinity;
+    for (const k of RSS_KEYS) {
+      if (cost[k] === 0) continue;
+      const ratio = availableResources[k] / cost[k];
+      if (ratio < worstRatio) { worstRatio = ratio; worst = k; }
     }
     return worst;
   }, [result.count, nextFlagCost, availableResources]);
@@ -167,7 +158,7 @@ export default function FlagCalculatorPage() {
   return (
     <AppSidebar>
       <div className="min-h-screen">
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="max-w-5xl mx-auto px-4 py-8">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-2xl font-bold flex items-center gap-2 text-[var(--foreground)]">
@@ -229,6 +220,7 @@ export default function FlagCalculatorPage() {
                         value={productionInputs[rss.key]}
                         onChange={e => setProductionInputs(prev => ({ ...prev, [rss.key]: e.target.value }))}
                         className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1.5 text-sm font-mono text-[var(--foreground)]"
+                        disabled={!rss.hasProduction}
                       />
                     </div>
                   );
@@ -265,6 +257,7 @@ export default function FlagCalculatorPage() {
                   {RSS_CONFIG.map(rss => {
                     const Icon = rss.icon;
                     const cost = result.count > 0 ? totalCost[rss.key] : nextFlagCost[rss.key];
+                    if (cost === 0 && result.count > 0) return null;
                     return (
                       <div key={rss.key} className="flex items-center justify-between text-sm">
                         <span className={`flex items-center gap-1.5 ${rss.color}`}>
@@ -314,7 +307,7 @@ export default function FlagCalculatorPage() {
 
           {/* Remaining resources after building */}
           {result.count > 0 && (
-            <div className="bg-[var(--background-card)]/50 rounded-xl p-4 border border-[var(--border)]/50 mb-6">
+            <div className="bg-[var(--background-card)] rounded-xl p-4 border border-[var(--border)] mb-6">
               <h3 className="text-xs text-[var(--text-muted)] mb-2">Resources remaining after {result.count} flags</h3>
               <div className="flex gap-4 flex-wrap">
                 {RSS_CONFIG.map(rss => {
@@ -342,33 +335,33 @@ export default function FlagCalculatorPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-[var(--text-muted)] text-xs border-b border-[var(--border)]">
-                    <th className="px-4 py-2 text-left">Flag #</th>
+                    <th className="px-3 py-2 text-left">Flag #</th>
                     {RSS_CONFIG.map(rss => {
                       const Icon = rss.icon;
                       return (
-                        <th key={rss.key} className="px-4 py-2 text-right">
+                        <th key={rss.key} className="px-3 py-2 text-right">
                           <Icon className={`w-3.5 h-3.5 inline ${rss.color}`} />
                         </th>
                       );
                     })}
-                    <th className="px-4 py-2 text-right">Status</th>
+                    <th className="px-3 py-2 text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {upcomingFlags.map(flag => (
                     <tr
                       key={flag.number}
-                      className={`border-b border-[var(--border)]/50 ${
+                      className={`border-b border-[var(--border)] ${
                         flag.affordable ? 'bg-green-400/5' : ''
                       }`}
                     >
-                      <td className="px-4 py-1.5 font-mono text-[var(--text-secondary)]">#{flag.number}</td>
+                      <td className="px-3 py-1.5 font-mono text-[var(--text-secondary)]">#{flag.number}</td>
                       {RSS_CONFIG.map(rss => (
-                        <td key={rss.key} className="px-4 py-1.5 text-right font-mono text-xs text-[var(--text-muted)]">
-                          {formatNum(flag.cost[rss.key])}
+                        <td key={rss.key} className="px-3 py-1.5 text-right font-mono text-xs text-[var(--text-muted)]">
+                          {flag.cost[rss.key] > 0 ? formatNum(flag.cost[rss.key]) : '-'}
                         </td>
                       ))}
-                      <td className="px-4 py-1.5 text-right">
+                      <td className="px-3 py-1.5 text-right">
                         {flag.affordable ? (
                           <span className="text-green-400 text-xs">Can build</span>
                         ) : (
