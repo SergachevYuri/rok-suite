@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Flag, Wheat, TreePine, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock } from 'lucide-react';
+import { Flag, Wheat, TreePine, Mountain, Coins, TrendingUp, Gem, Shield, CalendarClock } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 
 // Per-flag costs from the rok.guide table (max tech, LK crusader flags).
@@ -167,19 +167,20 @@ function parseUTCDatetimeLocal(s: string): Date {
 const RSS_KEYS: (keyof FlagCost)[] = ['food', 'wood', 'stone', 'gold', 'crystals', 'credits'];
 
 const RSS_CONFIG = [
+  { key: 'credits' as const, label: 'Credits', icon: Shield, color: 'text-orange-400', hasProduction: false },
   { key: 'food' as const, label: 'Food', icon: Wheat, color: 'text-yellow-400', hasProduction: true },
   { key: 'wood' as const, label: 'Wood', icon: TreePine, color: 'text-green-400', hasProduction: true },
   { key: 'stone' as const, label: 'Stone', icon: Mountain, color: 'text-stone-400', hasProduction: true },
   { key: 'gold' as const, label: 'Gold', icon: Coins, color: 'text-amber-300', hasProduction: true },
   { key: 'crystals' as const, label: 'Crystals', icon: Gem, color: 'text-cyan-400', hasProduction: true },
-  { key: 'credits' as const, label: 'Credits', icon: Medal, color: 'text-orange-400', hasProduction: false },
 ];
 
 // No caps by default (set very high)
 const NO_CAP: FlagCost = { food: 1e15, wood: 1e15, stone: 1e15, gold: 1e15, crystals: 1e15, credits: 1e15 };
 
 export default function FlagCalculatorPage() {
-  const [currentFlags, setCurrentFlags] = useState(0);
+  const [currentFlagsInput, setCurrentFlagsInput] = useState('0');
+  const currentFlags = parseInt(currentFlagsInput) || 0;
   const [resourceInputs, setResourceInputs] = useState({
     food: '9.7', wood: '7.6', stone: '5.3', gold: '2.6', crystals: '0.72', credits: '128.2',
   });
@@ -293,8 +294,8 @@ export default function FlagCalculatorPage() {
               <input
                 type="number"
                 min={0}
-                value={currentFlags}
-                onChange={e => setCurrentFlags(Math.max(0, parseInt(e.target.value) || 0))}
+                value={currentFlagsInput}
+                onChange={e => setCurrentFlagsInput(e.target.value)}
                 className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-lg font-mono text-[var(--foreground)]"
               />
             </div>
