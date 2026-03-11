@@ -49,8 +49,9 @@ import { detectNodesPixel, reclassifyNodeTypes } from '@/lib/kvk-map/pixel-detec
 import FlagPathOverlay from '@/components/kvk-map/FlagPathOverlay';
 import FlagPathPanel from '@/components/kvk-map/FlagPathPanel';
 import AnnotationOverlay from '@/components/kvk-map/AnnotationOverlay';
-import AnnotationToolbar from '@/components/kvk-map/AnnotationToolbar';
 import AnnotationPanel from '@/components/kvk-map/AnnotationPanel';
+import RightSidebar from '@/components/kvk-map/RightSidebar';
+import StatusBar from '@/components/kvk-map/StatusBar';
 import {
   useKvkArrows, createArrow, deleteArrow,
   useKvkDrawings, createDrawing, deleteDrawing,
@@ -59,6 +60,7 @@ import {
   useKvkZoneActions, createZoneAction, toggleZoneAction, deleteZoneAction,
 } from '@/lib/supabase/use-kvk-annotations';
 import type { AnnotationTool, ArrowType } from '@/lib/kvk-map-types';
+import { getArrowColor } from '@/lib/kvk-map/annotation-constants';
 
 function isFlagFeatureType(type: FeatureType): boolean {
   return !!FEATURE_TYPE_CONFIG[type]?.tileSize;
@@ -326,20 +328,19 @@ export default function WarRoomPage() {
     setWarPlanOpen((v) => !v);
   }, []);
 
-  // ── Finish arrow helper ────────────────────────────────────────────
-  const finishArrow = useCallback(async () => {
-    if (!map || liveArrowPoints.length < 2) return;
-    const arrowColor = { attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType] || '#ef4444';
+  // ── Create arrow from two points ─────────────────────────────────────
+  const createArrowFromPoints = useCallback(async (start: [number, number], end: [number, number]) => {
+    if (!map) return;
+    const arrowColor = getArrowColor(annotationArrowType);
     await createArrow(map.id, {
-      waypoints: liveArrowPoints,
+      waypoints: [start, end],
       arrow_type: annotationArrowType,
       color_override: arrowColor,
       stage: currentStage,
       created_by: officerName || undefined,
     });
     await refetchArrows();
-    setLiveArrowPoints([]);
-  }, [map, liveArrowPoints, annotationArrowType, currentStage, officerName, refetchArrows]);
+  }, [map, annotationArrowType, currentStage, officerName, refetchArrows]);
 
   // ── Confirm pending label helper ──────────────────────────────────
   const handlePendingLabelConfirm = useCallback(async (text: string) => {
@@ -391,12 +392,7 @@ export default function WarRoomPage() {
         return;
       }
 
-      // Enter: finish arrow
-      if (e.key === 'Enter' && !isTyping && annotationTool === 'arrow' && liveArrowPoints.length >= 2) {
-        e.preventDefault();
-        finishArrow();
-        return;
-      }
+      // Enter: no longer needed for arrows (two-click model)
 
       if (e.key === 'Escape') {
         // Cancel pending text label
@@ -460,7 +456,7 @@ export default function WarRoomPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDrawingZone, rssState.rssAnnotationMode, flagPath.active, flagPath.addingWaypoint, flagPath.addingFlag, selection.selectedFeatureId, annotationTool, liveDrawingPoints, liveArrowPoints, annotationSelectedId, warPlanOpen, handleAnnotationToolChange, finishArrow, pendingLabel, handleDeleteAnnotation]);
+  }, [isDrawingZone, rssState.rssAnnotationMode, flagPath.active, flagPath.addingWaypoint, flagPath.addingFlag, selection.selectedFeatureId, annotationTool, liveDrawingPoints, liveArrowPoints, annotationSelectedId, warPlanOpen, handleAnnotationToolChange, pendingLabel, handleDeleteAnnotation]);
 
   // ── Feature handlers (admin, or officer for flags) ─────────────────
   const handleSelectType = useCallback((type: FeatureType) => {
@@ -953,7 +949,15 @@ export default function WarRoomPage() {
     async (x: number, y: number) => {
       // ── Annotation tools ────────────────────────────────────────
       if (annotationTool === 'arrow' && map) {
-        setLiveArrowPoints((prev) => [...prev, [Math.round(x), Math.round(y)]]);
+        const point: [number, number] = [Math.round(x), Math.round(y)];
+        if (liveArrowPoints.length === 0) {
+          // First click: set start point
+          setLiveArrowPoints([point]);
+        } else {
+          // Second click: create arrow and reset
+          await createArrowFromPoints(liveArrowPoints[0], point);
+          setLiveArrowPoints([]);
+        }
         return;
       }
       if (annotationTool === 'draw') {
@@ -1033,7 +1037,7 @@ export default function WarRoomPage() {
         }
       }
     },
-    [isDrawingZone, placement, map, features, refetchFeatures, isAtLeast, refetchAssignments, rssState, symmetryConfig, rssNodes, setRssNodes, flagPath, selection, officerName, annotationTool, annotationColor, currentStage, refetchLabels]
+    [isDrawingZone, placement, map, features, refetchFeatures, isAtLeast, refetchAssignments, rssState, symmetryConfig, rssNodes, setRssNodes, flagPath, selection, officerName, annotationTool, annotationColor, currentStage, refetchLabels, liveArrowPoints, createArrowFromPoints]
   );
 
   const handleMapDoubleClick = useCallback(
@@ -1084,6 +1088,8 @@ export default function WarRoomPage() {
         onSelectStrategy={handleSelectStrategy}
         onSaveStrategy={handleSaveStrategy}
         onDeleteStrategy={handleDeleteStrategy}
+        warPlanActive={warPlanOpen}
+        onToggleWarPlan={handleToggleWarPlan}
       />
 
       {/* Strategy banner */}
@@ -1304,7 +1310,7 @@ export default function WarRoomPage() {
                 liveDrawingColor={annotationColor}
                 liveDrawingWeight={3}
                 liveArrowPoints={liveArrowPoints.length > 0 ? liveArrowPoints : undefined}
-                liveArrowColor={{ attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType] || '#ef4444'}
+                liveArrowColor={getArrowColor(annotationArrowType)}
                 cursorPoint={mousePos}
                 pendingLabel={pendingLabel}
                 onPendingLabelConfirm={handlePendingLabelConfirm}
@@ -1313,36 +1319,17 @@ export default function WarRoomPage() {
             </MapBase>
             <CoordinateDisplay x={mousePos?.x ?? null} y={mousePos?.y ?? null} />
 
-            {/* Mode indicator */}
-            {flagPath.active && (
-              <div
-                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-                style={{
-                  backgroundColor: 'rgba(0,0,0,0.8)',
-                  color: '#06b6d4',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#06b6d4' }} />
-                <span>
-                  {flagPath.addingWaypoint
-                    ? 'Click to place waypoints'
-                    : flagPath.addingFlag
-                      ? 'Click to place a flag'
-                      : `Flag Path: ${flagPath.flags.length} flags`}
-                </span>
-                <span style={{ color: 'var(--text-muted)' }}>(Esc to exit)</span>
-              </div>
-            )}
-            {placement.isPlacing && placement.placingType && (
-              <div
-                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-                style={{
-                  backgroundColor: 'rgba(0,0,0,0.8)',
-                  color: FEATURE_TYPE_CONFIG[placement.placingType].color,
-                  border: '1px solid var(--border)',
-                }}
-              >
+            {/* Unified status bar — only one mode hint visible at a time */}
+            {annotationTool === 'arrow' && liveArrowPoints.length > 0 ? (
+              <StatusBar color={getArrowColor(annotationArrowType)}>
+                Click to set end point · Esc to cancel
+              </StatusBar>
+            ) : isDrawingZone && selectedZone ? (
+              <StatusBar color={selectedZone.color}>
+                Drawing: {selectedZone.name || `Zone ${selectedZone.zone_number}`} — {zoneVertices.length} vertices (double-click to finish, Esc to cancel)
+              </StatusBar>
+            ) : placement.isPlacing && placement.placingType ? (
+              <StatusBar color={FEATURE_TYPE_CONFIG[placement.placingType].color}>
                 <span>Placing: {FEATURE_TYPE_CONFIG[placement.placingType].label}</span>
                 {isFlagFeatureType(placement.placingType) && alliances.length > 0 && (
                   <select
@@ -1358,75 +1345,144 @@ export default function WarRoomPage() {
                     ))}
                   </select>
                 )}
-                <span style={{ color: 'var(--text-muted)' }}>(click to place · keep clicking · Esc to stop)</span>
-              </div>
-            )}
-            {isDrawingZone && selectedZone && (
-              <div
-                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] px-3 py-1.5 rounded-full text-xs font-medium"
-                style={{
-                  backgroundColor: 'rgba(0,0,0,0.8)',
-                  color: selectedZone.color,
-                  border: '1px solid var(--border)',
-                }}
-              >
-                Drawing: {selectedZone.name || `Zone ${selectedZone.zone_number}`} — {zoneVertices.length} vertices (double-click to finish, Esc to cancel)
-              </div>
-            )}
-            {rssState.rssAnnotationMode === 'annotate' && (
-              <div
-                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-                style={{
-                  backgroundColor: 'rgba(0,0,0,0.8)',
-                  color: RSS_TYPE_COLORS[rssState.activeRssType],
-                  border: '1px solid var(--border)',
-                }}
-              >
+                <span style={{ color: 'var(--text-muted)' }}>(click to place · Esc to stop)</span>
+              </StatusBar>
+            ) : rssState.rssAnnotationMode === 'annotate' ? (
+              <StatusBar color={RSS_TYPE_COLORS[rssState.activeRssType]}>
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[rssState.activeRssType] }} />
                 <span>Placing: {RSS_TYPE_LABELS[rssState.activeRssType]}</span>
                 <span style={{ color: 'var(--text-muted)' }}>(click map to place · Esc to stop)</span>
-              </div>
-            )}
-            {isOfficerZoneFocus && selectedZone && !placement.isPlacing && (
-              <div
-                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-                style={{
-                  backgroundColor: 'rgba(0,0,0,0.8)',
-                  color: selectedZone.color,
-                  border: '1px solid var(--border)',
-                }}
-              >
+              </StatusBar>
+            ) : flagPath.active ? (
+              <StatusBar color="#06b6d4">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#06b6d4' }} />
+                <span>
+                  {flagPath.addingWaypoint
+                    ? 'Click to place waypoints'
+                    : flagPath.addingFlag
+                      ? 'Click to place a flag'
+                      : `Flag Path: ${flagPath.flags.length} flags`}
+                </span>
+                <span style={{ color: 'var(--text-muted)' }}>(Esc to exit)</span>
+              </StatusBar>
+            ) : isOfficerZoneFocus && selectedZone && !placement.isPlacing ? (
+              <StatusBar color={selectedZone.color}>
                 <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: selectedZone.color }} />
                 <span>{selectedZone.name || `Zone ${selectedZone.zone_number}`}</span>
                 <span style={{ color: 'var(--text-muted)' }}>(Esc to clear)</span>
-              </div>
-            )}
-            {/* Annotation toolbar — officers only, shown when war plan is open */}
-            {isOfficerMode && warPlanOpen && (
-              <AnnotationToolbar
-                activeTool={annotationTool}
-                onToolChange={handleAnnotationToolChange}
-                arrowType={annotationArrowType}
-                onArrowTypeChange={setAnnotationArrowType}
-                drawColor={annotationColor}
-                onDrawColorChange={setAnnotationColor}
-              />
-            )}
-            {/* Arrow mode hint */}
-            {annotationTool === 'arrow' && liveArrowPoints.length > 0 && (
-              <div
-                className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-                style={{ backgroundColor: 'rgba(0,0,0,0.8)', color: { attack: '#ef4444', defend: '#3b82f6', reinforce: '#22c55e', rally: '#f59e0b' }[annotationArrowType], border: '1px solid var(--border)' }}
-              >
-                Click to add points ({liveArrowPoints.length}) · Enter to finish · Esc to cancel
-              </div>
-            )}
+              </StatusBar>
+            ) : null}
           </div>
 
-          {/* Right sidebar — feature/zone detail, RSS review, flag path, war plan, planning overview */}
-          {(isOfficerMode || selectedZone || selectedFeature || rssState.rssReviewActive || flagPath.active || warPlanOpen || (!rssState.rssReviewActive && selectedRssNode && isAtLeast('officer'))) && (
-            <div className="lg:w-72 shrink-0 overflow-y-auto">
-              {warPlanOpen && !flagPath.active && !rssState.rssReviewActive && !selectedFeature && !selectedZone ? (
+          {/* Right sidebar with panel stacking */}
+          <RightSidebar
+            visible={isOfficerMode || !!selectedZone || !!selectedFeature || rssState.rssReviewActive || flagPath.active || warPlanOpen || (!rssState.rssReviewActive && !!selectedRssNode && isAtLeast('officer'))}
+            basePanelLabel={warPlanOpen ? 'War Plan' : flagPath.active ? 'Flag Path' : rssState.rssReviewActive ? 'RSS Review' : 'Overview'}
+            onClearOverlay={() => {
+              selection.setSelectedFeatureId(null);
+              selection.setSelectedZoneId(null);
+              selection.setSelectedRssNodeId(null);
+            }}
+            overlayPanel={
+              // Overlay panels: feature/zone/rss node detail (shown on top of base)
+              selectedFeature ? (
+                <FeatureDetailPanel
+                  feature={selectedFeature}
+                  assignment={isOfficerMode ? selectedAssignment : null}
+                  alliance={isOfficerMode ? selectedAlliance : null}
+                  alliances={isOfficerMode ? alliances : []}
+                  onSave={(isAdminMode || (isOfficerMode && isFlagFeatureType(selectedFeature.feature_type as FeatureType))) ? handleSaveFeature : undefined}
+                  onDelete={(isAdminMode || (isOfficerMode && isFlagFeatureType(selectedFeature.feature_type as FeatureType))) ? handleDeleteFeature : undefined}
+                  onAssign={isAtLeast('officer') ? handleAssign : undefined}
+                  onUpdateAssignment={isAtLeast('officer') ? handleUpdateAssignment : undefined}
+                  onUnassign={isAtLeast('officer') ? handleUnassign : undefined}
+                  onClose={() => selection.setSelectedFeatureId(null)}
+                />
+              ) : selectedZone && isAdminMode ? (
+                <ZoneEditorPanel
+                  zone={selectedZone}
+                  isDrawing={isDrawingZone}
+                  vertexCount={zoneVertices.length}
+                  onStartDrawing={handleStartDrawing}
+                  onUndoVertex={handleUndoVertex}
+                  onFinishDrawing={handleFinishDrawing}
+                  onCancelDrawing={handleCancelDrawing}
+                  onClose={() => {
+                    selection.setSelectedZoneId(null);
+                    setIsDrawingZone(false);
+                    setZoneVertices([]);
+                  }}
+                />
+              ) : selectedZone && !isAdminMode ? (
+                <ZonePlanPanel
+                  zone={selectedZone}
+                  features={features}
+                  assignments={activeAssignments}
+                  alliances={alliances}
+                  rssNodes={rssNodes}
+                  onPlaceFortress={isOfficerMode ? handlePlaceFortress : undefined}
+                  onPlaceFlag={isOfficerMode ? handlePlaceFlag : undefined}
+                  isPlacingFortress={placement.isPlacing && placement.placingType === 'fortress'}
+                  isPlacingFlag={placement.isPlacing && placement.placingType === 'flag'}
+                  onSelectFeature={(id) => {
+                    selection.setSelectedFeatureId(id);
+                    selection.setSelectedZoneId(null);
+                  }}
+                  onClearFocus={() => selection.setSelectedZoneId(null)}
+                  onUpdateKingdom={isOfficerMode ? async (kingdom) => {
+                    const ok = await updateMapZone(selectedZone.id, { kingdom });
+                    if (ok) refetchZones();
+                  } : undefined}
+                />
+              ) : !rssState.rssReviewActive && selectedRssNode && isAtLeast('officer') ? (
+                <div
+                  className="rounded-xl p-4 border"
+                  style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[selectedRssNode.type] }} />
+                      <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
+                        {RSS_TYPE_LABELS[selectedRssNode.type]}
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => selection.setSelectedRssNodeId(null)}
+                      className="text-xs px-1.5 py-0.5 rounded"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                    ({selectedRssNode.x}, {selectedRssNode.y})
+                  </p>
+                  {rssFlags.some((f) => f.node_x === selectedRssNode.x && f.node_y === selectedRssNode.y) ? (
+                    <div
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-center"
+                      style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+                    >
+                      Already flagged
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleFlagRssNode}
+                      className="w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                      style={{
+                        backgroundColor: 'rgba(239,68,68,0.15)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                      }}
+                    >
+                      Flag as Incorrect
+                    </button>
+                  )}
+                </div>
+              ) : null
+            }
+            basePanel={
+              // Base panels: war plan, flag path, rss review, or allocation overview
+              warPlanOpen && !flagPath.active && !rssState.rssReviewActive ? (
                 <AnnotationPanel
                   arrows={arrows}
                   drawings={drawings}
@@ -1445,6 +1501,12 @@ export default function WarRoomPage() {
                   onCreateAction={handleCreateAction}
                   onDeleteAction={handleDeleteAction}
                   onClose={handleToggleWarPlan}
+                  activeTool={annotationTool}
+                  onToolChange={handleAnnotationToolChange}
+                  arrowType={annotationArrowType}
+                  onArrowTypeChange={setAnnotationArrowType}
+                  drawColor={annotationColor}
+                  onDrawColorChange={setAnnotationColor}
                 />
               ) : flagPath.active ? (
                 <FlagPathPanel
@@ -1518,101 +1580,6 @@ export default function WarRoomPage() {
                     onBulkReject={handleRssBulkReject}
                   />
                 </>
-              ) : !rssState.rssReviewActive && selectedRssNode && isAtLeast('officer') ? (
-                <div
-                  className="rounded-xl p-4 border"
-                  style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: RSS_TYPE_COLORS[selectedRssNode.type] }} />
-                      <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>
-                        {RSS_TYPE_LABELS[selectedRssNode.type]}
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => selection.setSelectedRssNodeId(null)}
-                      className="text-xs px-1.5 py-0.5 rounded"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-                    ({selectedRssNode.x}, {selectedRssNode.y})
-                  </p>
-                  {rssFlags.some((f) => f.node_x === selectedRssNode.x && f.node_y === selectedRssNode.y) ? (
-                    <div
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-center"
-                      style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
-                    >
-                      Already flagged
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleFlagRssNode}
-                      className="w-full px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                      style={{
-                        backgroundColor: 'rgba(239,68,68,0.15)',
-                        color: '#ef4444',
-                        border: '1px solid rgba(239,68,68,0.3)',
-                      }}
-                    >
-                      Flag as Incorrect
-                    </button>
-                  )}
-                </div>
-              ) : selectedZone ? (
-                isAdminMode ? (
-                  <ZoneEditorPanel
-                    zone={selectedZone}
-                    isDrawing={isDrawingZone}
-                    vertexCount={zoneVertices.length}
-                    onStartDrawing={handleStartDrawing}
-                    onUndoVertex={handleUndoVertex}
-                    onFinishDrawing={handleFinishDrawing}
-                    onCancelDrawing={handleCancelDrawing}
-                    onClose={() => {
-                      selection.setSelectedZoneId(null);
-                      setIsDrawingZone(false);
-                      setZoneVertices([]);
-                    }}
-                  />
-                ) : (
-                  <ZonePlanPanel
-                    zone={selectedZone}
-                    features={features}
-                    assignments={activeAssignments}
-                    alliances={alliances}
-                    rssNodes={rssNodes}
-                    onPlaceFortress={isOfficerMode ? handlePlaceFortress : undefined}
-                    onPlaceFlag={isOfficerMode ? handlePlaceFlag : undefined}
-                    isPlacingFortress={placement.isPlacing && placement.placingType === 'fortress'}
-                    isPlacingFlag={placement.isPlacing && placement.placingType === 'flag'}
-                    onSelectFeature={(id) => {
-                      selection.setSelectedFeatureId(id);
-                      selection.setSelectedZoneId(null);
-                    }}
-                    onClearFocus={() => selection.setSelectedZoneId(null)}
-                    onUpdateKingdom={isOfficerMode ? async (kingdom) => {
-                      const ok = await updateMapZone(selectedZone.id, { kingdom });
-                      if (ok) refetchZones();
-                    } : undefined}
-                  />
-                )
-              ) : selectedFeature ? (
-                <FeatureDetailPanel
-                  feature={selectedFeature}
-                  assignment={isOfficerMode ? selectedAssignment : null}
-                  alliance={isOfficerMode ? selectedAlliance : null}
-                  alliances={isOfficerMode ? alliances : []}
-                  onSave={(isAdminMode || (isOfficerMode && isFlagFeatureType(selectedFeature.feature_type as FeatureType))) ? handleSaveFeature : undefined}
-                  onDelete={(isAdminMode || (isOfficerMode && isFlagFeatureType(selectedFeature.feature_type as FeatureType))) ? handleDeleteFeature : undefined}
-                  onAssign={isAtLeast('officer') ? handleAssign : undefined}
-                  onUpdateAssignment={isAtLeast('officer') ? handleUpdateAssignment : undefined}
-                  onUnassign={isAtLeast('officer') ? handleUnassign : undefined}
-                  onClose={() => selection.setSelectedFeatureId(null)}
-                />
               ) : isOfficerMode ? (
                 <AllocationPlanPanel
                   features={features}
@@ -1626,9 +1593,9 @@ export default function WarRoomPage() {
                   currentStage={map?.current_stage ?? 1}
                   onStageChange={handleStageChange}
                 />
-              ) : null}
-            </div>
-          )}
+              ) : null
+            }
+          />
         </div>
 
         {/* Bottom panel: Achievement Progress (all users — viewers see no progress) */}

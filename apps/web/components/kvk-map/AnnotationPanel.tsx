@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Trash2, Plus, Check, X, MoveRight, Pencil, Type, ChevronDown, ChevronRight } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { Trash2, Plus, Check, X, MoveRight, Pencil, Type, MousePointer2, Eraser, ChevronDown, ChevronRight } from 'lucide-react';
 import type {
   KvkMapArrow,
   KvkMapDrawing,
@@ -9,16 +9,101 @@ import type {
   KvkZoneNote,
   KvkZoneAction,
   KvkMapZone,
+  AnnotationTool,
+  ArrowType,
 } from '@/lib/kvk-map-types';
+import { ARROW_TYPE_COLORS, DRAW_COLORS, getArrowColor } from '@/lib/kvk-map/annotation-constants';
 
-// ─── Arrow type display ─────────────────────────────────────────────
+// ─── Tool definitions ────────────────────────────────────────────────
 
-const ARROW_TYPE_COLORS: Record<string, string> = {
-  attack: '#ef4444',
-  defend: '#3b82f6',
-  reinforce: '#22c55e',
-  rally: '#f59e0b',
-};
+const TOOLS: { key: AnnotationTool; icon: typeof MousePointer2; label: string; shortcut: string }[] = [
+  { key: 'select', icon: MousePointer2, label: 'Select', shortcut: 'V' },
+  { key: 'arrow', icon: MoveRight, label: 'Arrow', shortcut: 'A' },
+  { key: 'draw', icon: Pencil, label: 'Draw', shortcut: 'D' },
+  { key: 'text', icon: Type, label: 'Text', shortcut: 'T' },
+  { key: 'eraser', icon: Eraser, label: 'Erase', shortcut: 'X' },
+];
+
+// ─── Inline Toolbar ──────────────────────────────────────────────────
+
+function AnnotationToolstrip({
+  activeTool,
+  onToolChange,
+  arrowType,
+  onArrowTypeChange,
+  drawColor,
+  onDrawColorChange,
+}: {
+  activeTool: AnnotationTool;
+  onToolChange: (tool: AnnotationTool) => void;
+  arrowType: ArrowType;
+  onArrowTypeChange: (type: ArrowType) => void;
+  drawColor: string;
+  onDrawColorChange: (color: string) => void;
+}) {
+  return (
+    <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+      {/* Tool buttons */}
+      <div className="flex items-center gap-0.5">
+        {TOOLS.map(({ key, icon: Icon, label, shortcut }) => {
+          const isActive = activeTool === key;
+          return (
+            <button
+              key={key}
+              onClick={() => onToolChange(key)}
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg transition-all text-[10px]"
+              style={{
+                backgroundColor: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
+                color: isActive ? '#fff' : 'rgba(255,255,255,0.4)',
+              }}
+              title={`${label} (${shortcut})`}
+            >
+              <Icon size={13} />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Arrow type sub-options */}
+      {activeTool === 'arrow' && (
+        <div className="flex items-center gap-1 mt-1.5">
+          {(['attack', 'defend', 'reinforce', 'rally'] as ArrowType[]).map((type) => (
+            <button
+              key={type}
+              onClick={() => onArrowTypeChange(type)}
+              className="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[10px] font-medium capitalize transition-all"
+              style={{
+                backgroundColor: arrowType === type ? `${ARROW_TYPE_COLORS[type]}22` : 'transparent',
+                color: arrowType === type ? ARROW_TYPE_COLORS[type] : 'rgba(255,255,255,0.35)',
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ARROW_TYPE_COLORS[type] }} />
+              {type}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Color sub-options */}
+      {(activeTool === 'draw' || activeTool === 'text') && (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          {DRAW_COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => onDrawColorChange(c)}
+              className="w-5 h-5 rounded-full transition-all"
+              style={{
+                backgroundColor: c,
+                border: drawColor === c ? '2px solid #fff' : '2px solid transparent',
+                opacity: drawColor === c ? 1 : 0.4,
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Zone Notes Section ─────────────────────────────────────────────
 
@@ -94,7 +179,6 @@ function ZoneActionsSection({
     if (!newLabel.trim()) { setAdding(false); return; }
     onCreate(zone.id, newLabel.trim());
     setNewLabel('');
-    // Keep adding mode open for quick entry
   };
 
   return (
@@ -236,6 +320,13 @@ interface AnnotationPanelProps {
   onCreateAction: (zoneId: string, label: string) => void;
   onDeleteAction: (id: string) => void;
   onClose: () => void;
+  // Annotation toolbar
+  activeTool: AnnotationTool;
+  onToolChange: (tool: AnnotationTool) => void;
+  arrowType: ArrowType;
+  onArrowTypeChange: (type: ArrowType) => void;
+  drawColor: string;
+  onDrawColorChange: (color: string) => void;
 }
 
 export default function AnnotationPanel({
@@ -256,6 +347,12 @@ export default function AnnotationPanel({
   onCreateAction,
   onDeleteAction,
   onClose,
+  activeTool,
+  onToolChange,
+  arrowType,
+  onArrowTypeChange,
+  drawColor,
+  onDrawColorChange,
 }: AnnotationPanelProps) {
   const [notesOpen, setNotesOpen] = useState(true);
   const [actionsOpen, setActionsOpen] = useState(true);
@@ -267,7 +364,6 @@ export default function AnnotationPanel({
 
   const totalAnnotations = stageArrows.length + stageDrawings.length + stageLabels.length;
 
-  // Only show zones that have polygons
   const activeZones = useMemo(() => zones.filter((z) => z.polygon && z.polygon.length > 0), [zones]);
 
   return (
@@ -285,7 +381,17 @@ export default function AnnotationPanel({
         </button>
       </div>
 
-      <div className="p-2 space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
+      {/* Integrated toolbar */}
+      <AnnotationToolstrip
+        activeTool={activeTool}
+        onToolChange={onToolChange}
+        arrowType={arrowType}
+        onArrowTypeChange={onArrowTypeChange}
+        drawColor={drawColor}
+        onDrawColorChange={onDrawColorChange}
+      />
+
+      <div className="p-2 space-y-2 max-h-[calc(100vh-380px)] overflow-y-auto">
         {/* Zone Notes */}
         <div>
           <button
@@ -355,7 +461,7 @@ export default function AnnotationPanel({
             <div className="space-y-0.5 px-1">
               {totalAnnotations === 0 && (
                 <p className="text-[10px] px-2 py-1" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
-                  Use the toolbar below the map to draw arrows, freehand lines, or place text
+                  Select a tool above to draw arrows, freehand lines, or place text labels
                 </p>
               )}
               {stageArrows.map((a) => (
@@ -363,7 +469,7 @@ export default function AnnotationPanel({
                   key={a.id}
                   type="arrow"
                   label={a.label || `${a.arrow_type} arrow`}
-                  color={a.color_override || ARROW_TYPE_COLORS[a.arrow_type] || '#9ca3af'}
+                  color={a.color_override || getArrowColor(a.arrow_type as ArrowType)}
                   isSelected={a.id === selectedId}
                   onClick={() => onSelectItem('arrow', a.id)}
                   onDelete={() => onDeleteArrow(a.id)}

@@ -5,15 +5,7 @@ import { createPortal } from 'react-dom';
 import { Polyline, CircleMarker, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { KvkMapArrow, KvkMapDrawing, KvkMapLabel } from '@/lib/kvk-map-types';
-
-// ─── Arrow type colors & styles ─────────────────────────────────────
-
-const ARROW_TYPE_COLORS: Record<string, string> = {
-  attack: '#ef4444',
-  defend: '#3b82f6',
-  reinforce: '#22c55e',
-  rally: '#f59e0b',
-};
+import { ARROW_TYPE_COLORS } from '@/lib/kvk-map/annotation-constants';
 
 // ─── Arrow Head (SVG triangle at end of polyline) ───────────────────
 

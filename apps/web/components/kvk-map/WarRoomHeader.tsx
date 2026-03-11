@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Map, Lock, Unlock, X, User, ChevronDown, HelpCircle } from 'lucide-react';
+import { Map, Lock, Unlock, X, User, ChevronDown, HelpCircle, Swords } from 'lucide-react';
 import { useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import { supabase } from '@/lib/supabase';
 import SearchableSelect, { type SearchableOption } from '@/components/ui/SearchableSelect';
 import StrategySelector from './StrategySelector';
-import type { KvkStrategy, KvkAssignment, KvkAlliance } from '@/lib/kvk-map-types';
+import type { KvkStrategy } from '@/lib/kvk-map-types';
 
 interface WarRoomHeaderProps {
   strategies: KvkStrategy[];
@@ -14,6 +14,8 @@ interface WarRoomHeaderProps {
   onSelectStrategy: (id: string | null) => void;
   onSaveStrategy: (name: string) => void;
   onDeleteStrategy: (id: string) => void;
+  warPlanActive?: boolean;
+  onToggleWarPlan?: () => void;
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -32,6 +34,8 @@ export default function WarRoomHeader({
   onSelectStrategy,
   onSaveStrategy,
   onDeleteStrategy,
+  warPlanActive,
+  onToggleWarPlan,
 }: WarRoomHeaderProps) {
   const { role, officerName, setOfficerName, login, logout, showLoginPrompt, setShowLoginPrompt } = useWarRoomAuth();
   const [password, setPassword] = useState('');
@@ -101,6 +105,22 @@ export default function WarRoomHeader({
               onSave={onSaveStrategy}
               onDelete={onDeleteStrategy}
             />
+          )}
+
+          {/* War Plan toggle (officer+) */}
+          {role !== 'viewer' && onToggleWarPlan && (
+            <button
+              onClick={onToggleWarPlan}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                backgroundColor: warPlanActive ? 'rgba(239,68,68,0.15)' : 'var(--background-card)',
+                border: `1px solid ${warPlanActive ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`,
+                color: warPlanActive ? '#ef4444' : 'var(--text-muted)',
+              }}
+            >
+              <Swords size={14} />
+              War Plan
+            </button>
           )}
 
           {/* Help button */}
