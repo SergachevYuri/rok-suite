@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Flag, Wheat, TreePine, Mountain, Coins, Clock, TrendingUp, Gem, Medal } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Flag, Wheat, TreePine, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 
 // Per-flag costs from the rok.guide table (max tech, LK crusader flags).
@@ -40,6 +40,84 @@ function totalCostForFlags(fromFlag: number, count: number): FlagCost {
   return total;
 }
 
+// Simulate building flags over time: resources accumulate via production,
+// and flags are built greedily as soon as affordable (each flag is instant).
+// Returns { count, remaining, timeline } where timeline shows when each flag becomes affordable.
+function simulateFlagBuilding(
+  currentFlags: number,
+  startResources: FlagCost,
+  productionPerHour: FlagCost,
+  maxHours: number,
+  resourceCaps: FlagCost,
+) {
+  const resources = { ...startResources };
+  const timeline: { flagNumber: number; hoursIn: number }[] = [];
+  let flagsBuilt = 0;
+
+  // We simulate in small steps. To be efficient, jump to the next time a flag becomes affordable.
+  const MAX_FLAGS = 1000; // safety limit
+  let hoursElapsed = 0;
+
+  while (hoursElapsed <= maxHours && flagsBuilt < MAX_FLAGS) {
+    const nextFlag = currentFlags + flagsBuilt + 1;
+    const cost = getFlagCost(nextFlag);
+
+    // Can we afford it right now?
+    if (RSS_KEYS.every(k => resources[k] >= cost[k])) {
+      for (const k of RSS_KEYS) resources[k] -= cost[k];
+      timeline.push({ flagNumber: nextFlag, hoursIn: hoursElapsed });
+      flagsBuilt++;
+      continue;
+    }
+
+    // Find hours until we can afford this flag (considering caps)
+    let hoursNeeded = 0;
+    let impossible = false;
+    for (const k of RSS_KEYS) {
+      const deficit = cost[k] - resources[k];
+      if (deficit <= 0) continue;
+      const prod = productionPerHour[k];
+      if (prod <= 0) {
+        // Check if cap is high enough
+        if (resources[k] < cost[k]) { impossible = true; break; }
+        continue;
+      }
+      // Account for resource cap: production stops when cap is hit
+      const cap = resourceCaps[k];
+      if (cap > 0 && cap < cost[k]) { impossible = true; break; }
+      hoursNeeded = Math.max(hoursNeeded, deficit / prod);
+    }
+
+    if (impossible || hoursNeeded === 0) break;
+    if (hoursElapsed + hoursNeeded > maxHours) {
+      // Add remaining production until deadline
+      const remaining = maxHours - hoursElapsed;
+      for (const k of RSS_KEYS) {
+        resources[k] += productionPerHour[k] * remaining;
+        if (resourceCaps[k] > 0) resources[k] = Math.min(resources[k], resourceCaps[k]);
+      }
+      hoursElapsed = maxHours;
+      // Check if we can squeeze one more flag
+      const lastCost = getFlagCost(nextFlag);
+      if (RSS_KEYS.every(k => resources[k] >= lastCost[k])) {
+        for (const k of RSS_KEYS) resources[k] -= lastCost[k];
+        timeline.push({ flagNumber: nextFlag, hoursIn: hoursElapsed });
+        flagsBuilt++;
+      }
+      break;
+    }
+
+    // Jump forward
+    hoursElapsed += hoursNeeded;
+    for (const k of RSS_KEYS) {
+      resources[k] += productionPerHour[k] * hoursNeeded;
+      if (resourceCaps[k] > 0) resources[k] = Math.min(resources[k], resourceCaps[k]);
+    }
+  }
+
+  return { count: flagsBuilt, remaining: resources, timeline };
+}
+
 function maxFlagsAffordable(currentFlags: number, resources: FlagCost) {
   let count = 0;
   const remaining = { ...resources };
@@ -70,6 +148,22 @@ function formatHours(hours: number): string {
   return h > 0 ? `${days}d ${h}h` : `${days}d`;
 }
 
+function toUTCDatetimeLocal(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  const h = String(date.getUTCHours()).padStart(2, '0');
+  const min = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${y}-${m}-${d}T${h}:${min}`;
+}
+
+function parseUTCDatetimeLocal(s: string): Date {
+  const [datePart, timePart] = s.split('T');
+  const [y, m, d] = datePart.split('-').map(Number);
+  const [h, min] = timePart.split(':').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, h, min));
+}
+
 const RSS_KEYS: (keyof FlagCost)[] = ['food', 'wood', 'stone', 'gold', 'crystals', 'credits'];
 
 const RSS_CONFIG = [
@@ -81,14 +175,35 @@ const RSS_CONFIG = [
   { key: 'credits' as const, label: 'Credits', icon: Medal, color: 'text-orange-400', hasProduction: false },
 ];
 
+// No caps by default (set very high)
+const NO_CAP: FlagCost = { food: 1e15, wood: 1e15, stone: 1e15, gold: 1e15, crystals: 1e15, credits: 1e15 };
+
 export default function FlagCalculatorPage() {
   const [currentFlags, setCurrentFlags] = useState(0);
   const [resourceInputs, setResourceInputs] = useState({
     food: '9.7', wood: '7.6', stone: '5.3', gold: '2.6', crystals: '0.72', credits: '128.2',
   });
+  const [capInputs, setCapInputs] = useState({
+    food: '11', wood: '11', stone: '8.2', gold: '5.5', crystals: '5.5', credits: '',
+  });
   const [productionInputs, setProductionInputs] = useState({
     food: '102000', wood: '102000', stone: '85500', gold: '70000', crystals: '13500', credits: '0',
   });
+  const [targetDateStr, setTargetDateStr] = useState('');
+  const [now, setNow] = useState(() => new Date());
+
+  // Initialize target date on client only
+  useEffect(() => {
+    const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    setTargetDateStr(toUTCDatetimeLocal(d));
+    setNow(new Date());
+  }, []);
+
+  // Update "now" every minute
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const availableResources = useMemo(() => {
     const r: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
@@ -96,54 +211,51 @@ export default function FlagCalculatorPage() {
     return r;
   }, [resourceInputs]);
 
+  const resourceCaps = useMemo(() => {
+    const c: FlagCost = { ...NO_CAP };
+    for (const k of RSS_KEYS) {
+      const v = parseFloat(capInputs[k]);
+      if (v > 0) c[k] = v * 1_000_000;
+    }
+    return c;
+  }, [capInputs]);
+
   const productionPerHour = useMemo(() => {
     const p: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
     for (const k of RSS_KEYS) p[k] = parseInt(productionInputs[k]) || 0;
     return p;
   }, [productionInputs]);
 
-  const result = useMemo(
+  const hoursUntilTarget = useMemo(() => {
+    if (!targetDateStr) return 0;
+    const target = parseUTCDatetimeLocal(targetDateStr);
+    return Math.max(0, (target.getTime() - now.getTime()) / 3_600_000);
+  }, [targetDateStr, now]);
+
+  // Instant result (no production)
+  const instantResult = useMemo(
     () => maxFlagsAffordable(currentFlags, availableResources),
     [currentFlags, availableResources],
   );
 
+  // Forward simulation with production over time
+  const forwardResult = useMemo(
+    () => simulateFlagBuilding(currentFlags, availableResources, productionPerHour, hoursUntilTarget, resourceCaps),
+    [currentFlags, availableResources, productionPerHour, hoursUntilTarget, resourceCaps],
+  );
+
   const nextFlagCost = useMemo(
-    () => getFlagCost(currentFlags + result.count + 1),
-    [currentFlags, result.count],
+    () => getFlagCost(currentFlags + instantResult.count + 1),
+    [currentFlags, instantResult.count],
   );
 
   const totalCost = useMemo(() => {
-    if (result.count === 0) return { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 } as FlagCost;
-    return totalCostForFlags(currentFlags + 1, result.count);
-  }, [currentFlags, result.count]);
-
-  const timeToNextFlag = useMemo(() => {
-    const deficit: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
-    for (const k of RSS_KEYS) deficit[k] = Math.max(0, nextFlagCost[k] - result.remaining[k]);
-    let hours = 0;
-    for (const k of RSS_KEYS) {
-      if (deficit[k] <= 0) continue;
-      const p = productionPerHour[k];
-      hours = Math.max(hours, p > 0 ? deficit[k] / p : Infinity);
-    }
-    return { deficit, hours };
-  }, [nextFlagCost, result.remaining, productionPerHour]);
-
-  const upcomingFlags = useMemo(() => {
-    const flags: { number: number; cost: FlagCost; affordable: boolean }[] = [];
-    const temp = { ...availableResources };
-    for (let i = 0; i < 20; i++) {
-      const flagNum = currentFlags + i + 1;
-      const cost = getFlagCost(flagNum);
-      const affordable = RSS_KEYS.every(k => temp[k] >= cost[k]);
-      flags.push({ number: flagNum, cost, affordable });
-      if (affordable) for (const k of RSS_KEYS) temp[k] -= cost[k];
-    }
-    return flags;
-  }, [currentFlags, availableResources]);
+    if (instantResult.count === 0) return { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 } as FlagCost;
+    return totalCostForFlags(currentFlags + 1, instantResult.count);
+  }, [currentFlags, instantResult.count]);
 
   const bottleneck = useMemo(() => {
-    if (result.count > 0) return null;
+    if (instantResult.count > 0) return null;
     const cost = nextFlagCost;
     let worst: keyof FlagCost = 'food';
     let worstRatio = Infinity;
@@ -153,7 +265,12 @@ export default function FlagCalculatorPage() {
       if (ratio < worstRatio) { worstRatio = ratio; worst = k; }
     }
     return worst;
-  }, [result.count, nextFlagCost, availableResources]);
+  }, [instantResult.count, nextFlagCost, availableResources]);
+
+  const forwardTotalCost = useMemo(() => {
+    if (forwardResult.count === 0) return { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 } as FlagCost;
+    return totalCostForFlags(currentFlags + 1, forwardResult.count);
+  }, [currentFlags, forwardResult.count]);
 
   return (
     <AppSidebar>
@@ -169,7 +286,7 @@ export default function FlagCalculatorPage() {
           </div>
 
           {/* Inputs */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {/* Current flags */}
             <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
               <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">Current Flags</h2>
@@ -182,23 +299,33 @@ export default function FlagCalculatorPage() {
               />
             </div>
 
-            {/* Alliance resources */}
+            {/* Alliance resources (current / cap) */}
             <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
               <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">Alliance Resources</h2>
               <div className="space-y-2">
                 {RSS_CONFIG.map(rss => {
                   const Icon = rss.icon;
                   return (
-                    <div key={rss.key} className="flex items-center gap-2">
+                    <div key={rss.key} className="flex items-center gap-1.5">
                       <Icon className={`w-4 h-4 flex-shrink-0 ${rss.color}`} />
                       <input
                         type="number"
                         step="0.1"
                         value={resourceInputs[rss.key]}
                         onChange={e => setResourceInputs(prev => ({ ...prev, [rss.key]: e.target.value }))}
-                        className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1.5 text-sm font-mono text-[var(--foreground)]"
+                        className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]"
+                        placeholder="0"
                       />
-                      <span className="text-xs text-[var(--text-muted)] w-4">M</span>
+                      <span className="text-[var(--text-muted)] text-xs">/</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={capInputs[rss.key]}
+                        onChange={e => setCapInputs(prev => ({ ...prev, [rss.key]: e.target.value }))}
+                        className="w-16 bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--text-muted)]"
+                        placeholder="cap"
+                      />
+                      <span className="text-xs text-[var(--text-muted)]">M</span>
                     </div>
                   );
                 })}
@@ -212,14 +339,14 @@ export default function FlagCalculatorPage() {
                 {RSS_CONFIG.map(rss => {
                   const Icon = rss.icon;
                   return (
-                    <div key={rss.key} className="flex items-center gap-2">
+                    <div key={rss.key} className="flex items-center gap-1.5">
                       <Icon className={`w-4 h-4 flex-shrink-0 ${rss.color}`} />
                       <input
                         type="number"
                         step="1000"
                         value={productionInputs[rss.key]}
                         onChange={e => setProductionInputs(prev => ({ ...prev, [rss.key]: e.target.value }))}
-                        className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1.5 text-sm font-mono text-[var(--foreground)]"
+                        className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]"
                         disabled={!rss.hasProduction}
                       />
                     </div>
@@ -227,37 +354,97 @@ export default function FlagCalculatorPage() {
                 })}
               </div>
             </div>
+
+            {/* Target time */}
+            <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
+              <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3 flex items-center gap-1.5">
+                <CalendarClock className="w-4 h-4" /> Target Time (UTC)
+              </h2>
+              <input
+                type="datetime-local"
+                value={targetDateStr}
+                onChange={e => setTargetDateStr(e.target.value)}
+                className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--foreground)] [color-scheme:dark]"
+              />
+              {hoursUntilTarget > 0 && (
+                <p className="text-xs text-[var(--text-muted)] mt-2">
+                  {formatHours(hoursUntilTarget)} from now
+                </p>
+              )}
+              <div className="mt-3 flex gap-2">
+                {[6, 12, 24, 48].map(h => (
+                  <button
+                    key={h}
+                    onClick={() => setTargetDateStr(toUTCDatetimeLocal(new Date(Date.now() + h * 3_600_000)))}
+                    className="px-2 py-1 text-xs rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/20 transition-colors"
+                  >
+                    +{h}h
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Results */}
-          <div className="bg-[var(--background-card)] rounded-xl p-6 border border-[var(--border)] mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {/* Flags affordable */}
-              <div className="text-center">
-                <div className="text-4xl font-bold text-red-400">{result.count}</div>
-                <div className="text-sm text-[var(--text-muted)] mt-1">flags you can build</div>
-                {result.count > 0 && (
-                  <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                    #{currentFlags + 1} &rarr; #{currentFlags + result.count}
-                  </div>
-                )}
-                {result.count === 0 && bottleneck && (
-                  <div className="text-xs text-red-400/70 mt-1">
-                    Bottleneck: {RSS_CONFIG.find(r => r.key === bottleneck)?.label}
-                  </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            {/* Right now */}
+            <div className="bg-[var(--background-card)] rounded-xl p-6 border border-[var(--border)]">
+              <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">Right Now</h3>
+              <div className="flex items-baseline gap-3 mb-3">
+                <span className="text-4xl font-bold text-red-400">{instantResult.count}</span>
+                <span className="text-sm text-[var(--text-muted)]">flags</span>
+                {instantResult.count > 0 && (
+                  <span className="text-xs text-[var(--text-muted)]">#{currentFlags + 1} &rarr; #{currentFlags + instantResult.count}</span>
                 )}
               </div>
-
-              {/* Total cost */}
-              <div>
-                <div className="text-xs text-[var(--text-muted)] mb-2 text-center">
-                  {result.count > 0 ? `Total cost for ${result.count} flags` : `Next flag (#${currentFlags + 1}) costs`}
+              {instantResult.count === 0 && bottleneck && (
+                <div className="text-xs text-red-400/70 mb-3">
+                  Bottleneck: {RSS_CONFIG.find(r => r.key === bottleneck)?.label}
                 </div>
-                <div className="space-y-1">
+              )}
+              <div className="space-y-1">
+                {RSS_CONFIG.map(rss => {
+                  const Icon = rss.icon;
+                  const cost = instantResult.count > 0 ? totalCost[rss.key] : nextFlagCost[rss.key];
+                  if (cost === 0) return null;
+                  return (
+                    <div key={rss.key} className="flex items-center justify-between text-sm">
+                      <span className={`flex items-center gap-1.5 ${rss.color}`}>
+                        <Icon className="w-3.5 h-3.5" />
+                        {rss.label}
+                      </span>
+                      <span className="text-[var(--text-secondary)] font-mono text-xs">
+                        {formatNumFull(cost)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* By target time */}
+            <div className="bg-[var(--background-card)] rounded-xl p-6 border border-blue-500/30">
+              <h3 className="text-xs font-medium text-blue-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                <CalendarClock className="w-3.5 h-3.5" />
+                By Target Time
+                {hoursUntilTarget > 0 && <span className="text-[var(--text-muted)] normal-case">({formatHours(hoursUntilTarget)})</span>}
+              </h3>
+              <div className="flex items-baseline gap-3 mb-3">
+                <span className="text-4xl font-bold text-blue-400">{forwardResult.count}</span>
+                <span className="text-sm text-[var(--text-muted)]">flags</span>
+                {forwardResult.count > 0 && (
+                  <span className="text-xs text-[var(--text-muted)]">#{currentFlags + 1} &rarr; #{currentFlags + forwardResult.count}</span>
+                )}
+                {forwardResult.count > instantResult.count && (
+                  <span className="text-xs text-green-400">+{forwardResult.count - instantResult.count} from production</span>
+                )}
+              </div>
+              {forwardResult.count > 0 && (
+                <div className="space-y-1 mb-4">
                   {RSS_CONFIG.map(rss => {
+                    const cost = forwardTotalCost[rss.key];
+                    if (cost === 0) return null;
                     const Icon = rss.icon;
-                    const cost = result.count > 0 ? totalCost[rss.key] : nextFlagCost[rss.key];
-                    if (cost === 0 && result.count > 0) return null;
                     return (
                       <div key={rss.key} className="flex items-center justify-between text-sm">
                         <span className={`flex items-center gap-1.5 ${rss.color}`}>
@@ -271,59 +458,25 @@ export default function FlagCalculatorPage() {
                     );
                   })}
                 </div>
-              </div>
-
-              {/* Time to next */}
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1.5 text-[var(--text-muted)] mb-2">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-xs">Time to next flag</span>
-                </div>
-                {timeToNextFlag.hours === 0 ? (
-                  <div className="text-green-400 font-medium">Ready now!</div>
-                ) : timeToNextFlag.hours === Infinity ? (
-                  <div className="text-red-400 font-medium">No production</div>
-                ) : (
-                  <div className="text-xl font-bold text-blue-400">
-                    {formatHours(timeToNextFlag.hours)}
-                  </div>
-                )}
-                <div className="mt-2 space-y-0.5">
-                  {RSS_CONFIG.map(rss => {
-                    const deficit = timeToNextFlag.deficit[rss.key];
-                    if (deficit <= 0) return null;
-                    const Icon = rss.icon;
-                    return (
-                      <div key={rss.key} className="flex items-center justify-center gap-1 text-xs text-[var(--text-muted)]">
-                        <Icon className="w-3 h-3" />
-                        <span>need {formatNum(deficit)}</span>
+              )}
+              {/* Timeline */}
+              {forwardResult.timeline.length > 0 && (
+                <div className="border-t border-[var(--border)] pt-3 mt-3">
+                  <h4 className="text-xs text-[var(--text-muted)] mb-2">Build timeline</h4>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {forwardResult.timeline.map((entry, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs">
+                        <span className="font-mono text-[var(--text-secondary)]">Flag #{entry.flagNumber}</span>
+                        <span className="text-[var(--text-muted)]">
+                          {entry.hoursIn === 0 ? 'now' : `+${formatHours(entry.hoursIn)}`}
+                        </span>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
-
-          {/* Remaining resources after building */}
-          {result.count > 0 && (
-            <div className="bg-[var(--background-card)] rounded-xl p-4 border border-[var(--border)] mb-6">
-              <h3 className="text-xs text-[var(--text-muted)] mb-2">Resources remaining after {result.count} flags</h3>
-              <div className="flex gap-4 flex-wrap">
-                {RSS_CONFIG.map(rss => {
-                  const Icon = rss.icon;
-                  return (
-                    <div key={rss.key} className="flex items-center gap-2 text-sm">
-                      <Icon className={`w-3.5 h-3.5 ${rss.color}`} />
-                      <span className="text-[var(--text-secondary)] font-mono text-xs">
-                        {formatNum(result.remaining[rss.key])}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* Upcoming flags breakdown */}
           <div className="bg-[var(--background-card)] rounded-xl border border-[var(--border)] overflow-hidden">
@@ -348,28 +501,36 @@ export default function FlagCalculatorPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {upcomingFlags.map(flag => (
-                    <tr
-                      key={flag.number}
-                      className={`border-b border-[var(--border)] ${
-                        flag.affordable ? 'bg-green-400/5' : ''
-                      }`}
-                    >
-                      <td className="px-3 py-1.5 font-mono text-[var(--text-secondary)]">#{flag.number}</td>
-                      {RSS_CONFIG.map(rss => (
-                        <td key={rss.key} className="px-3 py-1.5 text-right font-mono text-xs text-[var(--text-muted)]">
-                          {flag.cost[rss.key] > 0 ? formatNum(flag.cost[rss.key]) : '-'}
+                  {Array.from({ length: 20 }, (_, i) => {
+                    const flagNum = currentFlags + i + 1;
+                    const cost = getFlagCost(flagNum);
+                    const inInstant = flagNum <= currentFlags + instantResult.count;
+                    const inForward = flagNum <= currentFlags + forwardResult.count;
+                    return (
+                      <tr
+                        key={flagNum}
+                        className={`border-b border-[var(--border)] ${
+                          inInstant ? 'bg-green-400/5' : inForward ? 'bg-blue-400/5' : ''
+                        }`}
+                      >
+                        <td className="px-3 py-1.5 font-mono text-[var(--text-secondary)]">#{flagNum}</td>
+                        {RSS_CONFIG.map(rss => (
+                          <td key={rss.key} className="px-3 py-1.5 text-right font-mono text-xs text-[var(--text-muted)]">
+                            {cost[rss.key] > 0 ? formatNum(cost[rss.key]) : '-'}
+                          </td>
+                        ))}
+                        <td className="px-3 py-1.5 text-right">
+                          {inInstant ? (
+                            <span className="text-green-400 text-xs">Now</span>
+                          ) : inForward ? (
+                            <span className="text-blue-400 text-xs">By target</span>
+                          ) : (
+                            <span className="text-[var(--text-muted)] text-xs">-</span>
+                          )}
                         </td>
-                      ))}
-                      <td className="px-3 py-1.5 text-right">
-                        {flag.affordable ? (
-                          <span className="text-green-400 text-xs">Can build</span>
-                        ) : (
-                          <span className="text-[var(--text-muted)] text-xs">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
