@@ -39,14 +39,14 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
     });
   }, [isSelected, disableHover]);
 
-  const interactive = !!onClick;
+  const hasClick = !!onClick;
 
   const hasKingdomFill = !!zone.kingdom;
 
   const handleMouseOut = useCallback(() => {
     if (isSelected || isHighlighted) return;
     setIsHovered(false);
-    if (interactive) {
+    if (hasClick) {
       polygonRef.current?.setStyle({
         color: zone.color,
         fillColor: zone.color,
@@ -70,17 +70,21 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
         opacity: 0,
       });
     }
-  }, [isSelected, isHighlighted, interactive, zone.color, hasKingdomFill]);
+  }, [isSelected, isHighlighted, hasClick, zone.color, hasKingdomFill]);
 
   const showHighlight = isSelected || isHovered || isHighlighted;
   const isDimmed = activeZoneNumber != null && zone.zone_number !== activeZoneNumber;
 
+  // When disableHover is true (e.g. war plan annotation mode), make zones
+  // fully non-interactive so clicks pass through to the map layer beneath.
+  const isInteractive = !disableHover && (hasClick || hasKingdomFill) && !isDimmed;
+
   // Zones with kingdoms get a subtle tinted fill even when not interactive
-  const baseColor = showHighlight ? '#ffffff' : isDimmed ? '#ffffff' : interactive || hasKingdomFill ? zone.color : 'transparent';
+  const baseColor = showHighlight ? '#ffffff' : isDimmed ? '#ffffff' : hasClick || hasKingdomFill ? zone.color : 'transparent';
   const baseFill = showHighlight ? '#ffffff' : isDimmed ? '#ffffff' : hasKingdomFill ? zone.color : 'transparent';
   const baseFillOpacity = isSelected ? 0.22 : showHighlight ? 0.15 : isDimmed ? 0.35 : hasKingdomFill ? 0.15 : 0;
-  const baseWeight = isSelected ? 2 : showHighlight ? 1.5 : isDimmed ? 0 : hasKingdomFill ? 1.5 : interactive ? 1 : 0;
-  const baseOpacity = isSelected ? 0.6 : showHighlight ? 0.4 : isDimmed ? 0 : hasKingdomFill ? 0.5 : interactive ? 0.3 : 0;
+  const baseWeight = isSelected ? 2 : showHighlight ? 1.5 : isDimmed ? 0 : hasKingdomFill ? 1.5 : hasClick ? 1 : 0;
+  const baseOpacity = isSelected ? 0.6 : showHighlight ? 0.4 : isDimmed ? 0 : hasKingdomFill ? 0.5 : hasClick ? 0.3 : 0;
 
   return (
     <Polygon
@@ -92,14 +96,14 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
         fillOpacity: baseFillOpacity,
         weight: baseWeight,
         opacity: baseOpacity,
-        dashArray: showHighlight || isDimmed || hasKingdomFill || !interactive ? undefined : '6 3',
+        dashArray: showHighlight || isDimmed || hasKingdomFill || !hasClick ? undefined : '6 3',
       }}
-      interactive={(interactive || hasKingdomFill) && !isDimmed}
-      eventHandlers={{
+      interactive={isInteractive}
+      eventHandlers={isInteractive ? {
         ...(onClick && !isDimmed ? { click: () => onClick?.(zone) } : {}),
         mouseover: handleMouseOver,
         mouseout: handleMouseOut,
-      }}
+      } : {}}
     />
   );
 }
