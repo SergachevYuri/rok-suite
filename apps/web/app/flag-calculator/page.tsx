@@ -194,7 +194,7 @@ const RSS_CONFIG = [
 const NO_CAP: FlagCost = { food: 1e15, wood: 1e15, stone: 1e15, gold: 1e15, crystals: 1e15, credits: 1e15 };
 
 export default function FlagCalculatorPage() {
-  const [currentFlagsInput, setCurrentFlagsInput] = useState('0');
+  const [currentFlagsInput, setCurrentFlagsInput] = useState('');
   const currentFlags = parseInt(currentFlagsInput) || 0;
   const [resourceInputs, setResourceInputs] = useState({
     food: '9.7', wood: '7.6', stone: '5.3', gold: '2.6', crystals: '0.72', credits: '128.2',
@@ -319,7 +319,8 @@ export default function FlagCalculatorPage() {
                 type="number"
                 min={0}
                 value={currentFlagsInput}
-                onChange={e => setCurrentFlagsInput(e.target.value.replace(/^0+(?=\d)/, ''))}
+                onChange={e => setCurrentFlagsInput(e.target.value.replace(/^0+/, ''))}
+                placeholder="0"
                 className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-lg font-mono text-[var(--foreground)] mb-4"
               />
               <h2 className="text-sm font-medium text-[var(--text-muted)] mb-2">Architecture Tech</h2>
