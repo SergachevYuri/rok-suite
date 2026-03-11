@@ -1,8 +1,28 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Flag, Wheat, TreePine, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock } from 'lucide-react';
+import { Flag, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock, ChevronsUp } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
+
+function CornIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="11" rx="4" ry="7" />
+      <path d="M12 4c1 2 1 4 0 7M12 4c-1 2-1 4 0 7" />
+      <path d="M10 18l-2 4M14 18l2 4M12 18v4" />
+    </svg>
+  );
+}
+
+function LogIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="18" cy="12" rx="2" ry="5" />
+      <path d="M18 7H8a4 5 0 0 0 0 10h10" />
+      <circle cx="8" cy="12" r="1.5" />
+    </svg>
+  );
+}
 
 // Per-flag BASE costs (no tech discount) for LK crusader flags.
 // The rok.guide table shows costs at max tech (-25%), so base = table / 0.75.
@@ -173,8 +193,8 @@ const RSS_KEYS: (keyof FlagCost)[] = ['food', 'wood', 'stone', 'gold', 'crystals
 
 const RSS_CONFIG = [
   { key: 'credits' as const, label: 'Credits', icon: Medal, color: 'text-yellow-500', hasProduction: false },
-  { key: 'food' as const, label: 'Food', icon: Wheat, color: 'text-lime-400', hasProduction: true },
-  { key: 'wood' as const, label: 'Wood', icon: TreePine, color: 'text-amber-600', hasProduction: true },
+  { key: 'food' as const, label: 'Food', icon: CornIcon, color: 'text-lime-400', hasProduction: true },
+  { key: 'wood' as const, label: 'Wood', icon: LogIcon, color: 'text-amber-600', hasProduction: true },
   { key: 'stone' as const, label: 'Stone', icon: Mountain, color: 'text-stone-400', hasProduction: true },
   { key: 'gold' as const, label: 'Gold', icon: Coins, color: 'text-yellow-400', hasProduction: true },
   { key: 'crystals' as const, label: 'Crystals', icon: Gem, color: 'text-blue-400', hasProduction: true },
@@ -301,7 +321,7 @@ export default function FlagCalculatorPage() {
           </div>
 
           {/* Inputs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
             {/* Current flags + tech */}
             <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
               <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">Current Flags</h2>
@@ -341,9 +361,9 @@ export default function FlagCalculatorPage() {
               </div>
             </div>
 
-            {/* Alliance resources (current / cap) */}
+            {/* Storehouse capacity (caps) */}
             <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
-              <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">Alliance Resources</h2>
+              <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">Storehouse Capacity</h2>
               <div className="space-y-2">
                 {RSS_CONFIG.map(rss => {
                   const Icon = rss.icon;
@@ -353,19 +373,68 @@ export default function FlagCalculatorPage() {
                       <input
                         type="number"
                         step="0.1"
-                        value={resourceInputs[rss.key]}
-                        onChange={e => setResourceInputs(prev => ({ ...prev, [rss.key]: e.target.value }))}
+                        min="0"
+                        value={capInputs[rss.key]}
+                        onChange={e => {
+                          const newCap = e.target.value;
+                          setCapInputs(prev => ({ ...prev, [rss.key]: newCap }));
+                          // Clamp current resource if it exceeds new cap
+                          const capVal = parseFloat(newCap);
+                          const curVal = parseFloat(resourceInputs[rss.key]);
+                          if (capVal > 0 && curVal > capVal) {
+                            setResourceInputs(prev => ({ ...prev, [rss.key]: newCap }));
+                          }
+                        }}
                         className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]"
-                        placeholder="0"
+                        placeholder="max"
                       />
-                      <span className="text-[var(--text-muted)] text-xs">/</span>
+                      <span className="text-xs text-[var(--text-muted)]">M</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Current resources */}
+            <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-medium text-[var(--text-muted)]">Current Resources</h2>
+                <button
+                  onClick={() => setResourceInputs(prev => {
+                    const next = { ...prev };
+                    for (const rss of RSS_CONFIG) {
+                      const cap = capInputs[rss.key];
+                      if (cap && parseFloat(cap) > 0) next[rss.key] = cap;
+                    }
+                    return next;
+                  })}
+                  className="flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/20 transition-colors"
+                >
+                  <ChevronsUp className="w-3 h-3" />
+                  Fill Max
+                </button>
+              </div>
+              <div className="space-y-2">
+                {RSS_CONFIG.map(rss => {
+                  const Icon = rss.icon;
+                  const capVal = parseFloat(capInputs[rss.key]);
+                  const maxAttr = capVal > 0 ? capVal : undefined;
+                  return (
+                    <div key={rss.key} className="flex items-center gap-1.5">
+                      <Icon className={`w-4 h-4 flex-shrink-0 ${rss.color}`} />
                       <input
                         type="number"
                         step="0.1"
-                        value={capInputs[rss.key]}
-                        onChange={e => setCapInputs(prev => ({ ...prev, [rss.key]: e.target.value }))}
-                        className="w-16 bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--text-muted)]"
-                        placeholder="cap"
+                        min="0"
+                        max={maxAttr}
+                        value={resourceInputs[rss.key]}
+                        onChange={e => {
+                          let val = parseFloat(e.target.value);
+                          if (capVal > 0 && val > capVal) val = capVal;
+                          setResourceInputs(prev => ({ ...prev, [rss.key]: isNaN(val) ? e.target.value : String(val) }));
+                        }}
+                        className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]"
+                        placeholder="0"
                       />
                       <span className="text-xs text-[var(--text-muted)]">M</span>
                     </div>
@@ -499,22 +568,6 @@ export default function FlagCalculatorPage() {
                       </div>
                     );
                   })}
-                </div>
-              )}
-              {/* Timeline */}
-              {forwardResult.timeline.length > 0 && (
-                <div className="border-t border-[var(--border)] pt-3 mt-3">
-                  <h4 className="text-xs text-[var(--text-muted)] mb-2">Build timeline</h4>
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {forwardResult.timeline.map((entry, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs">
-                        <span className="font-mono text-[var(--text-secondary)]">Flag #{entry.flagNumber}</span>
-                        <span className="text-[var(--text-muted)]">
-                          {entry.hoursIn === 0 ? 'now' : `+${formatHours(entry.hoursIn)}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
             </div>
