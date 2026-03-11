@@ -319,7 +319,7 @@ export default function FlagCalculatorPage() {
                 type="number"
                 min={0}
                 value={currentFlagsInput}
-                onChange={e => setCurrentFlagsInput(e.target.value)}
+                onChange={e => setCurrentFlagsInput(e.target.value.replace(/^0+(?=\d)/, ''))}
                 className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-lg font-mono text-[var(--foreground)] mb-4"
               />
               <h2 className="text-sm font-medium text-[var(--text-muted)] mb-2">Architecture Tech</h2>
