@@ -9,13 +9,13 @@ export interface KvkStage {
 }
 
 export const KVK_STAGES: KvkStage[] = [
-  { stage: 1, name: 'Pre-Planning',   instructions: 'Set building targets in the grid. Plan fort drops for zone 4 regions.', zoneNumber: 4 },
+  { stage: 1, name: 'Plan Zone 4',    instructions: 'Set building targets. Plan fort drops for zone 4 regions.', zoneNumber: 4 },
   { stage: 2, name: 'Zone 4 Opens',   instructions: 'Execute zone 4 fort drops. Update statuses as alliances land.', zoneNumber: 4 },
-  { stage: 3, name: 'Plan Zone 3',    instructions: 'Plan fort drops for zone 3 regions.', zoneNumber: 3 },
-  { stage: 4, name: 'Zone 3 Opens',   instructions: 'Execute zone 3 plans. Update statuses.', zoneNumber: 3 },
-  { stage: 5, name: 'Plan Zone 2',    instructions: 'Plan fort drops for zone 2 regions.', zoneNumber: 2 },
-  { stage: 6, name: 'Zone 2 Opens',   instructions: 'Execute zone 2 plans. Update statuses.', zoneNumber: 2 },
-  { stage: 7, name: "King's Land",    instructions: 'Plan the final push for the Ziggurat.', zoneNumber: 1 },
+  { stage: 3, name: 'Plan Zone 5',    instructions: 'Plan fort drops for zone 5 regions.', zoneNumber: 5 },
+  { stage: 4, name: 'Zone 5 Opens',   instructions: 'Execute zone 5 plans. Update statuses.', zoneNumber: 5 },
+  { stage: 5, name: 'Plan Zone 6',    instructions: 'Plan fort drops for zone 6 regions.', zoneNumber: 6 },
+  { stage: 6, name: 'Zone 6 Opens',   instructions: 'Execute zone 6 plans. Update statuses.', zoneNumber: 6 },
+  { stage: 7, name: "King's Land",    instructions: 'Plan the final push for the Ziggurat.', zoneNumber: 7 },
 ];
 
 export function getStage(stageNumber: number): KvkStage {

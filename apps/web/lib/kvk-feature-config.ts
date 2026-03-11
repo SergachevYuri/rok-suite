@@ -325,8 +325,8 @@ export const FEATURE_TYPE_TO_GROUP: Record<FeatureType, string> = Object.fromEnt
 ) as Record<FeatureType, string>;
 
 export const ZONE_OPTIONS = [
-  { value: 1, label: 'Zone 1' },
-  { value: 2, label: 'Zone 2' },
-  { value: 3, label: 'Zone 3' },
   { value: 4, label: 'Zone 4' },
+  { value: 5, label: 'Zone 5' },
+  { value: 6, label: 'Zone 6' },
+  { value: 7, label: "Zone 7 (King's Land)" },
 ];
