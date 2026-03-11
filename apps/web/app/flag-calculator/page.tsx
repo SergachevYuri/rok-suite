@@ -4,37 +4,41 @@ import { useState, useMemo, useEffect } from 'react';
 import { Flag, Wheat, TreePine, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 
-// Per-flag costs from the rok.guide table (max tech, LK crusader flags).
-// 6 resources: food, wood, stone, gold, crystals, credits
+// Per-flag BASE costs (no tech discount) for LK crusader flags.
+// The rok.guide table shows costs at max tech (-25%), so base = table / 0.75.
 //
-// food = wood = 75,000 + 18,750 * floor((flag-1) / 20)
-// stone = food * 0.75
-// gold  = food * 0.50
-// crystals = 0 for flags 1-20, then 3,750 * floor((flag-1) / 10)
-// credits  = 75,000 for flags 1-10, 150,000 for flags 11-20, 0 after
+// Architecture I discount: [0, 1, 2.5, 4, 6, 10]% (levels 0-5)
+// Architecture II discount: [0, 1, 2, 3, 4, 5, 6, 7.5, 9, 11, 15]% (levels 0-10)
+// Total discount is additive. Max = 10% + 15% = 25%.
+
+const ARCH1_DISCOUNT = [0, 0.01, 0.025, 0.04, 0.06, 0.10];
+const ARCH2_DISCOUNT = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.075, 0.09, 0.11, 0.15];
 
 interface FlagCost {
   food: number; wood: number; stone: number; gold: number;
   crystals: number; credits: number;
 }
 
-function getFlagCost(flagNumber: number): FlagCost {
+function getFlagCost(flagNumber: number, discount: number): FlagCost {
+  const mult = 1 - discount;
   const tier20 = Math.floor((flagNumber - 1) / 20);
-  const food = 75_000 + 18_750 * tier20;
+  // Base costs (before any tech discount)
+  const baseFood = 100_000 + 25_000 * tier20;
+  const food = Math.round(baseFood * mult);
   return {
     food,
     wood: food,
-    stone: Math.round(food * 0.75),
-    gold: Math.round(food * 0.5),
-    crystals: flagNumber <= 20 ? 0 : 3_750 * Math.floor((flagNumber - 1) / 10),
-    credits: flagNumber <= 10 ? 75_000 : flagNumber <= 20 ? 150_000 : 0,
+    stone: Math.round(baseFood * 0.75 * mult),
+    gold: Math.round(baseFood * 0.5 * mult),
+    crystals: flagNumber <= 20 ? 0 : Math.round(5_000 * Math.floor((flagNumber - 1) / 10) * mult),
+    credits: flagNumber <= 10 ? Math.round(100_000 * mult) : flagNumber <= 20 ? Math.round(200_000 * mult) : 0,
   };
 }
 
-function totalCostForFlags(fromFlag: number, count: number): FlagCost {
+function totalCostForFlags(fromFlag: number, count: number, discount: number): FlagCost {
   const total: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
   for (let i = 0; i < count; i++) {
-    const cost = getFlagCost(fromFlag + i);
+    const cost = getFlagCost(fromFlag + i, discount);
     for (const k of RSS_KEYS) total[k] += cost[k];
   }
   return total;
@@ -49,6 +53,7 @@ function simulateFlagBuilding(
   productionPerHour: FlagCost,
   maxHours: number,
   resourceCaps: FlagCost,
+  discount: number,
 ) {
   const resources = { ...startResources };
   const timeline: { flagNumber: number; hoursIn: number }[] = [];
@@ -60,7 +65,7 @@ function simulateFlagBuilding(
 
   while (hoursElapsed <= maxHours && flagsBuilt < MAX_FLAGS) {
     const nextFlag = currentFlags + flagsBuilt + 1;
-    const cost = getFlagCost(nextFlag);
+    const cost = getFlagCost(nextFlag, discount);
 
     // Can we afford it right now?
     if (RSS_KEYS.every(k => resources[k] >= cost[k])) {
@@ -98,7 +103,7 @@ function simulateFlagBuilding(
       }
       hoursElapsed = maxHours;
       // Check if we can squeeze one more flag
-      const lastCost = getFlagCost(nextFlag);
+      const lastCost = getFlagCost(nextFlag, discount);
       if (RSS_KEYS.every(k => resources[k] >= lastCost[k])) {
         for (const k of RSS_KEYS) resources[k] -= lastCost[k];
         timeline.push({ flagNumber: nextFlag, hoursIn: hoursElapsed });
@@ -118,11 +123,11 @@ function simulateFlagBuilding(
   return { count: flagsBuilt, remaining: resources, timeline };
 }
 
-function maxFlagsAffordable(currentFlags: number, resources: FlagCost) {
+function maxFlagsAffordable(currentFlags: number, resources: FlagCost, discount: number) {
   let count = 0;
   const remaining = { ...resources };
   while (true) {
-    const cost = getFlagCost(currentFlags + count + 1);
+    const cost = getFlagCost(currentFlags + count + 1, discount);
     if (RSS_KEYS.some(k => remaining[k] < cost[k])) break;
     for (const k of RSS_KEYS) remaining[k] -= cost[k];
     count++;
@@ -190,6 +195,8 @@ export default function FlagCalculatorPage() {
   const [productionInputs, setProductionInputs] = useState({
     food: '102000', wood: '102000', stone: '85500', gold: '70000', crystals: '13500', credits: '0',
   });
+  const [arch1Level, setArch1Level] = useState(5);
+  const [arch2Level, setArch2Level] = useState(10);
   const [targetDateStr, setTargetDateStr] = useState('');
   const [now, setNow] = useState(() => new Date());
 
@@ -227,6 +234,11 @@ export default function FlagCalculatorPage() {
     return p;
   }, [productionInputs]);
 
+  const techDiscount = useMemo(
+    () => ARCH1_DISCOUNT[arch1Level] + ARCH2_DISCOUNT[arch2Level],
+    [arch1Level, arch2Level],
+  );
+
   const hoursUntilTarget = useMemo(() => {
     if (!targetDateStr) return 0;
     const target = parseUTCDatetimeLocal(targetDateStr);
@@ -235,25 +247,25 @@ export default function FlagCalculatorPage() {
 
   // Instant result (no production)
   const instantResult = useMemo(
-    () => maxFlagsAffordable(currentFlags, availableResources),
-    [currentFlags, availableResources],
+    () => maxFlagsAffordable(currentFlags, availableResources, techDiscount),
+    [currentFlags, availableResources, techDiscount],
   );
 
   // Forward simulation with production over time
   const forwardResult = useMemo(
-    () => simulateFlagBuilding(currentFlags, availableResources, productionPerHour, hoursUntilTarget, resourceCaps),
-    [currentFlags, availableResources, productionPerHour, hoursUntilTarget, resourceCaps],
+    () => simulateFlagBuilding(currentFlags, availableResources, productionPerHour, hoursUntilTarget, resourceCaps, techDiscount),
+    [currentFlags, availableResources, productionPerHour, hoursUntilTarget, resourceCaps, techDiscount],
   );
 
   const nextFlagCost = useMemo(
-    () => getFlagCost(currentFlags + instantResult.count + 1),
-    [currentFlags, instantResult.count],
+    () => getFlagCost(currentFlags + instantResult.count + 1, techDiscount),
+    [currentFlags, instantResult.count, techDiscount],
   );
 
   const totalCost = useMemo(() => {
     if (instantResult.count === 0) return { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 } as FlagCost;
-    return totalCostForFlags(currentFlags + 1, instantResult.count);
-  }, [currentFlags, instantResult.count]);
+    return totalCostForFlags(currentFlags + 1, instantResult.count, techDiscount);
+  }, [currentFlags, instantResult.count, techDiscount]);
 
   const bottleneck = useMemo(() => {
     if (instantResult.count > 0) return null;
@@ -270,8 +282,8 @@ export default function FlagCalculatorPage() {
 
   const forwardTotalCost = useMemo(() => {
     if (forwardResult.count === 0) return { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 } as FlagCost;
-    return totalCostForFlags(currentFlags + 1, forwardResult.count);
-  }, [currentFlags, forwardResult.count]);
+    return totalCostForFlags(currentFlags + 1, forwardResult.count, techDiscount);
+  }, [currentFlags, forwardResult.count, techDiscount]);
 
   return (
     <AppSidebar>
@@ -283,12 +295,14 @@ export default function FlagCalculatorPage() {
               <Flag className="w-6 h-6 text-red-400" />
               Flag Cost Calculator
             </h1>
-            <p className="text-[var(--text-muted)] text-sm mt-1">Lost Kingdom &middot; Max Tech</p>
+            <p className="text-[var(--text-muted)] text-sm mt-1">
+              Lost Kingdom &middot; {Math.round(techDiscount * 100)}% tech discount
+            </p>
           </div>
 
           {/* Inputs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {/* Current flags */}
+            {/* Current flags + tech */}
             <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
               <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">Current Flags</h2>
               <input
@@ -296,8 +310,35 @@ export default function FlagCalculatorPage() {
                 min={0}
                 value={currentFlagsInput}
                 onChange={e => setCurrentFlagsInput(e.target.value)}
-                className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-lg font-mono text-[var(--foreground)]"
+                className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-lg font-mono text-[var(--foreground)] mb-4"
               />
+              <h2 className="text-sm font-medium text-[var(--text-muted)] mb-2">Architecture Tech</h2>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-[var(--text-secondary)]">Arch I</span>
+                  <select
+                    value={arch1Level}
+                    onChange={e => setArch1Level(Number(e.target.value))}
+                    className="bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]"
+                  >
+                    {ARCH1_DISCOUNT.map((d, i) => (
+                      <option key={i} value={i}>Lv {i}{i > 0 ? ` (−${d * 100}%)` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-[var(--text-secondary)]">Arch II</span>
+                  <select
+                    value={arch2Level}
+                    onChange={e => setArch2Level(Number(e.target.value))}
+                    className="bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]"
+                  >
+                    {ARCH2_DISCOUNT.map((d, i) => (
+                      <option key={i} value={i}>Lv {i}{i > 0 ? ` (−${d * 100}%)` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Alliance resources (current / cap) */}
@@ -504,7 +545,7 @@ export default function FlagCalculatorPage() {
                 <tbody>
                   {Array.from({ length: 20 }, (_, i) => {
                     const flagNum = currentFlags + i + 1;
-                    const cost = getFlagCost(flagNum);
+                    const cost = getFlagCost(flagNum, techDiscount);
                     const inInstant = flagNum <= currentFlags + instantResult.count;
                     const inForward = flagNum <= currentFlags + forwardResult.count;
                     return (
@@ -538,7 +579,7 @@ export default function FlagCalculatorPage() {
           </div>
 
           <p className="text-xs text-[var(--text-muted)] mt-6 text-center">
-            Flag costs based on max tech (rok.guide / Abused Panda #0936)
+            Base flag costs from rok.guide / Abused Panda #0936
           </p>
         </div>
       </div>
