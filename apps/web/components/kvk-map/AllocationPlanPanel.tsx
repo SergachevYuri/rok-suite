@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FEATURE_GROUPS, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config';
 import { REQUIREMENT_FEATURE_MAP, KVK2_TIER_REQUIREMENTS, isMappableRequirement } from '@/lib/kvk-achievements/requirement-mapping';
@@ -185,22 +185,31 @@ export default function AllocationPlanPanel({
   const totalTiers = achievementImpact.reduce((s, c) => s + c.tiers.filter((t) => t.satisfied || t.partial).length + c.tiers.filter((t) => !t.satisfied && !t.partial).length, 0);
   const completedTiers = achievementImpact.reduce((s, c) => s + c.tiers.filter((t) => t.satisfied).length, 0);
 
-  // ── Stage-based zone fort plans ────────────────────────────────────
+  // ── Zone plans (tabbed across all zones) ───────────────────────────
 
   const stageConfig = getStage(currentStage);
 
-  const stageZoneRegions = useMemo(
-    () => (zones || []).filter((z) => z.zone_number === stageConfig.zoneNumber),
-    [zones, stageConfig.zoneNumber],
+  /** Available zone numbers that have regions */
+  const availableZoneNumbers = useMemo(() => {
+    const nums = new Set((zones || []).map((z) => z.zone_number));
+    return [4, 5, 6, 7].filter((n) => nums.has(n));
+  }, [zones]);
+
+  const [selectedZoneTab, setSelectedZoneTab] = useState(stageConfig.zoneNumber);
+
+  /** Regions for the selected zone tab */
+  const tabZoneRegions = useMemo(
+    () => (zones || []).filter((z) => z.zone_number === selectedZoneTab),
+    [zones, selectedZoneTab],
   );
 
   const zoneFortPlans = useMemo(() => {
-    if (stageZoneRegions.length === 0) return [];
+    if (tabZoneRegions.length === 0) return [];
     const assignmentMap = new Map(assignments.map((a) => [a.feature_id, a]));
     const allianceMap = new Map(alliances.map((a) => [a.id, a]));
     const tileFeatures = features.filter((f) => !!FEATURE_TYPE_CONFIG[f.feature_type as keyof typeof FEATURE_TYPE_CONFIG]?.tileSize);
 
-    return stageZoneRegions.map((zone) => {
+    return tabZoneRegions.map((zone) => {
       const inZone = tileFeatures.filter((f) => isPointInPolygon(f.x, f.y, zone.polygon));
       let fortCount = 0;
       let totalFlags = 0;
@@ -231,7 +240,7 @@ export default function AllocationPlanPanel({
       const allianceBreakdown = [...perAlliance.values()].sort((a, b) => a.sortOrder - b.sortOrder);
       return { zone, fortCount, totalFlags, allianceBreakdown };
     });
-  }, [stageZoneRegions, features, assignments, alliances]);
+  }, [tabZoneRegions, features, assignments, alliances]);
 
   // ── Cell handlers ──────────────────────────────────────────────────
 
@@ -327,19 +336,32 @@ export default function AllocationPlanPanel({
         )}
       </div>
 
-      {/* Fort Drop Plans — adapts to current stage's zone */}
-      {stageZoneRegions.length > 0 && onFocusZone && (
+      {/* Zone Plans — tabbed across all zones */}
+      {availableZoneNumbers.length > 0 && onFocusZone && (
         <div
           className="rounded-lg border overflow-hidden"
           style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
         >
-          <div className="px-3 py-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Zone {stageConfig.zoneNumber} Plans
+          <div className="px-3 pt-2 pb-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
+              Zone Plans
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
-              Click a zone on the map to plan
-            </p>
+            <div className="flex gap-1">
+              {availableZoneNumbers.map((zn) => (
+                <button
+                  key={zn}
+                  onClick={() => setSelectedZoneTab(zn)}
+                  className="px-2 py-0.5 rounded text-[10px] font-semibold transition-all"
+                  style={{
+                    backgroundColor: zn === selectedZoneTab ? 'rgba(59,130,246,0.2)' : 'transparent',
+                    color: zn === selectedZoneTab ? '#60a5fa' : 'var(--text-muted)',
+                    border: `1px solid ${zn === selectedZoneTab ? 'rgba(59,130,246,0.3)' : 'transparent'}`,
+                  }}
+                >
+                  Zone {zn}
+                </button>
+              ))}
+            </div>
           </div>
           {zoneFortPlans.map(({ zone, fortCount, totalFlags, allianceBreakdown }) => (
             <div key={zone.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
