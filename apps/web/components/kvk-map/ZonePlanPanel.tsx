@@ -101,6 +101,33 @@ export default function ZonePlanPanel({
     return { forts: f, buildings: b };
   }, [zoneFeatures]);
 
+  // Per-alliance flag & fort counts with status breakdown
+  const allianceFlagSummary = useMemo(() => {
+    const summary = new Map<string, { alliance: KvkAlliance | null; flagsOccupied: number; flagsPlanned: number; fortsOccupied: number; fortsPlanned: number }>();
+    for (const feat of forts) {
+      const assignment = assignmentMap.get(feat.id);
+      const alliance = assignment ? allianceMap.get(assignment.alliance_id) ?? null : null;
+      const key = alliance?.id ?? '__unassigned';
+      if (!summary.has(key)) summary.set(key, { alliance, flagsOccupied: 0, flagsPlanned: 0, fortsOccupied: 0, fortsPlanned: 0 });
+      const entry = summary.get(key)!;
+      const isFort = feat.feature_type === 'fortress';
+      const isOccupied = assignment?.status === 'occupied';
+      if (isFort) {
+        if (isOccupied) entry.fortsOccupied++;
+        else entry.fortsPlanned++;
+      } else {
+        if (isOccupied) entry.flagsOccupied++;
+        else entry.flagsPlanned++;
+      }
+    }
+    // Sort: alliances by sort_order, unassigned last
+    return [...summary.values()].sort((a, b) => {
+      if (!a.alliance) return 1;
+      if (!b.alliance) return -1;
+      return (a.alliance.sort_order ?? 0) - (b.alliance.sort_order ?? 0);
+    });
+  }, [forts, assignmentMap, allianceMap]);
+
   // Building count by type
   const buildingSummary = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -230,6 +257,45 @@ export default function ZonePlanPanel({
         </div>
         )}
       </div>
+
+      {/* Flag & Fort Summary by Alliance */}
+      {allianceFlagSummary.length > 0 && (
+        <div className="px-3 pb-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-muted)' }}>
+            Flags &amp; Forts by Alliance
+          </p>
+          <div className="space-y-1">
+            {allianceFlagSummary.map((entry) => {
+              const tag = entry.alliance?.tag ?? 'Unassigned';
+              const color = entry.alliance?.color ?? 'var(--text-muted)';
+              const totalFlags = entry.flagsOccupied + entry.flagsPlanned;
+              const totalForts = entry.fortsOccupied + entry.fortsPlanned;
+              return (
+                <div key={entry.alliance?.id ?? '__unassigned'} className="flex items-center gap-2 text-xs">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="font-medium w-10" style={{ color }}>{tag}</span>
+                  {totalForts > 0 && (
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      {totalForts} fort{totalForts !== 1 ? 's' : ''}
+                      <span className="text-[10px] ml-0.5" style={{ color: entry.fortsOccupied > 0 ? '#22c55e' : 'var(--text-muted)' }}>
+                        ({entry.fortsOccupied}✓)
+                      </span>
+                    </span>
+                  )}
+                  {totalFlags > 0 && (
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      {totalFlags} flag{totalFlags !== 1 ? 's' : ''}
+                      <span className="text-[10px] ml-0.5" style={{ color: entry.flagsOccupied > 0 ? '#22c55e' : 'var(--text-muted)' }}>
+                        ({entry.flagsOccupied}✓)
+                      </span>
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Buildings summary */}
       {buildingSummary.length > 0 && (

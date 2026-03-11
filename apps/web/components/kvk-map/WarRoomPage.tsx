@@ -238,6 +238,16 @@ export default function WarRoomPage() {
     [features, layers.hiddenGroups, isAtLeast]
   );
 
+  // Flag counts per zone (keyed by zone id)
+  const flagCountByZone = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const flags = features.filter((f) => isFlagFeatureType(f.feature_type as FeatureType));
+    for (const zone of zones) {
+      counts[zone.id] = flags.filter((f) => isPointInPolygon(f.x, f.y, zone.polygon)).length;
+    }
+    return counts;
+  }, [features, zones]);
+
   // ── Nudge & undo helpers ──────────────────────────────────────────
   const nudgeFeatureRef = useRef<((dx: number, dy: number) => void) | null>(null);
   const undoFeatureMoveRef = useRef<(() => void) | null>(null);
@@ -1217,7 +1227,7 @@ export default function WarRoomPage() {
                 />
               ))}
               {layers.showZones && zones.map((zone) => (
-                <ZoneLabel key={`label-${zone.id}`} zone={zone} zoom={zoom} />
+                <ZoneLabel key={`label-${zone.id}`} zone={zone} zoom={zoom} flagCount={flagCountByZone[zone.id] || 0} />
               ))}
               {visibleFeatures.map((feature) => {
                 const assignment = isOfficerMode ? assignmentMap.get(feature.id) : undefined;
