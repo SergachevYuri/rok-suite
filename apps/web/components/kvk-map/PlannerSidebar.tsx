@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, ChevronDown, ChevronRight, Flag, Swords } from 'lucide-react';
+import { Eye, EyeOff, ChevronDown, ChevronRight, Flag, Swords, Users, Layers } from 'lucide-react';
 import { FEATURE_GROUPS } from '@/lib/kvk-feature-config';
 import type { KvkAlliance, AllianceRole } from '@/lib/kvk-map-types';
 import AllianceList from './AllianceList';
@@ -62,56 +62,33 @@ export default function PlannerSidebar({
   isAdmin,
   adminContent,
 }: PlannerSidebarProps) {
+  const [alliancesOpen, setAlliancesOpen] = useState(false);
+  const [layersOpen, setLayersOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
 
+  const totalFeatures = Object.values(featureCounts).reduce((s, n) => s + n, 0);
+  const hiddenCount = hiddenGroups.size;
+
   return (
-    <div className="space-y-3">
-      {/* Alliance List */}
-      <AllianceList
-        alliances={alliances}
-        highlightedAllianceId={highlightedAllianceId}
-        onHighlight={onHighlight}
-        onCreate={onCreateAlliance}
-        onUpdate={onUpdateAlliance}
-        onDelete={onDeleteAlliance}
-      />
-
-      {/* Layer Toggles */}
-      <div
-        className="rounded-xl p-3 border"
-        style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}
+    <div className="space-y-2">
+      {/* War Plan toggle — prominent, always visible */}
+      <button
+        onClick={onToggleWarPlan}
+        className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all"
+        style={{
+          backgroundColor: warPlanActive ? 'rgba(239,68,68,0.15)' : 'var(--background-card)',
+          color: warPlanActive ? '#ef4444' : 'var(--text-muted)',
+          border: `1px solid ${warPlanActive ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`,
+        }}
       >
-        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
-          Layers
-        </p>
-        <div className="space-y-0.5">
-          {FEATURE_GROUPS.map((group) => {
-            const count = group.types.reduce((s, t) => s + (featureCounts[t] || 0), 0);
-            const hidden = hiddenGroups.has(group.key);
-            return (
-              <button
-                key={group.key}
-                onClick={() => onToggleGroup(group.key)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all"
-                style={{ opacity: hidden ? 0.4 : 1 }}
-              >
-                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
-                <span className="flex-1 text-left" style={{ color: 'var(--foreground)' }}>{group.label}</span>
-                {count > 0 && (
-                  <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>{count}</span>
-                )}
-                {hidden ? (
-                  <EyeOff size={12} style={{ color: 'var(--text-muted)' }} />
-                ) : (
-                  <Eye size={12} style={{ color: 'var(--text-muted)' }} />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+        <Swords size={14} />
+        War Plan
+        {warPlanActive && (
+          <span className="ml-auto text-[10px] font-normal opacity-70">Active</span>
+        )}
+      </button>
 
-      {/* Place Fortress / Flag */}
+      {/* Place Fortress / Flag — always visible */}
       <div className="flex gap-2">
         <button
           onClick={onPlaceFortress}
@@ -139,7 +116,7 @@ export default function PlannerSidebar({
         </button>
       </div>
 
-      {/* Flag Path Planner toggle */}
+      {/* Flag Path Planner toggle — always visible */}
       <button
         onClick={onToggleFlagPath}
         className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
@@ -156,22 +133,78 @@ export default function PlannerSidebar({
         )}
       </button>
 
-      {/* War Plan toggle */}
-      <button
-        onClick={onToggleWarPlan}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
-        style={{
-          backgroundColor: warPlanActive ? 'rgba(239,68,68,0.15)' : 'var(--background-card)',
-          color: warPlanActive ? '#ef4444' : 'var(--text-muted)',
-          border: `1px solid ${warPlanActive ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`,
-        }}
-      >
-        <Swords size={13} />
-        War Plan
-        {warPlanActive && (
-          <span className="ml-auto text-[10px] font-normal opacity-70">Active</span>
+      {/* Alliances — collapsible, starts closed */}
+      <div className="rounded-xl border" style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
+        <button
+          onClick={() => setAlliancesOpen(!alliancesOpen)}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {alliancesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          <Users size={12} />
+          Alliances
+          {alliances.length > 0 && (
+            <span className="ml-auto text-[10px] tabular-nums font-normal">{alliances.length}</span>
+          )}
+        </button>
+        {alliancesOpen && (
+          <div className="px-1 pb-2">
+            <AllianceList
+              alliances={alliances}
+              highlightedAllianceId={highlightedAllianceId}
+              onHighlight={onHighlight}
+              onCreate={onCreateAlliance}
+              onUpdate={onUpdateAlliance}
+              onDelete={onDeleteAlliance}
+            />
+          </div>
         )}
-      </button>
+      </div>
+
+      {/* Layers — collapsible, starts closed */}
+      <div className="rounded-xl border" style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
+        <button
+          onClick={() => setLayersOpen(!layersOpen)}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {layersOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          <Layers size={12} />
+          Layers
+          {totalFeatures > 0 && (
+            <span className="ml-auto text-[10px] tabular-nums font-normal">
+              {hiddenCount > 0 ? `${hiddenCount} hidden` : totalFeatures}
+            </span>
+          )}
+        </button>
+        {layersOpen && (
+          <div className="px-1 pb-2 space-y-0.5">
+            {FEATURE_GROUPS.map((group) => {
+              const count = group.types.reduce((s, t) => s + (featureCounts[t] || 0), 0);
+              const hidden = hiddenGroups.has(group.key);
+              return (
+                <button
+                  key={group.key}
+                  onClick={() => onToggleGroup(group.key)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all"
+                  style={{ opacity: hidden ? 0.4 : 1 }}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color }} />
+                  <span className="flex-1 text-left" style={{ color: 'var(--foreground)' }}>{group.label}</span>
+                  {count > 0 && (
+                    <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>{count}</span>
+                  )}
+                  {hidden ? (
+                    <EyeOff size={12} style={{ color: 'var(--text-muted)' }} />
+                  ) : (
+                    <Eye size={12} style={{ color: 'var(--text-muted)' }} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Admin Tools (collapsible) */}
       {isAdmin && adminContent && (

@@ -492,12 +492,14 @@ export default function WarRoomPage() {
   const handleFeatureClick = useCallback(
     (feature: KvkMapFeature) => {
       if (placement.isPlacing || isDrawingZone) return;
+      // Don't select features during annotation drawing modes
+      if (warPlanOpen && annotationTool !== 'select' && annotationTool !== 'eraser') return;
       featureJustClicked.current = true;
       setTimeout(() => { featureJustClicked.current = false; }, 0);
       selection.setSelectedFeatureId(selection.selectedFeatureId === feature.id ? null : feature.id);
       selection.setSelectedZoneId(null);
     },
-    [placement.isPlacing, isDrawingZone, selection]
+    [placement.isPlacing, isDrawingZone, selection, warPlanOpen, annotationTool]
   );
 
   const handleFeatureMouseOver = useCallback(
@@ -544,10 +546,12 @@ export default function WarRoomPage() {
     (zone: KvkMapZone) => {
       if (placement.isPlacing || isDrawingZone) return;
       if (featureJustClicked.current) return;
+      // Don't handle zone clicks during annotation drawing modes
+      if (warPlanOpen && annotationTool !== 'select') return;
       selection.setSelectedZoneId(selection.selectedZoneId === zone.id ? null : zone.id);
       selection.setSelectedFeatureId(null);
     },
-    [placement.isPlacing, isDrawingZone, selection]
+    [placement.isPlacing, isDrawingZone, selection, warPlanOpen, annotationTool]
   );
 
   const handleStartDrawing = useCallback(() => {
@@ -1205,11 +1209,11 @@ export default function WarRoomPage() {
                 <ZonePolygon
                   key={zone.id}
                   zone={zone}
-                  onClick={handleZoneClick}
+                  onClick={warPlanOpen && annotationTool !== 'select' ? undefined : handleZoneClick}
                   isSelected={zone.id === selection.selectedZoneId}
                   isHighlighted={selection.hoveredZoneNumber != null && zone.zone_number === selection.hoveredZoneNumber}
                   activeZoneNumber={isAtLeast('officer') ? getStage(map?.current_stage ?? 1).zoneNumber : null}
-                  disableHover={warPlanOpen && annotationTool !== 'select'}
+                  disableHover={warPlanOpen}
                 />
               ))}
               {layers.showZones && zones.map((zone) => (
