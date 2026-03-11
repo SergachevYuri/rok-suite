@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Flag, Wheat, TreePine, Mountain, Coins, TrendingUp, Gem, Shield, CalendarClock } from 'lucide-react';
+import { Flag, Wheat, TreePine, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 
 // Per-flag costs from the rok.guide table (max tech, LK crusader flags).
@@ -167,12 +167,12 @@ function parseUTCDatetimeLocal(s: string): Date {
 const RSS_KEYS: (keyof FlagCost)[] = ['food', 'wood', 'stone', 'gold', 'crystals', 'credits'];
 
 const RSS_CONFIG = [
-  { key: 'credits' as const, label: 'Credits', icon: Shield, color: 'text-orange-400', hasProduction: false },
-  { key: 'food' as const, label: 'Food', icon: Wheat, color: 'text-yellow-400', hasProduction: true },
-  { key: 'wood' as const, label: 'Wood', icon: TreePine, color: 'text-green-400', hasProduction: true },
+  { key: 'credits' as const, label: 'Credits', icon: Medal, color: 'text-yellow-500', hasProduction: false },
+  { key: 'food' as const, label: 'Food', icon: Wheat, color: 'text-lime-400', hasProduction: true },
+  { key: 'wood' as const, label: 'Wood', icon: TreePine, color: 'text-amber-600', hasProduction: true },
   { key: 'stone' as const, label: 'Stone', icon: Mountain, color: 'text-stone-400', hasProduction: true },
-  { key: 'gold' as const, label: 'Gold', icon: Coins, color: 'text-amber-300', hasProduction: true },
-  { key: 'crystals' as const, label: 'Crystals', icon: Gem, color: 'text-cyan-400', hasProduction: true },
+  { key: 'gold' as const, label: 'Gold', icon: Coins, color: 'text-yellow-400', hasProduction: true },
+  { key: 'crystals' as const, label: 'Crystals', icon: Gem, color: 'text-blue-400', hasProduction: true },
 ];
 
 // No caps by default (set very high)
