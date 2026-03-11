@@ -203,28 +203,33 @@ export default function AllocationPlanPanel({
     return stageZoneRegions.map((zone) => {
       const inZone = tileFeatures.filter((f) => isPointInPolygon(f.x, f.y, zone.polygon));
       let fortCount = 0;
-      let flagsOccupied = 0;
-      let flagsPlanned = 0;
-      const alliancesInZone: { tag: string; color: string }[] = [];
-      const seen = new Set<string>();
+      let totalFlags = 0;
+      const perAlliance = new Map<string, { tag: string; color: string; sortOrder: number; forts: number; flagsOccupied: number; flagsPlanned: number }>();
       for (const feat of inZone) {
         const assignment = assignmentMap.get(feat.id);
         const isFort = feat.feature_type === 'fortress';
-        if (isFort) {
-          fortCount++;
-        } else {
-          if (assignment?.status === 'occupied') flagsOccupied++;
-          else flagsPlanned++;
-        }
+        if (isFort) fortCount++;
+        else totalFlags++;
+
         if (assignment) {
           const alliance = allianceMap.get(assignment.alliance_id);
-          if (alliance && !seen.has(alliance.id)) {
-            seen.add(alliance.id);
-            alliancesInZone.push({ tag: alliance.tag, color: alliance.color });
+          if (alliance) {
+            if (!perAlliance.has(alliance.id)) {
+              perAlliance.set(alliance.id, { tag: alliance.tag, color: alliance.color, sortOrder: alliance.sort_order, forts: 0, flagsOccupied: 0, flagsPlanned: 0 });
+            }
+            const entry = perAlliance.get(alliance.id)!;
+            if (isFort) {
+              entry.forts++;
+            } else if (assignment.status === 'occupied') {
+              entry.flagsOccupied++;
+            } else {
+              entry.flagsPlanned++;
+            }
           }
         }
       }
-      return { zone, fortCount, flagsOccupied, flagsPlanned, alliances: alliancesInZone };
+      const allianceBreakdown = [...perAlliance.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+      return { zone, fortCount, totalFlags, allianceBreakdown };
     });
   }, [stageZoneRegions, features, assignments, alliances]);
 
@@ -336,43 +341,48 @@ export default function AllocationPlanPanel({
               Click a zone on the map to plan
             </p>
           </div>
-          {zoneFortPlans.map(({ zone, fortCount, flagsOccupied, flagsPlanned, alliances: zoneAlliances }) => (
-            <button
-              key={zone.id}
-              onClick={() => onFocusZone(zone.id)}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs border-t transition-all hover:bg-white/5"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: zone.color }} />
-              <span className="text-left font-medium shrink-0" style={{ color: 'var(--foreground)' }}>
-                {zone.name}
-              </span>
-              <span className="flex-1 text-[10px] tabular-nums text-left" style={{ color: 'var(--text-muted)' }}>
-                {fortCount === 0 && flagsOccupied === 0 && flagsPlanned === 0 ? (
-                  <span style={{ opacity: 0.4 }}>—</span>
-                ) : (
-                  <>
+          {zoneFortPlans.map(({ zone, fortCount, totalFlags, allianceBreakdown }) => (
+            <div key={zone.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
+              <button
+                onClick={() => onFocusZone(zone.id)}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-all hover:bg-white/5"
+              >
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: zone.color }} />
+                <span className="text-left font-medium" style={{ color: 'var(--foreground)' }}>
+                  {zone.name}
+                </span>
+                {(fortCount > 0 || totalFlags > 0) && (
+                  <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     {fortCount > 0 && <>{fortCount} fort{fortCount !== 1 ? 's' : ''}</>}
-                    {fortCount > 0 && (flagsOccupied > 0 || flagsPlanned > 0) && ' · '}
-                    {(flagsOccupied > 0 || flagsPlanned > 0) && (
-                      <>{flagsOccupied + flagsPlanned} flag{flagsOccupied + flagsPlanned !== 1 ? 's' : ''}</>
-                    )}
-                    {flagsOccupied > 0 && (
-                      <span style={{ color: '#22c55e' }}> ({flagsOccupied} occupied)</span>
-                    )}
-                  </>
+                    {fortCount > 0 && totalFlags > 0 && ' · '}
+                    {totalFlags > 0 && <>{totalFlags} flag{totalFlags !== 1 ? 's' : ''}</>}
+                  </span>
                 )}
-              </span>
-              {zoneAlliances.length > 0 && (
-                <div className="flex gap-1 shrink-0">
-                  {zoneAlliances.map((a) => (
-                    <span key={a.tag} className="text-[10px] font-bold" style={{ color: a.color }}>
-                      {a.tag}
-                    </span>
-                  ))}
+              </button>
+              {allianceBreakdown.length > 0 && (
+                <div className="px-3 pb-1.5 space-y-0.5">
+                  {allianceBreakdown.map((a) => {
+                    const total = a.forts + a.flagsOccupied + a.flagsPlanned;
+                    return (
+                      <div key={a.tag} className="flex items-center gap-1.5 text-[10px] tabular-nums pl-4">
+                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                        <span className="font-bold w-8" style={{ color: a.color }}>{a.tag}</span>
+                        {a.forts > 0 && (
+                          <span style={{ color: 'var(--text-muted)' }}>{a.forts}F</span>
+                        )}
+                        {a.flagsOccupied > 0 && (
+                          <span style={{ color: '#22c55e' }}>{a.flagsOccupied} occ</span>
+                        )}
+                        {a.flagsPlanned > 0 && (
+                          <span style={{ color: 'var(--text-muted)' }}>{a.flagsPlanned} plan</span>
+                        )}
+                        <span className="ml-auto" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>{total}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-            </button>
+            </div>
           ))}
         </div>
       )}
