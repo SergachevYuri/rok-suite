@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
-import { Flag, ArrowLeft, Wheat, TreePine, Mountain, Coins, Clock, TrendingUp } from 'lucide-react';
+import { Flag, Wheat, TreePine, Mountain, Coins, Clock, TrendingUp } from 'lucide-react';
+import { AppSidebar } from '@/components/AppSidebar';
 
 // Flag cost formula (max tech):
 // food_per_flag = wood_per_flag = 75,000 + 18,750 * floor((flag_number - 1) / 20)
@@ -188,23 +188,16 @@ export default function FlagCalculatorPage() {
   }, [currentFlags, availableResources]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <AppSidebar>
+    <div className="min-h-screen text-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <Link
-            href="/kvk-map"
-            className="p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Flag className="w-6 h-6 text-red-400" />
-              Flag Cost Calculator
-            </h1>
-            <p className="text-zinc-400 text-sm">Lost Kingdom &middot; Max Tech</p>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Flag className="w-6 h-6 text-red-400" />
+            Flag Cost Calculator
+          </h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">Lost Kingdom &middot; Max Tech</p>
         </div>
 
         {/* Inputs */}
@@ -466,5 +459,6 @@ export default function FlagCalculatorPage() {
         </p>
       </div>
     </div>
+    </AppSidebar>
   );
 }

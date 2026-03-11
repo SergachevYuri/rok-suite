@@ -19,6 +19,7 @@ import {
   Crosshair,
   Map,
   BarChart3,
+  Flag,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -145,6 +146,16 @@ export default function Home() {
       hoverShadow: 'hover:shadow-green-500/10',
       iconHoverBg: 'group-hover:bg-green-500/15',
       iconHoverColor: 'group-hover:text-green-500',
+    },
+    {
+      href: '/flag-calculator',
+      titleKey: 'tools.flagCalculator.title',
+      descriptionKey: 'tools.flagCalculator.description',
+      icon: Flag,
+      hoverBorder: 'hover:border-red-500/40',
+      hoverShadow: 'hover:shadow-red-500/10',
+      iconHoverBg: 'group-hover:bg-red-500/15',
+      iconHoverColor: 'group-hover:text-red-500',
     },
   ] as const;
 
