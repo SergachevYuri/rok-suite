@@ -10,13 +10,13 @@ interface ZonePolygonProps {
   onClick?: (zone: KvkMapZone) => void;
   isSelected?: boolean;
   isHighlighted?: boolean;
-  /** When set, zones NOT matching this number get a semi-opaque mask. */
-  activeZoneNumber?: number | null;
+  /** When set, zones NOT in this list get a semi-opaque mask. */
+  activeZoneNumbers?: number[] | null;
   /** Suppress hover highlighting (e.g. during annotation drawing) */
   disableHover?: boolean;
 }
 
-export default function ZonePolygon({ zone, onClick, isSelected = false, isHighlighted = false, activeZoneNumber, disableHover = false }: ZonePolygonProps) {
+export default function ZonePolygon({ zone, onClick, isSelected = false, isHighlighted = false, activeZoneNumbers, disableHover = false }: ZonePolygonProps) {
   const polygonRef = useRef<L.Polygon | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -73,7 +73,7 @@ export default function ZonePolygon({ zone, onClick, isSelected = false, isHighl
   }, [isSelected, isHighlighted, hasClick, zone.color, hasKingdomFill]);
 
   const showHighlight = isSelected || isHovered || isHighlighted;
-  const isDimmed = activeZoneNumber != null && zone.zone_number !== activeZoneNumber;
+  const isDimmed = activeZoneNumbers != null && !activeZoneNumbers.includes(zone.zone_number);
 
   // When disableHover is true (e.g. war plan annotation mode), make zones
   // fully non-interactive so clicks pass through to the map layer beneath.

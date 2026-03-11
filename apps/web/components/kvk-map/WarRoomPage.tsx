@@ -41,7 +41,7 @@ import { useKvkStrategies, saveStrategy, loadStrategyByShareCode, deleteStrategy
 import type { FeatureType, KvkMapFeature, KvkMapZone, KvkAssignment, AssignmentStatus } from '@/lib/kvk-map-types';
 import { GAME_MAP_SIZE } from '@/lib/kvk-map-types';
 import { FEATURE_TYPE_CONFIG, FEATURE_TYPE_TO_GROUP } from '@/lib/kvk-feature-config';
-import { getStage } from '@/lib/kvk-stages';
+import { KVK_STAGES } from '@/lib/kvk-stages';
 import { RSS_TYPE_COLORS, RSS_TYPE_LABELS, type RssNode, type RssNodeType, type RssNodeStatus } from '@/lib/kvk-map/rss-review';
 import { useKvkRssNodes, useKvkRssFlags, saveRssNodes, flagRssNode } from '@/lib/supabase/use-kvk-rss';
 import { type SymmetryConfig, getSegment } from '@/lib/kvk-map/rss-symmetry';
@@ -274,6 +274,15 @@ export default function WarRoomPage() {
 
   // ── Annotation handlers ─────────────────────────────────────────────
   const currentStage = map?.current_stage ?? 1;
+
+  // All zone numbers that have been reached (current + prior stages)
+  const activeZoneNumbers = useMemo(() => {
+    const nums = new Set<number>();
+    for (const s of KVK_STAGES) {
+      if (s.stage <= currentStage) nums.add(s.zoneNumber);
+    }
+    return [...nums];
+  }, [currentStage]);
 
   const handleAnnotationToolChange = useCallback((tool: AnnotationTool) => {
     // Clear any in-progress drawing/arrow/label
@@ -1222,8 +1231,8 @@ export default function WarRoomPage() {
                   onClick={warPlanOpen && annotationTool !== 'select' ? undefined : handleZoneClick}
                   isSelected={zone.id === selection.selectedZoneId}
                   isHighlighted={selection.hoveredZoneNumber != null && zone.zone_number === selection.hoveredZoneNumber}
-                  activeZoneNumber={isAtLeast('officer') ? getStage(map?.current_stage ?? 1).zoneNumber : null}
-                  disableHover={warPlanOpen}
+                  activeZoneNumbers={isAtLeast('officer') ? activeZoneNumbers : null}
+                  disableHover={warPlanOpen || isAtLeast('officer')}
                 />
               ))}
               {layers.showZones && zones.map((zone) => (
