@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/supabase/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import { PlayerDrawerProvider } from "@/lib/roster/player-drawer-context";
+import { PlayerDetailDrawer } from "@/components/roster/PlayerDetailDrawer";
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { rtlLocales, type Locale } from '@/lib/i18n/config';
@@ -58,7 +60,10 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
             <AuthProvider>
-              {children}
+              <PlayerDrawerProvider>
+                {children}
+                <PlayerDetailDrawer />
+              </PlayerDrawerProvider>
             </AuthProvider>
           </ThemeProvider>
         </NextIntlClientProvider>

@@ -5,6 +5,7 @@ import { Users, CheckCircle, Info, X, ChevronDown, ChevronUp, Trash2, Plus, Came
 import { MgeSkillInput } from './MgeSkillInput';
 import SearchableSelect, { type SearchableOption } from '@/components/ui/SearchableSelect';
 import { supabase } from '@/lib/supabase';
+import { usePlayerDrawer } from '@/lib/roster/player-drawer-context';
 import {
   updateApplicationStatus,
   convertApprovedToSelections,
@@ -179,6 +180,7 @@ function ApplicantCard({
   const headsNeeded = app.skill_levels ? goldHeadsToExpertise(app.skill_levels) : null;
 
   const [showScreenshot, setShowScreenshot] = useState(false);
+  const { openPlayer } = usePlayerDrawer();
 
   const isAssigned = app.status === 'approved';
   const isSkipped = app.status === 'declined';
@@ -211,9 +213,9 @@ function ApplicantCard({
       {/* Header: Name + Alliance + Power + Preference + Notes */}
       <div className="flex items-baseline justify-between gap-2 mb-1.5">
         <div className="flex items-baseline gap-2 min-w-0 flex-wrap">
-          <span className="font-semibold text-lg" style={{ color: 'var(--foreground)' }}>
+          <button onClick={() => openPlayer(app.applicant_name)} className="font-semibold text-lg hover:underline cursor-pointer" style={{ color: 'var(--foreground)' }}>
             {app.applicant_name}
-          </span>
+          </button>
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
             {app.applicant_alliance ? allianceDisplay(app.applicant_alliance) : ''}
           </span>

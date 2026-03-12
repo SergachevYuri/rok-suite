@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import type { MapAssignments, Player, Team, StrategyData as ImportedStrategyData, EventMode, AooTeam } from '@/lib/aoo-strategy/types';
 import { defaultStrategyData } from '@/lib/aoo-strategy/strategy-data';
 import { useScanRoster, formatPower, RosterMember } from '@/lib/supabase/use-alliance-roster';
+import { usePlayerDrawer } from '@/lib/roster/player-drawer-context';
 import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-participation';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/lib/supabase/auth-context';
@@ -195,6 +196,7 @@ function TeamBuilderTab({
     const [builderFilter, setBuilderFilter] = useState<'all' | 'confirmed' | 'maybe' | 'none'>('all');
     const [useCustomSizes, setUseCustomSizes] = useState(true); // Default to custom sizes
     const [copiedSummary, setCopiedSummary] = useState(false);
+    const { openPlayer } = usePlayerDrawer();
 
     // Generate exportable summary text for all teams (no emojis for in-game compatibility)
     const generateSummary = () => {
@@ -1359,10 +1361,10 @@ function TeamBuilderTab({
                                                     >
                                                         {selectedTeleportFirst.has(player.name) ? '⚡' : ''}
                                                     </button>
-                                                    <span className={`text-sm ${selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400' : theme.text}`}>
+                                                    <button onClick={() => openPlayer(player.name)} className={`text-sm hover:underline cursor-pointer ${selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400' : theme.text}`}>
                                                         {player.name}
                                                         {selectedRallyLeads[zone] === player.name && ' ⭐'}
-                                                    </span>
+                                                    </button>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-xs ${theme.textMuted}`} title="Power">
@@ -1408,7 +1410,7 @@ function TeamBuilderTab({
                             <div className="flex flex-wrap gap-2">
                                 {(suggestedZones[0] || []).map((player) => (
                                     <div key={player.name} className="flex items-center gap-2 px-3 py-1.5 rounded bg-[var(--background-secondary)]">
-                                        <span className={`text-sm ${theme.text}`}>{player.name}</span>
+                                        <button onClick={() => openPlayer(player.name)} className={`text-sm hover:underline cursor-pointer ${theme.text}`}>{player.name}</button>
                                         <span className={`text-xs ${theme.textMuted}`}>{formatPower(player.power)}</span>
                                         <select
                                             value={0}
@@ -1498,6 +1500,7 @@ export default function AooStrategyPage() {
 
     // Auth for saving user selections
     const { user } = useAuth();
+    const { openPlayer } = usePlayerDrawer();
 
     // Fetch roster from Supabase
     const { roster, rosterNames, powerByName, killsByName, allianceByName, alliances: dbAlliances, loading: rosterLoading, scanLabel } = useScanRoster();
@@ -2696,7 +2699,7 @@ export default function AooStrategyPage() {
                                                             {player.tags.includes('Confirmed') && (
                                                                 <span className="w-2 h-2 rounded-full bg-green-500" title="Confirmed" />
                                                             )}
-                                                            <span className="font-medium text-sm">{player.name}</span>
+                                                            <button onClick={() => openPlayer(player.name)} className="font-medium text-sm hover:underline cursor-pointer">{player.name}</button>
                                                             {(player.power || powerByName[player.name]) && (
                                                                 <span className={`text-xs ${theme.textMuted}`}>
                                                                     {formatPower(player.power || powerByName[player.name])}

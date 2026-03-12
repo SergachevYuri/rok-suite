@@ -25,6 +25,7 @@ import { allianceDisplay } from '@/lib/alliances';
 import SearchableSelect, { type SearchableOption } from '@/components/ui/SearchableSelect';
 
 import { ADMIN_PASSWORD as EDITOR_PASSWORD } from '@/lib/auth-passwords';
+import { usePlayerDrawer } from '@/lib/roster/player-drawer-context';
 
 // Trophy type order for display
 const TROPHY_ORDER: TrophyType[] = ['legendary', 'epic', 'elite', 'advanced'];
@@ -38,6 +39,7 @@ interface RosterMember {
 
 export default function RecognitionPage() {
     const { theme: currentTheme } = useTheme();
+    const { openPlayer } = usePlayerDrawer();
     const { trophies, loading: trophiesLoading, refetch: refetchTrophies } = useKingTrophies();
     const { counts: trophyCounts, refetch: refetchCounts } = useMemberTrophyCounts();
 
@@ -455,7 +457,7 @@ export default function RecognitionPage() {
                                             {idx + 1}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="font-semibold truncate">{entry.memberName}</div>
+                                            <button onClick={() => openPlayer(entry.memberName)} className="font-semibold truncate hover:underline cursor-pointer">{entry.memberName}</button>
                                             <div className={`text-sm ${theme.textMuted}`}>{entry.memberAlliance || '-'}</div>
                                         </div>
                                         <div className="flex items-center gap-1 text-lg">
@@ -547,7 +549,7 @@ export default function RecognitionPage() {
                                                     <div key={trophy.id} className="flex items-center gap-4 p-4">
                                                         <span className="text-2xl">{TROPHY_CONFIG[trophy.trophy_type as TrophyType].emoji}</span>
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="font-semibold">{trophy.member_name}</div>
+                                                            <button onClick={() => openPlayer(trophy.member_name)} className="font-semibold hover:underline cursor-pointer">{trophy.member_name}</button>
                                                             <div className={`text-sm ${theme.textMuted}`}>
                                                                 {trophy.member_alliance || '-'}
                                                                 {trophy.reason && ` • ${trophy.reason}`}
