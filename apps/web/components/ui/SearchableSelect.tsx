@@ -9,6 +9,14 @@ export interface SearchableOption {
   secondary?: string;
 }
 
+/** Normalize text for fuzzy search: lowercase, strip diacritics, map superscript/subscript to ASCII */
+function normalizeSearch(text: string): string {
+  return text
+    .normalize('NFKD')           // Decompose ligatures/superscripts to base chars
+    .replace(/[\u0300-\u036f]/g, '') // Strip combining diacritical marks
+    .toLowerCase();
+}
+
 interface SearchableSelectProps {
   options: SearchableOption[];
   value: string | null;
@@ -46,8 +54,8 @@ export default function SearchableSelect({
 
   const filtered = useMemo(() => {
     if (!search) return options.slice(0, maxResults);
-    const q = search.toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(q)).slice(0, maxResults);
+    const q = normalizeSearch(search);
+    return options.filter((o) => normalizeSearch(o.label).includes(q)).slice(0, maxResults);
   }, [options, search, maxResults]);
 
   // Reset highlight when list changes

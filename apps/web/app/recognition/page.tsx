@@ -35,6 +35,7 @@ interface RosterMember {
     name: string;
     alliance: string | null;
     power: number;
+    is_active: boolean;
 }
 
 export default function RecognitionPage() {
@@ -73,13 +74,12 @@ export default function RecognitionPage() {
         input: 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--foreground)]',
     };
 
-    // Fetch roster for member selection
+    // Fetch roster for member selection (include all players, not just active)
     useEffect(() => {
         async function fetchRoster() {
             const { data } = await supabase
                 .from('alliance_roster')
-                .select('id, name, alliance, power')
-                .eq('is_active', true)
+                .select('id, name, alliance, power, is_active')
                 .order('power', { ascending: false });
             setRoster(data || []);
         }
