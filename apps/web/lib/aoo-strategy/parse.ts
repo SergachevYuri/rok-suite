@@ -46,15 +46,11 @@ export function toExportUrl(sheetUrl: string): string {
 }
 
 /**
- * Fetch and parse an AoO registration Google Sheet as CSV.
+ * Parse CSV text into AoO registrations.
  * Columns: Name, Gov ID, Power, Team 1, Team 2, Rally Leader, Garrison Leader, Mid
  * Boolean columns use "x" (case-insensitive) to indicate true.
  */
-export async function fetchAooRegistrationSheet(sheetUrl: string): Promise<AooRegistration[]> {
-  const exportUrl = toExportUrl(sheetUrl);
-  const response = await fetch(exportUrl);
-  if (!response.ok) throw new Error(`Failed to fetch sheet: ${response.status}`);
-  const text = await response.text();
+export function parseAooRegistrationCSV(text: string): AooRegistration[] {
   const { headers, rows } = parseCSV(text);
 
   const idx = (name: string) =>
@@ -68,6 +64,8 @@ export async function fetchAooRegistrationSheet(sheetUrl: string): Promise<AooRe
   const iRallyLeader = idx('rally leader');
   const iGarrisonLeader = idx('garrison leader');
   const iMid = idx('mid');
+
+  if (iName === -1) throw new Error('Missing required "Name" column in CSV');
 
   const isChecked = (val: string | undefined) =>
     (val || '').trim().toLowerCase() === 'x';
@@ -84,4 +82,15 @@ export async function fetchAooRegistrationSheet(sheetUrl: string): Promise<AooRe
       mid: isChecked(cols[iMid]),
     }))
     .filter(r => r.name);
+}
+
+/**
+ * Fetch and parse an AoO registration Google Sheet as CSV.
+ */
+export async function fetchAooRegistrationSheet(sheetUrl: string): Promise<AooRegistration[]> {
+  const exportUrl = toExportUrl(sheetUrl);
+  const response = await fetch(exportUrl);
+  if (!response.ok) throw new Error(`Failed to fetch sheet: ${response.status}`);
+  const text = await response.text();
+  return parseAooRegistrationCSV(text);
 }

@@ -1640,7 +1640,7 @@ export default function AooStrategyPage() {
 
     // Fetch roster from Supabase
     const { roster, rosterNames, powerByName, killsByName, allianceByName, alliances: dbAlliances, loading: rosterLoading, scanLabel } = useScanRoster();
-    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'builder' | 'registration'>('builder');
+    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'builder' | 'registration'>('registration');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
@@ -2500,6 +2500,10 @@ export default function AooStrategyPage() {
 
                         // Switch to builder tab with "all" alliance filter so no one is hidden
                         setBuilderAlliance('all');
+                        setBuilderStep('select');
+                        setActiveTab('builder');
+                    }}
+                    onSkipToBuilder={() => {
                         setBuilderStep('select');
                         setActiveTab('builder');
                     }}
