@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Flag, Wheat, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock, ChevronsUp } from 'lucide-react';
+import { Flag, Wheat, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock, ChevronsUp, Timer } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 
 function LogIcon({ className }: { className?: string }) {
@@ -23,6 +23,25 @@ function LogIcon({ className }: { className?: string }) {
 
 const ARCH1_DISCOUNT = [0, 0.01, 0.025, 0.04, 0.06, 0.10];
 const ARCH2_DISCOUNT = [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.075, 0.09, 0.11, 0.15];
+
+// Artisan's Spirit — alliance tech that boosts building speed
+// At level 10 (+50%), flag build time is 20 min → base time = 30 min
+const ARTISAN_SPEED = [0, 0.025, 0.05, 0.075, 0.10, 0.125, 0.15, 0.20, 0.25, 0.35, 0.50];
+const FLAG_BASE_BUILD_MINUTES = 30; // base build time with no artisan's spirit
+
+function getFlagBuildMinutes(artisanLevel: number): number {
+  return FLAG_BASE_BUILD_MINUTES / (1 + ARTISAN_SPEED[artisanLevel]);
+}
+
+function formatMinutes(mins: number): string {
+  if (mins < 60) return `${Math.round(mins)}m`;
+  const h = Math.floor(mins / 60);
+  const m = Math.round(mins % 60);
+  if (h < 24) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  const d = Math.floor(h / 24);
+  const rh = h % 24;
+  return rh > 0 ? `${d}d ${rh}h` : `${d}d`;
+}
 
 interface FlagCost {
   food: number; wood: number; stone: number; gold: number;
@@ -207,6 +226,7 @@ export default function FlagCalculatorPage() {
   });
   const [arch1Level, setArch1Level] = useState(5);
   const [arch2Level, setArch2Level] = useState(10);
+  const [artisanLevel, setArtisanLevel] = useState(10);
   const [targetDateStr, setTargetDateStr] = useState('');
   const [now, setNow] = useState(() => new Date());
 
@@ -276,6 +296,9 @@ export default function FlagCalculatorPage() {
     if (instantResult.count === 0) return { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 } as FlagCost;
     return totalCostForFlags(currentFlags + 1, instantResult.count, techDiscount);
   }, [currentFlags, instantResult.count, techDiscount]);
+
+  const buildMinutesPerFlag = useMemo(() => getFlagBuildMinutes(artisanLevel), [artisanLevel]);
+  const maxFlagsByTime = useMemo(() => Math.floor((hoursUntilTarget * 60) / buildMinutesPerFlag), [hoursUntilTarget, buildMinutesPerFlag]);
 
   const bottleneck = useMemo(() => {
     if (instantResult.count > 0) return null;
@@ -350,6 +373,24 @@ export default function FlagCalculatorPage() {
                   </select>
                 </div>
               </div>
+              <h2 className="text-sm font-medium text-[var(--text-muted)] mt-4 mb-2 flex items-center gap-1.5">
+                <Timer className="w-4 h-4" /> Build Speed Tech
+              </h2>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-[var(--text-secondary)]">Artisan&apos;s Spirit</span>
+                <select
+                  value={artisanLevel}
+                  onChange={e => setArtisanLevel(Number(e.target.value))}
+                  className="bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]"
+                >
+                  {ARTISAN_SPEED.map((s, i) => (
+                    <option key={i} value={i}>Lv {i}{i > 0 ? ` (+${(s * 100).toFixed(1).replace(/\.0$/, '')}%)` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs text-[var(--text-muted)] mt-2">
+                Build time per flag: <span className="text-[var(--foreground)] font-mono">{Math.round(getFlagBuildMinutes(artisanLevel))} min</span>
+              </p>
             </div>
 
             {/* Alliance resources (current / cap) */}
@@ -466,6 +507,13 @@ export default function FlagCalculatorPage() {
                   <span className="text-xs text-[var(--text-muted)]">#{currentFlags + 1} &rarr; #{currentFlags + instantResult.count}</span>
                 )}
               </div>
+              {instantResult.count > 0 && (
+                <div className="flex items-center gap-2 mb-3 text-xs text-[var(--text-muted)]">
+                  <Timer className="w-3.5 h-3.5" />
+                  Build time: <span className="text-[var(--foreground)] font-mono">{formatMinutes(instantResult.count * buildMinutesPerFlag)}</span>
+                  <span>({Math.round(buildMinutesPerFlag)} min each)</span>
+                </div>
+              )}
               {instantResult.count === 0 && bottleneck && (
                 <div className="text-xs text-red-400/70 mb-3">
                   Bottleneck: {RSS_CONFIG.find(r => r.key === bottleneck)?.label}
@@ -508,6 +556,15 @@ export default function FlagCalculatorPage() {
                   <span className="text-xs text-green-400">+{forwardResult.count - instantResult.count} from production</span>
                 )}
               </div>
+              {hoursUntilTarget > 0 && (
+                <div className="flex items-center gap-2 mb-3 text-xs text-[var(--text-muted)]">
+                  <Timer className="w-3.5 h-3.5" />
+                  Max by build time alone: <span className="text-blue-400 font-mono">{maxFlagsByTime} flags</span>
+                  {forwardResult.count > 0 && (
+                    <span>| Total build: <span className="text-[var(--foreground)] font-mono">{formatMinutes(forwardResult.count * buildMinutesPerFlag)}</span></span>
+                  )}
+                </div>
+              )}
               {forwardResult.count > 0 && (
                 <div className="space-y-1 mb-4">
                   {RSS_CONFIG.map(rss => {
@@ -550,6 +607,9 @@ export default function FlagCalculatorPage() {
                         </th>
                       );
                     })}
+                    <th className="px-3 py-2 text-right">
+                      <Timer className="w-3.5 h-3.5 inline text-[var(--text-muted)]" />
+                    </th>
                     <th className="px-3 py-2 text-right">Status</th>
                   </tr>
                 </thead>
@@ -559,6 +619,7 @@ export default function FlagCalculatorPage() {
                     const cost = getFlagCost(flagNum, techDiscount);
                     const inInstant = flagNum <= currentFlags + instantResult.count;
                     const inForward = flagNum <= currentFlags + forwardResult.count;
+                    const cumulativeBuildMins = (i + 1) * buildMinutesPerFlag;
                     return (
                       <tr
                         key={flagNum}
@@ -572,6 +633,9 @@ export default function FlagCalculatorPage() {
                             {cost[rss.key] > 0 ? formatNum(cost[rss.key]) : '-'}
                           </td>
                         ))}
+                        <td className="px-3 py-1.5 text-right font-mono text-xs text-[var(--text-muted)]">
+                          {formatMinutes(cumulativeBuildMins)}
+                        </td>
                         <td className="px-3 py-1.5 text-right">
                           {inInstant ? (
                             <span className="text-green-400 text-xs">Now</span>
