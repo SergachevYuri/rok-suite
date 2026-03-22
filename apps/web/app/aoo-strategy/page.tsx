@@ -741,13 +741,13 @@ function TeamBuilderTab({
                 newArkCarriersByTeam[team] = sorted[0].name;
             }
 
-            // Pre-select rally leads + top players for teleport first
-            const teleport = new Set<string>();
-            for (const [zone, players] of Object.entries(zones)) {
-                if (parseInt(zone) === 0) continue;
-                const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
-                sorted.slice(0, Math.min(4, Math.ceil(players.length / 3))).forEach(p => teleport.add(p.name));
-            }
+            // Pre-select top 8 players for teleport first (game limit: 8 per team)
+            const allLanePlayers = [
+                ...(zones[1] || []),
+                ...(zones[2] || []),
+                ...(zones[3] || []),
+            ].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+            const teleport = new Set<string>(allLanePlayers.slice(0, 8).map(p => p.name));
             newTeleportFirstByTeam[team] = teleport;
         }
 
@@ -1454,18 +1454,24 @@ function TeamBuilderTab({
                                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
                                         {zonePlayers.map((player) => (
                                             <div key={player.name} className="grid grid-cols-[20px_1fr_auto_auto_auto_auto] gap-x-2 items-center px-2 py-1.5 rounded bg-[var(--background-secondary)]">
-                                                {/* Teleport First */}
+                                                {/* Teleport First (max 8 per team) */}
                                                 <button
                                                     onClick={() => {
                                                         const newSet = new Set(selectedTeleportFirst);
-                                                        if (newSet.has(player.name)) newSet.delete(player.name);
-                                                        else newSet.add(player.name);
+                                                        if (newSet.has(player.name)) {
+                                                            newSet.delete(player.name);
+                                                        } else if (newSet.size < 8) {
+                                                            newSet.add(player.name);
+                                                        }
                                                         setSelectedTeleportFirst(newSet);
                                                     }}
                                                     className={`w-5 h-5 rounded flex items-center justify-center text-xs ${
-                                                        selectedTeleportFirst.has(player.name) ? 'bg-[#4318ff] text-white' : 'bg-white/20'
+                                                        selectedTeleportFirst.has(player.name) ? 'bg-[#4318ff] text-white'
+                                                        : selectedTeleportFirst.size >= 8 ? 'bg-white/5 cursor-not-allowed'
+                                                        : 'bg-white/20'
                                                     }`}
-                                                    title="Teleport First"
+                                                    title={selectedTeleportFirst.has(player.name) ? 'Remove from teleport first' : selectedTeleportFirst.size >= 8 ? 'Max 8 teleport first' : 'Add to teleport first'}
+                                                    disabled={!selectedTeleportFirst.has(player.name) && selectedTeleportFirst.size >= 8}
                                                 >
                                                     {selectedTeleportFirst.has(player.name) ? '⚡' : ''}
                                                 </button>
@@ -1643,7 +1649,7 @@ function TeamBuilderTab({
                         <span>🛡️ = Garrison Lead</span>
                         <span>📦 = Ark Carrier</span>
                         <span>★ = Coordinator</span>
-                        <span>⚡ = Teleport First</span>
+                        <span>⚡ = Teleport First ({selectedTeleportFirst.size}/8)</span>
                     </div>
 
                     {/* Add Player to lanes */}
