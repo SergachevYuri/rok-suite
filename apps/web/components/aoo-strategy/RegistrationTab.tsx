@@ -12,9 +12,10 @@ interface RegistrationTabProps {
   theme: Record<string, string>;
   onApplyToBuilder: (registrations: AooRegistration[]) => void;
   onSkipToBuilder: () => void;
+  isOfficer?: boolean;
 }
 
-export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuilder }: RegistrationTabProps) {
+export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuilder, isOfficer }: RegistrationTabProps) {
   const [sheetUrl, setSheetUrl] = useState('');
   const [registrations, setRegistrations] = useState<AooRegistration[]>([]);
   const [loading, setLoading] = useState(false);
@@ -101,6 +102,16 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
         <h2 className={`text-base font-semibold uppercase tracking-wider ${theme.textMuted} mb-4`}>
           Import Registrations
         </h2>
+
+        {/* Officer badge */}
+        {isOfficer && (
+          <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <span className="text-amber-400 text-xs font-semibold uppercase tracking-wider">Officer</span>
+            <span className={`text-xs ${theme.textMuted}`}>
+              {sheetUrl ? 'Sheet URL loaded from saved config — hit Fetch to import.' : 'No saved sheet URL found. Paste one below.'}
+            </span>
+          </div>
+        )}
 
         {/* Google Sheets fetch */}
         <div className="mb-4">

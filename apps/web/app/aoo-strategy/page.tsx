@@ -11,7 +11,8 @@ import { usePlayerDrawer } from '@/lib/roster/player-drawer-context';
 import { getAllMemberStats, MemberEventStats } from '@/lib/supabase/use-event-participation';
 import { AppSidebar } from '@/components/AppSidebar';
 import { useAuth } from '@/lib/supabase/auth-context';
-import { Swords, Plus, Link as LinkIcon, Copy, Check } from 'lucide-react';
+import { Swords, Plus, Link as LinkIcon, Copy, Check, Lock, Unlock } from 'lucide-react';
+import { OFFICER_PASSWORD } from '@/lib/auth-passwords';
 import { allianceDisplay } from '@/lib/alliances';
 import { matchesSearch as matchesSearchUtil } from '@/lib/search';
 
@@ -1801,6 +1802,20 @@ export default function AooStrategyPage() {
     const [planName, setPlanName] = useState<string>('');
     const [linkCopied, setLinkCopied] = useState(false);
 
+    // Officer login state
+    const [isOfficer, setIsOfficer] = useState(false);
+    const [showOfficerPrompt, setShowOfficerPrompt] = useState(false);
+    const [officerPasswordInput, setOfficerPasswordInput] = useState('');
+    const handleOfficerLogin = () => {
+        if (officerPasswordInput === OFFICER_PASSWORD) {
+            setIsOfficer(true);
+            setShowOfficerPrompt(false);
+            setOfficerPasswordInput('');
+        } else {
+            alert('Incorrect password');
+        }
+    };
+
     // Everyone can edit shared plans (no password needed)
     const isEditor = !!shareId;
 
@@ -2504,6 +2519,24 @@ export default function AooStrategyPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+                            {/* Officer login toggle */}
+                            {!isOfficer ? (
+                                <button
+                                    onClick={() => setShowOfficerPrompt(true)}
+                                    className={`p-2 rounded-lg ${theme.button} hover:bg-[var(--background-hover)] transition-colors`}
+                                    title="Officer login"
+                                >
+                                    <Lock size={16} />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setIsOfficer(false)}
+                                    className="p-2 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+                                    title="Logged in as officer (click to log out)"
+                                >
+                                    <Unlock size={16} />
+                                </button>
+                            )}
                             {shareId && (
                                 <button
                                     onClick={async () => {
@@ -2581,6 +2614,39 @@ export default function AooStrategyPage() {
                 </div>
             )}
 
+            {/* Officer Password Modal */}
+            {showOfficerPrompt && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-[var(--background-card)] border border-[var(--border)] shadow-lg p-6 rounded-xl max-w-sm w-full mx-4">
+                        <h3 className="text-lg font-semibold mb-2">Officer Login</h3>
+                        <p className={`text-sm ${theme.textMuted} mb-4`}>Enter the officer password to access the registration sheet link.</p>
+                        <input
+                            type="password"
+                            value={officerPasswordInput}
+                            onChange={(e) => setOfficerPasswordInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleOfficerLogin()}
+                            placeholder="Enter password"
+                            className={`w-full px-4 py-2 rounded-lg border ${theme.input} mb-4`}
+                            autoFocus
+                        />
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => { setShowOfficerPrompt(false); setOfficerPasswordInput(''); }}
+                                className={`px-4 py-2 rounded-lg ${theme.button}`}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleOfficerLogin}
+                                className="px-4 py-2 rounded-lg bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                            >
+                                Login
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Tab Content */}
             {activeTab === 'registration' && (
                 <RegistrationTab
@@ -2649,6 +2715,7 @@ export default function AooStrategyPage() {
                         setBuilderStep('select');
                         setActiveTab('builder');
                     }}
+                    isOfficer={isOfficer}
                 />
             )}
 
