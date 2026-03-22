@@ -1409,16 +1409,16 @@ function TeamBuilderTab({
                                         </div>
                                     </div>
 
-                                    {isMidLane ? (
-                                        /* Mid Lane (Ark) — Ark Carrier selection instead of rally/garrison */
-                                        <div className="mb-3 p-2 rounded bg-[var(--background-secondary)]">
-                                            <span className={`text-xs ${theme.textMuted}`}>Ark Carrier:</span>
+                                    {/* Lead selectors — always 2 rows for consistent height */}
+                                    <div className="mb-3 space-y-2">
+                                        <div className="p-2 rounded bg-[var(--background-secondary)]">
+                                            <span className={`text-xs ${theme.textMuted}`}>{isMidLane ? 'Ark Carrier:' : 'Rally Lead:'}</span>
                                             <select
-                                                value={selectedArkCarrier || ''}
-                                                onChange={(e) => setSelectedArkCarrier(e.target.value)}
+                                                value={isMidLane ? (selectedArkCarrier || '') : (selectedRallyLeads[zone] || '')}
+                                                onChange={(e) => isMidLane ? setSelectedArkCarrier(e.target.value) : setSelectedRallyLeads({ ...selectedRallyLeads, [zone]: e.target.value })}
                                                 className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
                                             >
-                                                <option value="">Select Ark Carrier...</option>
+                                                <option value="">{isMidLane ? 'Select Ark Carrier...' : 'Select Rally Lead...'}</option>
                                                 {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
                                                     <option key={p.name} value={p.name}>
                                                         {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
@@ -1426,41 +1426,28 @@ function TeamBuilderTab({
                                                 ))}
                                             </select>
                                         </div>
-                                    ) : (
-                                        /* Top/Bottom Lane — Rally Lead + Garrison Lead */
-                                        <div className="mb-3 space-y-2">
-                                            <div className="p-2 rounded bg-[var(--background-secondary)]">
-                                                <span className={`text-xs ${theme.textMuted}`}>Rally Lead:</span>
-                                                <select
-                                                    value={selectedRallyLeads[zone] || ''}
-                                                    onChange={(e) => setSelectedRallyLeads({ ...selectedRallyLeads, [zone]: e.target.value })}
-                                                    className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
-                                                >
-                                                    <option value="">Select Rally Lead...</option>
-                                                    {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
-                                                        <option key={p.name} value={p.name}>
-                                                            {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className="p-2 rounded bg-[var(--background-secondary)]">
-                                                <span className={`text-xs ${theme.textMuted}`}>Garrison Lead:</span>
-                                                <select
-                                                    value={selectedGarrisonLeads[zone] || ''}
-                                                    onChange={(e) => setSelectedGarrisonLeads({ ...selectedGarrisonLeads, [zone]: e.target.value })}
-                                                    className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
-                                                >
-                                                    <option value="">Select Garrison Lead...</option>
-                                                    {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
-                                                        <option key={p.name} value={p.name}>
-                                                            {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                        <div className="p-2 rounded bg-[var(--background-secondary)]">
+                                            {isMidLane ? (
+                                                <span className={`text-xs ${theme.textMuted} block py-[11px]`}>&nbsp;</span>
+                                            ) : (
+                                                <>
+                                                    <span className={`text-xs ${theme.textMuted}`}>Garrison Lead:</span>
+                                                    <select
+                                                        value={selectedGarrisonLeads[zone] || ''}
+                                                        onChange={(e) => setSelectedGarrisonLeads({ ...selectedGarrisonLeads, [zone]: e.target.value })}
+                                                        className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
+                                                    >
+                                                        <option value="">Select Garrison Lead...</option>
+                                                        {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
+                                                            <option key={p.name} value={p.name}>
+                                                                {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
 
                                     {/* Player List */}
                                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
