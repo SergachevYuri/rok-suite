@@ -1312,7 +1312,10 @@ function TeamBuilderTab({
                 <>
                     {/* Lane sizing & re-balance controls */}
                     {(() => {
-                        const laneSlots = (parseInt(zoneSizes[1]) || 0) + (parseInt(zoneSizes[2]) || 0) + (parseInt(zoneSizes[3]) || 0);
+                        const top = parseInt(zoneSizes[1]) || 0;
+                        const mid = parseInt(zoneSizes[2]) || 0;
+                        const bot = parseInt(zoneSizes[3]) || 0;
+                        const laneSlots = top + mid + bot;
                         const playerTotal = confirmedPlayers.length + maybePlayers.length;
                         const subsCount = Math.max(0, playerTotal - laneSlots);
                         const overMax = laneSlots > 30;
@@ -1320,13 +1323,14 @@ function TeamBuilderTab({
                         return (
                     <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
                         <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
                                 <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Lane Sizes</h3>
-                                <span className={`text-xs font-medium ${theme.textMuted}`}>
-                                    {laneSlots} in lanes + {subsCount} subs = {playerTotal} total
+                                <span className={`text-xs font-mono ${overMax ? 'text-red-400 font-semibold' : theme.textMuted}`}>
+                                    <span className="text-blue-400">{top}</span> + <span className="text-orange-400">{mid}</span> + <span className="text-purple-400">{bot}</span> = <span className={overMax ? 'text-red-400' : 'text-white font-semibold'}>{laneSlots}</span> in lanes
                                 </span>
-                                {overMax && <span className="text-xs font-medium text-red-400">Max 30 in lanes</span>}
-                                {subsOverMax && <span className="text-xs font-medium text-yellow-400">Max 10 subs</span>}
+                                <span className={`text-xs ${theme.textMuted}`}>+ {subsCount} subs = {playerTotal} total</span>
+                                {overMax && <span className="text-xs font-medium text-red-400">(max 30)</span>}
+                                {subsOverMax && <span className="text-xs font-medium text-yellow-400">(max 10 subs)</span>}
                             </div>
                             <div className="flex items-center gap-3">
                                 <label className="flex items-center gap-2 cursor-pointer">
