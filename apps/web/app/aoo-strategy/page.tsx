@@ -658,7 +658,24 @@ function TeamBuilderTab({
             }
 
             let zones: Record<number, { name: string; power: number; kills: number }[]>;
-            const teamZoneSizes = zoneSizesByTeam[team] || { 0: '', 1: '', 2: '', 3: '' };
+            let teamZoneSizes = zoneSizesByTeam[team] || { 0: '', 1: '', 2: '', 3: '' };
+
+            // If zone sizes haven't been set yet, compute defaults inline
+            const parsedSizeTotal = (parseInt(teamZoneSizes[1]) || 0) + (parseInt(teamZoneSizes[2]) || 0) + (parseInt(teamZoneSizes[3]) || 0);
+            if (parsedSizeTotal === 0 && (confirmedList.length + maybeList.length) > 0) {
+                const count = confirmedList.length + maybeList.length;
+                const laneTotal = Math.min(count, 30);
+                const base = Math.floor(laneTotal / 3);
+                const rem = laneTotal % 3;
+                teamZoneSizes = {
+                    0: '',
+                    1: String(base + (rem >= 1 ? 1 : 0)),
+                    2: String(base + (rem >= 2 ? 1 : 0)),
+                    3: String(base),
+                };
+                // Persist so the UI shows correct values
+                setZoneSizesByTeam(prev => ({ ...prev, [team]: teamZoneSizes }));
+            }
 
             {
                 // Combine all players, sorted by power descending
