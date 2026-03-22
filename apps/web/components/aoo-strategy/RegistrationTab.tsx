@@ -103,13 +103,24 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
           Import Registrations
         </h2>
 
-        {/* Officer badge */}
+        {/* Officer badge with link to edit the registration sheet */}
         {isOfficer && (
-          <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
-            <span className="text-amber-400 text-xs font-semibold uppercase tracking-wider">Officer</span>
-            <span className={`text-xs ${theme.textMuted}`}>
-              {sheetUrl ? 'Sheet URL loaded from saved config — hit Fetch to import.' : 'No saved sheet URL found. Paste one below.'}
-            </span>
+          <div className="mb-4 flex items-center justify-between px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <div className="flex items-center gap-2">
+              <span className="text-amber-400 text-xs font-semibold uppercase tracking-wider">Officer</span>
+              <span className={`text-xs ${theme.textMuted}`}>
+                {sheetUrl ? 'Sheet URL loaded — hit Fetch to import.' : 'No saved sheet URL found. Paste one below.'}
+              </span>
+            </div>
+            <a
+              href="https://docs.google.com/spreadsheets/d/17JLwfknLvybbxu2B-SjlLkL5RqBIkIZgF11tvUzFvjU/edit?gid=1559092066#gid=1559092066"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+            >
+              <ExternalLink size={12} />
+              Edit Registration Sheet
+            </a>
           </div>
         )}
 
