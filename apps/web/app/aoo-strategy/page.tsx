@@ -752,15 +752,27 @@ function TeamBuilderTab({
     };
 
     // Auto-distribute when triggered by parent (e.g. after sheet import)
+    // We track the token and wait for confirmations to actually have players before distributing
+    const pendingAutoDistribute = useRef(false);
     const lastAutoDistributeRef = useRef(autoDistributeToken);
     useEffect(() => {
         if (autoDistributeToken && autoDistributeToken !== lastAutoDistributeRef.current) {
             lastAutoDistributeRef.current = autoDistributeToken;
-            // Small delay to let state settle from parent
-            setTimeout(() => handleDistribute(), 0);
+            pendingAutoDistribute.current = true;
+        }
+    }, [autoDistributeToken]);
+
+    // Fire the distribute once confirmations have players (state settled from parent)
+    const totalConfirmed = Object.values(confirmationsByTeam).reduce(
+        (sum, teamConf) => sum + Object.values(teamConf).filter(v => v === 'confirmed' || v === 'maybe').length, 0
+    );
+    useEffect(() => {
+        if (pendingAutoDistribute.current && totalConfirmed > 0) {
+            pendingAutoDistribute.current = false;
+            handleDistribute();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [autoDistributeToken]);
+    }, [totalConfirmed]);
 
     // Move player between zones
     const movePlayerToZone = (playerName: string, fromZone: number, toZone: number) => {
