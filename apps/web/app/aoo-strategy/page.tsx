@@ -674,7 +674,7 @@ function TeamBuilderTab({
                     3: String(base),
                 };
                 // Persist so the UI shows correct values
-                setZoneSizesByTeam(prev => ({ ...prev, [team]: teamZoneSizes }));
+                setZoneSizesByTeam({ ...zoneSizesByTeam, [team]: teamZoneSizes });
             }
 
             {
