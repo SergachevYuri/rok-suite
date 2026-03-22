@@ -260,7 +260,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                 className={`px-5 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2 ${theme.buttonPrimary}`}
               >
                 <Swords size={16} />
-                Apply to Team Builder
+                Distribute to Lanes
               </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

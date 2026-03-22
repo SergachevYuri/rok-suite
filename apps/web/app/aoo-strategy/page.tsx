@@ -164,6 +164,7 @@ interface TeamBuilderTabProps {
     formatPower: (p: number | null | undefined) => string;
     user: { id: string } | null;
     scanLabel: string | null;
+    autoDistributeToken?: number; // Increment to trigger auto-distribute from parent
 }
 
 function TeamBuilderTab({
@@ -202,6 +203,7 @@ function TeamBuilderTab({
     formatPower,
     user,
     scanLabel,
+    autoDistributeToken,
 }: TeamBuilderTabProps) {
     // Local state for search and add member form
     const [searchTerm, setSearchTerm] = useState('');
@@ -749,6 +751,17 @@ function TeamBuilderTab({
         setBuilderStep('distribute');
     };
 
+    // Auto-distribute when triggered by parent (e.g. after sheet import)
+    const lastAutoDistributeRef = useRef(autoDistributeToken);
+    useEffect(() => {
+        if (autoDistributeToken && autoDistributeToken !== lastAutoDistributeRef.current) {
+            lastAutoDistributeRef.current = autoDistributeToken;
+            // Small delay to let state settle from parent
+            setTimeout(() => handleDistribute(), 0);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoDistributeToken]);
+
     // Move player between zones
     const movePlayerToZone = (playerName: string, fromZone: number, toZone: number) => {
         const newZones = { ...suggestedZones };
@@ -1229,148 +1242,20 @@ function TeamBuilderTab({
                         </div>
                     </section>
 
-                    {/* Zone Size Configuration - only shows when players are selected */}
+                    {/* Distribute button */}
                     {confirmedPlayers.length + maybePlayers.length > 0 ? (
-                    <section className={`${theme.card} border border-[#4318ff] rounded-xl mb-6 p-5`}>
-                        <h3 className={`text-lg font-semibold ${theme.text} mb-2`}>⚔️ Lane Distribution</h3>
-                        <p className={`text-sm ${theme.textMuted} mb-4`}>
-                            Set how many players per lane. Power will be balanced automatically within your specified sizes.
-                        </p>
-
-                        {/* Team selector for zone sizes (when multiple teams) */}
-                        {teamCount > 1 && (
-                            <div className="flex items-center gap-2 mb-4">
-                                <span className={`text-sm font-medium ${theme.textMuted}`}>Configure for:</span>
-                                {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map((t) => {
-                                    const teamColors = {
-                                        1: { bg: 'bg-blue-600', text: 'text-blue-400', border: 'border-blue-500' },
-                                        2: { bg: 'bg-orange-600', text: 'text-orange-400', border: 'border-orange-500' },
-                                        3: { bg: 'bg-purple-600', text: 'text-purple-400', border: 'border-purple-500' },
-                                    }[t];
-                                    const teamConf = confirmationsByTeam[t] || {};
-                                    const teamTotal = Object.values(teamConf).filter(v => v === 'confirmed' || v === 'maybe').length;
-                                    return (
-                                        <button
-                                            key={t}
-                                            onClick={() => setActiveTeam(t)}
-                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                                                activeTeam === t
-                                                    ? `${teamColors.bg} text-white shadow-md`
-                                                    : `${teamColors.bg}/20 ${teamColors.text} border ${teamColors.border}/50 hover:${teamColors.bg}/30`
-                                            }`}
-                                        >
-                                            <span className="font-bold">Team {t}</span>
-                                            <span className="text-xs opacity-80">({teamTotal} players)</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        {/* Zone inputs in a row */}
-                        <div className="grid grid-cols-4 gap-3 mb-4">
-                            {/* Top Lane */}
-                            <div className="p-3 rounded-lg border border-blue-500 bg-[var(--background-secondary)]">
-                                <label className="text-xs text-blue-400 font-semibold block mb-1">
-                                    Top Lane
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={zoneSizes[1]}
-                                    onChange={(e) => setZoneSizes({ ...zoneSizes, 1: e.target.value })}
-                                    placeholder="10"
-                                    className={`w-full px-3 py-2 rounded-lg text-center text-xl font-bold ${theme.input} border`}
-                                />
-                            </div>
-                            {/* Mid Lane */}
-                            <div className="p-3 rounded-lg border border-orange-500 bg-[var(--background-secondary)]">
-                                <label className="text-xs text-orange-400 font-semibold block mb-1">
-                                    Mid Lane (Ark)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={zoneSizes[2]}
-                                    onChange={(e) => setZoneSizes({ ...zoneSizes, 2: e.target.value })}
-                                    placeholder="10"
-                                    className={`w-full px-3 py-2 rounded-lg text-center text-xl font-bold ${theme.input} border`}
-                                />
-                            </div>
-                            {/* Bottom Lane */}
-                            <div className="p-3 rounded-lg border border-purple-500 bg-[var(--background-secondary)]">
-                                <label className="text-xs text-purple-400 font-semibold block mb-1">
-                                    Bottom Lane
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={zoneSizes[3]}
-                                    onChange={(e) => setZoneSizes({ ...zoneSizes, 3: e.target.value })}
-                                    placeholder="10"
-                                    className={`w-full px-3 py-2 rounded-lg text-center text-xl font-bold ${theme.input} border`}
-                                />
-                            </div>
-                            {/* Subs */}
-                            <div className="p-3 rounded-lg border border-gray-500 bg-[var(--background-secondary)]">
-                                <label className="text-xs text-gray-400 font-semibold block mb-1">
-                                    Substitutes
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={zoneSizes[0]}
-                                    onChange={(e) => setZoneSizes({ ...zoneSizes, 0: e.target.value })}
-                                    placeholder="5"
-                                    className={`w-full px-3 py-2 rounded-lg text-center text-xl font-bold ${theme.input} border`}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Summary */}
-                        <div className={`flex items-center justify-between p-3 rounded-lg bg-[var(--background-secondary)] mb-4`}>
-                            <div className={`text-sm ${theme.textMuted}`}>
-                                <span className="font-medium">Total slots{teamCount > 1 ? ` (Team ${activeTeam})` : ''}:</span>{' '}
-                                <span className={theme.text}>
-                                    {(parseInt(zoneSizes[1]) || 0) + (parseInt(zoneSizes[2]) || 0) + (parseInt(zoneSizes[3]) || 0) + (parseInt(zoneSizes[0]) || 0)}
-                                </span>
-                            </div>
-                            <div className={`text-sm ${theme.textMuted}`}>
-                                <span className="font-medium">Available players:</span>{' '}
-                                <span className={theme.text}>{confirmedPlayers.length + maybePlayers.length}</span>
-                                <span className="text-xs ml-1">({confirmedPlayers.length} confirmed, {maybePlayers.length} maybe)</span>
-                            </div>
-                        </div>
-
-                        {/* Auto-balance toggle */}
-                        <div className="flex items-center justify-between mb-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={!useCustomSizes}
-                                    onChange={(e) => setUseCustomSizes(!e.target.checked)}
-                                    className="rounded"
-                                />
-                                <span className={`text-xs ${theme.textMuted}`}>Auto-balance (ignore sizes above, split evenly by power)</span>
-                            </label>
-                        </div>
-
-                        <div className="flex justify-center">
+                        <div className="flex justify-center mb-6">
                             <button
                                 onClick={handleDistribute}
-                                disabled={confirmedPlayers.length + maybePlayers.length < 1}
-                                className={`px-8 py-3 rounded-lg font-semibold text-white text-lg ${
-                                    confirmedPlayers.length + maybePlayers.length >= 1 ? 'bg-[#4318ff] hover:bg-[#4318ff]/80' : 'bg-gray-600 cursor-not-allowed'
-                                }`}
+                                className="px-8 py-3 rounded-lg font-semibold text-white text-lg bg-[#4318ff] hover:bg-[#4318ff]/80"
                             >
-                                Distribute All Teams →
+                                Distribute to Lanes →
                             </button>
                         </div>
-                    </section>
                     ) : (
                         <div className={`${theme.card} border border-dashed border-[var(--border)] rounded-xl mb-6 p-8 text-center`}>
                             <p className={`text-base ${theme.textMuted} mb-1`}>No players selected yet</p>
-                            <p className={`text-sm ${theme.textMuted}`}>Use the <span className="text-green-400 font-medium">✓</span> and <span className="text-yellow-400 font-medium">?</span> buttons above to add players to a team, then configure lane sizes here.</p>
+                            <p className={`text-sm ${theme.textMuted}`}>Use the <span className="text-green-400 font-medium">✓</span> and <span className="text-yellow-400 font-medium">?</span> buttons above to add players to a team.</p>
                         </div>
                     )}
                 </>
@@ -1378,6 +1263,48 @@ function TeamBuilderTab({
 
             {builderStep === 'distribute' && (
                 <>
+                    {/* Lane sizing & re-balance controls */}
+                    <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Lane Sizes</h3>
+                            <div className="flex items-center gap-3">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={!useCustomSizes}
+                                        onChange={(e) => setUseCustomSizes(!e.target.checked)}
+                                        className="rounded"
+                                    />
+                                    <span className={`text-xs ${theme.textMuted}`}>Auto-balance evenly</span>
+                                </label>
+                                <button
+                                    onClick={handleDistribute}
+                                    className="px-4 py-1.5 rounded-lg text-sm font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80"
+                                >
+                                    Re-balance
+                                </button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-3">
+                            <div className="p-2 rounded-lg border border-blue-500 bg-[var(--background-secondary)]">
+                                <label className="text-xs text-blue-400 font-semibold block mb-1">Top</label>
+                                <input type="number" min="0" value={zoneSizes[1]} onChange={(e) => setZoneSizes({ ...zoneSizes, 1: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
+                            </div>
+                            <div className="p-2 rounded-lg border border-orange-500 bg-[var(--background-secondary)]">
+                                <label className="text-xs text-orange-400 font-semibold block mb-1">Mid (Ark)</label>
+                                <input type="number" min="0" value={zoneSizes[2]} onChange={(e) => setZoneSizes({ ...zoneSizes, 2: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
+                            </div>
+                            <div className="p-2 rounded-lg border border-purple-500 bg-[var(--background-secondary)]">
+                                <label className="text-xs text-purple-400 font-semibold block mb-1">Bottom</label>
+                                <input type="number" min="0" value={zoneSizes[3]} onChange={(e) => setZoneSizes({ ...zoneSizes, 3: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
+                            </div>
+                            <div className="p-2 rounded-lg border border-gray-500 bg-[var(--background-secondary)]">
+                                <label className="text-xs text-gray-400 font-semibold block mb-1">Subs</label>
+                                <input type="number" min="0" value={zoneSizes[0]} onChange={(e) => setZoneSizes({ ...zoneSizes, 0: e.target.value })} placeholder="5" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
+                            </div>
+                        </div>
+                    </section>
+
                     {/* Zone Distribution */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         {[1, 2, 3].map((zone) => {
@@ -1690,6 +1617,7 @@ export default function AooStrategyPage() {
     const [activeTeam, setActiveTeam] = useState<TeamNumber>(1); // Which team is being edited/distributed
     const [builderStep, setBuilderStep] = useState<'select' | 'distribute' | 'leads' | 'done'>('select');
     const [pendingAdditions, setPendingAdditions] = useState<PendingMember[]>([]);
+    const [autoDistributeToken, setAutoDistributeToken] = useState(0);
 
     // Per-team state
     const emptyTeamState = { 1: {}, 2: {}, 3: {} };
@@ -2506,10 +2434,11 @@ export default function AooStrategyPage() {
                             });
                         }
 
-                        // Switch to builder tab with "all" alliance filter so no one is hidden
+                        // Switch to builder tab and auto-distribute
                         setBuilderAlliance('all');
-                        setBuilderStep('select');
                         setActiveTab('builder');
+                        // Trigger auto-distribute (the TeamBuilderTab will handle it)
+                        setAutoDistributeToken(t => t + 1);
                     }}
                     onSkipToBuilder={() => {
                         setBuilderStep('select');
@@ -2622,6 +2551,7 @@ export default function AooStrategyPage() {
                     formatPower={formatPower}
                     user={user}
                     scanLabel={scanLabel}
+                    autoDistributeToken={autoDistributeToken}
                 />
             )}
 
