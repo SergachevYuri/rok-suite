@@ -158,7 +158,7 @@ interface TeamBuilderTabProps {
     setZoneSizesByTeam: (z: ZoneSizesByTeam) => void;
     pendingAdditions: PendingMember[];
     setPendingAdditions: (p: PendingMember[]) => void;
-    onApply: (allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>) => void;
+    onApply: (allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; coordinators: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>) => void;
     onSavePendingAdditions: (additions: PendingMember[]) => Promise<void>;
     theme: Record<string, string>;
     formatPower: (p: number | null | undefined) => string;
@@ -217,7 +217,10 @@ function TeamBuilderTab({
     const [useCustomSizes, setUseCustomSizes] = useState(true); // Default to custom sizes
     const [copiedSummary, setCopiedSummary] = useState(false);
     const [distributeAddSearch, setDistributeAddSearch] = useState('');
-    const [distributeAddZone, setDistributeAddZone] = useState(0); // 0=subs, 1=top, 2=mid, 3=bot
+    const [distributeAddZone, setDistributeAddZone] = useState(0);
+    const [coordinatorsByTeam, setCoordinatorsByTeam] = useState<Record<TeamNumber, Set<string>>>({ 1: new Set(), 2: new Set(), 3: new Set() });
+    const coordinators = coordinatorsByTeam[activeTeam] || new Set<string>();
+    const setCoordinators = (c: Set<string>) => setCoordinatorsByTeam({ ...coordinatorsByTeam, [activeTeam]: c });
     const { openPlayer } = usePlayerDrawer();
 
     // Generate exportable summary text for all teams (no emojis for in-game compatibility)
@@ -236,6 +239,7 @@ function TeamBuilderTab({
             const garrisonLeads = selectedGarrisonLeadsByTeam[team] || {};
             const arkCarrier = selectedArkCarriersByTeam[team] || '';
             const teleportFirst = selectedTeleportFirstByTeam[team] || new Set<string>();
+            const teamCoordinators = coordinatorsByTeam[team] || new Set<string>();
 
             // Check if this team has any players
             const totalPlayers = (zones[1]?.length || 0) + (zones[2]?.length || 0) + (zones[3]?.length || 0);
@@ -243,6 +247,10 @@ function TeamBuilderTab({
 
             lines.push(`>> TEAM ${team}`);
             lines.push('-----------------------------------------');
+
+            if (teamCoordinators.size > 0) {
+                lines.push(`\nCoordinators: ${[...teamCoordinators].join(', ')}`);
+            }
 
             for (const zoneNum of [1, 2, 3]) {
                 const zonePlayers = zones[zoneNum] || [];
@@ -257,7 +265,9 @@ function TeamBuilderTab({
                     const isGarrisonLead = garrisonLeads[zoneNum] === p.name;
                     const isArkCarrier = zoneNum === 2 && arkCarrier === p.name;
                     const isTeleport = teleportFirst.has(p.name);
+                    const isCoordinator = teamCoordinators.has(p.name);
                     const badges = [];
+                    if (isCoordinator) badges.push('Coord');
                     if (isRallyLead) badges.push('Rally Lead');
                     if (isGarrisonLead) badges.push('Garrison Lead');
                     if (isArkCarrier) badges.push('Ark Carrier');
@@ -537,13 +547,13 @@ function TeamBuilderTab({
         const totalPlayers = confirmedPlayers.length + maybePlayers.length;
         if (totalPlayers === 0) return;
 
-        // Calculate base size per zone
-        const basePerZone = Math.floor(totalPlayers / 3);
-        const remainder = totalPlayers % 3;
+        // Default: 10 per lane for 30-player teams, adjust for smaller groups
+        const laneTotal = Math.min(totalPlayers, 30); // max 30 in lanes (game limit)
+        const basePerZone = Math.floor(laneTotal / 3);
+        const remainder = laneTotal % 3;
 
-        // Distribute evenly with remainder going to zones 1, 2, 3 in order
         const newSizes = {
-            0: zoneSizes[0] || '0', // Keep subs as-is or default to 0
+            0: zoneSizes[0] || '0', // Subs auto-calculated, but keep manual override
             1: String(basePerZone + (remainder >= 1 ? 1 : 0)),
             2: String(basePerZone + (remainder >= 2 ? 1 : 0)),
             3: String(basePerZone),
@@ -641,63 +651,35 @@ function TeamBuilderTab({
             let zones: Record<number, { name: string; power: number; kills: number }[]>;
             const teamZoneSizes = zoneSizesByTeam[team] || { 0: '', 1: '', 2: '', 3: '' };
 
-            if (useCustomSizes) {
-                // Use custom zone sizes (including subs as zone 0)
-                const sizes = {
-                    1: parseInt(teamZoneSizes[1]) || 0,
-                    2: parseInt(teamZoneSizes[2]) || 0,
-                    3: parseInt(teamZoneSizes[3]) || 0,
-                };
-                const subsSize = parseInt(teamZoneSizes[0]) || 0;
-                const totalSize = sizes[1] + sizes[2] + sizes[3] + subsSize;
+            {
+                // Combine all players, sorted by power descending
+                const allPlayers = [...confirmedList, ...maybeList].sort((a, b) => b.power - a.power);
 
-                if (totalSize === 0) {
-                    // Fall back to auto-balance if no sizes set
-                    const allPlayers = [...confirmedList, ...maybeList];
+                if (useCustomSizes) {
+                    const sizes = {
+                        1: parseInt(teamZoneSizes[1]) || 0,
+                        2: parseInt(teamZoneSizes[2]) || 0,
+                        3: parseInt(teamZoneSizes[3]) || 0,
+                    };
+                    const laneSlots = sizes[1] + sizes[2] + sizes[3];
+
+                    if (laneSlots === 0) {
+                        // No sizes set — auto-balance all into 3 lanes
+                        zones = distributeByPowerWithKills(allPlayers);
+                        zones[0] = [];
+                    } else {
+                        // Fill lanes with top-power players, extras go to subs (lowest power)
+                        const forLanes = allPlayers.slice(0, Math.min(allPlayers.length, laneSlots));
+                        const forSubs = allPlayers.slice(Math.min(allPlayers.length, laneSlots));
+
+                        zones = distributeByZoneSizes(forLanes, sizes);
+                        zones[0] = forSubs; // Lowest power players become subs
+                    }
+                } else {
+                    // Auto-balance by power (equal distribution across 3 lanes)
                     zones = distributeByPowerWithKills(allPlayers);
                     zones[0] = [];
-                } else {
-                    // First, distribute CONFIRMED players to zones 1-3 (power balanced)
-                    zones = distributeByZoneSizes(confirmedList, sizes);
-
-                    // Calculate remaining slots in each zone
-                    const remainingSlots = {
-                        1: sizes[1] - zones[1].length,
-                        2: sizes[2] - zones[2].length,
-                        3: sizes[3] - zones[3].length,
-                    };
-                    const totalRemainingSlots = remainingSlots[1] + remainingSlots[2] + remainingSlots[3];
-
-                    // Maybe players go to subs first, overflow fills remaining zone slots
-                    const sortedMaybe = [...maybeList].sort((a, b) => b.power - a.power);
-
-                    if (totalRemainingSlots > 0 && sortedMaybe.length > subsSize) {
-                        const forZones = sortedMaybe.slice(0, sortedMaybe.length - subsSize);
-                        const forSubs = sortedMaybe.slice(sortedMaybe.length - subsSize);
-                        const extraZones = distributeByZoneSizes(forZones, remainingSlots);
-                        zones[1].push(...extraZones[1]);
-                        zones[2].push(...extraZones[2]);
-                        zones[3].push(...extraZones[3]);
-                        zones[0] = forSubs;
-                    } else {
-                        zones[0] = sortedMaybe.slice(0, subsSize > 0 ? subsSize : sortedMaybe.length);
-                    }
-
-                    // Any unassigned confirmed players also go to subs
-                    const assignedNames = new Set([
-                        ...zones[1].map(p => p.name),
-                        ...zones[2].map(p => p.name),
-                        ...zones[3].map(p => p.name),
-                        ...zones[0].map(p => p.name),
-                    ]);
-                    const unassignedConfirmed = confirmedList.filter(p => !assignedNames.has(p.name));
-                    zones[0].push(...unassignedConfirmed);
                 }
-            } else {
-                // Auto-balance by power (equal distribution) - include all players
-                const allPlayers = [...confirmedList, ...maybeList];
-                zones = distributeByPowerWithKills(allPlayers);
-                zones[0] = []; // No subs in auto mode
             }
 
             newZonesByTeam[team] = zones;
@@ -1300,18 +1282,21 @@ function TeamBuilderTab({
                 <>
                     {/* Lane sizing & re-balance controls */}
                     {(() => {
-                        const slotTotal = (parseInt(zoneSizes[1]) || 0) + (parseInt(zoneSizes[2]) || 0) + (parseInt(zoneSizes[3]) || 0) + (parseInt(zoneSizes[0]) || 0);
+                        const laneSlots = (parseInt(zoneSizes[1]) || 0) + (parseInt(zoneSizes[2]) || 0) + (parseInt(zoneSizes[3]) || 0);
                         const playerTotal = confirmedPlayers.length + maybePlayers.length;
-                        const mismatch = slotTotal !== playerTotal;
+                        const subsCount = Math.max(0, playerTotal - laneSlots);
+                        const overMax = laneSlots > 30;
+                        const subsOverMax = subsCount > 10;
                         return (
                     <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-3">
                                 <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Lane Sizes</h3>
-                                <span className={`text-xs font-medium ${mismatch ? 'text-red-400' : theme.textMuted}`}>
-                                    {slotTotal} slots / {playerTotal} players
-                                    {mismatch && (slotTotal > playerTotal ? ` (+${slotTotal - playerTotal})` : ` (${slotTotal - playerTotal})`)}
+                                <span className={`text-xs font-medium ${theme.textMuted}`}>
+                                    {laneSlots} in lanes + {subsCount} subs = {playerTotal} total
                                 </span>
+                                {overMax && <span className="text-xs font-medium text-red-400">Max 30 in lanes</span>}
+                                {subsOverMax && <span className="text-xs font-medium text-yellow-400">Max 10 subs</span>}
                             </div>
                             <div className="flex items-center gap-3">
                                 <label className="flex items-center gap-2 cursor-pointer">
@@ -1332,21 +1317,23 @@ function TeamBuilderTab({
                             </div>
                         </div>
                         <div className="grid grid-cols-4 gap-3">
-                            <div className={`p-2 rounded-lg border ${mismatch ? 'border-red-500/50' : 'border-blue-500'} bg-[var(--background-secondary)]`}>
+                            <div className={`p-2 rounded-lg border ${overMax ? 'border-red-500/50' : 'border-blue-500'} bg-[var(--background-secondary)]`}>
                                 <label className="text-xs text-blue-400 font-semibold block mb-1">Top</label>
                                 <input type="number" min="0" value={zoneSizes[1]} onChange={(e) => setZoneSizes({ ...zoneSizes, 1: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
                             </div>
-                            <div className={`p-2 rounded-lg border ${mismatch ? 'border-red-500/50' : 'border-orange-500'} bg-[var(--background-secondary)]`}>
+                            <div className={`p-2 rounded-lg border ${overMax ? 'border-red-500/50' : 'border-orange-500'} bg-[var(--background-secondary)]`}>
                                 <label className="text-xs text-orange-400 font-semibold block mb-1">Mid (Ark)</label>
                                 <input type="number" min="0" value={zoneSizes[2]} onChange={(e) => setZoneSizes({ ...zoneSizes, 2: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
                             </div>
-                            <div className={`p-2 rounded-lg border ${mismatch ? 'border-red-500/50' : 'border-purple-500'} bg-[var(--background-secondary)]`}>
+                            <div className={`p-2 rounded-lg border ${overMax ? 'border-red-500/50' : 'border-purple-500'} bg-[var(--background-secondary)]`}>
                                 <label className="text-xs text-purple-400 font-semibold block mb-1">Bottom</label>
                                 <input type="number" min="0" value={zoneSizes[3]} onChange={(e) => setZoneSizes({ ...zoneSizes, 3: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
                             </div>
-                            <div className={`p-2 rounded-lg border ${mismatch ? 'border-red-500/50' : 'border-gray-500'} bg-[var(--background-secondary)]`}>
-                                <label className="text-xs text-gray-400 font-semibold block mb-1">Subs</label>
-                                <input type="number" min="0" value={zoneSizes[0]} onChange={(e) => setZoneSizes({ ...zoneSizes, 0: e.target.value })} placeholder="5" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
+                            <div className={`p-2 rounded-lg border ${subsOverMax ? 'border-yellow-500/50' : 'border-gray-500'} bg-[var(--background-secondary)]`}>
+                                <label className="text-xs text-gray-400 font-semibold block mb-1">Subs (auto)</label>
+                                <div className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.text} border border-transparent`}>
+                                    {subsCount}
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -1550,11 +1537,52 @@ function TeamBuilderTab({
                         </section>
                     )}
 
+                    {/* Coordinators — 5 per team, can be from any lane */}
+                    <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                                Coordinators
+                                <span className={`font-normal ml-2 ${coordinators.size > 5 ? 'text-red-400' : coordinators.size === 5 ? 'text-green-400' : theme.textMuted}`}>
+                                    {coordinators.size}/5
+                                </span>
+                            </h3>
+                        </div>
+                        <p className={`text-xs ${theme.textMuted} mb-3`}>Click to toggle coordinator permissions. Rally/garrison leads are good candidates.</p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {[...(suggestedZones[1] || []), ...(suggestedZones[2] || []), ...(suggestedZones[3] || [])].map(p => {
+                                const isCoord = coordinators.has(p.name);
+                                const isLead = Object.values(selectedRallyLeads).includes(p.name) || Object.values(selectedGarrisonLeads).includes(p.name);
+                                return (
+                                    <button
+                                        key={p.name}
+                                        onClick={() => {
+                                            const next = new Set(coordinators);
+                                            if (next.has(p.name)) next.delete(p.name);
+                                            else if (next.size < 5) next.add(p.name);
+                                            setCoordinators(next);
+                                        }}
+                                        className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                                            isCoord
+                                                ? 'bg-stone-600 text-white ring-2 ring-stone-400'
+                                                : isLead
+                                                    ? `${theme.tag} ring-1 ring-yellow-500/30`
+                                                    : `${theme.tag} hover:opacity-80`
+                                        }`}
+                                        title={isCoord ? 'Coordinator (click to remove)' : isLead ? 'Lead — click to add as coordinator' : 'Click to add as coordinator'}
+                                    >
+                                        {isCoord && '★ '}{p.name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+
                     {/* Legend */}
                     <div className={`flex items-center justify-center gap-6 mb-6 text-xs ${theme.textMuted}`}>
                         <span>⭐ = Rally Lead</span>
                         <span>🛡️ = Garrison Lead</span>
                         <span>📦 = Ark Carrier</span>
+                        <span>★ = Coordinator</span>
                         <span>⚡ = Teleport First</span>
                     </div>
 
@@ -1637,7 +1665,7 @@ function TeamBuilderTab({
                         <button
                             onClick={() => {
                                 // Build all team data for apply
-                                type TeamData = { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] };
+                                type TeamData = { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; coordinators: Set<string>; substitutes: { name: string; power: number; kills: number }[] };
                                 const allTeamData: Record<TeamNumber, TeamData> = {} as Record<TeamNumber, TeamData>;
 
                                 for (const team of [1, 2, 3] as TeamNumber[]) {
@@ -1662,6 +1690,7 @@ function TeamBuilderTab({
                                         garrisonLeads,
                                         arkCarrier,
                                         teleportFirst,
+                                        coordinators: coordinatorsByTeam[team] || new Set<string>(),
                                         substitutes: zones[0] || []
                                     };
                                 }
@@ -2615,7 +2644,7 @@ export default function AooStrategyPage() {
                             const teamData = allTeamData[teamNum];
                             if (!teamData) continue;
 
-                            const { zones, rallyLeads, garrisonLeads, arkCarrier, teleportFirst, substitutes } = teamData;
+                            const { zones, rallyLeads, garrisonLeads, arkCarrier, teleportFirst, coordinators: teamCoords, substitutes } = teamData;
 
                             for (const [zoneNum, zonePeople] of Object.entries(zones)) {
                                 const zone = parseInt(zoneNum);
@@ -2630,6 +2659,9 @@ export default function AooStrategyPage() {
                                     }
                                     if (zone === 2 && arkCarrier === p.name) {
                                         tags.push('Ark Carrier');
+                                    }
+                                    if (teamCoords.has(p.name)) {
+                                        tags.push('Coordinator');
                                     }
                                     if (teleportFirst.has(p.name)) {
                                         tags.push('Teleport 1st');
