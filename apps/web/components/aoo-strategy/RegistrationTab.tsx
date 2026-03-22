@@ -96,51 +96,6 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
 
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6">
-      {/* Column Format Instructions — expanded by default */}
-      <section className={`${theme.card} border rounded-xl mb-6 p-5`}>
-        <button
-          onClick={() => setShowColumnHelp(!showColumnHelp)}
-          className={`flex items-center justify-between w-full text-left`}
-        >
-          <h2 className={`text-base font-semibold uppercase tracking-wider ${theme.textMuted}`}>
-            Expected Sheet / CSV Format
-          </h2>
-          <span className={theme.textMuted}>
-            {showColumnHelp ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </span>
-        </button>
-        {showColumnHelp && (
-          <div className={`mt-4 text-xs ${theme.textMuted} space-y-3`}>
-            <p className={`text-sm ${theme.text}`}>
-              Your Google Sheet or CSV file should have the following columns in the first row (header). The order does not matter.
-            </p>
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="py-1.5 pr-3 font-semibold">Column</th>
-                  <th className="py-1.5 pr-3 font-semibold">Type</th>
-                  <th className="py-1.5 font-semibold">Description</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Name</td><td className="py-1.5 pr-3">Text</td><td className="py-1.5">Player&apos;s in-game name (required)</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Gov ID</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">Governor ID</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Power</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">Player power (e.g. 85000000)</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Team 1</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Available for Team 1</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Team 2</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Available for Team 2</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Rally Leader</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Can lead rallies (top/bottom lane)</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Garrison Leader</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Can lead garrisons (top/bottom lane)</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Mid</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Prefers mid lane / ark carrier</td></tr>
-              </tbody>
-            </table>
-            <p>
-              Boolean columns use <strong>&quot;x&quot;</strong> (case-insensitive) to mark true, leave blank for false.
-              Column matching is flexible &mdash; headers just need to <em>contain</em> the keyword (e.g. &quot;Rally Leader Notes&quot; still matches &quot;Rally Leader&quot;).
-            </p>
-          </div>
-        )}
-      </section>
-
       {/* Import Options */}
       <section className={`${theme.card} border rounded-xl mb-6 p-5`}>
         <h2 className={`text-base font-semibold uppercase tracking-wider ${theme.textMuted} mb-4`}>
@@ -244,6 +199,51 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
             Skip to Team Builder
           </button>
         </div>
+      </section>
+
+      {/* Column Format Instructions — expanded by default, collapsible */}
+      <section className={`${theme.card} border rounded-xl mb-6 p-5`}>
+        <button
+          onClick={() => setShowColumnHelp(!showColumnHelp)}
+          className={`flex items-center justify-between w-full text-left`}
+        >
+          <h2 className={`text-base font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+            Expected Sheet / CSV Format
+          </h2>
+          <span className={theme.textMuted}>
+            {showColumnHelp ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </span>
+        </button>
+        {showColumnHelp && (
+          <div className={`mt-4 text-xs ${theme.textMuted} space-y-3`}>
+            <p className={`text-sm ${theme.text}`}>
+              Your Google Sheet or CSV file should have the following columns in the first row (header). The order does not matter.
+            </p>
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-[var(--border)]">
+                  <th className="py-1.5 pr-3 font-semibold">Column</th>
+                  <th className="py-1.5 pr-3 font-semibold">Type</th>
+                  <th className="py-1.5 font-semibold">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Name</td><td className="py-1.5 pr-3">Text</td><td className="py-1.5">Player&apos;s in-game name (required)</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Gov ID</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">Governor ID</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Power</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">Player power (e.g. 85000000)</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Team 1</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Available for Team 1</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Team 2</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Available for Team 2</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Rally Leader</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Can lead rallies (top/bottom lane)</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Garrison Leader</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Can lead garrisons (top/bottom lane)</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Mid</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Prefers mid lane / ark carrier</td></tr>
+              </tbody>
+            </table>
+            <p>
+              Boolean columns use <strong>&quot;x&quot;</strong> (case-insensitive) to mark true, leave blank for false.
+              Column matching is flexible &mdash; headers just need to <em>contain</em> the keyword (e.g. &quot;Rally Leader Notes&quot; still matches &quot;Rally Leader&quot;).
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Results */}
