@@ -216,6 +216,8 @@ function TeamBuilderTab({
     const [builderFilter, setBuilderFilter] = useState<'all' | 'confirmed' | 'maybe' | 'none'>('all');
     const [useCustomSizes, setUseCustomSizes] = useState(true); // Default to custom sizes
     const [copiedSummary, setCopiedSummary] = useState(false);
+    const [distributeAddSearch, setDistributeAddSearch] = useState('');
+    const [distributeAddZone, setDistributeAddZone] = useState(0); // 0=subs, 1=top, 2=mid, 3=bot
     const { openPlayer } = usePlayerDrawer();
 
     // Generate exportable summary text for all teams (no emojis for in-game compatibility)
@@ -776,6 +778,36 @@ function TeamBuilderTab({
         }
     };
 
+    // Remove a player from all zones (distribute step)
+    const removePlayerFromZones = (playerName: string) => {
+        const newZones = { ...suggestedZones };
+        for (const zone of [0, 1, 2, 3]) {
+            if (newZones[zone]) {
+                newZones[zone] = newZones[zone].filter(p => p.name !== playerName);
+            }
+        }
+        setSuggestedZones(newZones);
+        // Also remove from confirmations for active team
+        const teamConf = { ...confirmationsByTeam[activeTeam] };
+        delete teamConf[playerName];
+        setConfirmationsByTeam({ ...confirmationsByTeam, [activeTeam]: teamConf });
+    };
+
+    // Add a player directly to a zone (distribute step)
+    const addPlayerToZone = (name: string, zone: number) => {
+        // Check not already in a zone
+        const allZonePlayers = [...(suggestedZones[0] || []), ...(suggestedZones[1] || []), ...(suggestedZones[2] || []), ...(suggestedZones[3] || [])];
+        if (allZonePlayers.some(p => p.name === name)) return;
+        const power = powerByName[name] || 0;
+        const kills = killsByName[name] || 0;
+        const newZones = { ...suggestedZones };
+        newZones[zone] = [...(newZones[zone] || []), { name, power, kills }];
+        setSuggestedZones(newZones);
+        // Also add to confirmations
+        const teamConf = { ...confirmationsByTeam[activeTeam], [name]: 'confirmed' as const };
+        setConfirmationsByTeam({ ...confirmationsByTeam, [activeTeam]: teamConf });
+    };
+
     // Calculate zone power totals
     const getZonePower = (zone: number) => suggestedZones[zone]?.reduce((sum, p) => sum + p.power, 0) || 0;
     const totalPower = getZonePower(1) + getZonePower(2) + getZonePower(3);
@@ -1267,9 +1299,20 @@ function TeamBuilderTab({
             {builderStep === 'distribute' && (
                 <>
                     {/* Lane sizing & re-balance controls */}
+                    {(() => {
+                        const slotTotal = (parseInt(zoneSizes[1]) || 0) + (parseInt(zoneSizes[2]) || 0) + (parseInt(zoneSizes[3]) || 0) + (parseInt(zoneSizes[0]) || 0);
+                        const playerTotal = confirmedPlayers.length + maybePlayers.length;
+                        const mismatch = slotTotal !== playerTotal;
+                        return (
                     <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
                         <div className="flex items-center justify-between mb-3">
-                            <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Lane Sizes</h3>
+                            <div className="flex items-center gap-3">
+                                <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Lane Sizes</h3>
+                                <span className={`text-xs font-medium ${mismatch ? 'text-red-400' : theme.textMuted}`}>
+                                    {slotTotal} slots / {playerTotal} players
+                                    {mismatch && (slotTotal > playerTotal ? ` (+${slotTotal - playerTotal})` : ` (${slotTotal - playerTotal})`)}
+                                </span>
+                            </div>
                             <div className="flex items-center gap-3">
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input
@@ -1289,24 +1332,26 @@ function TeamBuilderTab({
                             </div>
                         </div>
                         <div className="grid grid-cols-4 gap-3">
-                            <div className="p-2 rounded-lg border border-blue-500 bg-[var(--background-secondary)]">
+                            <div className={`p-2 rounded-lg border ${mismatch ? 'border-red-500/50' : 'border-blue-500'} bg-[var(--background-secondary)]`}>
                                 <label className="text-xs text-blue-400 font-semibold block mb-1">Top</label>
                                 <input type="number" min="0" value={zoneSizes[1]} onChange={(e) => setZoneSizes({ ...zoneSizes, 1: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
                             </div>
-                            <div className="p-2 rounded-lg border border-orange-500 bg-[var(--background-secondary)]">
+                            <div className={`p-2 rounded-lg border ${mismatch ? 'border-red-500/50' : 'border-orange-500'} bg-[var(--background-secondary)]`}>
                                 <label className="text-xs text-orange-400 font-semibold block mb-1">Mid (Ark)</label>
                                 <input type="number" min="0" value={zoneSizes[2]} onChange={(e) => setZoneSizes({ ...zoneSizes, 2: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
                             </div>
-                            <div className="p-2 rounded-lg border border-purple-500 bg-[var(--background-secondary)]">
+                            <div className={`p-2 rounded-lg border ${mismatch ? 'border-red-500/50' : 'border-purple-500'} bg-[var(--background-secondary)]`}>
                                 <label className="text-xs text-purple-400 font-semibold block mb-1">Bottom</label>
                                 <input type="number" min="0" value={zoneSizes[3]} onChange={(e) => setZoneSizes({ ...zoneSizes, 3: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
                             </div>
-                            <div className="p-2 rounded-lg border border-gray-500 bg-[var(--background-secondary)]">
+                            <div className={`p-2 rounded-lg border ${mismatch ? 'border-red-500/50' : 'border-gray-500'} bg-[var(--background-secondary)]`}>
                                 <label className="text-xs text-gray-400 font-semibold block mb-1">Subs</label>
                                 <input type="number" min="0" value={zoneSizes[0]} onChange={(e) => setZoneSizes({ ...zoneSizes, 0: e.target.value })} placeholder="5" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
                             </div>
                         </div>
                     </section>
+                        );
+                    })()}
 
                     {/* Zone Distribution */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1451,6 +1496,11 @@ function TeamBuilderTab({
                                                         <option value={2}>Mid</option>
                                                         <option value={3}>Bot</option>
                                                     </select>
+                                                    <button
+                                                        onClick={() => removePlayerFromZones(player.name)}
+                                                        className="text-red-500 hover:text-red-400 text-xs ml-1"
+                                                        title="Remove from all lanes"
+                                                    >✕</button>
                                                 </div>
                                             </div>
                                         ))}
@@ -1489,6 +1539,11 @@ function TeamBuilderTab({
                                             <option value={2}>→ Mid</option>
                                             <option value={3}>→ Bot</option>
                                         </select>
+                                        <button
+                                            onClick={() => removePlayerFromZones(player.name)}
+                                            className="text-red-500 hover:text-red-400 text-xs"
+                                            title="Remove from roster"
+                                        >✕</button>
                                     </div>
                                 ))}
                             </div>
@@ -1502,6 +1557,64 @@ function TeamBuilderTab({
                         <span>📦 = Ark Carrier</span>
                         <span>⚡ = Teleport First</span>
                     </div>
+
+                    {/* Add Player to lanes */}
+                    <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
+                        <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted} mb-3`}>Add Player</h3>
+                        {(() => {
+                            const allZoneNames = new Set([
+                                ...(suggestedZones[0] || []).map(p => p.name),
+                                ...(suggestedZones[1] || []).map(p => p.name),
+                                ...(suggestedZones[2] || []).map(p => p.name),
+                                ...(suggestedZones[3] || []).map(p => p.name),
+                            ]);
+                            const suggestions = distributeAddSearch.trim().length >= 2
+                                ? [...roster, ...pendingAdditions]
+                                    .filter(m => !allZoneNames.has(m.name) && m.name.toLowerCase().includes(distributeAddSearch.toLowerCase()))
+                                    .slice(0, 8)
+                                : [];
+                            return (
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="text"
+                                            value={distributeAddSearch}
+                                            onChange={(e) => setDistributeAddSearch(e.target.value)}
+                                            placeholder="Search player name..."
+                                            className={`w-full px-3 py-2 rounded-lg text-sm ${theme.input} border`}
+                                        />
+                                        {suggestions.length > 0 && (
+                                            <div className={`absolute z-20 top-full left-0 right-0 mt-1 rounded-lg border ${theme.card} shadow-lg max-h-48 overflow-y-auto`}>
+                                                {suggestions.map(m => (
+                                                    <button
+                                                        key={m.name}
+                                                        onClick={() => {
+                                                            addPlayerToZone(m.name, distributeAddZone);
+                                                            setDistributeAddSearch('');
+                                                        }}
+                                                        className={`w-full text-left px-3 py-2 text-sm hover:bg-[var(--background-hover)] flex items-center justify-between`}
+                                                    >
+                                                        <span>{m.name}</span>
+                                                        <span className={`text-xs ${theme.textMuted}`}>{formatPower(m.power)}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <select
+                                        value={distributeAddZone}
+                                        onChange={(e) => setDistributeAddZone(parseInt(e.target.value))}
+                                        className={`px-3 py-2 rounded-lg text-sm ${theme.input} border min-w-[120px]`}
+                                    >
+                                        <option value={0}>Substitutes</option>
+                                        <option value={1}>Top Lane</option>
+                                        <option value={2}>Mid Lane</option>
+                                        <option value={3}>Bottom Lane</option>
+                                    </select>
+                                </div>
+                            );
+                        })()}
+                    </section>
 
                     {/* Action Buttons */}
                     <div className="flex justify-center gap-4">
