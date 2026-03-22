@@ -217,6 +217,7 @@ function TeamBuilderTab({
     const [builderFilter, setBuilderFilter] = useState<'all' | 'confirmed' | 'maybe' | 'none'>('all');
     const [useCustomSizes, setUseCustomSizes] = useState(true); // Default to custom sizes
     const [copiedSummary, setCopiedSummary] = useState(false);
+    const [copiedMail, setCopiedMail] = useState(false);
     const [distributeAddSearch, setDistributeAddSearch] = useState('');
     const [distributeAddZone, setDistributeAddZone] = useState(0);
     const [coordinatorsByTeam, setCoordinatorsByTeam] = useState<Record<TeamNumber, Set<string>>>({ 1: new Set(), 2: new Set(), 3: new Set() });
@@ -302,6 +303,119 @@ function TeamBuilderTab({
         lines.push('=========================================');
 
         return lines.join('\n');
+    };
+
+    // Generate RoK mail format for a specific team
+    const generateMail = (team: TeamNumber) => {
+        const HEADER = `<size=30px><color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>`;
+        const DIVIDER = '►═════════❂❂❂═════════◄';
+        const SECTION = '━━━━━━━━━━━━━━━━━━━━';
+
+        const zones = suggestedZonesByTeam[team] || {};
+        const rallyLeads = selectedRallyLeadsByTeam[team] || {};
+        const garrisonLeads = selectedGarrisonLeadsByTeam[team] || {};
+        const arkCarrier = selectedArkCarriersByTeam[team] || '';
+        const teleportFirst = selectedTeleportFirstByTeam[team] || new Set<string>();
+        const teamCoords = coordinatorsByTeam[team] || new Set<string>();
+
+        const lines: string[] = [];
+        lines.push(HEADER);
+        lines.push(DIVIDER);
+        lines.push('');
+        lines.push(`<b><color=#ff3333>AoO Team ${team}</color></b>`);
+        lines.push('');
+        lines.push('Find your name, know your lane.');
+        lines.push('');
+        lines.push('<b>!! NON-NEGOTIABLE RULES !!</b>');
+        lines.push('- <b>Do NOT</b> teleport immediately unless you have been assigned.');
+        lines.push('- The obelisk is <b>ALWAYS</b> fully garrisoned before you advance.');
+        lines.push('- We attack with rallies.');
+        lines.push('- Stay in your assigned lane.');
+        lines.push('- <b>Do NOT</b> move down the field until your building is secured.');
+        lines.push('- <b>Do NOT</b> lose an obelisk or building from poor garrisoning.');
+
+        const zoneConfig = [
+            { num: 1, label: 'TOP LANE', color: '#3399ff' },
+            { num: 2, label: 'MID LANE — ARK', color: '#cc6600' },
+            { num: 3, label: 'BOTTOM LANE', color: '#9933cc' },
+        ];
+
+        for (const zone of zoneConfig) {
+            const players = zones[zone.num] || [];
+            if (players.length === 0) continue;
+
+            const isMid = zone.num === 2;
+            const rally = rallyLeads[zone.num];
+            const garrison = garrisonLeads[zone.num];
+            const carrier = isMid ? arkCarrier : '';
+            const tpPlayers = players.filter(p => teleportFirst.has(p.name));
+            const regularPlayers = players.filter(p =>
+                p.name !== rally && p.name !== garrison && p.name !== carrier && !teleportFirst.has(p.name)
+            );
+
+            // Build zone leader label
+            const leaderNames = isMid
+                ? (carrier || 'TBD')
+                : [rally, garrison].filter(Boolean).join(' & ') || 'TBD';
+
+            lines.push('');
+            lines.push(SECTION);
+            lines.push(`<b><color=${zone.color}>${zone.label} (${leaderNames})</color></b>`);
+
+            if (isMid) {
+                if (carrier) lines.push(`<b>Ark Carrier:</b> ${carrier}`);
+            } else {
+                if (rally) lines.push(`<b>Rally Lead:</b> ${rally}`);
+                if (garrison) lines.push(`<b>Garrison Lead:</b> ${garrison}`);
+            }
+
+            if (tpPlayers.length > 0) {
+                lines.push(`<b>1st Teleport:</b> ${tpPlayers.map(p => p.name).join(', ')}`);
+            }
+
+            if (regularPlayers.length > 0) {
+                lines.push(`<b>Team:</b> ${regularPlayers.map(p => p.name).join(', ')}`);
+            }
+        }
+
+        // Subs
+        const subs = zones[0] || [];
+        if (subs.length > 0) {
+            lines.push('');
+            lines.push(SECTION);
+            lines.push(`<b>Subs:</b> ${subs.map(p => p.name).join(', ')}`);
+        }
+
+        // Coordinators
+        if (teamCoords.size > 0) {
+            lines.push('');
+            lines.push(`<b>Coordinators:</b> ${[...teamCoords].join(', ')}`);
+        }
+
+        lines.push('');
+        lines.push(DIVIDER);
+        lines.push(`<b><color=#800000>— Fluffy Queen</color></b>`);
+
+        return lines.join('\n');
+    };
+
+    // Copy mail to clipboard
+    const copyMailToClipboard = async (team: TeamNumber) => {
+        try {
+            const mail = generateMail(team);
+            await navigator.clipboard.writeText(mail);
+            setCopiedMail(true);
+            setTimeout(() => setCopiedMail(false), 2000);
+        } catch {
+            const textArea = document.createElement('textarea');
+            textArea.value = generateMail(team);
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setCopiedMail(true);
+            setTimeout(() => setCopiedMail(false), 2000);
+        }
     };
 
     // Copy summary to clipboard
@@ -1712,7 +1826,7 @@ function TeamBuilderTab({
                     </section>
 
                     {/* Action Buttons */}
-                    <div className="flex justify-center gap-4">
+                    <div className="flex flex-wrap justify-center gap-3">
                         <button
                             onClick={handleReset}
                             className={`px-4 py-2 rounded-lg text-sm ${theme.tag} hover:opacity-80`}
@@ -1727,8 +1841,23 @@ function TeamBuilderTab({
                                     : 'bg-[var(--background-secondary)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
-                            {copiedSummary ? '✓ Copied!' : '📋 Copy Summary'}
+                            {copiedSummary ? '✓ Copied!' : '📋 Copy Text'}
                         </button>
+                        {/* Mail copy buttons — one per team */}
+                        {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map(t => {
+                            const teamColors = { 1: 'text-blue-400 border-blue-500/30 hover:bg-blue-500/10', 2: 'text-orange-400 border-orange-500/30 hover:bg-orange-500/10', 3: 'text-purple-400 border-purple-500/30 hover:bg-purple-500/10' };
+                            return (
+                                <button
+                                    key={t}
+                                    onClick={() => copyMailToClipboard(t)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                                        copiedMail ? 'bg-green-600 text-white border-green-600' : teamColors[t]
+                                    }`}
+                                >
+                                    {copiedMail ? '✓ Copied!' : `✉ T${t} Mail`}
+                                </button>
+                            );
+                        })}
                         <button
                             onClick={() => {
                                 // Build all team data for apply
