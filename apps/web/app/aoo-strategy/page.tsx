@@ -286,6 +286,15 @@ function TeamBuilderTab({
                 }
             }
 
+            // Bench
+            const bench = zones[-1] || [];
+            if (bench.length > 0) {
+                lines.push(`\n[Bench] - ${bench.length}`);
+                for (const p of bench) {
+                    lines.push(`  - ${p.name} (${formatPower(p.power)})`);
+                }
+            }
+
             lines.push('');
         }
 
@@ -644,7 +653,7 @@ function TeamBuilderTab({
 
             if (confirmedList.length + maybeList.length < 1) {
                 // No players for this team, skip
-                newZonesByTeam[team] = { 0: [], 1: [], 2: [], 3: [] };
+                newZonesByTeam[team] = { [-1]: [], 0: [], 1: [], 2: [], 3: [] };
                 continue;
             }
 
@@ -668,17 +677,21 @@ function TeamBuilderTab({
                         zones = distributeByPowerWithKills(allPlayers);
                         zones[0] = [];
                     } else {
-                        // Fill lanes with top-power players, extras go to subs (lowest power)
+                        // Fill lanes with top-power players, extras go to subs then bench
                         const forLanes = allPlayers.slice(0, Math.min(allPlayers.length, laneSlots));
-                        const forSubs = allPlayers.slice(Math.min(allPlayers.length, laneSlots));
+                        const remainder = allPlayers.slice(Math.min(allPlayers.length, laneSlots));
 
                         zones = distributeByZoneSizes(forLanes, sizes);
-                        zones[0] = forSubs; // Lowest power players become subs
+                        zones[0] = remainder.slice(0, 10);   // Subs: up to 10, lowest power of the lane group
+                        zones[-1] = remainder.slice(10);      // Bench: everyone beyond 40 (30 lanes + 10 subs)
                     }
                 } else {
-                    // Auto-balance by power (equal distribution across 3 lanes)
-                    zones = distributeByPowerWithKills(allPlayers);
-                    zones[0] = [];
+                    // Auto-balance by power (equal distribution across 3 lanes, max 30)
+                    const forLanes = allPlayers.slice(0, Math.min(allPlayers.length, 30));
+                    const remainder = allPlayers.slice(Math.min(allPlayers.length, 30));
+                    zones = distributeByPowerWithKills(forLanes);
+                    zones[0] = remainder.slice(0, 10);
+                    zones[-1] = remainder.slice(10);
                 }
             }
 
@@ -763,7 +776,7 @@ function TeamBuilderTab({
     // Remove a player from all zones (distribute step)
     const removePlayerFromZones = (playerName: string) => {
         const newZones = { ...suggestedZones };
-        for (const zone of [0, 1, 2, 3]) {
+        for (const zone of [-1, 0, 1, 2, 3]) {
             if (newZones[zone]) {
                 newZones[zone] = newZones[zone].filter(p => p.name !== playerName);
             }
@@ -778,7 +791,7 @@ function TeamBuilderTab({
     // Add a player directly to a zone (distribute step)
     const addPlayerToZone = (name: string, zone: number) => {
         // Check not already in a zone
-        const allZonePlayers = [...(suggestedZones[0] || []), ...(suggestedZones[1] || []), ...(suggestedZones[2] || []), ...(suggestedZones[3] || [])];
+        const allZonePlayers = [...(suggestedZones[-1] || []), ...(suggestedZones[0] || []), ...(suggestedZones[1] || []), ...(suggestedZones[2] || []), ...(suggestedZones[3] || [])];
         if (allZonePlayers.some(p => p.name === name)) return;
         const power = powerByName[name] || 0;
         const kills = killsByName[name] || 0;
@@ -1482,6 +1495,7 @@ function TeamBuilderTab({
                                                         <option value={1}>Top</option>
                                                         <option value={2}>Mid</option>
                                                         <option value={3}>Bot</option>
+                                                        <option value={-1}>Bench</option>
                                                     </select>
                                                     <button
                                                         onClick={() => removePlayerFromZones(player.name)}
@@ -1525,11 +1539,53 @@ function TeamBuilderTab({
                                             <option value={1}>→ Top</option>
                                             <option value={2}>→ Mid</option>
                                             <option value={3}>→ Bot</option>
+                                            <option value={-1}>→ Bench</option>
                                         </select>
                                         <button
                                             onClick={() => removePlayerFromZones(player.name)}
                                             className="text-red-500 hover:text-red-400 text-xs"
                                             title="Remove from roster"
+                                        >✕</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {/* Bench — registered but didn't make the 30+10 roster */}
+                    {(suggestedZones[-1]?.length || 0) > 0 && (
+                        <section className={`${theme.card} border-l-4 border-amber-500 rounded-xl p-4 mb-6`}>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="font-semibold text-amber-400">
+                                    Bench ({suggestedZones[-1]?.length || 0})
+                                </h3>
+                                <span className={`text-sm ${theme.textMuted}`}>
+                                    {formatPower(suggestedZones[-1]?.reduce((sum, p) => sum + p.power, 0) || 0)}
+                                </span>
+                            </div>
+                            <p className={`text-xs ${theme.textMuted} mb-3`}>
+                                Registered but not in the active roster (30 lanes + 10 subs). Move to a lane or sub slot if a spot opens.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {(suggestedZones[-1] || []).map((player) => (
+                                    <div key={player.name} className="flex items-center gap-2 px-3 py-1.5 rounded bg-[var(--background-secondary)]">
+                                        <button onClick={() => openPlayer(player.name)} title="View player details" className={`text-sm hover:underline cursor-pointer hover:text-[#4318ff] ${theme.text}`}>{player.name}</button>
+                                        <span className={`text-xs ${theme.textMuted}`}>{formatPower(player.power)}</span>
+                                        <select
+                                            value={-1}
+                                            onChange={(e) => movePlayerToZone(player.name, -1, parseInt(e.target.value))}
+                                            className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
+                                        >
+                                            <option value={-1}>Bench</option>
+                                            <option value={0}>→ Sub</option>
+                                            <option value={1}>→ Top</option>
+                                            <option value={2}>→ Mid</option>
+                                            <option value={3}>→ Bot</option>
+                                        </select>
+                                        <button
+                                            onClick={() => removePlayerFromZones(player.name)}
+                                            className="text-red-500 hover:text-red-400 text-xs"
+                                            title="Remove completely"
                                         >✕</button>
                                     </div>
                                 ))}
@@ -1638,6 +1694,7 @@ function TeamBuilderTab({
                                         <option value={1}>Top Lane</option>
                                         <option value={2}>Mid Lane</option>
                                         <option value={3}>Bottom Lane</option>
+                                        <option value={-1}>Bench</option>
                                     </select>
                                 </div>
                             );
