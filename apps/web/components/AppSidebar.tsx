@@ -111,8 +111,8 @@ export function AppSidebar({ children }: AppSidebarProps) {
 
   const SidebarContent = () => (
     <>
-      {/* Logo */}
-      <div className={`flex items-center gap-3 px-4 py-5 border-b border-[var(--border)] ${isCollapsed ? 'justify-center' : ''}`}>
+      {/* Logo — links to home */}
+      <Link href="/" className={`flex items-center gap-3 px-4 py-5 border-b border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${isCollapsed ? 'justify-center' : ''}`}>
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#4318ff] to-[#9f7aea] flex items-center justify-center shadow-lg shadow-[#4318ff]/25 flex-shrink-0">
           <Shield className="w-5 h-5 text-white" />
         </div>
@@ -122,7 +122,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
             <p className="text-[10px] text-[var(--text-muted)] truncate">{t('siteSubtitle')}</p>
           </div>
         )}
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
@@ -220,12 +220,12 @@ export function AppSidebar({ children }: AppSidebarProps) {
           >
             <Menu size={20} />
           </button>
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4318ff] to-[#9f7aea] flex items-center justify-center">
               <Shield className="w-4 h-4 text-white" />
             </div>
             <span className="text-sm font-semibold text-[var(--foreground)]">{t('siteTitle')}</span>
-          </div>
+          </Link>
         </div>
         <div className="flex items-center gap-1">
           <LanguageSwitcher collapsed />

@@ -5,17 +5,14 @@ import { AppSidebar } from '@/components/AppSidebar';
 import {
   Swords,
   BookOpen,
-  Github,
+  GitBranch,
   ExternalLink,
   Calendar,
-  FlaskConical,
   Users,
   Trophy,
   Crown,
   ScrollText,
   Shield,
-  Radar,
-  ArrowUpDown,
   Crosshair,
   Map,
   BarChart3,
@@ -96,26 +93,6 @@ export default function Home() {
       hoverShadow: 'hover:shadow-amber-500/10',
       iconHoverBg: 'group-hover:bg-amber-500/15',
       iconHoverColor: 'group-hover:text-amber-500',
-    },
-    {
-      href: '/kingdom/migration-tracker',
-      titleKey: 'tools.migrationTracker.title',
-      descriptionKey: 'tools.migrationTracker.description',
-      icon: Radar,
-      hoverBorder: 'hover:border-teal-500/40',
-      hoverShadow: 'hover:shadow-teal-500/10',
-      iconHoverBg: 'group-hover:bg-teal-500/15',
-      iconHoverColor: 'group-hover:text-teal-500',
-    },
-    {
-      href: '/kingdom/alliance-sorter',
-      titleKey: 'tools.allianceSorter.title',
-      descriptionKey: 'tools.allianceSorter.description',
-      icon: ArrowUpDown,
-      hoverBorder: 'hover:border-indigo-500/40',
-      hoverShadow: 'hover:shadow-indigo-500/10',
-      iconHoverBg: 'group-hover:bg-indigo-500/15',
-      iconHoverColor: 'group-hover:text-indigo-500',
     },
     {
       href: '/kingdom/wanted',
@@ -235,24 +212,6 @@ export default function Home() {
                 </div>
               </Link>
 
-              <Link href="/beta-tools">
-                <div className="group p-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-orange-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-orange-500/10 transition-all duration-200 cursor-pointer h-full">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-[var(--background-secondary)] group-hover:bg-orange-500/15 transition-colors duration-200 flex-shrink-0">
-                      <FlaskConical className="w-4 h-4 text-[var(--text-muted)] group-hover:text-orange-500 transition-colors duration-200" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5 transition-colors duration-200">
-                        {t('beta.title')}
-                      </h3>
-                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                        {t('beta.description')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
             </div>
           </section>
 
@@ -269,7 +228,7 @@ export default function Home() {
                   rel="noopener noreferrer"
                   className="text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors flex items-center gap-1.5"
                 >
-                  <Github className="w-3.5 h-3.5" />
+                  <GitBranch className="w-3.5 h-3.5" />
                   GitHub
                 </a>
                 <a
