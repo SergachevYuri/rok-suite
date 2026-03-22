@@ -869,17 +869,15 @@ function TeamBuilderTab({
                     </span>
                 </div>
 
-                {/* Instructions for coordinators */}
-                {builderStep === 'select' && (
-                    <div className={`p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-base ${theme.text}`}>
-                        <strong className="text-blue-400">How to use:</strong> Select your alliance, choose how many teams to organize (1-3), then mark players as <span className="text-green-400">Confirmed</span> (definitely playing) or <span className="text-yellow-400">Maybe</span> (might join). Click <strong>Distribute to Zones</strong> to auto-balance power across 3 zones.
-                    </div>
-                )}
-                {builderStep === 'distribute' && (
-                    <div className={`p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 text-base ${theme.text}`}>
-                        <strong className="text-blue-400">Adjust assignments:</strong> Select a <span className="text-yellow-400">Rally Lead</span> for each zone (sorted by power + KP). Toggle <span className="text-[#9f7aea]">⚡ Teleport First</span> for early arrivals. Use the zone dropdown to move players between zones. When ready, click <strong>Apply to Strategy</strong>.
-                    </div>
-                )}
+                {/* Contextual hint — one line per step */}
+                <p className={`text-sm ${theme.textMuted}`}>
+                    {builderStep === 'select' && (
+                        <>Mark players as <span className="text-green-400 font-medium">✓ Confirmed</span> or <span className="text-yellow-400 font-medium">? Maybe</span> for each team, then distribute to lanes below.</>
+                    )}
+                    {builderStep === 'distribute' && (
+                        <>Assign leads, toggle ⚡ teleport first, and move players between lanes. When done, click <strong>Apply All Teams</strong>.</>
+                    )}
+                </p>
             </section>
 
             {builderStep === 'select' && (
@@ -1100,22 +1098,25 @@ function TeamBuilderTab({
                             <button
                                 onClick={() => setBuilderSort('kp')}
                                 className={`text-right hover:text-white transition-colors ${builderSort === 'kp' ? 'text-white' : ''}`}
+                                title="Kill Points — total enemy troops killed"
                             >
                                 KP {builderSort === 'kp' && '↓'}
                             </button>
                             <button
                                 onClick={() => setBuilderSort('t1')}
                                 className={`text-center hover:text-blue-300 transition-colors ${builderSort === 't1' ? 'text-blue-300' : 'text-blue-400'}`}
+                                title="Team 1 AoO participation history"
                             >
                                 T1 {builderSort === 't1' && '↓'}
                             </button>
                             <button
                                 onClick={() => setBuilderSort('t2')}
                                 className={`text-center hover:text-orange-300 transition-colors ${builderSort === 't2' ? 'text-orange-300' : 'text-orange-400'}`}
+                                title="Team 2 AoO participation history"
                             >
                                 T2 {builderSort === 't2' && '↓'}
                             </button>
-                            <span className="text-center">Team</span>
+                            <span className="text-center" title="Click ✓ to confirm, ? for maybe, or click again to remove">Team</span>
                             <div></div>
                         </div>
 
@@ -1144,7 +1145,7 @@ function TeamBuilderTab({
                                     >
                                         {/* Name */}
                                         <div className="flex items-center gap-2 min-w-0">
-                                            <span className={`font-medium text-lg ${theme.text} truncate`}>{member.name}</span>
+                                            <button onClick={() => openPlayer(member.name)} className={`font-medium text-lg ${theme.text} truncate hover:underline cursor-pointer text-left`} title="View player details">{member.name}</button>
                                             {isPending && (
                                                 <span className="px-2 py-0.5 text-sm rounded bg-blue-600 text-white shrink-0">
                                                     NEW
@@ -1228,11 +1229,12 @@ function TeamBuilderTab({
                         </div>
                     </section>
 
-                    {/* Zone Size Configuration - Per Team */}
+                    {/* Zone Size Configuration - only shows when players are selected */}
+                    {confirmedPlayers.length + maybePlayers.length > 0 ? (
                     <section className={`${theme.card} border border-[#4318ff] rounded-xl mb-6 p-5`}>
-                        <h3 className={`text-lg font-semibold ${theme.text} mb-2`}>⚔️ Zone Distribution</h3>
+                        <h3 className={`text-lg font-semibold ${theme.text} mb-2`}>⚔️ Lane Distribution</h3>
                         <p className={`text-sm ${theme.textMuted} mb-4`}>
-                            Enter how many players you want in each lane. Power will be balanced automatically within your specified sizes.
+                            Set how many players per lane. Power will be balanced automatically within your specified sizes.
                         </p>
 
                         {/* Team selector for zone sizes (when multiple teams) */}
@@ -1365,6 +1367,12 @@ function TeamBuilderTab({
                             </button>
                         </div>
                     </section>
+                    ) : (
+                        <div className={`${theme.card} border border-dashed border-[var(--border)] rounded-xl mb-6 p-8 text-center`}>
+                            <p className={`text-base ${theme.textMuted} mb-1`}>No players selected yet</p>
+                            <p className={`text-sm ${theme.textMuted}`}>Use the <span className="text-green-400 font-medium">✓</span> and <span className="text-yellow-400 font-medium">?</span> buttons above to add players to a team, then configure lane sizes here.</p>
+                        </div>
+                    )}
                 </>
             )}
 
@@ -1483,7 +1491,7 @@ function TeamBuilderTab({
                                                     >
                                                         {selectedTeleportFirst.has(player.name) ? '⚡' : ''}
                                                     </button>
-                                                    <button onClick={() => openPlayer(player.name)} className={`text-sm hover:underline cursor-pointer ${
+                                                    <button onClick={() => openPlayer(player.name)} title="View player details" className={`text-sm hover:underline cursor-pointer hover:text-[#4318ff] ${
                                                         selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400'
                                                         : selectedGarrisonLeads[zone] === player.name ? 'font-bold text-cyan-400'
                                                         : (isMidLane && selectedArkCarrier === player.name) ? 'font-bold text-orange-400'
@@ -1539,7 +1547,7 @@ function TeamBuilderTab({
                             <div className="flex flex-wrap gap-2">
                                 {(suggestedZones[0] || []).map((player) => (
                                     <div key={player.name} className="flex items-center gap-2 px-3 py-1.5 rounded bg-[var(--background-secondary)]">
-                                        <button onClick={() => openPlayer(player.name)} className={`text-sm hover:underline cursor-pointer ${theme.text}`}>{player.name}</button>
+                                        <button onClick={() => openPlayer(player.name)} title="View player details" className={`text-sm hover:underline cursor-pointer hover:text-[#4318ff] ${theme.text}`}>{player.name}</button>
                                         <span className={`text-xs ${theme.textMuted}`}>{formatPower(player.power)}</span>
                                         <select
                                             value={0}
@@ -2413,7 +2421,7 @@ export default function AooStrategyPage() {
                                     : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
-                            👥 Zone Roster
+                            👥 Strategy
                         </button>
                     </div>
                 </div>
@@ -2851,7 +2859,7 @@ export default function AooStrategyPage() {
                                                             {player.tags.includes('Confirmed') && (
                                                                 <span className="w-2 h-2 rounded-full bg-green-500" title="Confirmed" />
                                                             )}
-                                                            <button onClick={() => openPlayer(player.name)} className="font-medium text-sm hover:underline cursor-pointer">{player.name}</button>
+                                                            <button onClick={() => openPlayer(player.name)} className="font-medium text-sm hover:underline cursor-pointer hover:text-[#4318ff]" title="View player details">{player.name}</button>
                                                             {(player.power || powerByName[player.name]) && (
                                                                 <span className={`text-xs ${theme.textMuted}`}>
                                                                     {formatPower(player.power || powerByName[player.name])}
@@ -2862,7 +2870,7 @@ export default function AooStrategyPage() {
                                                             <div className="flex items-center gap-2">
                                                                 <select value={player.team} onChange={(e) => movePlayer(player.id, Number(e.target.value))}
                                                                     className={`text-xs px-2 py-1 rounded border ${theme.input}`}>
-                                                                    <option value={1}>Z1</option><option value={2}>Z2</option><option value={3}>Z3</option>
+                                                                    <option value={1}>Top</option><option value={2}>Mid</option><option value={3}>Bot</option>
                                                                 </select>
                                                                 <button onClick={() => removePlayer(player.id)} className="text-red-500 hover:text-red-400 text-sm">✕</button>
                                                             </div>

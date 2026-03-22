@@ -64,9 +64,9 @@ const buildings: Building[] = [
 
 // Zone colors - colorblind friendly
 const teamColors: Record<number, { bg: string; text: string; name: string }> = {
-  1: { bg: '#2563EB', text: 'white', name: 'Zone 1' },
-  2: { bg: '#D97706', text: 'white', name: 'Zone 2' },
-  3: { bg: '#7C3AED', text: 'white', name: 'Zone 3' },
+  1: { bg: '#2563EB', text: 'white', name: 'Top Lane' },
+  2: { bg: '#D97706', text: 'white', name: 'Mid Lane' },
+  3: { bg: '#7C3AED', text: 'white', name: 'Bottom Lane' },
 };
 
 // Conquer order by zone - NOT USED, assignments come from database mapAssignments
@@ -284,7 +284,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all`}
                     style={filterTeam === t ? { backgroundColor: teamColors[t].bg, color: 'white' } : {}}
                   >
-                    Zone {t}
+                    {teamColors[t].name}
                   </button>
                 ))}
               </div>
@@ -561,15 +561,15 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-4 h-4 rounded bg-blue-500/50 border border-blue-500"></span>
-                  <span className={theme.textMuted}>Zone 1 (Lower)</span>
+                  <span className={theme.textMuted}>Top Lane</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-4 h-4 rounded bg-orange-500/50 border border-orange-500"></span>
-                  <span className={theme.textMuted}>Zone 2 (Middle)</span>
+                  <span className={theme.textMuted}>Mid Lane (Ark)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-4 h-4 rounded bg-purple-500/50 border border-purple-500"></span>
-                  <span className={theme.textMuted}>Zone 3 (Upper)</span>
+                  <span className={theme.textMuted}>Bottom Lane</span>
                 </div>
               </div>
               <div className={`flex flex-wrap gap-3 pt-2 border-t ${theme.border}`}>
