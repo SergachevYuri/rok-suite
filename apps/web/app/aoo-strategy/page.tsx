@@ -1465,65 +1465,60 @@ function TeamBuilderTab({
                                     {/* Player List */}
                                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
                                         {zonePlayers.map((player) => (
-                                            <div key={player.name} className="flex items-center justify-between px-2 py-1.5 rounded bg-[var(--background-secondary)]">
-                                                <div className="flex items-center gap-2">
-                                                    {/* Teleport First checkbox */}
-                                                    <button
-                                                        onClick={() => {
-                                                            const newSet = new Set(selectedTeleportFirst);
-                                                            if (newSet.has(player.name)) {
-                                                                newSet.delete(player.name);
-                                                            } else {
-                                                                newSet.add(player.name);
-                                                            }
-                                                            setSelectedTeleportFirst(newSet);
-                                                        }}
-                                                        className={`w-5 h-5 rounded flex items-center justify-center text-xs ${
-                                                            selectedTeleportFirst.has(player.name)
-                                                                ? 'bg-[#4318ff] text-white'
-                                                                : 'bg-white/20'
-                                                        }`}
-                                                        title="Teleport First"
-                                                    >
-                                                        {selectedTeleportFirst.has(player.name) ? '⚡' : ''}
-                                                    </button>
-                                                    <button onClick={() => openPlayer(player.name)} title="View player details" className={`text-sm hover:underline cursor-pointer hover:text-[#4318ff] ${
-                                                        selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400'
-                                                        : selectedGarrisonLeads[zone] === player.name ? 'font-bold text-cyan-400'
-                                                        : (isMidLane && selectedArkCarrier === player.name) ? 'font-bold text-orange-400'
-                                                        : theme.text
-                                                    }`}>
-                                                        {player.name}
-                                                        {selectedRallyLeads[zone] === player.name && ' ⭐'}
-                                                        {selectedGarrisonLeads[zone] === player.name && ' 🛡️'}
-                                                        {isMidLane && selectedArkCarrier === player.name && ' 📦'}
-                                                    </button>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`text-xs ${theme.textMuted}`} title="Power">
-                                                        {formatPower(player.power)}
-                                                    </span>
-                                                    <span className={`text-xs text-blue-400`} title="Kill Points">
-                                                        KP: {formatPower(player.kills || killsByName[player.name] || 0)}
-                                                    </span>
-                                                    {/* Move to other zone */}
-                                                    <select
-                                                        value={zone}
-                                                        onChange={(e) => movePlayerToZone(player.name, zone, parseInt(e.target.value))}
-                                                        className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
-                                                    >
-                                                        <option value={0}>Sub</option>
-                                                        <option value={1}>Top</option>
-                                                        <option value={2}>Mid</option>
-                                                        <option value={3}>Bot</option>
-                                                        <option value={-1}>Bench</option>
-                                                    </select>
-                                                    <button
-                                                        onClick={() => removePlayerFromZones(player.name)}
-                                                        className="text-red-500 hover:text-red-400 text-xs ml-1"
-                                                        title="Remove from all lanes"
-                                                    >✕</button>
-                                                </div>
+                                            <div key={player.name} className="grid grid-cols-[20px_1fr_auto_auto_auto_auto] gap-x-2 items-center px-2 py-1.5 rounded bg-[var(--background-secondary)]">
+                                                {/* Teleport First */}
+                                                <button
+                                                    onClick={() => {
+                                                        const newSet = new Set(selectedTeleportFirst);
+                                                        if (newSet.has(player.name)) newSet.delete(player.name);
+                                                        else newSet.add(player.name);
+                                                        setSelectedTeleportFirst(newSet);
+                                                    }}
+                                                    className={`w-5 h-5 rounded flex items-center justify-center text-xs ${
+                                                        selectedTeleportFirst.has(player.name) ? 'bg-[#4318ff] text-white' : 'bg-white/20'
+                                                    }`}
+                                                    title="Teleport First"
+                                                >
+                                                    {selectedTeleportFirst.has(player.name) ? '⚡' : ''}
+                                                </button>
+                                                {/* Name */}
+                                                <button onClick={() => openPlayer(player.name)} title="View player details" className={`text-sm text-left truncate hover:underline cursor-pointer hover:text-[#4318ff] ${
+                                                    selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400'
+                                                    : selectedGarrisonLeads[zone] === player.name ? 'font-bold text-cyan-400'
+                                                    : (isMidLane && selectedArkCarrier === player.name) ? 'font-bold text-orange-400'
+                                                    : theme.text
+                                                }`}>
+                                                    {player.name}
+                                                    {selectedRallyLeads[zone] === player.name && ' ⭐'}
+                                                    {selectedGarrisonLeads[zone] === player.name && ' 🛡️'}
+                                                    {isMidLane && selectedArkCarrier === player.name && ' 📦'}
+                                                </button>
+                                                {/* Power */}
+                                                <span className={`text-xs tabular-nums text-right ${theme.textMuted}`} title="Power">
+                                                    {formatPower(player.power)}
+                                                </span>
+                                                {/* KP */}
+                                                <span className="text-xs tabular-nums text-right text-blue-400" title="Kill Points">
+                                                    KP: {formatPower(player.kills || killsByName[player.name] || 0)}
+                                                </span>
+                                                {/* Move zone */}
+                                                <select
+                                                    value={zone}
+                                                    onChange={(e) => movePlayerToZone(player.name, zone, parseInt(e.target.value))}
+                                                    className={`text-xs px-1 py-0.5 rounded ${theme.input} w-14`}
+                                                >
+                                                    <option value={0}>Sub</option>
+                                                    <option value={1}>Top</option>
+                                                    <option value={2}>Mid</option>
+                                                    <option value={3}>Bot</option>
+                                                    <option value={-1}>Bench</option>
+                                                </select>
+                                                {/* Remove */}
+                                                <button
+                                                    onClick={() => removePlayerFromZones(player.name)}
+                                                    className="text-red-500 hover:text-red-400 text-xs"
+                                                    title="Remove from all lanes"
+                                                >✕</button>
                                             </div>
                                         ))}
                                     </div>
