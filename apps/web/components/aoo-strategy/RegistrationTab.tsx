@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { FileSpreadsheet, Loader2, ExternalLink, RefreshCw, Users, Swords, Crown, Target, AlertTriangle } from 'lucide-react';
+import { FileSpreadsheet, Loader2, ExternalLink, RefreshCw, Users, Swords, Crown, Target, AlertTriangle, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 import { fetchAooRegistrationSheet, toExportUrl } from '@/lib/aoo-strategy/parse';
 import type { AooRegistration } from '@/lib/aoo-strategy/types';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
@@ -43,6 +43,8 @@ export default function RegistrationTab({ theme, onApplyToBuilder }: Registratio
     }
   };
 
+  const [showColumnHelp, setShowColumnHelp] = useState(false);
+
   // Derived stats
   const stats = useMemo(() => {
     const team1 = registrations.filter(r => r.team1);
@@ -50,9 +52,10 @@ export default function RegistrationTab({ theme, onApplyToBuilder }: Registratio
     const both = registrations.filter(r => r.team1 && r.team2);
     const neither = registrations.filter(r => !r.team1 && !r.team2);
     const rallyLeaders = registrations.filter(r => r.rallyLeader);
+    const garrisonLeaders = registrations.filter(r => r.garrisonLeader);
     const midPlayers = registrations.filter(r => r.mid);
     const totalPower = registrations.reduce((s, r) => s + r.power, 0);
-    return { team1, team2, both, neither, rallyLeaders, midPlayers, totalPower };
+    return { team1, team2, both, neither, rallyLeaders, garrisonLeaders, midPlayers, totalPower };
   }, [registrations]);
 
   // Open the sheet in Google Sheets
@@ -111,9 +114,40 @@ export default function RegistrationTab({ theme, onApplyToBuilder }: Registratio
             {error}
           </div>
         )}
-        <p className={`mt-2 text-xs ${theme.textMuted}`}>
-          Expected columns: Name, Gov ID, Power, Team 1, Team 2, Rally Leader, Mid
-        </p>
+        <div className="mt-3">
+          <button
+            onClick={() => setShowColumnHelp(!showColumnHelp)}
+            className={`flex items-center gap-1.5 text-xs font-medium ${theme.textMuted} hover:text-[var(--foreground)] transition-colors`}
+          >
+            {showColumnHelp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            Expected column format
+          </button>
+          {showColumnHelp && (
+            <div className={`mt-2 p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs ${theme.textMuted} space-y-2`}>
+              <p className="font-medium text-[var(--foreground)]">Your Google Sheet should have these columns (header row):</p>
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-[var(--border)]">
+                    <th className="py-1 pr-3 font-semibold">Column</th>
+                    <th className="py-1 pr-3 font-semibold">Type</th>
+                    <th className="py-1 font-semibold">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  <tr><td className="py-1 pr-3 font-medium text-[var(--foreground)]">Name</td><td className="py-1 pr-3">Text</td><td className="py-1">Player&apos;s in-game name</td></tr>
+                  <tr><td className="py-1 pr-3 font-medium text-[var(--foreground)]">Gov ID</td><td className="py-1 pr-3">Number</td><td className="py-1">Governor ID</td></tr>
+                  <tr><td className="py-1 pr-3 font-medium text-[var(--foreground)]">Power</td><td className="py-1 pr-3">Number</td><td className="py-1">Player power (e.g. 85000000)</td></tr>
+                  <tr><td className="py-1 pr-3 font-medium text-[var(--foreground)]">Team 1</td><td className="py-1 pr-3">x / blank</td><td className="py-1">Available for Team 1</td></tr>
+                  <tr><td className="py-1 pr-3 font-medium text-[var(--foreground)]">Team 2</td><td className="py-1 pr-3">x / blank</td><td className="py-1">Available for Team 2</td></tr>
+                  <tr><td className="py-1 pr-3 font-medium text-[var(--foreground)]">Rally Leader</td><td className="py-1 pr-3">x / blank</td><td className="py-1">Can lead rallies (top/bottom lane)</td></tr>
+                  <tr><td className="py-1 pr-3 font-medium text-[var(--foreground)]">Garrison Leader</td><td className="py-1 pr-3">x / blank</td><td className="py-1">Can lead garrisons (top/bottom lane)</td></tr>
+                  <tr><td className="py-1 pr-3 font-medium text-[var(--foreground)]">Mid</td><td className="py-1 pr-3">x / blank</td><td className="py-1">Prefers mid lane / ark carrier</td></tr>
+                </tbody>
+              </table>
+              <p>Boolean columns use <strong>&quot;x&quot;</strong> (case-insensitive) to mark true. Column matching is flexible &mdash; headers just need to contain the keyword (e.g. &quot;Rally Leader Notes&quot; still matches &quot;Rally Leader&quot;).</p>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Results */}
@@ -138,9 +172,9 @@ export default function RegistrationTab({ theme, onApplyToBuilder }: Registratio
               <StatCard label="Team 1" value={stats.team1.length} icon={<span className="text-blue-400 font-bold text-sm">T1</span>} theme={theme} />
               <StatCard label="Team 2" value={stats.team2.length} icon={<span className="text-orange-400 font-bold text-sm">T2</span>} theme={theme} />
               <StatCard label="Rally Leaders" value={stats.rallyLeaders.length} icon={<Crown size={16} className="text-yellow-400" />} theme={theme} />
+              <StatCard label="Garrison Leaders" value={stats.garrisonLeaders.length} icon={<Shield size={16} className="text-cyan-400" />} theme={theme} />
               <StatCard label="Mid Preference" value={stats.midPlayers.length} icon={<Target size={16} className="text-purple-400" />} theme={theme} />
               <StatCard label="Both Teams" value={stats.both.length} icon={<span className="text-emerald-400 font-bold text-xs">T1+T2</span>} theme={theme} />
-              <StatCard label="No Preference" value={stats.neither.length} icon={<span className={`font-bold text-xs ${theme.textMuted}`}>--</span>} theme={theme} />
               <StatCard label="Total Power" value={formatPower(stats.totalPower)} icon={<Swords size={16} className="text-red-400" />} theme={theme} />
             </div>
           </section>
@@ -158,6 +192,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder }: Registratio
                     <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>Team 1</th>
                     <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>Team 2</th>
                     <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>Rally</th>
+                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>Garrison</th>
                     <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>Mid</th>
                   </tr>
                 </thead>
@@ -176,6 +211,9 @@ export default function RegistrationTab({ theme, onApplyToBuilder }: Registratio
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {r.rallyLeader && <Crown size={14} className="inline text-yellow-400" />}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {r.garrisonLeader && <Shield size={14} className="inline text-cyan-400" />}
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {r.mid && <Target size={14} className="inline text-purple-400" />}

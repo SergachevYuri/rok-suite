@@ -45,6 +45,8 @@ export interface StrategyData {
   confirmationsByTeam?: Record<number, Record<string, string>>;
   suggestedZonesByTeam?: Record<number, Record<number, { name: string; power: number; kills: number }[]>>;
   selectedRallyLeadsByTeam?: Record<number, Record<number, string>>;
+  selectedGarrisonLeadsByTeam?: Record<number, Record<number, string>>;
+  selectedArkCarriersByTeam?: Record<number, string>; // One ark carrier per team (mid lane)
   selectedTeleportFirstByTeam?: Record<number, string[]>; // Sets serialized as arrays
   zoneSizesByTeam?: Record<number, Record<number, string>>;
 }
@@ -56,5 +58,6 @@ export interface AooRegistration {
   team1: boolean;
   team2: boolean;
   rallyLeader: boolean;
+  garrisonLeader: boolean;
   mid: boolean;
 }

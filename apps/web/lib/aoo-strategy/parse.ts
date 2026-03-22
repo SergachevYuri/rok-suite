@@ -47,7 +47,7 @@ export function toExportUrl(sheetUrl: string): string {
 
 /**
  * Fetch and parse an AoO registration Google Sheet as CSV.
- * Columns: Name, Gov ID, Power, Team 1, Team 2, Rally Leader, Mid
+ * Columns: Name, Gov ID, Power, Team 1, Team 2, Rally Leader, Garrison Leader, Mid
  * Boolean columns use "x" (case-insensitive) to indicate true.
  */
 export async function fetchAooRegistrationSheet(sheetUrl: string): Promise<AooRegistration[]> {
@@ -66,6 +66,7 @@ export async function fetchAooRegistrationSheet(sheetUrl: string): Promise<AooRe
   const iTeam1 = idx('team 1');
   const iTeam2 = idx('team 2');
   const iRallyLeader = idx('rally leader');
+  const iGarrisonLeader = idx('garrison leader');
   const iMid = idx('mid');
 
   const isChecked = (val: string | undefined) =>
@@ -79,6 +80,7 @@ export async function fetchAooRegistrationSheet(sheetUrl: string): Promise<AooRe
       team1: isChecked(cols[iTeam1]),
       team2: isChecked(cols[iTeam2]),
       rallyLeader: isChecked(cols[iRallyLeader]),
+      garrisonLeader: isChecked(cols[iGarrisonLeader]),
       mid: isChecked(cols[iMid]),
     }))
     .filter(r => r.name);

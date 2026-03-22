@@ -420,16 +420,16 @@ export const defaultStrategyData: StrategyData = {
   ],
   "teams": [
     {
-      "name": "Zone 1",
-      "description": "Lower (Left Side)"
+      "name": "Top Lane",
+      "description": "Top"
     },
     {
-      "name": "Zone 2",
-      "description": "Ark (Center)"
+      "name": "Mid Lane",
+      "description": "Ark"
     },
     {
-      "name": "Zone 3",
-      "description": "Upper (Right Side)"
+      "name": "Bottom Lane",
+      "description": "Bottom"
     }
   ],
   "substitutes": [

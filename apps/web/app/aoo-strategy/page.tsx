@@ -43,22 +43,30 @@ type TeamInfo = Team;
 type StrategyData = ImportedStrategyData;
 
 const DEFAULT_TEAMS: TeamInfo[] = [
-    { name: 'Zone 1', description: 'Ark' },
-    { name: 'Zone 2', description: 'Upper' },
-    { name: 'Zone 3', description: 'Lower' },
+    { name: 'Top Lane', description: 'Top' },
+    { name: 'Mid Lane', description: 'Ark' },
+    { name: 'Bottom Lane', description: 'Bottom' },
 ];
 
-const AVAILABLE_TAGS = ['Rally Leader', 'Coordinator', 'Teleport 1st', 'Teleport 2nd', 'Hold Obelisks', 'Garrison', 'Farm', 'Conquer', 'Confirmed'];
+// Zone display names: 1=Top, 2=Mid (Ark), 3=Bottom
+const ZONE_NAMES: Record<number, string> = {
+    1: 'Top Lane',
+    2: 'Mid Lane (Ark)',
+    3: 'Bottom Lane',
+};
+
+const AVAILABLE_TAGS = ['Rally Leader', 'Garrison', 'Ark Carrier', 'Coordinator', 'Teleport 1st', 'Teleport 2nd', 'Hold Obelisks', 'Farm', 'Conquer', 'Confirmed'];
 
 // Simplified tag colors - muted to not compete with zone colors
 // Zone colors: Z1=blue, Z2=orange, Z3=purple (match in-game)
 const TAG_COLORS: Record<string, string> = {
     'Rally Leader': 'bg-stone-700 text-white',
+    'Garrison': 'bg-cyan-800 text-white',
+    'Ark Carrier': 'bg-amber-700 text-white',
     'Coordinator': 'bg-stone-600 text-white',
     'Teleport 1st': 'bg-emerald-700 text-white',
     'Teleport 2nd': 'bg-emerald-600/70 text-white',
     'Hold Obelisks': 'bg-stone-600 text-stone-200',
-    'Garrison': 'bg-stone-600 text-stone-200',
     'Farm': 'bg-stone-500 text-white',
     'Conquer': 'bg-stone-600 text-stone-200',
     'Confirmed': 'bg-green-600 text-white',
@@ -84,6 +92,8 @@ type TeamNumber = 1 | 2 | 3;
 type ConfirmationsByTeam = Record<TeamNumber, Record<string, ConfirmationStatus>>;
 type ZonesByTeam = Record<TeamNumber, Record<number, { name: string; power: number; kills: number }[]>>;
 type RallyLeadsByTeam = Record<TeamNumber, Record<number, string>>;
+type GarrisonLeadsByTeam = Record<TeamNumber, Record<number, string>>;
+type ArkCarriersByTeam = Record<TeamNumber, string>; // One ark carrier per team (mid lane)
 type TeleportFirstByTeam = Record<TeamNumber, Set<string>>;
 type ZoneSizesByTeam = Record<TeamNumber, Record<number, string>>;
 
@@ -138,13 +148,17 @@ interface TeamBuilderTabProps {
     setSuggestedZonesByTeam: (z: ZonesByTeam) => void;
     selectedRallyLeadsByTeam: RallyLeadsByTeam;
     setSelectedRallyLeadsByTeam: (r: RallyLeadsByTeam) => void;
+    selectedGarrisonLeadsByTeam: GarrisonLeadsByTeam;
+    setSelectedGarrisonLeadsByTeam: (g: GarrisonLeadsByTeam) => void;
+    selectedArkCarriersByTeam: ArkCarriersByTeam;
+    setSelectedArkCarriersByTeam: (a: ArkCarriersByTeam) => void;
     selectedTeleportFirstByTeam: TeleportFirstByTeam;
     setSelectedTeleportFirstByTeam: (t: TeleportFirstByTeam) => void;
     zoneSizesByTeam: ZoneSizesByTeam;
     setZoneSizesByTeam: (z: ZoneSizesByTeam) => void;
     pendingAdditions: PendingMember[];
     setPendingAdditions: (p: PendingMember[]) => void;
-    onApply: (allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>) => void;
+    onApply: (allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>) => void;
     onSavePendingAdditions: (additions: PendingMember[]) => Promise<void>;
     theme: Record<string, string>;
     formatPower: (p: number | null | undefined) => string;
@@ -172,6 +186,10 @@ function TeamBuilderTab({
     setSuggestedZonesByTeam,
     selectedRallyLeadsByTeam,
     setSelectedRallyLeadsByTeam,
+    selectedGarrisonLeadsByTeam,
+    setSelectedGarrisonLeadsByTeam,
+    selectedArkCarriersByTeam,
+    setSelectedArkCarriersByTeam,
     selectedTeleportFirstByTeam,
     setSelectedTeleportFirstByTeam,
     zoneSizesByTeam,
@@ -211,6 +229,8 @@ function TeamBuilderTab({
 
             const zones = suggestedZonesByTeam[team] || {};
             const rallyLeads = selectedRallyLeadsByTeam[team] || {};
+            const garrisonLeads = selectedGarrisonLeadsByTeam[team] || {};
+            const arkCarrier = selectedArkCarriersByTeam[team] || '';
             const teleportFirst = selectedTeleportFirstByTeam[team] || new Set<string>();
 
             // Check if this team has any players
@@ -224,16 +244,19 @@ function TeamBuilderTab({
                 const zonePlayers = zones[zoneNum] || [];
                 if (zonePlayers.length === 0) continue;
 
-                const zoneName = zoneNum === 1 ? 'Zone 1 (Ark)' : zoneNum === 2 ? 'Zone 2 (Upper)' : 'Zone 3 (Lower)';
-                lines.push(`\n[${zoneName}] - ${zonePlayers.length} players`);
+                lines.push(`\n[${ZONE_NAMES[zoneNum]}] - ${zonePlayers.length} players`);
 
                 // Sort by power descending
                 const sorted = [...zonePlayers].sort((a, b) => b.power - a.power);
                 for (const p of sorted) {
-                    const isLead = rallyLeads[zoneNum] === p.name;
+                    const isRallyLead = rallyLeads[zoneNum] === p.name;
+                    const isGarrisonLead = garrisonLeads[zoneNum] === p.name;
+                    const isArkCarrier = zoneNum === 2 && arkCarrier === p.name;
                     const isTeleport = teleportFirst.has(p.name);
                     const badges = [];
-                    if (isLead) badges.push('Rally Lead');
+                    if (isRallyLead) badges.push('Rally Lead');
+                    if (isGarrisonLead) badges.push('Garrison Lead');
+                    if (isArkCarrier) badges.push('Ark Carrier');
                     if (isTeleport) badges.push('TP First');
                     const badgeStr = badges.length > 0 ? ` [${badges.join(', ')}]` : '';
                     lines.push(`  - ${p.name} (${formatPower(p.power)})${badgeStr}`);
@@ -344,12 +367,22 @@ function TeamBuilderTab({
         return sorted;
     };
 
+    // Current team's garrison leads and ark carrier
+    const selectedGarrisonLeads = selectedGarrisonLeadsByTeam[activeTeam] || {};
+    const selectedArkCarrier = selectedArkCarriersByTeam[activeTeam] || '';
+
     // Setters for current team
     const setSuggestedZones = (zones: Record<number, { name: string; power: number; kills: number }[]>) => {
         setSuggestedZonesByTeam({ ...suggestedZonesByTeam, [activeTeam]: zones });
     };
     const setSelectedRallyLeads = (leads: Record<number, string>) => {
         setSelectedRallyLeadsByTeam({ ...selectedRallyLeadsByTeam, [activeTeam]: leads });
+    };
+    const setSelectedGarrisonLeads = (leads: Record<number, string>) => {
+        setSelectedGarrisonLeadsByTeam({ ...selectedGarrisonLeadsByTeam, [activeTeam]: leads });
+    };
+    const setSelectedArkCarrier = (carrier: string) => {
+        setSelectedArkCarriersByTeam({ ...selectedArkCarriersByTeam, [activeTeam]: carrier });
     };
     const setSelectedTeleportFirst = (first: Set<string>) => {
         setSelectedTeleportFirstByTeam({ ...selectedTeleportFirstByTeam, [activeTeam]: first });
@@ -570,6 +603,8 @@ function TeamBuilderTab({
         // Process each team from 1 to teamCount
         const newZonesByTeam: ZonesByTeam = { 1: {}, 2: {}, 3: {} };
         const newRallyLeadsByTeam: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
+        const newGarrisonLeadsByTeam: GarrisonLeadsByTeam = { 1: {}, 2: {}, 3: {} };
+        const newArkCarriersByTeam: ArkCarriersByTeam = { 1: '', 2: '', 3: '' };
         const newTeleportFirstByTeam: TeleportFirstByTeam = { 1: new Set(), 2: new Set(), 3: new Set() };
 
         let totalPlayers = 0;
@@ -664,15 +699,30 @@ function TeamBuilderTab({
             newZonesByTeam[team] = zones;
 
             // Pre-select best rally lead per zone (highest rally score)
+            // Zone 2 (Mid/Ark) doesn't need a rally lead — select ark carrier instead
             const leads: Record<number, string> = {};
+            const garrisonLeads: Record<number, string> = {};
             for (const [zone, players] of Object.entries(zones)) {
                 const zoneNum = parseInt(zone);
-                if (zoneNum > 0 && players.length > 0) {
+                if (zoneNum > 0 && zoneNum !== 2 && players.length > 0) {
+                    // Top (1) and Bottom (3) lanes get rally + garrison leads
                     const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
                     leads[zoneNum] = sorted[0].name;
+                    // Garrison lead defaults to second-highest if available
+                    if (sorted.length > 1) {
+                        garrisonLeads[zoneNum] = sorted[1].name;
+                    }
                 }
             }
             newRallyLeadsByTeam[team] = leads;
+            newGarrisonLeadsByTeam[team] = garrisonLeads;
+
+            // Pre-select ark carrier for mid lane (zone 2) — highest rally score in that zone
+            const midPlayers = zones[2] || [];
+            if (midPlayers.length > 0) {
+                const sorted = [...midPlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+                newArkCarriersByTeam[team] = sorted[0].name;
+            }
 
             // Pre-select rally leads + top players for teleport first
             const teleport = new Set<string>();
@@ -692,6 +742,8 @@ function TeamBuilderTab({
         // Update all teams at once
         setSuggestedZonesByTeam(newZonesByTeam);
         setSelectedRallyLeadsByTeam(newRallyLeadsByTeam);
+        setSelectedGarrisonLeadsByTeam(newGarrisonLeadsByTeam);
+        setSelectedArkCarriersByTeam(newArkCarriersByTeam);
         setSelectedTeleportFirstByTeam(newTeleportFirstByTeam);
 
         setBuilderStep('distribute');
@@ -717,6 +769,8 @@ function TeamBuilderTab({
         setBuilderStep('select');
         setSuggestedZones({});
         setSelectedRallyLeads({});
+        setSelectedGarrisonLeads({});
+        setSelectedArkCarrier('');
         setSelectedTeleportFirst(new Set());
     };
 
@@ -783,7 +837,7 @@ function TeamBuilderTab({
                                 key={t}
                                 onClick={() => setActiveTeam(t)}
                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                                    builderStep === 'distribute' && activeTeam === t
+                                    activeTeam === t
                                         ? `${colors.bg} text-white shadow-md`
                                         : `${colors.bg}/20 ${colors.text} border ${colors.border}/50 hover:${colors.bg}/30`
                                 }`}
@@ -1174,19 +1228,49 @@ function TeamBuilderTab({
                         </div>
                     </section>
 
-                    {/* Zone Size Configuration - Prominent */}
+                    {/* Zone Size Configuration - Per Team */}
                     <section className={`${theme.card} border border-[#4318ff] rounded-xl mb-6 p-5`}>
                         <h3 className={`text-lg font-semibold ${theme.text} mb-2`}>⚔️ Zone Distribution</h3>
                         <p className={`text-sm ${theme.textMuted} mb-4`}>
-                            Enter how many players you want in each zone. Power will be balanced automatically within your specified sizes.
+                            Enter how many players you want in each lane. Power will be balanced automatically within your specified sizes.
                         </p>
+
+                        {/* Team selector for zone sizes (when multiple teams) */}
+                        {teamCount > 1 && (
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className={`text-sm font-medium ${theme.textMuted}`}>Configure for:</span>
+                                {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map((t) => {
+                                    const teamColors = {
+                                        1: { bg: 'bg-blue-600', text: 'text-blue-400', border: 'border-blue-500' },
+                                        2: { bg: 'bg-orange-600', text: 'text-orange-400', border: 'border-orange-500' },
+                                        3: { bg: 'bg-purple-600', text: 'text-purple-400', border: 'border-purple-500' },
+                                    }[t];
+                                    const teamConf = confirmationsByTeam[t] || {};
+                                    const teamTotal = Object.values(teamConf).filter(v => v === 'confirmed' || v === 'maybe').length;
+                                    return (
+                                        <button
+                                            key={t}
+                                            onClick={() => setActiveTeam(t)}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                                                activeTeam === t
+                                                    ? `${teamColors.bg} text-white shadow-md`
+                                                    : `${teamColors.bg}/20 ${teamColors.text} border ${teamColors.border}/50 hover:${teamColors.bg}/30`
+                                            }`}
+                                        >
+                                            <span className="font-bold">Team {t}</span>
+                                            <span className="text-xs opacity-80">({teamTotal} players)</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
 
                         {/* Zone inputs in a row */}
                         <div className="grid grid-cols-4 gap-3 mb-4">
-                            {/* Zone 1 */}
+                            {/* Top Lane */}
                             <div className="p-3 rounded-lg border border-blue-500 bg-[var(--background-secondary)]">
                                 <label className="text-xs text-blue-400 font-semibold block mb-1">
-                                    Zone 1 (Ark)
+                                    Top Lane
                                 </label>
                                 <input
                                     type="number"
@@ -1197,10 +1281,10 @@ function TeamBuilderTab({
                                     className={`w-full px-3 py-2 rounded-lg text-center text-xl font-bold ${theme.input} border`}
                                 />
                             </div>
-                            {/* Zone 2 */}
+                            {/* Mid Lane */}
                             <div className="p-3 rounded-lg border border-orange-500 bg-[var(--background-secondary)]">
                                 <label className="text-xs text-orange-400 font-semibold block mb-1">
-                                    Zone 2 (Upper)
+                                    Mid Lane (Ark)
                                 </label>
                                 <input
                                     type="number"
@@ -1211,10 +1295,10 @@ function TeamBuilderTab({
                                     className={`w-full px-3 py-2 rounded-lg text-center text-xl font-bold ${theme.input} border`}
                                 />
                             </div>
-                            {/* Zone 3 */}
+                            {/* Bottom Lane */}
                             <div className="p-3 rounded-lg border border-purple-500 bg-[var(--background-secondary)]">
                                 <label className="text-xs text-purple-400 font-semibold block mb-1">
-                                    Zone 3 (Lower)
+                                    Bottom Lane
                                 </label>
                                 <input
                                     type="number"
@@ -1244,7 +1328,7 @@ function TeamBuilderTab({
                         {/* Summary */}
                         <div className={`flex items-center justify-between p-3 rounded-lg bg-[var(--background-secondary)] mb-4`}>
                             <div className={`text-sm ${theme.textMuted}`}>
-                                <span className="font-medium">Total slots:</span>{' '}
+                                <span className="font-medium">Total slots{teamCount > 1 ? ` (Team ${activeTeam})` : ''}:</span>{' '}
                                 <span className={theme.text}>
                                     {(parseInt(zoneSizes[1]) || 0) + (parseInt(zoneSizes[2]) || 0) + (parseInt(zoneSizes[3]) || 0) + (parseInt(zoneSizes[0]) || 0)}
                                 </span>
@@ -1277,7 +1361,7 @@ function TeamBuilderTab({
                                     confirmedPlayers.length + maybePlayers.length >= 1 ? 'bg-[#4318ff] hover:bg-[#4318ff]/80' : 'bg-gray-600 cursor-not-allowed'
                                 }`}
                             >
-                                Distribute {confirmedPlayers.length + maybePlayers.length} Players →
+                                Distribute All Teams →
                             </button>
                         </div>
                     </section>
@@ -1294,11 +1378,13 @@ function TeamBuilderTab({
                             const zonePower = getZonePower(zone);
                             const balancePercent = totalPower > 0 ? ((zonePower / totalPower) * 100).toFixed(1) : '0';
 
+                            const isMidLane = zone === 2;
+
                             return (
                                 <section key={zone} className={`${theme.card} border-l-4 ${zoneColor.border} rounded-xl p-4`}>
                                     <div className="flex items-center justify-between mb-3">
                                         <h3 className={`font-semibold ${zoneColor.text}`}>
-                                            Zone {zone} ({zonePlayers.length})
+                                            {ZONE_NAMES[zone]} ({zonePlayers.length})
                                         </h3>
                                         <div className="flex items-center gap-2">
                                             <select
@@ -1319,22 +1405,58 @@ function TeamBuilderTab({
                                         </div>
                                     </div>
 
-                                    {/* Rally Lead Selection */}
-                                    <div className="mb-3 p-2 rounded bg-[var(--background-secondary)]">
-                                        <span className={`text-xs ${theme.textMuted}`}>Rally Lead:</span>
-                                        <select
-                                            value={selectedRallyLeads[zone] || ''}
-                                            onChange={(e) => setSelectedRallyLeads({ ...selectedRallyLeads, [zone]: e.target.value })}
-                                            className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
-                                        >
-                                            <option value="">Select Rally Lead...</option>
-                                            {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
-                                                <option key={p.name} value={p.name}>
-                                                    {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    {isMidLane ? (
+                                        /* Mid Lane (Ark) — Ark Carrier selection instead of rally/garrison */
+                                        <div className="mb-3 p-2 rounded bg-[var(--background-secondary)]">
+                                            <span className={`text-xs ${theme.textMuted}`}>Ark Carrier:</span>
+                                            <select
+                                                value={selectedArkCarrier || ''}
+                                                onChange={(e) => setSelectedArkCarrier(e.target.value)}
+                                                className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
+                                            >
+                                                <option value="">Select Ark Carrier...</option>
+                                                {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
+                                                    <option key={p.name} value={p.name}>
+                                                        {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    ) : (
+                                        /* Top/Bottom Lane — Rally Lead + Garrison Lead */
+                                        <div className="mb-3 space-y-2">
+                                            <div className="p-2 rounded bg-[var(--background-secondary)]">
+                                                <span className={`text-xs ${theme.textMuted}`}>Rally Lead:</span>
+                                                <select
+                                                    value={selectedRallyLeads[zone] || ''}
+                                                    onChange={(e) => setSelectedRallyLeads({ ...selectedRallyLeads, [zone]: e.target.value })}
+                                                    className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
+                                                >
+                                                    <option value="">Select Rally Lead...</option>
+                                                    {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
+                                                        <option key={p.name} value={p.name}>
+                                                            {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="p-2 rounded bg-[var(--background-secondary)]">
+                                                <span className={`text-xs ${theme.textMuted}`}>Garrison Lead:</span>
+                                                <select
+                                                    value={selectedGarrisonLeads[zone] || ''}
+                                                    onChange={(e) => setSelectedGarrisonLeads({ ...selectedGarrisonLeads, [zone]: e.target.value })}
+                                                    className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
+                                                >
+                                                    <option value="">Select Garrison Lead...</option>
+                                                    {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
+                                                        <option key={p.name} value={p.name}>
+                                                            {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Player List */}
                                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
@@ -1361,9 +1483,16 @@ function TeamBuilderTab({
                                                     >
                                                         {selectedTeleportFirst.has(player.name) ? '⚡' : ''}
                                                     </button>
-                                                    <button onClick={() => openPlayer(player.name)} className={`text-sm hover:underline cursor-pointer ${selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400' : theme.text}`}>
+                                                    <button onClick={() => openPlayer(player.name)} className={`text-sm hover:underline cursor-pointer ${
+                                                        selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400'
+                                                        : selectedGarrisonLeads[zone] === player.name ? 'font-bold text-cyan-400'
+                                                        : (isMidLane && selectedArkCarrier === player.name) ? 'font-bold text-orange-400'
+                                                        : theme.text
+                                                    }`}>
                                                         {player.name}
                                                         {selectedRallyLeads[zone] === player.name && ' ⭐'}
+                                                        {selectedGarrisonLeads[zone] === player.name && ' 🛡️'}
+                                                        {isMidLane && selectedArkCarrier === player.name && ' 📦'}
                                                     </button>
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -1380,9 +1509,9 @@ function TeamBuilderTab({
                                                         className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
                                                     >
                                                         <option value={0}>Sub</option>
-                                                        <option value={1}>Z1</option>
-                                                        <option value={2}>Z2</option>
-                                                        <option value={3}>Z3</option>
+                                                        <option value={1}>Top</option>
+                                                        <option value={2}>Mid</option>
+                                                        <option value={3}>Bot</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -1405,7 +1534,7 @@ function TeamBuilderTab({
                                 </span>
                             </div>
                             <p className={`text-xs ${theme.textMuted} mb-3`}>
-                                Players marked as &quot;Maybe&quot; - move to a zone if they confirm
+                                Players marked as &quot;Maybe&quot; - move to a lane if they confirm
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 {(suggestedZones[0] || []).map((player) => (
@@ -1418,9 +1547,9 @@ function TeamBuilderTab({
                                             className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
                                         >
                                             <option value={0}>Sub</option>
-                                            <option value={1}>→ Z1</option>
-                                            <option value={2}>→ Z2</option>
-                                            <option value={3}>→ Z3</option>
+                                            <option value={1}>→ Top</option>
+                                            <option value={2}>→ Mid</option>
+                                            <option value={3}>→ Bot</option>
                                         </select>
                                     </div>
                                 ))}
@@ -1431,6 +1560,8 @@ function TeamBuilderTab({
                     {/* Legend */}
                     <div className={`flex items-center justify-center gap-6 mb-6 text-xs ${theme.textMuted}`}>
                         <span>⭐ = Rally Lead</span>
+                        <span>🛡️ = Garrison Lead</span>
+                        <span>📦 = Ark Carrier</span>
                         <span>⚡ = Teleport First</span>
                     </div>
 
@@ -1455,18 +1586,21 @@ function TeamBuilderTab({
                         <button
                             onClick={() => {
                                 // Build all team data for apply
-                                const allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }> = {} as Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>;
+                                type TeamData = { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; substitutes: { name: string; power: number; kills: number }[] };
+                                const allTeamData: Record<TeamNumber, TeamData> = {} as Record<TeamNumber, TeamData>;
 
                                 for (const team of [1, 2, 3] as TeamNumber[]) {
                                     if (team > teamCount) continue;
                                     const zones = suggestedZonesByTeam[team] || {};
                                     const rallyLeads = selectedRallyLeadsByTeam[team] || {};
+                                    const garrisonLeads = selectedGarrisonLeadsByTeam[team] || {};
+                                    const arkCarrier = selectedArkCarriersByTeam[team] || '';
                                     const teleportFirst = selectedTeleportFirstByTeam[team] || new Set<string>();
 
-                                    // Validate rally leads for this team
-                                    const missingLeads = [1, 2, 3].filter(z => !rallyLeads[z] && (zones[z]?.length || 0) > 0);
+                                    // Validate rally leads for top (1) and bottom (3) lanes only — mid lane (2) doesn't need one
+                                    const missingLeads = [1, 3].filter(z => !rallyLeads[z] && (zones[z]?.length || 0) > 0);
                                     if (missingLeads.length > 0) {
-                                        alert(`Team ${team}: Please select rally leads for Zone ${missingLeads.join(', ')}`);
+                                        alert(`Team ${team}: Please select rally leads for ${missingLeads.map(z => ZONE_NAMES[z]).join(', ')}`);
                                         setActiveTeam(team);
                                         return;
                                     }
@@ -1474,6 +1608,8 @@ function TeamBuilderTab({
                                     allTeamData[team] = {
                                         zones,
                                         rallyLeads,
+                                        garrisonLeads,
+                                        arkCarrier,
                                         teleportFirst,
                                         substitutes: zones[0] || []
                                     };
@@ -1552,6 +1688,8 @@ export default function AooStrategyPage() {
     const [confirmationsByTeam, setConfirmationsByTeam] = useState<ConfirmationsByTeam>({ 1: {}, 2: {}, 3: {} });
     const [suggestedZonesByTeam, setSuggestedZonesByTeam] = useState<ZonesByTeam>({ 1: {}, 2: {}, 3: {} });
     const [selectedRallyLeadsByTeam, setSelectedRallyLeadsByTeam] = useState<RallyLeadsByTeam>({ 1: {}, 2: {}, 3: {} });
+    const [selectedGarrisonLeadsByTeam, setSelectedGarrisonLeadsByTeam] = useState<GarrisonLeadsByTeam>({ 1: {}, 2: {}, 3: {} });
+    const [selectedArkCarriersByTeam, setSelectedArkCarriersByTeam] = useState<ArkCarriersByTeam>({ 1: '', 2: '', 3: '' });
     const [selectedTeleportFirstByTeam, setSelectedTeleportFirstByTeam] = useState<TeleportFirstByTeam>({ 1: new Set(), 2: new Set(), 3: new Set() });
     const [zoneSizesByTeam, setZoneSizesByTeam] = useState<ZoneSizesByTeam>({
         1: { 0: '', 1: '', 2: '', 3: '' },
@@ -2398,6 +2536,10 @@ export default function AooStrategyPage() {
                     setSuggestedZonesByTeam={setSuggestedZonesByTeam}
                     selectedRallyLeadsByTeam={selectedRallyLeadsByTeam}
                     setSelectedRallyLeadsByTeam={setSelectedRallyLeadsByTeam}
+                    selectedGarrisonLeadsByTeam={selectedGarrisonLeadsByTeam}
+                    setSelectedGarrisonLeadsByTeam={setSelectedGarrisonLeadsByTeam}
+                    selectedArkCarriersByTeam={selectedArkCarriersByTeam}
+                    setSelectedArkCarriersByTeam={setSelectedArkCarriersByTeam}
                     selectedTeleportFirstByTeam={selectedTeleportFirstByTeam}
                     setSelectedTeleportFirstByTeam={setSelectedTeleportFirstByTeam}
                     zoneSizesByTeam={zoneSizesByTeam}
@@ -2416,7 +2558,7 @@ export default function AooStrategyPage() {
                             const teamData = allTeamData[teamNum];
                             if (!teamData) continue;
 
-                            const { zones, rallyLeads, teleportFirst, substitutes } = teamData;
+                            const { zones, rallyLeads, garrisonLeads, arkCarrier, teleportFirst, substitutes } = teamData;
 
                             for (const [zoneNum, zonePeople] of Object.entries(zones)) {
                                 const zone = parseInt(zoneNum);
@@ -2425,6 +2567,12 @@ export default function AooStrategyPage() {
                                     const tags: string[] = ['Confirmed', `T${teamNum}`];
                                     if (rallyLeads[zone] === p.name) {
                                         tags.push('Rally Leader');
+                                    }
+                                    if (garrisonLeads[zone] === p.name) {
+                                        tags.push('Garrison');
+                                    }
+                                    if (zone === 2 && arkCarrier === p.name) {
+                                        tags.push('Ark Carrier');
                                     }
                                     if (teleportFirst.has(p.name)) {
                                         tags.push('Teleport 1st');
@@ -2556,9 +2704,9 @@ export default function AooStrategyPage() {
                                 <div className="w-48">
                                     <select value={newPlayerTeam} onChange={(e) => setNewPlayerTeam(Number(e.target.value))}
                                         className={`w-full px-3 py-2 rounded-lg border ${theme.input} focus:outline-none focus:ring-2 focus:ring-[#4318ff]`}>
-                                        <option value={1}>Zone 1 ({getTeamPlayers(1).length})</option>
-                                        <option value={2}>Zone 2 ({getTeamPlayers(2).length})</option>
-                                        <option value={3}>Zone 3 ({getTeamPlayers(3).length})</option>
+                                        <option value={1}>Top Lane ({getTeamPlayers(1).length})</option>
+                                        <option value={2}>Mid Lane ({getTeamPlayers(2).length})</option>
+                                        <option value={3}>Bottom Lane ({getTeamPlayers(3).length})</option>
                                         <option value={0}>Substitute ({substitutes.length})</option>
                                     </select>
                                 </div>
