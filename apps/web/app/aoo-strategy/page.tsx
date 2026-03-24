@@ -855,13 +855,34 @@ function TeamBuilderTab({
                 newArkCarriersByTeam[team] = sorted[0].name;
             }
 
-            // Pre-select top 8 players for teleport first (game limit: 8 per team)
-            const allLanePlayers = [
-                ...(zones[1] || []),
-                ...(zones[2] || []),
-                ...(zones[3] || []),
-            ].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
-            const teleport = new Set<string>(allLanePlayers.slice(0, 8).map(p => p.name));
+            // Pre-select 8 teleport-first slots distributed evenly across lanes
+            // Priority: rally leads and garrison leads first, then by rally score
+            const teleport = new Set<string>();
+            const slotsPerLane: Record<number, number> = { 1: 3, 2: 2, 3: 3 };
+            for (const zoneNum of [1, 2, 3]) {
+                const lanePlayers = zones[zoneNum] || [];
+                if (lanePlayers.length === 0) continue;
+                const slots = slotsPerLane[zoneNum];
+                // Priority players: rally lead, garrison lead, ark carrier
+                const priority = new Set<string>();
+                if (leads[zoneNum]) priority.add(leads[zoneNum]);
+                if (garrisonLeads[zoneNum]) priority.add(garrisonLeads[zoneNum]);
+                if (zoneNum === 2 && newArkCarriersByTeam[team]) priority.add(newArkCarriersByTeam[team]);
+                // Add priority players first
+                for (const name of priority) {
+                    if (teleport.size < 8) teleport.add(name);
+                }
+                // Fill remaining lane slots by rally score
+                const sorted = [...lanePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+                let added = [...priority].filter(n => sorted.some(p => p.name === n)).length;
+                for (const p of sorted) {
+                    if (added >= slots || teleport.size >= 8) break;
+                    if (!teleport.has(p.name)) {
+                        teleport.add(p.name);
+                        added++;
+                    }
+                }
+            }
             newTeleportFirstByTeam[team] = teleport;
         }
 
