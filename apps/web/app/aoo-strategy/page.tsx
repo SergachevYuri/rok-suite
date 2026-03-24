@@ -2615,7 +2615,7 @@ export default function AooStrategyPage() {
 
     return (
         <AppSidebar>
-        <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200`}>
+        <div className={`min-h-screen ${theme.bg} ${theme.text} transition-colors duration-200 overflow-x-hidden`}>
             {/* Header */}
             <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-14 lg:top-0 z-30">
                 <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
