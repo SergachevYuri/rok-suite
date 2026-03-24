@@ -7,6 +7,7 @@ import type { AooRegistration } from '@/lib/aoo-strategy/types';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
 
 const SHEET_URL_KEY = 'aoo-registration-sheet-url';
+const OFFICER_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17JLwfknLvybbxu2B-SjlLkL5RqBIkIZgF11tvUzFvjU/edit?gid=1559092066#gid=1559092066';
 
 interface RegistrationTabProps {
   theme: Record<string, string>;
@@ -103,24 +104,51 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
           Import Registrations
         </h2>
 
-        {/* Officer badge with link to edit the registration sheet */}
+        {/* Officer badge with quick-load and edit sheet buttons */}
         {isOfficer && (
-          <div className="mb-4 flex items-center justify-between px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
             <div className="flex items-center gap-2">
-              <span className="text-amber-400 text-xs font-semibold uppercase tracking-wider">Officer</span>
-              <span className={`text-xs ${theme.textMuted}`}>
-                {sheetUrl ? 'Sheet URL loaded — hit Fetch to import.' : 'No saved sheet URL found. Paste one below.'}
+              <span className="text-amber-400 text-xs font-semibold uppercase tracking-wider shrink-0">Officer</span>
+              <span className={`text-xs ${theme.textMuted} hidden sm:inline`}>
+                {sheetUrl ? 'Sheet URL loaded.' : 'No saved sheet URL.'}
               </span>
             </div>
-            <a
-              href="https://docs.google.com/spreadsheets/d/17JLwfknLvybbxu2B-SjlLkL5RqBIkIZgF11tvUzFvjU/edit?gid=1559092066#gid=1559092066"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
-            >
-              <ExternalLink size={12} />
-              Edit Registration Sheet
-            </a>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  setSheetUrl(OFFICER_SHEET_URL);
+                  localStorage.setItem(SHEET_URL_KEY, OFFICER_SHEET_URL);
+                  setLoading(true);
+                  setError(null);
+                  try {
+                    const data = await fetchAooRegistrationSheet(OFFICER_SHEET_URL);
+                    setRegistrations(data);
+                    setFetched(true);
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to fetch sheet');
+                    setRegistrations([]);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors disabled:opacity-50"
+                title="Load and fetch the registration sheet"
+              >
+                {loading ? <Loader2 size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />}
+                {loading ? 'Fetching...' : 'Fetch Sheet'}
+              </button>
+              <a
+                href={OFFICER_SHEET_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
+              >
+                <ExternalLink size={12} />
+                <span className="hidden sm:inline">Edit Sheet</span>
+                <span className="sm:hidden">Edit</span>
+              </a>
+            </div>
           </div>
         )}
 

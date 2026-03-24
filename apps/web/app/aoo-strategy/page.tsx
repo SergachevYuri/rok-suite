@@ -973,42 +973,41 @@ function TeamBuilderTab({
     return (
         <div className="max-w-6xl mx-auto p-4 md:p-6">
             {/* Alliance & Team Selection */}
-            <section className={`${theme.card} border rounded-xl mb-6 p-5`}>
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
-                    <h2 className={`text-base font-semibold uppercase tracking-wider ${theme.textMuted}`}>
-                        🛠️ Team Builder
+            <section className={`${theme.card} border rounded-xl mb-6 p-3 sm:p-5`}>
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-5">
+                    <h2 className={`text-sm sm:text-base font-semibold uppercase tracking-wider ${theme.textMuted}`}>
+                        Team Builder
                     </h2>
-                    <div className="flex flex-wrap items-center gap-6">
-                        {/* Alliance selection - prominent */}
-                        <div className="flex items-center gap-3">
-                            <span className={`text-base font-medium ${theme.text}`}>Alliance:</span>
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-6">
+                        {/* Alliance selection */}
+                        <div className="flex items-center gap-2">
+                            <span className={`text-xs sm:text-sm font-medium ${theme.text}`}>Alliance:</span>
                             <select
                                 value={builderAlliance}
                                 onChange={(e) => setBuilderAlliance(e.target.value)}
-                                className={`px-4 py-2 rounded-lg text-base font-medium ${theme.input} min-w-[140px] border-2 border-[#4318ff]/50`}
+                                className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm font-medium ${theme.input} min-w-[100px] sm:min-w-[140px] border-2 border-[#4318ff]/50`}
                                 disabled={builderStep !== 'select'}
                             >
-                                <option value="all">All Alliances</option>
+                                <option value="all">All</option>
                                 {alliances.map(a => (
                                     <option key={a} value={a}>{allianceDisplay(a)}</option>
                                 ))}
                             </select>
                         </div>
-                        {/* Team count selection - clearer labeling */}
-                        <div className="flex items-center gap-3">
-                            <span className={`text-base font-medium ${theme.text}`}>AoO Teams:</span>
-                            <div className="flex gap-1.5">
+                        {/* Team count selection */}
+                        <div className="flex items-center gap-2">
+                            <span className={`text-xs sm:text-sm font-medium ${theme.text}`}>Teams:</span>
+                            <div className="flex gap-1">
                                 {[1, 2, 3].map((n) => (
                                     <button
                                         key={n}
                                         onClick={() => setTeamCount(n as 1 | 2 | 3)}
-                                        className={`w-10 h-10 rounded-lg text-base font-semibold transition-colors ${
+                                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg text-sm sm:text-base font-semibold transition-colors ${
                                             teamCount === n
                                                 ? 'bg-[#4318ff] text-white ring-2 ring-[#4318ff]/50'
                                                 : `${theme.tag} hover:opacity-80`
                                         }`}
                                         disabled={builderStep !== 'select'}
-                                        title={`Organize ${n} AoO team${n > 1 ? 's' : ''} for this week`}
                                     >
                                         {n}
                                     </button>
@@ -1051,16 +1050,16 @@ function TeamBuilderTab({
                 </div>
 
                 {/* Step indicator */}
-                <div className="flex items-center gap-3 mb-5 text-sm">
-                    <span className={`px-4 py-2 rounded-lg font-medium ${builderStep === 'select' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
-                        1. Select Players
+                <div className="flex items-center gap-1.5 sm:gap-3 mb-5 text-sm">
+                    <span className={`px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm ${builderStep === 'select' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
+                        1. <span className="hidden sm:inline">Select </span>Players
                     </span>
-                    <span className={`text-lg ${theme.textMuted}`}>→</span>
-                    <span className={`px-4 py-2 rounded-lg font-medium ${builderStep === 'distribute' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
-                        2. Distribute & Assign
+                    <span className={`text-base sm:text-lg ${theme.textMuted}`}>→</span>
+                    <span className={`px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm ${builderStep === 'distribute' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
+                        2. Distribute
                     </span>
-                    <span className={`text-lg ${theme.textMuted}`}>→</span>
-                    <span className={`px-4 py-2 rounded-lg font-medium ${builderStep === 'done' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
+                    <span className={`text-base sm:text-lg ${theme.textMuted}`}>→</span>
+                    <span className={`px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm ${builderStep === 'done' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
                         3. Apply
                     </span>
                 </div>
@@ -1079,25 +1078,32 @@ function TeamBuilderTab({
             {builderStep === 'select' && (
                 <>
                     {/* Player Selection List */}
-                    <section className={`${theme.card} border rounded-xl mb-6 p-5`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className={`text-lg font-semibold ${theme.text}`}>
-                                    Select Players <span className={`text-base font-normal ${theme.textMuted}`}>({combinedRoster.length} available{pendingAdditions.length > 0 ? `, ${pendingAdditions.length} pending` : ''})</span>
-                                </h3>
-                                {scanLabel && (
-                                    <p className={`text-xs ${theme.textMuted} mt-0.5`}>
-                                        Data from scan: <span className={theme.text}>{scanLabel}</span>
-                                    </p>
-                                )}
+                    <section className={`${theme.card} border rounded-xl mb-6 p-3 sm:p-5`}>
+                        <div className="mb-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className={`text-base sm:text-lg font-semibold ${theme.text}`}>
+                                        Select Players <span className={`text-sm sm:text-base font-normal ${theme.textMuted}`}>({combinedRoster.length})</span>
+                                    </h3>
+                                    {scanLabel && (
+                                        <p className={`text-xs ${theme.textMuted} mt-0.5`}>
+                                            Scan: <span className={theme.text}>{scanLabel}</span>
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="hidden sm:flex items-center gap-6 text-base font-medium">
+                                    <span className="text-green-400">
+                                        ✓ {confirmedPlayers.length} ({formatPower(confirmedPower)})
+                                    </span>
+                                    <span className="text-yellow-400">
+                                        ? {maybePlayers.length} ({formatPower(maybePower)})
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-6 text-base font-medium">
-                                <span className="text-green-400">
-                                    ✓ Confirmed: {confirmedPlayers.length} ({formatPower(confirmedPower)})
-                                </span>
-                                <span className="text-yellow-400">
-                                    ? Maybe: {maybePlayers.length} ({formatPower(maybePower)})
-                                </span>
+                            {/* Mobile stats row */}
+                            <div className="flex sm:hidden items-center gap-4 mt-2 text-sm font-medium">
+                                <span className="text-green-400">✓ {confirmedPlayers.length} ({formatPower(confirmedPower)})</span>
+                                <span className="text-yellow-400">? {maybePlayers.length} ({formatPower(maybePower)})</span>
                             </div>
                         </div>
 
@@ -1113,30 +1119,27 @@ function TeamBuilderTab({
                         </div>
 
                         {/* Quick actions */}
-                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
                             <button
-                                onClick={() => {
-                                    // Clear all team assignments
-                                    setConfirmationsByTeam({ 1: {}, 2: {}, 3: {} });
-                                }}
-                                className={`px-4 py-2 text-sm rounded-lg ${theme.tag} hover:opacity-80`}
+                                onClick={() => setConfirmationsByTeam({ 1: {}, 2: {}, 3: {} })}
+                                className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg ${theme.tag} hover:opacity-80`}
                             >
-                                Clear All Teams
+                                Clear All
                             </button>
                             <button
                                 onClick={() => setShowAddForm(!showAddForm)}
-                                className={`px-5 py-2.5 text-base font-semibold rounded-lg transition-colors ${
+                                className={`px-3 sm:px-5 py-1.5 sm:py-2.5 text-xs sm:text-base font-semibold rounded-lg transition-colors ${
                                     showAddForm
                                         ? 'bg-[#4318ff] text-white'
                                         : 'bg-green-600 text-white hover:bg-green-500'
                                 }`}
                             >
-                                + Add New Member
+                                + Add Member
                             </button>
                             {pendingAdditions.length > 0 && (
                                 <button
                                     onClick={() => onSavePendingAdditions(pendingAdditions)}
-                                    className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:opacity-80"
+                                    className="px-3 py-1.5 text-xs sm:text-sm rounded-lg bg-blue-600 text-white hover:opacity-80"
                                 >
                                     Save {pendingAdditions.length} Pending
                                 </button>
@@ -1236,16 +1239,16 @@ function TeamBuilderTab({
                         )}
 
                         {/* Sort & Filter Controls */}
-                        <div className="flex items-center justify-between mb-4 gap-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
                             {/* Filter by status */}
-                            <div className="flex items-center gap-3">
-                                <span className={`text-base ${theme.textMuted}`}>Show:</span>
-                                <div className="flex gap-1.5">
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs sm:text-sm ${theme.textMuted} shrink-0`}>Show:</span>
+                                <div className="flex gap-1 overflow-x-auto">
                                     {(['all', 'confirmed', 'maybe', 'none'] as const).map((filter) => (
                                         <button
                                             key={filter}
                                             onClick={() => setBuilderFilter(filter)}
-                                            className={`px-4 py-2 text-base rounded-lg transition-colors ${
+                                            className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg transition-colors whitespace-nowrap ${
                                                 builderFilter === filter
                                                     ? filter === 'confirmed' ? 'bg-green-600 text-white'
                                                     : filter === 'maybe' ? 'bg-yellow-600 text-white'
@@ -1254,66 +1257,55 @@ function TeamBuilderTab({
                                                     : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:bg-[var(--background-hover)]'
                                             }`}
                                         >
-                                            {filter === 'all' ? 'All' : filter === 'confirmed' ? 'Confirmed' : filter === 'maybe' ? 'Maybe' : 'Unconfirmed'}
+                                            {filter === 'all' ? 'All' : filter === 'confirmed' ? '✓' : filter === 'maybe' ? '?' : 'None'}
                                         </button>
                                     ))}
                                 </div>
                             </div>
                             {/* Sort dropdown */}
-                            <div className="flex items-center gap-3">
-                                <span className={`text-base ${theme.textMuted}`}>Sort:</span>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-xs sm:text-sm ${theme.textMuted} shrink-0`}>Sort:</span>
                                 <select
                                     value={builderSort}
                                     onChange={(e) => setBuilderSort(e.target.value as typeof builderSort)}
-                                    className={`px-4 py-2 text-base rounded-lg ${theme.input} cursor-pointer`}
+                                    className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg ${theme.input} cursor-pointer`}
                                 >
-                                    <option value="power">Power (High to Low)</option>
-                                    <option value="kp">Kill Points (High to Low)</option>
-                                    <option value="t1">T1 Participation</option>
-                                    <option value="t2">T2 Participation</option>
-                                    <option value="name">Name (A-Z)</option>
+                                    <option value="power">Power</option>
+                                    <option value="kp">Kill Points</option>
+                                    <option value="t1">T1 History</option>
+                                    <option value="t2">T2 History</option>
+                                    <option value="name">Name</option>
                                 </select>
                             </div>
                         </div>
 
                         {/* Player list */}
                         {/* Column headers - clickable for sorting */}
-                        <div className={`grid grid-cols-[1fr_90px_110px_55px_55px_auto_28px] gap-3 px-3 py-2.5 text-base font-medium ${theme.textMuted} border-b border-[var(--border)]`}>
-                            <button
-                                onClick={() => setBuilderSort('name')}
-                                className={`text-left hover:text-white transition-colors ${builderSort === 'name' ? 'text-white' : ''}`}
-                            >
+                        {/* Desktop: full grid | Mobile: compact 3-col */}
+                        <div className={`hidden sm:grid grid-cols-[1fr_90px_110px_55px_55px_auto_28px] gap-3 px-3 py-2.5 text-sm font-medium ${theme.textMuted} border-b border-[var(--border)]`}>
+                            <button onClick={() => setBuilderSort('name')} className={`text-left hover:text-white transition-colors ${builderSort === 'name' ? 'text-white' : ''}`}>
                                 Name {builderSort === 'name' && '↑'}
                             </button>
-                            <button
-                                onClick={() => setBuilderSort('power')}
-                                className={`text-right hover:text-white transition-colors ${builderSort === 'power' ? 'text-white' : ''}`}
-                            >
+                            <button onClick={() => setBuilderSort('power')} className={`text-right hover:text-white transition-colors ${builderSort === 'power' ? 'text-white' : ''}`}>
                                 Power {builderSort === 'power' && '↓'}
                             </button>
-                            <button
-                                onClick={() => setBuilderSort('kp')}
-                                className={`text-right hover:text-white transition-colors ${builderSort === 'kp' ? 'text-white' : ''}`}
-                                title="Kill Points — total enemy troops killed"
-                            >
+                            <button onClick={() => setBuilderSort('kp')} className={`text-right hover:text-white transition-colors ${builderSort === 'kp' ? 'text-white' : ''}`} title="Kill Points">
                                 KP {builderSort === 'kp' && '↓'}
                             </button>
-                            <button
-                                onClick={() => setBuilderSort('t1')}
-                                className={`text-center hover:text-blue-300 transition-colors ${builderSort === 't1' ? 'text-blue-300' : 'text-blue-400'}`}
-                                title="Team 1 AoO participation history"
-                            >
+                            <button onClick={() => setBuilderSort('t1')} className={`text-center hover:text-blue-300 transition-colors ${builderSort === 't1' ? 'text-blue-300' : 'text-blue-400'}`} title="Team 1 AoO participation history">
                                 T1 {builderSort === 't1' && '↓'}
                             </button>
-                            <button
-                                onClick={() => setBuilderSort('t2')}
-                                className={`text-center hover:text-orange-300 transition-colors ${builderSort === 't2' ? 'text-orange-300' : 'text-orange-400'}`}
-                                title="Team 2 AoO participation history"
-                            >
+                            <button onClick={() => setBuilderSort('t2')} className={`text-center hover:text-orange-300 transition-colors ${builderSort === 't2' ? 'text-orange-300' : 'text-orange-400'}`} title="Team 2 AoO participation history">
                                 T2 {builderSort === 't2' && '↓'}
                             </button>
-                            <span className="text-center" title="Click ✓ to confirm, ? for maybe, or click again to remove">Team</span>
+                            <span className="text-center">Team</span>
                             <div></div>
+                        </div>
+                        {/* Mobile header */}
+                        <div className={`sm:hidden grid grid-cols-[1fr_auto_auto] gap-2 px-3 py-2 text-xs font-medium ${theme.textMuted} border-b border-[var(--border)]`}>
+                            <span>Name</span>
+                            <span>Power</span>
+                            <span>Team</span>
                         </div>
 
                         {/* Player list */}
@@ -1330,94 +1322,67 @@ function TeamBuilderTab({
                                     3: { bg: 'bg-purple-600', border: 'border-purple-500', text: 'text-purple-400' },
                                 };
 
-                                return (
-                                    <div
-                                        key={member.name}
-                                        className={`w-full grid grid-cols-[1fr_90px_110px_55px_55px_auto_28px] gap-3 items-center px-3 py-3 rounded-lg transition-colors ${
-                                            assignment ? `${teamColors[assignment.team].bg}/20 border ${teamColors[assignment.team].border}/30` :
-                                            isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
-                                            'bg-[var(--background-secondary)] border border-[var(--border)]'
-                                        }`}
-                                    >
-                                        {/* Name */}
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <button onClick={() => openPlayer(member.name)} className={`font-medium text-lg ${theme.text} truncate hover:underline cursor-pointer text-left`} title="View player details">{member.name}</button>
-                                            {isPending && (
-                                                <span className="px-2 py-0.5 text-sm rounded bg-blue-600 text-white shrink-0">
-                                                    NEW
-                                                </span>
-                                            )}
-                                        </div>
+                                const rowBg = assignment ? `${teamColors[assignment.team].bg}/20 border ${teamColors[assignment.team].border}/30` :
+                                    isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
+                                    'bg-[var(--background-secondary)] border border-[var(--border)]';
 
-                                        {/* Power */}
-                                        <span className={`${theme.text} text-lg text-right font-semibold`}>
-                                            {formatPower(member.power)}
-                                        </span>
-
-                                        {/* KP */}
-                                        <span className={`${theme.textMuted} text-base text-right`}>
-                                            {formatPower(member.kills || killsByName[member.name] || 0)}
-                                        </span>
-
-                                        {/* T1 History */}
-                                        <span
-                                            className={`text-base text-center font-medium ${aooStats && aooStats.team1Count > 0 ? 'text-blue-400' : theme.textMuted}`}
-                                            title={aooStats && aooStats.team1Count > 0 ? `Team 1: ${aooStats.team1Participated}/${aooStats.team1Count} participated` : 'No Team 1 history'}
-                                        >
-                                            {aooStats && aooStats.team1Count > 0
-                                                ? `${aooStats.team1Participated}/${aooStats.team1Count}`
-                                                : '—'}
-                                        </span>
-
-                                        {/* T2 History */}
-                                        <span
-                                            className={`text-base text-center font-medium ${aooStats && aooStats.team2Count > 0 ? 'text-orange-400' : theme.textMuted}`}
-                                            title={aooStats && aooStats.team2Count > 0 ? `Team 2: ${aooStats.team2Participated}/${aooStats.team2Count} participated` : 'No Team 2 history'}
-                                        >
-                                            {aooStats && aooStats.team2Count > 0
-                                                ? `${aooStats.team2Participated}/${aooStats.team2Count}`
-                                                : '—'}
-                                        </span>
-
-                                        {/* Team assignment buttons */}
-                                        <div className="flex items-center gap-1">
-                                            {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map((team) => {
-                                                const teamConf = confirmationsByTeam[team] || {};
-                                                const status = teamConf[member.name] || 'none';
-                                                const colors = teamColors[team];
-                                                return (
-                                                    <button
-                                                        key={team}
-                                                        onClick={() => toggleTeamConfirmation(member.name, team)}
-                                                        className={`w-8 h-8 rounded-md text-sm font-bold transition-all ${
-                                                            status === 'confirmed'
-                                                                ? `${colors.bg} text-white shadow-md`
-                                                                : status === 'maybe'
-                                                                    ? `${colors.bg}/40 ${colors.text} border-2 ${colors.border}`
-                                                                    : `bg-white/10 text-white/40 border border-white/20 hover:border-white/40`
-                                                        }`}
-                                                        title={`Team ${team}: ${status === 'confirmed' ? 'Confirmed' : status === 'maybe' ? 'Maybe' : 'Click to add'}`}
-                                                    >
-                                                        {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : team}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="flex justify-center">
-                                            {isPending && (
+                                const teamButtons = (
+                                    <div className="flex items-center gap-1">
+                                        {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map((team) => {
+                                            const teamConf = confirmationsByTeam[team] || {};
+                                            const status = teamConf[member.name] || 'none';
+                                            const colors = teamColors[team];
+                                            return (
                                                 <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setPendingAdditions(pendingAdditions.filter(p => p.name !== member.name));
-                                                    }}
-                                                    className="text-red-400 hover:text-red-300 text-xs"
-                                                    title="Remove"
+                                                    key={team}
+                                                    onClick={() => toggleTeamConfirmation(member.name, team)}
+                                                    className={`w-8 h-8 rounded-md text-sm font-bold transition-all ${
+                                                        status === 'confirmed'
+                                                            ? `${colors.bg} text-white shadow-md`
+                                                            : status === 'maybe'
+                                                                ? `${colors.bg}/40 ${colors.text} border-2 ${colors.border}`
+                                                                : `bg-white/10 text-white/40 border border-white/20 hover:border-white/40`
+                                                    }`}
+                                                    title={`Team ${team}: ${status === 'confirmed' ? 'Confirmed' : status === 'maybe' ? 'Maybe' : 'Click to add'}`}
                                                 >
-                                                    ✕
+                                                    {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : team}
                                                 </button>
-                                            )}
+                                            );
+                                        })}
+                                    </div>
+                                );
+
+                                return (
+                                    <div key={member.name}>
+                                        {/* Desktop row */}
+                                        <div className={`hidden sm:grid w-full grid-cols-[1fr_90px_110px_55px_55px_auto_28px] gap-3 items-center px-3 py-3 rounded-lg transition-colors ${rowBg}`}>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <button onClick={() => openPlayer(member.name)} className={`font-medium text-base ${theme.text} truncate hover:underline cursor-pointer text-left`} title="View player details">{member.name}</button>
+                                                {isPending && <span className="px-1.5 py-0.5 text-xs rounded bg-blue-600 text-white shrink-0">NEW</span>}
+                                            </div>
+                                            <span className={`${theme.text} text-sm text-right font-semibold`}>{formatPower(member.power)}</span>
+                                            <span className={`${theme.textMuted} text-sm text-right`}>{formatPower(member.kills || killsByName[member.name] || 0)}</span>
+                                            <span className={`text-xs text-center font-medium ${aooStats && aooStats.team1Count > 0 ? 'text-blue-400' : theme.textMuted}`}>
+                                                {aooStats && aooStats.team1Count > 0 ? `${aooStats.team1Participated}/${aooStats.team1Count}` : '—'}
+                                            </span>
+                                            <span className={`text-xs text-center font-medium ${aooStats && aooStats.team2Count > 0 ? 'text-orange-400' : theme.textMuted}`}>
+                                                {aooStats && aooStats.team2Count > 0 ? `${aooStats.team2Participated}/${aooStats.team2Count}` : '—'}
+                                            </span>
+                                            {teamButtons}
+                                            <div className="flex justify-center">
+                                                {isPending && (
+                                                    <button onClick={(e) => { e.stopPropagation(); setPendingAdditions(pendingAdditions.filter(p => p.name !== member.name)); }} className="text-red-400 hover:text-red-300 text-xs" title="Remove">✕</button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* Mobile row */}
+                                        <div className={`sm:hidden grid grid-cols-[1fr_auto_auto] gap-2 items-center px-3 py-2.5 rounded-lg transition-colors ${rowBg}`}>
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <button onClick={() => openPlayer(member.name)} className={`font-medium text-sm ${theme.text} truncate hover:underline cursor-pointer text-left`} title="View player details">{member.name}</button>
+                                                {isPending && <span className="px-1 py-0.5 text-[10px] rounded bg-blue-600 text-white shrink-0">NEW</span>}
+                                            </div>
+                                            <span className={`${theme.textMuted} text-xs text-right tabular-nums`}>{formatPower(member.power)}</span>
+                                            {teamButtons}
                                         </div>
                                     </div>
                                 );
@@ -1430,7 +1395,7 @@ function TeamBuilderTab({
                         <div className="flex justify-center mb-6">
                             <button
                                 onClick={handleDistribute}
-                                className="px-8 py-3 rounded-lg font-semibold text-white text-lg bg-[#4318ff] hover:bg-[#4318ff]/80"
+                                className="w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-semibold text-white text-base sm:text-lg bg-[#4318ff] hover:bg-[#4318ff]/80"
                             >
                                 Distribute to Lanes →
                             </button>
@@ -1457,36 +1422,27 @@ function TeamBuilderTab({
                         const overMax = laneSlots > 30;
                         const subsOverMax = subsCount > 10;
                         return (
-                    <section className={`${theme.card} border rounded-xl mb-6 p-4`}>
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3 flex-wrap">
-                                <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Lane Sizes</h3>
+                    <section className={`${theme.card} border rounded-xl mb-6 p-3 sm:p-4`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className={`text-xs sm:text-sm font-semibold uppercase tracking-wider ${theme.textMuted}`}>Lane Sizes</h3>
                                 <span className={`text-xs font-mono ${overMax ? 'text-red-400 font-semibold' : theme.textMuted}`}>
-                                    <span className="text-blue-400">{top}</span> + <span className="text-orange-400">{mid}</span> + <span className="text-purple-400">{bot}</span> = <span className={overMax ? 'text-red-400' : 'text-white font-semibold'}>{laneSlots}</span> in lanes
+                                    <span className="text-blue-400">{top}</span>+<span className="text-orange-400">{mid}</span>+<span className="text-purple-400">{bot}</span>=<span className={overMax ? 'text-red-400' : 'text-white font-semibold'}>{laneSlots}</span>
                                 </span>
-                                <span className={`text-xs ${theme.textMuted}`}>+ {subsCount} subs = {playerTotal} total</span>
+                                <span className={`text-xs ${theme.textMuted}`}>+{subsCount} subs</span>
                                 {overMax && <span className="text-xs font-medium text-red-400">(max 30)</span>}
-                                {subsOverMax && <span className="text-xs font-medium text-yellow-400">(max 10 subs)</span>}
                             </div>
-                            <div className="flex items-center gap-3">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={!useCustomSizes}
-                                        onChange={(e) => setUseCustomSizes(!e.target.checked)}
-                                        className="rounded"
-                                    />
-                                    <span className={`text-xs ${theme.textMuted}`}>Auto-balance evenly</span>
+                            <div className="flex items-center gap-2">
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                    <input type="checkbox" checked={!useCustomSizes} onChange={(e) => setUseCustomSizes(!e.target.checked)} className="rounded" />
+                                    <span className={`text-xs ${theme.textMuted}`}>Auto</span>
                                 </label>
-                                <button
-                                    onClick={handleDistribute}
-                                    className="px-4 py-1.5 rounded-lg text-sm font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80"
-                                >
+                                <button onClick={handleDistribute} className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80">
                                     Re-balance
                                 </button>
                             </div>
                         </div>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                             <div className={`p-2 rounded-lg border ${overMax ? 'border-red-500/50' : 'border-blue-500'} bg-[var(--background-secondary)]`}>
                                 <label className="text-xs text-blue-400 font-semibold block mb-1">Top</label>
                                 <input type="number" min="0" value={zoneSizes[1]} onChange={(e) => setZoneSizes({ ...zoneSizes, 1: e.target.value })} placeholder="10" className={`w-full px-2 py-1.5 rounded-lg text-center text-lg font-bold ${theme.input} border`} />
@@ -1588,7 +1544,7 @@ function TeamBuilderTab({
                                     {/* Player List */}
                                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
                                         {zonePlayers.map((player) => (
-                                            <div key={player.name} className="grid grid-cols-[20px_1fr_auto_auto_auto_auto] gap-x-2 items-center px-2 py-1.5 rounded bg-[var(--background-secondary)]">
+                                            <div key={player.name} className="grid grid-cols-[20px_1fr_auto_auto] sm:grid-cols-[20px_1fr_auto_auto_auto_auto] gap-x-1.5 sm:gap-x-2 items-center px-1.5 sm:px-2 py-1.5 rounded bg-[var(--background-secondary)]">
                                                 {/* Teleport First (max 8 per team) */}
                                                 <button
                                                     onClick={() => {
@@ -1626,28 +1582,29 @@ function TeamBuilderTab({
                                                 <span className={`text-xs tabular-nums text-right ${theme.textMuted}`} title="Power">
                                                     {formatPower(player.power)}
                                                 </span>
-                                                {/* KP */}
-                                                <span className="text-xs tabular-nums text-right text-blue-400" title="Kill Points">
+                                                {/* KP — hidden on mobile */}
+                                                <span className="hidden sm:inline text-xs tabular-nums text-right text-blue-400" title="Kill Points">
                                                     KP: {formatPower(player.kills || killsByName[player.name] || 0)}
                                                 </span>
-                                                {/* Move zone */}
-                                                <select
-                                                    value={zone}
-                                                    onChange={(e) => movePlayerToZone(player.name, zone, parseInt(e.target.value))}
-                                                    className={`text-xs px-1 py-0.5 rounded ${theme.input} w-14`}
-                                                >
-                                                    <option value={0}>Sub</option>
-                                                    <option value={1}>Top</option>
-                                                    <option value={2}>Mid</option>
-                                                    <option value={3}>Bot</option>
-                                                    <option value={-1}>Bench</option>
-                                                </select>
-                                                {/* Remove */}
-                                                <button
-                                                    onClick={() => removePlayerFromZones(player.name)}
-                                                    className="text-red-500 hover:text-red-400 text-xs"
-                                                    title="Remove from all lanes"
-                                                >✕</button>
+                                                {/* Move zone + Remove */}
+                                                <div className="flex items-center gap-0.5">
+                                                    <select
+                                                        value={zone}
+                                                        onChange={(e) => movePlayerToZone(player.name, zone, parseInt(e.target.value))}
+                                                        className={`text-xs px-0.5 sm:px-1 py-0.5 rounded ${theme.input} w-12 sm:w-14`}
+                                                    >
+                                                        <option value={0}>Sub</option>
+                                                        <option value={1}>Top</option>
+                                                        <option value={2}>Mid</option>
+                                                        <option value={3}>Bot</option>
+                                                        <option value={-1}>Bnch</option>
+                                                    </select>
+                                                    <button
+                                                        onClick={() => removePlayerFromZones(player.name)}
+                                                        className="text-red-500 hover:text-red-400 text-xs"
+                                                        title="Remove from all lanes"
+                                                    >✕</button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -1779,12 +1736,12 @@ function TeamBuilderTab({
                     </section>
 
                     {/* Legend */}
-                    <div className={`flex items-center justify-center gap-6 mb-6 text-xs ${theme.textMuted}`}>
-                        <span>⭐ = Rally Lead</span>
-                        <span>🛡️ = Garrison Lead</span>
-                        <span>📦 = Ark Carrier</span>
-                        <span>★ = Coordinator</span>
-                        <span>⚡ = Teleport First ({selectedTeleportFirst.size}/8)</span>
+                    <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mb-6 text-xs ${theme.textMuted}`}>
+                        <span>⭐ Rally</span>
+                        <span>🛡️ Garrison</span>
+                        <span>📦 Ark</span>
+                        <span>★ Coord</span>
+                        <span>⚡ TP 1st ({selectedTeleportFirst.size}/8)</span>
                     </div>
 
                     {/* Add Player to lanes */}
@@ -1847,22 +1804,22 @@ function TeamBuilderTab({
                     </section>
 
                     {/* Action Buttons */}
-                    <div className="flex flex-wrap justify-center gap-3">
+                    <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
                         <button
                             onClick={handleReset}
-                            className={`px-4 py-2 rounded-lg text-sm ${theme.tag} hover:opacity-80`}
+                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm ${theme.tag} hover:opacity-80`}
                         >
-                            ← Back to Selection
+                            ← Back
                         </button>
                         <button
                             onClick={copySummaryToClipboard}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                                 copiedSummary
                                     ? 'bg-green-600 text-white'
                                     : 'bg-[var(--background-secondary)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--background-hover)]'
                             }`}
                         >
-                            {copiedSummary ? '✓ Copied!' : '📋 Copy Text'}
+                            {copiedSummary ? '✓ Copied!' : '📋 Text'}
                         </button>
                         {/* Mail copy buttons — one per team */}
                         {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map(t => {
@@ -1871,11 +1828,11 @@ function TeamBuilderTab({
                                 <button
                                     key={t}
                                     onClick={() => copyMailToClipboard(t)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
                                         copiedMail ? 'bg-green-600 text-white border-green-600' : teamColors[t]
                                     }`}
                                 >
-                                    {copiedMail ? '✓ Copied!' : `✉ T${t} Mail`}
+                                    {copiedMail ? '✓' : `✉ T${t}`}
                                 </button>
                             );
                         })}
@@ -1914,9 +1871,9 @@ function TeamBuilderTab({
 
                                 onApply(allTeamData);
                             }}
-                            className="px-6 py-2 rounded-lg font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80"
+                            className="px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80"
                         >
-                            Apply All Teams →
+                            Apply All →
                         </button>
                     </div>
                 </>
