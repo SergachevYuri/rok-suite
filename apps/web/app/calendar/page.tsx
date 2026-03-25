@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTheme } from '@/lib/theme-context';
 import { AppSidebar } from '@/components/AppSidebar';
 import { ADMIN_PASSWORD } from '@/lib/auth-passwords';
@@ -53,7 +53,7 @@ interface CalEvent {
     calendarColor: string;
 }
 
-type ViewMode = 'agenda' | 'month';
+type ViewMode = 'agenda' | 'day' | 'week' | 'month';
 
 // ——— iCal parser ————————————————————————————————————————————————————————
 function parseICS(icsText: string, calendarName: string, calendarColor: string): CalEvent[] {
@@ -165,6 +165,50 @@ function getDateKey(isoString: string, allDay: boolean, tz: string): string {
     } catch {
         return isoString.slice(0, 10);
     }
+}
+
+function getNowInTimezone(tz: string): { hours: number; minutes: number; dateKey: string } {
+    const now = new Date();
+    const parts = now.toLocaleString('en-US', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit' }).split(':');
+    return {
+        hours: parseInt(parts[0]),
+        minutes: parseInt(parts[1]),
+        dateKey: now.toLocaleDateString('en-CA', { timeZone: tz }),
+    };
+}
+
+function getEventMinutes(ev: CalEvent, tz: string): number {
+    try {
+        const d = new Date(ev.start);
+        const parts = d.toLocaleString('en-US', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit' }).split(':');
+        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    } catch {
+        return 0;
+    }
+}
+
+// ——— Now Line ———————————————————————————————————————————————————————————
+function NowLine({ timezone, label }: { timezone: string; label?: boolean }) {
+    const [, setTick] = useState(0);
+    useEffect(() => {
+        const id = setInterval(() => setTick(t => t + 1), 60000);
+        return () => clearInterval(id);
+    }, []);
+
+    const now = getNowInTimezone(timezone);
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone, hour12: true });
+
+    return (
+        <div className="flex items-center gap-2 px-3 py-0.5">
+            {label !== false && (
+                <span className="text-[10px] font-semibold text-rose-500 tabular-nums min-w-[60px] sm:min-w-[72px] text-center shrink-0">{timeStr}</span>
+            )}
+            <div className="flex-1 flex items-center">
+                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                <div className="flex-1 h-[1.5px] bg-rose-500" />
+            </div>
+        </div>
+    );
 }
 
 function getDaysInMonth(year: number, month: number): number {
@@ -279,6 +323,37 @@ function AgendaView({ events, timezone }: { events: CalEvent[]; timezone: string
 
     const renderDay = (dateKey: string, dayEvents: CalEvent[], faded: boolean) => {
         const today = dateKey === todayKey;
+        const now = today ? getNowInTimezone(timezone) : null;
+        const nowMinutes = now ? now.hours * 60 + now.minutes : -1;
+
+        // Split events into all-day and timed, insert now-line among timed events
+        const allDayEvents = dayEvents.filter(e => e.allDay);
+        const timedEvents = dayEvents.filter(e => !e.allDay);
+
+        // Build render list for today: interleave now-line among timed events
+        const renderItems: { type: 'event' | 'now'; event?: CalEvent }[] = [];
+        if (today) {
+            let nowInserted = false;
+            for (const ev of allDayEvents) {
+                renderItems.push({ type: 'event', event: ev });
+            }
+            for (const ev of timedEvents) {
+                const evMin = getEventMinutes(ev, timezone);
+                if (!nowInserted && nowMinutes < evMin) {
+                    renderItems.push({ type: 'now' });
+                    nowInserted = true;
+                }
+                renderItems.push({ type: 'event', event: ev });
+            }
+            if (!nowInserted) {
+                renderItems.push({ type: 'now' });
+            }
+        } else {
+            for (const ev of dayEvents) {
+                renderItems.push({ type: 'event', event: ev });
+            }
+        }
+
         return (
             <div key={dateKey} className={faded ? 'opacity-40' : ''}>
                 <div className={`sticky top-0 z-10 px-4 py-2 text-xs font-semibold tracking-wide uppercase ${
@@ -291,15 +366,19 @@ function AgendaView({ events, timezone }: { events: CalEvent[]; timezone: string
                     {today && <span className="ml-1.5 normal-case tracking-normal">— Today</span>}
                 </div>
                 <div className="py-1">
-                    {dayEvents.map(ev => (
-                        <EventCard
-                            key={ev.id}
-                            event={ev}
-                            timezone={timezone}
-                            expanded={expandedId === ev.id}
-                            onToggle={() => setExpandedId(expandedId === ev.id ? null : ev.id)}
-                        />
-                    ))}
+                    {renderItems.map((item, idx) =>
+                        item.type === 'now' ? (
+                            <NowLine key="now" timezone={timezone} />
+                        ) : (
+                            <EventCard
+                                key={item.event!.id}
+                                event={item.event!}
+                                timezone={timezone}
+                                expanded={expandedId === item.event!.id}
+                                onToggle={() => setExpandedId(expandedId === item.event!.id ? null : item.event!.id)}
+                            />
+                        )
+                    )}
                 </div>
             </div>
         );
@@ -327,6 +406,294 @@ function AgendaView({ events, timezone }: { events: CalEvent[]; timezone: string
 
             {/* Today + future */}
             {currentAndFutureDays.map(([dateKey, dayEvents]) => renderDay(dateKey, dayEvents, false))}
+        </div>
+    );
+}
+
+// ——— Time Grid (shared by Day + Week views) ————————————————————————————
+const HOUR_HEIGHT = 56;
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+function TimeGridColumn({ events, timezone, dateKey }: { events: CalEvent[]; timezone: string; dateKey: string }) {
+    const timedEvents = events.filter(e => !e.allDay);
+    const now = getNowInTimezone(timezone);
+    const isToday = dateKey === now.dateKey;
+
+    return (
+        <div className="relative" style={{ height: HOUR_HEIGHT * 24 }}>
+            {/* Hour lines */}
+            {HOURS.map(h => (
+                <div
+                    key={h}
+                    className="absolute left-0 right-0 border-t border-[var(--border)]"
+                    style={{ top: h * HOUR_HEIGHT }}
+                />
+            ))}
+
+            {/* Events */}
+            {timedEvents.map(ev => {
+                const startParts = new Date(ev.start).toLocaleString('en-US', { timeZone: timezone, hour12: false, hour: '2-digit', minute: '2-digit' }).split(':');
+                const endParts = new Date(ev.end).toLocaleString('en-US', { timeZone: timezone, hour12: false, hour: '2-digit', minute: '2-digit' }).split(':');
+                const startMin = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+                const endMin = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+                const duration = Math.max(endMin - startMin, 20); // min 20min height
+                const top = (startMin / 60) * HOUR_HEIGHT;
+                const height = (duration / 60) * HOUR_HEIGHT;
+
+                return (
+                    <div
+                        key={ev.id}
+                        className="absolute left-0.5 right-0.5 sm:left-1 sm:right-1 rounded px-1.5 py-0.5 overflow-hidden text-[10px] sm:text-xs leading-tight border-l-2"
+                        style={{
+                            top,
+                            height: Math.max(height, 18),
+                            backgroundColor: ev.calendarColor + '18',
+                            borderLeftColor: ev.calendarColor,
+                            color: ev.calendarColor,
+                        }}
+                    >
+                        <div className="font-medium truncate">{ev.summary}</div>
+                        {height > 30 && (
+                            <div className="text-[9px] opacity-70 truncate">
+                                {formatTime(ev.start, timezone)} – {formatTime(ev.end, timezone)}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+
+            {/* Now line */}
+            {isToday && (
+                <div
+                    className="absolute left-0 right-0 z-10 flex items-center"
+                    style={{ top: ((now.hours * 60 + now.minutes) / 60) * HOUR_HEIGHT }}
+                >
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 -ml-1 shrink-0" />
+                    <div className="flex-1 h-[2px] bg-rose-500" />
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ——— Day View ———————————————————————————————————————————————————————————
+function DayView({ events, timezone, dayOffset, onChangeDay }: {
+    events: CalEvent[];
+    timezone: string;
+    dayOffset: number;
+    onChangeDay: (delta: number) => void;
+}) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const targetDate = useMemo(() => {
+        const d = new Date();
+        d.setDate(d.getDate() + dayOffset);
+        return d;
+    }, [dayOffset]);
+
+    const dateKey = targetDate.toLocaleDateString('en-CA', { timeZone: timezone });
+    const headerText = targetDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: timezone });
+    const now = getNowInTimezone(timezone);
+    const isToday = dateKey === now.dateKey;
+
+    const dayEvents = useMemo(() => {
+        return events.filter(ev => {
+            if (ev.allDay) {
+                return ev.start <= dateKey && ev.end > dateKey;
+            }
+            return getDateKey(ev.start, false, timezone) === dateKey;
+        });
+    }, [events, dateKey, timezone]);
+
+    const allDayEvents = dayEvents.filter(e => e.allDay);
+
+    // Auto-scroll to current time on mount
+    useEffect(() => {
+        if (scrollRef.current && isToday) {
+            const scrollTo = Math.max(0, ((now.hours * 60 + now.minutes) / 60) * HOUR_HEIGHT - 150);
+            scrollRef.current.scrollTop = scrollTo;
+        }
+    }, [dateKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    return (
+        <div className="flex flex-col" style={{ height: 'min(700px, 80vh)' }}>
+            {/* Day header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
+                <button onClick={() => onChangeDay(-1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
+                    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                </button>
+                <div className="text-center">
+                    <h3 className={`text-base font-semibold ${isToday ? 'text-rose-400' : 'text-[var(--foreground)]'}`}>{headerText}</h3>
+                    {isToday && <span className="text-[10px] text-rose-400 uppercase tracking-wider font-semibold">Today</span>}
+                </div>
+                <button onClick={() => onChangeDay(1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
+                    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                </button>
+            </div>
+
+            {/* All-day events */}
+            {allDayEvents.length > 0 && (
+                <div className="px-4 py-2 border-b border-[var(--border)] shrink-0 space-y-1">
+                    <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">All day</span>
+                    {allDayEvents.map(ev => (
+                        <div key={ev.id} className="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium" style={{ backgroundColor: ev.calendarColor + '20', color: ev.calendarColor }}>
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ev.calendarColor }} />
+                            <span className="truncate">{ev.summary}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Scrollable time grid */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto">
+                <div className="flex">
+                    {/* Hour labels */}
+                    <div className="shrink-0 w-14 sm:w-16" style={{ height: HOUR_HEIGHT * 24 }}>
+                        {HOURS.map(h => (
+                            <div key={h} className="text-[10px] text-[var(--text-muted)] tabular-nums text-right pr-2 -mt-[5px]" style={{ height: HOUR_HEIGHT }}>
+                                {h === 0 ? '' : new Date(2000, 0, 1, h).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Event column */}
+                    <div className="flex-1 border-l border-[var(--border)]">
+                        <TimeGridColumn events={dayEvents} timezone={timezone} dateKey={dateKey} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ——— Week View ——————————————————————————————————————————————————————————
+function WeekView({ events, timezone, weekOffset, onChangeWeek }: {
+    events: CalEvent[];
+    timezone: string;
+    weekOffset: number;
+    onChangeWeek: (delta: number) => void;
+}) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    const weekDates = useMemo(() => {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const sunday = new Date(today);
+        sunday.setDate(today.getDate() - dayOfWeek + weekOffset * 7);
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(sunday);
+            d.setDate(sunday.getDate() + i);
+            return d;
+        });
+    }, [weekOffset]);
+
+    const now = getNowInTimezone(timezone);
+
+    const weekDateKeys = weekDates.map(d => d.toLocaleDateString('en-CA', { timeZone: timezone }));
+    const weekStart = weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: timezone });
+    const weekEnd = weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: timezone });
+
+    const eventsByDay = useMemo(() => {
+        const map = new Map<string, CalEvent[]>();
+        for (const key of weekDateKeys) map.set(key, []);
+        for (const ev of events) {
+            if (ev.allDay) {
+                const startDate = new Date(ev.start + 'T00:00:00Z');
+                const endDate = new Date(ev.end + 'T00:00:00Z');
+                for (let d = new Date(startDate); d < endDate; d.setUTCDate(d.getUTCDate() + 1)) {
+                    const key = d.toISOString().slice(0, 10);
+                    if (map.has(key) && !map.get(key)!.some(e => e.id === ev.id)) {
+                        map.get(key)!.push(ev);
+                    }
+                }
+            } else {
+                const key = getDateKey(ev.start, false, timezone);
+                if (map.has(key)) map.get(key)!.push(ev);
+            }
+        }
+        return map;
+    }, [events, weekDateKeys, timezone]);
+
+    // Auto-scroll to current time
+    useEffect(() => {
+        if (scrollRef.current) {
+            const scrollTo = Math.max(0, ((now.hours * 60 + now.minutes) / 60) * HOUR_HEIGHT - 150);
+            scrollRef.current.scrollTop = scrollTo;
+        }
+    }, [weekOffset]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Check if any day has all-day events
+    const hasAllDay = weekDateKeys.some(k => (eventsByDay.get(k) || []).some(e => e.allDay));
+
+    return (
+        <div className="flex flex-col" style={{ height: 'min(700px, 80vh)' }}>
+            {/* Week header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
+                <button onClick={() => onChangeWeek(-1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
+                    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                </button>
+                <h3 className="text-sm sm:text-base font-semibold text-[var(--foreground)]">{weekStart} – {weekEnd}</h3>
+                <button onClick={() => onChangeWeek(1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
+                    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                </button>
+            </div>
+
+            {/* Day-of-week column headers */}
+            <div className="flex border-b border-[var(--border)] shrink-0">
+                <div className="shrink-0 w-14 sm:w-16" /> {/* spacer for hour labels */}
+                {weekDates.map((d, i) => {
+                    const isToday = weekDateKeys[i] === now.dateKey;
+                    return (
+                        <div key={i} className={`flex-1 text-center py-2 border-l border-[var(--border)] ${isToday ? 'bg-rose-500/5' : ''}`}>
+                            <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase">{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]}</div>
+                            <div className={`text-sm font-semibold mt-0.5 ${isToday ? 'bg-rose-500 text-white w-7 h-7 rounded-full flex items-center justify-center mx-auto' : 'text-[var(--foreground)]'}`}>
+                                {d.toLocaleDateString('en-US', { day: 'numeric', timeZone: timezone })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* All-day events row */}
+            {hasAllDay && (
+                <div className="flex border-b border-[var(--border)] shrink-0">
+                    <div className="shrink-0 w-14 sm:w-16 flex items-center justify-end pr-2">
+                        <span className="text-[9px] text-[var(--text-muted)] uppercase">All day</span>
+                    </div>
+                    {weekDateKeys.map((key, i) => {
+                        const allDay = (eventsByDay.get(key) || []).filter(e => e.allDay);
+                        return (
+                            <div key={i} className="flex-1 border-l border-[var(--border)] p-0.5 space-y-0.5 min-h-[28px]">
+                                {allDay.map(ev => (
+                                    <div key={ev.id} className="rounded px-1 py-0.5 text-[9px] font-medium truncate" style={{ backgroundColor: ev.calendarColor + '20', color: ev.calendarColor }}>
+                                        {ev.summary}
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Scrollable time grid */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto">
+                <div className="flex">
+                    {/* Hour labels */}
+                    <div className="shrink-0 w-14 sm:w-16" style={{ height: HOUR_HEIGHT * 24 }}>
+                        {HOURS.map(h => (
+                            <div key={h} className="text-[10px] text-[var(--text-muted)] tabular-nums text-right pr-2 -mt-[5px]" style={{ height: HOUR_HEIGHT }}>
+                                {h === 0 ? '' : new Date(2000, 0, 1, h).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Day columns */}
+                    {weekDateKeys.map((key, i) => (
+                        <div key={i} className={`flex-1 border-l border-[var(--border)] ${key === now.dateKey ? 'bg-rose-500/[0.02]' : ''}`}>
+                            <TimeGridColumn events={eventsByDay.get(key) || []} timezone={timezone} dateKey={key} />
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
 }
@@ -508,6 +875,8 @@ export default function CalendarPage() {
     const [passwordError, setPasswordError] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('agenda');
     const [monthOffset, setMonthOffset] = useState(0);
+    const [dayOffset, setDayOffset] = useState(0);
+    const [weekOffset, setWeekOffset] = useState(0);
 
     const [allEvents, setAllEvents] = useState<Map<string, CalEvent[]>>(new Map());
     const [loading, setLoading] = useState(true);
@@ -813,26 +1182,19 @@ export default function CalendarPage() {
                     </div>
 
                     <div className="flex items-center bg-[var(--background-secondary)] rounded-lg p-0.5 border border-[var(--border)]">
-                        <button
-                            onClick={() => setViewMode('agenda')}
-                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                                viewMode === 'agenda'
-                                    ? 'bg-[var(--background-card)] text-[var(--foreground)] shadow-sm'
-                                    : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
-                            }`}
-                        >
-                            Agenda
-                        </button>
-                        <button
-                            onClick={() => setViewMode('month')}
-                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                                viewMode === 'month'
-                                    ? 'bg-[var(--background-card)] text-[var(--foreground)] shadow-sm'
-                                    : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
-                            }`}
-                        >
-                            Month
-                        </button>
+                        {(['agenda', 'day', 'week', 'month'] as ViewMode[]).map(mode => (
+                            <button
+                                key={mode}
+                                onClick={() => setViewMode(mode)}
+                                className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-colors capitalize ${
+                                    viewMode === mode
+                                        ? 'bg-[var(--background-card)] text-[var(--foreground)] shadow-sm'
+                                        : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+                                }`}
+                            >
+                                {mode}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -855,6 +1217,20 @@ export default function CalendarPage() {
                         </div>
                     ) : viewMode === 'agenda' ? (
                         <AgendaView events={agendaEvents} timezone={timezone} />
+                    ) : viewMode === 'day' ? (
+                        <DayView
+                            events={filteredEvents}
+                            timezone={timezone}
+                            dayOffset={dayOffset}
+                            onChangeDay={(delta) => setDayOffset(prev => prev + delta)}
+                        />
+                    ) : viewMode === 'week' ? (
+                        <WeekView
+                            events={filteredEvents}
+                            timezone={timezone}
+                            weekOffset={weekOffset}
+                            onChangeWeek={(delta) => setWeekOffset(prev => prev + delta)}
+                        />
                     ) : (
                         <MonthView
                             events={monthEvents}
