@@ -187,8 +187,7 @@ function getFirstDayOfMonth(year: number, month: number): number {
 
 // ——— Data fetching ——————————————————————————————————————————————————————
 async function fetchCalendarICS(calendarId: string): Promise<string> {
-    const url = `https://calendar.google.com/calendar/ical/${encodeURIComponent(calendarId)}/public/basic.ics`;
-    const res = await fetch(url);
+    const res = await fetch(`/api/calendar?id=${encodeURIComponent(calendarId)}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.text();
 }
