@@ -158,7 +158,7 @@ Governors,
 
 Kingdom training buff is active now.
 15% training rune is at (X, Y).
-Apply for Duke title. Stack everything: 15% rune + 10% KD buff + 10% Duke.
+Apply for Duke title (+10% training speed). Stack: 15% rune + 10% KD buff + 10% Duke.
 
 ►═════════❂❂❂═════════◄
 <b><color=#800000>— King Fluffy</color></b>`,
@@ -177,7 +177,7 @@ Governors,
 
 Kingdom research buff is active now.
 15% research rune is at (X, Y).
-Apply for Scientist title. Stack everything: 15% rune + 10% KD buff + 10% Scientist.
+Apply for Scientist title (+5% research speed). Stack: 15% rune + 10% KD buff + 5% Scientist.
 
 ►═════════❂❂❂═════════◄
 <b><color=#800000>— King Fluffy</color></b>`,
@@ -196,45 +196,7 @@ Governors,
 
 Kingdom building buff is active now.
 15% building rune is at (X, Y).
-Apply for Justice title. Stack everything: 15% rune + 10% KD buff + 10% Justice.
-
-►═════════❂❂❂═════════◄
-<b><color=#800000>— King Fluffy</color></b>`,
-  },
-  {
-    id: 'kingdom-buff-gathering',
-    name: 'Gathering Buff',
-    category: 'kingdom',
-    description: 'Kingdom gathering buff announcement with rune and title stacking',
-    content: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>
-►═════════❂❂❂═════════◄
-
-<b><color=#ffaa00>Gathering Buff Active</color></b>
-
-Governors,
-
-Kingdom gathering buff is active now.
-15% gathering rune is at (X, Y).
-Apply for Treasurer title. Stack everything: 15% rune + 10% KD buff + 10% Treasurer.
-
-►═════════❂❂❂═════════◄
-<b><color=#800000>— King Fluffy</color></b>`,
-  },
-  {
-    id: 'kingdom-buff-healing',
-    name: 'Healing Buff',
-    category: 'kingdom',
-    description: 'Kingdom healing buff announcement with rune and title stacking',
-    content: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>
-►═════════❂❂❂═════════◄
-
-<b><color=#cc44cc>Healing Buff Active</color></b>
-
-Governors,
-
-Kingdom healing buff is active now.
-15% healing rune is at (X, Y).
-Apply for Architect title. Stack everything: 15% rune + 10% KD buff + 10% Architect.
+Apply for Architect title (+10% building speed). Stack: 15% rune + 10% KD buff + 10% Architect.
 
 ►═════════❂❂❂═════════◄
 <b><color=#800000>— King Fluffy</color></b>`,
