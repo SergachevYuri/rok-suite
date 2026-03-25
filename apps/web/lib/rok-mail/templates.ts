@@ -159,7 +159,9 @@ Kingdom <b>Training buff</b> IS activated at <b>14:30 UTC</b>
 
 Grab a training rune x: 000 y: 000 and apply for the Duke title.
 
-Stack everything: <color=#ff3333>15% rune</color> + <color=#ff3333>10% KD buff</color> + <color=#ff3333>10% The Duke</color> :)`,
+Stack everything: <color=#ff3333>15% rune</color> + <color=#ff3333>10% KD buff</color> + <color=#ff3333>10% The Duke</color> :)
+
+<b><color=#800000>— King Fluffy</color></b>`,
   },
   {
     id: 'kingdom-buff-research',
@@ -176,7 +178,9 @@ Kingdom <b>Research buff</b> IS activated at <b>14:30 UTC</b>
 
 Grab a research rune x: 000 y: 000 and apply for the Scientist title.
 
-Stack everything: <color=#3399ff>15% rune</color> + <color=#3399ff>10% KD buff</color> + <color=#3399ff>5% The Scientist</color> :)`,
+Stack everything: <color=#3399ff>15% rune</color> + <color=#3399ff>10% KD buff</color> + <color=#3399ff>5% The Scientist</color> :)
+
+<b><color=#800000>— King Fluffy</color></b>`,
   },
   {
     id: 'kingdom-buff-building',
@@ -193,6 +197,8 @@ Kingdom <b>Building buff</b> IS activated at <b>14:30 UTC</b>
 
 Grab a building rune x: 000 y: 000 and apply for the Architect title.
 
-Stack everything: <color=#33cc66>15% rune</color> + <color=#33cc66>10% KD buff</color> + <color=#33cc66>10% The Architect</color> :)`,
+Stack everything: <color=#33cc66>15% rune</color> + <color=#33cc66>10% KD buff</color> + <color=#33cc66>10% The Architect</color> :)
+
+<b><color=#800000>— King Fluffy</color></b>`,
   },
 ];
