@@ -30,7 +30,6 @@ import { MailParts } from '@/components/rok-mail/MailParts';
 import { stripRokMarkup, stripWithPositions, applyTextEdit } from '@/lib/rok-mail/parser';
 import { splitMailContent, hasManualBreaks } from '@/lib/rok-mail/splitter';
 import { ALLIANCE_DESCRIPTIONS, ALLIANCE_KEYS, ALLIANCE_COLORS, type AllianceKey } from '@/lib/rok-mail/alliance-descriptions';
-import { KingdomBuffMail } from '@/components/rok-mail/KingdomBuffMail';
 
 type EditorMode = 'edit' | 'split' | 'preview';
 
@@ -59,11 +58,11 @@ export default function RokMailPage() {
   const [shareId, setShareId] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
-  const [contentMode, setContentMode] = useState<'mail' | 'alliance' | 'buff'>('mail');
+  const [contentMode, setContentMode] = useState<'mail' | 'alliance'>('mail');
   const [selectedAlliance, setSelectedAlliance] = useState<AllianceKey>('ANG');
   const mailContentRef = useRef('');
   const [allianceContents, setAllianceContents] = useState<Record<AllianceKey, string>>({ ...ALLIANCE_DESCRIPTIONS });
-  const contentModeRef = useRef<'mail' | 'alliance' | 'buff'>('mail');
+  const contentModeRef = useRef<'mail' | 'alliance'>('mail');
   contentModeRef.current = contentMode;
   const selectedAllianceRef = useRef<AllianceKey>('ANG');
   selectedAllianceRef.current = selectedAlliance;
@@ -131,21 +130,15 @@ export default function RokMailPage() {
     if (typingTimerRef.current) { clearTimeout(typingTimerRef.current); typingTimerRef.current = undefined; }
   }
 
-  function handleModeSwitch(mode: 'mail' | 'alliance' | 'buff') {
+  function handleModeSwitch(mode: 'mail' | 'alliance') {
     if (mode === contentModeRef.current) return;
-    // Save current content before switching
     if (contentModeRef.current === 'mail') {
       mailContentRef.current = contentRef.current;
-    } else if (contentModeRef.current === 'alliance') {
-      setAllianceContents(prev => ({ ...prev, [selectedAllianceRef.current]: contentRef.current }));
-    }
-    // Restore target content
-    if (mode === 'mail') {
-      setContent(mailContentRef.current);
-    } else if (mode === 'alliance') {
       setContent(allianceContents[selectedAllianceRef.current]);
+    } else {
+      setAllianceContents(prev => ({ ...prev, [selectedAllianceRef.current]: contentRef.current }));
+      setContent(mailContentRef.current);
     }
-    // buff mode doesn't use the shared content/editor
     clearUndoRedo();
     setContentMode(mode);
   }
@@ -400,7 +393,7 @@ export default function RokMailPage() {
               RoK Mail
             </h1>
             <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {contentMode === 'mail' ? 'Format and preview in-game mail messages' : contentMode === 'alliance' ? 'Edit in-game alliance descriptions' : 'Generate kingdom buff announcements'}
+              {contentMode === 'mail' ? 'Format and preview in-game mail messages' : 'Edit in-game alliance descriptions'}
             </p>
           </div>
         </div>
@@ -418,7 +411,6 @@ export default function RokMailPage() {
               {([
                 { key: 'mail' as const, label: 'Mail' },
                 { key: 'alliance' as const, label: 'Alliance' },
-                { key: 'buff' as const, label: 'Buff Mail' },
               ] as const).map((mode) => {
                 const isActive = contentMode === mode.key;
                 return (
@@ -439,7 +431,7 @@ export default function RokMailPage() {
               })}
             </div>
 
-          {contentMode === 'buff' ? null : contentMode === 'mail' ? (
+          {contentMode === 'mail' ? (
             <>
               <button
                 type="button"
@@ -498,8 +490,6 @@ export default function RokMailPage() {
             </>
           )}
 
-          {contentMode !== 'buff' && (
-          <>
           <div className="flex-1" />
 
           {/* Mode Toggle — desktop only (mobile uses Source/Text/Preview tabs) */}
@@ -566,16 +556,11 @@ export default function RokMailPage() {
               <span className="hidden sm:inline">{linkCopied ? 'Link copied!' : shareId ? 'Copy Link' : 'Share'}</span>
             </button>
           )}
-          </>
-          )}
           </div>
         </div>
       </div>
 
       {/* Content */}
-      {contentMode === 'buff' ? (
-        <KingdomBuffMail />
-      ) : (
       <div className="max-w-7xl mx-auto px-4 md:px-6 pb-6 md:pb-8 pt-4">
         {shareError && (
           <div className="mb-4 px-3 py-2 rounded-lg text-sm text-red-400 bg-red-500/10 border border-red-500/20">
@@ -721,7 +706,6 @@ export default function RokMailPage() {
           )}
         </div>
       </div>
-      )}
 
       {/* Template Selector Modal */}
       {showTemplates && (
