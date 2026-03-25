@@ -148,57 +148,51 @@ Your message here.
     id: 'kingdom-buff-training',
     name: 'Training Buff',
     category: 'kingdom',
-    description: 'Kingdom training buff announcement with rune and title stacking',
+    description: 'Kingdom training buff announcement with Duke title stacking',
     content: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>
-►═════════❂❂❂═════════◄
 
-<b><color=#ff3333>Training Buff Active</color></b>
+<b><color=#ff3333>KINGDOM TRAINING BUFF</color></b>
 
 Governors,
 
-Kingdom training buff is active now.
-15% training rune is at (X, Y).
-Apply for Duke title (+10% training speed). Stack: 15% rune + 10% KD buff + 10% Duke.
+Kingdom <b>Training buff</b> IS activated at <b>14:30 UTC</b>
 
-►═════════❂❂❂═════════◄
-<b><color=#800000>— King Fluffy</color></b>`,
+Grab a training rune x: 000 y: 000 and apply for the Duke title.
+
+Stack everything: <color=#ff3333>15% rune</color> + <color=#ff3333>10% KD buff</color> + <color=#ff3333>10% The Duke</color> :)`,
   },
   {
     id: 'kingdom-buff-research',
     name: 'Research Buff',
     category: 'kingdom',
-    description: 'Kingdom research buff announcement with rune and title stacking',
+    description: 'Kingdom research buff announcement with Scientist title stacking',
     content: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>
-►═════════❂❂❂═════════◄
 
-<b><color=#3399ff>Research Buff Active</color></b>
+<b><color=#3399ff>KINGDOM RESEARCH BUFF</color></b>
 
 Governors,
 
-Kingdom research buff is active now.
-15% research rune is at (X, Y).
-Apply for Scientist title (+5% research speed). Stack: 15% rune + 10% KD buff + 5% Scientist.
+Kingdom <b>Research buff</b> IS activated at <b>14:30 UTC</b>
 
-►═════════❂❂❂═════════◄
-<b><color=#800000>— King Fluffy</color></b>`,
+Grab a research rune x: 000 y: 000 and apply for the Scientist title.
+
+Stack everything: <color=#3399ff>15% rune</color> + <color=#3399ff>10% KD buff</color> + <color=#3399ff>5% The Scientist</color> :)`,
   },
   {
     id: 'kingdom-buff-building',
     name: 'Building Buff',
     category: 'kingdom',
-    description: 'Kingdom building buff announcement with rune and title stacking',
+    description: 'Kingdom building buff announcement with Architect title stacking',
     content: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>
-►═════════❂❂❂═════════◄
 
-<b><color=#33cc66>Building Buff Active</color></b>
+<b><color=#33cc66>KINGDOM BUILDING BUFF</color></b>
 
 Governors,
 
-Kingdom building buff is active now.
-15% building rune is at (X, Y).
-Apply for Architect title (+10% building speed). Stack: 15% rune + 10% KD buff + 10% Architect.
+Kingdom <b>Building buff</b> IS activated at <b>14:30 UTC</b>
 
-►═════════❂❂❂═════════◄
-<b><color=#800000>— King Fluffy</color></b>`,
+Grab a building rune x: 000 y: 000 and apply for the Architect title.
+
+Stack everything: <color=#33cc66>15% rune</color> + <color=#33cc66>10% KD buff</color> + <color=#33cc66>10% The Architect</color> :)`,
   },
 ];
