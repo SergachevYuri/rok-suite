@@ -150,6 +150,7 @@ Your message here.
     category: 'kingdom',
     description: 'Kingdom training buff announcement with Duke title stacking',
     content: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>
+►═════════❂❂❂═════════◄
 
 <b><color=#ff3333>KINGDOM TRAINING BUFF</color></b>
 
@@ -161,6 +162,7 @@ Grab a training rune x: 000 y: 000 and apply for the Duke title.
 
 Stack everything: <color=#ff3333>15% rune</color> + <color=#ff3333>10% KD buff</color> + <color=#ff3333>10% The Duke</color> :)
 
+►═════════❂❂❂═════════◄
 <b><color=#800000>— King Fluffy</color></b>`,
   },
   {
@@ -169,6 +171,7 @@ Stack everything: <color=#ff3333>15% rune</color> + <color=#ff3333>10% KD buff</
     category: 'kingdom',
     description: 'Kingdom research buff announcement with Scientist title stacking',
     content: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>
+►═════════❂❂❂═════════◄
 
 <b><color=#3399ff>KINGDOM RESEARCH BUFF</color></b>
 
@@ -180,6 +183,7 @@ Grab a research rune x: 000 y: 000 and apply for the Scientist title.
 
 Stack everything: <color=#3399ff>15% rune</color> + <color=#3399ff>10% KD buff</color> + <color=#3399ff>5% The Scientist</color> :)
 
+►═════════❂❂❂═════════◄
 <b><color=#800000>— King Fluffy</color></b>`,
   },
   {
@@ -188,6 +192,7 @@ Stack everything: <color=#3399ff>15% rune</color> + <color=#3399ff>10% KD buff</
     category: 'kingdom',
     description: 'Kingdom building buff announcement with Architect title stacking',
     content: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>
+►═════════❂❂❂═════════◄
 
 <b><color=#33cc66>KINGDOM BUILDING BUFF</color></b>
 
@@ -199,6 +204,7 @@ Grab a building rune x: 000 y: 000 and apply for the Architect title.
 
 Stack everything: <color=#33cc66>15% rune</color> + <color=#33cc66>10% KD buff</color> + <color=#33cc66>10% The Architect</color> :)
 
+►═════════❂❂❂═════════◄
 <b><color=#800000>— King Fluffy</color></b>`,
   },
 ];
