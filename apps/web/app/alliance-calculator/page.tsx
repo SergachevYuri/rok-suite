@@ -843,7 +843,7 @@ export default function FlagCalculatorPage() {
                             {rss.label}
                           </span>
                           <span className="font-mono text-sm text-[var(--text-secondary)]">
-                            {!hasCap ? (
+                            {!hasCap || hours == null ? (
                               <span className="text-[var(--text-muted)] text-xs">no cap set</span>
                             ) : hours === 0 ? (
                               <span className="text-green-400 text-xs">already full</span>
