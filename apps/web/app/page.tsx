@@ -16,7 +16,7 @@ import {
   Crosshair,
   Map,
   BarChart3,
-  Flag,
+  Calculator,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -125,14 +125,14 @@ export default function Home() {
       iconHoverColor: 'group-hover:text-green-500',
     },
     {
-      href: '/flag-calculator',
-      titleKey: 'tools.flagCalculator.title',
-      descriptionKey: 'tools.flagCalculator.description',
-      icon: Flag,
-      hoverBorder: 'hover:border-red-500/40',
-      hoverShadow: 'hover:shadow-red-500/10',
-      iconHoverBg: 'group-hover:bg-red-500/15',
-      iconHoverColor: 'group-hover:text-red-500',
+      href: '/alliance-calculator',
+      titleKey: 'tools.allianceCalculator.title',
+      descriptionKey: 'tools.allianceCalculator.description',
+      icon: Calculator,
+      hoverBorder: 'hover:border-amber-500/40',
+      hoverShadow: 'hover:shadow-amber-500/10',
+      iconHoverBg: 'group-hover:bg-amber-500/15',
+      iconHoverColor: 'group-hover:text-amber-500',
     },
   ] as const;
 
