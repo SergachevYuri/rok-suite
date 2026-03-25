@@ -1,39 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTheme } from '@/lib/theme-context';
 import { AppSidebar } from '@/components/AppSidebar';
+import { ADMIN_PASSWORD } from '@/lib/auth-passwords';
 
-// Google Calendar configuration
+// ——— Calendar configuration ————————————————————————————————————————————
 const PUBLIC_CALENDARS = [
     {
         id: '2aed069b30c3f3501b64ef982441f597b833e3db8b855488f734efe1b9552040@group.calendar.google.com',
         name: 'Angmar Alliance',
-        color: '#D50000', // red
-        displayColor: '#ef4444', // red
+        color: '#ef4444',
     },
     {
         id: 'e1ef35a9b7dd39094f70f7065b2c20e86685b9f7e1e62f17030298d0a3bbedca@group.calendar.google.com',
         name: 'Kingdom 23',
-        color: '#039BE5', // blue
-        displayColor: '#3b82f6', // blue
+        color: '#3b82f6',
     },
     {
         id: 'd005a7955410ff8b21164034320d73e20fad0124e59617077234e6b15aae0577@group.calendar.google.com',
         name: 'ROK Events',
-        color: '#7986CB', // purple
-        displayColor: '#8b5cf6', // violet
+        color: '#8b5cf6',
     },
 ];
 
 const ADMIN_CALENDAR = {
     id: 'ef47386caa3f7c72112843b965a4db91dc20c1b785836db69b064bf49a50aede@group.calendar.google.com',
     name: 'Leadership',
-    color: '#0B8043', // green
-    displayColor: '#22c55e', // green
+    color: '#22c55e',
 };
-
-import { ADMIN_PASSWORD } from '@/lib/auth-passwords';
 
 const TIMEZONE_OPTIONS = [
     { value: 'UTC', label: 'UTC (Game Time)' },
@@ -46,27 +41,506 @@ const TIMEZONE_OPTIONS = [
     { value: 'Australia/Sydney', label: 'Australia' },
 ];
 
+// ——— Types ——————————————————————————————————————————————————————————————
+interface CalEvent {
+    id: string;
+    summary: string;
+    description?: string;
+    start: string;
+    end: string;
+    allDay: boolean;
+    calendarName: string;
+    calendarColor: string;
+}
+
+type ViewMode = 'agenda' | 'month';
+
+// ——— iCal parser ————————————————————————————————————————————————————————
+function parseICS(icsText: string, calendarName: string, calendarColor: string): CalEvent[] {
+    const events: CalEvent[] = [];
+    const blocks = icsText.split('BEGIN:VEVENT');
+
+    for (let i = 1; i < blocks.length; i++) {
+        const block = blocks[i].split('END:VEVENT')[0];
+        const lines = unfoldICS(block);
+
+        let summary = '';
+        let description = '';
+        let uid = '';
+        let dtstart = '';
+        let dtend = '';
+        let allDay = false;
+
+        for (const line of lines) {
+            if (line.startsWith('SUMMARY:') || line.startsWith('SUMMARY;')) {
+                summary = extractValue(line);
+            } else if (line.startsWith('DESCRIPTION:') || line.startsWith('DESCRIPTION;')) {
+                description = extractValue(line).replace(/\\n/g, '\n').replace(/\\,/g, ',');
+            } else if (line.startsWith('UID:') || line.startsWith('UID;')) {
+                uid = extractValue(line);
+            } else if (line.startsWith('DTSTART')) {
+                const parsed = parseICSDate(line);
+                dtstart = parsed.iso;
+                allDay = parsed.allDay;
+            } else if (line.startsWith('DTEND')) {
+                const parsed = parseICSDate(line);
+                dtend = parsed.iso;
+            }
+        }
+
+        if (summary && dtstart) {
+            events.push({
+                id: uid || `${calendarName}-${i}`,
+                summary,
+                description: description || undefined,
+                start: dtstart,
+                end: dtend || dtstart,
+                allDay,
+                calendarName,
+                calendarColor,
+            });
+        }
+    }
+    return events;
+}
+
+function unfoldICS(text: string): string[] {
+    const unfolded = text.replace(/\r\n[\t ]/g, '').replace(/\r/g, '');
+    return unfolded.split('\n').map(l => l.trim()).filter(Boolean);
+}
+
+function extractValue(line: string): string {
+    const colonIdx = line.indexOf(':');
+    return colonIdx >= 0 ? line.slice(colonIdx + 1) : '';
+}
+
+function parseICSDate(line: string): { iso: string; allDay: boolean } {
+    const value = extractValue(line);
+    const isDateOnly = line.includes('VALUE=DATE') || /^\d{8}$/.test(value);
+
+    if (isDateOnly) {
+        const y = value.slice(0, 4);
+        const m = value.slice(4, 6);
+        const d = value.slice(6, 8);
+        return { iso: `${y}-${m}-${d}`, allDay: true };
+    }
+
+    const y = value.slice(0, 4);
+    const m = value.slice(4, 6);
+    const d = value.slice(6, 8);
+    const h = value.slice(9, 11);
+    const min = value.slice(11, 13);
+    const s = value.slice(13, 15);
+    const isUTC = value.endsWith('Z');
+    return {
+        iso: `${y}-${m}-${d}T${h}:${min}:${s}${isUTC ? 'Z' : ''}`,
+        allDay: false,
+    };
+}
+
+// ——— Date helpers ———————————————————————————————————————————————————————
+function formatTime(isoString: string, tz: string): string {
+    try {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz, hour12: true });
+    } catch {
+        return '';
+    }
+}
+
+function formatDayHeader(dateStr: string, tz: string): string {
+    try {
+        const d = new Date(dateStr + (dateStr.length === 10 ? 'T12:00:00Z' : ''));
+        return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
+    } catch {
+        return dateStr;
+    }
+}
+
+function getDateKey(isoString: string, allDay: boolean, tz: string): string {
+    if (allDay) return isoString.slice(0, 10);
+    try {
+        const d = new Date(isoString);
+        return d.toLocaleDateString('en-CA', { timeZone: tz });
+    } catch {
+        return isoString.slice(0, 10);
+    }
+}
+
+function isToday(dateKey: string, tz: string): boolean {
+    const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+    return dateKey === todayKey;
+}
+
+function isPast(dateKey: string, tz: string): boolean {
+    const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+    return dateKey < todayKey;
+}
+
+function getDaysInMonth(year: number, month: number): number {
+    return new Date(year, month + 1, 0).getDate();
+}
+
+function getFirstDayOfMonth(year: number, month: number): number {
+    return new Date(year, month, 1).getDay();
+}
+
+// ——— Data fetching ——————————————————————————————————————————————————————
+async function fetchCalendarICS(calendarId: string): Promise<string> {
+    const url = `https://calendar.google.com/calendar/ical/${encodeURIComponent(calendarId)}/public/basic.ics`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.text();
+}
+
+// ——— Event Card —————————————————————————————————————————————————————————
+function EventCard({ event, timezone, expanded, onToggle }: {
+    event: CalEvent;
+    timezone: string;
+    expanded: boolean;
+    onToggle: () => void;
+}) {
+    const hasDescription = !!event.description?.trim();
+
+    return (
+        <div
+            className={`group relative flex gap-3 py-2.5 px-3 rounded-lg transition-colors ${hasDescription ? 'cursor-pointer hover:bg-[var(--background-hover)]' : ''}`}
+            onClick={hasDescription ? onToggle : undefined}
+        >
+            <div className="flex flex-col items-center gap-1 min-w-[60px] sm:min-w-[72px] shrink-0 pt-0.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: event.calendarColor }} />
+                {event.allDay ? (
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">All day</span>
+                ) : (
+                    <span className="text-xs text-[var(--text-secondary)] tabular-nums">
+                        {formatTime(event.start, timezone)}
+                    </span>
+                )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+                <div className="flex items-start gap-2">
+                    <p className="text-sm font-medium text-[var(--foreground)] leading-snug break-words">
+                        {event.summary}
+                    </p>
+                    {hasDescription && (
+                        <svg
+                            className={`w-3.5 h-3.5 shrink-0 mt-0.5 text-[var(--text-muted)] transition-transform ${expanded ? 'rotate-180' : ''}`}
+                            viewBox="0 0 20 20" fill="currentColor"
+                        >
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                    )}
+                </div>
+                <span className="text-[10px] text-[var(--text-muted)]">{event.calendarName}</span>
+
+                {expanded && event.description && (
+                    <div className="mt-2 text-xs text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap border-t border-[var(--border)] pt-2">
+                        {event.description.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}
+                    </div>
+                )}
+            </div>
+
+            {!event.allDay && event.end && (
+                <span className="text-[10px] text-[var(--text-muted)] shrink-0 pt-0.5 tabular-nums hidden sm:block">
+                    {formatTime(event.end, timezone)}
+                </span>
+            )}
+        </div>
+    );
+}
+
+// ——— Agenda View ————————————————————————————————————————————————————————
+function AgendaView({ events, timezone }: { events: CalEvent[]; timezone: string }) {
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+
+    const grouped = useMemo(() => {
+        const map = new Map<string, CalEvent[]>();
+        for (const ev of events) {
+            const key = getDateKey(ev.start, ev.allDay, timezone);
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(ev);
+        }
+        return Array.from(map.entries());
+    }, [events, timezone]);
+
+    if (events.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-[var(--text-secondary)]">
+                <svg className="w-12 h-12 mb-3 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <p className="text-sm">No events to display</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="divide-y divide-[var(--border)]">
+            {grouped.map(([dateKey, dayEvents]) => {
+                const today = isToday(dateKey, timezone);
+                const past = isPast(dateKey, timezone);
+                return (
+                    <div key={dateKey} className={`${past && !today ? 'opacity-50' : ''}`}>
+                        <div className={`sticky top-0 z-10 px-3 py-2 text-xs font-semibold tracking-wide uppercase ${
+                            today
+                                ? 'bg-rose-500/10 text-rose-400 border-l-2 border-rose-500'
+                                : 'bg-[var(--background-secondary)]/80 text-[var(--text-secondary)] backdrop-blur-sm'
+                        }`}>
+                            {today && <span className="mr-1.5">●</span>}
+                            {formatDayHeader(dateKey, timezone)}
+                            {today && <span className="ml-1.5 normal-case tracking-normal">— Today</span>}
+                        </div>
+                        <div className="py-1">
+                            {dayEvents.map(ev => (
+                                <EventCard
+                                    key={ev.id}
+                                    event={ev}
+                                    timezone={timezone}
+                                    expanded={expandedId === ev.id}
+                                    onToggle={() => setExpandedId(expandedId === ev.id ? null : ev.id)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+// ——— Month View —————————————————————————————————————————————————————————
+function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth }: {
+    events: CalEvent[];
+    timezone: string;
+    currentMonth: number;
+    currentYear: number;
+    onChangeMonth: (delta: number) => void;
+}) {
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+    const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+    const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
+    const monthName = new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const eventsByDate = useMemo(() => {
+        const map = new Map<string, CalEvent[]>();
+        for (const ev of events) {
+            if (ev.allDay) {
+                const startDate = new Date(ev.start + 'T00:00:00Z');
+                const endDate = new Date(ev.end + 'T00:00:00Z');
+                for (let d = new Date(startDate); d < endDate; d.setUTCDate(d.getUTCDate() + 1)) {
+                    const key = d.toISOString().slice(0, 10);
+                    if (!map.has(key)) map.set(key, []);
+                    if (!map.get(key)!.some(e => e.id === ev.id)) {
+                        map.get(key)!.push(ev);
+                    }
+                }
+            } else {
+                const key = getDateKey(ev.start, false, timezone);
+                if (!map.has(key)) map.set(key, []);
+                map.get(key)!.push(ev);
+            }
+        }
+        return map;
+    }, [events, timezone]);
+
+    const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: timezone });
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+    const selectedEvents = selectedDate ? (eventsByDate.get(selectedDate) || []) : [];
+
+    return (
+        <div>
+            <div className="flex items-center justify-between px-3 py-3">
+                <button onClick={() => onChangeMonth(-1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
+                    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                </button>
+                <h3 className="text-sm font-semibold text-[var(--foreground)]">{monthName}</h3>
+                <button onClick={() => onChangeMonth(1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
+                    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                </button>
+            </div>
+
+            <div className="grid grid-cols-7 text-center mb-1">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                    <div key={d} className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider py-1">{d}</div>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-px">
+                {cells.map((day, i) => {
+                    if (day === null) return <div key={`empty-${i}`} />;
+                    const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const dayEvents = eventsByDate.get(dateKey) || [];
+                    const isSelected = selectedDate === dateKey;
+                    const isTodayCell = dateKey === todayKey;
+                    const dotColors = Array.from(new Set(dayEvents.map(e => e.calendarColor))).slice(0, 4);
+
+                    return (
+                        <button
+                            key={dateKey}
+                            onClick={() => setSelectedDate(isSelected ? null : dateKey)}
+                            className={`relative flex flex-col items-center py-1.5 sm:py-2 rounded-lg transition-colors ${
+                                isSelected
+                                    ? 'bg-rose-500/20 ring-1 ring-rose-500/40'
+                                    : dayEvents.length > 0
+                                        ? 'hover:bg-[var(--background-hover)] cursor-pointer'
+                                        : 'opacity-50'
+                            }`}
+                        >
+                            <span className={`text-xs sm:text-sm font-medium leading-none ${
+                                isTodayCell
+                                    ? 'bg-rose-500 text-white w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center'
+                                    : 'text-[var(--foreground)]'
+                            }`}>
+                                {day}
+                            </span>
+                            {dotColors.length > 0 && (
+                                <div className="flex gap-0.5 mt-1">
+                                    {dotColors.map((c, ci) => (
+                                        <span key={ci} className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full" style={{ backgroundColor: c }} />
+                                    ))}
+                                </div>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {selectedDate && (
+                <div className="mt-3 border-t border-[var(--border)] pt-3">
+                    <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider px-3 mb-2">
+                        {formatDayHeader(selectedDate, timezone)}
+                    </h4>
+                    {selectedEvents.length === 0 ? (
+                        <p className="text-xs text-[var(--text-muted)] px-3 py-2">No events</p>
+                    ) : (
+                        <div className="space-y-0.5">
+                            {selectedEvents.map(ev => (
+                                <div key={ev.id} className="flex items-start gap-2.5 px-3 py-1.5">
+                                    <span className="w-2 h-2 rounded-full shrink-0 mt-1" style={{ backgroundColor: ev.calendarColor }} />
+                                    <div className="min-w-0">
+                                        <p className="text-sm text-[var(--foreground)] leading-snug">{ev.summary}</p>
+                                        <p className="text-[10px] text-[var(--text-muted)]">
+                                            {ev.allDay ? 'All day' : `${formatTime(ev.start, timezone)} – ${formatTime(ev.end, timezone)}`}
+                                            {' · '}{ev.calendarName}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ——— Main page ——————————————————————————————————————————————————————————
 export default function CalendarPage() {
-    const { theme: currentTheme } = useTheme();
+    useTheme();
     const [timezone, setTimezone] = useState('UTC');
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
     const [showSubscribe, setShowSubscribe] = useState(false);
-    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1, 2])); // Default to all public calendars
+    const [enabledCalendars, setEnabledCalendars] = useState<Set<number>>(new Set([0, 1, 2]));
     const [isAdmin, setIsAdmin] = useState(false);
     const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
     const [password, setPassword] = useState('');
     const [passwordError, setPasswordError] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>('agenda');
+    const [monthOffset, setMonthOffset] = useState(0);
 
-    // Combine public + admin calendars based on login state
+    const [allEvents, setAllEvents] = useState<Map<string, CalEvent[]>>(new Map());
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
     const CALENDARS = isAdmin ? [...PUBLIC_CALENDARS, ADMIN_CALENDAR] : PUBLIC_CALENDARS;
 
+    // ——— Fetch iCal feeds (client-side, no cookies needed) ——————————————
+    const fetchAll = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        const calsToFetch = isAdmin ? [...PUBLIC_CALENDARS, ADMIN_CALENDAR] : PUBLIC_CALENDARS;
+        const newMap = new Map<string, CalEvent[]>();
+
+        const results = await Promise.allSettled(
+            calsToFetch.map(async (cal) => {
+                const icsText = await fetchCalendarICS(cal.id);
+                return { calId: cal.id, events: parseICS(icsText, cal.name, cal.color) };
+            })
+        );
+
+        let totalEvents = 0;
+        for (const r of results) {
+            if (r.status === 'fulfilled') {
+                newMap.set(r.value.calId, r.value.events);
+                totalEvents += r.value.events.length;
+            }
+        }
+
+        if (totalEvents === 0 && results.every(r => r.status === 'rejected')) {
+            setError('Could not load calendar data. The calendars may not be publicly accessible.');
+        }
+
+        setAllEvents(newMap);
+        setLoading(false);
+    }, [isAdmin]);
+
+    useEffect(() => { fetchAll(); }, [fetchAll]);
+
+    // ——— Filter + sort ——————————————————————————————————————————————————
+    const filteredEvents = useMemo(() => {
+        const result: CalEvent[] = [];
+        const enabledIds = CALENDARS.filter((_, i) => enabledCalendars.has(i)).map(c => c.id);
+        for (const [calId, events] of allEvents.entries()) {
+            if (enabledIds.includes(calId)) result.push(...events);
+        }
+        return result.sort((a, b) => {
+            const aTime = new Date(a.start).getTime();
+            const bTime = new Date(b.start).getTime();
+            if (aTime !== bTime) return aTime - bTime;
+            if (a.allDay && !b.allDay) return -1;
+            if (!a.allDay && b.allDay) return 1;
+            return 0;
+        });
+    }, [allEvents, enabledCalendars, CALENDARS]);
+
+    const agendaEvents = useMemo(() => {
+        const past7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        return filteredEvents.filter(ev => {
+            const end = new Date(ev.allDay ? ev.end + 'T23:59:59Z' : ev.end);
+            return end >= past7;
+        });
+    }, [filteredEvents]);
+
+    const now = new Date();
+    const currentMonthDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+
+    const monthEvents = useMemo(() => {
+        const year = currentMonthDate.getFullYear();
+        const month = currentMonthDate.getMonth();
+        const start = new Date(year, month, 1);
+        const end = new Date(year, month + 1, 0, 23, 59, 59);
+        return filteredEvents.filter(ev => {
+            const evStart = new Date(ev.start);
+            const evEnd = new Date(ev.allDay ? ev.end + 'T00:00:00Z' : ev.end);
+            return evEnd >= start && evStart <= end;
+        });
+    }, [filteredEvents, currentMonthDate]);
+
+    // ——— Handlers ———————————————————————————————————————————————————————
     const handleAdminLogin = () => {
         if (password === ADMIN_PASSWORD) {
             setIsAdmin(true);
             setShowPasswordPrompt(false);
             setPassword('');
             setPasswordError(false);
-            // Auto-enable the leadership calendar
             setEnabledCalendars(prev => new Set([...prev, PUBLIC_CALENDARS.length]));
         } else {
             setPasswordError(true);
@@ -75,7 +549,6 @@ export default function CalendarPage() {
 
     const handleAdminLogout = () => {
         setIsAdmin(false);
-        // Remove admin calendar from enabled set
         setEnabledCalendars(prev => {
             const next = new Set(prev);
             next.delete(PUBLIC_CALENDARS.length);
@@ -86,9 +559,7 @@ export default function CalendarPage() {
     const toggleCalendar = (index: number) => {
         const newEnabled = new Set(enabledCalendars);
         if (newEnabled.has(index)) {
-            if (newEnabled.size > 1) {
-                newEnabled.delete(index);
-            }
+            if (newEnabled.size > 1) newEnabled.delete(index);
         } else {
             newEnabled.add(index);
         }
@@ -98,8 +569,6 @@ export default function CalendarPage() {
     const copyToClipboard = async (url: string, index: number) => {
         try {
             await navigator.clipboard.writeText(url);
-            setCopiedIndex(index);
-            setTimeout(() => setCopiedIndex(null), 2000);
         } catch {
             const textArea = document.createElement('textarea');
             textArea.value = url;
@@ -107,32 +576,22 @@ export default function CalendarPage() {
             textArea.select();
             document.execCommand('copy');
             document.body.removeChild(textArea);
-            setCopiedIndex(index);
-            setTimeout(() => setCopiedIndex(null), 2000);
         }
+        setCopiedIndex(index);
+        setTimeout(() => setCopiedIndex(null), 2000);
     };
 
-    // Theme with CSS variables for dark/light mode support
     const theme = {
         bg: 'bg-[var(--background)]',
-        card: 'bg-[var(--background-card)] border-[var(--border)] backdrop-blur-xl',
-        text: 'text-[var(--foreground)]',
         textMuted: 'text-[var(--text-secondary)]',
         border: 'border-[var(--border)]',
         button: 'bg-[var(--background-card)] hover:opacity-80 text-[var(--foreground)] border border-[var(--border)]',
-        buttonPrimary: 'bg-gradient-to-r from-[#f56565] to-[#ed8936] hover:opacity-90 text-white',
     };
 
-    // Build calendar URL with multiple sources
-    const enabledCalendarsList = CALENDARS.filter((_, i) => enabledCalendars.has(i));
-    const calendarSources = enabledCalendarsList
-        .map(cal => `src=${encodeURIComponent(cal.id)}&color=${encodeURIComponent(cal.color)}`)
-        .join('&');
-    const calendarUrl = `https://calendar.google.com/calendar/embed?${calendarSources}&ctz=${encodeURIComponent(timezone)}&showTitle=0&showNav=1&showPrint=0&showCalendars=0&mode=AGENDA`;
-
+    // ——— Render —————————————————————————————————————————————————————————
     return (
         <AppSidebar>
-        <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
+        <div className={`min-h-screen ${theme.bg} text-[var(--foreground)]`}>
             {/* Header */}
             <header className="bg-[var(--background)]/80 backdrop-blur-xl border-b border-[var(--border)] sticky top-14 lg:top-0 z-30">
                 <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
@@ -199,19 +658,8 @@ export default function CalendarPage() {
                             />
                             {passwordError && <p className="text-xs text-red-400 mt-1">Incorrect password</p>}
                             <div className="flex gap-2 mt-4">
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowPasswordPrompt(false); setPassword(''); setPasswordError(false); }}
-                                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${theme.button}`}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="flex-1 px-3 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-700 text-white transition-colors"
-                                >
-                                    Login
-                                </button>
+                                <button type="button" onClick={() => { setShowPasswordPrompt(false); setPassword(''); setPasswordError(false); }} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${theme.button}`}>Cancel</button>
+                                <button type="submit" className="flex-1 px-3 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-700 text-white transition-colors">Login</button>
                             </div>
                         </form>
                     </div>
@@ -231,10 +679,7 @@ export default function CalendarPage() {
                                     : 'bg-[var(--background-card)] text-[var(--text-secondary)] border border-[var(--border)] opacity-60'
                             }`}
                         >
-                            <span
-                                className="w-3 h-3 rounded-full"
-                                style={{ backgroundColor: cal.displayColor }}
-                            />
+                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: cal.color }} />
                             {cal.name}
                             {enabledCalendars.has(index) && (
                                 <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
@@ -263,48 +708,25 @@ export default function CalendarPage() {
                     <div className="bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] rounded-xl p-4 mb-6">
                         <h3 className="text-lg font-semibold mb-4 text-center">Subscribe to Calendars</h3>
                         <p className={`text-xs ${theme.textMuted} text-center mb-4`}>Choose which calendars to add to your calendar app</p>
-
                         <div className="space-y-4">
                             {CALENDARS.map((cal, index) => {
                                 const icalUrl = `https://calendar.google.com/calendar/ical/${cal.id}/public/basic.ics`;
                                 return (
                                     <div key={cal.id} className={`p-4 rounded-lg border ${theme.border}`}>
                                         <div className="flex items-center gap-2 mb-3">
-                                            <span
-                                                className="w-3 h-3 rounded-full"
-                                                style={{ backgroundColor: cal.displayColor }}
-                                            />
+                                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: cal.color }} />
                                             <h4 className="font-medium">{cal.name}</h4>
                                         </div>
-
                                         <div className="grid gap-3 md:grid-cols-2">
-                                            {/* Google Calendar */}
                                             <div>
                                                 <p className={`text-xs ${theme.textMuted} mb-2`}>Google Calendar</p>
-                                                <a
-                                                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(cal.id)}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className={`inline-block px-3 py-2 rounded-lg text-xs font-medium ${theme.button}`}
-                                                >
-                                                    Add to Google Calendar
-                                                </a>
+                                                <a href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(cal.id)}`} target="_blank" rel="noopener noreferrer" className={`inline-block px-3 py-2 rounded-lg text-xs font-medium ${theme.button}`}>Add to Google Calendar</a>
                                             </div>
-
-                                            {/* iCal URL */}
                                             <div>
                                                 <p className={`text-xs ${theme.textMuted} mb-2`}>Apple / Outlook / Other</p>
                                                 <div className="flex gap-2">
-                                                    <input
-                                                        type="text"
-                                                        value={icalUrl}
-                                                        readOnly
-                                                        className={`flex-1 px-2 py-2 rounded-lg text-xs ${theme.button} bg-[var(--background)] font-mono truncate min-w-0`}
-                                                    />
-                                                    <button
-                                                        onClick={() => copyToClipboard(icalUrl, index)}
-                                                        className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${copiedIndex === index ? 'bg-green-600 text-white' : theme.button}`}
-                                                    >
+                                                    <input type="text" value={icalUrl} readOnly className={`flex-1 px-2 py-2 rounded-lg text-xs ${theme.button} bg-[var(--background)] font-mono truncate min-w-0`} />
+                                                    <button onClick={() => copyToClipboard(icalUrl, index)} className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${copiedIndex === index ? 'bg-green-600 text-white' : theme.button}`}>
                                                         {copiedIndex === index ? 'Copied!' : 'Copy'}
                                                     </button>
                                                 </div>
@@ -314,7 +736,6 @@ export default function CalendarPage() {
                                 );
                             })}
                         </div>
-
                         <div className="mt-4 pt-4 border-t border-[var(--border)] text-center">
                             <p className={`text-xs ${theme.textMuted}`}>
                                 For Apple Calendar / Outlook: Use <span className="text-[var(--foreground)]">File → New Calendar Subscription</span> and paste the URL
@@ -323,32 +744,73 @@ export default function CalendarPage() {
                     </div>
                 )}
 
-                {/* Timezone selector */}
-                <div className="flex justify-center items-center gap-2 mb-4">
-                    <span className={`text-sm ${theme.textMuted}`}>Timezone:</span>
-                    <select
-                        value={timezone}
-                        onChange={(e) => setTimezone(e.target.value)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} bg-[var(--background)] cursor-pointer`}
-                    >
-                        {TIMEZONE_OPTIONS.map((tz) => (
-                            <option key={tz.value} value={tz.value}>
-                                {tz.label}
-                            </option>
-                        ))}
-                    </select>
+                {/* Timezone + view mode */}
+                <div className="flex flex-wrap justify-center items-center gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                        <span className={`text-sm ${theme.textMuted}`}>Timezone:</span>
+                        <select
+                            value={timezone}
+                            onChange={(e) => setTimezone(e.target.value)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium ${theme.button} bg-[var(--background)] cursor-pointer`}
+                        >
+                            {TIMEZONE_OPTIONS.map((tz) => (
+                                <option key={tz.value} value={tz.value}>{tz.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex items-center bg-[var(--background-secondary)] rounded-lg p-0.5 border border-[var(--border)]">
+                        <button
+                            onClick={() => setViewMode('agenda')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                viewMode === 'agenda'
+                                    ? 'bg-[var(--background-card)] text-[var(--foreground)] shadow-sm'
+                                    : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+                            }`}
+                        >
+                            Agenda
+                        </button>
+                        <button
+                            onClick={() => setViewMode('month')}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                viewMode === 'month'
+                                    ? 'bg-[var(--background-card)] text-[var(--foreground)] shadow-sm'
+                                    : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+                            }`}
+                        >
+                            Month
+                        </button>
+                    </div>
                 </div>
 
-                {/* Calendar embed - inverted for dark mode */}
-                <div className="bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] rounded-xl overflow-hidden">
-                    <iframe
-                        key={`${timezone}-${Array.from(enabledCalendars).join('-')}-${currentTheme}`}
-                        src={calendarUrl}
-                        style={{ border: 0, filter: currentTheme === 'dark' ? 'invert(0.9) hue-rotate(180deg)' : 'none' }}
-                        width="100%"
-                        height="600"
-                        className="rounded-lg"
-                    />
+                {/* Calendar content — native, no iframe */}
+                <div className="bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] rounded-xl overflow-hidden min-h-[500px]">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-20 gap-3">
+                            <div className="w-8 h-8 border-2 border-rose-500/30 border-t-rose-500 rounded-full animate-spin" />
+                            <p className="text-sm text-[var(--text-secondary)]">Loading events...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
+                            <svg className="w-10 h-10 text-[var(--error)] opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <p className="text-sm text-[var(--text-secondary)]">{error}</p>
+                            <button onClick={fetchAll} className="px-4 py-2 rounded-lg text-xs font-medium bg-rose-500 hover:bg-rose-600 text-white transition-colors mt-2">Retry</button>
+                        </div>
+                    ) : viewMode === 'agenda' ? (
+                        <AgendaView events={agendaEvents} timezone={timezone} />
+                    ) : (
+                        <MonthView
+                            events={monthEvents}
+                            timezone={timezone}
+                            currentMonth={currentMonthDate.getMonth()}
+                            currentYear={currentMonthDate.getFullYear()}
+                            onChangeMonth={(delta) => setMonthOffset(prev => prev + delta)}
+                        />
+                    )}
                 </div>
 
                 <p className={`text-center text-xs ${theme.textMuted} mt-4`}>
