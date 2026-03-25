@@ -167,16 +167,6 @@ function getDateKey(isoString: string, allDay: boolean, tz: string): string {
     }
 }
 
-function isToday(dateKey: string, tz: string): boolean {
-    const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: tz });
-    return dateKey === todayKey;
-}
-
-function isPast(dateKey: string, tz: string): boolean {
-    const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: tz });
-    return dateKey < todayKey;
-}
-
 function getDaysInMonth(year: number, month: number): number {
     return new Date(year, month + 1, 0).getDate();
 }
@@ -252,16 +242,26 @@ function EventCard({ event, timezone, expanded, onToggle }: {
 // ——— Agenda View ————————————————————————————————————————————————————————
 function AgendaView({ events, timezone }: { events: CalEvent[]; timezone: string }) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [showPast, setShowPast] = useState(false);
 
-    const grouped = useMemo(() => {
+    const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: timezone });
+
+    const { pastDays, currentAndFutureDays } = useMemo(() => {
         const map = new Map<string, CalEvent[]>();
         for (const ev of events) {
             const key = getDateKey(ev.start, ev.allDay, timezone);
             if (!map.has(key)) map.set(key, []);
             map.get(key)!.push(ev);
         }
-        return Array.from(map.entries());
-    }, [events, timezone]);
+        const all = Array.from(map.entries());
+        const past: [string, CalEvent[]][] = [];
+        const current: [string, CalEvent[]][] = [];
+        for (const entry of all) {
+            if (entry[0] < todayKey) past.push(entry);
+            else current.push(entry);
+        }
+        return { pastDays: past, currentAndFutureDays: current };
+    }, [events, timezone, todayKey]);
 
     if (events.length === 0) {
         return (
@@ -272,46 +272,68 @@ function AgendaView({ events, timezone }: { events: CalEvent[]; timezone: string
                     <line x1="8" y1="2" x2="8" y2="6"/>
                     <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
-                <p className="text-sm">No events to display</p>
+                <p className="text-sm">No upcoming events</p>
             </div>
         );
     }
 
+    const renderDay = (dateKey: string, dayEvents: CalEvent[], faded: boolean) => {
+        const today = dateKey === todayKey;
+        return (
+            <div key={dateKey} className={faded ? 'opacity-40' : ''}>
+                <div className={`sticky top-0 z-10 px-4 py-2 text-xs font-semibold tracking-wide uppercase ${
+                    today
+                        ? 'bg-rose-500/10 text-rose-400 border-l-2 border-rose-500'
+                        : 'bg-[var(--background-secondary)]/80 text-[var(--text-secondary)] backdrop-blur-sm'
+                }`}>
+                    {today && <span className="mr-1.5">●</span>}
+                    {formatDayHeader(dateKey, timezone)}
+                    {today && <span className="ml-1.5 normal-case tracking-normal">— Today</span>}
+                </div>
+                <div className="py-1">
+                    {dayEvents.map(ev => (
+                        <EventCard
+                            key={ev.id}
+                            event={ev}
+                            timezone={timezone}
+                            expanded={expandedId === ev.id}
+                            onToggle={() => setExpandedId(expandedId === ev.id ? null : ev.id)}
+                        />
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="divide-y divide-[var(--border)]">
-            {grouped.map(([dateKey, dayEvents]) => {
-                const today = isToday(dateKey, timezone);
-                const past = isPast(dateKey, timezone);
-                return (
-                    <div key={dateKey} className={`${past && !today ? 'opacity-50' : ''}`}>
-                        <div className={`sticky top-0 z-10 px-3 py-2 text-xs font-semibold tracking-wide uppercase ${
-                            today
-                                ? 'bg-rose-500/10 text-rose-400 border-l-2 border-rose-500'
-                                : 'bg-[var(--background-secondary)]/80 text-[var(--text-secondary)] backdrop-blur-sm'
-                        }`}>
-                            {today && <span className="mr-1.5">●</span>}
-                            {formatDayHeader(dateKey, timezone)}
-                            {today && <span className="ml-1.5 normal-case tracking-normal">— Today</span>}
-                        </div>
-                        <div className="py-1">
-                            {dayEvents.map(ev => (
-                                <EventCard
-                                    key={ev.id}
-                                    event={ev}
-                                    timezone={timezone}
-                                    expanded={expandedId === ev.id}
-                                    onToggle={() => setExpandedId(expandedId === ev.id ? null : ev.id)}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                );
-            })}
+            {/* Past events toggle */}
+            {pastDays.length > 0 && (
+                <div className="px-4 py-2.5">
+                    <button
+                        onClick={() => setShowPast(!showPast)}
+                        className="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors flex items-center gap-1.5"
+                    >
+                        <svg className={`w-3.5 h-3.5 transition-transform ${showPast ? 'rotate-90' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                        {pastDays.length} past {pastDays.length === 1 ? 'day' : 'days'} ({pastDays.reduce((n, [, evs]) => n + evs.length, 0)} events)
+                    </button>
+                </div>
+            )}
+
+            {/* Past events (collapsed by default) */}
+            {showPast && pastDays.map(([dateKey, dayEvents]) => renderDay(dateKey, dayEvents, true))}
+
+            {/* Today + future */}
+            {currentAndFutureDays.map(([dateKey, dayEvents]) => renderDay(dateKey, dayEvents, false))}
         </div>
     );
 }
 
 // ——— Month View —————————————————————————————————————————————————————————
+const MAX_VISIBLE_EVENTS = 2; // show up to 2 event names per cell on desktop
+
 function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth }: {
     events: CalEvent[];
     timezone: string;
@@ -351,90 +373,122 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
     const cells: (number | null)[] = [];
     for (let i = 0; i < firstDay; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    // Pad to complete final row
+    while (cells.length % 7 !== 0) cells.push(null);
 
     const selectedEvents = selectedDate ? (eventsByDate.get(selectedDate) || []) : [];
 
     return (
         <div>
-            <div className="flex items-center justify-between px-3 py-3">
+            {/* Month header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
                 <button onClick={() => onChangeMonth(-1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
                     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                 </button>
-                <h3 className="text-sm font-semibold text-[var(--foreground)]">{monthName}</h3>
+                <h3 className="text-base font-semibold text-[var(--foreground)]">{monthName}</h3>
                 <button onClick={() => onChangeMonth(1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
                     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
                 </button>
             </div>
 
-            <div className="grid grid-cols-7 text-center mb-1">
+            {/* Day-of-week header */}
+            <div className="grid grid-cols-7 border-b border-[var(--border)]">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                    <div key={d} className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider py-1">{d}</div>
+                    <div key={d} className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider py-2 text-center">{d}</div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-px">
+            {/* Day grid */}
+            <div className="grid grid-cols-7">
                 {cells.map((day, i) => {
-                    if (day === null) return <div key={`empty-${i}`} />;
+                    if (day === null) return <div key={`empty-${i}`} className="border-b border-r border-[var(--border)] min-h-[60px] sm:min-h-[90px]" />;
                     const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const dayEvents = eventsByDate.get(dateKey) || [];
                     const isSelected = selectedDate === dateKey;
                     const isTodayCell = dateKey === todayKey;
-                    const dotColors = Array.from(new Set(dayEvents.map(e => e.calendarColor))).slice(0, 4);
+                    const visibleEvents = dayEvents.slice(0, MAX_VISIBLE_EVENTS);
+                    const overflow = dayEvents.length - MAX_VISIBLE_EVENTS;
 
                     return (
                         <button
                             key={dateKey}
                             onClick={() => setSelectedDate(isSelected ? null : dateKey)}
-                            className={`relative flex flex-col items-center py-1.5 sm:py-2 rounded-lg transition-colors ${
+                            className={`relative text-left p-1 sm:p-1.5 border-b border-r border-[var(--border)] min-h-[60px] sm:min-h-[90px] transition-colors ${
                                 isSelected
-                                    ? 'bg-rose-500/20 ring-1 ring-rose-500/40'
-                                    : dayEvents.length > 0
-                                        ? 'hover:bg-[var(--background-hover)] cursor-pointer'
-                                        : 'opacity-50'
+                                    ? 'bg-rose-500/10'
+                                    : 'hover:bg-[var(--background-hover)]'
                             }`}
                         >
-                            <span className={`text-xs sm:text-sm font-medium leading-none ${
-                                isTodayCell
-                                    ? 'bg-rose-500 text-white w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center'
-                                    : 'text-[var(--foreground)]'
-                            }`}>
-                                {day}
-                            </span>
-                            {dotColors.length > 0 && (
-                                <div className="flex gap-0.5 mt-1">
-                                    {dotColors.map((c, ci) => (
-                                        <span key={ci} className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full" style={{ backgroundColor: c }} />
+                            {/* Day number */}
+                            <div className="flex items-center justify-center sm:justify-start mb-0.5">
+                                <span className={`text-xs sm:text-sm font-medium leading-none ${
+                                    isTodayCell
+                                        ? 'bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center'
+                                        : dayEvents.length > 0 ? 'text-[var(--foreground)]' : 'text-[var(--text-muted)]'
+                                }`}>
+                                    {day}
+                                </span>
+                            </div>
+
+                            {/* Mobile: colored dots */}
+                            {dayEvents.length > 0 && (
+                                <div className="flex flex-wrap gap-0.5 justify-center sm:hidden mt-0.5">
+                                    {dayEvents.slice(0, 4).map((ev, ei) => (
+                                        <span key={ei} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ev.calendarColor }} />
                                     ))}
+                                    {dayEvents.length > 4 && (
+                                        <span className="text-[8px] text-[var(--text-muted)] leading-none">+{dayEvents.length - 4}</span>
+                                    )}
                                 </div>
                             )}
+
+                            {/* Desktop: event names */}
+                            <div className="hidden sm:block space-y-0.5">
+                                {visibleEvents.map((ev, ei) => (
+                                    <div
+                                        key={ei}
+                                        className="flex items-center gap-1 rounded px-1 py-0.5 truncate text-[10px] leading-tight"
+                                        style={{ backgroundColor: ev.calendarColor + '20', color: ev.calendarColor }}
+                                    >
+                                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: ev.calendarColor }} />
+                                        <span className="truncate font-medium">{ev.summary}</span>
+                                    </div>
+                                ))}
+                                {overflow > 0 && (
+                                    <div className="text-[10px] text-[var(--text-muted)] px-1">+{overflow} more</div>
+                                )}
+                            </div>
                         </button>
                     );
                 })}
             </div>
 
+            {/* Selected day detail panel */}
             {selectedDate && (
-                <div className="mt-3 border-t border-[var(--border)] pt-3">
-                    <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider px-3 mb-2">
-                        {formatDayHeader(selectedDate, timezone)}
-                    </h4>
-                    {selectedEvents.length === 0 ? (
-                        <p className="text-xs text-[var(--text-muted)] px-3 py-2">No events</p>
-                    ) : (
-                        <div className="space-y-0.5">
-                            {selectedEvents.map(ev => (
-                                <div key={ev.id} className="flex items-start gap-2.5 px-3 py-1.5">
-                                    <span className="w-2 h-2 rounded-full shrink-0 mt-1" style={{ backgroundColor: ev.calendarColor }} />
-                                    <div className="min-w-0">
-                                        <p className="text-sm text-[var(--foreground)] leading-snug">{ev.summary}</p>
-                                        <p className="text-[10px] text-[var(--text-muted)]">
-                                            {ev.allDay ? 'All day' : `${formatTime(ev.start, timezone)} – ${formatTime(ev.end, timezone)}`}
-                                            {' · '}{ev.calendarName}
-                                        </p>
+                <div className="border-t border-[var(--border)] bg-[var(--background-secondary)]/50">
+                    <div className="px-4 py-3">
+                        <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                            {formatDayHeader(selectedDate, timezone)}
+                        </h4>
+                        {selectedEvents.length === 0 ? (
+                            <p className="text-xs text-[var(--text-muted)] py-1">No events this day</p>
+                        ) : (
+                            <div className="space-y-1.5">
+                                {selectedEvents.map(ev => (
+                                    <div key={ev.id} className="flex items-start gap-2.5 py-1">
+                                        <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: ev.calendarColor }} />
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-[var(--foreground)] leading-snug">{ev.summary}</p>
+                                            <p className="text-[10px] text-[var(--text-muted)]">
+                                                {ev.allDay ? 'All day' : `${formatTime(ev.start, timezone)} – ${formatTime(ev.end, timezone)}`}
+                                                {' · '}{ev.calendarName}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
