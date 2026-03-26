@@ -144,7 +144,7 @@ export function KvkCountdownBanner() {
 
   return (
     <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-2.5">
-      <div className="max-w-5xl mx-auto flex flex-wrap items-center gap-x-6 gap-y-1.5">
+      <div className="max-w-5xl mx-auto flex flex-wrap items-center gap-x-3 sm:gap-x-6 gap-y-1.5">
         {visibleEvents.map((event, i) => {
           const ms = event.start.getTime() - now.getTime();
           const isLive = ms <= 0;

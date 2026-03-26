@@ -513,7 +513,7 @@ export default function SunsetCanyonPage() {
 
               {/* Formation selector */}
               {optimizedFormations.length > 1 && (
-                <div className="flex gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-4">
                   {optimizedFormations.map((formation, index) => (
                     <button
                       key={index}
@@ -536,7 +536,7 @@ export default function SunsetCanyonPage() {
                 <div className="text-xs text-[#a0aec0] text-center mb-2">↓</div>
 
                 {/* Front Row */}
-                <div className="grid grid-cols-4 gap-3 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
                   {[0, 1, 2, 3].map((slot) => {
                     const army = selectedFormation.armies.find(
                       a => a.position.row === 'front' && a.position.slot === slot
@@ -569,7 +569,7 @@ export default function SunsetCanyonPage() {
                 <div className="text-xs text-blue-400 text-center mb-6 font-medium">FRONT ROW (Tanks)</div>
 
                 {/* Back Row */}
-                <div className="grid grid-cols-4 gap-3 mb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-2">
                   {[0, 1, 2, 3].map((slot) => {
                     const army = selectedFormation.armies.find(
                       a => a.position.row === 'back' && a.position.slot === slot

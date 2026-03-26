@@ -2048,7 +2048,7 @@ export function RosterContent({ tab = 'roster' }: RosterContentProps) {
                                 </button>
                                 {/* View Options Dropdown - using z-[9999] to ensure it's above everything */}
                                 {showViewOptions && (
-                                    <div className={`absolute right-0 top-full mt-2 w-72 ${theme.card} border rounded-xl shadow-2xl z-[9999]`}>
+                                    <div className={`absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-72 max-w-72 ${theme.card} border rounded-xl shadow-2xl z-[9999]`}>
                                         <div className="p-3 border-b border-[var(--border)] flex items-center justify-between">
                                             <span className="text-sm font-semibold">Visible Columns</span>
                                             <button
@@ -2093,7 +2093,7 @@ export function RosterContent({ tab = 'roster' }: RosterContentProps) {
                                     <span className="hidden sm:inline">Export</span>
                                 </button>
                                 {showExportMenu && (
-                                    <div className={`absolute right-0 top-full mt-2 w-52 ${theme.card} border rounded-xl shadow-2xl z-[9999]`}>
+                                    <div className={`absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-52 max-w-52 ${theme.card} border rounded-xl shadow-2xl z-[9999]`}>
                                         <div className="p-2">
                                             <button
                                                 onClick={() => exportRoster('csv')}
