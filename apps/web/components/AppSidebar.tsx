@@ -261,7 +261,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
       <main
         className={`flex-1 transition-all duration-300 ${
           isCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'
-        } pt-14 lg:pt-0`}
+        } pt-14 lg:pt-0 h-screen overflow-y-auto`}
       >
         <KvkCountdownBanner />
         {children}

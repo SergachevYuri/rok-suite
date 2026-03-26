@@ -143,7 +143,7 @@ export function KvkCountdownBanner() {
   if (visibleEvents.length === 0) return null;
 
   return (
-    <div className="sticky top-14 lg:top-0 z-40 bg-blue-500/10 border-b border-blue-500/20 px-4 py-2.5 backdrop-blur-sm">
+    <div className="sticky top-0 z-40 bg-blue-500/10 border-b border-blue-500/20 px-4 py-2.5 backdrop-blur-sm">
       <div className="max-w-5xl mx-auto flex flex-wrap items-center gap-x-3 sm:gap-x-6 gap-y-1.5">
         {visibleEvents.map((event, i) => {
           const ms = event.start.getTime() - now.getTime();
