@@ -143,8 +143,8 @@ export function KvkCountdownBanner() {
   if (visibleEvents.length === 0) return null;
 
   return (
-    <div className="bg-[var(--background-secondary)] border-b border-[var(--border)] px-4 py-2">
-      <div className="max-w-5xl mx-auto flex flex-wrap items-center gap-x-6 gap-y-1">
+    <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-2.5">
+      <div className="max-w-5xl mx-auto flex flex-wrap items-center gap-x-6 gap-y-1.5">
         {visibleEvents.map((event, i) => {
           const ms = event.start.getTime() - now.getTime();
           const isLive = ms <= 0;
@@ -153,11 +153,13 @@ export function KvkCountdownBanner() {
           // Clean up summary: remove "KvK2 | " prefix for brevity
           const label = event.summary.replace(/^KvK\d+\s*\|\s*/, '');
 
+          const color = isLive ? 'text-red-400' : isSoon ? 'text-amber-400' : 'text-blue-300';
+
           return (
             <div key={i} className="flex items-center gap-2 text-sm">
-              <Swords className={`w-3.5 h-3.5 flex-shrink-0 ${isLive ? 'text-red-400' : isSoon ? 'text-amber-400' : 'text-blue-400'}`} />
-              <span className="text-[var(--text-secondary)]">{label}</span>
-              <span className={`font-mono font-medium ${isLive ? 'text-red-400' : isSoon ? 'text-amber-400' : 'text-blue-400'}`}>
+              <Swords className={`w-3.5 h-3.5 flex-shrink-0 ${color}`} />
+              <span className="text-[var(--foreground)]">{label}</span>
+              <span className={`font-mono font-semibold ${color}`}>
                 {isLive ? 'LIVE' : formatCountdown(ms)}
               </span>
             </div>
