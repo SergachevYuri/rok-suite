@@ -32,30 +32,25 @@ const ADMIN_CALENDAR = {
 
 const TIMEZONE_OPTIONS = [
     { value: 'UTC', label: 'UTC (Game Time)' },
-    // Americas
-    { value: 'America/New_York', label: 'US Eastern' },
-    { value: 'America/Chicago', label: 'US Central' },
-    { value: 'America/Denver', label: 'US Mountain' },
-    { value: 'America/Los_Angeles', label: 'US Pacific' },
-    { value: 'America/Sao_Paulo', label: 'Brazil' },
-    // Europe & Africa
-    { value: 'Europe/London', label: 'UK' },
-    { value: 'Europe/Paris', label: 'Central Europe' },
-    { value: 'Europe/Athens', label: 'Eastern Europe' },
-    { value: 'Europe/Moscow', label: 'Moscow' },
-    { value: 'Europe/Istanbul', label: 'Turkey' },
-    // Middle East & South Asia
-    { value: 'Asia/Dubai', label: 'Gulf (UAE)' },
-    { value: 'Asia/Kolkata', label: 'India' },
-    // East & Southeast Asia
-    { value: 'Asia/Bangkok', label: 'Thailand / Vietnam' },
-    { value: 'Asia/Singapore', label: 'Singapore / Malaysia' },
-    { value: 'Asia/Shanghai', label: 'China' },
-    { value: 'Asia/Seoul', label: 'Korea' },
-    { value: 'Asia/Tokyo', label: 'Japan' },
-    // Oceania
-    { value: 'Australia/Sydney', label: 'Australia Eastern' },
-    { value: 'Pacific/Auckland', label: 'New Zealand' },
+    { value: 'America/New_York', label: 'EST / EDT' },
+    { value: 'America/Chicago', label: 'CST / CDT' },
+    { value: 'America/Denver', label: 'MST / MDT' },
+    { value: 'America/Los_Angeles', label: 'PST / PDT' },
+    { value: 'America/Sao_Paulo', label: 'BRT' },
+    { value: 'Europe/London', label: 'GMT / BST' },
+    { value: 'Europe/Paris', label: 'CET / CEST' },
+    { value: 'Europe/Athens', label: 'EET / EEST' },
+    { value: 'Europe/Moscow', label: 'MSK' },
+    { value: 'Europe/Istanbul', label: 'TRT' },
+    { value: 'Asia/Dubai', label: 'GST' },
+    { value: 'Asia/Kolkata', label: 'IST' },
+    { value: 'Asia/Bangkok', label: 'ICT' },
+    { value: 'Asia/Singapore', label: 'SGT' },
+    { value: 'Asia/Shanghai', label: 'CST (China)' },
+    { value: 'Asia/Seoul', label: 'KST' },
+    { value: 'Asia/Tokyo', label: 'JST' },
+    { value: 'Australia/Sydney', label: 'AEST / AEDT' },
+    { value: 'Pacific/Auckland', label: 'NZST / NZDT' },
 ];
 
 // ——— Types ——————————————————————————————————————————————————————————————
