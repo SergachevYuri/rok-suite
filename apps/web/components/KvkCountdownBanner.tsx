@@ -82,7 +82,7 @@ function formatCountdown(ms: number): string {
   const totalMinutes = Math.floor(ms / 60_000);
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
-  if (h >= 24) {
+  if (h >= 72) {
     const d = Math.floor(h / 24);
     const rh = h % 24;
     return rh > 0 ? `${d}d ${rh}h` : `${d}d`;
