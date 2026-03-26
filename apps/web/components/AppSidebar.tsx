@@ -22,6 +22,7 @@ import {
   BarChart3,
   Calculator,
 } from 'lucide-react';
+import { KvkCountdownBanner } from './KvkCountdownBanner';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useTranslations } from 'next-intl';
@@ -262,6 +263,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           isCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'
         } pt-14 lg:pt-0`}
       >
+        <KvkCountdownBanner />
         {children}
       </main>
     </div>
