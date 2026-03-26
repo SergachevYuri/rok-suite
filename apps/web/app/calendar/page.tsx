@@ -32,13 +32,30 @@ const ADMIN_CALENDAR = {
 
 const TIMEZONE_OPTIONS = [
     { value: 'UTC', label: 'UTC (Game Time)' },
+    // Americas
     { value: 'America/New_York', label: 'US Eastern' },
+    { value: 'America/Chicago', label: 'US Central' },
+    { value: 'America/Denver', label: 'US Mountain' },
     { value: 'America/Los_Angeles', label: 'US Pacific' },
+    { value: 'America/Sao_Paulo', label: 'Brazil' },
+    // Europe & Africa
     { value: 'Europe/London', label: 'UK' },
     { value: 'Europe/Paris', label: 'Central Europe' },
+    { value: 'Europe/Athens', label: 'Eastern Europe' },
+    { value: 'Europe/Moscow', label: 'Moscow' },
+    { value: 'Europe/Istanbul', label: 'Turkey' },
+    // Middle East & South Asia
+    { value: 'Asia/Dubai', label: 'Gulf (UAE)' },
+    { value: 'Asia/Kolkata', label: 'India' },
+    // East & Southeast Asia
+    { value: 'Asia/Bangkok', label: 'Thailand / Vietnam' },
+    { value: 'Asia/Singapore', label: 'Singapore / Malaysia' },
+    { value: 'Asia/Shanghai', label: 'China' },
+    { value: 'Asia/Seoul', label: 'Korea' },
     { value: 'Asia/Tokyo', label: 'Japan' },
-    { value: 'Asia/Singapore', label: 'Singapore' },
-    { value: 'Australia/Sydney', label: 'Australia' },
+    // Oceania
+    { value: 'Australia/Sydney', label: 'Australia Eastern' },
+    { value: 'Pacific/Auckland', label: 'New Zealand' },
 ];
 
 // ——— Types ——————————————————————————————————————————————————————————————
