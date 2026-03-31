@@ -213,6 +213,7 @@ const RSS_CONFIG = [
 const NO_CAP: FlagCost = { food: 1e15, wood: 1e15, stone: 1e15, gold: 1e15, crystals: 1e15, credits: 1e15 };
 
 type CalcMode = 'by-time' | 'target-flags';
+type StorehouseMode = 'by-time' | 'target-resources';
 type ActiveTab = 'flags' | 'storehouse';
 
 export default function FlagCalculatorPage() {
@@ -356,7 +357,11 @@ export default function FlagCalculatorPage() {
   );
 
   // ====== STOREHOUSE CALCULATOR ======
+  const [storehouseMode, setStorehouseMode] = useState<StorehouseMode>('by-time');
   const [storehouseDateStr, setStorehouseDateStr] = useState('');
+  const [targetResourceInputs, setTargetResourceInputs] = useState({
+    food: '', wood: '', stone: '', gold: '', crystals: '', credits: '',
+  });
 
   // Initialize storehouse date on client only
   useEffect(() => {
@@ -401,6 +406,50 @@ export default function FlagCalculatorPage() {
     }
     return times;
   }, [availableResources, productionPerHour, resourceCaps]);
+
+  // Target resources: parse inputs
+  const targetResources = useMemo(() => {
+    const t: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
+    for (const k of RSS_KEYS) {
+      const raw = targetResourceInputs[k].replace(/,/g, '').trim();
+      t[k] = parseFloat(raw) * 1_000_000 || 0;
+    }
+    return t;
+  }, [targetResourceInputs]);
+
+  // Target resources: compute time per resource and bottleneck
+  const targetResourcesResult = useMemo(() => {
+    const perResource: { key: keyof FlagCost; current: number; target: number; deficit: number; hours: number }[] = [];
+    let bottleneckHours = 0;
+    let bottleneckKey: keyof FlagCost | null = null;
+
+    for (const k of RSS_KEYS) {
+      const current = availableResources[k];
+      const target = targetResources[k];
+      if (target <= 0) continue;
+      const deficit = Math.max(0, target - current);
+      const prod = productionPerHour[k];
+      let hours: number;
+      if (deficit <= 0) {
+        hours = 0;
+      } else if (prod <= 0) {
+        hours = Infinity;
+      } else {
+        hours = deficit / prod;
+      }
+      perResource.push({ key: k, current, target, deficit, hours });
+      if (hours > bottleneckHours) {
+        bottleneckHours = hours;
+        bottleneckKey = k;
+      }
+    }
+
+    const targetDate = bottleneckHours < Infinity && bottleneckHours > 0
+      ? new Date(Date.now() + bottleneckHours * 3_600_000)
+      : null;
+
+    return { perResource, bottleneckHours, bottleneckKey, targetDate };
+  }, [availableResources, targetResources, productionPerHour]);
 
   // Shared resource cost display component
   const ResourceCostList = ({ costs }: { costs: FlagCost }) => (
@@ -766,115 +815,240 @@ export default function FlagCalculatorPage() {
           {/* ====== STOREHOUSE TAB ====== */}
           {activeTab === 'storehouse' && (
             <>
-              {/* Target date input */}
-              <div className="bg-[var(--background-card)] rounded-xl p-5 border border-amber-500/30 mb-6">
-                <div className="flex flex-wrap items-center gap-4">
-                  <h2 className="text-sm font-medium text-amber-400 flex items-center gap-1.5">
-                    <CalendarClock className="w-4 h-4" /> Target Date (UTC)
-                  </h2>
-                  <input
-                    type="datetime-local" value={storehouseDateStr} onChange={e => setStorehouseDateStr(e.target.value)}
-                    className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--foreground)] [color-scheme:dark]"
-                  />
-                  <div className="flex gap-2">
-                    {[1, 3, 7, 14].map(d => (
-                      <button key={d} onClick={() => setStorehouseDateStr(toUTCDatetimeLocal(new Date(Date.now() + d * 24 * 3_600_000)))}
-                        className="px-2 py-1 text-xs rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
-                        +{d}d
-                      </button>
-                    ))}
-                  </div>
-                  {storehouseHoursUntil > 0 && <span className="text-xs text-[var(--text-muted)]">{formatHours(storehouseHoursUntil)} from now</span>}
-                </div>
+              {/* Mode toggle */}
+              <div className="flex gap-2 mb-6">
+                <button onClick={() => setStorehouseMode('by-time')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    storehouseMode === 'by-time' ? 'bg-amber-500/20 text-amber-400 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                  }`}>
+                  How much by date?
+                </button>
+                <button onClick={() => setStorehouseMode('target-resources')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    storehouseMode === 'target-resources' ? 'bg-emerald-500/20 text-emerald-400 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                  }`}>
+                  How long for target?
+                </button>
               </div>
 
-              {/* Projection results */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                {/* Projected totals */}
-                <div className="bg-[var(--background-card)] rounded-xl p-6 border border-amber-500/30">
-                  <h3 className="text-xs font-medium text-amber-400 uppercase tracking-wider mb-4">Projected Resources</h3>
-                  <div className="space-y-3">
-                    {RSS_CONFIG.map(rss => {
-                      const Icon = rss.icon;
-                      const current = availableResources[rss.key];
-                      const projected = storehouseProjection.projected[rss.key];
-                      const gained = storehouseProjection.gained[rss.key];
-                      const cap = resourceCaps[rss.key];
-                      const atCap = cap < 1e15 && projected >= cap;
-                      return (
-                        <div key={rss.key}>
-                          <div className="flex items-center justify-between">
-                            <span className={`flex items-center gap-1.5 text-sm ${rss.color}`}>
-                              <Icon className="w-4 h-4" />
-                              {rss.label}
-                            </span>
-                            <div className="text-right">
-                              <span className="font-mono text-sm text-[var(--foreground)]">{formatNum(projected)}</span>
-                              {atCap && <span className="text-amber-400 text-xs ml-1.5">(capped)</span>}
+              {storehouseMode === 'by-time' && (
+                <>
+                  {/* Target date input */}
+                  <div className="bg-[var(--background-card)] rounded-xl p-5 border border-amber-500/30 mb-6">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <h2 className="text-sm font-medium text-amber-400 flex items-center gap-1.5">
+                        <CalendarClock className="w-4 h-4" /> Target Date (UTC)
+                      </h2>
+                      <input
+                        type="datetime-local" value={storehouseDateStr} onChange={e => setStorehouseDateStr(e.target.value)}
+                        className="bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--foreground)] [color-scheme:dark]"
+                      />
+                      <div className="flex gap-2">
+                        {[1, 3, 7, 14].map(d => (
+                          <button key={d} onClick={() => setStorehouseDateStr(toUTCDatetimeLocal(new Date(Date.now() + d * 24 * 3_600_000)))}
+                            className="px-2 py-1 text-xs rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
+                            +{d}d
+                          </button>
+                        ))}
+                      </div>
+                      {storehouseHoursUntil > 0 && <span className="text-xs text-[var(--text-muted)]">{formatHours(storehouseHoursUntil)} from now</span>}
+                    </div>
+                  </div>
+
+                  {/* Projection results */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                    {/* Projected totals */}
+                    <div className="bg-[var(--background-card)] rounded-xl p-6 border border-amber-500/30">
+                      <h3 className="text-xs font-medium text-amber-400 uppercase tracking-wider mb-4">Projected Resources</h3>
+                      <div className="space-y-3">
+                        {RSS_CONFIG.map(rss => {
+                          const Icon = rss.icon;
+                          const current = availableResources[rss.key];
+                          const projected = storehouseProjection.projected[rss.key];
+                          const gained = storehouseProjection.gained[rss.key];
+                          const cap = resourceCaps[rss.key];
+                          const atCap = cap < 1e15 && projected >= cap;
+                          return (
+                            <div key={rss.key}>
+                              <div className="flex items-center justify-between">
+                                <span className={`flex items-center gap-1.5 text-sm ${rss.color}`}>
+                                  <Icon className="w-4 h-4" />
+                                  {rss.label}
+                                </span>
+                                <div className="text-right">
+                                  <span className="font-mono text-sm text-[var(--foreground)]">{formatNum(projected)}</span>
+                                  {atCap && <span className="text-amber-400 text-xs ml-1.5">(capped)</span>}
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between mt-0.5">
+                                <span className="text-xs text-[var(--text-muted)] ml-5.5 pl-0.5">
+                                  {formatNum(current)} now
+                                </span>
+                                {gained > 0 && (
+                                  <span className="text-xs text-green-400 font-mono">+{formatNum(Math.round(gained))}</span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center justify-between mt-0.5">
-                            <span className="text-xs text-[var(--text-muted)] ml-5.5 pl-0.5">
-                              {formatNum(current)} now
-                            </span>
-                            {gained > 0 && (
-                              <span className="text-xs text-green-400 font-mono">+{formatNum(Math.round(gained))}</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                {/* Time to cap */}
-                <div className="bg-[var(--background-card)] rounded-xl p-6 border border-[var(--border)]">
-                  <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">Time to Cap</h3>
-                  <div className="space-y-3">
-                    {RSS_CONFIG.filter(rss => rss.hasProduction).map(rss => {
-                      const Icon = rss.icon;
-                      const hours = storehouseTimeToFull[rss.key];
-                      const cap = resourceCaps[rss.key];
-                      const hasCap = cap < 1e15;
-                      return (
-                        <div key={rss.key} className="flex items-center justify-between">
-                          <span className={`flex items-center gap-1.5 text-sm ${rss.color}`}>
-                            <Icon className="w-4 h-4" />
-                            {rss.label}
+                    {/* Time to cap */}
+                    <div className="bg-[var(--background-card)] rounded-xl p-6 border border-[var(--border)]">
+                      <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">Time to Cap</h3>
+                      <div className="space-y-3">
+                        {RSS_CONFIG.filter(rss => rss.hasProduction).map(rss => {
+                          const Icon = rss.icon;
+                          const hours = storehouseTimeToFull[rss.key];
+                          const cap = resourceCaps[rss.key];
+                          const hasCap = cap < 1e15;
+                          return (
+                            <div key={rss.key} className="flex items-center justify-between">
+                              <span className={`flex items-center gap-1.5 text-sm ${rss.color}`}>
+                                <Icon className="w-4 h-4" />
+                                {rss.label}
+                              </span>
+                              <span className="font-mono text-sm text-[var(--text-secondary)]">
+                                {!hasCap || hours == null ? (
+                                  <span className="text-[var(--text-muted)] text-xs">no cap set</span>
+                                ) : hours === 0 ? (
+                                  <span className="text-green-400 text-xs">already full</span>
+                                ) : hours === Infinity ? (
+                                  <span className="text-red-400 text-xs">no production</span>
+                                ) : (
+                                  formatHours(hours)
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Total value summary */}
+                      <div className="mt-6 pt-4 border-t border-[var(--border)]">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-[var(--text-muted)]">Total projected value</span>
+                          <span className="font-mono text-lg font-bold text-amber-400">
+                            {formatNum(RSS_KEYS.reduce((sum, k) => sum + storehouseProjection.projected[k], 0))}
                           </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-[var(--text-muted)]">Total current value</span>
                           <span className="font-mono text-sm text-[var(--text-secondary)]">
-                            {!hasCap || hours == null ? (
-                              <span className="text-[var(--text-muted)] text-xs">no cap set</span>
-                            ) : hours === 0 ? (
-                              <span className="text-green-400 text-xs">already full</span>
-                            ) : hours === Infinity ? (
-                              <span className="text-red-400 text-xs">no production</span>
-                            ) : (
-                              formatHours(hours)
-                            )}
+                            {formatNum(RSS_KEYS.reduce((sum, k) => sum + availableResources[k], 0))}
                           </span>
                         </div>
-                      );
-                    })}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {storehouseMode === 'target-resources' && (
+                <>
+                  {/* Target resource inputs */}
+                  <div className="bg-[var(--background-card)] rounded-xl p-5 border border-emerald-500/30 mb-6">
+                    <h2 className="text-sm font-medium text-emerald-400 flex items-center gap-1.5 mb-4">
+                      <TrendingUp className="w-4 h-4" /> Target Resources (M)
+                    </h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                      {RSS_CONFIG.map(rss => {
+                        const Icon = rss.icon;
+                        return (
+                          <div key={rss.key}>
+                            <label className={`flex items-center gap-1 text-xs mb-1 ${rss.color}`}>
+                              <Icon className="w-3 h-3" /> {rss.label}
+                            </label>
+                            <input
+                              type="text" inputMode="decimal"
+                              value={targetResourceInputs[rss.key]}
+                              onChange={e => setTargetResourceInputs(prev => ({ ...prev, [rss.key]: e.target.value }))}
+                              placeholder={formatNum(availableResources[rss.key])}
+                              className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--foreground)] placeholder:text-[var(--text-muted)]"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  {/* Total value summary */}
-                  <div className="mt-6 pt-4 border-t border-[var(--border)]">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-[var(--text-muted)]">Total projected value</span>
-                      <span className="font-mono text-lg font-bold text-amber-400">
-                        {formatNum(RSS_KEYS.reduce((sum, k) => sum + storehouseProjection.projected[k], 0))}
-                      </span>
+                  {/* Results */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                    {/* Time estimate */}
+                    <div className="bg-[var(--background-card)] rounded-xl p-6 border border-emerald-500/30">
+                      <h3 className="text-xs font-medium text-emerald-400 uppercase tracking-wider mb-4">Time Estimate</h3>
+                      {targetResourcesResult.perResource.length === 0 ? (
+                        <p className="text-sm text-[var(--text-muted)]">Enter target amounts above</p>
+                      ) : (
+                        <>
+                          <div className="text-center mb-4">
+                            <span className="text-4xl font-bold text-emerald-400">
+                              {targetResourcesResult.bottleneckHours === 0 ? 'Ready' :
+                               targetResourcesResult.bottleneckHours === Infinity ? '∞' :
+                               formatHours(targetResourcesResult.bottleneckHours)}
+                            </span>
+                            {targetResourcesResult.bottleneckKey && targetResourcesResult.bottleneckHours > 0 && targetResourcesResult.bottleneckHours < Infinity && (
+                              <p className="text-xs text-[var(--text-muted)] mt-1">
+                                Bottleneck: <span className="text-[var(--text-secondary)]">{RSS_CONFIG.find(r => r.key === targetResourcesResult.bottleneckKey)?.label}</span>
+                              </p>
+                            )}
+                            {targetResourcesResult.targetDate && (
+                              <p className="text-xs text-[var(--text-muted)] mt-1">
+                                Ready by: <span className="text-[var(--text-secondary)] font-mono">{targetResourcesResult.targetDate.toISOString().replace('T', ' ').slice(0, 16)} UTC</span>
+                              </p>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-[var(--text-muted)]">Total current value</span>
-                      <span className="font-mono text-sm text-[var(--text-secondary)]">
-                        {formatNum(RSS_KEYS.reduce((sum, k) => sum + availableResources[k], 0))}
-                      </span>
+
+                    {/* Per-resource breakdown */}
+                    <div className="bg-[var(--background-card)] rounded-xl p-6 border border-[var(--border)]">
+                      <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">Per-Resource Breakdown</h3>
+                      {targetResourcesResult.perResource.length === 0 ? (
+                        <p className="text-sm text-[var(--text-muted)]">Enter target amounts above</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {targetResourcesResult.perResource.map(({ key, current, target, deficit, hours }) => {
+                            const rss = RSS_CONFIG.find(r => r.key === key)!;
+                            const Icon = rss.icon;
+                            const isBottleneck = key === targetResourcesResult.bottleneckKey;
+                            return (
+                              <div key={key}>
+                                <div className="flex items-center justify-between">
+                                  <span className={`flex items-center gap-1.5 text-sm ${rss.color}`}>
+                                    <Icon className="w-4 h-4" />
+                                    {rss.label}
+                                    {isBottleneck && <span className="text-[10px] text-amber-400 ml-1">(bottleneck)</span>}
+                                  </span>
+                                  <span className="font-mono text-sm text-[var(--text-secondary)]">
+                                    {hours === 0 ? (
+                                      <span className="text-green-400 text-xs">already met</span>
+                                    ) : hours === Infinity ? (
+                                      <span className="text-red-400 text-xs">no production</span>
+                                    ) : (
+                                      formatHours(hours)
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between mt-0.5">
+                                  <span className="text-xs text-[var(--text-muted)] ml-5.5 pl-0.5">
+                                    {formatNum(current)} / {formatNum(target)}
+                                  </span>
+                                  {deficit > 0 && (
+                                    <span className="text-xs text-red-400 font-mono">-{formatNum(Math.round(deficit))}</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </>
           )}
         </div>
