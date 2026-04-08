@@ -191,7 +191,8 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
 
 const nf = new Intl.NumberFormat('en-US');
 const fmt = (n: number) => nf.format(Math.round(n));
-const fmt2 = (n: number) => n.toFixed(2);
+/** Display a sub-score / final score as a percentage (1.00 → "100%"). */
+const fmtPct = (n: number) => `${Math.round(n * 100)}%`;
 /** Compact integer format like 1.2M / 340K / 1,234. */
 function fmtCompact(n: number): string {
   const a = Math.abs(n);
@@ -230,15 +231,15 @@ interface ColumnDef {
 
 const COLUMNS: ColumnDef[] = [
   { key: 'username', label: 'Player', defaultVisible: true, hint: 'In-game username from the kingdom export.' },
-  { key: 'power', label: 'Power', numeric: true, defaultVisible: true, hint: 'Current power as of the last upload.' },
+  { key: 'power', label: 'Power', numeric: true, defaultVisible: true, hint: 'Current power as of the last upload (not highest power).' },
   { key: 'totalKP', label: 'KP', numeric: true, defaultVisible: true, hint: 'Total kill points from the kingdom export (all tiers combined).' },
   { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula above (T4/T5 kills + T4/T5 deaths).' },
-  { key: 'finalScore', label: 'Final', numeric: true, defaultVisible: true, hint: 'Final weighted score that determines the status tier.' },
-  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the final score lands in (EXCELLENT / APPROVED / GOOD / REJECTED).' },
-  { key: 'scoreDkp', label: 'sDKP', numeric: true, defaultVisible: true, hint: 'DKP sub-score = raw DKP ÷ expected DKP for this player\'s power. 1.00 = exactly meeting expectation.' },
-  { key: 'scoreRss', label: 'sRSS', numeric: true, defaultVisible: true, hint: 'RSS sub-score = resources gathered ÷ expected. 1.00 = on target for their power.' },
-  { key: 'scoreHelps', label: 'sHelps', numeric: true, defaultVisible: true, hint: 'Alliance helps sub-score = helps given ÷ expected. 1.00 = on target for their power.' },
-  { key: 'scoreHonor', label: 'sHonor', numeric: true, defaultVisible: false, hint: 'Honor sub-score = honor points ÷ expected. 1.00 = on target for their power.' },
+  { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Final weighted score (as % of expected). 100% = exactly meeting expectations across all weighted categories.' },
+  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / APPROVED / GOOD / REJECTED).' },
+  { key: 'scoreDkp', label: 'DKP %', numeric: true, defaultVisible: true, hint: 'DKP performance: raw DKP ÷ expected DKP for this player\'s power. 100% = exactly on target. 150% = 1.5× expected.' },
+  { key: 'scoreRss', label: 'RSS %', numeric: true, defaultVisible: true, hint: 'RSS performance: resources gathered ÷ expected. 100% = on target for their power.' },
+  { key: 'scoreHelps', label: 'Helps %', numeric: true, defaultVisible: true, hint: 'Alliance helps performance: helps given ÷ expected. 100% = on target for their power.' },
+  { key: 'scoreHonor', label: 'Honor %', numeric: true, defaultVisible: false, hint: 'Honor performance: honor points ÷ expected. 100% = on target for their power.' },
   { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: false, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
 ];
 
@@ -932,7 +933,9 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
     case 'dkp':
       return fmt(p.dkp || p.computedDkp);
     case 'finalScore':
-      return <span className="font-semibold text-[var(--foreground)]">{fmt2(p.finalScore)}</span>;
+      return (
+        <span className="font-semibold text-[var(--foreground)]">{fmtPct(p.finalScore)}</span>
+      );
     case 'status':
       return (
         <span
@@ -942,13 +945,13 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
         </span>
       );
     case 'scoreDkp':
-      return fmt2(p.scoreDkp);
+      return fmtPct(p.scoreDkp);
     case 'scoreRss':
-      return fmt2(p.scoreRss);
+      return fmtPct(p.scoreRss);
     case 'scoreHelps':
-      return fmt2(p.scoreHelps);
+      return fmtPct(p.scoreHelps);
     case 'scoreHonor':
-      return fmt2(p.scoreHonor);
+      return fmtPct(p.scoreHonor);
     case 'honorPoints':
       return fmt(p.honorPoints);
     default:
@@ -1453,9 +1456,9 @@ function ConfigSummaryLine({ config }: { config: Config }) {
         <> • split @ {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M</>
       )}
       {' • '}
-      <span className="text-amber-400/80">≥{cuts.excellent.toFixed(2)}</span>{' '}
-      <span className="text-emerald-400/80">≥{cuts.approved.toFixed(2)}</span>{' '}
-      <span className="text-sky-400/80">≥{cuts.good.toFixed(2)}</span>
+      <span className="text-amber-400/80">≥{Math.round(cuts.excellent * 100)}%</span>{' '}
+      <span className="text-emerald-400/80">≥{Math.round(cuts.approved * 100)}%</span>{' '}
+      <span className="text-sky-400/80">≥{Math.round(cuts.good * 100)}%</span>
     </span>
   );
 }
@@ -1692,19 +1695,21 @@ function CutoffRow({
   onChange: (v: number) => void;
   disabled?: boolean;
 }) {
-  const [text, setText] = useState(value.toFixed(2));
+  // Display in percent (100 = 1.00 ratio). Internal storage stays as a ratio.
+  const toPct = (v: number) => String(Math.round(v * 100));
+  const [text, setText] = useState(toPct(value));
   useEffect(() => {
-    setText(value.toFixed(2));
+    setText(toPct(value));
   }, [value]);
   const commit = () => {
     const n = parseFloat(text);
     if (Number.isNaN(n)) {
-      setText(value.toFixed(2));
+      setText(toPct(value));
       return;
     }
-    const c = clamp(n, 0, 3);
-    onChange(c);
-    setText(c.toFixed(2));
+    const ratio = clamp(n / 100, 0, 3);
+    onChange(ratio);
+    setText(toPct(ratio));
   };
   const accentClass =
     status === 'EXCELLENT'
@@ -1725,29 +1730,34 @@ function CutoffRow({
       <input
         type="range"
         min={0}
-        max={3}
-        step={0.05}
-        value={value}
+        max={300}
+        step={5}
+        value={Math.round(value * 100)}
         disabled={disabled}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onChange={(e) => onChange(parseInt(e.target.value, 10) / 100)}
         className={`flex-1 ${accentClass} disabled:cursor-not-allowed h-2`}
       />
-      <input
-        type="number"
-        inputMode="decimal"
-        min={0}
-        max={3}
-        step={0.05}
-        value={text}
-        disabled={disabled}
-        readOnly={disabled}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        }}
-        className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed flex-shrink-0"
-      />
+      <div className="relative flex-shrink-0">
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={300}
+          step={5}
+          value={text}
+          disabled={disabled}
+          readOnly={disabled}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+          className="w-16 pl-1.5 pr-4 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+        />
+        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+          %
+        </span>
+      </div>
     </div>
   );
 }
