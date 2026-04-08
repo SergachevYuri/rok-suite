@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AppSidebar } from '@/components/AppSidebar';
 import {
   ArrowUpDown,
@@ -1130,11 +1131,10 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-/** Lightweight hover/focus tooltip. Uses React state — appears instantly, unlike native title. */
+/** Hover/focus tooltip rendered into a portal so it can't be clipped by overflow ancestors. */
 function Tooltip({
   content,
   children,
-  side = 'top',
   className = '',
 }: {
   content: React.ReactNode;
@@ -1143,26 +1143,55 @@ function Tooltip({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number; placeAbove: boolean } | null>(
+    null,
+  );
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const tooltipRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const margin = 8;
+    const tipHeight = tooltipRef.current?.offsetHeight ?? 60;
+    const placeAbove = rect.top - tipHeight - margin > 0;
+    setCoords({
+      top: placeAbove ? rect.top - margin : rect.bottom + margin,
+      left: rect.left + rect.width / 2,
+      placeAbove,
+    });
+  }, [open]);
+
   return (
-    <span
-      className={`relative inline-flex items-center ${className}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
-    >
-      {children}
-      {open && (
-        <span
-          role="tooltip"
-          className={`pointer-events-none absolute left-1/2 -translate-x-1/2 z-50 w-64 max-w-[80vw] px-2.5 py-1.5 rounded-md bg-[var(--background-card)] border border-[var(--border)] shadow-xl text-[11px] font-normal leading-snug text-[var(--text-secondary)] normal-case tracking-normal ${
-            side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
-          }`}
-        >
-          {content}
-        </span>
-      )}
-    </span>
+    <>
+      <span
+        ref={triggerRef}
+        className={`inline-flex items-center ${className}`}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+      >
+        {children}
+      </span>
+      {open && coords && typeof document !== 'undefined' &&
+        createPortal(
+          <span
+            ref={tooltipRef}
+            role="tooltip"
+            style={{
+              position: 'fixed',
+              top: coords.top,
+              left: coords.left,
+              transform: coords.placeAbove ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+            }}
+            className="pointer-events-none z-[9999] w-64 max-w-[80vw] px-2.5 py-1.5 rounded-md bg-[var(--background-card)] border border-[var(--border)] shadow-xl text-[11px] font-normal leading-snug text-[var(--text-secondary)] normal-case tracking-normal"
+          >
+            {content}
+          </span>,
+          document.body,
+        )}
+    </>
   );
 }
 
