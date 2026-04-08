@@ -404,14 +404,22 @@ function DkpPageInner() {
           <SummaryCard label="Rejected" value={fmt(summary.counts.REJECTED)} tone="red" />
         </section>
 
-        {/* Weights */}
+        {/* Weights (read-only for viewers, editable for officers) */}
         <section className="mb-6 p-4 sm:p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-            <h2 className="text-sm font-semibold text-[var(--foreground)]">Score Weights</h2>
-            <label className="flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer select-none">
+            <h2 className="text-sm font-semibold text-[var(--foreground)]">
+              Score Weights
+              {!isOfficer && (
+                <span className="ml-2 text-[10px] font-normal text-[var(--text-muted)] uppercase tracking-wider">
+                  (read-only — sign in to edit)
+                </span>
+              )}
+            </h2>
+            <label className={`flex items-center gap-2 text-xs text-[var(--text-muted)] select-none ${isOfficer ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
               <input
                 type="checkbox"
                 checked={config.split}
+                disabled={!isOfficer}
                 onChange={(e) => setConfig((c) => ({ ...c, split: e.target.checked }))}
                 className="accent-[#4318ff]"
               />
@@ -426,6 +434,7 @@ function DkpPageInner() {
                 value={config.weightSplitThreshold}
                 step={1_000_000}
                 min={0}
+                disabled={!isOfficer}
                 onChange={(v) =>
                   setConfig((c) => ({ ...c, weightSplitThreshold: Math.max(0, v) }))
                 }
@@ -440,12 +449,14 @@ function DkpPageInner() {
               <WeightBand
                 title={`Under ${fmt(config.weightSplitThreshold)}`}
                 weights={config.weightsLow}
+                disabled={!isOfficer}
                 onChange={(k, v) => setWeight('weightsLow', k, v)}
               />
             )}
             <WeightBand
               title={config.split ? `At/above ${fmt(config.weightSplitThreshold)}` : 'All players'}
               weights={config.weightsHigh}
+              disabled={!isOfficer}
               onChange={(k, v) => setWeight('weightsHigh', k, v)}
             />
           </div>
@@ -465,6 +476,7 @@ function DkpPageInner() {
               max={3}
               step={0.05}
               decimals={2}
+              disabled={!isOfficer}
               onChange={(v) => setThreshold('excellent', v)}
               accentClass="accent-amber-400"
             />
@@ -475,6 +487,7 @@ function DkpPageInner() {
               max={3}
               step={0.05}
               decimals={2}
+              disabled={!isOfficer}
               onChange={(v) => setThreshold('approved', v)}
               accentClass="accent-emerald-400"
             />
@@ -485,6 +498,7 @@ function DkpPageInner() {
               max={3}
               step={0.05}
               decimals={2}
+              disabled={!isOfficer}
               onChange={(v) => setThreshold('good', v)}
               accentClass="accent-sky-400"
             />
@@ -915,6 +929,7 @@ function NumberSlider({
   decimals = 2,
   onChange,
   accentClass = 'accent-[#4318ff]',
+  disabled = false,
 }: {
   label: string;
   value: number;
@@ -924,6 +939,7 @@ function NumberSlider({
   decimals?: number;
   onChange: (v: number) => void;
   accentClass?: string;
+  disabled?: boolean;
 }) {
   const [text, setText] = useState(value.toFixed(decimals));
   useEffect(() => {
@@ -942,7 +958,7 @@ function NumberSlider({
   };
 
   return (
-    <div>
+    <div className={disabled ? 'opacity-60' : ''}>
       <div className="flex items-center justify-between mb-1.5 gap-2">
         <label className="text-xs font-medium text-[var(--text-secondary)] truncate">{label}</label>
         <input
@@ -952,12 +968,14 @@ function NumberSlider({
           max={max}
           step={step}
           value={text}
+          disabled={disabled}
+          readOnly={disabled}
           onChange={(e) => setText(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
-          className="w-16 px-1.5 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30"
+          className="w-16 px-1.5 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
         />
       </div>
       <input
@@ -966,8 +984,9 @@ function NumberSlider({
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className={`w-full ${accentClass}`}
+        className={`w-full ${accentClass} disabled:cursor-not-allowed`}
       />
     </div>
   );
@@ -980,12 +999,14 @@ function NumberInput({
   step,
   onChange,
   width = 'w-24',
+  disabled = false,
 }: {
   value: number;
   min?: number;
   step?: number;
   onChange: (v: number) => void;
   width?: string;
+  disabled?: boolean;
 }) {
   const [text, setText] = useState(String(value));
   useEffect(() => {
@@ -998,6 +1019,8 @@ function NumberInput({
       min={min}
       step={step}
       value={text}
+      disabled={disabled}
+      readOnly={disabled}
       onChange={(e) => setText(e.target.value)}
       onBlur={() => {
         const n = parseFloat(text);
@@ -1010,7 +1033,7 @@ function NumberInput({
       onKeyDown={(e) => {
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
       }}
-      className={`${width} px-2 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30`}
+      className={`${width} px-2 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed`}
     />
   );
 }
@@ -1020,10 +1043,12 @@ function WeightBand({
   title,
   weights,
   onChange,
+  disabled = false,
 }: {
   title: string;
   weights: WeightSet;
   onChange: (key: keyof WeightSet, value: number) => void;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -1040,6 +1065,7 @@ function WeightBand({
             max={1}
             step={0.05}
             decimals={2}
+            disabled={disabled}
             onChange={(v) => onChange(k, v)}
           />
         ))}
