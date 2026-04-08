@@ -1044,7 +1044,7 @@ function DkpPageInner() {
                         key={c.key}
                         className={`px-3 py-2 ${c.numeric ? 'text-right tabular-nums' : ''}`}
                       >
-                        {renderCell(p, c.key)}
+                        {renderCell(p, c.key, config.weightSplitThreshold)}
                       </td>
                     ))}
                   </tr>
@@ -1068,12 +1068,14 @@ function DkpPageInner() {
   );
 }
 
-function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
+function renderCell(p: ScoredPlayer, key: ColumnDef['key'], threshold: number) {
   switch (key) {
     case 'username':
       return <span className="text-[var(--foreground)] font-medium">{p.username}</span>;
-    case 'power':
-      return fmtM(p.power);
+    case 'power': {
+      const cls = p.power < threshold ? 'text-sky-400' : 'text-fuchsia-400';
+      return <span className={`font-medium ${cls}`}>{fmtM(p.power)}</span>;
+    }
     case 'totalKP': {
       // Color based on whether this player hits their target KP.
       const cls =
