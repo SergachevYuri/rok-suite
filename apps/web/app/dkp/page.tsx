@@ -155,7 +155,7 @@ const STATUS_LABELS: Record<Status, string> = {
 /** Power band a player belongs to. T5 ≥ weightSplitThreshold, T4 between, Micro below MICRO_THRESHOLD. */
 type Band = 'micro' | 't4' | 't5';
 const MICRO_THRESHOLD = 30_000_000;
-const BAND_LABELS: Record<Band, string> = { micro: 'Micro', t4: 'T4', t5: 'T5' };
+const BAND_LABELS: Record<Band, string> = { micro: 'mT4', t4: 'T4', t5: 'T5' };
 
 /** "Model player" stat profile for a band — the median of the band's top tertile by band-score. */
 interface ModelStats {
@@ -1309,7 +1309,7 @@ function ModelExplainer({ onClose }: { onClose: () => void }) {
             <div className="ml-11 grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-4">
                 <div className="text-xs uppercase tracking-wider text-sky-400 font-semibold mb-1">
-                  Micro
+                  mT4 (micro)
                 </div>
                 <div className="text-2xl font-semibold text-[var(--foreground)]">&lt; 30M</div>
                 <div className="text-xs text-[var(--text-muted)] mt-1">scouts, climbers</div>
@@ -1512,14 +1512,16 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key'], modelView: boolean) 
       return (
         <span className="inline-flex items-center gap-1.5 justify-end">
           <span className={`font-medium ${powerCls}`}>{fmtM(p.power)}</span>
-          <span
-            className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${BAND_BADGE[p.band]}`}
-            title={`${BAND_LABELS[p.band]} band (${
-              p.band === 'micro' ? '<30M' : p.band === 't4' ? '30M–threshold' : '≥threshold'
-            })`}
-          >
-            {BAND_LABELS[p.band]}
-          </span>
+          {modelView && (
+            <span
+              className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${BAND_BADGE[p.band]}`}
+              title={`${BAND_LABELS[p.band]} band (${
+                p.band === 'micro' ? '<30M' : p.band === 't4' ? '30M–threshold' : '≥threshold'
+              })`}
+            >
+              {BAND_LABELS[p.band]}
+            </span>
+          )}
         </span>
       );
     }
