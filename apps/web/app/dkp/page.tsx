@@ -771,7 +771,7 @@ function DkpPageInner() {
                   title="Reading the Table"
                   hint="Quick reference for what each column and color in the player table means."
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-[var(--text-secondary)] leading-relaxed">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start text-sm text-[var(--text-secondary)] leading-relaxed">
                     <div>
                       <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
                         KP cell color
