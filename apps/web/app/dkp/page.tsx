@@ -13,6 +13,7 @@ import {
   RotateCcw,
   ChevronDown,
   Settings2,
+  Info,
 } from 'lucide-react';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import {
@@ -214,19 +215,20 @@ interface ColumnDef {
   label: string;
   numeric?: boolean;
   defaultVisible: boolean;
+  hint?: string;
 }
 
 const COLUMNS: ColumnDef[] = [
-  { key: 'username', label: 'Player', defaultVisible: true },
-  { key: 'power', label: 'Power', numeric: true, defaultVisible: true },
-  { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true },
-  { key: 'finalScore', label: 'Final', numeric: true, defaultVisible: true },
-  { key: 'status', label: 'Status', defaultVisible: true },
-  { key: 'scoreDkp', label: 'sDKP', numeric: true, defaultVisible: true },
-  { key: 'scoreRss', label: 'sRSS', numeric: true, defaultVisible: true },
-  { key: 'scoreHelps', label: 'sHelps', numeric: true, defaultVisible: true },
-  { key: 'scoreHonor', label: 'sHonor', numeric: true, defaultVisible: false },
-  { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: false },
+  { key: 'username', label: 'Player', defaultVisible: true, hint: 'In-game username from the kingdom export.' },
+  { key: 'power', label: 'Power', numeric: true, defaultVisible: true, hint: 'Current power as of the last upload.' },
+  { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula above (T4/T5 kills + T4/T5 deaths).' },
+  { key: 'finalScore', label: 'Final', numeric: true, defaultVisible: true, hint: 'Final weighted score that determines the status tier.' },
+  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the final score lands in (EXCELLENT / APPROVED / GOOD / REJECTED).' },
+  { key: 'scoreDkp', label: 'sDKP', numeric: true, defaultVisible: true, hint: 'DKP sub-score = raw DKP ÷ expected DKP for this player\'s power. 1.00 = exactly meeting expectation.' },
+  { key: 'scoreRss', label: 'sRSS', numeric: true, defaultVisible: true, hint: 'RSS sub-score = resources gathered ÷ expected. 1.00 = on target for their power.' },
+  { key: 'scoreHelps', label: 'sHelps', numeric: true, defaultVisible: true, hint: 'Alliance helps sub-score = helps given ÷ expected. 1.00 = on target for their power.' },
+  { key: 'scoreHonor', label: 'sHonor', numeric: true, defaultVisible: false, hint: 'Honor sub-score = honor points ÷ expected. 1.00 = on target for their power.' },
+  { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: false, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
 ];
 
 export default function DkpPage() {
@@ -533,6 +535,7 @@ function DkpPageInner() {
                       <button
                         onClick={handleDeploy}
                         disabled={!isDirty || deploying}
+                        title="Publish your current edits to the shared kingdom database — every viewer will see them on next refresh."
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <Rocket size={12} />
@@ -541,6 +544,7 @@ function DkpPageInner() {
                       <button
                         onClick={handleDiscardChanges}
                         disabled={!isDirty || deploying}
+                        title="Throw away your local edits and revert to the published config."
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <RotateCcw size={12} />
@@ -551,6 +555,7 @@ function DkpPageInner() {
                   )}
                 </div>
                 <label
+                  title="Use two separate weight sets — one for accounts under the power threshold, one for accounts at or above. Lets you score smaller accounts differently than whales."
                   className={`flex items-center gap-2 text-xs text-[var(--text-muted)] select-none ${isOfficer ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
                 >
                   <input
@@ -578,24 +583,38 @@ function DkpPageInner() {
                 </div>
               )}
 
-              {/* DKP formula coefficients */}
-              <div className="mb-4">
-                <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
-                  DKP Formula
+              {/* Quick how-it-works explainer */}
+              <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-[var(--background)]/40 border border-[var(--border)] text-xs text-[var(--text-secondary)] leading-relaxed">
+                <Info size={14} className="text-sky-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-[var(--foreground)]">How it works:</span>{' '}
+                  Each player&apos;s raw stats are normalized against their own power so smaller
+                  accounts that punch above their weight score higher.{' '}
+                  <span className="text-[var(--text-muted)]">
+                    DKP combines kills + deaths via the formula → each category becomes a
+                    sub-score (actual ÷ expected) → sub-scores are blended using the weights →
+                    the final number maps to a status tier. Hover any{' '}
+                    <span className="underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+                      dotted label
+                    </span>{' '}
+                    for details.
+                  </span>
                 </div>
-                <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-3 py-2">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {(
-                      [
-                        ['t4Kill', 'T4 Kill'],
-                        ['t5Kill', 'T5 Kill'],
-                        ['t4Death', 'T4 Death'],
-                        ['t5Death', 'T5 Death'],
-                      ] as const
-                    ).map(([key, label]) => (
+              </div>
+
+              {/* 3-column grid: Formula | Weights | Cutoffs (stacks on mobile) */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                {/* DKP Formula card */}
+                <ConfigCard
+                  title="DKP Formula"
+                  hint="How the raw DKP number is built from each player's T4/T5 kills and deaths. Higher coefficients reward that activity more."
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    {(['t4Kill', 't5Kill', 't4Death', 't5Death'] as const).map((key) => (
                       <FormulaCoef
                         key={key}
-                        label={label}
+                        label={FORMULA_LABELS[key].label}
+                        hint={FORMULA_LABELS[key].hint}
                         value={config.dkpFormula[key]}
                         disabled={!isOfficer}
                         onChange={(v) =>
@@ -607,29 +626,23 @@ function DkpPageInner() {
                       />
                     ))}
                   </div>
-                  <div className="mt-2 text-[10px] text-[var(--text-muted)] tabular-nums">
+                  <div className="mt-3 text-[10px] text-[var(--text-muted)] tabular-nums leading-relaxed">
                     DKP = T4K×{config.dkpFormula.t4Kill} + T5K×{config.dkpFormula.t5Kill} +
                     T4D×{config.dkpFormula.t4Death} + T5D×{config.dkpFormula.t5Death}
                   </div>
-                </div>
-              </div>
+                </ConfigCard>
 
-              {/* Side-by-side weights + cutoffs on lg, stacked on smaller */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className={`${config.split ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
-                  <div className="flex items-baseline justify-between mb-2">
-                    <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                      Score Weights
-                    </div>
-                    <div className="text-[10px] text-[var(--text-muted)]">
-                      Relative — don&apos;t need to add up
-                    </div>
-                  </div>
-                  <div
-                    className={
-                      config.split ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : ''
-                    }
-                  >
+                {/* Weights card(s) */}
+                <ConfigCard
+                  title="Score Weights"
+                  hint="How much each sub-score contributes to the final number. Values are relative — they don't need to add to anything."
+                  rightSlot={
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      relative — don&apos;t add up
+                    </span>
+                  }
+                >
+                  <div className="space-y-3">
                     {config.split && (
                       <WeightBand
                         title="Smaller accounts"
@@ -644,51 +657,21 @@ function DkpPageInner() {
                       subtitle={
                         config.split
                           ? `At or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`
-                          : undefined
+                          : 'Applied uniformly to every player'
                       }
                       weights={config.weightsHigh}
                       disabled={!isOfficer}
                       onChange={(k, v) => setWeight('weightsHigh', k, v)}
                     />
                   </div>
-                </div>
+                </ConfigCard>
 
-                {!config.split && (
-                  <div>
-                    <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
-                      Status Cutoffs
-                    </div>
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 divide-y divide-[var(--border)]/50">
-                      <CutoffRow
-                        status="EXCELLENT"
-                        value={config.statusThresholds.excellent}
-                        disabled={!isOfficer}
-                        onChange={(v) => setThreshold('excellent', v)}
-                      />
-                      <CutoffRow
-                        status="APPROVED"
-                        value={config.statusThresholds.approved}
-                        disabled={!isOfficer}
-                        onChange={(v) => setThreshold('approved', v)}
-                      />
-                      <CutoffRow
-                        status="GOOD"
-                        value={config.statusThresholds.good}
-                        disabled={!isOfficer}
-                        onChange={(v) => setThreshold('good', v)}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* When split is on, cutoffs go full-width below */}
-              {config.split && (
-                <div className="mt-4">
-                  <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
-                    Status Cutoffs
-                  </div>
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 divide-y divide-[var(--border)]/50">
+                {/* Status cutoffs card */}
+                <ConfigCard
+                  title="Status Cutoffs"
+                  hint="The minimum final score needed to land in each tier. Anything below the GOOD cutoff is REJECTED."
+                >
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/50">
                     <CutoffRow
                       status="EXCELLENT"
                       value={config.statusThresholds.excellent}
@@ -708,8 +691,8 @@ function DkpPageInner() {
                       onChange={(v) => setThreshold('good', v)}
                     />
                   </div>
-                </div>
-              )}
+                </ConfigCard>
+              </div>
             </div>
           )}
         </section>
@@ -768,12 +751,18 @@ function DkpPageInner() {
             <table className="w-full text-sm">
               <thead className="bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="px-3 py-3 text-right w-12">#</th>
+                  <th
+                    className="px-3 py-3 text-right w-12 cursor-help"
+                    title="Global rank by current sort. Search/filter does not renumber."
+                  >
+                    #
+                  </th>
                   {COLUMNS.filter((c) => visibleCols.has(c.key)).map((c) => (
                     <th
                       key={c.key}
+                      title={c.hint}
                       className={`px-3 py-3 ${c.numeric ? 'text-right' : 'text-left'} ${
-                        c.key !== 'status' ? 'cursor-pointer hover:text-[var(--foreground)]' : ''
+                        c.key !== 'status' ? 'cursor-pointer hover:text-[var(--foreground)]' : 'cursor-help'
                       }`}
                       onClick={() => c.key !== 'status' && handleSort(c.key as SortKey)}
                     >
@@ -1137,14 +1126,49 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
+/** A consistent card wrapper for each config section (formula / weights / cutoffs). */
+function ConfigCard({
+  title,
+  hint,
+  rightSlot,
+  children,
+}: {
+  title: string;
+  hint: string;
+  rightSlot?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-3 sm:p-4">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-semibold text-[var(--foreground)] uppercase tracking-wider">
+            {title}
+          </span>
+          <span
+            title={hint}
+            className="cursor-help text-[var(--text-muted)] hover:text-[var(--foreground)]"
+          >
+            <Info size={11} />
+          </span>
+        </div>
+        {rightSlot}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 /** Single coefficient input for the DKP formula (label above, number input below). */
 function FormulaCoef({
   label,
+  hint,
   value,
   onChange,
   disabled = false,
 }: {
   label: string;
+  hint: string;
   value: number;
   onChange: (v: number) => void;
   disabled?: boolean;
@@ -1155,7 +1179,10 @@ function FormulaCoef({
   }, [value]);
   return (
     <div>
-      <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+      <label
+        className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2"
+        title={hint}
+      >
         {label}
       </label>
       <input
@@ -1251,10 +1278,53 @@ function PowerInput({
 }
 
 const WEIGHT_LABELS: Record<keyof WeightSet, { label: string; hint: string; color: string }> = {
-  dkp: { label: 'DKP', hint: 'Kills + deaths weighted', color: 'bg-violet-500' },
-  rss: { label: 'RSS', hint: 'Resources gathered', color: 'bg-amber-500' },
-  helps: { label: 'Helps', hint: 'Alliance helps count', color: 'bg-sky-500' },
-  honor: { label: 'Honor', hint: 'Honor points', color: 'bg-emerald-500' },
+  dkp: {
+    label: 'DKP',
+    hint: 'Combined kills + deaths score using the formula coefficients on the left. Higher kills + deaths during KvK = higher DKP.',
+    color: 'bg-violet-500',
+  },
+  rss: {
+    label: 'RSS',
+    hint: 'Resources gathered from the kingdom map (food, wood, stone, gold). Rewards active gathering.',
+    color: 'bg-amber-500',
+  },
+  helps: {
+    label: 'Helps',
+    hint: 'Alliance helps given. Rewards being active in the alliance and supporting teammates.',
+    color: 'bg-sky-500',
+  },
+  honor: {
+    label: 'Honor',
+    hint: 'Honor points earned (PvP, events). Imported from the Statmaster honor rankings file.',
+    color: 'bg-emerald-500',
+  },
+};
+
+const FORMULA_LABELS: Record<keyof DkpFormula, { label: string; hint: string }> = {
+  t4Kill: {
+    label: 'T4 Kill',
+    hint: 'Points awarded for each Tier 4 kill made during KvK.',
+  },
+  t5Kill: {
+    label: 'T5 Kill',
+    hint: 'Points awarded for each Tier 5 kill. T5 are the strongest troops, so usually weighted higher than T4 kills.',
+  },
+  t4Death: {
+    label: 'T4 Death',
+    hint: 'Points awarded for each Tier 4 death (sacrifice). Deaths typically count more than kills since they cost the player real troops.',
+  },
+  t5Death: {
+    label: 'T5 Death',
+    hint: 'Points awarded for each Tier 5 death. Usually the highest coefficient in the formula since T5 sacrifices are the most costly.',
+  },
+};
+
+const CUTOFF_HINTS: Record<Status, string> = {
+  EXCELLENT:
+    'Top tier — players whose final score is at or above this threshold are marked EXCELLENT.',
+  APPROVED: 'Players hitting at least this threshold are APPROVED (meeting expectations).',
+  GOOD: 'Players hitting at least this threshold are GOOD (acceptable). Below this they are REJECTED.',
+  REJECTED: '',
 };
 
 /** A clean horizontal weight row: dot + label + slider + number input. */
@@ -1289,9 +1359,14 @@ function WeightRow({
     <div
       className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-50' : ''}`}
     >
-      <div className="flex items-center gap-2 w-20 sm:w-24 flex-shrink-0">
+      <div
+        className="flex items-center gap-2 w-20 sm:w-24 flex-shrink-0 cursor-help"
+        title={meta.hint}
+      >
         <span className={`w-2 h-2 rounded-full ${meta.color}`} />
-        <span className="text-xs font-medium text-[var(--foreground)]">{meta.label}</span>
+        <span className="text-xs font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+          {meta.label}
+        </span>
       </div>
       <input
         type="range"
@@ -1412,7 +1487,8 @@ function CutoffRow({
   return (
     <div className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''}`}>
       <span
-        className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[status]} flex-shrink-0`}
+        title={CUTOFF_HINTS[status]}
+        className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[status]} flex-shrink-0`}
       >
         {status}
       </span>
