@@ -602,5 +602,27 @@
       "kpTarget": "KP target",
       "splitAt": " @ "
     }
+  },
+  "mge": {
+    "title": "MGE Events",
+    "newEvent": "New Event",
+    "lockAdmin": "Lock admin mode",
+    "officerMode": "Officer Mode",
+    "login": "Login",
+    "adminMode": "Admin Mode",
+    "adminAccess": "Full access: create events, review, manage",
+    "officerAccess": "Review and triage applicants",
+    "passwordPlaceholder": "Password",
+    "enter": "Enter",
+    "incorrectPassword": "Incorrect password",
+    "filters": {
+      "active": "Active",
+      "past": "Past",
+      "all": "All"
+    },
+    "loadingEvents": "Loading events...",
+    "noEvents": "No MGE events yet",
+    "noEventsAdmin": "Create your first event above.",
+    "noEventsViewer": "Events will appear here once created."
   }
 }

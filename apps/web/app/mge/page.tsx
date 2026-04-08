@@ -9,6 +9,7 @@ import {
   type MgeEvent,
 } from '@/lib/supabase/use-mge';
 import { Shield, Lock, Unlock, Plus, Crown, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { MgeEventCard } from '@/components/mge/MgeEventCard';
 import { MgeEventSetup } from '@/components/mge/MgeEventSetup';
 import { tierSortValue } from '@/lib/mge/helpers';
@@ -176,6 +177,7 @@ function generateRankingsMail(evt: MgeEvent): string {
 type StatusFilter = 'all' | 'active' | 'past';
 
 export default function MgePage() {
+  const t = useTranslations('mge');
   const { events, loading, error, refetch } = useMgeEvents();
 
   // Two-level auth
@@ -239,7 +241,7 @@ export default function MgePage() {
       setShowPasswordPrompt(false);
       setPassword('');
     } else {
-      alert('Incorrect password');
+      alert(t('incorrectPassword'));
       setPassword('');
     }
   };
@@ -294,19 +296,19 @@ export default function MgePage() {
           <div className="flex items-center gap-3">
             <Shield size={28} className="text-blue-500" />
             <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
-              MGE Events
+              {t('title')}
             </h1>
           </div>
           <div className="flex items-center gap-2">
             {isAdmin ? (
               <>
                 <button onClick={() => setShowNewForm(true)} className={btnPrimary}>
-                  <span className="flex items-center gap-1.5"><Plus size={16} /> New Event</span>
+                  <span className="flex items-center gap-1.5"><Plus size={16} /> {t('newEvent')}</span>
                 </button>
                 <button
                   onClick={handleLogout}
                   className="p-2 rounded-md hover:bg-blue-500/10 transition-fast"
-                  title="Lock admin mode"
+                  title={t('lockAdmin')}
                 >
                   <Unlock size={18} className="text-blue-400" />
                 </button>
@@ -316,7 +318,7 @@ export default function MgePage() {
                 onClick={handleLogout}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm hover:bg-blue-500/10 transition-fast text-blue-400"
               >
-                Officer Mode
+                {t('officerMode')}
                 <X size={14} />
               </button>
             ) : (
@@ -324,7 +326,7 @@ export default function MgePage() {
                 onClick={() => setShowPasswordPrompt(true)}
                 className="p-2 rounded-md hover:bg-[var(--background-secondary)] transition-fast"
                 style={{ color: 'var(--text-muted)' }}
-                title="Login"
+                title={t('login')}
               >
                 <Lock size={18} />
               </button>
@@ -335,10 +337,10 @@ export default function MgePage() {
         {/* Mode banner */}
         {isOfficer && (
           <div className="mb-4 px-4 py-2 rounded-lg border flex items-center gap-2 text-sm bg-blue-500/10 border-blue-500/30">
-            <span className="font-medium text-blue-400">{isAdmin ? 'Admin Mode' : 'Officer Mode'}</span>
+            <span className="font-medium text-blue-400">{isAdmin ? t('adminMode') : t('officerMode')}</span>
             <span style={{ color: 'var(--text-muted)' }}>—</span>
             <span style={{ color: 'var(--text-secondary)' }}>
-              {isAdmin ? 'Full access: create events, review, manage' : 'Review and triage applicants'}
+              {isAdmin ? t('adminAccess') : t('officerAccess')}
             </span>
           </div>
         )}
@@ -350,7 +352,7 @@ export default function MgePage() {
             <Lock size={16} style={{ color: 'var(--text-muted)' }} />
             <input
               type="password"
-              placeholder="Password"
+              placeholder={t('passwordPlaceholder')}
               value={password}
               onChange={e => setPassword(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
@@ -358,7 +360,7 @@ export default function MgePage() {
               style={inputStyle}
               autoFocus
             />
-            <button onClick={handleLogin} className={btnPrimary}>Enter</button>
+            <button onClick={handleLogin} className={btnPrimary}>{t('enter')}</button>
             <button onClick={() => { setShowPasswordPrompt(false); setPassword(''); }}
               className="p-2 rounded-md hover:bg-[var(--background-secondary)]"
               style={{ color: 'var(--text-muted)' }}>
@@ -370,9 +372,9 @@ export default function MgePage() {
         {/* Status filter pills */}
         <div className="flex gap-1.5 mb-4">
           {([
-            { key: 'active', label: 'Active' },
-            { key: 'past', label: 'Past' },
-            { key: 'all', label: 'All' },
+            { key: 'active', label: t('filters.active') },
+            { key: 'past', label: t('filters.past') },
+            { key: 'all', label: t('filters.all') },
           ] as { key: StatusFilter; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
@@ -398,7 +400,7 @@ export default function MgePage() {
         {/* Loading / Error */}
         {loading && (
           <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
-            Loading events...
+            {t('loadingEvents')}
           </div>
         )}
         {error && (
@@ -413,10 +415,10 @@ export default function MgePage() {
             style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
             <Crown size={48} className="mx-auto mb-4 text-blue-500/30" />
             <p className="text-lg font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-              No MGE events yet
+              {t('noEvents')}
             </p>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {isAdmin ? 'Create your first event above.' : 'Events will appear here once created.'}
+              {isAdmin ? t('noEventsAdmin') : t('noEventsViewer')}
             </p>
           </div>
         )}
