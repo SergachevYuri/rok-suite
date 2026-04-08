@@ -146,7 +146,7 @@ type Status = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED';
 /** Friendlier display labels (REJECTED → REVIEW). */
 const STATUS_LABELS: Record<Status, string> = {
   EXCELLENT: 'EXCELLENT',
-  APPROVED: 'APPROVED',
+  APPROVED: 'STRONG',
   GOOD: 'GOOD',
   REJECTED: 'REVIEW',
 };
@@ -306,7 +306,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 'totalDeaths', label: 'Total Deaths', numeric: true, defaultVisible: true, hint: 'T4 + T5 troop deaths combined.' },
   { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths weighted).' },
   { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Final 0–100 score. Each of DKP, RSS, helps and honor is scored 0–100 relative to the top player in the kingdom for that category, then blended using the score weights. 100 = top player in every weighted category.' },
-  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / APPROVED / GOOD / REVIEW).' },
+  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / STRONG / GOOD / REVIEW).' },
   { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: true, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
 ];
 
@@ -566,7 +566,7 @@ function DkpPageInner() {
           <SummaryCard label="Players" value={fmt(summary.total)} />
           <SummaryCard label="Total DKP" value={fmt(summary.totalDkp)} />
           <SummaryCard label="Excellent" value={fmt(summary.counts.EXCELLENT)} tone="amber" />
-          <SummaryCard label="Approved" value={fmt(summary.counts.APPROVED)} tone="emerald" />
+          <SummaryCard label="Strong" value={fmt(summary.counts.APPROVED)} tone="emerald" />
           <SummaryCard label="Good" value={fmt(summary.counts.GOOD)} tone="sky" />
           <SummaryCard label="Review" value={fmt(summary.counts.REJECTED)} tone="red" />
         </section>
@@ -961,7 +961,7 @@ function DkpPageInner() {
                     : 'bg-[var(--background-card)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--foreground)]'
                 }`}
               >
-                {s === 'ALL' ? s : s === 'REJECTED' ? STATUS_LABELS.REJECTED : s}
+                {s === 'ALL' ? s : STATUS_LABELS[s]}
               </button>
             ))}
           </div>
@@ -1717,7 +1717,7 @@ const FORMULA_LABELS: Record<keyof DkpFormula, { label: string; hint: string }> 
 const CUTOFF_HINTS: Record<Status, string> = {
   EXCELLENT:
     'Top tier — players whose final score is at or above this threshold are marked EXCELLENT.',
-  APPROVED: 'Players hitting at least this threshold are APPROVED (meeting expectations).',
+  APPROVED: 'Players hitting at least this threshold are STRONG (clearly pulling weight, just below the top tier).',
   GOOD: 'Players hitting at least this threshold are GOOD (acceptable). Below this they fall into REVIEW.',
   REJECTED: 'Anything below the GOOD threshold lands here. Flagged for officer attention rather than auto-rejected.',
 };
@@ -1887,7 +1887,7 @@ function CutoffRow({
         <span
           className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[status]}`}
         >
-          {status}
+          {STATUS_LABELS[status]}
         </span>
       </Tooltip>
       <span className="text-xs text-[var(--text-muted)] hidden sm:inline">≥</span>
