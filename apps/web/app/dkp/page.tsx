@@ -32,97 +32,45 @@ import {
   subscribeToSharedConfig,
 } from './data';
 
-interface WeightSet {
-  dkp: number;
-  rss: number;
-  helps: number;
-  honor: number;
-}
-
-interface DkpFormula {
-  t4Kill: number;
-  t5Kill: number;
-  t4Death: number;
-  t5Death: number;
-}
-
 interface Config {
-  // When split is true, `weightsLow` is used for players with highestPower < weightSplitThreshold,
-  // otherwise `weightsHigh` is used. When split is false, `weightsHigh` is used for everyone.
-  split: boolean;
-  weightSplitThreshold: number;
-  weightsLow: WeightSet;
-  weightsHigh: WeightSet;
-  dkpFormula: DkpFormula;
-  meta: {
-    dkpDivisor: number;
-    rssMultiplier: number;
-    helpsMultiplier: number;
-    honorMultiplier: number;
-  };
+  // Power level (in raw units) below which players are considered "smaller accounts"
+  // and use the lower multiplier. At-or-above this value uses the higher multiplier.
+  powerThreshold: number;
+  // Smaller accounts: target KP = power × this. Default 3 means a 30M-power player is
+  // expected to produce 90M total KP.
+  lowMultiplier: number;
+  // Larger accounts: target KP = power × this. Default 10 means a 60M-power player is
+  // expected to produce 600M total KP. Larger accounts have more troops to throw at KvK.
+  highMultiplier: number;
+  // Score thresholds (as ratios of KP / target). 1.0 = exactly meeting target.
   statusThresholds: { excellent: number; approved: number; good: number };
 }
 
-// Weights are relative integers in [0, 100]. They do NOT need to sum to anything;
-// the final score divides by the sum of active weights. Larger numbers just dominate.
-const DEFAULT_WEIGHTS: WeightSet = { dkp: 80, rss: 5, helps: 5, honor: 10 };
-const DEFAULT_DKP_FORMULA: DkpFormula = { t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24 };
-
 const DEFAULT_CONFIG: Config = {
-  split: false,
-  weightSplitThreshold: 40_000_000,
-  weightsLow: { ...DEFAULT_WEIGHTS },
-  weightsHigh: { ...DEFAULT_WEIGHTS },
-  dkpFormula: { ...DEFAULT_DKP_FORMULA },
-  meta: {
-    dkpDivisor: 4,
-    rssMultiplier: 3.0,
-    helpsMultiplier: 0.0003,
-    honorMultiplier: 0.001,
-  },
-  statusThresholds: { excellent: 1.5, approved: 1.0, good: 0.8 },
+  powerThreshold: 42_000_000,
+  lowMultiplier: 3,
+  highMultiplier: 10,
+  statusThresholds: { excellent: 1.2, approved: 1.0, good: 0.8 },
 };
 
-/** Migrate legacy 0–1 weight sets to the new 0–100 integer scale. */
-function migrateWeights(w: Partial<WeightSet> | undefined): Partial<WeightSet> {
-  if (!w) return {};
-  const values = Object.values(w).filter((v): v is number => typeof v === 'number');
-  if (values.length === 0) return w;
-  const max = Math.max(...values);
-  if (max > 0 && max <= 1) {
-    // Legacy decimal scale — rescale to integers in [0, 100].
-    const out: Partial<WeightSet> = {};
-    for (const [k, v] of Object.entries(w)) {
-      if (typeof v === 'number') (out as Record<string, number>)[k] = Math.round(v * 100);
-    }
-    return out;
-  }
-  return w;
-}
-
-/** Merge a partial remote config onto a base, preserving nested defaults. */
+/** Merge a partial remote config onto a base, preserving nested defaults.
+ *  Legacy fields from older configs (weights, formula, baselines) are silently ignored. */
 function mergeConfig(base: Config, partial: Partial<Config> | null | undefined): Config {
   if (!partial) return base;
   return {
     ...base,
     ...partial,
-    weightsLow: { ...base.weightsLow, ...migrateWeights(partial.weightsLow) },
-    weightsHigh: { ...base.weightsHigh, ...migrateWeights(partial.weightsHigh) },
-    dkpFormula: { ...base.dkpFormula, ...(partial.dkpFormula ?? {}) },
     statusThresholds: { ...base.statusThresholds, ...(partial.statusThresholds ?? {}) },
-    meta: { ...base.meta, ...(partial.meta ?? {}) },
   };
 }
 
 type Status = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED';
 
 interface ScoredPlayer extends Player {
-  computedDkp: number;
-  scoreDkp: number;
-  scoreRss: number;
-  scoreHelps: number;
-  scoreHonor: number;
-  finalScore: number;
+  /** What this player should produce in KP based on their power. */
+  targetKp: number;
+  /** Actual total KP ÷ target. 1.0 = exactly meeting expectations. */
+  kpRatio: number;
   status: Status;
 }
 
@@ -132,60 +80,19 @@ function safeDiv(a: number, b: number): number {
 }
 
 function computeScores(players: Player[], config: Config): ScoredPlayer[] {
-  const { meta, statusThresholds, dkpFormula } = config;
+  const { powerThreshold, lowMultiplier, highMultiplier, statusThresholds } = config;
   return players.map((p) => {
-    const computedDkp =
-      p.t4Kills * dkpFormula.t4Kill +
-      p.t5Kills * dkpFormula.t5Kill +
-      p.t4Deaths * dkpFormula.t4Death +
-      p.t5Deaths * dkpFormula.t5Death;
-    const metaDkp = p.highestPower / meta.dkpDivisor;
-    const metaRss = p.highestPower * meta.rssMultiplier;
-    const metaHelps = p.highestPower * meta.helpsMultiplier;
-    const metaHonor = p.highestPower * meta.honorMultiplier;
-
-    const scoreDkp = safeDiv(computedDkp, metaDkp);
-    const scoreRss = safeDiv(p.rssGathered, metaRss);
-    const scoreHelps = safeDiv(p.allianceHelps, metaHelps);
-    const scoreHonor = safeDiv(p.honorPoints, metaHonor);
-
-    const weights =
-      config.split && p.highestPower < config.weightSplitThreshold
-        ? config.weightsLow
-        : config.weightsHigh;
-
-    let num = 0;
-    let den = 0;
-    const components: [number, number][] = [
-      [scoreDkp, weights.dkp],
-      [scoreRss, weights.rss],
-      [scoreHelps, weights.helps],
-      [scoreHonor, weights.honor],
-    ];
-    for (const [s, w] of components) {
-      if (w > 0) {
-        num += s * w;
-        den += w;
-      }
-    }
-    const finalScore = den > 0 ? num / den : 0;
+    const multiplier = p.power < powerThreshold ? lowMultiplier : highMultiplier;
+    const targetKp = p.power * multiplier;
+    const kpRatio = safeDiv(p.totalKP, targetKp);
 
     let status: Status;
-    if (finalScore >= statusThresholds.excellent) status = 'EXCELLENT';
-    else if (finalScore >= statusThresholds.approved) status = 'APPROVED';
-    else if (finalScore >= statusThresholds.good) status = 'GOOD';
+    if (kpRatio >= statusThresholds.excellent) status = 'EXCELLENT';
+    else if (kpRatio >= statusThresholds.approved) status = 'APPROVED';
+    else if (kpRatio >= statusThresholds.good) status = 'GOOD';
     else status = 'REJECTED';
 
-    return {
-      ...p,
-      computedDkp,
-      scoreDkp,
-      scoreRss,
-      scoreHelps,
-      scoreHonor,
-      finalScore,
-      status,
-    };
+    return { ...p, targetKp, kpRatio, status };
   });
 }
 
@@ -213,13 +120,8 @@ type SortKey =
   | 'username'
   | 'power'
   | 'totalKP'
-  | 'dkp'
-  | 'finalScore'
-  | 'scoreDkp'
-  | 'scoreRss'
-  | 'scoreHelps'
-  | 'scoreHonor'
-  | 'honorPoints';
+  | 'targetKp'
+  | 'kpRatio';
 
 interface ColumnDef {
   key: SortKey | 'status';
@@ -232,15 +134,10 @@ interface ColumnDef {
 const COLUMNS: ColumnDef[] = [
   { key: 'username', label: 'Player', defaultVisible: true, hint: 'In-game username from the kingdom export.' },
   { key: 'power', label: 'Power', numeric: true, defaultVisible: true, hint: 'Current power as of the last upload (not highest power).' },
-  { key: 'totalKP', label: 'KP', numeric: true, defaultVisible: true, hint: 'Total kill points from the kingdom export (all tiers combined).' },
-  { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula above (T4/T5 kills + T4/T5 deaths).' },
-  { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Final weighted score (as % of expected). 100% = exactly meeting expectations across all weighted categories.' },
-  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / APPROVED / GOOD / REJECTED).' },
-  { key: 'scoreDkp', label: 'DKP %', numeric: true, defaultVisible: true, hint: 'DKP performance: raw DKP ÷ expected DKP for this player\'s power. 100% = exactly on target. 150% = 1.5× expected.' },
-  { key: 'scoreRss', label: 'RSS %', numeric: true, defaultVisible: true, hint: 'RSS performance: resources gathered ÷ expected. 100% = on target for their power.' },
-  { key: 'scoreHelps', label: 'Helps %', numeric: true, defaultVisible: true, hint: 'Alliance helps performance: helps given ÷ expected. 100% = on target for their power.' },
-  { key: 'scoreHonor', label: 'Honor %', numeric: true, defaultVisible: false, hint: 'Honor performance: honor points ÷ expected. 100% = on target for their power.' },
-  { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: false, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
+  { key: 'totalKP', label: 'KP', numeric: true, defaultVisible: true, hint: 'Actual total kill points from the kingdom export (all tiers combined).' },
+  { key: 'targetKp', label: 'Target KP', numeric: true, defaultVisible: true, hint: 'Target KP for this player based on their power. Smaller accounts are expected to produce ~3× their power, larger accounts ~10×.' },
+  { key: 'kpRatio', label: 'Score', numeric: true, defaultVisible: true, hint: 'Actual KP ÷ Target KP, shown as a percentage. 100% = exactly meeting their target. 150% = 1.5× target.' },
+  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / APPROVED / GOOD / REJECTED) based on the cutoffs in the config panel.' },
 ];
 
 export default function DkpPage() {
@@ -265,7 +162,7 @@ function DkpPageInner() {
   const [deployError, setDeployError] = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('finalScore');
+  const [sortKey, setSortKey] = useState<SortKey>('kpRatio');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
@@ -377,12 +274,12 @@ function DkpPageInner() {
 
   const summary = useMemo(() => {
     const counts: Record<Status, number> = { EXCELLENT: 0, APPROVED: 0, GOOD: 0, REJECTED: 0 };
-    let totalDkp = 0;
+    let totalKp = 0;
     for (const p of scored) {
       counts[p.status]++;
-      totalDkp += p.dkp || p.computedDkp;
+      totalKp += p.totalKP;
     }
-    return { counts, totalDkp, total: scored.length };
+    return { counts, totalKp, total: scored.length };
   }, [scored]);
 
   const handleDeploy = async () => {
@@ -403,9 +300,6 @@ function DkpPageInner() {
     setDeployError(null);
   };
 
-  const setWeight = (band: 'weightsLow' | 'weightsHigh', key: keyof WeightSet, value: number) => {
-    setConfig((c) => ({ ...c, [band]: { ...c[band], [key]: value } }));
-  };
   const setThreshold = (key: keyof Config['statusThresholds'], value: number) => {
     setConfig((c) => ({ ...c, statusThresholds: { ...c.statusThresholds, [key]: value } }));
   };
@@ -497,7 +391,7 @@ function DkpPageInner() {
         {/* Summary */}
         <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
           <SummaryCard label="Players" value={fmt(summary.total)} />
-          <SummaryCard label="Total DKP" value={fmt(summary.totalDkp)} />
+          <SummaryCard label="Total KP" value={fmt(summary.totalKp)} />
           <SummaryCard label="Excellent" value={fmt(summary.counts.EXCELLENT)} tone="amber" />
           <SummaryCard label="Approved" value={fmt(summary.counts.APPROVED)} tone="emerald" />
           <SummaryCard label="Good" value={fmt(summary.counts.GOOD)} tone="sky" />
@@ -566,220 +460,135 @@ function DkpPageInner() {
                     </>
                   )}
                 </div>
-                <label
-                  title="Use two separate weight sets — one for accounts under the power threshold, one for accounts at or above. Lets you score smaller accounts differently than whales."
-                  className={`flex items-center gap-2 text-xs text-[var(--text-muted)] select-none ${isOfficer ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={config.split}
-                    disabled={!isOfficer}
-                    onChange={(e) => setConfig((c) => ({ ...c, split: e.target.checked }))}
-                    className="accent-[#4318ff]"
-                  />
-                  Split weights by power
-                </label>
               </div>
 
-              {config.split && (
-                <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <span className="font-medium">Power threshold:</span>
-                  <PowerInput
-                    value={config.weightSplitThreshold}
-                    disabled={!isOfficer}
-                    onChange={(v) =>
-                      setConfig((c) => ({ ...c, weightSplitThreshold: Math.max(0, v) }))
-                    }
-                  />
-                  <span className="text-[var(--text-muted)]">splits low / high power accounts</span>
-                </div>
-              )}
-
-              {/* Quick how-it-works explainer */}
-              <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-[var(--background)]/40 border border-[var(--border)] text-xs text-[var(--text-secondary)] leading-relaxed">
-                <Info size={14} className="text-sky-400 flex-shrink-0 mt-0.5" />
+              {/* How it works callout */}
+              <div className="mb-5 flex items-start gap-3 p-4 rounded-lg bg-sky-500/5 border border-sky-500/20 text-sm text-[var(--text-secondary)] leading-relaxed">
+                <Info size={18} className="text-sky-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-[var(--foreground)]">How it works:</span>{' '}
-                  Each player&apos;s raw stats are normalized against their own power so smaller
-                  accounts that punch above their weight score higher.{' '}
-                  <span className="text-[var(--text-muted)]">
-                    DKP combines kills + deaths via the formula → each category becomes a
-                    sub-score (actual ÷ expected) → sub-scores are blended using the weights →
-                    the final number maps to a status tier. Hover any{' '}
-                    <span className="underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
-                      dotted label
-                    </span>{' '}
-                    for details.
-                  </span>
+                  <span className="font-semibold text-[var(--foreground)]">How the score works:</span>{' '}
+                  Each player has a <span className="text-[var(--foreground)] font-medium">Target KP</span>{' '}
+                  computed from their power (smaller accounts use a lower multiplier, larger accounts a
+                  higher one). Their <span className="text-[var(--foreground)] font-medium">Score</span>{' '}
+                  is just <span className="text-[var(--foreground)] font-medium">actual KP ÷ target KP</span>,
+                  shown as a percentage. 100% = exactly hitting their target.
                 </div>
               </div>
 
-              {/* 2×2 grid: Formula | Weights / Expected | Cutoffs (stacks on mobile) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-                {/* DKP Formula card */}
+              {/* 2-column layout: Target KP (with preview) | Status Cutoffs */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+                {/* Target KP card */}
                 <ConfigCard
-                  title="DKP Formula"
-                  hint="How the raw DKP number is built from each player's T4/T5 kills and deaths. Higher coefficients reward that activity more."
+                  title="Target KP"
+                  hint="How much KP each player is expected to produce, based on their current power. Below the threshold uses the smaller multiplier, at-or-above uses the larger one."
                 >
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['t4Kill', 't5Kill', 't4Death', 't5Death'] as const).map((key) => (
-                      <FormulaCoef
-                        key={key}
-                        label={FORMULA_LABELS[key].label}
-                        hint={FORMULA_LABELS[key].hint}
-                        value={config.dkpFormula[key]}
-                        disabled={!isOfficer}
-                        onChange={(v) =>
-                          setConfig((c) => ({
-                            ...c,
-                            dkpFormula: { ...c.dkpFormula, [key]: v },
-                          }))
-                        }
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-3 text-[10px] text-[var(--text-muted)] tabular-nums leading-relaxed">
-                    DKP = T4K×{config.dkpFormula.t4Kill} + T5K×{config.dkpFormula.t5Kill} +
-                    T4D×{config.dkpFormula.t4Death} + T5D×{config.dkpFormula.t5Death}
-                  </div>
-                </ConfigCard>
-
-                {/* Weights card(s) */}
-                <ConfigCard
-                  title="Score Weights"
-                  hint="How much each sub-score contributes to the final number. Values are relative — they don't need to add to anything."
-                  rightSlot={
-                    <span className="text-[10px] text-[var(--text-muted)]">
-                      relative — don&apos;t add up
-                    </span>
-                  }
-                >
-                  <div className="space-y-3">
-                    {config.split && (
-                      <WeightBand
-                        title="Smaller accounts"
-                        subtitle={`Under ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`}
-                        weights={config.weightsLow}
-                        disabled={!isOfficer}
-                        onChange={(k, v) => setWeight('weightsLow', k, v)}
-                      />
-                    )}
-                    <WeightBand
-                      title={config.split ? 'Larger accounts' : 'All players'}
-                      subtitle={
-                        config.split
-                          ? `At or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`
-                          : 'Applied uniformly to every player'
-                      }
-                      weights={config.weightsHigh}
-                      disabled={!isOfficer}
-                      onChange={(k, v) => setWeight('weightsHigh', k, v)}
-                    />
-                  </div>
-                </ConfigCard>
-
-                {/* Expected baselines card */}
-                <ConfigCard
-                  title="Expected Baselines"
-                  hint="What an 'on-target' player at a given power level should produce. Sub-scores = actual ÷ this baseline. A sub-score of 1.00 = exactly meeting the baseline."
-                >
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <BaselineInput
-                      label="DKP divisor"
-                      hint="Expected DKP = highestPower ÷ this number. Lower divisor → higher expectation. Default 4 means a 40M-power player should produce ~10M raw DKP."
-                      value={config.meta.dkpDivisor}
-                      step={0.5}
-                      decimals={1}
-                      disabled={!isOfficer}
-                      onChange={(v) =>
-                        setConfig((c) => ({ ...c, meta: { ...c.meta, dkpDivisor: v } }))
-                      }
-                    />
-                    <BaselineInput
-                      label="RSS × power"
-                      hint="Expected resources gathered = highestPower × this. Default 3.0 means a 40M-power player should gather 120M resources."
-                      value={config.meta.rssMultiplier}
-                      step={0.1}
-                      decimals={2}
-                      disabled={!isOfficer}
-                      onChange={(v) =>
-                        setConfig((c) => ({ ...c, meta: { ...c.meta, rssMultiplier: v } }))
-                      }
-                    />
-                    <BaselineInput
-                      label="Helps per 1M power"
-                      hint="Expected alliance helps = (highestPower / 1,000,000) × this. Default 300 means a 40M-power player should give 12,000 helps."
-                      value={Math.round(config.meta.helpsMultiplier * 1_000_000)}
-                      step={10}
-                      decimals={0}
-                      disabled={!isOfficer}
-                      onChange={(v) =>
-                        setConfig((c) => ({
-                          ...c,
-                          meta: { ...c.meta, helpsMultiplier: v / 1_000_000 },
-                        }))
-                      }
-                    />
-                    <BaselineInput
-                      label="Honor per 1M power"
-                      hint="Expected honor points = (highestPower / 1,000,000) × this. Default 1,000 means a 40M-power player should earn 40,000 honor."
-                      value={Math.round(config.meta.honorMultiplier * 1_000_000)}
-                      step={50}
-                      decimals={0}
-                      disabled={!isOfficer}
-                      onChange={(v) =>
-                        setConfig((c) => ({
-                          ...c,
-                          meta: { ...c.meta, honorMultiplier: v / 1_000_000 },
-                        }))
-                      }
-                    />
-                  </div>
-
-                  {/* Live preview table */}
-                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 overflow-hidden">
-                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)]/50">
-                      What &ldquo;1.00&rdquo; means at each power
+                  <div className="space-y-4">
+                    {/* Power threshold */}
+                    <div>
+                      <Tooltip content="Power level that splits 'smaller' and 'larger' accounts. Below this number uses the smaller-account multiplier; at or above uses the larger-account one.">
+                        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)] block mb-1.5 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+                          Power threshold
+                        </label>
+                      </Tooltip>
+                      <div className="flex items-center gap-2">
+                        <PowerInput
+                          value={config.powerThreshold}
+                          disabled={!isOfficer}
+                          onChange={(v) =>
+                            setConfig((c) => ({ ...c, powerThreshold: Math.max(0, v) }))
+                          }
+                        />
+                        <span className="text-xs text-[var(--text-muted)]">power</span>
+                      </div>
                     </div>
-                    <table className="w-full text-[11px] tabular-nums">
-                      <thead className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]">
-                        <tr>
-                          <th className="text-left px-3 py-1.5">Power</th>
-                          <th className="text-right px-2 py-1.5">DKP</th>
-                          <th className="text-right px-2 py-1.5">RSS</th>
-                          <th className="text-right px-2 py-1.5">Helps</th>
-                          <th className="text-right px-3 py-1.5">Honor</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-[var(--text-secondary)]">
-                        {[20_000_000, 50_000_000, 100_000_000].map((power) => (
-                          <tr key={power} className="border-t border-[var(--border)]/50">
-                            <td className="text-left px-3 py-1.5 font-medium text-[var(--foreground)]">
-                              {(power / 1_000_000).toFixed(0)}M
-                            </td>
-                            <td className="text-right px-2 py-1.5">
-                              {fmtCompact(power / config.meta.dkpDivisor)}
-                            </td>
-                            <td className="text-right px-2 py-1.5">
-                              {fmtCompact(power * config.meta.rssMultiplier)}
-                            </td>
-                            <td className="text-right px-2 py-1.5">
-                              {fmtCompact(power * config.meta.helpsMultiplier)}
-                            </td>
-                            <td className="text-right px-3 py-1.5">
-                              {fmtCompact(power * config.meta.honorMultiplier)}
-                            </td>
+
+                    {/* Two multipliers */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <Tooltip
+                          content={`Smaller accounts (under ${(config.powerThreshold / 1_000_000).toFixed(0)}M power) are expected to produce this many times their power in KP. Default 3 means a 30M-power player should hit 90M KP.`}
+                        >
+                          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)] block mb-1.5 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+                            Smaller account multiplier
+                          </label>
+                        </Tooltip>
+                        <MultiplierInput
+                          value={config.lowMultiplier}
+                          disabled={!isOfficer}
+                          onChange={(v) =>
+                            setConfig((c) => ({ ...c, lowMultiplier: Math.max(0, v) }))
+                          }
+                        />
+                        <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
+                          Under {(config.powerThreshold / 1_000_000).toFixed(0)}M power
+                        </p>
+                      </div>
+                      <div>
+                        <Tooltip
+                          content={`Larger accounts (at or above ${(config.powerThreshold / 1_000_000).toFixed(0)}M power) are expected to produce this many times their power in KP. Default 10 means a 60M-power player should hit 600M KP.`}
+                        >
+                          <label className="text-xs uppercase tracking-wider text-[var(--text-muted)] block mb-1.5 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+                            Larger account multiplier
+                          </label>
+                        </Tooltip>
+                        <MultiplierInput
+                          value={config.highMultiplier}
+                          disabled={!isOfficer}
+                          onChange={(v) =>
+                            setConfig((c) => ({ ...c, highMultiplier: Math.max(0, v) }))
+                          }
+                        />
+                        <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
+                          {(config.powerThreshold / 1_000_000).toFixed(0)}M power and above
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Live preview table */}
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 overflow-hidden">
+                      <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)]/50">
+                        Target KP at sample power levels
+                      </div>
+                      <table className="w-full text-sm tabular-nums">
+                        <thead className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                          <tr>
+                            <th className="text-left px-3 py-2">Power</th>
+                            <th className="text-right px-3 py-2">Multiplier</th>
+                            <th className="text-right px-3 py-2">Target KP</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="text-[var(--text-secondary)]">
+                          {[20_000_000, 35_000_000, 50_000_000, 75_000_000, 100_000_000].map(
+                            (power) => {
+                              const isLow = power < config.powerThreshold;
+                              const mult = isLow ? config.lowMultiplier : config.highMultiplier;
+                              return (
+                                <tr key={power} className="border-t border-[var(--border)]/50">
+                                  <td className="text-left px-3 py-2 font-medium text-[var(--foreground)]">
+                                    {(power / 1_000_000).toFixed(0)}M
+                                  </td>
+                                  <td
+                                    className={`text-right px-3 py-2 ${isLow ? 'text-sky-400' : 'text-violet-400'}`}
+                                  >
+                                    ×{mult.toFixed(1)}
+                                  </td>
+                                  <td className="text-right px-3 py-2 font-medium text-[var(--foreground)]">
+                                    {fmtCompact(power * mult)}
+                                  </td>
+                                </tr>
+                              );
+                            },
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </ConfigCard>
 
                 {/* Status cutoffs card */}
                 <ConfigCard
                   title="Status Cutoffs"
-                  hint="The minimum final score needed to land in each tier. Anything below the GOOD cutoff is REJECTED."
+                  hint="The minimum Score needed to land in each tier. Anything below the GOOD cutoff is REJECTED."
                 >
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/50">
                     <CutoffRow
@@ -801,6 +610,10 @@ function DkpPageInner() {
                       onChange={(v) => setThreshold('good', v)}
                     />
                   </div>
+                  <p className="mt-3 text-[11px] text-[var(--text-muted)] leading-relaxed">
+                    Players whose Score lands at or above each threshold get that status. Anything
+                    below the GOOD cutoff is marked REJECTED.
+                  </p>
                 </ConfigCard>
               </div>
             </div>
@@ -930,11 +743,11 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
       return fmt(p.power);
     case 'totalKP':
       return fmt(p.totalKP);
-    case 'dkp':
-      return fmt(p.dkp || p.computedDkp);
-    case 'finalScore':
+    case 'targetKp':
+      return fmt(p.targetKp);
+    case 'kpRatio':
       return (
-        <span className="font-semibold text-[var(--foreground)]">{fmtPct(p.finalScore)}</span>
+        <span className="font-semibold text-[var(--foreground)]">{fmtPct(p.kpRatio)}</span>
       );
     case 'status':
       return (
@@ -944,16 +757,6 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
           {p.status}
         </span>
       );
-    case 'scoreDkp':
-      return fmtPct(p.scoreDkp);
-    case 'scoreRss':
-      return fmtPct(p.scoreRss);
-    case 'scoreHelps':
-      return fmtPct(p.scoreHelps);
-    case 'scoreHonor':
-      return fmtPct(p.scoreHonor);
-    case 'honorPoints':
-      return fmt(p.honorPoints);
     default:
       return null;
   }
@@ -1336,130 +1139,65 @@ function ConfigCard({
   );
 }
 
-/** Single coefficient input for the DKP formula (label above, number input below). */
-function FormulaCoef({
-  label,
-  hint,
-  value,
-  onChange,
-  disabled = false,
-}: {
-  label: string;
-  hint: string;
-  value: number;
-  onChange: (v: number) => void;
-  disabled?: boolean;
-}) {
-  const [text, setText] = useState(String(value));
-  useEffect(() => {
-    setText(String(value));
-  }, [value]);
-  return (
-    <div>
-      <Tooltip content={hint}>
-        <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
-          {label}
-        </label>
-      </Tooltip>
-      <input
-        type="number"
-        inputMode="numeric"
-        min={0}
-        step={1}
-        value={text}
-        disabled={disabled}
-        readOnly={disabled}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          const n = parseFloat(text);
-          if (Number.isNaN(n) || n < 0) {
-            setText(String(value));
-            return;
-          }
-          onChange(n);
-          setText(String(n));
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        }}
-        className="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
-      />
-    </div>
-  );
-}
-
-/** Decimal coefficient input with tooltip — used for the expected baseline multipliers. */
-function BaselineInput({
-  label,
-  hint,
-  value,
-  step,
-  decimals,
-  onChange,
-  disabled = false,
-}: {
-  label: string;
-  hint: string;
-  value: number;
-  step: number;
-  decimals: number;
-  onChange: (v: number) => void;
-  disabled?: boolean;
-}) {
-  const [text, setText] = useState(value.toFixed(decimals));
-  useEffect(() => {
-    setText(value.toFixed(decimals));
-  }, [value, decimals]);
-  return (
-    <div>
-      <Tooltip content={hint}>
-        <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
-          {label}
-        </label>
-      </Tooltip>
-      <input
-        type="number"
-        inputMode="decimal"
-        min={0}
-        step={step}
-        value={text}
-        disabled={disabled}
-        readOnly={disabled}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          const n = parseFloat(text);
-          if (Number.isNaN(n) || n < 0) {
-            setText(value.toFixed(decimals));
-            return;
-          }
-          onChange(n);
-          setText(n.toFixed(decimals));
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        }}
-        className="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
-      />
-    </div>
-  );
-}
 
 /** Compact one-liner summary of the active config for the collapsed panel. */
 function ConfigSummaryLine({ config }: { config: Config }) {
-  const w = config.weightsHigh;
   const cuts = config.statusThresholds;
+  const t = (config.powerThreshold / 1_000_000).toFixed(0);
   return (
     <span>
-      DKP {Math.round(w.dkp)} • RSS {Math.round(w.rss)} • Helps {Math.round(w.helps)} • Honor{' '}
-      {Math.round(w.honor)}
-      {config.split && (
-        <> • split @ {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M</>
-      )}
+      Target: ×{config.lowMultiplier.toFixed(1)} below {t}M, ×{config.highMultiplier.toFixed(1)} at/above
       {' • '}
       <span className="text-amber-400/80">≥{Math.round(cuts.excellent * 100)}%</span>{' '}
       <span className="text-emerald-400/80">≥{Math.round(cuts.approved * 100)}%</span>{' '}
       <span className="text-sky-400/80">≥{Math.round(cuts.good * 100)}%</span>
     </span>
+  );
+}
+
+/** Decimal multiplier input (e.g. 3.0 means "×3 of power"). */
+function MultiplierInput({
+  value,
+  onChange,
+  disabled = false,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  const [text, setText] = useState(value.toFixed(1));
+  useEffect(() => {
+    setText(value.toFixed(1));
+  }, [value]);
+  return (
+    <div className="inline-flex items-center rounded-lg bg-[var(--background)] border border-[var(--border)] focus-within:border-[var(--foreground)]/30 overflow-hidden">
+      <span className="px-2 py-2 text-sm font-semibold text-[var(--text-muted)] border-r border-[var(--border)]">
+        ×
+      </span>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step={0.5}
+        value={text}
+        disabled={disabled}
+        readOnly={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          const n = parseFloat(text);
+          if (Number.isNaN(n) || n < 0) {
+            setText(value.toFixed(1));
+            return;
+          }
+          onChange(n);
+          setText(n.toFixed(1));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        className="w-20 px-2 py-2 text-base text-right tabular-nums text-[var(--foreground)] bg-transparent focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+      />
+    </div>
   );
 }
 
@@ -1509,179 +1247,13 @@ function PowerInput({
   );
 }
 
-const WEIGHT_LABELS: Record<keyof WeightSet, { label: string; hint: string; color: string }> = {
-  dkp: {
-    label: 'DKP',
-    hint: 'Combined kills + deaths score using the formula coefficients on the left. Higher kills + deaths during KvK = higher DKP.',
-    color: 'bg-violet-500',
-  },
-  rss: {
-    label: 'RSS',
-    hint: 'Resources gathered from the kingdom map (food, wood, stone, gold). Rewards active gathering.',
-    color: 'bg-amber-500',
-  },
-  helps: {
-    label: 'Helps',
-    hint: 'Alliance helps given. Rewards being active in the alliance and supporting teammates.',
-    color: 'bg-sky-500',
-  },
-  honor: {
-    label: 'Honor',
-    hint: 'Honor points earned (PvP, events). Imported from the Statmaster honor rankings file.',
-    color: 'bg-emerald-500',
-  },
-};
-
-const FORMULA_LABELS: Record<keyof DkpFormula, { label: string; hint: string }> = {
-  t4Kill: {
-    label: 'T4 Kill',
-    hint: 'Points awarded for each Tier 4 kill made during KvK.',
-  },
-  t5Kill: {
-    label: 'T5 Kill',
-    hint: 'Points awarded for each Tier 5 kill. T5 are the strongest troops, so usually weighted higher than T4 kills.',
-  },
-  t4Death: {
-    label: 'T4 Death',
-    hint: 'Points awarded for each Tier 4 death (sacrifice). Deaths typically count more than kills since they cost the player real troops.',
-  },
-  t5Death: {
-    label: 'T5 Death',
-    hint: 'Points awarded for each Tier 5 death. Usually the highest coefficient in the formula since T5 sacrifices are the most costly.',
-  },
-};
-
 const CUTOFF_HINTS: Record<Status, string> = {
   EXCELLENT:
-    'Top tier — players whose final score is at or above this threshold are marked EXCELLENT.',
+    'Top tier — players whose Score is at or above this threshold are marked EXCELLENT.',
   APPROVED: 'Players hitting at least this threshold are APPROVED (meeting expectations).',
   GOOD: 'Players hitting at least this threshold are GOOD (acceptable). Below this they are REJECTED.',
   REJECTED: '',
 };
-
-/** A clean horizontal weight row: dot + label + slider + number input. */
-function WeightRow({
-  weightKey,
-  value,
-  onChange,
-  disabled = false,
-}: {
-  weightKey: keyof WeightSet;
-  value: number;
-  onChange: (v: number) => void;
-  disabled?: boolean;
-}) {
-  const meta = WEIGHT_LABELS[weightKey];
-  const [text, setText] = useState(String(Math.round(value)));
-  useEffect(() => {
-    setText(String(Math.round(value)));
-  }, [value]);
-  const commit = () => {
-    const n = parseInt(text, 10);
-    if (Number.isNaN(n)) {
-      setText(String(Math.round(value)));
-      return;
-    }
-    const c = Math.round(clamp(n, 0, 100));
-    onChange(c);
-    setText(String(c));
-  };
-  const isOff = value === 0;
-  return (
-    <div
-      className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-50' : ''}`}
-    >
-      <Tooltip content={meta.hint} className="w-20 sm:w-24 flex-shrink-0">
-        <span className="flex items-center gap-2 cursor-help">
-          <span className={`w-2 h-2 rounded-full ${meta.color}`} />
-          <span className="text-xs font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
-            {meta.label}
-          </span>
-        </span>
-      </Tooltip>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        step={1}
-        value={Math.round(value)}
-        disabled={disabled}
-        onChange={(e) => onChange(parseInt(e.target.value, 10))}
-        className="flex-1 accent-[#4318ff] disabled:cursor-not-allowed h-2"
-      />
-      <div className="relative flex-shrink-0">
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          max={100}
-          step={1}
-          value={text}
-          disabled={disabled}
-          readOnly={disabled}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-          }}
-          className="w-14 pl-1.5 pr-4 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
-        />
-        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
-          %
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/** A card containing all 5 weight rows for one band. */
-function WeightBand({
-  title,
-  subtitle,
-  weights,
-  onChange,
-  disabled = false,
-}: {
-  title: string;
-  subtitle?: string;
-  weights: WeightSet;
-  onChange: (key: keyof WeightSet, value: number) => void;
-  disabled?: boolean;
-}) {
-  const total = (['dkp', 'rss', 'helps', 'honor'] as const).reduce(
-    (s, k) => s + weights[k],
-    0,
-  );
-  return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-3 py-2">
-      <div className="flex items-baseline justify-between mb-1">
-        <div>
-          <div className="text-xs font-semibold text-[var(--foreground)]">{title}</div>
-          {subtitle && (
-            <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{subtitle}</div>
-          )}
-        </div>
-        <div
-          className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider tabular-nums"
-          title="Weights are relative — they don't need to add to anything"
-        >
-          relative sum {Math.round(total)}
-        </div>
-      </div>
-      <div className="divide-y divide-[var(--border)]/50">
-        {(['dkp', 'rss', 'helps', 'honor'] as const).map((k) => (
-          <WeightRow
-            key={k}
-            weightKey={k}
-            value={weights[k]}
-            disabled={disabled}
-            onChange={(v) => onChange(k, v)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /** Status cutoff row with colored badge, slider, and value input. */
 function CutoffRow({
