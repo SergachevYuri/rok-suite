@@ -16,8 +16,21 @@ import {
   deleteDataset,
 } from './data';
 
+interface WeightSet {
+  dkp: number;
+  deaths: number;
+  rss: number;
+  helps: number;
+  honor: number;
+}
+
 interface Config {
-  weights: { dkp: number; deaths: number; rss: number; helps: number; honor: number };
+  // When split is true, `weightsLow` is used for players with highestPower < weightSplitThreshold,
+  // otherwise `weightsHigh` is used. When split is false, `weightsHigh` is used for everyone.
+  split: boolean;
+  weightSplitThreshold: number;
+  weightsLow: WeightSet;
+  weightsHigh: WeightSet;
   meta: {
     dkpDivisor: number;
     deathMetaLow: number;
@@ -30,8 +43,13 @@ interface Config {
   statusThresholds: { excellent: number; approved: number; good: number };
 }
 
+const DEFAULT_WEIGHTS: WeightSet = { dkp: 0.4, deaths: 0.3, rss: 0.15, helps: 0.15, honor: 0 };
+
 const DEFAULT_CONFIG: Config = {
-  weights: { dkp: 0.4, deaths: 0.3, rss: 0.15, helps: 0.15, honor: 0 },
+  split: false,
+  weightSplitThreshold: 40_000_000,
+  weightsLow: { ...DEFAULT_WEIGHTS },
+  weightsHigh: { ...DEFAULT_WEIGHTS },
   meta: {
     dkpDivisor: 4,
     deathMetaLow: 0.004,
@@ -44,7 +62,7 @@ const DEFAULT_CONFIG: Config = {
   statusThresholds: { excellent: 1.5, approved: 1.0, good: 0.8 },
 };
 
-const WEIGHTS_KEY = 'dkp-weights-v1';
+const CONFIG_KEY = 'dkp-config-v2';
 
 type Status = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED';
 
@@ -65,7 +83,7 @@ function safeDiv(a: number, b: number): number {
 }
 
 function computeScores(players: Player[], config: Config): ScoredPlayer[] {
-  const { weights, meta, statusThresholds } = config;
+  const { meta, statusThresholds } = config;
   return players.map((p) => {
     const computedDkp = p.t4Kills * 5 + p.t5Kills * 10 + p.t4Deaths * 8 + p.t5Deaths * 24;
     const deathMeta =
@@ -81,6 +99,11 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     const scoreRss = safeDiv(p.rssGathered, metaRss);
     const scoreHelps = safeDiv(p.allianceHelps, metaHelps);
     const scoreHonor = safeDiv(p.honorPoints, metaHonor);
+
+    const weights =
+      config.split && p.highestPower < config.weightSplitThreshold
+        ? config.weightsLow
+        : config.weightsHigh;
 
     let num = 0;
     let den = 0;
@@ -188,23 +211,30 @@ function DkpPageInner() {
     () => new Set(COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)),
   );
 
-  // Load weights from storage
+  // Load persisted config (weights + thresholds + split)
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(WEIGHTS_KEY);
+      const raw = localStorage.getItem(CONFIG_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        setConfig((c) => ({ ...c, weights: { ...c.weights, ...parsed } }));
+        const parsed = JSON.parse(raw) as Partial<Config>;
+        setConfig((c) => ({
+          ...c,
+          ...parsed,
+          weightsLow: { ...c.weightsLow, ...(parsed.weightsLow ?? {}) },
+          weightsHigh: { ...c.weightsHigh, ...(parsed.weightsHigh ?? {}) },
+          statusThresholds: { ...c.statusThresholds, ...(parsed.statusThresholds ?? {}) },
+          meta: { ...c.meta, ...(parsed.meta ?? {}) },
+        }));
       }
     } catch {}
   }, []);
 
-  // Persist weights
+  // Persist config
   useEffect(() => {
     try {
-      localStorage.setItem(WEIGHTS_KEY, JSON.stringify(config.weights));
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     } catch {}
-  }, [config.weights]);
+  }, [config]);
 
   // Load dataset: Supabase latest, fall back to bundled JSON
   useEffect(() => {
@@ -244,7 +274,15 @@ function DkpPageInner() {
   const filtered = useMemo(() => {
     let list = scored;
     if (statusFilter !== 'ALL') list = list.filter((p) => p.status === statusFilter);
-    if (search.trim()) list = list.filter((p) => looseMatch(p.username, search));
+    if (search.trim()) {
+      const q = search.trim();
+      const qDigits = q.replace(/\D/g, '');
+      list = list.filter(
+        (p) =>
+          looseMatch(p.username, q) ||
+          (qDigits.length >= 3 && String(p.characterId).includes(qDigits)),
+      );
+    }
     const dir = sortDir === 'asc' ? 1 : -1;
     list = [...list].sort((a, b) => {
       if (sortKey === 'username') return a.username.localeCompare(b.username) * dir;
@@ -265,8 +303,11 @@ function DkpPageInner() {
     return { counts, totalDkp, total: scored.length };
   }, [scored]);
 
-  const setWeight = (key: keyof Config['weights'], value: number) => {
-    setConfig((c) => ({ ...c, weights: { ...c.weights, [key]: value } }));
+  const setWeight = (band: 'weightsLow' | 'weightsHigh', key: keyof WeightSet, value: number) => {
+    setConfig((c) => ({ ...c, [band]: { ...c[band], [key]: value } }));
+  };
+  const setThreshold = (key: keyof Config['statusThresholds'], value: number) => {
+    setConfig((c) => ({ ...c, statusThresholds: { ...c.statusThresholds, [key]: value } }));
   };
 
   const toggleCol = (key: string) => {
@@ -322,9 +363,9 @@ function DkpPageInner() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-[1400px] mx-auto px-6 py-10">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {/* Header */}
-        <header className="mb-8 flex items-start justify-between gap-4">
+        <header className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-[var(--text-muted)] mb-2 tracking-wide uppercase">
               Kingdom 3923
@@ -354,7 +395,7 @@ function DkpPageInner() {
         )}
 
         {/* Summary */}
-        <section className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+        <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
           <SummaryCard label="Players" value={fmt(summary.total)} />
           <SummaryCard label="Total DKP" value={fmt(summary.totalDkp)} />
           <SummaryCard label="Excellent" value={fmt(summary.counts.EXCELLENT)} tone="amber" />
@@ -364,22 +405,89 @@ function DkpPageInner() {
         </section>
 
         {/* Weights */}
-        <section className="mb-6 p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
-          <div className="flex items-center justify-between mb-4">
+        <section className="mb-6 p-4 sm:p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <h2 className="text-sm font-semibold text-[var(--foreground)]">Score Weights</h2>
-            <p className="text-xs text-[var(--text-muted)]">
-              Weighted average of sub-scores. Set to 0 to disable.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {(['dkp', 'deaths', 'rss', 'helps', 'honor'] as const).map((k) => (
-              <WeightSlider
-                key={k}
-                label={k.toUpperCase()}
-                value={config.weights[k]}
-                onChange={(v) => setWeight(k, v)}
+            <label className="flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={config.split}
+                onChange={(e) => setConfig((c) => ({ ...c, split: e.target.checked }))}
+                className="accent-[#4318ff]"
               />
-            ))}
+              Split weights by power
+            </label>
+          </div>
+
+          {config.split && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
+              <span>Threshold:</span>
+              <NumberInput
+                value={config.weightSplitThreshold}
+                step={1_000_000}
+                min={0}
+                onChange={(v) =>
+                  setConfig((c) => ({ ...c, weightSplitThreshold: Math.max(0, v) }))
+                }
+                width="w-32"
+              />
+              <span>power (below = low band, at-or-above = high band)</span>
+            </div>
+          )}
+
+          <div className={config.split ? 'grid grid-cols-1 lg:grid-cols-2 gap-5' : ''}>
+            {config.split && (
+              <WeightBand
+                title={`Under ${fmt(config.weightSplitThreshold)}`}
+                weights={config.weightsLow}
+                onChange={(k, v) => setWeight('weightsLow', k, v)}
+              />
+            )}
+            <WeightBand
+              title={config.split ? `At/above ${fmt(config.weightSplitThreshold)}` : 'All players'}
+              weights={config.weightsHigh}
+              onChange={(k, v) => setWeight('weightsHigh', k, v)}
+            />
+          </div>
+        </section>
+
+        {/* Status cutoffs */}
+        <section className="mb-6 p-4 sm:p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+          <h2 className="text-sm font-semibold text-[var(--foreground)] mb-1">Status Cutoffs</h2>
+          <p className="text-xs text-[var(--text-muted)] mb-4">
+            Final score thresholds for each status tier.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <NumberSlider
+              label="EXCELLENT ≥"
+              value={config.statusThresholds.excellent}
+              min={0}
+              max={3}
+              step={0.05}
+              decimals={2}
+              onChange={(v) => setThreshold('excellent', v)}
+              accentClass="accent-amber-400"
+            />
+            <NumberSlider
+              label="APPROVED ≥"
+              value={config.statusThresholds.approved}
+              min={0}
+              max={3}
+              step={0.05}
+              decimals={2}
+              onChange={(v) => setThreshold('approved', v)}
+              accentClass="accent-emerald-400"
+            />
+            <NumberSlider
+              label="GOOD ≥"
+              value={config.statusThresholds.good}
+              min={0}
+              max={3}
+              step={0.05}
+              decimals={2}
+              onChange={(v) => setThreshold('good', v)}
+              accentClass="accent-sky-400"
+            />
           </div>
         </section>
 
@@ -393,7 +501,7 @@ function DkpPageInner() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search player… (loose, accent-insensitive)"
+              placeholder="Search by name or gov ID…"
               className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
             />
           </div>
@@ -783,39 +891,159 @@ function SummaryCard({
             ? 'text-red-400'
             : 'text-[var(--foreground)]';
   return (
-    <div className="p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
-      <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1">
+    <div className="p-2.5 sm:p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+      <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1 truncate">
         {label}
       </div>
-      <div className={`text-xl font-semibold ${toneClass}`}>{value}</div>
+      <div className={`text-lg sm:text-xl font-semibold ${toneClass} tabular-nums`}>{value}</div>
     </div>
   );
 }
 
-function WeightSlider({
+function clamp(n: number, min: number, max: number): number {
+  if (Number.isNaN(n)) return min;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** Slider + typed number input, kept in sync. */
+function NumberSlider({
   label,
   value,
+  min,
+  max,
+  step,
+  decimals = 2,
   onChange,
+  accentClass = 'accent-[#4318ff]',
 }: {
   label: string;
   value: number;
+  min: number;
+  max: number;
+  step: number;
+  decimals?: number;
   onChange: (v: number) => void;
+  accentClass?: string;
 }) {
+  const [text, setText] = useState(value.toFixed(decimals));
+  useEffect(() => {
+    setText(value.toFixed(decimals));
+  }, [value, decimals]);
+
+  const commit = () => {
+    const n = parseFloat(text);
+    if (Number.isNaN(n)) {
+      setText(value.toFixed(decimals));
+      return;
+    }
+    const clamped = clamp(n, min, max);
+    onChange(clamped);
+    setText(clamped.toFixed(decimals));
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <label className="text-xs font-medium text-[var(--text-secondary)]">{label}</label>
-        <span className="text-xs tabular-nums text-[var(--foreground)]">{value.toFixed(2)}</span>
+      <div className="flex items-center justify-between mb-1.5 gap-2">
+        <label className="text-xs font-medium text-[var(--text-secondary)] truncate">{label}</label>
+        <input
+          type="number"
+          inputMode="decimal"
+          min={min}
+          max={max}
+          step={step}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+          className="w-16 px-1.5 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30"
+        />
       </div>
       <input
         type="range"
-        min={0}
-        max={1}
-        step={0.05}
+        min={min}
+        max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full accent-[#4318ff]"
+        className={`w-full ${accentClass}`}
       />
+    </div>
+  );
+}
+
+/** Bare number input for large integer values (e.g. power threshold). */
+function NumberInput({
+  value,
+  min,
+  step,
+  onChange,
+  width = 'w-24',
+}: {
+  value: number;
+  min?: number;
+  step?: number;
+  onChange: (v: number) => void;
+  width?: string;
+}) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={min}
+      step={step}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        const n = parseFloat(text);
+        if (Number.isNaN(n)) {
+          setText(String(value));
+          return;
+        }
+        onChange(n);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+      }}
+      className={`${width} px-2 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30`}
+    />
+  );
+}
+
+/** A block of 5 weight sliders for one band (low / high / or unified). */
+function WeightBand({
+  title,
+  weights,
+  onChange,
+}: {
+  title: string;
+  weights: WeightSet;
+  onChange: (key: keyof WeightSet, value: number) => void;
+}) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
+        {title}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {(['dkp', 'deaths', 'rss', 'helps', 'honor'] as const).map((k) => (
+          <NumberSlider
+            key={k}
+            label={k.toUpperCase()}
+            value={weights[k]}
+            min={0}
+            max={1}
+            step={0.05}
+            decimals={2}
+            onChange={(v) => onChange(k, v)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
