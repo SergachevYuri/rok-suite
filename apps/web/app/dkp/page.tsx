@@ -34,6 +34,7 @@ import {
 
 interface WeightSet {
   dkp: number;
+  kp: number;
   rss: number;
   helps: number;
   honor: number;
@@ -60,12 +61,17 @@ interface Config {
     helpsMultiplier: number;
     honorMultiplier: number;
   };
+  // KP target multipliers — actual KP is compared against power × this number.
+  // Smaller accounts get the low multiplier, larger accounts the high one. The split
+  // uses the same `weightSplitThreshold` as the score weights so officers only set it once.
+  kpTargetLow: number;
+  kpTargetHigh: number;
   statusThresholds: { excellent: number; approved: number; good: number };
 }
 
 // Weights are relative integers in [0, 100]. They do NOT need to sum to anything;
 // the final score divides by the sum of active weights. Larger numbers just dominate.
-const DEFAULT_WEIGHTS: WeightSet = { dkp: 80, rss: 5, helps: 5, honor: 10 };
+const DEFAULT_WEIGHTS: WeightSet = { dkp: 40, kp: 40, rss: 5, helps: 5, honor: 10 };
 const DEFAULT_DKP_FORMULA: DkpFormula = { t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24 };
 
 const DEFAULT_CONFIG: Config = {
@@ -80,6 +86,8 @@ const DEFAULT_CONFIG: Config = {
     helpsMultiplier: 0.0003,
     honorMultiplier: 0.001,
   },
+  kpTargetLow: 3,
+  kpTargetHigh: 10,
   statusThresholds: { excellent: 1.5, approved: 1.0, good: 0.8 },
 };
 
@@ -118,7 +126,10 @@ type Status = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED';
 
 interface ScoredPlayer extends Player {
   computedDkp: number;
+  /** Target KP for this player based on their power and the configured multipliers. */
+  targetKp: number;
   scoreDkp: number;
+  scoreKp: number;
   scoreRss: number;
   scoreHelps: number;
   scoreHonor: number;
@@ -144,7 +155,13 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     const metaHelps = p.highestPower * meta.helpsMultiplier;
     const metaHonor = p.highestPower * meta.honorMultiplier;
 
+    // KP target scales with power: low multiplier below the split threshold, high above.
+    const kpMultiplier =
+      p.power < config.weightSplitThreshold ? config.kpTargetLow : config.kpTargetHigh;
+    const targetKp = p.power * kpMultiplier;
+
     const scoreDkp = safeDiv(computedDkp, metaDkp);
+    const scoreKp = safeDiv(p.totalKP, targetKp);
     const scoreRss = safeDiv(p.rssGathered, metaRss);
     const scoreHelps = safeDiv(p.allianceHelps, metaHelps);
     const scoreHonor = safeDiv(p.honorPoints, metaHonor);
@@ -158,6 +175,7 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     let den = 0;
     const components: [number, number][] = [
       [scoreDkp, weights.dkp],
+      [scoreKp, weights.kp],
       [scoreRss, weights.rss],
       [scoreHelps, weights.helps],
       [scoreHonor, weights.honor],
@@ -179,7 +197,9 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     return {
       ...p,
       computedDkp,
+      targetKp,
       scoreDkp,
+      scoreKp,
       scoreRss,
       scoreHelps,
       scoreHonor,
@@ -216,6 +236,7 @@ type SortKey =
   | 'dkp'
   | 'finalScore'
   | 'scoreDkp'
+  | 'scoreKp'
   | 'scoreRss'
   | 'scoreHelps'
   | 'scoreHonor'
@@ -233,14 +254,15 @@ const COLUMNS: ColumnDef[] = [
   { key: 'username', label: 'Player', defaultVisible: true, hint: 'In-game username from the kingdom export.' },
   { key: 'power', label: 'Power', numeric: true, defaultVisible: true, hint: 'Current power as of the last upload (not highest power).' },
   { key: 'totalKP', label: 'KP', numeric: true, defaultVisible: true, hint: 'Total kill points from the kingdom export (all tiers combined).' },
-  { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: false, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths).' },
+  { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths weighted).' },
   { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Final weighted score (as % of expected). 100% = exactly meeting expectations across all weighted categories.' },
   { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / APPROVED / GOOD / REJECTED).' },
+  { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: true, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
   { key: 'scoreDkp', label: 'DKP %', numeric: true, defaultVisible: false, hint: 'DKP performance: raw DKP ÷ expected DKP for this player\'s power. 100% = exactly on target. 150% = 1.5× expected.' },
+  { key: 'scoreKp', label: 'KP %', numeric: true, defaultVisible: false, hint: 'KP performance: actual KP ÷ target KP. 100% = exactly meeting their KP target for their power.' },
   { key: 'scoreRss', label: 'RSS %', numeric: true, defaultVisible: false, hint: 'RSS performance: resources gathered ÷ expected. 100% = on target for their power.' },
   { key: 'scoreHelps', label: 'Helps %', numeric: true, defaultVisible: false, hint: 'Alliance helps performance: helps given ÷ expected. 100% = on target for their power.' },
   { key: 'scoreHonor', label: 'Honor %', numeric: true, defaultVisible: false, hint: 'Honor performance: honor points ÷ expected. 100% = on target for their power.' },
-  { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: false, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
 ];
 
 export default function DkpPage() {
@@ -646,99 +668,72 @@ function DkpPageInner() {
                   </div>
                 </ConfigCard>
 
-                {/* Expected baselines card */}
+                {/* Expected KP card — KP target = power × multiplier (low/high tier) */}
                 <ConfigCard
-                  title="Expected Baselines"
-                  hint="What an 'on-target' player at a given power level should produce. Sub-scores = actual ÷ this baseline. A sub-score of 1.00 = exactly meeting the baseline."
+                  title="Expected KP"
+                  hint="The KP each player is expected to produce based on their power. Smaller accounts use the low multiplier, larger accounts the high one. KP performance (actual KP ÷ target KP) feeds into the Score Weights as the 'KP' weight."
                 >
-                  <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                     <BaselineInput
-                      label="DKP divisor"
-                      hint="Expected DKP = highestPower ÷ this number. Lower divisor → higher expectation. Default 4 means a 40M-power player should produce ~10M raw DKP."
-                      value={config.meta.dkpDivisor}
+                      label="Smaller × power"
+                      hint={`For accounts under ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power, target KP = power × this. Default 3 means a 30M player should hit 90M KP.`}
+                      value={config.kpTargetLow}
                       step={0.5}
                       decimals={1}
                       disabled={!isOfficer}
-                      onChange={(v) =>
-                        setConfig((c) => ({ ...c, meta: { ...c.meta, dkpDivisor: v } }))
-                      }
+                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetLow: v }))}
                     />
                     <BaselineInput
-                      label="RSS × power"
-                      hint="Expected resources gathered = highestPower × this. Default 3.0 means a 40M-power player should gather 120M resources."
-                      value={config.meta.rssMultiplier}
-                      step={0.1}
-                      decimals={2}
+                      label="Larger × power"
+                      hint={`For accounts at or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power, target KP = power × this. Default 10 means a 60M player should hit 600M KP.`}
+                      value={config.kpTargetHigh}
+                      step={0.5}
+                      decimals={1}
                       disabled={!isOfficer}
-                      onChange={(v) =>
-                        setConfig((c) => ({ ...c, meta: { ...c.meta, rssMultiplier: v } }))
-                      }
-                    />
-                    <BaselineInput
-                      label="Helps per 1M power"
-                      hint="Expected alliance helps = (highestPower / 1,000,000) × this. Default 300 means a 40M-power player should give 12,000 helps."
-                      value={Math.round(config.meta.helpsMultiplier * 1_000_000)}
-                      step={10}
-                      decimals={0}
-                      disabled={!isOfficer}
-                      onChange={(v) =>
-                        setConfig((c) => ({
-                          ...c,
-                          meta: { ...c.meta, helpsMultiplier: v / 1_000_000 },
-                        }))
-                      }
-                    />
-                    <BaselineInput
-                      label="Honor per 1M power"
-                      hint="Expected honor points = (highestPower / 1,000,000) × this. Default 1,000 means a 40M-power player should earn 40,000 honor."
-                      value={Math.round(config.meta.honorMultiplier * 1_000_000)}
-                      step={50}
-                      decimals={0}
-                      disabled={!isOfficer}
-                      onChange={(v) =>
-                        setConfig((c) => ({
-                          ...c,
-                          meta: { ...c.meta, honorMultiplier: v / 1_000_000 },
-                        }))
-                      }
+                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetHigh: v }))}
                     />
                   </div>
-
-                  {/* Live preview table */}
+                  <p className="text-[11px] text-[var(--text-muted)] mb-3 leading-relaxed">
+                    Threshold:{' '}
+                    <span className="text-[var(--text-secondary)] font-medium">
+                      {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power
+                    </span>{' '}
+                    (shared with the Score Weights split toggle).
+                  </p>
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 overflow-hidden">
-                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)]/50">
-                      What &ldquo;1.00&rdquo; means at each power
+                    <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)]/50">
+                      Target KP by power
                     </div>
-                    <table className="w-full text-[11px] tabular-nums">
-                      <thead className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]">
+                    <table className="w-full text-sm tabular-nums">
+                      <thead className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
                         <tr>
                           <th className="text-left px-3 py-1.5">Power</th>
-                          <th className="text-right px-2 py-1.5">DKP</th>
-                          <th className="text-right px-2 py-1.5">RSS</th>
-                          <th className="text-right px-2 py-1.5">Helps</th>
-                          <th className="text-right px-3 py-1.5">Honor</th>
+                          <th className="text-right px-3 py-1.5">Multiplier</th>
+                          <th className="text-right px-3 py-1.5">Target KP</th>
                         </tr>
                       </thead>
                       <tbody className="text-[var(--text-secondary)]">
-                        {[20_000_000, 50_000_000, 100_000_000].map((power) => (
-                          <tr key={power} className="border-t border-[var(--border)]/50">
-                            <td className="text-left px-3 py-1.5 font-medium text-[var(--foreground)]">
-                              {(power / 1_000_000).toFixed(0)}M
-                            </td>
-                            <td className="text-right px-2 py-1.5">
-                              {fmtCompact(power / config.meta.dkpDivisor)}
-                            </td>
-                            <td className="text-right px-2 py-1.5">
-                              {fmtCompact(power * config.meta.rssMultiplier)}
-                            </td>
-                            <td className="text-right px-2 py-1.5">
-                              {fmtCompact(power * config.meta.helpsMultiplier)}
-                            </td>
-                            <td className="text-right px-3 py-1.5">
-                              {fmtCompact(power * config.meta.honorMultiplier)}
-                            </td>
-                          </tr>
-                        ))}
+                        {[20_000_000, 35_000_000, 50_000_000, 75_000_000, 100_000_000].map(
+                          (power) => {
+                            const isLow = power < config.weightSplitThreshold;
+                            const mult = isLow ? config.kpTargetLow : config.kpTargetHigh;
+                            return (
+                              <tr key={power} className="border-t border-[var(--border)]/50">
+                                <td className="text-left px-3 py-1.5 font-medium text-[var(--foreground)]">
+                                  {(power / 1_000_000).toFixed(0)}M
+                                </td>
+                                <td
+                                  className={`text-right px-3 py-1.5 ${isLow ? 'text-sky-400' : 'text-fuchsia-400'}`}
+                                >
+                                  ×{mult.toFixed(1)}
+                                </td>
+                                <td className="text-right px-3 py-1.5 font-medium text-[var(--foreground)]">
+                                  {fmtCompact(power * mult)}
+                                </td>
+                              </tr>
+                            );
+                          },
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -949,6 +944,8 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
       );
     case 'scoreDkp':
       return fmtPct(p.scoreDkp);
+    case 'scoreKp':
+      return fmtPct(p.scoreKp);
     case 'scoreRss':
       return fmtPct(p.scoreRss);
     case 'scoreHelps':
@@ -1453,11 +1450,11 @@ function ConfigSummaryLine({ config }: { config: Config }) {
   const cuts = config.statusThresholds;
   return (
     <span>
-      DKP {Math.round(w.dkp)} • RSS {Math.round(w.rss)} • Helps {Math.round(w.helps)} • Honor{' '}
-      {Math.round(w.honor)}
-      {config.split && (
-        <> • split @ {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M</>
-      )}
+      DKP {Math.round(w.dkp)} • KP {Math.round(w.kp)} • RSS {Math.round(w.rss)} • Helps{' '}
+      {Math.round(w.helps)} • Honor {Math.round(w.honor)}
+      {' • '}
+      KP target ×{config.kpTargetLow.toFixed(1)}/×{config.kpTargetHigh.toFixed(1)} @{' '}
+      {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M
       {' • '}
       <span className="text-amber-400/80">≥{Math.round(cuts.excellent * 100)}%</span>{' '}
       <span className="text-emerald-400/80">≥{Math.round(cuts.approved * 100)}%</span>{' '}
@@ -1517,6 +1514,11 @@ const WEIGHT_LABELS: Record<keyof WeightSet, { label: string; hint: string; colo
     label: 'DKP',
     hint: 'Combined kills + deaths score using the formula coefficients on the left. Higher kills + deaths during KvK = higher DKP.',
     color: 'bg-violet-500',
+  },
+  kp: {
+    label: 'KP',
+    hint: "Total kill points performance: actual KP ÷ target KP. Target KP scales with power — smaller accounts get the low multiplier, larger accounts get the high one. Configurable in the Expected KP card.",
+    color: 'bg-fuchsia-500',
   },
   rss: {
     label: 'RSS',
@@ -1651,7 +1653,7 @@ function WeightBand({
   onChange: (key: keyof WeightSet, value: number) => void;
   disabled?: boolean;
 }) {
-  const total = (['dkp', 'rss', 'helps', 'honor'] as const).reduce(
+  const total = (['dkp', 'kp', 'rss', 'helps', 'honor'] as const).reduce(
     (s, k) => s + weights[k],
     0,
   );
@@ -1672,7 +1674,7 @@ function WeightBand({
         </div>
       </div>
       <div className="divide-y divide-[var(--border)]/50">
-        {(['dkp', 'rss', 'helps', 'honor'] as const).map((k) => (
+        {(['dkp', 'kp', 'rss', 'helps', 'honor'] as const).map((k) => (
           <WeightRow
             key={k}
             weightKey={k}
