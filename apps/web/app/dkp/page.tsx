@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Settings2,
   Info,
+  Sparkles,
 } from 'lucide-react';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import {
@@ -1120,13 +1121,19 @@ function DkpPageInner() {
 
         {/* View toggle: kingdom-wide vs model-player ratios */}
         <section className="mb-3 flex flex-wrap items-center gap-3">
-          <div className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--background-card)] p-0.5">
+          <div
+            className={`inline-flex rounded-xl p-1 transition-all duration-300 ${
+              modelView
+                ? 'bg-gradient-to-r from-sky-500/20 via-emerald-500/20 to-fuchsia-500/20 border border-emerald-500/40 shadow-lg shadow-emerald-500/10'
+                : 'bg-gradient-to-r from-sky-500/15 via-emerald-500/15 to-fuchsia-500/15 border border-emerald-500/30 shadow-md shadow-emerald-500/5 animate-pulse-slow'
+            }`}
+          >
             <button
               type="button"
               onClick={() => setModelView(false)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
                 !modelView
-                  ? 'bg-[var(--foreground)] text-[var(--background)]'
+                  ? 'bg-[var(--foreground)] text-[var(--background)] shadow'
                   : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
               }`}
             >
@@ -1135,12 +1142,13 @@ function DkpPageInner() {
             <button
               type="button"
               onClick={() => setModelView(true)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
                 modelView
-                  ? 'bg-[var(--foreground)] text-[var(--background)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+                  ? 'bg-gradient-to-r from-sky-500 via-emerald-500 to-fuchsia-500 text-white shadow-lg'
+                  : 'text-[var(--foreground)] hover:bg-[var(--background-card)]/60'
               }`}
             >
+              <Sparkles size={14} className={modelView ? 'text-white' : 'text-emerald-400'} />
               Vs model player
             </button>
           </div>
@@ -1199,7 +1207,7 @@ function DkpPageInner() {
                         key={c.key}
                         className={`px-3 py-2 ${c.numeric ? 'text-right tabular-nums' : ''}`}
                       >
-                        {renderCell(p, c.key, config.weightSplitThreshold, modelView)}
+                        {renderCell(p, c.key, modelView)}
                       </td>
                     ))}
                   </tr>
@@ -1479,43 +1487,64 @@ function ModelExplainer({ onClose }: { onClose: () => void }) {
   );
 }
 
-function renderCell(
-  p: ScoredPlayer,
-  key: ColumnDef['key'],
-  threshold: number,
-  modelView: boolean,
-) {
+/** Tailwind classes used to dim columns that aren't normalized in model view. */
+const DIM = 'text-[var(--text-muted)]/60';
+
+const BAND_BADGE: Record<Band, string> = {
+  micro: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+  t4: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  t5: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
+};
+
+function renderCell(p: ScoredPlayer, key: ColumnDef['key'], modelView: boolean) {
   switch (key) {
     case 'username':
       return <span className="text-[var(--foreground)] font-medium">{p.username}</span>;
     case 'power': {
-      // Power keeps its absolute value in both views — band membership is what matters here.
-      const cls = p.power < threshold ? 'text-sky-400' : 'text-fuchsia-400';
-      return <span className={`font-medium ${cls}`}>{fmtM(p.power)}</span>;
+      // Power keeps its raw value — the band IS the power category, so it doesn't get normalized.
+      // Instead, the band membership is shown as a colored pill next to the value.
+      const powerCls =
+        p.band === 'micro'
+          ? 'text-sky-400'
+          : p.band === 't4'
+            ? 'text-emerald-400'
+            : 'text-fuchsia-400';
+      return (
+        <span className="inline-flex items-center gap-1.5 justify-end">
+          <span className={`font-medium ${powerCls}`}>{fmtM(p.power)}</span>
+          <span
+            className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${BAND_BADGE[p.band]}`}
+            title={`${BAND_LABELS[p.band]} band (${
+              p.band === 'micro' ? '<30M' : p.band === 't4' ? '30M–threshold' : '≥threshold'
+            })`}
+          >
+            {BAND_LABELS[p.band]}
+          </span>
+        </span>
+      );
     }
     case 'totalKP': {
       if (modelView) return ratioCell(p.totalKP, p.modelStats.totalKP);
-      // Color based on whether this player hits their target KP.
       const cls = ratioColor(p.kpRatio);
       return <span className={`font-medium ${cls}`}>{fmtM(p.totalKP)}</span>;
     }
     case 'targetKp':
       return (
-        <span>
+        <span className={modelView ? DIM : ''}>
           {fmtM(p.targetKp)}{' '}
           <span className="text-[10px] text-[var(--text-muted)]">×{p.kpMultiplier.toFixed(1)}</span>
         </span>
       );
     case 't4Kills':
-      return modelView ? fmtM(p.t4Kills) : fmtM(p.t4Kills);
+      return <span className={modelView ? DIM : ''}>{fmtM(p.t4Kills)}</span>;
     case 't5Kills':
-      return fmtM(p.t5Kills);
+      return <span className={modelView ? DIM : ''}>{fmtM(p.t5Kills)}</span>;
     case 't4Deaths':
-      return fmtM(p.t4Deaths);
+      return <span className={modelView ? DIM : ''}>{fmtM(p.t4Deaths)}</span>;
     case 't5Deaths':
-      return fmtM(p.t5Deaths);
+      return <span className={modelView ? DIM : ''}>{fmtM(p.t5Deaths)}</span>;
     case 'totalDeaths':
-      return fmtM(p.t4Deaths + p.t5Deaths);
+      return <span className={modelView ? DIM : ''}>{fmtM(p.t4Deaths + p.t5Deaths)}</span>;
     case 'dkp': {
       const v = p.dkp || p.computedDkp;
       return modelView ? ratioCell(v, p.modelStats.computedDkp) : fmtM(v);
