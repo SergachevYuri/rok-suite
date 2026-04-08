@@ -87,7 +87,9 @@ const DEFAULT_CONFIG: Config = {
   },
   kpTargetLow: 3,
   kpTargetHigh: 10,
-  statusThresholds: { excellent: 1.5, approved: 1.0, good: 0.8 },
+  // Scores are now 0–100 (each sub-score = value ÷ kingdom max × 100, then weighted-averaged).
+  // Cutoffs are stored on the same 0–100 scale.
+  statusThresholds: { excellent: 60, approved: 35, good: 15 },
 };
 
 /** Migrate legacy 0–1 weight sets to the new 0–100 integer scale. */
@@ -107,6 +109,24 @@ function migrateWeights(w: Partial<WeightSet> | undefined): Partial<WeightSet> {
   return w;
 }
 
+/** Migrate legacy cutoff thresholds (stored as 0–3 ratios) to the new 0–100 scale. */
+function migrateThresholds(
+  t: Partial<Config['statusThresholds']> | undefined,
+): Partial<Config['statusThresholds']> {
+  if (!t) return {};
+  const vals = Object.values(t).filter((v): v is number => typeof v === 'number');
+  if (vals.length === 0) return t;
+  // Old cutoffs lived in [0, 3]. If everything is below 3, assume legacy and rescale ×100/3 → 0–100.
+  if (Math.max(...vals) <= 3) {
+    const out: Partial<Config['statusThresholds']> = {};
+    for (const [k, v] of Object.entries(t)) {
+      if (typeof v === 'number') (out as Record<string, number>)[k] = Math.round((v / 3) * 100);
+    }
+    return out;
+  }
+  return t;
+}
+
 /** Merge a partial remote config onto a base, preserving nested defaults. */
 function mergeConfig(base: Config, partial: Partial<Config> | null | undefined): Config {
   if (!partial) return base;
@@ -116,7 +136,7 @@ function mergeConfig(base: Config, partial: Partial<Config> | null | undefined):
     weightsLow: { ...base.weightsLow, ...migrateWeights(partial.weightsLow) },
     weightsHigh: { ...base.weightsHigh, ...migrateWeights(partial.weightsHigh) },
     dkpFormula: { ...base.dkpFormula, ...(partial.dkpFormula ?? {}) },
-    statusThresholds: { ...base.statusThresholds, ...(partial.statusThresholds ?? {}) },
+    statusThresholds: { ...base.statusThresholds, ...migrateThresholds(partial.statusThresholds) },
     meta: { ...base.meta, ...(partial.meta ?? {}) },
   };
 }
@@ -154,17 +174,23 @@ function safeDiv(a: number, b: number): number {
 }
 
 function computeScores(players: Player[], config: Config): ScoredPlayer[] {
-  const { meta, statusThresholds, dkpFormula } = config;
-  return players.map((p) => {
-    const computedDkp =
+  const { statusThresholds, dkpFormula } = config;
+
+  // First pass: compute DKP for everyone, then find category maxes across the kingdom.
+  const dkps = players.map(
+    (p) =>
       p.t4Kills * dkpFormula.t4Kill +
       p.t5Kills * dkpFormula.t5Kill +
       p.t4Deaths * dkpFormula.t4Death +
-      p.t5Deaths * dkpFormula.t5Death;
-    const metaDkp = p.highestPower / meta.dkpDivisor;
-    const metaRss = p.highestPower * meta.rssMultiplier;
-    const metaHelps = p.highestPower * meta.helpsMultiplier;
-    const metaHonor = p.highestPower * meta.honorMultiplier;
+      p.t5Deaths * dkpFormula.t5Death,
+  );
+  const maxDkp = Math.max(0, ...dkps);
+  const maxRss = Math.max(0, ...players.map((p) => p.rssGathered));
+  const maxHelps = Math.max(0, ...players.map((p) => p.allianceHelps));
+  const maxHonor = Math.max(0, ...players.map((p) => p.honorPoints));
+
+  return players.map((p, i) => {
+    const computedDkp = dkps[i];
 
     // KP target (informational only — not part of the weighted score).
     const kpMultiplier =
@@ -172,16 +198,19 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     const targetKp = p.power * kpMultiplier;
     const kpRatio = safeDiv(p.totalKP, targetKp);
 
-    const scoreDkp = safeDiv(computedDkp, metaDkp);
-    const scoreRss = safeDiv(p.rssGathered, metaRss);
-    const scoreHelps = safeDiv(p.allianceHelps, metaHelps);
-    const scoreHonor = safeDiv(p.honorPoints, metaHonor);
+    // Each sub-score is this player's value as a fraction of the kingdom max for that category,
+    // scaled to 0–100. The top performer in each category gets 100; everyone else is below.
+    const scoreDkp = safeDiv(computedDkp, maxDkp) * 100;
+    const scoreRss = safeDiv(p.rssGathered, maxRss) * 100;
+    const scoreHelps = safeDiv(p.allianceHelps, maxHelps) * 100;
+    const scoreHonor = safeDiv(p.honorPoints, maxHonor) * 100;
 
     const weights =
       config.split && p.highestPower < config.weightSplitThreshold
         ? config.weightsLow
         : config.weightsHigh;
 
+    // Weighted average of the four sub-scores. Result is also 0–100.
     let num = 0;
     let den = 0;
     const components: [number, number][] = [
@@ -225,8 +254,8 @@ const nf = new Intl.NumberFormat('en-US');
 const fmt = (n: number) => nf.format(Math.round(n));
 /** Format large numbers as millions with 2 decimals (e.g. 69_861_875 → "69.86M"). */
 const fmtM = (n: number) => `${(n / 1_000_000).toFixed(2)}M`;
-/** Display a sub-score / final score as a percentage (1.00 → "100%"). */
-const fmtPct = (n: number) => `${Math.round(n * 100)}%`;
+/** Display the final score as a 0–100 number rounded to one decimal. */
+const fmtScore = (n: number) => n.toFixed(1);
 /** Compact integer format like 1.2M / 340K / 1,234. */
 function fmtCompact(n: number): string {
   const a = Math.abs(n);
@@ -276,7 +305,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 't5Deaths', label: 'T5 Deaths', numeric: true, defaultVisible: true, hint: 'T5 troop deaths from the kingdom export.' },
   { key: 'totalDeaths', label: 'Total Deaths', numeric: true, defaultVisible: true, hint: 'T4 + T5 troop deaths combined.' },
   { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths weighted).' },
-  { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Final weighted score (as % of expected). 100% = exactly meeting expectations across all weighted categories.' },
+  { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Final 0–100 score. Each of DKP, RSS, helps and honor is scored 0–100 relative to the top player in the kingdom for that category, then blended using the score weights. 100 = top player in every weighted category.' },
   { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / APPROVED / GOOD / REVIEW).' },
   { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: true, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
 ];
@@ -634,16 +663,18 @@ function DkpPageInner() {
               )}
 
               {/* Quick how-it-works explainer */}
-              <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-[var(--background)]/40 border border-[var(--border)] text-xs text-[var(--text-secondary)] leading-relaxed">
-                <Info size={14} className="text-sky-400 flex-shrink-0 mt-0.5" />
+              <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-[var(--background)]/40 border border-[var(--border)] text-sm text-[var(--text-secondary)] leading-relaxed">
+                <Info size={16} className="text-sky-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-semibold text-[var(--foreground)]">How it works:</span>{' '}
-                  Each player&apos;s raw stats are normalized against their own power so smaller
-                  accounts that punch above their weight score higher.{' '}
+                  Each category is scored 0–100 relative to the top player in the kingdom for
+                  that category.{' '}
                   <span className="text-[var(--text-muted)]">
-                    DKP combines kills + deaths via the formula → each category becomes a
-                    sub-score (actual ÷ expected) → sub-scores are blended using the weights →
-                    the final number maps to a status tier. Hover any{' '}
+                    DKP is computed from the formula (T4/T5 kills + deaths). Then DKP, RSS,
+                    helps and honor are each divided by the kingdom&apos;s max in that category
+                    (top player = 100). Those four sub-scores are blended using the weights to
+                    produce a final 0–100 number, which maps to a status tier. Expected KP is
+                    independent and only affects the KP cell color. Hover any{' '}
                     <span className="underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
                       dotted label
                     </span>{' '}
@@ -819,7 +850,8 @@ function DkpPageInner() {
                         </li>
                         <li>
                           <span className="text-[var(--foreground)] font-medium">Score</span> —
-                          weighted average of all sub-scores, as % of expected
+                          0–100, weighted blend of how this player ranks vs the kingdom max in
+                          each category
                         </li>
                         <li>
                           <span className="text-[var(--foreground)] font-medium">Status</span> —
@@ -864,7 +896,7 @@ function DkpPageInner() {
 
                 <ConfigCard
                   title="Status Cutoffs"
-                  hint="The minimum final score needed to land in each tier. Anything below the GOOD cutoff falls into REVIEW (still listed, just flagged for officer attention)."
+                  hint="The minimum final score (0–100) needed to land in each tier. Anything below the GOOD cutoff falls into REVIEW (still listed, just flagged for officer attention)."
                 >
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/50">
                     <CutoffRow
@@ -893,7 +925,7 @@ function DkpPageInner() {
                         {STATUS_LABELS.REJECTED}
                       </span>
                       <span className="text-xs text-[var(--text-muted)] flex-1">
-                        anything below {Math.round(config.statusThresholds.good * 100)}%
+                        anything below {Math.round(config.statusThresholds.good)}
                       </span>
                     </div>
                   </div>
@@ -1073,7 +1105,7 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
       return fmtM(p.dkp || p.computedDkp);
     case 'finalScore':
       return (
-        <span className="font-semibold text-[var(--foreground)]">{fmtPct(p.finalScore)}</span>
+        <span className="font-semibold text-[var(--foreground)]">{fmtScore(p.finalScore)}</span>
       );
     case 'status':
       return (
@@ -1587,9 +1619,9 @@ function ConfigSummaryLine({ config }: { config: Config }) {
       KP target ×{config.kpTargetLow.toFixed(1)}/×{config.kpTargetHigh.toFixed(1)} @{' '}
       {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M
       {' • '}
-      <span className="text-amber-400/80">≥{Math.round(cuts.excellent * 100)}%</span>{' '}
-      <span className="text-emerald-400/80">≥{Math.round(cuts.approved * 100)}%</span>{' '}
-      <span className="text-sky-400/80">≥{Math.round(cuts.good * 100)}%</span>
+      <span className="text-amber-400/80">≥{Math.round(cuts.excellent)}</span>{' '}
+      <span className="text-emerald-400/80">≥{Math.round(cuts.approved)}</span>{' '}
+      <span className="text-sky-400/80">≥{Math.round(cuts.good)}</span>
     </span>
   );
 }
@@ -1827,21 +1859,21 @@ function CutoffRow({
   onChange: (v: number) => void;
   disabled?: boolean;
 }) {
-  // Display in percent (100 = 1.00 ratio). Internal storage stays as a ratio.
-  const toPct = (v: number) => String(Math.round(v * 100));
-  const [text, setText] = useState(toPct(value));
+  // Cutoffs and the final score live on the same 0–100 scale, so no conversion needed.
+  const toStr = (v: number) => String(Math.round(v));
+  const [text, setText] = useState(toStr(value));
   useEffect(() => {
-    setText(toPct(value));
+    setText(toStr(value));
   }, [value]);
   const commit = () => {
     const n = parseFloat(text);
     if (Number.isNaN(n)) {
-      setText(toPct(value));
+      setText(toStr(value));
       return;
     }
-    const ratio = clamp(n / 100, 0, 3);
-    onChange(ratio);
-    setText(toPct(ratio));
+    const v = clamp(Math.round(n), 0, 100);
+    onChange(v);
+    setText(toStr(v));
   };
   const accentClass =
     status === 'EXCELLENT'
@@ -1862,11 +1894,11 @@ function CutoffRow({
       <input
         type="range"
         min={0}
-        max={300}
-        step={5}
-        value={Math.round(value * 100)}
+        max={100}
+        step={1}
+        value={Math.round(value)}
         disabled={disabled}
-        onChange={(e) => onChange(parseInt(e.target.value, 10) / 100)}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
         className={`flex-1 ${accentClass} disabled:cursor-not-allowed h-2`}
       />
       <div className="relative flex-shrink-0">
@@ -1874,8 +1906,8 @@ function CutoffRow({
           type="number"
           inputMode="numeric"
           min={0}
-          max={300}
-          step={5}
+          max={100}
+          step={1}
           value={text}
           disabled={disabled}
           readOnly={disabled}
@@ -1884,11 +1916,8 @@ function CutoffRow({
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
-          className="w-16 pl-1.5 pr-4 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+          className="w-16 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
         />
-        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
-          %
-        </span>
       </div>
     </div>
   );
