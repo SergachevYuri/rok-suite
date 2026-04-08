@@ -43,7 +43,7 @@ interface Config {
   statusThresholds: { excellent: number; approved: number; good: number };
 }
 
-const DEFAULT_WEIGHTS: WeightSet = { dkp: 0.4, deaths: 0.3, rss: 0.15, helps: 0.15, honor: 0 };
+const DEFAULT_WEIGHTS: WeightSet = { dkp: 0.4, deaths: 0.4, rss: 0.01, helps: 0.02, honor: 0.07 };
 
 const DEFAULT_CONFIG: Config = {
   split: false,
