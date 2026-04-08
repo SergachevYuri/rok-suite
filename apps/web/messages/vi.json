@@ -130,12 +130,14 @@
   "roster": {
     "title": "Danh sách liên minh",
     "tabs": {
-      "roster": "Danh sách",
-      "growth": "Tăng trưởng",
-      "analytics": "Phân tích",
+      "roster": "Roster",
+      "growth": "Growth",
+      "analytics": "Analytics",
       "history": "Lịch sử",
       "comparison": "So sánh",
-      "settings": "Cài đặt"
+      "settings": "Cài đặt",
+      "upload": "Upload",
+      "events": "Events"
     },
     "columns": {
       "name": "Tên",
@@ -221,7 +223,16 @@
       "completed": "Đã hoàn thành",
       "upcoming": "Sắp tới"
     },
-    "noEvents": "Không tìm thấy sự kiện"
+    "noEvents": "Không tìm thấy sự kiện",
+    "header": "Alliance Events",
+    "subtitle": "Track results and rankings from alliance challenges and events.",
+    "noEventsTitle": "No Events Yet",
+    "noEventsBody": "Alliance events will appear here once created.",
+    "samples": {
+      "kpPushName": "KP Push Challenge",
+      "kpPushDates": "Jan 12 - Jan 27, 2026",
+      "kpPushDescription": "Alliance-wide challenge to increase KP with a 1:1 power:KP ratio goal"
+    }
   },
   "aoo": {
     "title": "Kế hoạch trận AoO",
@@ -244,6 +255,45 @@
       "events": "Sự kiện",
       "alliance": "Liên minh",
       "commanders": "Chỉ huy"
+    },
+    "hero": "Strategy Guide",
+    "heroBody": "Comprehensive guides for Rise of Kingdoms events, alliance coordination, and commander progression. Everything you need to dominate the battlefield.",
+    "popular": "Popular Guides",
+    "events": {
+      "title": "Events",
+      "description": "Game event guides, strategies, and checklists for success",
+      "items": {
+        "ark": "Ark of Osiris",
+        "mge": "Mightiest Governor",
+        "ceroli": "Ceroli Crisis",
+        "more": "and more..."
+      }
+    },
+    "alliance": {
+      "title": "Alliance",
+      "description": "How we do things - protocols, schedules, and policies",
+      "items": {
+        "guardians": "Guardian Runs",
+        "territory": "Territory Policy",
+        "rally": "Rally Protocol",
+        "rules": "Alliance Rules"
+      }
+    },
+    "commanders": {
+      "title": "Commander Strategy",
+      "description": "Personalized commander progression and efficiency guides",
+      "items": {
+        "path": "Choose your path",
+        "screenshot": "Screenshot analysis",
+        "kvk": "KvK preparation",
+        "f2pp2p": "F2P & P2P guides"
+      }
+    },
+    "popularLinks": {
+      "ark": "Ark of Osiris",
+      "guardians": "Guardian Runs",
+      "mge": "MGE Strategy",
+      "wizard": "Commander Wizard"
     }
   },
   "betaTools": {
@@ -251,17 +301,22 @@
     "warning": "Đang phát triển",
     "warningDescription": "Các công cụ này đang thử nghiệm và có thể thay đổi hoặc lỗi. Sử dụng với rủi ro của bạn.",
     "scanners": {
-      "title": "Trình quét",
-      "description": "Phân tích ảnh chụp màn hình và công cụ OCR để trích xuất dữ liệu trò chơi"
+      "title": "Scanners",
+      "description": "Scan screenshots to inventory commanders, equipment, and bag items"
     },
     "sunsetCanyon": {
-      "title": "Sunset Canyon",
-      "description": "Mô phỏng phòng thủ và tấn công Sunset Canyon"
+      "title": "Sunset Canyon Simulator",
+      "description": "Commander scanner, formation optimizer, and battle simulation"
     },
     "upgradeCalculator": {
-      "title": "Máy tính nâng cấp",
-      "description": "Lập kế hoạch tài nguyên và tăng tốc cho nâng cấp công trình và nghiên cứu"
-    }
+      "title": "Upgrade Calculator",
+      "description": "Building dependency graph and resource planning for City Hall upgrades"
+    },
+    "subtitle": "Experimental features",
+    "warningBody": "These tools are experimental and may have bugs or incomplete features. They're shared for testing and feedback purposes.",
+    "betaBadge": "Beta",
+    "footerBrand": "Angmar Nazgul Guards • Rise of Kingdoms",
+    "footerFeedback": "Have feedback? Let us know on Discord"
   },
   "dkp": {
     "kingdomLabel": "Kingdom 3923",

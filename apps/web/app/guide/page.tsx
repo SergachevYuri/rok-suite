@@ -2,12 +2,14 @@
 
 import Link from 'next/link';
 import { Calendar, Shield, Sparkles, ArrowRight, BookOpen } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function GuidePage() {
+  const t = useTranslations('guide');
   const sections = [
     {
-      title: 'Events',
-      description: 'Game event guides, strategies, and checklists for success',
+      title: t('events.title'),
+      description: t('events.description'),
       href: '/guide/events',
       icon: Calendar,
       hoverBorder: 'hover:border-emerald-500/40',
@@ -16,11 +18,11 @@ export default function GuidePage() {
       iconHoverColor: 'group-hover:text-emerald-500',
       iconBg: 'bg-emerald-500/10',
       iconColor: 'text-emerald-500',
-      items: ['Ark of Osiris', 'Mightiest Governor', 'Ceroli Crisis', 'and more...'],
+      items: [t('events.items.ark'), t('events.items.mge'), t('events.items.ceroli'), t('events.items.more')],
     },
     {
-      title: 'Alliance',
-      description: 'How we do things - protocols, schedules, and policies',
+      title: t('alliance.title'),
+      description: t('alliance.description'),
       href: '/guide/alliance',
       icon: Shield,
       hoverBorder: 'hover:border-violet-500/40',
@@ -29,11 +31,11 @@ export default function GuidePage() {
       iconHoverColor: 'group-hover:text-violet-500',
       iconBg: 'bg-violet-500/10',
       iconColor: 'text-violet-500',
-      items: ['Guardian Runs', 'Territory Policy', 'Rally Protocol', 'Alliance Rules'],
+      items: [t('alliance.items.guardians'), t('alliance.items.territory'), t('alliance.items.rally'), t('alliance.items.rules')],
     },
     {
-      title: 'Commander Strategy',
-      description: 'Personalized commander progression and efficiency guides',
+      title: t('commanders.title'),
+      description: t('commanders.description'),
       href: '/guide/commanders',
       icon: Sparkles,
       hoverBorder: 'hover:border-amber-500/40',
@@ -42,7 +44,7 @@ export default function GuidePage() {
       iconHoverColor: 'group-hover:text-amber-500',
       iconBg: 'bg-amber-500/10',
       iconColor: 'text-amber-500',
-      items: ['Choose your path', 'Screenshot analysis', 'KvK preparation', 'F2P & P2P guides'],
+      items: [t('commanders.items.path'), t('commanders.items.screenshot'), t('commanders.items.kvk'), t('commanders.items.f2pp2p')],
     },
   ];
 
@@ -54,12 +56,9 @@ export default function GuidePage() {
           <div className="p-2.5 rounded-lg bg-cyan-500/15">
             <BookOpen size={24} className="text-cyan-500" />
           </div>
-          <h1 className="text-3xl font-bold">Strategy Guide</h1>
+          <h1 className="text-3xl font-bold">{t('hero')}</h1>
         </div>
-        <p className="text-[var(--text-secondary)]">
-          Comprehensive guides for Rise of Kingdoms events, alliance coordination, and commander progression.
-          Everything you need to dominate the battlefield.
-        </p>
+        <p className="text-[var(--text-secondary)]">{t('heroBody')}</p>
       </div>
 
       {/* Section Cards */}
@@ -107,14 +106,14 @@ export default function GuidePage() {
       {/* Quick Links */}
       <div className="mt-10 pt-8 border-t border-[var(--border)]">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-4">
-          Popular Guides
+          {t('popular')}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: 'Ark of Osiris', href: '/guide/events/ark-of-osiris' },
-            { label: 'Guardian Runs', href: '/guide/alliance/guardians' },
-            { label: 'MGE Strategy', href: '/guide/events/mightiest-governor' },
-            { label: 'Commander Wizard', href: '/guide/commanders' },
+            { label: t('popularLinks.ark'), href: '/guide/events/ark-of-osiris' },
+            { label: t('popularLinks.guardians'), href: '/guide/alliance/guardians' },
+            { label: t('popularLinks.mge'), href: '/guide/events/mightiest-governor' },
+            { label: t('popularLinks.wizard'), href: '/guide/commanders' },
           ].map((link) => (
             <Link
               key={link.href}

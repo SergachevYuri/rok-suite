@@ -3,20 +3,19 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Users, Upload, History, BarChart3, Calendar } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { AppSidebar } from '@/components/AppSidebar';
-// RosterProvider will be used later when individual tabs are properly extracted
-// For now, RosterContent handles its own data fetching
-
-const tabs = [
-    { label: 'Roster', href: '/roster', icon: Users },
-    { label: 'Upload', href: '/roster/upload', icon: Upload },
-    { label: 'Growth', href: '/roster/history', icon: History },
-    { label: 'Analytics', href: '/roster/analytics', icon: BarChart3 },
-    { label: 'Events', href: '/roster/events', icon: Calendar },
-];
 
 export default function RosterLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const t = useTranslations('roster.tabs');
+    const tabs = [
+        { label: t('roster'), href: '/roster', icon: Users },
+        { label: t('upload'), href: '/roster/upload', icon: Upload },
+        { label: t('growth'), href: '/roster/history', icon: History },
+        { label: t('analytics'), href: '/roster/analytics', icon: BarChart3 },
+        { label: t('events'), href: '/roster/events', icon: Calendar },
+    ];
 
     const isActiveTab = (href: string) => {
         if (href === '/roster') return pathname === '/roster';

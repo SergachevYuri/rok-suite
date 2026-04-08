@@ -8,14 +8,16 @@ import {
   ArrowRight,
   FlaskConical,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { AppSidebar } from '@/components/AppSidebar';
 
 export default function BetaToolsPage() {
+  const t = useTranslations('betaTools');
   const tools = [
     {
       href: '/scanners',
-      title: 'Scanners',
-      description: 'Scan screenshots to inventory commanders, equipment, and bag items',
+      title: t('scanners.title'),
+      description: t('scanners.description'),
       icon: Scan,
       gradient: 'from-[#4318ff] to-[#9f7aea]',
       shadowColor: 'shadow-[#4318ff]/25',
@@ -23,8 +25,8 @@ export default function BetaToolsPage() {
     },
     {
       href: '/sunset-canyon',
-      title: 'Sunset Canyon Simulator',
-      description: 'Commander scanner, formation optimizer, and battle simulation',
+      title: t('sunsetCanyon.title'),
+      description: t('sunsetCanyon.description'),
       icon: Sun,
       gradient: 'from-[#ffb547] to-[#ffd97a]',
       shadowColor: 'shadow-[#ffb547]/25',
@@ -32,8 +34,8 @@ export default function BetaToolsPage() {
     },
     {
       href: '/upgrade-calculator',
-      title: 'Upgrade Calculator',
-      description: 'Building dependency graph and resource planning for City Hall upgrades',
+      title: t('upgradeCalculator.title'),
+      description: t('upgradeCalculator.description'),
       icon: Calculator,
       gradient: 'from-[#0075ff] to-[#21d4fd]',
       shadowColor: 'shadow-[#0075ff]/25',
@@ -51,8 +53,8 @@ export default function BetaToolsPage() {
             <FlaskConical className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold">Beta Tools</h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">Experimental features</p>
+            <h1 className="text-xl sm:text-2xl font-semibold">{t('title')}</h1>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">{t('subtitle')}</p>
           </div>
         </header>
 
@@ -61,11 +63,8 @@ export default function BetaToolsPage() {
           <div className="flex items-start gap-3">
             <FlaskConical className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-orange-500 mb-1">Work in Progress</h3>
-              <p className="text-sm text-[var(--text-secondary)]">
-                These tools are experimental and may have bugs or incomplete features.
-                They&apos;re shared for testing and feedback purposes.
-              </p>
+              <h3 className="text-sm font-semibold text-orange-500 mb-1">{t('warning')}</h3>
+              <p className="text-sm text-[var(--text-secondary)]">{t('warningBody')}</p>
             </div>
           </div>
         </div>
@@ -91,7 +90,7 @@ export default function BetaToolsPage() {
                             {tool.title}
                           </h4>
                           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full uppercase tracking-wider bg-orange-500/20 text-orange-500">
-                            Beta
+                            {t('betaBadge')}
                           </span>
                         </div>
                         <p className="text-sm text-[var(--text-secondary)]">{tool.description}</p>
@@ -109,12 +108,8 @@ export default function BetaToolsPage() {
 
         {/* Footer */}
         <footer className="mt-16 pt-8 border-t border-[var(--border)] text-center">
-          <p className="text-xs text-[var(--text-secondary)]">
-            Angmar Nazgul Guards • Rise of Kingdoms
-          </p>
-          <p className="text-[10px] text-[var(--text-muted)] mt-2">
-            Have feedback? Let us know on Discord
-          </p>
+          <p className="text-xs text-[var(--text-secondary)]">{t('footerBrand')}</p>
+          <p className="text-[10px] text-[var(--text-muted)] mt-2">{t('footerFeedback')}</p>
         </footer>
       </div>
     </div>

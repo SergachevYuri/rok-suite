@@ -2,27 +2,29 @@
 
 import Link from 'next/link';
 import { Trophy, Calendar, ArrowRight, Target } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { AppSidebar } from '@/components/AppSidebar';
 
 interface AllianceEvent {
   slug: string;
-  name: string;
-  dates: string;
+  nameKey: string;
+  datesKey: string;
   status: 'active' | 'completed' | 'upcoming';
-  description: string;
+  descriptionKey: string;
 }
 
 const allianceEvents: AllianceEvent[] = [
   {
     slug: 'kp-push-jan-2026',
-    name: 'KP Push Challenge',
-    dates: 'Jan 12 - Jan 27, 2026',
+    nameKey: 'samples.kpPushName',
+    datesKey: 'samples.kpPushDates',
     status: 'completed',
-    description: 'Alliance-wide challenge to increase KP with a 1:1 power:KP ratio goal',
+    descriptionKey: 'samples.kpPushDescription',
   },
 ];
 
 export default function EventsPage() {
+  const t = useTranslations('events');
 
   const statusColors = {
     active: 'bg-green-500/20 text-green-400',
@@ -40,10 +42,10 @@ export default function EventsPage() {
               <div className="p-2.5 rounded-lg bg-amber-500/15">
                 <Trophy size={24} className="text-amber-500" />
               </div>
-              <h1 className="text-3xl font-bold">Alliance Events</h1>
+              <h1 className="text-3xl font-bold">{t('header')}</h1>
             </div>
             <p className="text-[var(--text-secondary)]">
-              Track results and rankings from alliance challenges and events.
+              {t('subtitle')}
             </p>
           </div>
 
@@ -56,16 +58,16 @@ export default function EventsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h2 className="text-xl font-semibold group-hover:text-amber-500 transition-colors">
-                          {event.name}
+                          {t(event.nameKey)}
                         </h2>
                         <span className={`text-xs px-2 py-1 rounded-full ${statusColors[event.status]}`}>
-                          {event.status}
+                          {t(`status.${event.status}` as 'status.active' | 'status.completed' | 'status.upcoming')}
                         </span>
                       </div>
-                      <p className="text-sm text-[var(--text-secondary)] mb-3">{event.description}</p>
+                      <p className="text-sm text-[var(--text-secondary)] mb-3">{t(event.descriptionKey)}</p>
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar size={14} className="text-[var(--text-muted)]" />
-                        <span className="text-[var(--text-muted)]">{event.dates}</span>
+                        <span className="text-[var(--text-muted)]">{t(event.datesKey)}</span>
                       </div>
                     </div>
                     <ArrowRight
@@ -82,8 +84,8 @@ export default function EventsPage() {
           {allianceEvents.length === 0 && (
             <div className="p-12 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] text-center">
               <Target size={48} className="text-[var(--text-muted)] mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">No Events Yet</h3>
-              <p className="text-[var(--text-secondary)]">Alliance events will appear here once created.</p>
+              <h3 className="text-lg font-medium mb-2">{t('noEventsTitle')}</h3>
+              <p className="text-[var(--text-secondary)]">{t('noEventsBody')}</p>
             </div>
           )}
         </div>

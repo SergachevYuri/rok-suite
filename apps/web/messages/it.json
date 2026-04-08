@@ -130,12 +130,14 @@
   "roster": {
     "title": "Organico dell'alleanza",
     "tabs": {
-      "roster": "Organico",
-      "growth": "Crescita",
-      "analytics": "Analisi",
+      "roster": "Roster",
+      "growth": "Growth",
+      "analytics": "Analytics",
       "history": "Cronologia",
       "comparison": "Confronto",
-      "settings": "Impostazioni"
+      "settings": "Impostazioni",
+      "upload": "Upload",
+      "events": "Events"
     },
     "columns": {
       "name": "Nome",
@@ -221,7 +223,16 @@
       "completed": "Completato",
       "upcoming": "In arrivo"
     },
-    "noEvents": "Nessun evento trovato"
+    "noEvents": "Nessun evento trovato",
+    "header": "Alliance Events",
+    "subtitle": "Track results and rankings from alliance challenges and events.",
+    "noEventsTitle": "No Events Yet",
+    "noEventsBody": "Alliance events will appear here once created.",
+    "samples": {
+      "kpPushName": "KP Push Challenge",
+      "kpPushDates": "Jan 12 - Jan 27, 2026",
+      "kpPushDescription": "Alliance-wide challenge to increase KP with a 1:1 power:KP ratio goal"
+    }
   },
   "aoo": {
     "title": "Pianificatore di battaglia AoO",
@@ -244,6 +255,45 @@
       "events": "Eventi",
       "alliance": "Alleanza",
       "commanders": "Comandanti"
+    },
+    "hero": "Strategy Guide",
+    "heroBody": "Comprehensive guides for Rise of Kingdoms events, alliance coordination, and commander progression. Everything you need to dominate the battlefield.",
+    "popular": "Popular Guides",
+    "events": {
+      "title": "Events",
+      "description": "Game event guides, strategies, and checklists for success",
+      "items": {
+        "ark": "Ark of Osiris",
+        "mge": "Mightiest Governor",
+        "ceroli": "Ceroli Crisis",
+        "more": "and more..."
+      }
+    },
+    "alliance": {
+      "title": "Alliance",
+      "description": "How we do things - protocols, schedules, and policies",
+      "items": {
+        "guardians": "Guardian Runs",
+        "territory": "Territory Policy",
+        "rally": "Rally Protocol",
+        "rules": "Alliance Rules"
+      }
+    },
+    "commanders": {
+      "title": "Commander Strategy",
+      "description": "Personalized commander progression and efficiency guides",
+      "items": {
+        "path": "Choose your path",
+        "screenshot": "Screenshot analysis",
+        "kvk": "KvK preparation",
+        "f2pp2p": "F2P & P2P guides"
+      }
+    },
+    "popularLinks": {
+      "ark": "Ark of Osiris",
+      "guardians": "Guardian Runs",
+      "mge": "MGE Strategy",
+      "wizard": "Commander Wizard"
     }
   },
   "betaTools": {
@@ -251,17 +301,22 @@
     "warning": "Lavori in corso",
     "warningDescription": "Questi strumenti sono sperimentali e potrebbero cambiare o non funzionare. Usali a tuo rischio e pericolo.",
     "scanners": {
-      "title": "Scanner",
-      "description": "Analisi di screenshot e strumenti OCR per estrarre dati dal gioco"
+      "title": "Scanners",
+      "description": "Scan screenshots to inventory commanders, equipment, and bag items"
     },
     "sunsetCanyon": {
-      "title": "Canyon del Tramonto",
-      "description": "Simulatore di difesa e attacco del Canyon del Tramonto"
+      "title": "Sunset Canyon Simulator",
+      "description": "Commander scanner, formation optimizer, and battle simulation"
     },
     "upgradeCalculator": {
-      "title": "Calcolatore potenziamenti",
-      "description": "Pianificazione di risorse e accelerazioni per potenziamenti di edifici e ricerche"
-    }
+      "title": "Upgrade Calculator",
+      "description": "Building dependency graph and resource planning for City Hall upgrades"
+    },
+    "subtitle": "Experimental features",
+    "warningBody": "These tools are experimental and may have bugs or incomplete features. They're shared for testing and feedback purposes.",
+    "betaBadge": "Beta",
+    "footerBrand": "Angmar Nazgul Guards • Rise of Kingdoms",
+    "footerFeedback": "Have feedback? Let us know on Discord"
   },
   "dkp": {
     "kingdomLabel": "Kingdom 3923",

@@ -130,12 +130,14 @@
   "roster": {
     "title": "गठबंधन सदस्य सूची",
     "tabs": {
-      "roster": "सदस्य सूची",
-      "growth": "विकास",
-      "analytics": "विश्लेषण",
+      "roster": "Roster",
+      "growth": "Growth",
+      "analytics": "Analytics",
       "history": "इतिहास",
       "comparison": "तुलना",
-      "settings": "सेटिंग्स"
+      "settings": "सेटिंग्स",
+      "upload": "Upload",
+      "events": "Events"
     },
     "columns": {
       "name": "नाम",
@@ -221,7 +223,16 @@
       "completed": "पूर्ण",
       "upcoming": "आगामी"
     },
-    "noEvents": "कोई इवेंट नहीं मिला"
+    "noEvents": "कोई इवेंट नहीं मिला",
+    "header": "Alliance Events",
+    "subtitle": "Track results and rankings from alliance challenges and events.",
+    "noEventsTitle": "No Events Yet",
+    "noEventsBody": "Alliance events will appear here once created.",
+    "samples": {
+      "kpPushName": "KP Push Challenge",
+      "kpPushDates": "Jan 12 - Jan 27, 2026",
+      "kpPushDescription": "Alliance-wide challenge to increase KP with a 1:1 power:KP ratio goal"
+    }
   },
   "aoo": {
     "title": "AoO युद्ध प्लानर",
@@ -244,6 +255,45 @@
       "events": "इवेंट",
       "alliance": "गठबंधन",
       "commanders": "कमांडर"
+    },
+    "hero": "Strategy Guide",
+    "heroBody": "Comprehensive guides for Rise of Kingdoms events, alliance coordination, and commander progression. Everything you need to dominate the battlefield.",
+    "popular": "Popular Guides",
+    "events": {
+      "title": "Events",
+      "description": "Game event guides, strategies, and checklists for success",
+      "items": {
+        "ark": "Ark of Osiris",
+        "mge": "Mightiest Governor",
+        "ceroli": "Ceroli Crisis",
+        "more": "and more..."
+      }
+    },
+    "alliance": {
+      "title": "Alliance",
+      "description": "How we do things - protocols, schedules, and policies",
+      "items": {
+        "guardians": "Guardian Runs",
+        "territory": "Territory Policy",
+        "rally": "Rally Protocol",
+        "rules": "Alliance Rules"
+      }
+    },
+    "commanders": {
+      "title": "Commander Strategy",
+      "description": "Personalized commander progression and efficiency guides",
+      "items": {
+        "path": "Choose your path",
+        "screenshot": "Screenshot analysis",
+        "kvk": "KvK preparation",
+        "f2pp2p": "F2P & P2P guides"
+      }
+    },
+    "popularLinks": {
+      "ark": "Ark of Osiris",
+      "guardians": "Guardian Runs",
+      "mge": "MGE Strategy",
+      "wizard": "Commander Wizard"
     }
   },
   "betaTools": {
@@ -251,17 +301,22 @@
     "warning": "विकास में कार्य",
     "warningDescription": "ये उपकरण प्रयोगात्मक हैं और बदल सकते हैं या काम करना बंद कर सकते हैं। अपने जोखिम पर उपयोग करें।",
     "scanners": {
-      "title": "स्कैनर",
-      "description": "गेम डेटा निकालने के लिए स्क्रीनशॉट विश्लेषण और OCR उपकरण"
+      "title": "Scanners",
+      "description": "Scan screenshots to inventory commanders, equipment, and bag items"
     },
     "sunsetCanyon": {
-      "title": "Sunset Canyon",
-      "description": "Sunset Canyon रक्षा और आक्रमण सिम्युलेटर"
+      "title": "Sunset Canyon Simulator",
+      "description": "Commander scanner, formation optimizer, and battle simulation"
     },
     "upgradeCalculator": {
-      "title": "अपग्रेड कैलकुलेटर",
-      "description": "भवन और अनुसंधान अपग्रेड के लिए संसाधन और स्पीडअप योजना"
-    }
+      "title": "Upgrade Calculator",
+      "description": "Building dependency graph and resource planning for City Hall upgrades"
+    },
+    "subtitle": "Experimental features",
+    "warningBody": "These tools are experimental and may have bugs or incomplete features. They're shared for testing and feedback purposes.",
+    "betaBadge": "Beta",
+    "footerBrand": "Angmar Nazgul Guards • Rise of Kingdoms",
+    "footerFeedback": "Have feedback? Let us know on Discord"
   },
   "dkp": {
     "kingdomLabel": "Kingdom 3923",
