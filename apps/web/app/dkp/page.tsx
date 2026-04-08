@@ -17,6 +17,7 @@ import {
   Info,
   Sparkles,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import {
   Player,
@@ -409,6 +410,23 @@ interface ColumnDef {
   hint?: string;
 }
 
+/** Translation key for each column's label, used at render time. */
+const COLUMN_LABEL_KEYS: Record<ColumnDef['key'], string> = {
+  username: 'columns.player',
+  power: 'columns.power',
+  t4Kills: 'columns.t4Kp',
+  t5Kills: 'columns.t5Kp',
+  totalKP: 'columns.totalKp',
+  targetKp: 'columns.targetKp',
+  t4Deaths: 'columns.t4Deaths',
+  t5Deaths: 'columns.t5Deaths',
+  totalDeaths: 'columns.totalDeaths',
+  dkp: 'columns.dkp',
+  finalScore: 'columns.score',
+  status: 'columns.status',
+  honorPoints: 'columns.honor',
+};
+
 const COLUMNS: ColumnDef[] = [
   { key: 'username', label: 'Player', defaultVisible: true, hint: 'In-game username from the kingdom export.' },
   { key: 'power', label: 'Power', numeric: true, defaultVisible: true, hint: 'Current power as of the last upload (not highest power).' },
@@ -436,6 +454,7 @@ export default function DkpPage() {
 }
 
 function DkpPageInner() {
+  const t = useTranslations('dkp');
   const { isAtLeast, officerName } = useWarRoomAuth();
   const isOfficer = isAtLeast('officer');
 
@@ -653,18 +672,21 @@ function DkpPageInner() {
         <header className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-[var(--text-muted)] mb-2 tracking-wide uppercase">
-              Kingdom 3923
+              {t('kingdomLabel')}
             </p>
             <h1 className="text-3xl md:text-4xl font-semibold text-[var(--foreground)] mb-2 tracking-tight">
-              3923 Kingdom DKP Score
+              {t('title')}
             </h1>
             <p className="text-sm text-[var(--text-secondary)]">
-              {dataset?.statsFileName ? (
-                <>Source: {dataset.statsFileName}{dataset.honorFileName ? ` + ${dataset.honorFileName}` : ''}</>
-              ) : (
-                'Loading…'
-              )}
-              {dataset?.uploadedBy && <> • uploaded by {dataset.uploadedBy}</>}
+              {dataset?.statsFileName
+                ? dataset.honorFileName
+                  ? t('sourceWithHonor', {
+                      file: dataset.statsFileName,
+                      honor: dataset.honorFileName,
+                    })
+                  : t('sourcePrefix', { file: dataset.statsFileName })
+                : t('sourceLoading')}
+              {dataset?.uploadedBy && t('uploadedBy', { name: dataset.uploadedBy })}
             </p>
           </div>
           <OfficerBadge />
@@ -681,12 +703,12 @@ function DkpPageInner() {
 
         {/* Summary */}
         <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
-          <SummaryCard label="Players" value={fmt(summary.total)} />
-          <SummaryCard label="Total DKP" value={fmt(summary.totalDkp)} />
-          <SummaryCard label="Excellent" value={fmt(summary.counts.EXCELLENT)} tone="amber" />
-          <SummaryCard label="Strong" value={fmt(summary.counts.APPROVED)} tone="emerald" />
-          <SummaryCard label="Good" value={fmt(summary.counts.GOOD)} tone="sky" />
-          <SummaryCard label="Review" value={fmt(summary.counts.REJECTED)} tone="red" />
+          <SummaryCard label={t('summary.players')} value={fmt(summary.total)} />
+          <SummaryCard label={t('summary.totalDkp')} value={fmt(summary.totalDkp)} />
+          <SummaryCard label={t('summary.excellent')} value={fmt(summary.counts.EXCELLENT)} tone="amber" />
+          <SummaryCard label={t('summary.strong')} value={fmt(summary.counts.APPROVED)} tone="emerald" />
+          <SummaryCard label={t('summary.good')} value={fmt(summary.counts.GOOD)} tone="sky" />
+          <SummaryCard label={t('summary.review')} value={fmt(summary.counts.REJECTED)} tone="red" />
         </section>
 
         {/* Scoring Configuration (collapsible) */}
@@ -699,16 +721,16 @@ function DkpPageInner() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm font-semibold text-[var(--foreground)]">
-                  Scoring Configuration
+                  {t('config.title')}
                 </h2>
                 {!isOfficer && (
                   <span className="text-[10px] font-normal text-[var(--text-muted)] uppercase tracking-wider">
-                    read-only
+                    {t('config.readOnly')}
                   </span>
                 )}
                 {isOfficer && isDirty && (
                   <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">
-                    • unsaved
+                    {t('config.unsaved')}
                   </span>
                 )}
               </div>
@@ -732,27 +754,27 @@ function DkpPageInner() {
                       <button
                         onClick={handleDeploy}
                         disabled={!isDirty || deploying}
-                        title="Publish your current edits to the shared kingdom database — every viewer will see them on next refresh."
+                        title={t('config.deployHint')}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <Rocket size={12} />
-                        {deploying ? 'Deploying…' : 'Confirm for everyone'}
+                        {deploying ? t('config.deploying') : t('config.deploy')}
                       </button>
                       <button
                         onClick={handleDiscardChanges}
                         disabled={!isDirty || deploying}
-                        title="Throw away your local edits and revert to the published config."
+                        title={t('config.discardHint')}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <RotateCcw size={12} />
-                        Discard
+                        {t('config.discard')}
                       </button>
                       {deployError && <span className="text-xs text-red-400">{deployError}</span>}
                     </>
                   )}
                 </div>
                 <label
-                  title="Use two separate weight sets — one for accounts under the power threshold, one for accounts at or above. Lets you score smaller accounts differently than whales."
+                  title={t('config.splitToggleHint')}
                   className={`flex items-center gap-2 text-xs text-[var(--text-muted)] select-none ${isOfficer ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
                 >
                   <input
@@ -762,13 +784,13 @@ function DkpPageInner() {
                     onChange={(e) => setConfig((c) => ({ ...c, split: e.target.checked }))}
                     className="accent-[#4318ff]"
                   />
-                  Split weights by power
+                  {t('config.splitToggleLabel')}
                 </label>
               </div>
 
               {config.split && (
                 <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <span className="font-medium">Power threshold:</span>
+                  <span className="font-medium">{t('config.powerThresholdLabel')}</span>
                   <PowerInput
                     value={config.weightSplitThreshold}
                     disabled={!isOfficer}
@@ -776,7 +798,7 @@ function DkpPageInner() {
                       setConfig((c) => ({ ...c, weightSplitThreshold: Math.max(0, v) }))
                     }
                   />
-                  <span className="text-[var(--text-muted)]">splits low / high power accounts</span>
+                  <span className="text-[var(--text-muted)]">{t('config.powerThresholdHelp')}</span>
                 </div>
               )}
 
@@ -807,7 +829,7 @@ function DkpPageInner() {
                 <div className="space-y-4">
                 {/* DKP Formula card */}
                 <ConfigCard
-                  title="DKP Formula"
+                  title={t('dkpFormulaCard.title')}
                   hint="How the raw DKP number is built from each player's T4/T5 kills and deaths. Higher coefficients reward that activity more."
                 >
                   <div className="grid grid-cols-2 gap-3">
@@ -835,7 +857,7 @@ function DkpPageInner() {
 
                 {/* Expected KP card — KP target = power × multiplier (low/high tier) */}
                 <ConfigCard
-                  title="Expected KP"
+                  title={t('expectedKpCard.title')}
                   hint="The KP each player is expected to produce based on their power. Smaller accounts use the low multiplier, larger accounts the high one. KP performance (actual KP ÷ target KP) feeds into the Score Weights as the 'KP' weight."
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -917,7 +939,7 @@ function DkpPageInner() {
 
                 {/* Reading-the-table reference (also balances column heights) */}
                 <ConfigCard
-                  title="Reading the Table"
+                  title={t('readingTableCard.title')}
                   hint="Quick reference for what each column and color in the player table means."
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -985,7 +1007,7 @@ function DkpPageInner() {
                 {/* Right column: Score Weights + Status Cutoffs stacked */}
                 <div className="space-y-4">
                 <ConfigCard
-                  title="Score Weights"
+                  title={t('weightsCard.title')}
                   hint="How much each sub-score contributes to the final number. Values are relative — the badge on each band shows what share each weight effectively gets."
                 >
                   <div className="space-y-3">
@@ -1013,7 +1035,7 @@ function DkpPageInner() {
                 </ConfigCard>
 
                 <ConfigCard
-                  title="Status Cutoffs"
+                  title={t('cutoffsCard.title')}
                   hint="The minimum final score (0–100) needed to land in each tier. Anything below the GOOD cutoff falls into REVIEW (still listed, just flagged for officer attention)."
                 >
                   <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/50">
@@ -1043,7 +1065,7 @@ function DkpPageInner() {
                         {STATUS_LABELS.REJECTED}
                       </span>
                       <span className="text-xs text-[var(--text-muted)] flex-1">
-                        anything below {Math.round(config.statusThresholds.good)}
+                        {t('cutoffsCard.anythingBelow', { n: Math.round(config.statusThresholds.good) })}
                       </span>
                     </div>
                   </div>
@@ -1064,7 +1086,7 @@ function DkpPageInner() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search…"
+              placeholder={t('filters.searchPlaceholder')}
               className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
             />
           </div>
@@ -1084,7 +1106,7 @@ function DkpPageInner() {
                   : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
               }`}
             >
-              Raw
+              {t('view.raw')}
             </button>
             <button
               type="button"
@@ -1096,16 +1118,16 @@ function DkpPageInner() {
               }`}
             >
               <Sparkles size={14} className={modelView ? 'text-white' : 'text-emerald-400'} />
-              <span className="hidden sm:inline">Vs model player</span>
-              <span className="sm:hidden">Model</span>
+              <span className="hidden sm:inline">{t('view.modelLong')}</span>
+              <span className="sm:hidden">{t('view.model')}</span>
             </button>
           </div>
           <button
             type="button"
             onClick={() => setModelInfoOpen(true)}
             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-card)] transition-colors"
-            aria-label="How does this work?"
-            title="How does this work?"
+            aria-label={t('view.howWorks')}
+            title={t('view.howWorks')}
           >
             <Info size={16} />
           </button>
@@ -1124,7 +1146,15 @@ function DkpPageInner() {
                     : 'bg-[var(--background-card)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--foreground)]'
                 }`}
               >
-                {s === 'ALL' ? s : STATUS_LABELS[s]}
+                {s === 'ALL'
+                  ? t('status.all')
+                  : s === 'EXCELLENT'
+                    ? t('status.excellent')
+                    : s === 'APPROVED'
+                      ? t('status.strong')
+                      : s === 'GOOD'
+                        ? t('status.good')
+                        : t('status.review')}
               </button>
             ))}
           </div>
@@ -1143,12 +1173,12 @@ function DkpPageInner() {
                     : 'bg-transparent text-[var(--text-muted)] border-[var(--border)] opacity-50'
                 }`}
               >
-                {c.label}
+                {t(COLUMN_LABEL_KEYS[c.key])}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
-            <span className="uppercase tracking-wider">KP color:</span>
+            <span className="uppercase tracking-wider">{t('filters.kpColorLabel')}</span>
             <span className="inline-flex items-center gap-1">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
               <span className="text-emerald-400">≥100%</span>
@@ -1174,7 +1204,7 @@ function DkpPageInner() {
                 <tr>
                   <th
                     className="px-3 py-3 text-right w-12 cursor-help"
-                    title="Global rank by current sort. Search/filter does not renumber."
+                    title={t('filters.rankTooltip')}
                   >
                     #
                   </th>
@@ -1188,7 +1218,7 @@ function DkpPageInner() {
                       onClick={() => c.key !== 'status' && handleSort(c.key as SortKey)}
                     >
                       <span className="inline-flex items-center gap-1">
-                        {c.label}
+                        {t(COLUMN_LABEL_KEYS[c.key])}
                         {sortKey === c.key && <ArrowUpDown size={12} className="opacity-60" />}
                       </span>
                     </th>
@@ -1209,7 +1239,7 @@ function DkpPageInner() {
                         key={c.key}
                         className={`px-3 py-2 ${c.numeric ? 'text-right tabular-nums' : ''}`}
                       >
-                        {renderCell(p, c.key, modelView)}
+                        {renderCell(p, c.key, modelView, t)}
                       </td>
                     ))}
                   </tr>
@@ -1220,7 +1250,7 @@ function DkpPageInner() {
                       colSpan={visibleCols.size + 1}
                       className="px-3 py-10 text-center text-[var(--text-muted)] text-sm"
                     >
-                      {loadingDefault ? 'Loading…' : 'No players match.'}
+                      {loadingDefault ? t('filters.loading') : t('filters.noPlayers')}
                     </td>
                   </tr>
                 )}
@@ -1498,7 +1528,12 @@ const BAND_BADGE: Record<Band, string> = {
   t5: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
 };
 
-function renderCell(p: ScoredPlayer, key: ColumnDef['key'], modelView: boolean) {
+function renderCell(
+  p: ScoredPlayer,
+  key: ColumnDef['key'],
+  modelView: boolean,
+  t: (k: string) => string,
+) {
   switch (key) {
     case 'username':
       return <span className="text-[var(--foreground)] font-medium">{p.username}</span>;
@@ -1567,14 +1602,23 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key'], modelView: boolean) 
         </span>
       );
     }
-    case 'status':
+    case 'status': {
+      const label =
+        p.status === 'EXCELLENT'
+          ? t('status.excellent')
+          : p.status === 'APPROVED'
+            ? t('status.strong')
+            : p.status === 'GOOD'
+              ? t('status.good')
+              : t('status.review');
       return (
         <span
           className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[p.status]}`}
         >
-          {STATUS_LABELS[p.status]}
+          {label}
         </span>
       );
+    }
     case 'honorPoints':
       return modelView ? ratioCell(p.honorPoints, p.modelStats.honorPoints) : fmt(p.honorPoints);
     default:
@@ -1583,6 +1627,7 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key'], modelView: boolean) 
 }
 
 function OfficerBadge() {
+  const t = useTranslations('dkp.officer');
   const { isAtLeast, role, login, logout, officerName, setOfficerName } = useWarRoomAuth();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState('');
@@ -1599,7 +1644,7 @@ function OfficerBadge() {
         <button
           onClick={logout}
           className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] transition-colors"
-          title="Sign out"
+          title={t('signOut')}
         >
           <LogOut size={14} />
         </button>
@@ -1613,13 +1658,13 @@ function OfficerBadge() {
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--background-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
       >
-        <Lock size={12} /> Officer sign in
+        <Lock size={12} /> {t('signIn')}
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-sm rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-[var(--foreground)]">Angmar officer sign in</h3>
+              <h3 className="text-sm font-semibold text-[var(--foreground)]">{t('signInTitle')}</h3>
               <button
                 onClick={() => setOpen(false)}
                 className="p-1 text-[var(--text-muted)] hover:text-[var(--foreground)]"
@@ -1632,7 +1677,7 @@ function OfficerBadge() {
                 e.preventDefault();
                 const ok = login(password);
                 if (!ok) {
-                  setError('Incorrect password');
+                  setError(t('incorrectPassword'));
                   return;
                 }
                 if (name.trim()) setOfficerName(name.trim());
@@ -1643,7 +1688,7 @@ function OfficerBadge() {
               className="space-y-3"
             >
               <div>
-                <label className="text-xs text-[var(--text-muted)]">Your name (optional)</label>
+                <label className="text-xs text-[var(--text-muted)]">{t('yourName')}</label>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -1651,7 +1696,7 @@ function OfficerBadge() {
                 />
               </div>
               <div>
-                <label className="text-xs text-[var(--text-muted)]">Officer password</label>
+                <label className="text-xs text-[var(--text-muted)]">{t('password')}</label>
                 <input
                   type="password"
                   value={password}
@@ -1665,7 +1710,7 @@ function OfficerBadge() {
                 type="submit"
                 className="w-full px-3 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] transition-colors"
               >
-                Sign in
+                {t('submit')}
               </button>
             </form>
           </div>
@@ -1684,6 +1729,7 @@ function UploadPanel({
   onReset: () => void | Promise<void>;
   currentDataset: DkpDataset | null;
 }) {
+  const t = useTranslations('dkp.upload');
   const statsRef = useRef<HTMLInputElement>(null);
   const honorRef = useRef<HTMLInputElement>(null);
   const [statsFile, setStatsFile] = useState<File | null>(null);
@@ -1696,7 +1742,7 @@ function UploadPanel({
     setError(null);
     setInfo(null);
     if (!statsFile) {
-      setError('Kingdom stats file is required.');
+      setError(t('errorRequired'));
       return;
     }
     setBusy(true);
@@ -1715,14 +1761,16 @@ function UploadPanel({
         players,
       });
       setInfo(
-        `Loaded ${players.length} players${honor.length ? ` • ${matched}/${honor.length} honor matches` : ''}.`,
+        honor.length
+          ? t('loadedInfoFull', { count: players.length, matched, total: honor.length })
+          : t('loadedInfo', { count: players.length }),
       );
       setStatsFile(null);
       setHonorFile(null);
       if (statsRef.current) statsRef.current.value = '';
       if (honorRef.current) honorRef.current.value = '';
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to parse files.');
+      setError(e instanceof Error ? e.message : t('errorParse'));
     } finally {
       setBusy(false);
     }
@@ -1732,43 +1780,44 @@ function UploadPanel({
     <section className="mb-6 p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-[var(--foreground)] flex items-center gap-2">
-          <Upload size={14} /> Upload new dataset
+          <Upload size={14} /> {t('heading')}
         </h2>
         {currentDataset?.uploadedAt && (
           <button
             onClick={onReset}
             className="text-xs text-[var(--text-muted)] hover:text-[var(--foreground)]"
           >
-            Reset to default
+            {t('resetToDefault')}
           </button>
         )}
       </div>
       <div className="mb-4 space-y-2 text-xs text-[var(--text-muted)]">
+        <p>{t('noticeShared')}</p>
         <p>
-          Uploads are saved to the shared kingdom database — everyone sees the new dataset
-          immediately.
+          <span className="font-semibold text-amber-400">{t('noticeDateRangeBold')}</span>{' '}
+          {t('noticeDateRange')}
         </p>
         <p>
-          <span className="font-semibold text-amber-400">Date range must start March 13</span>{' '}
-          and end on the most recent day available.
-        </p>
-        <p>
-          <span className="font-medium text-[var(--text-secondary)]">Kingdom stats:</span>{' '}
-          full kingdom export with <em>all options selected</em>.{' '}
-          <span className="font-medium text-[var(--text-secondary)]">Honor points:</span>{' '}
-          honor rankings export from Statmaster.
+          <span className="font-medium text-[var(--text-secondary)]">
+            {t('noticeFilesKingdomLabel')}
+          </span>{' '}
+          {t('noticeFilesKingdom')} <em>{t('noticeFilesKingdomEm')}</em>.{' '}
+          <span className="font-medium text-[var(--text-secondary)]">
+            {t('noticeFilesHonorLabel')}
+          </span>{' '}
+          {t('noticeFilesHonor')}
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FileInput
-          label="Kingdom stats (.xlsx)"
+          label={t('kingdomFile')}
           inputRef={statsRef}
           file={statsFile}
           onChange={setStatsFile}
           accept=".xlsx"
         />
         <FileInput
-          label="Honor rankings (.xlsx, optional)"
+          label={t('honorFile')}
           inputRef={honorRef}
           file={honorFile}
           onChange={setHonorFile}
@@ -1781,7 +1830,7 @@ function UploadPanel({
           disabled={!statsFile || busy}
           className="px-4 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
-          {busy ? 'Processing…' : 'Process & load'}
+          {busy ? t('processing') : t('process')}
         </button>
         {info && <span className="text-xs text-emerald-400">{info}</span>}
         {error && <span className="text-xs text-red-400">{error}</span>}
@@ -1803,6 +1852,7 @@ function FileInput({
   onChange: (f: File | null) => void;
   accept: string;
 }) {
+  const t = useTranslations('dkp.upload');
   return (
     <div>
       <label className="text-xs text-[var(--text-muted)] block mb-1.5">{label}</label>
@@ -1812,10 +1862,10 @@ function FileInput({
           onClick={() => inputRef.current?.click()}
           className="px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
         >
-          Choose file
+          {t('chooseFile')}
         </button>
         <span className="text-xs text-[var(--text-muted)] truncate">
-          {file ? file.name : 'No file selected'}
+          {file ? file.name : t('noFile')}
         </span>
         <input
           ref={inputRef}
