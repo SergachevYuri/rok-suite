@@ -32,10 +32,16 @@ import {
 
 interface WeightSet {
   dkp: number;
-  deaths: number;
   rss: number;
   helps: number;
   honor: number;
+}
+
+interface DkpFormula {
+  t4Kill: number;
+  t5Kill: number;
+  t4Death: number;
+  t5Death: number;
 }
 
 interface Config {
@@ -45,11 +51,9 @@ interface Config {
   weightSplitThreshold: number;
   weightsLow: WeightSet;
   weightsHigh: WeightSet;
+  dkpFormula: DkpFormula;
   meta: {
     dkpDivisor: number;
-    deathMetaLow: number;
-    deathMetaHigh: number;
-    powerThreshold: number;
     rssMultiplier: number;
     helpsMultiplier: number;
     honorMultiplier: number;
@@ -57,18 +61,19 @@ interface Config {
   statusThresholds: { excellent: number; approved: number; good: number };
 }
 
-const DEFAULT_WEIGHTS: WeightSet = { dkp: 0.4, deaths: 0.4, rss: 0.01, helps: 0.02, honor: 0.07 };
+// Weights are relative integers in [0, 100]. They do NOT need to sum to anything;
+// the final score divides by the sum of active weights. Larger numbers just dominate.
+const DEFAULT_WEIGHTS: WeightSet = { dkp: 80, rss: 5, helps: 5, honor: 10 };
+const DEFAULT_DKP_FORMULA: DkpFormula = { t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24 };
 
 const DEFAULT_CONFIG: Config = {
   split: false,
   weightSplitThreshold: 40_000_000,
   weightsLow: { ...DEFAULT_WEIGHTS },
   weightsHigh: { ...DEFAULT_WEIGHTS },
+  dkpFormula: { ...DEFAULT_DKP_FORMULA },
   meta: {
     dkpDivisor: 4,
-    deathMetaLow: 0.004,
-    deathMetaHigh: 0.006,
-    powerThreshold: 40_000_000,
     rssMultiplier: 3.0,
     helpsMultiplier: 0.0003,
     honorMultiplier: 0.001,
@@ -76,14 +81,32 @@ const DEFAULT_CONFIG: Config = {
   statusThresholds: { excellent: 1.5, approved: 1.0, good: 0.8 },
 };
 
+/** Migrate legacy 0–1 weight sets to the new 0–100 integer scale. */
+function migrateWeights(w: Partial<WeightSet> | undefined): Partial<WeightSet> {
+  if (!w) return {};
+  const values = Object.values(w).filter((v): v is number => typeof v === 'number');
+  if (values.length === 0) return w;
+  const max = Math.max(...values);
+  if (max > 0 && max <= 1) {
+    // Legacy decimal scale — rescale to integers in [0, 100].
+    const out: Partial<WeightSet> = {};
+    for (const [k, v] of Object.entries(w)) {
+      if (typeof v === 'number') (out as Record<string, number>)[k] = Math.round(v * 100);
+    }
+    return out;
+  }
+  return w;
+}
+
 /** Merge a partial remote config onto a base, preserving nested defaults. */
 function mergeConfig(base: Config, partial: Partial<Config> | null | undefined): Config {
   if (!partial) return base;
   return {
     ...base,
     ...partial,
-    weightsLow: { ...base.weightsLow, ...(partial.weightsLow ?? {}) },
-    weightsHigh: { ...base.weightsHigh, ...(partial.weightsHigh ?? {}) },
+    weightsLow: { ...base.weightsLow, ...migrateWeights(partial.weightsLow) },
+    weightsHigh: { ...base.weightsHigh, ...migrateWeights(partial.weightsHigh) },
+    dkpFormula: { ...base.dkpFormula, ...(partial.dkpFormula ?? {}) },
     statusThresholds: { ...base.statusThresholds, ...(partial.statusThresholds ?? {}) },
     meta: { ...base.meta, ...(partial.meta ?? {}) },
   };
@@ -94,7 +117,6 @@ type Status = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED';
 interface ScoredPlayer extends Player {
   computedDkp: number;
   scoreDkp: number;
-  scoreDeaths: number;
   scoreRss: number;
   scoreHelps: number;
   scoreHonor: number;
@@ -108,19 +130,19 @@ function safeDiv(a: number, b: number): number {
 }
 
 function computeScores(players: Player[], config: Config): ScoredPlayer[] {
-  const { meta, statusThresholds } = config;
+  const { meta, statusThresholds, dkpFormula } = config;
   return players.map((p) => {
-    const computedDkp = p.t4Kills * 5 + p.t5Kills * 10 + p.t4Deaths * 8 + p.t5Deaths * 24;
-    const deathMeta =
-      p.highestPower < meta.powerThreshold ? meta.deathMetaLow : meta.deathMetaHigh;
+    const computedDkp =
+      p.t4Kills * dkpFormula.t4Kill +
+      p.t5Kills * dkpFormula.t5Kill +
+      p.t4Deaths * dkpFormula.t4Death +
+      p.t5Deaths * dkpFormula.t5Death;
     const metaDkp = p.highestPower / meta.dkpDivisor;
-    const metaDeaths = p.highestPower * deathMeta;
     const metaRss = p.highestPower * meta.rssMultiplier;
     const metaHelps = p.highestPower * meta.helpsMultiplier;
     const metaHonor = p.highestPower * meta.honorMultiplier;
 
-    const scoreDkp = safeDiv(p.dkp || computedDkp, metaDkp);
-    const scoreDeaths = safeDiv(p.t5Deaths + p.t4Deaths, metaDeaths);
+    const scoreDkp = safeDiv(computedDkp, metaDkp);
     const scoreRss = safeDiv(p.rssGathered, metaRss);
     const scoreHelps = safeDiv(p.allianceHelps, metaHelps);
     const scoreHonor = safeDiv(p.honorPoints, metaHonor);
@@ -134,7 +156,6 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     let den = 0;
     const components: [number, number][] = [
       [scoreDkp, weights.dkp],
-      [scoreDeaths, weights.deaths],
       [scoreRss, weights.rss],
       [scoreHelps, weights.helps],
       [scoreHonor, weights.honor],
@@ -157,7 +178,6 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
       ...p,
       computedDkp,
       scoreDkp,
-      scoreDeaths,
       scoreRss,
       scoreHelps,
       scoreHonor,
@@ -184,7 +204,6 @@ type SortKey =
   | 'dkp'
   | 'finalScore'
   | 'scoreDkp'
-  | 'scoreDeaths'
   | 'scoreRss'
   | 'scoreHelps'
   | 'scoreHonor'
@@ -204,7 +223,6 @@ const COLUMNS: ColumnDef[] = [
   { key: 'finalScore', label: 'Final', numeric: true, defaultVisible: true },
   { key: 'status', label: 'Status', defaultVisible: true },
   { key: 'scoreDkp', label: 'sDKP', numeric: true, defaultVisible: true },
-  { key: 'scoreDeaths', label: 'sDeaths', numeric: true, defaultVisible: true },
   { key: 'scoreRss', label: 'sRSS', numeric: true, defaultVisible: true },
   { key: 'scoreHelps', label: 'sHelps', numeric: true, defaultVisible: true },
   { key: 'scoreHonor', label: 'sHonor', numeric: true, defaultVisible: false },
@@ -560,11 +578,52 @@ function DkpPageInner() {
                 </div>
               )}
 
+              {/* DKP formula coefficients */}
+              <div className="mb-4">
+                <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
+                  DKP Formula
+                </div>
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-3 py-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {(
+                      [
+                        ['t4Kill', 'T4 Kill'],
+                        ['t5Kill', 'T5 Kill'],
+                        ['t4Death', 'T4 Death'],
+                        ['t5Death', 'T5 Death'],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <FormulaCoef
+                        key={key}
+                        label={label}
+                        value={config.dkpFormula[key]}
+                        disabled={!isOfficer}
+                        onChange={(v) =>
+                          setConfig((c) => ({
+                            ...c,
+                            dkpFormula: { ...c.dkpFormula, [key]: v },
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-2 text-[10px] text-[var(--text-muted)] tabular-nums">
+                    DKP = T4K×{config.dkpFormula.t4Kill} + T5K×{config.dkpFormula.t5Kill} +
+                    T4D×{config.dkpFormula.t4Death} + T5D×{config.dkpFormula.t5Death}
+                  </div>
+                </div>
+              </div>
+
               {/* Side-by-side weights + cutoffs on lg, stacked on smaller */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className={`${config.split ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
-                  <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
-                    Score Weights
+                  <div className="flex items-baseline justify-between mb-2">
+                    <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                      Score Weights
+                    </div>
+                    <div className="text-[10px] text-[var(--text-muted)]">
+                      Relative — don&apos;t need to add up
+                    </div>
                   </div>
                   <div
                     className={
@@ -784,8 +843,6 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
       );
     case 'scoreDkp':
       return fmt2(p.scoreDkp);
-    case 'scoreDeaths':
-      return fmt2(p.scoreDeaths);
     case 'scoreRss':
       return fmt2(p.scoreRss);
     case 'scoreHelps':
@@ -1080,14 +1137,62 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
+/** Single coefficient input for the DKP formula (label above, number input below). */
+function FormulaCoef({
+  label,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+  return (
+    <div>
+      <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+        {label}
+      </label>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        step={1}
+        value={text}
+        disabled={disabled}
+        readOnly={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          const n = parseFloat(text);
+          if (Number.isNaN(n) || n < 0) {
+            setText(String(value));
+            return;
+          }
+          onChange(n);
+          setText(String(n));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        className="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+      />
+    </div>
+  );
+}
+
 /** Compact one-liner summary of the active config for the collapsed panel. */
 function ConfigSummaryLine({ config }: { config: Config }) {
   const w = config.weightsHigh;
   const cuts = config.statusThresholds;
   return (
     <span>
-      DKP {w.dkp.toFixed(2)} • Deaths {w.deaths.toFixed(2)} • RSS {w.rss.toFixed(2)} • Helps{' '}
-      {w.helps.toFixed(2)} • Honor {w.honor.toFixed(2)}
+      DKP {Math.round(w.dkp)} • RSS {Math.round(w.rss)} • Helps {Math.round(w.helps)} • Honor{' '}
+      {Math.round(w.honor)}
       {config.split && (
         <> • split @ {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M</>
       )}
@@ -1147,7 +1252,6 @@ function PowerInput({
 
 const WEIGHT_LABELS: Record<keyof WeightSet, { label: string; hint: string; color: string }> = {
   dkp: { label: 'DKP', hint: 'Kills + deaths weighted', color: 'bg-violet-500' },
-  deaths: { label: 'Deaths', hint: 'T4/T5 deaths only', color: 'bg-rose-500' },
   rss: { label: 'RSS', hint: 'Resources gathered', color: 'bg-amber-500' },
   helps: { label: 'Helps', hint: 'Alliance helps count', color: 'bg-sky-500' },
   honor: { label: 'Honor', hint: 'Honor points', color: 'bg-emerald-500' },
@@ -1166,19 +1270,19 @@ function WeightRow({
   disabled?: boolean;
 }) {
   const meta = WEIGHT_LABELS[weightKey];
-  const [text, setText] = useState(value.toFixed(2));
+  const [text, setText] = useState(String(Math.round(value)));
   useEffect(() => {
-    setText(value.toFixed(2));
+    setText(String(Math.round(value)));
   }, [value]);
   const commit = () => {
-    const n = parseFloat(text);
+    const n = parseInt(text, 10);
     if (Number.isNaN(n)) {
-      setText(value.toFixed(2));
+      setText(String(Math.round(value)));
       return;
     }
-    const c = clamp(n, 0, 1);
+    const c = Math.round(clamp(n, 0, 100));
     onChange(c);
-    setText(c.toFixed(2));
+    setText(String(c));
   };
   const isOff = value === 0;
   return (
@@ -1192,29 +1296,34 @@ function WeightRow({
       <input
         type="range"
         min={0}
-        max={1}
-        step={0.05}
-        value={value}
+        max={100}
+        step={1}
+        value={Math.round(value)}
         disabled={disabled}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
         className="flex-1 accent-[#4318ff] disabled:cursor-not-allowed h-2"
       />
-      <input
-        type="number"
-        inputMode="decimal"
-        min={0}
-        max={1}
-        step={0.05}
-        value={text}
-        disabled={disabled}
-        readOnly={disabled}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        }}
-        className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed flex-shrink-0"
-      />
+      <div className="relative flex-shrink-0">
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={100}
+          step={1}
+          value={text}
+          disabled={disabled}
+          readOnly={disabled}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+          className="w-14 pl-1.5 pr-4 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+        />
+        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
+          %
+        </span>
+      </div>
     </div>
   );
 }
@@ -1233,7 +1342,7 @@ function WeightBand({
   onChange: (key: keyof WeightSet, value: number) => void;
   disabled?: boolean;
 }) {
-  const total = (['dkp', 'deaths', 'rss', 'helps', 'honor'] as const).reduce(
+  const total = (['dkp', 'rss', 'helps', 'honor'] as const).reduce(
     (s, k) => s + weights[k],
     0,
   );
@@ -1246,12 +1355,15 @@ function WeightBand({
             <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{subtitle}</div>
           )}
         </div>
-        <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider tabular-nums">
-          sum {total.toFixed(2)}
+        <div
+          className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider tabular-nums"
+          title="Weights are relative — they don't need to add to anything"
+        >
+          relative sum {Math.round(total)}
         </div>
       </div>
       <div className="divide-y divide-[var(--border)]/50">
-        {(['dkp', 'deaths', 'rss', 'helps', 'honor'] as const).map((k) => (
+        {(['dkp', 'rss', 'helps', 'honor'] as const).map((k) => (
           <WeightRow
             key={k}
             weightKey={k}
