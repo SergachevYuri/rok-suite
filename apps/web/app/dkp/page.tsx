@@ -516,33 +516,36 @@ function DkpPageInner() {
           )}
 
           {config.split && (
-            <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
-              <span>Threshold:</span>
-              <NumberInput
+            <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+              <span className="font-medium">Power threshold:</span>
+              <PowerInput
                 value={config.weightSplitThreshold}
-                step={1_000_000}
-                min={0}
                 disabled={!isOfficer}
                 onChange={(v) =>
                   setConfig((c) => ({ ...c, weightSplitThreshold: Math.max(0, v) }))
                 }
-                width="w-32"
               />
-              <span>power (below = low band, at-or-above = high band)</span>
+              <span className="text-[var(--text-muted)]">splits low / high power accounts</span>
             </div>
           )}
 
-          <div className={config.split ? 'grid grid-cols-1 lg:grid-cols-2 gap-5' : ''}>
+          <div className={config.split ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : ''}>
             {config.split && (
               <WeightBand
-                title={`Under ${fmt(config.weightSplitThreshold)}`}
+                title="Smaller accounts"
+                subtitle={`Under ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`}
                 weights={config.weightsLow}
                 disabled={!isOfficer}
                 onChange={(k, v) => setWeight('weightsLow', k, v)}
               />
             )}
             <WeightBand
-              title={config.split ? `At/above ${fmt(config.weightSplitThreshold)}` : 'All players'}
+              title={config.split ? 'Larger accounts' : 'All players'}
+              subtitle={
+                config.split
+                  ? `At or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`
+                  : undefined
+              }
               weights={config.weightsHigh}
               disabled={!isOfficer}
               onChange={(k, v) => setWeight('weightsHigh', k, v)}
@@ -553,42 +556,27 @@ function DkpPageInner() {
         {/* Status cutoffs */}
         <section className="mb-6 p-4 sm:p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
           <h2 className="text-sm font-semibold text-[var(--foreground)] mb-1">Status Cutoffs</h2>
-          <p className="text-xs text-[var(--text-muted)] mb-4">
-            Final score thresholds for each status tier.
+          <p className="text-xs text-[var(--text-muted)] mb-3">
+            Final-score thresholds for each tier. Anything below GOOD is rejected.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <NumberSlider
-              label="EXCELLENT ≥"
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 divide-y divide-[var(--border)]/50">
+            <CutoffRow
+              status="EXCELLENT"
               value={config.statusThresholds.excellent}
-              min={0}
-              max={3}
-              step={0.05}
-              decimals={2}
               disabled={!isOfficer}
               onChange={(v) => setThreshold('excellent', v)}
-              accentClass="accent-amber-400"
             />
-            <NumberSlider
-              label="APPROVED ≥"
+            <CutoffRow
+              status="APPROVED"
               value={config.statusThresholds.approved}
-              min={0}
-              max={3}
-              step={0.05}
-              decimals={2}
               disabled={!isOfficer}
               onChange={(v) => setThreshold('approved', v)}
-              accentClass="accent-emerald-400"
             />
-            <NumberSlider
-              label="GOOD ≥"
+            <CutoffRow
+              status="GOOD"
               value={config.statusThresholds.good}
-              min={0}
-              max={3}
-              step={0.05}
-              decimals={2}
               disabled={!isOfficer}
               onChange={(v) => setThreshold('good', v)}
-              accentClass="accent-sky-400"
             />
           </div>
         </section>
@@ -898,11 +886,22 @@ function UploadPanel({
           </button>
         )}
       </div>
-      <p className="text-xs text-[var(--text-muted)] mb-4">
-        Stored locally in your browser. Stats file: kingdom XLSX export
-        (e.g. <code>3923_20260313_20260323_statsExport.xlsx</code>). Honor file: optional
-        rankings XLSX (e.g. <code>Honor_Rankings_KD3923_s11421.xlsx</code>), matched by name.
-      </p>
+      <div className="mb-4 space-y-2 text-xs text-[var(--text-muted)]">
+        <p>
+          Uploads are saved to the shared kingdom database — everyone sees the new dataset
+          immediately.
+        </p>
+        <p>
+          <span className="font-semibold text-amber-400">Date range must start March 13</span>{' '}
+          and end on the most recent day available.
+        </p>
+        <p>
+          <span className="font-medium text-[var(--text-secondary)]">Kingdom stats:</span>{' '}
+          full kingdom export with <em>all options selected</em>.{' '}
+          <span className="font-medium text-[var(--text-secondary)]">Honor points:</span>{' '}
+          honor rankings export from Statmaster.
+        </p>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FileInput
           label="Kingdom stats (.xlsx)"
@@ -1007,157 +1006,240 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-/** Slider + typed number input, kept in sync. */
-function NumberSlider({
-  label,
+/** Power input shown/edited in millions (e.g. "40" → 40,000,000). */
+function PowerInput({
   value,
-  min,
-  max,
-  step,
-  decimals = 2,
   onChange,
-  accentClass = 'accent-[#4318ff]',
   disabled = false,
 }: {
-  label: string;
   value: number;
-  min: number;
-  max: number;
-  step: number;
-  decimals?: number;
   onChange: (v: number) => void;
-  accentClass?: string;
   disabled?: boolean;
 }) {
-  const [text, setText] = useState(value.toFixed(decimals));
+  const toM = (n: number) => (n / 1_000_000).toString();
+  const [text, setText] = useState(toM(value));
   useEffect(() => {
-    setText(value.toFixed(decimals));
-  }, [value, decimals]);
+    setText(toM(value));
+  }, [value]);
+  return (
+    <div className="inline-flex items-center rounded-lg bg-[var(--background)] border border-[var(--border)] focus-within:border-[var(--foreground)]/30 overflow-hidden">
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step={1}
+        value={text}
+        disabled={disabled}
+        readOnly={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          const n = parseFloat(text);
+          if (Number.isNaN(n) || n < 0) {
+            setText(toM(value));
+            return;
+          }
+          onChange(Math.round(n * 1_000_000));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        className="w-16 px-2 py-1.5 text-sm text-right tabular-nums text-[var(--foreground)] bg-transparent focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+      />
+      <span className="px-2 py-1.5 text-xs font-semibold text-[var(--text-muted)] border-l border-[var(--border)]">
+        M
+      </span>
+    </div>
+  );
+}
 
+const WEIGHT_LABELS: Record<keyof WeightSet, { label: string; hint: string; color: string }> = {
+  dkp: { label: 'DKP', hint: 'Kills + deaths weighted', color: 'bg-violet-500' },
+  deaths: { label: 'Deaths', hint: 'T4/T5 deaths only', color: 'bg-rose-500' },
+  rss: { label: 'RSS', hint: 'Resources gathered', color: 'bg-amber-500' },
+  helps: { label: 'Helps', hint: 'Alliance helps count', color: 'bg-sky-500' },
+  honor: { label: 'Honor', hint: 'Honor points', color: 'bg-emerald-500' },
+};
+
+/** A clean horizontal weight row: dot + label + slider + number input. */
+function WeightRow({
+  weightKey,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  weightKey: keyof WeightSet;
+  value: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  const meta = WEIGHT_LABELS[weightKey];
+  const [text, setText] = useState(value.toFixed(2));
+  useEffect(() => {
+    setText(value.toFixed(2));
+  }, [value]);
   const commit = () => {
     const n = parseFloat(text);
     if (Number.isNaN(n)) {
-      setText(value.toFixed(decimals));
+      setText(value.toFixed(2));
       return;
     }
-    const clamped = clamp(n, min, max);
-    onChange(clamped);
-    setText(clamped.toFixed(decimals));
+    const c = clamp(n, 0, 1);
+    onChange(c);
+    setText(c.toFixed(2));
   };
-
+  const isOff = value === 0;
   return (
-    <div className={disabled ? 'opacity-60' : ''}>
-      <div className="flex items-center justify-between mb-1.5 gap-2">
-        <label className="text-xs font-medium text-[var(--text-secondary)] truncate">{label}</label>
-        <input
-          type="number"
-          inputMode="decimal"
-          min={min}
-          max={max}
-          step={step}
-          value={text}
-          disabled={disabled}
-          readOnly={disabled}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-          }}
-          className="w-16 px-1.5 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
-        />
+    <div
+      className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-50' : ''}`}
+    >
+      <div className="flex items-center gap-2 w-24 sm:w-28 flex-shrink-0">
+        <span className={`w-2 h-2 rounded-full ${meta.color}`} />
+        <span className="text-sm font-medium text-[var(--foreground)]">{meta.label}</span>
       </div>
       <input
         type="range"
-        min={min}
-        max={max}
-        step={step}
+        min={0}
+        max={1}
+        step={0.05}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className={`w-full ${accentClass} disabled:cursor-not-allowed`}
+        className="flex-1 accent-[#4318ff] disabled:cursor-not-allowed h-2"
+      />
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        max={1}
+        step={0.05}
+        value={text}
+        disabled={disabled}
+        readOnly={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed flex-shrink-0"
       />
     </div>
   );
 }
 
-/** Bare number input for large integer values (e.g. power threshold). */
-function NumberInput({
-  value,
-  min,
-  step,
-  onChange,
-  width = 'w-24',
-  disabled = false,
-}: {
-  value: number;
-  min?: number;
-  step?: number;
-  onChange: (v: number) => void;
-  width?: string;
-  disabled?: boolean;
-}) {
-  const [text, setText] = useState(String(value));
-  useEffect(() => {
-    setText(String(value));
-  }, [value]);
-  return (
-    <input
-      type="number"
-      inputMode="numeric"
-      min={min}
-      step={step}
-      value={text}
-      disabled={disabled}
-      readOnly={disabled}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={() => {
-        const n = parseFloat(text);
-        if (Number.isNaN(n)) {
-          setText(String(value));
-          return;
-        }
-        onChange(n);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-      }}
-      className={`${width} px-2 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed`}
-    />
-  );
-}
-
-/** A block of 5 weight sliders for one band (low / high / or unified). */
+/** A card containing all 5 weight rows for one band. */
 function WeightBand({
   title,
+  subtitle,
   weights,
   onChange,
   disabled = false,
 }: {
   title: string;
+  subtitle?: string;
   weights: WeightSet;
   onChange: (key: keyof WeightSet, value: number) => void;
   disabled?: boolean;
 }) {
+  const total = (['dkp', 'deaths', 'rss', 'helps', 'honor'] as const).reduce(
+    (s, k) => s + weights[k],
+    0,
+  );
   return (
-    <div>
-      <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
-        {title}
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 p-4">
+      <div className="flex items-baseline justify-between mb-2">
+        <div>
+          <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
+          {subtitle && (
+            <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mt-0.5">
+              {subtitle}
+            </div>
+          )}
+        </div>
+        <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider tabular-nums">
+          sum {total.toFixed(2)}
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="divide-y divide-[var(--border)]/50">
         {(['dkp', 'deaths', 'rss', 'helps', 'honor'] as const).map((k) => (
-          <NumberSlider
+          <WeightRow
             key={k}
-            label={k.toUpperCase()}
+            weightKey={k}
             value={weights[k]}
-            min={0}
-            max={1}
-            step={0.05}
-            decimals={2}
             disabled={disabled}
             onChange={(v) => onChange(k, v)}
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Status cutoff row with colored badge, slider, and value input. */
+function CutoffRow({
+  status,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  status: Status;
+  value: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  const [text, setText] = useState(value.toFixed(2));
+  useEffect(() => {
+    setText(value.toFixed(2));
+  }, [value]);
+  const commit = () => {
+    const n = parseFloat(text);
+    if (Number.isNaN(n)) {
+      setText(value.toFixed(2));
+      return;
+    }
+    const c = clamp(n, 0, 3);
+    onChange(c);
+    setText(c.toFixed(2));
+  };
+  const accentClass =
+    status === 'EXCELLENT'
+      ? 'accent-amber-400'
+      : status === 'APPROVED'
+        ? 'accent-emerald-400'
+        : 'accent-sky-400';
+  return (
+    <div className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-70' : ''}`}>
+      <span
+        className={`inline-flex items-center justify-center w-24 px-2 py-1 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[status]} flex-shrink-0`}
+      >
+        {status}
+      </span>
+      <span className="text-xs text-[var(--text-muted)] hidden sm:inline">≥</span>
+      <input
+        type="range"
+        min={0}
+        max={3}
+        step={0.05}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className={`flex-1 ${accentClass} disabled:cursor-not-allowed h-2`}
+      />
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        max={3}
+        step={0.05}
+        value={text}
+        disabled={disabled}
+        readOnly={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed flex-shrink-0"
+      />
     </div>
   );
 }
