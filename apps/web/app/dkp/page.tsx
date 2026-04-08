@@ -2,7 +2,18 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { AppSidebar } from '@/components/AppSidebar';
-import { ArrowUpDown, Search, Upload, Lock, LogOut, X, Rocket, RotateCcw } from 'lucide-react';
+import {
+  ArrowUpDown,
+  Search,
+  Upload,
+  Lock,
+  LogOut,
+  X,
+  Rocket,
+  RotateCcw,
+  ChevronDown,
+  Settings2,
+} from 'lucide-react';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import {
   Player,
@@ -220,6 +231,7 @@ function DkpPageInner() {
   const [publishedConfig, setPublishedConfig] = useState<Config>(DEFAULT_CONFIG);
   const [deploying, setDeploying] = useState(false);
   const [deployError, setDeployError] = useState<string | null>(null);
+  const [configOpen, setConfigOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('finalScore');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -460,125 +472,187 @@ function DkpPageInner() {
           <SummaryCard label="Rejected" value={fmt(summary.counts.REJECTED)} tone="red" />
         </section>
 
-        {/* Weights (read-only for viewers, editable for officers) */}
-        <section className="mb-6 p-4 sm:p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-            <h2 className="text-sm font-semibold text-[var(--foreground)]">
-              Score Weights
-              {!isOfficer && (
-                <span className="ml-2 text-[10px] font-normal text-[var(--text-muted)] uppercase tracking-wider">
-                  (read-only — sign in to edit)
-                </span>
-              )}
-              {isOfficer && isDirty && (
-                <span className="ml-2 text-[10px] font-normal text-amber-400 uppercase tracking-wider">
-                  • unsaved changes
-                </span>
-              )}
-            </h2>
-            <label className={`flex items-center gap-2 text-xs text-[var(--text-muted)] select-none ${isOfficer ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
-              <input
-                type="checkbox"
-                checked={config.split}
-                disabled={!isOfficer}
-                onChange={(e) => setConfig((c) => ({ ...c, split: e.target.checked }))}
-                className="accent-[#4318ff]"
-              />
-              Split weights by power
-            </label>
-          </div>
+        {/* Scoring Configuration (collapsible) */}
+        <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
+          <button
+            onClick={() => setConfigOpen((o) => !o)}
+            className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 text-left hover:bg-[var(--background-hover)] transition-colors"
+          >
+            <Settings2 size={16} className="text-[var(--text-muted)] flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-semibold text-[var(--foreground)]">
+                  Scoring Configuration
+                </h2>
+                {!isOfficer && (
+                  <span className="text-[10px] font-normal text-[var(--text-muted)] uppercase tracking-wider">
+                    read-only
+                  </span>
+                )}
+                {isOfficer && isDirty && (
+                  <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">
+                    • unsaved
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">
+                <ConfigSummaryLine config={config} />
+              </div>
+            </div>
+            <ChevronDown
+              size={16}
+              className={`text-[var(--text-muted)] flex-shrink-0 transition-transform ${configOpen ? 'rotate-180' : ''}`}
+            />
+          </button>
 
-          {isOfficer && (
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <button
-                onClick={handleDeploy}
-                disabled={!isDirty || deploying}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <Rocket size={12} />
-                {deploying ? 'Deploying…' : 'Confirm for everyone'}
-              </button>
-              <button
-                onClick={handleDiscardChanges}
-                disabled={!isDirty || deploying}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <RotateCcw size={12} />
-                Discard
-              </button>
-              {deployError && <span className="text-xs text-red-400">{deployError}</span>}
-              {!isDirty && !deployError && (
-                <span className="text-xs text-[var(--text-muted)]">
-                  Edits stay local until you confirm. Confirmed changes apply to everyone.
-                </span>
+          {configOpen && (
+            <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-[var(--border)] pt-4">
+              {/* Top control bar: deploy buttons + split toggle */}
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {isOfficer && (
+                    <>
+                      <button
+                        onClick={handleDeploy}
+                        disabled={!isDirty || deploying}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Rocket size={12} />
+                        {deploying ? 'Deploying…' : 'Confirm for everyone'}
+                      </button>
+                      <button
+                        onClick={handleDiscardChanges}
+                        disabled={!isDirty || deploying}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <RotateCcw size={12} />
+                        Discard
+                      </button>
+                      {deployError && <span className="text-xs text-red-400">{deployError}</span>}
+                    </>
+                  )}
+                </div>
+                <label
+                  className={`flex items-center gap-2 text-xs text-[var(--text-muted)] select-none ${isOfficer ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={config.split}
+                    disabled={!isOfficer}
+                    onChange={(e) => setConfig((c) => ({ ...c, split: e.target.checked }))}
+                    className="accent-[#4318ff]"
+                  />
+                  Split weights by power
+                </label>
+              </div>
+
+              {config.split && (
+                <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <span className="font-medium">Power threshold:</span>
+                  <PowerInput
+                    value={config.weightSplitThreshold}
+                    disabled={!isOfficer}
+                    onChange={(v) =>
+                      setConfig((c) => ({ ...c, weightSplitThreshold: Math.max(0, v) }))
+                    }
+                  />
+                  <span className="text-[var(--text-muted)]">splits low / high power accounts</span>
+                </div>
+              )}
+
+              {/* Side-by-side weights + cutoffs on lg, stacked on smaller */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className={`${config.split ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
+                  <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
+                    Score Weights
+                  </div>
+                  <div
+                    className={
+                      config.split ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : ''
+                    }
+                  >
+                    {config.split && (
+                      <WeightBand
+                        title="Smaller accounts"
+                        subtitle={`Under ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`}
+                        weights={config.weightsLow}
+                        disabled={!isOfficer}
+                        onChange={(k, v) => setWeight('weightsLow', k, v)}
+                      />
+                    )}
+                    <WeightBand
+                      title={config.split ? 'Larger accounts' : 'All players'}
+                      subtitle={
+                        config.split
+                          ? `At or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`
+                          : undefined
+                      }
+                      weights={config.weightsHigh}
+                      disabled={!isOfficer}
+                      onChange={(k, v) => setWeight('weightsHigh', k, v)}
+                    />
+                  </div>
+                </div>
+
+                {!config.split && (
+                  <div>
+                    <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
+                      Status Cutoffs
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 divide-y divide-[var(--border)]/50">
+                      <CutoffRow
+                        status="EXCELLENT"
+                        value={config.statusThresholds.excellent}
+                        disabled={!isOfficer}
+                        onChange={(v) => setThreshold('excellent', v)}
+                      />
+                      <CutoffRow
+                        status="APPROVED"
+                        value={config.statusThresholds.approved}
+                        disabled={!isOfficer}
+                        onChange={(v) => setThreshold('approved', v)}
+                      />
+                      <CutoffRow
+                        status="GOOD"
+                        value={config.statusThresholds.good}
+                        disabled={!isOfficer}
+                        onChange={(v) => setThreshold('good', v)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* When split is on, cutoffs go full-width below */}
+              {config.split && (
+                <div className="mt-4">
+                  <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
+                    Status Cutoffs
+                  </div>
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 divide-y divide-[var(--border)]/50">
+                    <CutoffRow
+                      status="EXCELLENT"
+                      value={config.statusThresholds.excellent}
+                      disabled={!isOfficer}
+                      onChange={(v) => setThreshold('excellent', v)}
+                    />
+                    <CutoffRow
+                      status="APPROVED"
+                      value={config.statusThresholds.approved}
+                      disabled={!isOfficer}
+                      onChange={(v) => setThreshold('approved', v)}
+                    />
+                    <CutoffRow
+                      status="GOOD"
+                      value={config.statusThresholds.good}
+                      disabled={!isOfficer}
+                      onChange={(v) => setThreshold('good', v)}
+                    />
+                  </div>
+                </div>
               )}
             </div>
           )}
-
-          {config.split && (
-            <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-              <span className="font-medium">Power threshold:</span>
-              <PowerInput
-                value={config.weightSplitThreshold}
-                disabled={!isOfficer}
-                onChange={(v) =>
-                  setConfig((c) => ({ ...c, weightSplitThreshold: Math.max(0, v) }))
-                }
-              />
-              <span className="text-[var(--text-muted)]">splits low / high power accounts</span>
-            </div>
-          )}
-
-          <div className={config.split ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : ''}>
-            {config.split && (
-              <WeightBand
-                title="Smaller accounts"
-                subtitle={`Under ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`}
-                weights={config.weightsLow}
-                disabled={!isOfficer}
-                onChange={(k, v) => setWeight('weightsLow', k, v)}
-              />
-            )}
-            <WeightBand
-              title={config.split ? 'Larger accounts' : 'All players'}
-              subtitle={
-                config.split
-                  ? `At or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`
-                  : undefined
-              }
-              weights={config.weightsHigh}
-              disabled={!isOfficer}
-              onChange={(k, v) => setWeight('weightsHigh', k, v)}
-            />
-          </div>
-        </section>
-
-        {/* Status cutoffs */}
-        <section className="mb-6 p-4 sm:p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
-          <h2 className="text-sm font-semibold text-[var(--foreground)] mb-1">Status Cutoffs</h2>
-          <p className="text-xs text-[var(--text-muted)] mb-3">
-            Final-score thresholds for each tier. Anything below GOOD is rejected.
-          </p>
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 divide-y divide-[var(--border)]/50">
-            <CutoffRow
-              status="EXCELLENT"
-              value={config.statusThresholds.excellent}
-              disabled={!isOfficer}
-              onChange={(v) => setThreshold('excellent', v)}
-            />
-            <CutoffRow
-              status="APPROVED"
-              value={config.statusThresholds.approved}
-              disabled={!isOfficer}
-              onChange={(v) => setThreshold('approved', v)}
-            />
-            <CutoffRow
-              status="GOOD"
-              value={config.statusThresholds.good}
-              disabled={!isOfficer}
-              onChange={(v) => setThreshold('good', v)}
-            />
-          </div>
         </section>
 
         {/* Filters */}
@@ -1006,6 +1080,25 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
+/** Compact one-liner summary of the active config for the collapsed panel. */
+function ConfigSummaryLine({ config }: { config: Config }) {
+  const w = config.weightsHigh;
+  const cuts = config.statusThresholds;
+  return (
+    <span>
+      DKP {w.dkp.toFixed(2)} • Deaths {w.deaths.toFixed(2)} • RSS {w.rss.toFixed(2)} • Helps{' '}
+      {w.helps.toFixed(2)} • Honor {w.honor.toFixed(2)}
+      {config.split && (
+        <> • split @ {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M</>
+      )}
+      {' • '}
+      <span className="text-amber-400/80">≥{cuts.excellent.toFixed(2)}</span>{' '}
+      <span className="text-emerald-400/80">≥{cuts.approved.toFixed(2)}</span>{' '}
+      <span className="text-sky-400/80">≥{cuts.good.toFixed(2)}</span>
+    </span>
+  );
+}
+
 /** Power input shown/edited in millions (e.g. "40" → 40,000,000). */
 function PowerInput({
   value,
@@ -1090,11 +1183,11 @@ function WeightRow({
   const isOff = value === 0;
   return (
     <div
-      className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-50' : ''}`}
+      className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-50' : ''}`}
     >
-      <div className="flex items-center gap-2 w-24 sm:w-28 flex-shrink-0">
+      <div className="flex items-center gap-2 w-20 sm:w-24 flex-shrink-0">
         <span className={`w-2 h-2 rounded-full ${meta.color}`} />
-        <span className="text-sm font-medium text-[var(--foreground)]">{meta.label}</span>
+        <span className="text-xs font-medium text-[var(--foreground)]">{meta.label}</span>
       </div>
       <input
         type="range"
@@ -1145,14 +1238,12 @@ function WeightBand({
     0,
   );
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 p-4">
-      <div className="flex items-baseline justify-between mb-2">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-3 py-2">
+      <div className="flex items-baseline justify-between mb-1">
         <div>
-          <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
+          <div className="text-xs font-semibold text-[var(--foreground)]">{title}</div>
           {subtitle && (
-            <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mt-0.5">
-              {subtitle}
-            </div>
+            <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{subtitle}</div>
           )}
         </div>
         <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider tabular-nums">
@@ -1207,9 +1298,9 @@ function CutoffRow({
         ? 'accent-emerald-400'
         : 'accent-sky-400';
   return (
-    <div className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-70' : ''}`}>
+    <div className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''}`}>
       <span
-        className={`inline-flex items-center justify-center w-24 px-2 py-1 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[status]} flex-shrink-0`}
+        className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[status]} flex-shrink-0`}
       >
         {status}
       </span>
