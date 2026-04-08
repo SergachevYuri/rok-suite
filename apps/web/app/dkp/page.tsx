@@ -748,10 +748,10 @@ function DkpPageInner() {
         </section>
 
         {/* Table */}
-        <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
-          <div className="overflow-x-auto">
+        <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+          <div className="overflow-x-auto rounded-xl">
             <table className="w-full text-sm">
-              <thead className="bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider">
+              <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
                 <tr>
                   <th
                     className="px-3 py-3 text-right w-12 cursor-help"
