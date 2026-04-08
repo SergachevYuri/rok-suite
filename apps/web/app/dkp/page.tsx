@@ -1054,9 +1054,9 @@ function DkpPageInner() {
           )}
         </section>
 
-        {/* Filters */}
-        <section className="mb-4 flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[220px]">
+        {/* Search + view toggle (row 1) */}
+        <section className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[180px]">
             <Search
               size={16}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
@@ -1064,16 +1064,61 @@ function DkpPageInner() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name or gov ID…"
+              placeholder="Search…"
               className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
             />
           </div>
-          <div className="flex gap-1 flex-wrap">
+          <div
+            className={`inline-flex rounded-xl p-1 transition-all duration-300 ${
+              modelView
+                ? 'bg-gradient-to-r from-sky-500/20 via-emerald-500/20 to-fuchsia-500/20 border border-emerald-500/40 shadow-lg shadow-emerald-500/10'
+                : 'bg-gradient-to-r from-sky-500/15 via-emerald-500/15 to-fuchsia-500/15 border border-emerald-500/30 shadow-md shadow-emerald-500/5 animate-pulse-slow'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setModelView(false)}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
+                !modelView
+                  ? 'bg-[var(--foreground)] text-[var(--background)] shadow'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              Raw
+            </button>
+            <button
+              type="button"
+              onClick={() => setModelView(true)}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                modelView
+                  ? 'bg-gradient-to-r from-sky-500 via-emerald-500 to-fuchsia-500 text-white shadow-lg'
+                  : 'text-[var(--foreground)] hover:bg-[var(--background-card)]/60'
+              }`}
+            >
+              <Sparkles size={14} className={modelView ? 'text-white' : 'text-emerald-400'} />
+              <span className="hidden sm:inline">Vs model player</span>
+              <span className="sm:hidden">Model</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setModelInfoOpen(true)}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-card)] transition-colors"
+            aria-label="How does this work?"
+            title="How does this work?"
+          >
+            <Info size={16} />
+          </button>
+        </section>
+
+        {/* Status filter pills (row 2) — horizontal scroll on mobile */}
+        <section className="mb-3 -mx-1 overflow-x-auto">
+          <div className="px-1 flex gap-1 whitespace-nowrap">
             {(['ALL', 'EXCELLENT', 'APPROVED', 'GOOD', 'REJECTED'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors flex-shrink-0 ${
                   statusFilter === s
                     ? 'bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)]'
                     : 'bg-[var(--background-card)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--foreground)]'
@@ -1085,8 +1130,8 @@ function DkpPageInner() {
           </div>
         </section>
 
-        {/* Column toggles + KP color legend */}
-        <section className="mb-3 flex flex-wrap items-center gap-2 justify-between">
+        {/* Column toggles + KP color legend — desktop only (table scrolls horizontally on mobile) */}
+        <section className="mb-3 hidden sm:flex flex-wrap items-center gap-2 justify-between">
           <div className="flex flex-wrap gap-2">
             {COLUMNS.map((c) => (
               <button
@@ -1117,49 +1162,6 @@ function DkpPageInner() {
               <span className="text-red-400">&lt;80%</span>
             </span>
           </div>
-        </section>
-
-        {/* View toggle: kingdom-wide vs model-player ratios */}
-        <section className="mb-3 flex flex-wrap items-center gap-3">
-          <div
-            className={`inline-flex rounded-xl p-1 transition-all duration-300 ${
-              modelView
-                ? 'bg-gradient-to-r from-sky-500/20 via-emerald-500/20 to-fuchsia-500/20 border border-emerald-500/40 shadow-lg shadow-emerald-500/10'
-                : 'bg-gradient-to-r from-sky-500/15 via-emerald-500/15 to-fuchsia-500/15 border border-emerald-500/30 shadow-md shadow-emerald-500/5 animate-pulse-slow'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setModelView(false)}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-                !modelView
-                  ? 'bg-[var(--foreground)] text-[var(--background)] shadow'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
-              }`}
-            >
-              Raw values
-            </button>
-            <button
-              type="button"
-              onClick={() => setModelView(true)}
-              className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-                modelView
-                  ? 'bg-gradient-to-r from-sky-500 via-emerald-500 to-fuchsia-500 text-white shadow-lg'
-                  : 'text-[var(--foreground)] hover:bg-[var(--background-card)]/60'
-              }`}
-            >
-              <Sparkles size={14} className={modelView ? 'text-white' : 'text-emerald-400'} />
-              Vs model player
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setModelInfoOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
-          >
-            <Info size={14} />
-            How does this work?
-          </button>
         </section>
 
         {modelInfoOpen && <ModelExplainer onClose={() => setModelInfoOpen(false)} />}
