@@ -202,6 +202,7 @@ const STATUS_STYLES: Record<Status, string> = {
 type SortKey =
   | 'username'
   | 'power'
+  | 'totalKP'
   | 'dkp'
   | 'finalScore'
   | 'scoreDkp'
@@ -221,6 +222,7 @@ interface ColumnDef {
 const COLUMNS: ColumnDef[] = [
   { key: 'username', label: 'Player', defaultVisible: true, hint: 'In-game username from the kingdom export.' },
   { key: 'power', label: 'Power', numeric: true, defaultVisible: true, hint: 'Current power as of the last upload.' },
+  { key: 'totalKP', label: 'KP', numeric: true, defaultVisible: true, hint: 'Total kill points from the kingdom export (all tiers combined).' },
   { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula above (T4/T5 kills + T4/T5 deaths).' },
   { key: 'finalScore', label: 'Final', numeric: true, defaultVisible: true, hint: 'Final weighted score that determines the status tier.' },
   { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the final score lands in (EXCELLENT / APPROVED / GOOD / REJECTED).' },
@@ -818,6 +820,8 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
       return <span className="text-[var(--foreground)] font-medium">{p.username}</span>;
     case 'power':
       return fmt(p.power);
+    case 'totalKP':
+      return fmt(p.totalKP);
     case 'dkp':
       return fmt(p.dkp || p.computedDkp);
     case 'finalScore':
