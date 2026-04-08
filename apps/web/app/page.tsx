@@ -4,16 +4,10 @@ import Link from 'next/link';
 import { AppSidebar } from '@/components/AppSidebar';
 import {
   Swords,
-  BookOpen,
   GitBranch,
   ExternalLink,
   Calendar,
-  Users,
-  Trophy,
-  Crown,
-  ScrollText,
   Shield,
-  Crosshair,
   Map,
   BarChart3,
   Calculator,
@@ -35,36 +29,6 @@ export default function Home() {
       iconHoverColor: 'group-hover:text-rose-500',
     },
     {
-      href: '/rosters',
-      titleKey: 'tools.roster.title',
-      descriptionKey: 'tools.roster.description',
-      icon: Users,
-      hoverBorder: 'hover:border-sky-500/40',
-      hoverShadow: 'hover:shadow-sky-500/10',
-      iconHoverBg: 'group-hover:bg-sky-500/15',
-      iconHoverColor: 'group-hover:text-sky-500',
-    },
-    {
-      href: '/recognition',
-      titleKey: 'tools.recognition.title',
-      descriptionKey: 'tools.recognition.description',
-      icon: Crown,
-      hoverBorder: 'hover:border-violet-500/40',
-      hoverShadow: 'hover:shadow-violet-500/10',
-      iconHoverBg: 'group-hover:bg-violet-500/15',
-      iconHoverColor: 'group-hover:text-violet-500',
-    },
-    {
-      href: '/events',
-      titleKey: 'tools.events.title',
-      descriptionKey: 'tools.events.description',
-      icon: Trophy,
-      hoverBorder: 'hover:border-amber-500/40',
-      hoverShadow: 'hover:shadow-amber-500/10',
-      iconHoverBg: 'group-hover:bg-amber-500/15',
-      iconHoverColor: 'group-hover:text-amber-500',
-    },
-    {
       href: '/aoo-strategy',
       titleKey: 'tools.aoo.title',
       descriptionKey: 'tools.aoo.description',
@@ -75,16 +39,6 @@ export default function Home() {
       iconHoverColor: 'group-hover:text-emerald-500',
     },
     {
-      href: '/rok-mail',
-      titleKey: 'tools.rokMail.title',
-      descriptionKey: 'tools.rokMail.description',
-      icon: ScrollText,
-      hoverBorder: 'hover:border-pink-500/40',
-      hoverShadow: 'hover:shadow-pink-500/10',
-      iconHoverBg: 'group-hover:bg-pink-500/15',
-      iconHoverColor: 'group-hover:text-pink-500',
-    },
-    {
       href: '/mge',
       titleKey: 'tools.mge.title',
       descriptionKey: 'tools.mge.description',
@@ -93,16 +47,6 @@ export default function Home() {
       hoverShadow: 'hover:shadow-amber-500/10',
       iconHoverBg: 'group-hover:bg-amber-500/15',
       iconHoverColor: 'group-hover:text-amber-500',
-    },
-    {
-      href: '/kingdom/wanted',
-      titleKey: 'tools.wanted.title',
-      descriptionKey: 'tools.wanted.description',
-      icon: Crosshair,
-      hoverBorder: 'hover:border-red-500/40',
-      hoverShadow: 'hover:shadow-red-500/10',
-      iconHoverBg: 'group-hover:bg-red-500/15',
-      iconHoverColor: 'group-hover:text-red-500',
     },
     {
       href: '/kvk-map',
@@ -183,35 +127,6 @@ export default function Home() {
                   </Link>
                 );
               })}
-            </div>
-          </section>
-
-          {/* Resources */}
-          <section className="mb-14">
-            <h2 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)] mb-5">
-              {t('sections.guides')}
-            </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Link href="/guide">
-                <div className="group p-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] hover:border-cyan-500/40 hover:bg-[var(--background-hover)] hover:-translate-y-0.5 hover:shadow-[var(--card-shadow-hover)] hover:shadow-cyan-500/10 transition-all duration-200 cursor-pointer h-full">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-[var(--background-secondary)] group-hover:bg-cyan-500/15 transition-colors duration-200 flex-shrink-0">
-                      <BookOpen className="w-4 h-4 text-[var(--text-muted)] group-hover:text-cyan-500 transition-colors duration-200" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5 transition-colors duration-200">
-                        {t('guide.title')}
-                      </h3>
-                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                        {t('guide.description')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-
             </div>
           </section>
 
