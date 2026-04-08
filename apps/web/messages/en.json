@@ -49,7 +49,8 @@
     "wipBadge": "WIP",
     "kvkMap": "KvK Map",
     "kingdomStats": "Kingdom Stats",
-    "allianceCalculator": "Alliance Calculator"
+    "allianceCalculator": "Alliance Calculator",
+    "dkp": "DKP Score"
   },
   "home": {
     "tagline": "Kingdom 23 • Rise of Kingdoms",
@@ -118,6 +119,10 @@
       "allianceCalculator": {
         "title": "Alliance Calculator",
         "description": "Flag cost calculator and storehouse resource projections for your alliance"
+      },
+      "dkp": {
+        "title": "DKP Score",
+        "description": "Kingdom contribution scoring: normalized DKP, deaths, RSS, helps, honor"
       }
     },
     "guide": {
