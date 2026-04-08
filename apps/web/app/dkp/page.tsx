@@ -223,6 +223,8 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
 
 const nf = new Intl.NumberFormat('en-US');
 const fmt = (n: number) => nf.format(Math.round(n));
+/** Format large numbers as millions with 2 decimals (e.g. 69_861_875 → "69.86M"). */
+const fmtM = (n: number) => `${(n / 1_000_000).toFixed(2)}M`;
 /** Display a sub-score / final score as a percentage (1.00 → "100%"). */
 const fmtPct = (n: number) => `${Math.round(n * 100)}%`;
 /** Compact integer format like 1.2M / 340K / 1,234. */
@@ -1039,7 +1041,7 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
     case 'username':
       return <span className="text-[var(--foreground)] font-medium">{p.username}</span>;
     case 'power':
-      return fmt(p.power);
+      return fmtM(p.power);
     case 'totalKP': {
       // Color based on whether this player hits their target KP.
       const cls =
@@ -1048,27 +1050,27 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
           : p.kpRatio >= 0.8
             ? 'text-amber-400'
             : 'text-red-400';
-      return <span className={`font-medium ${cls}`}>{fmt(p.totalKP)}</span>;
+      return <span className={`font-medium ${cls}`}>{fmtM(p.totalKP)}</span>;
     }
     case 'targetKp':
       return (
         <span>
-          {fmt(p.targetKp)}{' '}
+          {fmtM(p.targetKp)}{' '}
           <span className="text-[10px] text-[var(--text-muted)]">×{p.kpMultiplier.toFixed(1)}</span>
         </span>
       );
     case 't4Kills':
-      return fmt(p.t4Kills);
+      return fmtM(p.t4Kills);
     case 't5Kills':
-      return fmt(p.t5Kills);
+      return fmtM(p.t5Kills);
     case 't4Deaths':
-      return fmt(p.t4Deaths);
+      return fmtM(p.t4Deaths);
     case 't5Deaths':
-      return fmt(p.t5Deaths);
+      return fmtM(p.t5Deaths);
     case 'totalDeaths':
-      return fmt(p.t4Deaths + p.t5Deaths);
+      return fmtM(p.t4Deaths + p.t5Deaths);
     case 'dkp':
-      return fmt(p.dkp || p.computedDkp);
+      return fmtM(p.dkp || p.computedDkp);
     case 'finalScore':
       return (
         <span className="font-semibold text-[var(--foreground)]">{fmtPct(p.finalScore)}</span>
