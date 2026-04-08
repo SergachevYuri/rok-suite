@@ -139,6 +139,7 @@ interface ScoredPlayer extends Player {
   kpMultiplier: number;
   /** actual KP / target KP — higher is better. */
   kpRatio: number;
+  totalDeaths: number;
   scoreDkp: number;
   scoreRss: number;
   scoreHelps: number;
@@ -209,6 +210,7 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
       targetKp,
       kpMultiplier,
       kpRatio,
+      totalDeaths: p.t4Deaths + p.t5Deaths,
       scoreDkp,
       scoreRss,
       scoreHelps,
@@ -242,8 +244,13 @@ const STATUS_STYLES: Record<Status, string> = {
 type SortKey =
   | 'username'
   | 'power'
+  | 't4Kills'
+  | 't5Kills'
   | 'totalKP'
   | 'targetKp'
+  | 't4Deaths'
+  | 't5Deaths'
+  | 'totalDeaths'
   | 'dkp'
   | 'finalScore'
   | 'honorPoints';
@@ -259,8 +266,13 @@ interface ColumnDef {
 const COLUMNS: ColumnDef[] = [
   { key: 'username', label: 'Player', defaultVisible: true, hint: 'In-game username from the kingdom export.' },
   { key: 'power', label: 'Power', numeric: true, defaultVisible: true, hint: 'Current power as of the last upload (not highest power).' },
-  { key: 'totalKP', label: 'KP', numeric: true, defaultVisible: true, hint: 'Actual total kill points from the kingdom export. Cell is colored green if this player meets or beats their Target KP, red if they fall short.' },
+  { key: 't4Kills', label: 'T4 KP', numeric: true, defaultVisible: true, hint: 'T4 kill points from the kingdom export.' },
+  { key: 't5Kills', label: 'T5 KP', numeric: true, defaultVisible: true, hint: 'T5 kill points from the kingdom export.' },
+  { key: 'totalKP', label: 'Total KP', numeric: true, defaultVisible: true, hint: 'Actual total kill points from the kingdom export. Cell is colored green if this player meets or beats their Target KP, red if they fall short.' },
   { key: 'targetKp', label: 'Target KP', numeric: true, defaultVisible: true, hint: 'KP this player is expected to produce, based on their power. Smaller accounts use the low multiplier, larger accounts the high one (configured in Expected KP).' },
+  { key: 't4Deaths', label: 'T4 Deaths', numeric: true, defaultVisible: true, hint: 'T4 troop deaths from the kingdom export.' },
+  { key: 't5Deaths', label: 'T5 Deaths', numeric: true, defaultVisible: true, hint: 'T5 troop deaths from the kingdom export.' },
+  { key: 'totalDeaths', label: 'Total Deaths', numeric: true, defaultVisible: true, hint: 'T4 + T5 troop deaths combined.' },
   { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths weighted).' },
   { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Final weighted score (as % of expected). 100% = exactly meeting expectations across all weighted categories.' },
   { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / APPROVED / GOOD / REVIEW).' },
@@ -1045,6 +1057,16 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
           <span className="text-[10px] text-[var(--text-muted)]">×{p.kpMultiplier.toFixed(1)}</span>
         </span>
       );
+    case 't4Kills':
+      return fmt(p.t4Kills);
+    case 't5Kills':
+      return fmt(p.t5Kills);
+    case 't4Deaths':
+      return fmt(p.t4Deaths);
+    case 't5Deaths':
+      return fmt(p.t5Deaths);
+    case 'totalDeaths':
+      return fmt(p.t4Deaths + p.t5Deaths);
     case 'dkp':
       return fmt(p.dkp || p.computedDkp);
     case 'finalScore':
