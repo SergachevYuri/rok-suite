@@ -614,8 +614,10 @@ function DkpPageInner() {
                 </div>
               </div>
 
-              {/* 2×2 grid: Formula | Weights / Expected | Cutoffs (stacks on mobile) */}
+              {/* 2 columns: small cards stacked on the left, Weights alone on the right.
+                  Matches typical heights so there are no awkward gaps. */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                <div className="space-y-4">
                 {/* DKP Formula card */}
                 <ConfigCard
                   title="DKP Formula"
@@ -641,40 +643,6 @@ function DkpPageInner() {
                   <div className="mt-3 text-[10px] text-[var(--text-muted)] tabular-nums leading-relaxed">
                     DKP = T4K×{config.dkpFormula.t4Kill} + T5K×{config.dkpFormula.t5Kill} +
                     T4D×{config.dkpFormula.t4Death} + T5D×{config.dkpFormula.t5Death}
-                  </div>
-                </ConfigCard>
-
-                {/* Weights card(s) */}
-                <ConfigCard
-                  title="Score Weights"
-                  hint="How much each sub-score contributes to the final number. Values are relative — they don't need to add to anything."
-                  rightSlot={
-                    <span className="text-[10px] text-[var(--text-muted)]">
-                      relative — don&apos;t add up
-                    </span>
-                  }
-                >
-                  <div className="space-y-3">
-                    {config.split && (
-                      <WeightBand
-                        title="Smaller accounts"
-                        subtitle={`Under ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`}
-                        weights={config.weightsLow}
-                        disabled={!isOfficer}
-                        onChange={(k, v) => setWeight('weightsLow', k, v)}
-                      />
-                    )}
-                    <WeightBand
-                      title={config.split ? 'Larger accounts' : 'All players'}
-                      subtitle={
-                        config.split
-                          ? `At or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`
-                          : 'Applied uniformly to every player'
-                      }
-                      weights={config.weightsHigh}
-                      disabled={!isOfficer}
-                      onChange={(k, v) => setWeight('weightsHigh', k, v)}
-                    />
                   </div>
                 </ConfigCard>
 
@@ -799,6 +767,41 @@ function DkpPageInner() {
                       value={config.statusThresholds.good}
                       disabled={!isOfficer}
                       onChange={(v) => setThreshold('good', v)}
+                    />
+                  </div>
+                </ConfigCard>
+                </div>
+
+                {/* Right column: Score Weights alone (matches the stacked left col height) */}
+                <ConfigCard
+                  title="Score Weights"
+                  hint="How much each sub-score contributes to the final number. Values are relative — they don't need to add to anything."
+                  rightSlot={
+                    <span className="text-[10px] text-[var(--text-muted)]">
+                      relative — don&apos;t add up
+                    </span>
+                  }
+                >
+                  <div className="space-y-3">
+                    {config.split && (
+                      <WeightBand
+                        title="Smaller accounts"
+                        subtitle={`Under ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`}
+                        weights={config.weightsLow}
+                        disabled={!isOfficer}
+                        onChange={(k, v) => setWeight('weightsLow', k, v)}
+                      />
+                    )}
+                    <WeightBand
+                      title={config.split ? 'Larger accounts' : 'All players'}
+                      subtitle={
+                        config.split
+                          ? `At or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`
+                          : 'Applied uniformly to every player'
+                      }
+                      weights={config.weightsHigh}
+                      disabled={!isOfficer}
+                      onChange={(k, v) => setWeight('weightsHigh', k, v)}
                     />
                   </div>
                 </ConfigCard>
