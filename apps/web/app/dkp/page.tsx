@@ -752,6 +752,70 @@ function DkpPageInner() {
                   })()}
                 </ConfigCard>
 
+                {/* Reading-the-table reference (also balances column heights) */}
+                <ConfigCard
+                  title="Reading the Table"
+                  hint="Quick reference for what each column and color in the player table means."
+                >
+                  <div className="space-y-3 text-sm text-[var(--text-secondary)] leading-relaxed">
+                    <div>
+                      <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                        KP cell color
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-3 h-3 rounded-full bg-emerald-400 flex-shrink-0" />
+                          <span>
+                            <span className="text-emerald-400 font-medium">Green</span> — at or
+                            above target KP (≥100%)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
+                          <span>
+                            <span className="text-amber-400 font-medium">Amber</span> — close, but
+                            short (80–99%)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-3 h-3 rounded-full bg-red-400 flex-shrink-0" />
+                          <span>
+                            <span className="text-red-400 font-medium">Red</span> — well below
+                            target (&lt;80%)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-3 border-t border-[var(--border)]/50">
+                      <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                        Columns
+                      </div>
+                      <ul className="space-y-1 text-xs">
+                        <li>
+                          <span className="text-[var(--foreground)] font-medium">KP</span> —
+                          actual total kill points
+                        </li>
+                        <li>
+                          <span className="text-[var(--foreground)] font-medium">Target KP</span>{' '}
+                          — power × multiplier (×3 small / ×10 large by default)
+                        </li>
+                        <li>
+                          <span className="text-[var(--foreground)] font-medium">DKP</span> —
+                          weighted kills + deaths from the formula
+                        </li>
+                        <li>
+                          <span className="text-[var(--foreground)] font-medium">Score</span> —
+                          weighted average of all sub-scores, as % of expected
+                        </li>
+                        <li>
+                          <span className="text-[var(--foreground)] font-medium">Status</span> —
+                          tier from the cutoffs above
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </ConfigCard>
+
                 </div>
 
                 {/* Right column: Score Weights + Status Cutoffs stacked */}
@@ -862,21 +926,38 @@ function DkpPageInner() {
           </div>
         </section>
 
-        {/* Column toggles */}
-        <section className="mb-3 flex flex-wrap gap-2">
-          {COLUMNS.map((c) => (
-            <button
-              key={c.key}
-              onClick={() => toggleCol(c.key)}
-              className={`px-2 py-1 rounded text-[10px] uppercase tracking-wider border transition-colors ${
-                visibleCols.has(c.key)
-                  ? 'bg-[var(--background-card)] text-[var(--foreground)] border-[var(--border)]'
-                  : 'bg-transparent text-[var(--text-muted)] border-[var(--border)] opacity-50'
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
+        {/* Column toggles + KP color legend */}
+        <section className="mb-3 flex flex-wrap items-center gap-2 justify-between">
+          <div className="flex flex-wrap gap-2">
+            {COLUMNS.map((c) => (
+              <button
+                key={c.key}
+                onClick={() => toggleCol(c.key)}
+                className={`px-2 py-1 rounded text-[10px] uppercase tracking-wider border transition-colors ${
+                  visibleCols.has(c.key)
+                    ? 'bg-[var(--background-card)] text-[var(--foreground)] border-[var(--border)]'
+                    : 'bg-transparent text-[var(--text-muted)] border-[var(--border)] opacity-50'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
+            <span className="uppercase tracking-wider">KP color:</span>
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="text-emerald-400">≥100%</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
+              <span className="text-amber-400">80–99%</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-red-400" />
+              <span className="text-red-400">&lt;80%</span>
+            </span>
+          </div>
         </section>
 
         {/* Table */}
