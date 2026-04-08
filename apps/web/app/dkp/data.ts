@@ -187,3 +187,53 @@ export async function deleteDataset(id: string): Promise<void> {
   const { error } = await supabase.from('dkp_datasets').delete().eq('id', id);
   if (error) throw error;
 }
+
+const CONFIG_SINGLETON_ID = 'singleton';
+
+/** Load the shared score config (weights, cutoffs, split, meta). Returns null if not yet seeded. */
+export async function loadSharedConfig<T>(): Promise<T | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('dkp_config')
+    .select('config')
+    .eq('id', CONFIG_SINGLETON_ID)
+    .maybeSingle();
+  if (error) {
+    console.error('loadSharedConfig failed', error);
+    return null;
+  }
+  return (data?.config as T) ?? null;
+}
+
+/** Upsert the shared score config. Officers only (gated in UI). */
+export async function saveSharedConfig<T>(config: T): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('dkp_config')
+    .upsert(
+      { id: CONFIG_SINGLETON_ID, config: config as object, updated_at: new Date().toISOString() },
+      { onConflict: 'id' },
+    );
+  if (error) throw error;
+}
+
+/** Subscribe to remote config changes. Returns an unsubscribe function. */
+export function subscribeToSharedConfig<T>(
+  onChange: (config: T) => void,
+): () => void {
+  const supabase = createClient();
+  const channel = supabase
+    .channel('dkp_config_changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'dkp_config', filter: `id=eq.${CONFIG_SINGLETON_ID}` },
+      (payload) => {
+        const next = (payload.new as { config?: T } | null)?.config;
+        if (next) onChange(next);
+      },
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

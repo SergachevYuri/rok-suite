@@ -24,3 +24,21 @@ drop policy if exists "Allow public insert" on public.dkp_datasets;
 create policy "Allow public insert" on public.dkp_datasets for insert with check (true);
 drop policy if exists "Allow public delete" on public.dkp_datasets;
 create policy "Allow public delete" on public.dkp_datasets for delete using (true);
+
+-- Singleton row holding the shared score config (weights, status cutoffs, split, meta).
+-- Officers edit it; everyone reads it so the page is consistent across users.
+
+create table if not exists public.dkp_config (
+  id text primary key default 'singleton',
+  updated_at timestamptz not null default now(),
+  config jsonb not null
+);
+
+alter table public.dkp_config enable row level security;
+
+drop policy if exists "Allow public read"   on public.dkp_config;
+create policy "Allow public read"   on public.dkp_config for select using (true);
+drop policy if exists "Allow public insert" on public.dkp_config;
+create policy "Allow public insert" on public.dkp_config for insert with check (true);
+drop policy if exists "Allow public update" on public.dkp_config;
+create policy "Allow public update" on public.dkp_config for update using (true);

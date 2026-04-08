@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { AppSidebar } from '@/components/AppSidebar';
-import { ArrowUpDown, Search, Upload, Lock, LogOut, X } from 'lucide-react';
+import { ArrowUpDown, Search, Upload, Lock, LogOut, X, Rocket, RotateCcw } from 'lucide-react';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
 import {
   Player,
@@ -14,6 +14,9 @@ import {
   loadLatestDataset,
   saveDataset,
   deleteDataset,
+  loadSharedConfig,
+  saveSharedConfig,
+  subscribeToSharedConfig,
 } from './data';
 
 interface WeightSet {
@@ -62,7 +65,18 @@ const DEFAULT_CONFIG: Config = {
   statusThresholds: { excellent: 1.5, approved: 1.0, good: 0.8 },
 };
 
-const CONFIG_KEY = 'dkp-config-v2';
+/** Merge a partial remote config onto a base, preserving nested defaults. */
+function mergeConfig(base: Config, partial: Partial<Config> | null | undefined): Config {
+  if (!partial) return base;
+  return {
+    ...base,
+    ...partial,
+    weightsLow: { ...base.weightsLow, ...(partial.weightsLow ?? {}) },
+    weightsHigh: { ...base.weightsHigh, ...(partial.weightsHigh ?? {}) },
+    statusThresholds: { ...base.statusThresholds, ...(partial.statusThresholds ?? {}) },
+    meta: { ...base.meta, ...(partial.meta ?? {}) },
+  };
+}
 
 type Status = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED';
 
@@ -203,6 +217,9 @@ function DkpPageInner() {
   const [dataset, setDataset] = useState<DkpDataset | null>(null);
   const [loadingDefault, setLoadingDefault] = useState(true);
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
+  const [publishedConfig, setPublishedConfig] = useState<Config>(DEFAULT_CONFIG);
+  const [deploying, setDeploying] = useState(false);
+  const [deployError, setDeployError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('finalScore');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -211,30 +228,37 @@ function DkpPageInner() {
     () => new Set(COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)),
   );
 
-  // Load persisted config (weights + thresholds + split)
+  // Load shared config from Supabase + subscribe to remote changes.
+  // Officers edit a local working copy and "Deploy" publishes to everyone.
+  const dirtyRef = useRef(false);
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CONFIG_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<Config>;
-        setConfig((c) => ({
-          ...c,
-          ...parsed,
-          weightsLow: { ...c.weightsLow, ...(parsed.weightsLow ?? {}) },
-          weightsHigh: { ...c.weightsHigh, ...(parsed.weightsHigh ?? {}) },
-          statusThresholds: { ...c.statusThresholds, ...(parsed.statusThresholds ?? {}) },
-          meta: { ...c.meta, ...(parsed.meta ?? {}) },
-        }));
-      }
-    } catch {}
+    let cancelled = false;
+    (async () => {
+      const remote = await loadSharedConfig<Partial<Config>>();
+      if (cancelled) return;
+      const merged = mergeConfig(DEFAULT_CONFIG, remote);
+      setPublishedConfig(merged);
+      if (!dirtyRef.current) setConfig(merged);
+    })();
+    const unsubscribe = subscribeToSharedConfig<Partial<Config>>((remote) => {
+      const merged = mergeConfig(DEFAULT_CONFIG, remote);
+      setPublishedConfig(merged);
+      if (!dirtyRef.current) setConfig(merged);
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
-  // Persist config
+  // Track whether the working copy diverges from the published config.
+  const isDirty = useMemo(
+    () => JSON.stringify(config) !== JSON.stringify(publishedConfig),
+    [config, publishedConfig],
+  );
   useEffect(() => {
-    try {
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-    } catch {}
-  }, [config]);
+    dirtyRef.current = isDirty;
+  }, [isDirty]);
 
   // Load dataset: Supabase latest, fall back to bundled JSON
   useEffect(() => {
@@ -271,6 +295,20 @@ function DkpPageInner() {
   const players = dataset?.players ?? [];
   const scored = useMemo(() => computeScores(players, config), [players, config]);
 
+  // Global rank by current sort, ignoring filters — so search doesn't renumber rows.
+  const globalRankById = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const sorted = [...scored].sort((a, b) => {
+      if (sortKey === 'username') return a.username.localeCompare(b.username) * dir;
+      const av = (a as unknown as Record<string, number>)[sortKey] ?? 0;
+      const bv = (b as unknown as Record<string, number>)[sortKey] ?? 0;
+      return (av - bv) * dir;
+    });
+    const map = new Map<number, number>();
+    sorted.forEach((p, i) => map.set(p.characterId, i + 1));
+    return map;
+  }, [scored, sortKey, sortDir]);
+
   const filtered = useMemo(() => {
     let list = scored;
     if (statusFilter !== 'ALL') list = list.filter((p) => p.status === statusFilter);
@@ -302,6 +340,24 @@ function DkpPageInner() {
     }
     return { counts, totalDkp, total: scored.length };
   }, [scored]);
+
+  const handleDeploy = async () => {
+    setDeploying(true);
+    setDeployError(null);
+    try {
+      await saveSharedConfig(config);
+      setPublishedConfig(config);
+    } catch (e) {
+      setDeployError(e instanceof Error ? e.message : 'Failed to deploy');
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    setConfig(publishedConfig);
+    setDeployError(null);
+  };
 
   const setWeight = (band: 'weightsLow' | 'weightsHigh', key: keyof WeightSet, value: number) => {
     setConfig((c) => ({ ...c, [band]: { ...c[band], [key]: value } }));
@@ -414,6 +470,11 @@ function DkpPageInner() {
                   (read-only — sign in to edit)
                 </span>
               )}
+              {isOfficer && isDirty && (
+                <span className="ml-2 text-[10px] font-normal text-amber-400 uppercase tracking-wider">
+                  • unsaved changes
+                </span>
+              )}
             </h2>
             <label className={`flex items-center gap-2 text-xs text-[var(--text-muted)] select-none ${isOfficer ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
               <input
@@ -426,6 +487,33 @@ function DkpPageInner() {
               Split weights by power
             </label>
           </div>
+
+          {isOfficer && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleDeploy}
+                disabled={!isDirty || deploying}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <Rocket size={12} />
+                {deploying ? 'Deploying…' : 'Confirm for everyone'}
+              </button>
+              <button
+                onClick={handleDiscardChanges}
+                disabled={!isDirty || deploying}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <RotateCcw size={12} />
+                Discard
+              </button>
+              {deployError && <span className="text-xs text-red-400">{deployError}</span>}
+              {!isDirty && !deployError && (
+                <span className="text-xs text-[var(--text-muted)]">
+                  Edits stay local until you confirm. Confirmed changes apply to everyone.
+                </span>
+              )}
+            </div>
+          )}
 
           {config.split && (
             <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-muted)]">
@@ -577,13 +665,13 @@ function DkpPageInner() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p, i) => (
+                {filtered.map((p) => (
                   <tr
                     key={p.characterId}
                     className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors"
                   >
                     <td className="px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">
-                      {i + 1}
+                      {globalRankById.get(p.characterId)}
                     </td>
                     {COLUMNS.filter((c) => visibleCols.has(c.key)).map((c) => (
                       <td
