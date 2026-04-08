@@ -1144,59 +1144,17 @@ function DkpPageInner() {
               Vs model player
             </button>
           </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setModelInfoOpen((v) => !v)}
-              className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
-            >
-              <Info size={14} />
-              How does this work?
-            </button>
-            {modelInfoOpen && (
-              <div className="absolute left-0 top-full mt-2 z-30 w-[28rem] max-w-[90vw] p-4 rounded-lg bg-[var(--background-card)] border border-[var(--border)] shadow-xl text-sm text-[var(--text-secondary)] leading-relaxed">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="font-semibold text-[var(--foreground)]">Model player view</div>
-                  <button
-                    type="button"
-                    onClick={() => setModelInfoOpen(false)}
-                    className="text-[var(--text-muted)] hover:text-[var(--foreground)]"
-                    aria-label="Close"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                <ol className="list-decimal pl-5 space-y-1.5">
-                  <li>
-                    Players are split into 3 power bands: <b>Micro</b> (&lt;30M), <b>T4</b> (30M –
-                    threshold), <b>T5</b> (≥ threshold).
-                  </li>
-                  <li>
-                    Each player gets a <b>band score</b> — same weighted formula as the kingdom
-                    score, but normalized against the top of <i>their own band</i>.
-                  </li>
-                  <li>
-                    For each band I take the <b>top third</b> of band scores and compute the{' '}
-                    <b>median</b> of their stats. That median is the &quot;model player&quot; for
-                    the band.
-                  </li>
-                  <li>
-                    In this view, KP / DKP / Honor cells show <b>your value ÷ band model</b> as a
-                    ratio (e.g. <span className="text-emerald-400">1.42×</span> = 42% above the
-                    model). Green ≥1.0, amber 0.8–1.0, red &lt;0.8.
-                  </li>
-                  <li>
-                    The status tier still uses the kingdom-wide score so cutoffs stay consistent.
-                    The Score column shows both numbers in this view.
-                  </li>
-                </ol>
-                <div className="mt-3 pt-3 border-t border-[var(--border)]/50 text-xs text-[var(--text-muted)]">
-                  When weights change, bands and the model auto-recalculate.
-                </div>
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => setModelInfoOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+          >
+            <Info size={14} />
+            How does this work?
+          </button>
         </section>
+
+        {modelInfoOpen && <ModelExplainer onClose={() => setModelInfoOpen(false)} />}
 
         {/* Table */}
         <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
@@ -1279,6 +1237,246 @@ function ratioCell(value: number, modelValue: number) {
   }
   const r = value / modelValue;
   return <span className={`font-medium ${ratioColor(r)}`}>{r.toFixed(2)}×</span>;
+}
+
+/** Full-screen explainer for the model-player view. Designed to be friendly to first-time users. */
+function ModelExplainer({ onClose }: { onClose: () => void }) {
+  // Close on Escape.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4 sm:p-8"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-4xl rounded-2xl bg-[var(--background-card)] border border-[var(--border)] shadow-2xl my-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 p-6 sm:p-8 border-b border-[var(--border)]">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1">
+              Scoring Guide
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-semibold text-[var(--foreground)]">
+              How &quot;Vs Model Player&quot; works
+            </h2>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">
+              The fair way to compare a 25M-power scout to an 87M-power whale.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-shrink-0 p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 sm:p-8 space-y-8">
+          {/* Step 1: bands */}
+          <section>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-sky-500/15 text-sky-400 flex items-center justify-center text-sm font-semibold">
+                1
+              </span>
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">
+                Split players into 3 power bands
+              </h3>
+            </div>
+            <p className="text-sm text-[var(--text-secondary)] mb-4 ml-11">
+              Whales and farms get judged differently. Each player lands in one of three groups
+              based on their current power.
+            </p>
+            <div className="ml-11 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-4">
+                <div className="text-xs uppercase tracking-wider text-sky-400 font-semibold mb-1">
+                  Micro
+                </div>
+                <div className="text-2xl font-semibold text-[var(--foreground)]">&lt; 30M</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">scouts, climbers</div>
+              </div>
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <div className="text-xs uppercase tracking-wider text-emerald-400 font-semibold mb-1">
+                  T4
+                </div>
+                <div className="text-2xl font-semibold text-[var(--foreground)]">30M – 42M</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">main fighters</div>
+              </div>
+              <div className="rounded-lg border border-fuchsia-500/30 bg-fuchsia-500/5 p-4">
+                <div className="text-xs uppercase tracking-wider text-fuchsia-400 font-semibold mb-1">
+                  T5
+                </div>
+                <div className="text-2xl font-semibold text-[var(--foreground)]">≥ 42M</div>
+                <div className="text-xs text-[var(--text-muted)] mt-1">whales</div>
+              </div>
+            </div>
+            <p className="ml-11 mt-3 text-xs text-[var(--text-muted)]">
+              The 42M cutoff comes from the power threshold in the scoring config. Change it
+              there and the bands move with it.
+            </p>
+          </section>
+
+          {/* Step 2: model player */}
+          <section>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-sm font-semibold">
+                2
+              </span>
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">
+                Pick the &quot;model player&quot; for each band
+              </h3>
+            </div>
+            <p className="text-sm text-[var(--text-secondary)] mb-4 ml-11">
+              For each band, take the <b className="text-[var(--foreground)]">top third</b> of
+              players by performance and grab the{' '}
+              <b className="text-[var(--foreground)]">median</b> of their stats. That median
+              becomes the typical &quot;strong&quot; player for that band — the bar everyone else
+              gets compared to.
+            </p>
+            <div className="ml-11 rounded-lg border border-[var(--border)] bg-[var(--background)]/40 p-4">
+              <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
+                Example: a strong T4 might look like
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <div className="text-[var(--text-muted)] text-xs">Power</div>
+                  <div className="font-semibold text-[var(--foreground)]">~33M</div>
+                </div>
+                <div>
+                  <div className="text-[var(--text-muted)] text-xs">Total KP</div>
+                  <div className="font-semibold text-[var(--foreground)]">~125M</div>
+                </div>
+                <div>
+                  <div className="text-[var(--text-muted)] text-xs">DKP</div>
+                  <div className="font-semibold text-[var(--foreground)]">~67M</div>
+                </div>
+                <div>
+                  <div className="text-[var(--text-muted)] text-xs">Honor</div>
+                  <div className="font-semibold text-[var(--foreground)]">~72k</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Step 3: ratios */}
+          <section>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-fuchsia-500/15 text-fuchsia-400 flex items-center justify-center text-sm font-semibold">
+                3
+              </span>
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">
+                Show each player as a ratio
+              </h3>
+            </div>
+            <p className="text-sm text-[var(--text-secondary)] mb-4 ml-11">
+              In this view every stat cell becomes{' '}
+              <span className="text-[var(--foreground)] font-semibold">
+                your value ÷ the band model
+              </span>
+              . A 1.42× means &quot;42% above the typical strong player in your band.&quot;
+            </p>
+            <div className="ml-11 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-emerald-400 flex-shrink-0" />
+                <div>
+                  <div className="text-emerald-400 font-semibold text-base">≥ 1.00×</div>
+                  <div className="text-xs text-[var(--text-muted)]">at or above the model</div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
+                <div>
+                  <div className="text-amber-400 font-semibold text-base">0.80 – 0.99×</div>
+                  <div className="text-xs text-[var(--text-muted)]">close, but a little short</div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-red-400 flex-shrink-0" />
+                <div>
+                  <div className="text-red-400 font-semibold text-base">&lt; 0.80×</div>
+                  <div className="text-xs text-[var(--text-muted)]">well below the model</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Step 4: worked example */}
+          <section>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500/15 text-yellow-400 flex items-center justify-center text-sm font-semibold">
+                4
+              </span>
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">
+                Why this matters
+              </h3>
+            </div>
+            <div className="ml-11 rounded-lg border border-[var(--border)] bg-[var(--background)]/40 p-4 text-sm text-[var(--text-secondary)] leading-relaxed">
+              <p className="mb-3">
+                A <b className="text-[var(--foreground)]">28M-power scout</b> who deals 100M DKP
+                looks weak next to an{' '}
+                <b className="text-[var(--foreground)]">87M-power whale</b> doing 1B DKP. On the
+                kingdom-wide score, the scout is buried.
+              </p>
+              <p className="mb-3">
+                But compared to <i>other 28M scouts</i>, that player is{' '}
+                <span className="text-emerald-400 font-semibold">2.7× the band model</span> —
+                they&apos;re crushing it for their size class. This view surfaces them.
+              </p>
+              <div className="mt-4 flex items-center gap-4 flex-wrap text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 rounded bg-[var(--background)] text-[var(--text-muted)]">
+                    Raw values
+                  </span>
+                  <span className="text-[var(--foreground)] font-semibold">99.62M DKP</span>
+                  <span className="text-[var(--text-muted)]">→ looks small vs whales</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 rounded bg-[var(--background)] text-[var(--text-muted)]">
+                    Vs model
+                  </span>
+                  <span className="text-emerald-400 font-semibold">2.68×</span>
+                  <span className="text-[var(--text-muted)]">→ top of their band</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Footer note */}
+          <section className="rounded-lg bg-sky-500/5 border border-sky-500/20 p-4 text-sm text-[var(--text-secondary)] flex items-start gap-3">
+            <Info size={16} className="text-sky-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <b className="text-[var(--foreground)]">Heads up:</b> the status tier
+              (EXCELLENT/STRONG/GOOD/REVIEW) still uses the kingdom-wide score so cutoffs stay
+              consistent. The Score column shows both numbers in this view. Bands and the model
+              auto-recalculate any time officers change weights or the formula.
+            </div>
+          </section>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 sm:px-8 py-4 border-t border-[var(--border)] flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function renderCell(
