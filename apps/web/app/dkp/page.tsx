@@ -822,12 +822,7 @@ function DkpPageInner() {
                 <div className="space-y-4">
                 <ConfigCard
                   title="Score Weights"
-                  hint="How much each sub-score contributes to the final number. Values are relative — they don't need to add to anything."
-                  rightSlot={
-                    <span className="text-[11px] text-[var(--text-muted)]">
-                      relative — don&apos;t add up
-                    </span>
-                  }
+                  hint="How much each sub-score contributes to the final number. Values are relative — the badge on each band shows what share each weight effectively gets."
                 >
                   <div className="space-y-3">
                     {config.split && (
@@ -1736,11 +1731,8 @@ function WeightRow({
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
-          className="w-14 pl-1.5 pr-4 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+          className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
         />
-        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)]">
-          %
-        </span>
       </div>
     </div>
   );
@@ -1774,10 +1766,14 @@ function WeightBand({
           )}
         </div>
         <div
-          className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider tabular-nums"
-          title="Weights are relative — they don't need to add to anything"
+          className="text-[11px] text-[var(--text-muted)] tabular-nums"
+          title="Effective share of each weight after dividing by the total"
         >
-          sum {Math.round(total)}
+          {total > 0
+            ? (['dkp', 'rss', 'helps', 'honor'] as const)
+                .map((k) => `${Math.round((weights[k] / total) * 100)}%`)
+                .join(' / ')
+            : '—'}
         </div>
       </div>
       <div className="divide-y divide-[var(--border)]/50">
