@@ -1126,6 +1126,42 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
+/** Lightweight hover/focus tooltip. Uses React state — appears instantly, unlike native title. */
+function Tooltip({
+  content,
+  children,
+  side = 'top',
+  className = '',
+}: {
+  content: React.ReactNode;
+  children: React.ReactNode;
+  side?: 'top' | 'bottom';
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span
+      className={`relative inline-flex items-center ${className}`}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      {children}
+      {open && (
+        <span
+          role="tooltip"
+          className={`pointer-events-none absolute left-1/2 -translate-x-1/2 z-50 w-64 max-w-[80vw] px-2.5 py-1.5 rounded-md bg-[var(--background-card)] border border-[var(--border)] shadow-xl text-[11px] font-normal leading-snug text-[var(--text-secondary)] normal-case tracking-normal ${
+            side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+          }`}
+        >
+          {content}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** A consistent card wrapper for each config section (formula / weights / cutoffs). */
 function ConfigCard({
   title,
@@ -1145,12 +1181,11 @@ function ConfigCard({
           <span className="text-[10px] font-semibold text-[var(--foreground)] uppercase tracking-wider">
             {title}
           </span>
-          <span
-            title={hint}
-            className="cursor-help text-[var(--text-muted)] hover:text-[var(--foreground)]"
-          >
-            <Info size={11} />
-          </span>
+          <Tooltip content={hint}>
+            <span className="cursor-help text-[var(--text-muted)] hover:text-[var(--foreground)]">
+              <Info size={11} />
+            </span>
+          </Tooltip>
         </div>
         {rightSlot}
       </div>
@@ -1179,12 +1214,11 @@ function FormulaCoef({
   }, [value]);
   return (
     <div>
-      <label
-        className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2"
-        title={hint}
-      >
-        {label}
-      </label>
+      <Tooltip content={hint}>
+        <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+          {label}
+        </label>
+      </Tooltip>
       <input
         type="number"
         inputMode="numeric"
@@ -1359,15 +1393,14 @@ function WeightRow({
     <div
       className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-50' : ''}`}
     >
-      <div
-        className="flex items-center gap-2 w-20 sm:w-24 flex-shrink-0 cursor-help"
-        title={meta.hint}
-      >
-        <span className={`w-2 h-2 rounded-full ${meta.color}`} />
-        <span className="text-xs font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
-          {meta.label}
+      <Tooltip content={meta.hint} className="w-20 sm:w-24 flex-shrink-0">
+        <span className="flex items-center gap-2 cursor-help">
+          <span className={`w-2 h-2 rounded-full ${meta.color}`} />
+          <span className="text-xs font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+            {meta.label}
+          </span>
         </span>
-      </div>
+      </Tooltip>
       <input
         type="range"
         min={0}
@@ -1486,12 +1519,13 @@ function CutoffRow({
         : 'accent-sky-400';
   return (
     <div className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''}`}>
-      <span
-        title={CUTOFF_HINTS[status]}
-        className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[status]} flex-shrink-0`}
-      >
-        {status}
-      </span>
+      <Tooltip content={CUTOFF_HINTS[status]} className="flex-shrink-0">
+        <span
+          className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[status]}`}
+        >
+          {status}
+        </span>
+      </Tooltip>
       <span className="text-xs text-[var(--text-muted)] hidden sm:inline">≥</span>
       <input
         type="range"
