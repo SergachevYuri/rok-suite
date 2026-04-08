@@ -192,6 +192,14 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
 const nf = new Intl.NumberFormat('en-US');
 const fmt = (n: number) => nf.format(Math.round(n));
 const fmt2 = (n: number) => n.toFixed(2);
+/** Compact integer format like 1.2M / 340K / 1,234. */
+function fmtCompact(n: number): string {
+  const a = Math.abs(n);
+  if (a >= 1_000_000_000) return (n / 1_000_000_000).toFixed(a >= 10_000_000_000 ? 0 : 1) + 'B';
+  if (a >= 1_000_000) return (n / 1_000_000).toFixed(a >= 10_000_000 ? 0 : 1) + 'M';
+  if (a >= 10_000) return Math.round(n / 1_000) + 'K';
+  return nf.format(Math.round(n));
+}
 
 const STATUS_STYLES: Record<Status, string> = {
   EXCELLENT: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
@@ -605,8 +613,8 @@ function DkpPageInner() {
                 </div>
               </div>
 
-              {/* 3-column grid: Formula | Weights | Cutoffs (stacks on mobile) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+              {/* 2×2 grid: Formula | Weights / Expected | Cutoffs (stacks on mobile) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                 {/* DKP Formula card */}
                 <ConfigCard
                   title="DKP Formula"
@@ -666,6 +674,104 @@ function DkpPageInner() {
                       disabled={!isOfficer}
                       onChange={(k, v) => setWeight('weightsHigh', k, v)}
                     />
+                  </div>
+                </ConfigCard>
+
+                {/* Expected baselines card */}
+                <ConfigCard
+                  title="Expected Baselines"
+                  hint="What an 'on-target' player at a given power level should produce. Sub-scores = actual ÷ this baseline. A sub-score of 1.00 = exactly meeting the baseline."
+                >
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <BaselineInput
+                      label="DKP divisor"
+                      hint="Expected DKP = highestPower ÷ this number. Lower divisor → higher expectation. Default 4 means a 40M-power player should produce ~10M raw DKP."
+                      value={config.meta.dkpDivisor}
+                      step={0.5}
+                      decimals={1}
+                      disabled={!isOfficer}
+                      onChange={(v) =>
+                        setConfig((c) => ({ ...c, meta: { ...c.meta, dkpDivisor: v } }))
+                      }
+                    />
+                    <BaselineInput
+                      label="RSS × power"
+                      hint="Expected resources gathered = highestPower × this. Default 3.0 means a 40M-power player should gather 120M resources."
+                      value={config.meta.rssMultiplier}
+                      step={0.1}
+                      decimals={2}
+                      disabled={!isOfficer}
+                      onChange={(v) =>
+                        setConfig((c) => ({ ...c, meta: { ...c.meta, rssMultiplier: v } }))
+                      }
+                    />
+                    <BaselineInput
+                      label="Helps per 1M power"
+                      hint="Expected alliance helps = (highestPower / 1,000,000) × this. Default 300 means a 40M-power player should give 12,000 helps."
+                      value={Math.round(config.meta.helpsMultiplier * 1_000_000)}
+                      step={10}
+                      decimals={0}
+                      disabled={!isOfficer}
+                      onChange={(v) =>
+                        setConfig((c) => ({
+                          ...c,
+                          meta: { ...c.meta, helpsMultiplier: v / 1_000_000 },
+                        }))
+                      }
+                    />
+                    <BaselineInput
+                      label="Honor per 1M power"
+                      hint="Expected honor points = (highestPower / 1,000,000) × this. Default 1,000 means a 40M-power player should earn 40,000 honor."
+                      value={Math.round(config.meta.honorMultiplier * 1_000_000)}
+                      step={50}
+                      decimals={0}
+                      disabled={!isOfficer}
+                      onChange={(v) =>
+                        setConfig((c) => ({
+                          ...c,
+                          meta: { ...c.meta, honorMultiplier: v / 1_000_000 },
+                        }))
+                      }
+                    />
+                  </div>
+
+                  {/* Live preview table */}
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 overflow-hidden">
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)]/50">
+                      What &ldquo;1.00&rdquo; means at each power
+                    </div>
+                    <table className="w-full text-[11px] tabular-nums">
+                      <thead className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]">
+                        <tr>
+                          <th className="text-left px-3 py-1.5">Power</th>
+                          <th className="text-right px-2 py-1.5">DKP</th>
+                          <th className="text-right px-2 py-1.5">RSS</th>
+                          <th className="text-right px-2 py-1.5">Helps</th>
+                          <th className="text-right px-3 py-1.5">Honor</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-[var(--text-secondary)]">
+                        {[20_000_000, 50_000_000, 100_000_000].map((power) => (
+                          <tr key={power} className="border-t border-[var(--border)]/50">
+                            <td className="text-left px-3 py-1.5 font-medium text-[var(--foreground)]">
+                              {(power / 1_000_000).toFixed(0)}M
+                            </td>
+                            <td className="text-right px-2 py-1.5">
+                              {fmtCompact(power / config.meta.dkpDivisor)}
+                            </td>
+                            <td className="text-right px-2 py-1.5">
+                              {fmtCompact(power * config.meta.rssMultiplier)}
+                            </td>
+                            <td className="text-right px-2 py-1.5">
+                              {fmtCompact(power * config.meta.helpsMultiplier)}
+                            </td>
+                            <td className="text-right px-3 py-1.5">
+                              {fmtCompact(power * config.meta.honorMultiplier)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </ConfigCard>
 
@@ -1269,6 +1375,62 @@ function FormulaCoef({
           }
           onChange(n);
           setText(String(n));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        className="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+      />
+    </div>
+  );
+}
+
+/** Decimal coefficient input with tooltip — used for the expected baseline multipliers. */
+function BaselineInput({
+  label,
+  hint,
+  value,
+  step,
+  decimals,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  step: number;
+  decimals: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  const [text, setText] = useState(value.toFixed(decimals));
+  useEffect(() => {
+    setText(value.toFixed(decimals));
+  }, [value, decimals]);
+  return (
+    <div>
+      <Tooltip content={hint}>
+        <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+          {label}
+        </label>
+      </Tooltip>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step={step}
+        value={text}
+        disabled={disabled}
+        readOnly={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          const n = parseFloat(text);
+          if (Number.isNaN(n) || n < 0) {
+            setText(value.toFixed(decimals));
+            return;
+          }
+          onChange(n);
+          setText(n.toFixed(decimals));
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
