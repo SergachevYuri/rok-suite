@@ -151,6 +151,23 @@ const STATUS_LABELS: Record<Status, string> = {
   REJECTED: 'REVIEW',
 };
 
+/** Power band a player belongs to. T5 ≥ weightSplitThreshold, T4 between, Micro below MICRO_THRESHOLD. */
+type Band = 'micro' | 't4' | 't5';
+const MICRO_THRESHOLD = 30_000_000;
+const BAND_LABELS: Record<Band, string> = { micro: 'Micro', t4: 'T4', t5: 'T5' };
+
+/** "Model player" stat profile for a band — the median of the band's top tertile by band-score. */
+interface ModelStats {
+  power: number;
+  totalKP: number;
+  computedDkp: number;
+  rssGathered: number;
+  allianceHelps: number;
+  honorPoints: number;
+  /** How many players were in the top-tertile cohort that produced this median. */
+  cohortSize: number;
+}
+
 interface ScoredPlayer extends Player {
   computedDkp: number;
   /** Target KP for this player based on their power and the configured multipliers. */
@@ -164,8 +181,22 @@ interface ScoredPlayer extends Player {
   scoreRss: number;
   scoreHelps: number;
   scoreHonor: number;
+  /** Kingdom-wide weighted score (0–100, top player in kingdom = 100 in each category). */
   finalScore: number;
+  /** Per-band weighted score (0–100, top player in band = 100 in each category). */
+  bandScore: number;
+  /** Which power band this player belongs to. */
+  band: Band;
+  /** The model player profile for this player's band. */
+  modelStats: ModelStats;
   status: Status;
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 function safeDiv(a: number, b: number): number {
@@ -173,78 +204,161 @@ function safeDiv(a: number, b: number): number {
   return a / b;
 }
 
+function bandOf(power: number, t5Threshold: number): Band {
+  if (power >= t5Threshold) return 't5';
+  if (power >= MICRO_THRESHOLD) return 't4';
+  return 'micro';
+}
+
+/** Compute the model-player profile for each band: median of the band's top tertile by band score. */
+function computeModels(
+  players: (Player & { computedDkp: number; band: Band; bandScore: number })[],
+): Record<Band, ModelStats> {
+  const empty: ModelStats = {
+    power: 0,
+    totalKP: 0,
+    computedDkp: 0,
+    rssGathered: 0,
+    allianceHelps: 0,
+    honorPoints: 0,
+    cohortSize: 0,
+  };
+  const out: Record<Band, ModelStats> = { micro: empty, t4: empty, t5: empty };
+  for (const band of ['micro', 't4', 't5'] as const) {
+    const inBand = players.filter((p) => p.band === band);
+    if (inBand.length === 0) continue;
+    // Top tertile by band score — at least 1 player.
+    const sorted = [...inBand].sort((a, b) => b.bandScore - a.bandScore);
+    const cohortSize = Math.max(1, Math.ceil(sorted.length / 3));
+    const cohort = sorted.slice(0, cohortSize);
+    out[band] = {
+      power: median(cohort.map((p) => p.power)),
+      totalKP: median(cohort.map((p) => p.totalKP)),
+      computedDkp: median(cohort.map((p) => p.computedDkp)),
+      rssGathered: median(cohort.map((p) => p.rssGathered)),
+      allianceHelps: median(cohort.map((p) => p.allianceHelps)),
+      honorPoints: median(cohort.map((p) => p.honorPoints)),
+      cohortSize,
+    };
+  }
+  return out;
+}
+
 function computeScores(players: Player[], config: Config): ScoredPlayer[] {
   const { statusThresholds, dkpFormula } = config;
 
-  // First pass: compute DKP for everyone, then find category maxes across the kingdom.
-  const dkps = players.map(
-    (p) =>
+  // 1. Compute DKP for every player and assign a band.
+  const enriched = players.map((p) => {
+    const computedDkp =
       p.t4Kills * dkpFormula.t4Kill +
       p.t5Kills * dkpFormula.t5Kill +
       p.t4Deaths * dkpFormula.t4Death +
-      p.t5Deaths * dkpFormula.t5Death,
-  );
-  const maxDkp = Math.max(0, ...dkps);
-  const maxRss = Math.max(0, ...players.map((p) => p.rssGathered));
-  const maxHelps = Math.max(0, ...players.map((p) => p.allianceHelps));
-  const maxHonor = Math.max(0, ...players.map((p) => p.honorPoints));
+      p.t5Deaths * dkpFormula.t5Death;
+    return { ...p, computedDkp, band: bandOf(p.power, config.weightSplitThreshold) };
+  });
 
-  return players.map((p, i) => {
-    const computedDkp = dkps[i];
+  // 2. Kingdom-wide maxes (for the standard view).
+  const maxDkp = Math.max(0, ...enriched.map((p) => p.computedDkp));
+  const maxRss = Math.max(0, ...enriched.map((p) => p.rssGathered));
+  const maxHelps = Math.max(0, ...enriched.map((p) => p.allianceHelps));
+  const maxHonor = Math.max(0, ...enriched.map((p) => p.honorPoints));
 
-    // KP target (informational only — not part of the weighted score).
-    const kpMultiplier =
-      p.power < config.weightSplitThreshold ? config.kpTargetLow : config.kpTargetHigh;
-    const targetKp = p.power * kpMultiplier;
-    const kpRatio = safeDiv(p.totalKP, targetKp);
+  // 3. Per-band maxes (for the model-player view).
+  const bandMax = (band: Band) => {
+    const inBand = enriched.filter((p) => p.band === band);
+    return {
+      dkp: Math.max(0, ...inBand.map((p) => p.computedDkp)),
+      rss: Math.max(0, ...inBand.map((p) => p.rssGathered)),
+      helps: Math.max(0, ...inBand.map((p) => p.allianceHelps)),
+      honor: Math.max(0, ...inBand.map((p) => p.honorPoints)),
+    };
+  };
+  const maxes: Record<Band, ReturnType<typeof bandMax>> = {
+    micro: bandMax('micro'),
+    t4: bandMax('t4'),
+    t5: bandMax('t5'),
+  };
 
-    // Each sub-score is this player's value as a fraction of the kingdom max for that category,
-    // scaled to 0–100. The top performer in each category gets 100; everyone else is below.
-    const scoreDkp = safeDiv(computedDkp, maxDkp) * 100;
-    const scoreRss = safeDiv(p.rssGathered, maxRss) * 100;
-    const scoreHelps = safeDiv(p.allianceHelps, maxHelps) * 100;
-    const scoreHonor = safeDiv(p.honorPoints, maxHonor) * 100;
+  const weighted = (
+    sDkp: number,
+    sRss: number,
+    sHelps: number,
+    sHonor: number,
+    w: WeightSet,
+  ) => {
+    let num = 0;
+    let den = 0;
+    const parts: [number, number][] = [
+      [sDkp, w.dkp],
+      [sRss, w.rss],
+      [sHelps, w.helps],
+      [sHonor, w.honor],
+    ];
+    for (const [s, ww] of parts) {
+      if (ww > 0) {
+        num += s * ww;
+        den += ww;
+      }
+    }
+    return den > 0 ? num / den : 0;
+  };
 
+  // 4. First pass: compute kingdom-wide and per-band scores so we can build the model afterward.
+  const firstPass = enriched.map((p) => {
     const weights =
       config.split && p.highestPower < config.weightSplitThreshold
         ? config.weightsLow
         : config.weightsHigh;
 
-    // Weighted average of the four sub-scores. Result is also 0–100.
-    let num = 0;
-    let den = 0;
-    const components: [number, number][] = [
-      [scoreDkp, weights.dkp],
-      [scoreRss, weights.rss],
-      [scoreHelps, weights.helps],
-      [scoreHonor, weights.honor],
-    ];
-    for (const [s, w] of components) {
-      if (w > 0) {
-        num += s * w;
-        den += w;
-      }
-    }
-    const finalScore = den > 0 ? num / den : 0;
+    // Kingdom-wide sub-scores.
+    const scoreDkp = safeDiv(p.computedDkp, maxDkp) * 100;
+    const scoreRss = safeDiv(p.rssGathered, maxRss) * 100;
+    const scoreHelps = safeDiv(p.allianceHelps, maxHelps) * 100;
+    const scoreHonor = safeDiv(p.honorPoints, maxHonor) * 100;
+    const finalScore = weighted(scoreDkp, scoreRss, scoreHelps, scoreHonor, weights);
+
+    // Per-band sub-scores (used to find each band's top tertile = the model cohort).
+    const m = maxes[p.band];
+    const bDkp = safeDiv(p.computedDkp, m.dkp) * 100;
+    const bRss = safeDiv(p.rssGathered, m.rss) * 100;
+    const bHelps = safeDiv(p.allianceHelps, m.helps) * 100;
+    const bHonor = safeDiv(p.honorPoints, m.honor) * 100;
+    const bandScore = weighted(bDkp, bRss, bHelps, bHonor, weights);
+
+    return { ...p, scoreDkp, scoreRss, scoreHelps, scoreHonor, finalScore, bandScore, weights };
+  });
+
+  // 5. Build the per-band model player from the top tertile of each band.
+  const models = computeModels(firstPass);
+
+  // 6. Final pass: attach KP target, model, and status.
+  return firstPass.map((p) => {
+    const kpMultiplier =
+      p.power < config.weightSplitThreshold ? config.kpTargetLow : config.kpTargetHigh;
+    const targetKp = p.power * kpMultiplier;
+    const kpRatio = safeDiv(p.totalKP, targetKp);
 
     let status: Status;
-    if (finalScore >= statusThresholds.excellent) status = 'EXCELLENT';
-    else if (finalScore >= statusThresholds.approved) status = 'APPROVED';
-    else if (finalScore >= statusThresholds.good) status = 'GOOD';
+    if (p.finalScore >= statusThresholds.excellent) status = 'EXCELLENT';
+    else if (p.finalScore >= statusThresholds.approved) status = 'APPROVED';
+    else if (p.finalScore >= statusThresholds.good) status = 'GOOD';
     else status = 'REJECTED';
 
     return {
       ...p,
-      computedDkp,
+      computedDkp: p.computedDkp,
       targetKp,
       kpMultiplier,
       kpRatio,
       totalDeaths: p.t4Deaths + p.t5Deaths,
-      scoreDkp,
-      scoreRss,
-      scoreHelps,
-      scoreHonor,
-      finalScore,
+      scoreDkp: p.scoreDkp,
+      scoreRss: p.scoreRss,
+      scoreHelps: p.scoreHelps,
+      scoreHonor: p.scoreHonor,
+      finalScore: p.finalScore,
+      bandScore: p.bandScore,
+      band: p.band,
+      modelStats: models[p.band],
       status,
     };
   });
@@ -335,6 +449,9 @@ function DkpPageInner() {
   const [sortKey, setSortKey] = useState<SortKey>('finalScore');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
+  /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
+  const [modelView, setModelView] = useState(false);
+  const [modelInfoOpen, setModelInfoOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     () => new Set(COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)),
   );
@@ -1001,6 +1118,86 @@ function DkpPageInner() {
           </div>
         </section>
 
+        {/* View toggle: kingdom-wide vs model-player ratios */}
+        <section className="mb-3 flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--background-card)] p-0.5">
+            <button
+              type="button"
+              onClick={() => setModelView(false)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                !modelView
+                  ? 'bg-[var(--foreground)] text-[var(--background)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              Raw values
+            </button>
+            <button
+              type="button"
+              onClick={() => setModelView(true)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                modelView
+                  ? 'bg-[var(--foreground)] text-[var(--background)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              Vs model player
+            </button>
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setModelInfoOpen((v) => !v)}
+              className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+            >
+              <Info size={14} />
+              How does this work?
+            </button>
+            {modelInfoOpen && (
+              <div className="absolute left-0 top-full mt-2 z-30 w-[28rem] max-w-[90vw] p-4 rounded-lg bg-[var(--background-card)] border border-[var(--border)] shadow-xl text-sm text-[var(--text-secondary)] leading-relaxed">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="font-semibold text-[var(--foreground)]">Model player view</div>
+                  <button
+                    type="button"
+                    onClick={() => setModelInfoOpen(false)}
+                    className="text-[var(--text-muted)] hover:text-[var(--foreground)]"
+                    aria-label="Close"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <ol className="list-decimal pl-5 space-y-1.5">
+                  <li>
+                    Players are split into 3 power bands: <b>Micro</b> (&lt;30M), <b>T4</b> (30M –
+                    threshold), <b>T5</b> (≥ threshold).
+                  </li>
+                  <li>
+                    Each player gets a <b>band score</b> — same weighted formula as the kingdom
+                    score, but normalized against the top of <i>their own band</i>.
+                  </li>
+                  <li>
+                    For each band I take the <b>top third</b> of band scores and compute the{' '}
+                    <b>median</b> of their stats. That median is the &quot;model player&quot; for
+                    the band.
+                  </li>
+                  <li>
+                    In this view, KP / DKP / Honor cells show <b>your value ÷ band model</b> as a
+                    ratio (e.g. <span className="text-emerald-400">1.42×</span> = 42% above the
+                    model). Green ≥1.0, amber 0.8–1.0, red &lt;0.8.
+                  </li>
+                  <li>
+                    The status tier still uses the kingdom-wide score so cutoffs stay consistent.
+                    The Score column shows both numbers in this view.
+                  </li>
+                </ol>
+                <div className="mt-3 pt-3 border-t border-[var(--border)]/50 text-xs text-[var(--text-muted)]">
+                  When weights change, bands and the model auto-recalculate.
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Table */}
         <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
           <div className="overflow-auto rounded-xl max-h-[calc(100vh-180px)]">
@@ -1044,7 +1241,7 @@ function DkpPageInner() {
                         key={c.key}
                         className={`px-3 py-2 ${c.numeric ? 'text-right tabular-nums' : ''}`}
                       >
-                        {renderCell(p, c.key, config.weightSplitThreshold)}
+                        {renderCell(p, c.key, config.weightSplitThreshold, modelView)}
                       </td>
                     ))}
                   </tr>
@@ -1068,22 +1265,40 @@ function DkpPageInner() {
   );
 }
 
-function renderCell(p: ScoredPlayer, key: ColumnDef['key'], threshold: number) {
+/** Color a ratio: ≥1 green, 0.8–1 amber, <0.8 red. Same convention as KP target color. */
+function ratioColor(r: number): string {
+  if (r >= 1) return 'text-emerald-400';
+  if (r >= 0.8) return 'text-amber-400';
+  return 'text-red-400';
+}
+
+/** Render a value as `1.42×` colored by how it compares to the band model. */
+function ratioCell(value: number, modelValue: number) {
+  if (modelValue <= 0) {
+    return <span className="text-[var(--text-muted)]">—</span>;
+  }
+  const r = value / modelValue;
+  return <span className={`font-medium ${ratioColor(r)}`}>{r.toFixed(2)}×</span>;
+}
+
+function renderCell(
+  p: ScoredPlayer,
+  key: ColumnDef['key'],
+  threshold: number,
+  modelView: boolean,
+) {
   switch (key) {
     case 'username':
       return <span className="text-[var(--foreground)] font-medium">{p.username}</span>;
     case 'power': {
+      // Power keeps its absolute value in both views — band membership is what matters here.
       const cls = p.power < threshold ? 'text-sky-400' : 'text-fuchsia-400';
       return <span className={`font-medium ${cls}`}>{fmtM(p.power)}</span>;
     }
     case 'totalKP': {
+      if (modelView) return ratioCell(p.totalKP, p.modelStats.totalKP);
       // Color based on whether this player hits their target KP.
-      const cls =
-        p.kpRatio >= 1
-          ? 'text-emerald-400'
-          : p.kpRatio >= 0.8
-            ? 'text-amber-400'
-            : 'text-red-400';
+      const cls = ratioColor(p.kpRatio);
       return <span className={`font-medium ${cls}`}>{fmtM(p.totalKP)}</span>;
     }
     case 'targetKp':
@@ -1094,7 +1309,7 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key'], threshold: number) {
         </span>
       );
     case 't4Kills':
-      return fmtM(p.t4Kills);
+      return modelView ? fmtM(p.t4Kills) : fmtM(p.t4Kills);
     case 't5Kills':
       return fmtM(p.t5Kills);
     case 't4Deaths':
@@ -1103,12 +1318,24 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key'], threshold: number) {
       return fmtM(p.t5Deaths);
     case 'totalDeaths':
       return fmtM(p.t4Deaths + p.t5Deaths);
-    case 'dkp':
-      return fmtM(p.dkp || p.computedDkp);
-    case 'finalScore':
+    case 'dkp': {
+      const v = p.dkp || p.computedDkp;
+      return modelView ? ratioCell(v, p.modelStats.computedDkp) : fmtM(v);
+    }
+    case 'finalScore': {
+      // In model view we still show the kingdom-wide score for status consistency,
+      // but render the band score as a small subtitle for context.
       return (
-        <span className="font-semibold text-[var(--foreground)]">{fmtScore(p.finalScore)}</span>
+        <span className="font-semibold text-[var(--foreground)]">
+          {fmtScore(p.finalScore)}
+          {modelView && (
+            <span className="ml-1 text-[10px] font-normal text-[var(--text-muted)]">
+              ({BAND_LABELS[p.band]} {fmtScore(p.bandScore)})
+            </span>
+          )}
+        </span>
       );
+    }
     case 'status':
       return (
         <span
@@ -1118,7 +1345,7 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key'], threshold: number) {
         </span>
       );
     case 'honorPoints':
-      return fmt(p.honorPoints);
+      return modelView ? ratioCell(p.honorPoints, p.modelStats.honorPoints) : fmt(p.honorPoints);
     default:
       return null;
   }
