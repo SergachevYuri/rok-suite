@@ -123,8 +123,22 @@ function mergeConfig(base: Config, partial: Partial<Config> | null | undefined):
 
 type Status = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED';
 
+/** Friendlier display labels (REJECTED → REVIEW). */
+const STATUS_LABELS: Record<Status, string> = {
+  EXCELLENT: 'EXCELLENT',
+  APPROVED: 'APPROVED',
+  GOOD: 'GOOD',
+  REJECTED: 'REVIEW',
+};
+
 interface ScoredPlayer extends Player {
   computedDkp: number;
+  /** Target KP for this player based on their power and the configured multipliers. */
+  targetKp: number;
+  /** Which multiplier was applied (low or high tier). */
+  kpMultiplier: number;
+  /** actual KP / target KP — higher is better. */
+  kpRatio: number;
   scoreDkp: number;
   scoreRss: number;
   scoreHelps: number;
@@ -150,6 +164,12 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     const metaRss = p.highestPower * meta.rssMultiplier;
     const metaHelps = p.highestPower * meta.helpsMultiplier;
     const metaHonor = p.highestPower * meta.honorMultiplier;
+
+    // KP target (informational only — not part of the weighted score).
+    const kpMultiplier =
+      p.power < config.weightSplitThreshold ? config.kpTargetLow : config.kpTargetHigh;
+    const targetKp = p.power * kpMultiplier;
+    const kpRatio = safeDiv(p.totalKP, targetKp);
 
     const scoreDkp = safeDiv(computedDkp, metaDkp);
     const scoreRss = safeDiv(p.rssGathered, metaRss);
@@ -186,6 +206,9 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     return {
       ...p,
       computedDkp,
+      targetKp,
+      kpMultiplier,
+      kpRatio,
       scoreDkp,
       scoreRss,
       scoreHelps,
@@ -220,12 +243,9 @@ type SortKey =
   | 'username'
   | 'power'
   | 'totalKP'
+  | 'targetKp'
   | 'dkp'
   | 'finalScore'
-  | 'scoreDkp'
-  | 'scoreRss'
-  | 'scoreHelps'
-  | 'scoreHonor'
   | 'honorPoints';
 
 interface ColumnDef {
@@ -239,15 +259,12 @@ interface ColumnDef {
 const COLUMNS: ColumnDef[] = [
   { key: 'username', label: 'Player', defaultVisible: true, hint: 'In-game username from the kingdom export.' },
   { key: 'power', label: 'Power', numeric: true, defaultVisible: true, hint: 'Current power as of the last upload (not highest power).' },
-  { key: 'totalKP', label: 'KP', numeric: true, defaultVisible: true, hint: 'Total kill points from the kingdom export (all tiers combined).' },
+  { key: 'totalKP', label: 'KP', numeric: true, defaultVisible: true, hint: 'Actual total kill points from the kingdom export. Cell is colored green if this player meets or beats their Target KP, red if they fall short.' },
+  { key: 'targetKp', label: 'Target KP', numeric: true, defaultVisible: true, hint: 'KP this player is expected to produce, based on their power. Smaller accounts use the low multiplier, larger accounts the high one (configured in Expected KP).' },
   { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths weighted).' },
   { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Final weighted score (as % of expected). 100% = exactly meeting expectations across all weighted categories.' },
-  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / APPROVED / GOOD / REJECTED).' },
+  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / APPROVED / GOOD / REVIEW).' },
   { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: true, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
-  { key: 'scoreDkp', label: 'DKP %', numeric: true, defaultVisible: false, hint: 'DKP performance: raw DKP ÷ expected DKP for this player\'s power. 100% = exactly on target. 150% = 1.5× expected.' },
-  { key: 'scoreRss', label: 'RSS %', numeric: true, defaultVisible: false, hint: 'RSS performance: resources gathered ÷ expected. 100% = on target for their power.' },
-  { key: 'scoreHelps', label: 'Helps %', numeric: true, defaultVisible: false, hint: 'Alliance helps performance: helps given ÷ expected. 100% = on target for their power.' },
-  { key: 'scoreHonor', label: 'Honor %', numeric: true, defaultVisible: false, hint: 'Honor performance: honor points ÷ expected. 100% = on target for their power.' },
 ];
 
 export default function DkpPage() {
@@ -508,7 +525,7 @@ function DkpPageInner() {
           <SummaryCard label="Excellent" value={fmt(summary.counts.EXCELLENT)} tone="amber" />
           <SummaryCard label="Approved" value={fmt(summary.counts.APPROVED)} tone="emerald" />
           <SummaryCard label="Good" value={fmt(summary.counts.GOOD)} tone="sky" />
-          <SummaryCard label="Rejected" value={fmt(summary.counts.REJECTED)} tone="red" />
+          <SummaryCard label="Review" value={fmt(summary.counts.REJECTED)} tone="red" />
         </section>
 
         {/* Scoring Configuration (collapsible) */}
@@ -735,40 +752,15 @@ function DkpPageInner() {
                   })()}
                 </ConfigCard>
 
-                {/* Status cutoffs card */}
-                <ConfigCard
-                  title="Status Cutoffs"
-                  hint="The minimum final score needed to land in each tier. Anything below the GOOD cutoff is REJECTED."
-                >
-                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/50">
-                    <CutoffRow
-                      status="EXCELLENT"
-                      value={config.statusThresholds.excellent}
-                      disabled={!isOfficer}
-                      onChange={(v) => setThreshold('excellent', v)}
-                    />
-                    <CutoffRow
-                      status="APPROVED"
-                      value={config.statusThresholds.approved}
-                      disabled={!isOfficer}
-                      onChange={(v) => setThreshold('approved', v)}
-                    />
-                    <CutoffRow
-                      status="GOOD"
-                      value={config.statusThresholds.good}
-                      disabled={!isOfficer}
-                      onChange={(v) => setThreshold('good', v)}
-                    />
-                  </div>
-                </ConfigCard>
                 </div>
 
-                {/* Right column: Score Weights alone (matches the stacked left col height) */}
+                {/* Right column: Score Weights + Status Cutoffs stacked */}
+                <div className="space-y-4">
                 <ConfigCard
                   title="Score Weights"
                   hint="How much each sub-score contributes to the final number. Values are relative — they don't need to add to anything."
                   rightSlot={
-                    <span className="text-[10px] text-[var(--text-muted)]">
+                    <span className="text-[11px] text-[var(--text-muted)]">
                       relative — don&apos;t add up
                     </span>
                   }
@@ -796,6 +788,44 @@ function DkpPageInner() {
                     />
                   </div>
                 </ConfigCard>
+
+                <ConfigCard
+                  title="Status Cutoffs"
+                  hint="The minimum final score needed to land in each tier. Anything below the GOOD cutoff falls into REVIEW (still listed, just flagged for officer attention)."
+                >
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/50">
+                    <CutoffRow
+                      status="EXCELLENT"
+                      value={config.statusThresholds.excellent}
+                      disabled={!isOfficer}
+                      onChange={(v) => setThreshold('excellent', v)}
+                    />
+                    <CutoffRow
+                      status="APPROVED"
+                      value={config.statusThresholds.approved}
+                      disabled={!isOfficer}
+                      onChange={(v) => setThreshold('approved', v)}
+                    />
+                    <CutoffRow
+                      status="GOOD"
+                      value={config.statusThresholds.good}
+                      disabled={!isOfficer}
+                      onChange={(v) => setThreshold('good', v)}
+                    />
+                    {/* REVIEW: read-only fallback row, automatically anything below GOOD */}
+                    <div className="flex items-center gap-3 py-2">
+                      <span
+                        className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
+                      >
+                        {STATUS_LABELS.REJECTED}
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)] flex-1">
+                        anything below {Math.round(config.statusThresholds.good * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                </ConfigCard>
+                </div>
               </div>
             </div>
           )}
@@ -826,7 +856,7 @@ function DkpPageInner() {
                     : 'bg-[var(--background-card)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--foreground)]'
                 }`}
               >
-                {s}
+                {s === 'ALL' ? s : s === 'REJECTED' ? STATUS_LABELS.REJECTED : s}
               </button>
             ))}
           </div>
@@ -922,8 +952,23 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
       return <span className="text-[var(--foreground)] font-medium">{p.username}</span>;
     case 'power':
       return fmt(p.power);
-    case 'totalKP':
-      return fmt(p.totalKP);
+    case 'totalKP': {
+      // Color based on whether this player hits their target KP.
+      const cls =
+        p.kpRatio >= 1
+          ? 'text-emerald-400'
+          : p.kpRatio >= 0.8
+            ? 'text-amber-400'
+            : 'text-red-400';
+      return <span className={`font-medium ${cls}`}>{fmt(p.totalKP)}</span>;
+    }
+    case 'targetKp':
+      return (
+        <span>
+          {fmt(p.targetKp)}{' '}
+          <span className="text-[10px] text-[var(--text-muted)]">×{p.kpMultiplier.toFixed(1)}</span>
+        </span>
+      );
     case 'dkp':
       return fmt(p.dkp || p.computedDkp);
     case 'finalScore':
@@ -935,17 +980,9 @@ function renderCell(p: ScoredPlayer, key: ColumnDef['key']) {
         <span
           className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[p.status]}`}
         >
-          {p.status}
+          {STATUS_LABELS[p.status]}
         </span>
       );
-    case 'scoreDkp':
-      return fmtPct(p.scoreDkp);
-    case 'scoreRss':
-      return fmtPct(p.scoreRss);
-    case 'scoreHelps':
-      return fmtPct(p.scoreHelps);
-    case 'scoreHonor':
-      return fmtPct(p.scoreHonor);
     case 'honorPoints':
       return fmt(p.honorPoints);
     default:
@@ -1311,10 +1348,10 @@ function ConfigCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-3 sm:p-4">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-4 sm:p-5">
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-semibold text-[var(--foreground)] uppercase tracking-wider">
+          <span className="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wider">
             {title}
           </span>
           <Tooltip content={hint}>
@@ -1351,7 +1388,7 @@ function FormulaCoef({
   return (
     <div>
       <Tooltip content={hint}>
-        <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)] block mb-1.5 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
           {label}
         </label>
       </Tooltip>
@@ -1376,7 +1413,7 @@ function FormulaCoef({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full px-2.5 py-2 rounded bg-[var(--background)] border border-[var(--border)] text-base tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -1407,7 +1444,7 @@ function BaselineInput({
   return (
     <div>
       <Tooltip content={hint}>
-        <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)] block mb-1.5 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
           {label}
         </label>
       </Tooltip>
@@ -1432,7 +1469,7 @@ function BaselineInput({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-full px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full px-2.5 py-2 rounded bg-[var(--background)] border border-[var(--border)] text-base tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -1549,8 +1586,8 @@ const CUTOFF_HINTS: Record<Status, string> = {
   EXCELLENT:
     'Top tier — players whose final score is at or above this threshold are marked EXCELLENT.',
   APPROVED: 'Players hitting at least this threshold are APPROVED (meeting expectations).',
-  GOOD: 'Players hitting at least this threshold are GOOD (acceptable). Below this they are REJECTED.',
-  REJECTED: '',
+  GOOD: 'Players hitting at least this threshold are GOOD (acceptable). Below this they fall into REVIEW.',
+  REJECTED: 'Anything below the GOOD threshold lands here. Flagged for officer attention rather than auto-rejected.',
 };
 
 /** A clean horizontal weight row: dot + label + slider + number input. */
@@ -1585,10 +1622,10 @@ function WeightRow({
     <div
       className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-50' : ''}`}
     >
-      <Tooltip content={meta.hint} className="w-20 sm:w-24 flex-shrink-0">
+      <Tooltip content={meta.hint} className="w-24 sm:w-28 flex-shrink-0">
         <span className="flex items-center gap-2 cursor-help">
-          <span className={`w-2 h-2 rounded-full ${meta.color}`} />
-          <span className="text-xs font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+          <span className={`w-2.5 h-2.5 rounded-full ${meta.color}`} />
+          <span className="text-sm font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
             {meta.label}
           </span>
         </span>
@@ -1647,19 +1684,19 @@ function WeightBand({
     0,
   );
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-3 py-2">
-      <div className="flex items-baseline justify-between mb-1">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 py-3">
+      <div className="flex items-baseline justify-between mb-2">
         <div>
-          <div className="text-xs font-semibold text-[var(--foreground)]">{title}</div>
+          <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
           {subtitle && (
-            <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{subtitle}</div>
+            <div className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</div>
           )}
         </div>
         <div
-          className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider tabular-nums"
+          className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider tabular-nums"
           title="Weights are relative — they don't need to add to anything"
         >
-          relative sum {Math.round(total)}
+          sum {Math.round(total)}
         </div>
       </div>
       <div className="divide-y divide-[var(--border)]/50">
