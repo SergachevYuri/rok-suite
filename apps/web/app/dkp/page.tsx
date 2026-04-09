@@ -34,98 +34,115 @@ import {
   subscribeToSharedConfig,
 } from './data';
 
-interface WeightSet {
-  dkp: number;
+/** Flat 7-component formula: every raw stat the score uses, in one place. Each weight applies
+ *  directly to that stat after per-band normalization (player value ÷ band max). */
+interface BandFormula {
+  t4Kill: number;
+  t5Kill: number;
+  t4Death: number;
+  t5Death: number;
   rss: number;
   helps: number;
   honor: number;
 }
 
-interface DkpFormula {
-  t4Kill: number;
-  t5Kill: number;
-  t4Death: number;
-  t5Death: number;
+/** The 7 component keys in display order. */
+const FORMULA_KEYS = ['t4Kill', 't5Kill', 't4Death', 't5Death', 'rss', 'helps', 'honor'] as const;
+type FormulaKey = (typeof FORMULA_KEYS)[number];
+
+interface CutoffSet {
+  excellent: number;
+  approved: number;
+  good: number;
 }
 
 interface Config {
-  // When split is true, each power band gets its own weight set. When false, weightsT5 is used
-  // for everyone (one unified weighting).
-  split: boolean;
-  // Power band boundaries. mT4 = power < mt4T4Threshold, T4 = mt4T4Threshold..t4T5Threshold, T5 ≥ t4T5Threshold.
+  // Power band boundaries. mT4 < mt4T4Threshold ≤ T4 < t4T5Threshold ≤ T5.
   mt4T4Threshold: number;
   t4T5Threshold: number;
-  weightsMt4: WeightSet;
-  weightsT4: WeightSet;
-  weightsT5: WeightSet;
-  dkpFormula: DkpFormula;
-  meta: {
-    dkpDivisor: number;
-    rssMultiplier: number;
-    helpsMultiplier: number;
-    honorMultiplier: number;
-  };
-  // KP target multipliers per band — actual KP is compared against power × this number.
+  // One flat 7-component formula per band.
+  formulaMt4: BandFormula;
+  formulaT4: BandFormula;
+  formulaT5: BandFormula;
+  // KP target multipliers per band — informational only (drives the KP cell color).
   kpTargetMt4: number;
   kpTargetT4: number;
   kpTargetT5: number;
-  statusThresholds: { excellent: number; approved: number; good: number };
+  // Status cutoffs per band, applied to the 0–100 per-band score.
+  cutoffsMt4: CutoffSet;
+  cutoffsT4: CutoffSet;
+  cutoffsT5: CutoffSet;
 }
 
-// Weights are relative integers in [0, 100]. They do NOT need to sum to anything;
-// the final score divides by the sum of active weights. Larger numbers just dominate.
-const DEFAULT_WEIGHTS: WeightSet = { dkp: 80, rss: 5, helps: 5, honor: 10 };
-const DEFAULT_DKP_FORMULA: DkpFormula = { t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24 };
+// mT4 sees no T5 troops, so the T5 components default to 0.
+const DEFAULT_FORMULA_MT4: BandFormula = {
+  t4Kill: 5, t5Kill: 0, t4Death: 8, t5Death: 0, rss: 5, helps: 5, honor: 10,
+};
+const DEFAULT_FORMULA_T4: BandFormula = {
+  t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24, rss: 5, helps: 5, honor: 10,
+};
+const DEFAULT_FORMULA_T5: BandFormula = {
+  t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24, rss: 5, helps: 5, honor: 10,
+};
+const DEFAULT_CUTOFFS: CutoffSet = { excellent: 60, approved: 35, good: 15 };
 
 const DEFAULT_CONFIG: Config = {
-  split: false,
   mt4T4Threshold: 30_000_000,
   t4T5Threshold: 42_000_000,
-  weightsMt4: { ...DEFAULT_WEIGHTS },
-  weightsT4: { ...DEFAULT_WEIGHTS },
-  weightsT5: { ...DEFAULT_WEIGHTS },
-  dkpFormula: { ...DEFAULT_DKP_FORMULA },
-  meta: {
-    dkpDivisor: 4,
-    rssMultiplier: 3.0,
-    helpsMultiplier: 0.0003,
-    honorMultiplier: 0.001,
-  },
+  formulaMt4: { ...DEFAULT_FORMULA_MT4 },
+  formulaT4: { ...DEFAULT_FORMULA_T4 },
+  formulaT5: { ...DEFAULT_FORMULA_T5 },
   kpTargetMt4: 2,
   kpTargetT4: 3,
   kpTargetT5: 10,
-  // Scores are now 0–100 (each sub-score = value ÷ kingdom max × 100, then weighted-averaged).
-  // Cutoffs are stored on the same 0–100 scale.
-  statusThresholds: { excellent: 60, approved: 35, good: 15 },
+  cutoffsMt4: { ...DEFAULT_CUTOFFS },
+  cutoffsT4: { ...DEFAULT_CUTOFFS },
+  cutoffsT5: { ...DEFAULT_CUTOFFS },
 };
 
-/** Migrate legacy 0–1 weight sets to the new 0–100 integer scale. */
-function migrateWeights(w: Partial<WeightSet> | undefined): Partial<WeightSet> {
-  if (!w) return {};
-  const values = Object.values(w).filter((v): v is number => typeof v === 'number');
-  if (values.length === 0) return w;
-  const max = Math.max(...values);
-  if (max > 0 && max <= 1) {
-    // Legacy decimal scale — rescale to integers in [0, 100].
-    const out: Partial<WeightSet> = {};
-    for (const [k, v] of Object.entries(w)) {
-      if (typeof v === 'number') (out as Record<string, number>)[k] = Math.round(v * 100);
-    }
-    return out;
+/** Build a flat BandFormula by combining a legacy DKP formula with a legacy 4-component weight set.
+ *  The legacy model was: dkpRaw = t4K*c1 + t5K*c2 + t4D*c3 + t5D*c4, then score = dkpRaw*wDkp + rss*wRss + ...
+ *  In the new flat model each weight applies after band-normalization, so we just multiply each
+ *  legacy DKP coefficient by the legacy DKP weight to get the unified per-stat weight.
+ */
+function legacyToBandFormula(
+  defaultFormula: BandFormula,
+  dkpFormula: { t4Kill?: number; t5Kill?: number; t4Death?: number; t5Death?: number } | undefined,
+  legacyWeights:
+    | { dkp?: number; rss?: number; helps?: number; honor?: number }
+    | undefined,
+): BandFormula {
+  if (!dkpFormula && !legacyWeights) return { ...defaultFormula };
+  const f = { t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24, ...(dkpFormula ?? {}) };
+  let w = legacyWeights ?? { dkp: 80, rss: 5, helps: 5, honor: 10 };
+  // Old weight sets sometimes used 0–1 decimal scale; rescale to 0–100 if so.
+  const wVals = Object.values(w).filter((v): v is number => typeof v === 'number');
+  if (wVals.length > 0 && Math.max(...wVals) <= 1) {
+    w = Object.fromEntries(
+      Object.entries(w).map(([k, v]) => [k, typeof v === 'number' ? Math.round(v * 100) : v]),
+    );
   }
-  return w;
+  const dkpW = w.dkp ?? 0;
+  return {
+    t4Kill: Math.round(f.t4Kill * dkpW),
+    t5Kill: Math.round(f.t5Kill * dkpW),
+    t4Death: Math.round(f.t4Death * dkpW),
+    t5Death: Math.round(f.t5Death * dkpW),
+    rss: Math.round(w.rss ?? 0),
+    helps: Math.round(w.helps ?? 0),
+    honor: Math.round(w.honor ?? 0),
+  };
 }
 
-/** Migrate legacy cutoff thresholds (stored as 0–3 ratios) to the new 0–100 scale. */
-function migrateThresholds(
-  t: Partial<Config['statusThresholds']> | undefined,
-): Partial<Config['statusThresholds']> {
+/** Migrate a legacy 0–3 cutoff set into the 0–100 scale used now. */
+function migrateCutoffs(
+  t: Partial<CutoffSet> | undefined,
+): Partial<CutoffSet> {
   if (!t) return {};
   const vals = Object.values(t).filter((v): v is number => typeof v === 'number');
   if (vals.length === 0) return t;
-  // Old cutoffs lived in [0, 3]. If everything is below 3, assume legacy and rescale ×100/3 → 0–100.
   if (Math.max(...vals) <= 3) {
-    const out: Partial<Config['statusThresholds']> = {};
+    const out: Partial<CutoffSet> = {};
     for (const [k, v] of Object.entries(t)) {
       if (typeof v === 'number') (out as Record<string, number>)[k] = Math.round((v / 3) * 100);
     }
@@ -135,32 +152,48 @@ function migrateThresholds(
 }
 
 /** Merge a partial remote config onto a base, preserving nested defaults.
- *  Also migrates the legacy 2-band schema (weightsLow/High, weightSplitThreshold, kpTargetLow/High)
- *  into the new 3-band schema (weightsMt4/T4/T5, mt4T4Threshold, t4T5Threshold, kpTargetMt4/T4/T5).
+ *  Also migrates older schemas (legacy 2-band low/high, intermediate 3-band split-DKP-formula)
+ *  into the new flat 7-component-per-band schema.
  */
 function mergeConfig(base: Config, partial: Partial<Config> | null | undefined): Config {
   if (!partial) return base;
-  // Some legacy fields aren't in the current Config type, so cast to a permissive shape.
+  // Permissive shape: include legacy fields no longer in Config so the migration can read them.
   const legacy = partial as Partial<Config> & {
-    weightsLow?: Partial<WeightSet>;
-    weightsHigh?: Partial<WeightSet>;
+    weightsLow?: { dkp?: number; rss?: number; helps?: number; honor?: number };
+    weightsHigh?: { dkp?: number; rss?: number; helps?: number; honor?: number };
+    weightsMt4?: { dkp?: number; rss?: number; helps?: number; honor?: number };
+    weightsT4?: { dkp?: number; rss?: number; helps?: number; honor?: number };
+    weightsT5?: { dkp?: number; rss?: number; helps?: number; honor?: number };
     weightSplitThreshold?: number;
+    dkpFormula?: { t4Kill?: number; t5Kill?: number; t4Death?: number; t5Death?: number };
     kpTargetLow?: number;
     kpTargetHigh?: number;
+    statusThresholds?: Partial<CutoffSet>;
   };
 
-  // Bands: prefer new fields, fall back to legacy.
-  const t4T5Threshold = partial.t4T5Threshold ?? legacy.weightSplitThreshold ?? base.t4T5Threshold;
   const mt4T4Threshold = partial.mt4T4Threshold ?? base.mt4T4Threshold;
+  const t4T5Threshold = partial.t4T5Threshold ?? legacy.weightSplitThreshold ?? base.t4T5Threshold;
 
-  // Weights: use new keys if present; otherwise migrate the legacy low/high pair.
-  const legacyLow = migrateWeights(legacy.weightsLow);
-  const legacyHigh = migrateWeights(legacy.weightsHigh);
-  const weightsMt4 = { ...base.weightsMt4, ...legacyLow, ...(migrateWeights(partial.weightsMt4)) };
-  const weightsT4 = { ...base.weightsT4, ...legacyLow, ...(migrateWeights(partial.weightsT4)) };
-  const weightsT5 = { ...base.weightsT5, ...legacyHigh, ...(migrateWeights(partial.weightsT5)) };
+  // Per-band flat formula: prefer the new key, otherwise reconstruct from legacy split parts.
+  const legacyMt4 = legacy.weightsMt4 ?? legacy.weightsLow;
+  const legacyT4 = legacy.weightsT4 ?? legacy.weightsLow;
+  const legacyT5 = legacy.weightsT5 ?? legacy.weightsHigh;
+  const formulaMt4 = partial.formulaMt4
+    ? { ...base.formulaMt4, ...partial.formulaMt4 }
+    : legacyToBandFormula(base.formulaMt4, legacy.dkpFormula, legacyMt4);
+  const formulaT4 = partial.formulaT4
+    ? { ...base.formulaT4, ...partial.formulaT4 }
+    : legacyToBandFormula(base.formulaT4, legacy.dkpFormula, legacyT4);
+  const formulaT5 = partial.formulaT5
+    ? { ...base.formulaT5, ...partial.formulaT5 }
+    : legacyToBandFormula(base.formulaT5, legacy.dkpFormula, legacyT5);
 
-  // KP target multipliers per band: prefer new keys, fall back to legacy low/high.
+  // Per-band cutoffs: new keys, falling back to the single legacy statusThresholds set.
+  const legacyCuts = migrateCutoffs(legacy.statusThresholds);
+  const cutoffsMt4 = { ...base.cutoffsMt4, ...legacyCuts, ...(partial.cutoffsMt4 ?? {}) };
+  const cutoffsT4 = { ...base.cutoffsT4, ...legacyCuts, ...(partial.cutoffsT4 ?? {}) };
+  const cutoffsT5 = { ...base.cutoffsT5, ...legacyCuts, ...(partial.cutoffsT5 ?? {}) };
+
   const kpTargetMt4 = partial.kpTargetMt4 ?? legacy.kpTargetLow ?? base.kpTargetMt4;
   const kpTargetT4 = partial.kpTargetT4 ?? legacy.kpTargetLow ?? base.kpTargetT4;
   const kpTargetT5 = partial.kpTargetT5 ?? legacy.kpTargetHigh ?? base.kpTargetT5;
@@ -170,15 +203,15 @@ function mergeConfig(base: Config, partial: Partial<Config> | null | undefined):
     ...partial,
     mt4T4Threshold,
     t4T5Threshold,
-    weightsMt4,
-    weightsT4,
-    weightsT5,
+    formulaMt4,
+    formulaT4,
+    formulaT5,
     kpTargetMt4,
     kpTargetT4,
     kpTargetT5,
-    dkpFormula: { ...base.dkpFormula, ...(partial.dkpFormula ?? {}) },
-    statusThresholds: { ...base.statusThresholds, ...migrateThresholds(partial.statusThresholds) },
-    meta: { ...base.meta, ...(partial.meta ?? {}) },
+    cutoffsMt4,
+    cutoffsT4,
+    cutoffsT5,
   };
 }
 
@@ -285,98 +318,83 @@ function computeModels(
 }
 
 function computeScores(players: Player[], config: Config): ScoredPlayer[] {
-  const { statusThresholds, dkpFormula } = config;
-
-  // 1. Compute DKP for every player and assign a band.
+  // 1. Assign each player a band and pull the raw stat value for each formula key.
   const enriched = players.map((p) => {
+    const band = bandOf(p.power, config.mt4T4Threshold, config.t4T5Threshold);
+    // Legacy "computed DKP" — kept for the table's DKP column and the model-player display.
+    // It uses the player's own band's formula coefficients for the four DKP-like components.
+    const f =
+      band === 'micro' ? config.formulaMt4 : band === 't4' ? config.formulaT4 : config.formulaT5;
     const computedDkp =
-      p.t4Kills * dkpFormula.t4Kill +
-      p.t5Kills * dkpFormula.t5Kill +
-      p.t4Deaths * dkpFormula.t4Death +
-      p.t5Deaths * dkpFormula.t5Death;
-    return {
-      ...p,
-      computedDkp,
-      band: bandOf(p.power, config.mt4T4Threshold, config.t4T5Threshold),
-    };
+      p.t4Kills * f.t4Kill +
+      p.t5Kills * f.t5Kill +
+      p.t4Deaths * f.t4Death +
+      p.t5Deaths * f.t5Death;
+    return { ...p, computedDkp, band };
   });
 
-  // 2. Kingdom-wide maxes (for the standard view).
-  const maxDkp = Math.max(0, ...enriched.map((p) => p.computedDkp));
-  const maxRss = Math.max(0, ...enriched.map((p) => p.rssGathered));
-  const maxHelps = Math.max(0, ...enriched.map((p) => p.allianceHelps));
-  const maxHonor = Math.max(0, ...enriched.map((p) => p.honorPoints));
-
-  // 3. Per-band maxes (for the model-player view).
-  const bandMax = (band: Band) => {
+  // 2. Per-band raw maxes for each formula component. Used to normalize each player to 0–100
+  //    against their own band, which is what makes the score fair across bands.
+  const rawValue = (p: Player, key: FormulaKey): number => {
+    switch (key) {
+      case 't4Kill': return p.t4Kills;
+      case 't5Kill': return p.t5Kills;
+      case 't4Death': return p.t4Deaths;
+      case 't5Death': return p.t5Deaths;
+      case 'rss': return p.rssGathered;
+      case 'helps': return p.allianceHelps;
+      case 'honor': return p.honorPoints;
+    }
+  };
+  const bandComponentMax = (band: Band): Record<FormulaKey, number> => {
     const inBand = enriched.filter((p) => p.band === band);
-    return {
-      dkp: Math.max(0, ...inBand.map((p) => p.computedDkp)),
-      rss: Math.max(0, ...inBand.map((p) => p.rssGathered)),
-      helps: Math.max(0, ...inBand.map((p) => p.allianceHelps)),
-      honor: Math.max(0, ...inBand.map((p) => p.honorPoints)),
-    };
+    const out = {} as Record<FormulaKey, number>;
+    for (const k of FORMULA_KEYS) {
+      out[k] = Math.max(0, ...inBand.map((p) => rawValue(p, k)));
+    }
+    return out;
   };
-  const maxes: Record<Band, ReturnType<typeof bandMax>> = {
-    micro: bandMax('micro'),
-    t4: bandMax('t4'),
-    t5: bandMax('t5'),
+  const bandMaxes: Record<Band, Record<FormulaKey, number>> = {
+    micro: bandComponentMax('micro'),
+    t4: bandComponentMax('t4'),
+    t5: bandComponentMax('t5'),
   };
 
-  const weighted = (
-    sDkp: number,
-    sRss: number,
-    sHelps: number,
-    sHonor: number,
-    w: WeightSet,
-  ) => {
+  // Kingdom-wide maxes — only used by the kingdom-wide Score column (kept as a secondary view).
+  const kMax: Record<FormulaKey, number> = {} as Record<FormulaKey, number>;
+  for (const k of FORMULA_KEYS) {
+    kMax[k] = Math.max(0, ...enriched.map((p) => rawValue(p, k)));
+  }
+
+  // 3. Score = weighted average of (raw / band-max × 100) across the 7 components.
+  const scoreFor = (
+    p: Player,
+    f: BandFormula,
+    maxes: Record<FormulaKey, number>,
+  ): number => {
     let num = 0;
     let den = 0;
-    const parts: [number, number][] = [
-      [sDkp, w.dkp],
-      [sRss, w.rss],
-      [sHelps, w.helps],
-      [sHonor, w.honor],
-    ];
-    for (const [s, ww] of parts) {
-      if (ww > 0) {
-        num += s * ww;
-        den += ww;
-      }
+    for (const k of FORMULA_KEYS) {
+      const w = f[k];
+      if (w <= 0) continue;
+      const sub = safeDiv(rawValue(p, k), maxes[k]) * 100;
+      num += sub * w;
+      den += w;
     }
     return den > 0 ? num / den : 0;
   };
 
-  // 4. First pass: compute kingdom-wide and per-band scores so we can build the model afterward.
   const firstPass = enriched.map((p) => {
-    // When split is on, each band gets its own weight set. When off, T5 weights apply to everyone.
-    const weights = config.split
-      ? p.band === 'micro'
-        ? config.weightsMt4
-        : p.band === 't4'
-          ? config.weightsT4
-          : config.weightsT5
-      : config.weightsT5;
-
-    // Kingdom-wide sub-scores.
-    const scoreDkp = safeDiv(p.computedDkp, maxDkp) * 100;
-    const scoreRss = safeDiv(p.rssGathered, maxRss) * 100;
-    const scoreHelps = safeDiv(p.allianceHelps, maxHelps) * 100;
-    const scoreHonor = safeDiv(p.honorPoints, maxHonor) * 100;
-    const finalScore = weighted(scoreDkp, scoreRss, scoreHelps, scoreHonor, weights);
-
-    // Per-band sub-scores (used to find each band's top tertile = the model cohort).
-    const m = maxes[p.band];
-    const bDkp = safeDiv(p.computedDkp, m.dkp) * 100;
-    const bRss = safeDiv(p.rssGathered, m.rss) * 100;
-    const bHelps = safeDiv(p.allianceHelps, m.helps) * 100;
-    const bHonor = safeDiv(p.honorPoints, m.honor) * 100;
-    const bandScore = weighted(bDkp, bRss, bHelps, bHonor, weights);
-
-    return { ...p, scoreDkp, scoreRss, scoreHelps, scoreHonor, finalScore, bandScore, weights };
+    const f =
+      p.band === 'micro' ? config.formulaMt4 : p.band === 't4' ? config.formulaT4 : config.formulaT5;
+    // Per-band normalized score — this is what drives the status tier.
+    const bandScore = scoreFor(p, f, bandMaxes[p.band]);
+    // Kingdom-wide normalized score — secondary "vs the whole kingdom" view.
+    const finalScore = scoreFor(p, f, kMax);
+    return { ...p, bandScore, finalScore };
   });
 
-  // 5. Build the per-band model player from the top tertile of each band.
+  // 4. Build the per-band model player from the top tertile of each band.
   const models = computeModels(firstPass);
 
   // Power-rank cutoff for REVIEW: anyone outside the top N by current power isn't actively
@@ -390,7 +408,7 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
       .map((p) => p.characterId),
   );
 
-  // 6. Final pass: attach KP target, model, and status.
+  // 5. Final pass: attach KP target and band-specific status.
   return firstPass.map((p) => {
     const kpMultiplier =
       p.band === 'micro'
@@ -401,12 +419,18 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     const targetKp = p.power * kpMultiplier;
     const kpRatio = safeDiv(p.totalKP, targetKp);
 
+    // Per-band cutoffs — judged against the player's own band score, not the kingdom score.
+    const cuts =
+      p.band === 'micro'
+        ? config.cutoffsMt4
+        : p.band === 't4'
+          ? config.cutoffsT4
+          : config.cutoffsT5;
+
     let status: Status;
-    if (p.finalScore >= statusThresholds.excellent) status = 'EXCELLENT';
-    else if (p.finalScore >= statusThresholds.approved) status = 'APPROVED';
-    else if (p.finalScore >= statusThresholds.good) status = 'GOOD';
-    // Only flag REVIEW for players inside the top-power pool. Anyone outside the cutoff
-    // (farms, inactives, fillers) silently falls back to GOOD instead.
+    if (p.bandScore >= cuts.excellent) status = 'EXCELLENT';
+    else if (p.bandScore >= cuts.approved) status = 'APPROVED';
+    else if (p.bandScore >= cuts.good) status = 'GOOD';
     else if (inReviewPool.has(p.characterId)) status = 'REJECTED';
     else status = 'GOOD';
 
@@ -417,10 +441,11 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
       kpMultiplier,
       kpRatio,
       totalDeaths: p.t4Deaths + p.t5Deaths,
-      scoreDkp: p.scoreDkp,
-      scoreRss: p.scoreRss,
-      scoreHelps: p.scoreHelps,
-      scoreHonor: p.scoreHonor,
+      // Sub-score fields no longer used by the table but kept on the type for compat.
+      scoreDkp: 0,
+      scoreRss: 0,
+      scoreHelps: 0,
+      scoreHonor: 0,
       finalScore: p.finalScore,
       bandScore: p.bandScore,
       band: p.band,
@@ -671,15 +696,19 @@ function DkpPageInner() {
     setDeployError(null);
   };
 
-  const setWeight = (
-    band: 'weightsMt4' | 'weightsT4' | 'weightsT5',
-    key: keyof WeightSet,
+  const setFormula = (
+    band: 'formulaMt4' | 'formulaT4' | 'formulaT5',
+    key: FormulaKey,
     value: number,
   ) => {
     setConfig((c) => ({ ...c, [band]: { ...c[band], [key]: value } }));
   };
-  const setThreshold = (key: keyof Config['statusThresholds'], value: number) => {
-    setConfig((c) => ({ ...c, statusThresholds: { ...c.statusThresholds, [key]: value } }));
+  const setCutoff = (
+    band: 'cutoffsMt4' | 'cutoffsT4' | 'cutoffsT5',
+    key: keyof CutoffSet,
+    value: number,
+  ) => {
+    setConfig((c) => ({ ...c, [band]: { ...c[band], [key]: value } }));
   };
 
   const toggleCol = (key: string) => {
@@ -841,19 +870,6 @@ function DkpPageInner() {
                     </>
                   )}
                 </div>
-                <label
-                  title={t('config.splitToggleHint')}
-                  className={`flex items-center gap-2 text-xs text-[var(--text-muted)] select-none ${isOfficer ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={config.split}
-                    disabled={!isOfficer}
-                    onChange={(e) => setConfig((c) => ({ ...c, split: e.target.checked }))}
-                    className="accent-[#4318ff]"
-                  />
-                  {t('config.splitToggleLabel')}
-                </label>
               </div>
 
               <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
@@ -903,38 +919,8 @@ function DkpPageInner() {
                 </div>
               </div>
 
-              {/* 2 columns: small cards stacked on the left, Weights alone on the right.
-                  Matches typical heights so there are no awkward gaps. */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                 <div className="space-y-4">
-                {/* DKP Formula card */}
-                <ConfigCard
-                  title={t('dkpFormulaCard.title')}
-                  hint="How the raw DKP number is built from each player's T4/T5 kills and deaths. Higher coefficients reward that activity more."
-                >
-                  <div className="grid grid-cols-2 gap-3">
-                    {(['t4Kill', 't5Kill', 't4Death', 't5Death'] as const).map((key) => (
-                      <FormulaCoef
-                        key={key}
-                        label={FORMULA_LABELS[key].label}
-                        hint={FORMULA_LABELS[key].hint}
-                        value={config.dkpFormula[key]}
-                        disabled={!isOfficer}
-                        onChange={(v) =>
-                          setConfig((c) => ({
-                            ...c,
-                            dkpFormula: { ...c.dkpFormula, [key]: v },
-                          }))
-                        }
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-3 text-[10px] text-[var(--text-muted)] tabular-nums leading-relaxed">
-                    DKP = T4K×{config.dkpFormula.t4Kill} + T5K×{config.dkpFormula.t5Kill} +
-                    T4D×{config.dkpFormula.t4Death} + T5D×{config.dkpFormula.t5Death}
-                  </div>
-                </ConfigCard>
-
                 {/* Expected KP card — KP target = power × multiplier (low/high tier) */}
                 <ConfigCard
                   title={t('expectedKpCard.title')}
@@ -1091,83 +1077,60 @@ function DkpPageInner() {
 
                 </div>
 
-                {/* Right column: Score Weights + Status Cutoffs stacked */}
+                {/* Right column: per-band Score Weights (one card per band) + Status Cutoffs */}
                 <div className="space-y-4">
                 <ConfigCard
-                  title={t('weightsCard.title')}
-                  hint="How much each sub-score contributes to the final number. Values are relative — the badge on each band shows what share each weight effectively gets."
+                  title="Score Weights"
+                  hint="One flat formula per band. Each weight applies to that raw stat after normalizing the player against their own band's max. Set T5 components to 0 for mT4 since smaller accounts can't earn them."
                 >
                   <div className="space-y-3">
-                    {config.split ? (
-                      <>
-                        <WeightBand
-                          title="mT4"
-                          subtitle={`Under ${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M power`}
-                          weights={config.weightsMt4}
-                          disabled={!isOfficer}
-                          onChange={(k, v) => setWeight('weightsMt4', k, v)}
-                        />
-                        <WeightBand
-                          title="T4"
-                          subtitle={`${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M – ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
-                          weights={config.weightsT4}
-                          disabled={!isOfficer}
-                          onChange={(k, v) => setWeight('weightsT4', k, v)}
-                        />
-                        <WeightBand
-                          title="T5"
-                          subtitle={`At or above ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
-                          weights={config.weightsT5}
-                          disabled={!isOfficer}
-                          onChange={(k, v) => setWeight('weightsT5', k, v)}
-                        />
-                      </>
-                    ) : (
-                      <WeightBand
-                        title={t('weightsCard.allTitle')}
-                        subtitle={t('weightsCard.allSubtitle')}
-                        weights={config.weightsT5}
-                        disabled={!isOfficer}
-                        onChange={(k, v) => setWeight('weightsT5', k, v)}
-                      />
-                    )}
+                    <BandFormulaEditor
+                      title="mT4"
+                      subtitle={`Under ${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M power`}
+                      formula={config.formulaMt4}
+                      disabled={!isOfficer}
+                      onChange={(k, v) => setFormula('formulaMt4', k, v)}
+                    />
+                    <BandFormulaEditor
+                      title="T4"
+                      subtitle={`${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M – ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
+                      formula={config.formulaT4}
+                      disabled={!isOfficer}
+                      onChange={(k, v) => setFormula('formulaT4', k, v)}
+                    />
+                    <BandFormulaEditor
+                      title="T5"
+                      subtitle={`At or above ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
+                      formula={config.formulaT5}
+                      disabled={!isOfficer}
+                      onChange={(k, v) => setFormula('formulaT5', k, v)}
+                    />
                   </div>
                 </ConfigCard>
 
                 <ConfigCard
-                  title={t('cutoffsCard.title')}
-                  hint="The minimum final score (0–100) needed to land in each tier. Anything below the GOOD cutoff falls into REVIEW (still listed, just flagged for officer attention)."
+                  title="Status Cutoffs"
+                  hint="Per-band cutoffs (0–100). Each player is judged against their own band score, so a top mT4 can hit EXCELLENT for being a top mT4."
                 >
-                  <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/50">
-                    <CutoffRow
-                      status="EXCELLENT"
-                      value={config.statusThresholds.excellent}
+                  <div className="space-y-3">
+                    <BandCutoffsEditor
+                      title="mT4"
+                      cutoffs={config.cutoffsMt4}
                       disabled={!isOfficer}
-                      onChange={(v) => setThreshold('excellent', v)}
+                      onChange={(k, v) => setCutoff('cutoffsMt4', k, v)}
                     />
-                    <CutoffRow
-                      status="APPROVED"
-                      value={config.statusThresholds.approved}
+                    <BandCutoffsEditor
+                      title="T4"
+                      cutoffs={config.cutoffsT4}
                       disabled={!isOfficer}
-                      onChange={(v) => setThreshold('approved', v)}
+                      onChange={(k, v) => setCutoff('cutoffsT4', k, v)}
                     />
-                    <CutoffRow
-                      status="GOOD"
-                      value={config.statusThresholds.good}
+                    <BandCutoffsEditor
+                      title="T5"
+                      cutoffs={config.cutoffsT5}
                       disabled={!isOfficer}
-                      onChange={(v) => setThreshold('good', v)}
+                      onChange={(k, v) => setCutoff('cutoffsT5', k, v)}
                     />
-                    {/* REVIEW: read-only fallback row, automatically anything below GOOD */}
-                    <div className="flex items-center gap-3 py-2">
-                      <span
-                        className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
-                      >
-                        {STATUS_LABELS.REJECTED}
-                      </span>
-                      <span className="text-xs text-[var(--text-muted)] flex-1">
-                        {t('cutoffsCard.anythingBelow', { n: Math.round(config.statusThresholds.good) })}
-                      </span>
-                    </div>
                   </div>
                 </ConfigCard>
                 </div>
@@ -2107,58 +2070,6 @@ function ConfigCard({
   );
 }
 
-/** Single coefficient input for the DKP formula (label above, number input below). */
-function FormulaCoef({
-  label,
-  hint,
-  value,
-  onChange,
-  disabled = false,
-}: {
-  label: string;
-  hint: string;
-  value: number;
-  onChange: (v: number) => void;
-  disabled?: boolean;
-}) {
-  const [text, setText] = useState(String(value));
-  useEffect(() => {
-    setText(String(value));
-  }, [value]);
-  return (
-    <div>
-      <Tooltip content={hint}>
-        <label className="text-xs uppercase tracking-wider text-[var(--text-muted)] block mb-1.5 cursor-help underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
-          {label}
-        </label>
-      </Tooltip>
-      <input
-        type="number"
-        inputMode="numeric"
-        min={0}
-        step={1}
-        value={text}
-        disabled={disabled}
-        readOnly={disabled}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          const n = parseFloat(text);
-          if (Number.isNaN(n) || n < 0) {
-            setText(String(value));
-            return;
-          }
-          onChange(n);
-          setText(String(n));
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        }}
-        className="w-full px-2.5 py-2 rounded bg-[var(--background)] border border-[var(--border)] text-base tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
-      />
-    </div>
-  );
-}
-
 /** Decimal coefficient input with tooltip — used for the expected baseline multipliers. */
 function BaselineInput({
   label,
@@ -2217,13 +2128,13 @@ function BaselineInput({
 
 /** Compact one-liner summary of the active config for the collapsed panel. */
 function ConfigSummaryLine({ config }: { config: Config }) {
-  // Show T5 weights as the headline (matches the unsplit "all players" mode).
-  const w = config.weightsT5;
-  const cuts = config.statusThresholds;
+  // Show the T5 band as the headline (whales drive the kingdom-wide picture).
+  const f = config.formulaT5;
+  const cuts = config.cutoffsT5;
   return (
     <span>
-      DKP {Math.round(w.dkp)} • RSS {Math.round(w.rss)} • Helps {Math.round(w.helps)} • Honor{' '}
-      {Math.round(w.honor)}
+      T5: T4K {f.t4Kill} • T5K {f.t5Kill} • T4D {f.t4Death} • T5D {f.t5Death} • RSS {f.rss} • H{' '}
+      {f.helps} • Hnr {f.honor}
       {' • '}
       KP ×{config.kpTargetMt4.toFixed(1)}/×{config.kpTargetT4.toFixed(1)}/×
       {config.kpTargetT5.toFixed(1)} @ {(config.mt4T4Threshold / 1_000_000).toFixed(0)}M /{' '}
@@ -2282,69 +2193,57 @@ function PowerInput({
   );
 }
 
-const WEIGHT_LABELS: Record<keyof WeightSet, { label: string; hint: string; color: string }> = {
-  dkp: {
-    label: 'DKP',
-    hint: 'Combined kills + deaths score using the formula coefficients on the left. Higher kills + deaths during KvK = higher DKP.',
-    color: 'bg-violet-500',
+const FORMULA_META: Record<FormulaKey, { label: string; hint: string; color: string }> = {
+  t4Kill: {
+    label: 'T4 Kills',
+    hint: 'Tier 4 kill points. Set to 0 if you don\'t want this band judged on T4 kills.',
+    color: 'bg-violet-400',
+  },
+  t5Kill: {
+    label: 'T5 Kills',
+    hint: 'Tier 5 kill points. Usually 0 for mT4 since smaller accounts can\'t earn these.',
+    color: 'bg-violet-600',
+  },
+  t4Death: {
+    label: 'T4 Deaths',
+    hint: 'Tier 4 deaths (sacrifice). Rewards taking hits, not just dealing them.',
+    color: 'bg-rose-400',
+  },
+  t5Death: {
+    label: 'T5 Deaths',
+    hint: 'Tier 5 deaths. Usually 0 for mT4 since smaller accounts can\'t field T5 troops.',
+    color: 'bg-rose-600',
   },
   rss: {
     label: 'RSS',
-    hint: 'Resources gathered from the kingdom map (food, wood, stone, gold). Rewards active gathering.',
+    hint: 'Resources gathered from the kingdom map. Rewards active gathering.',
     color: 'bg-amber-500',
   },
   helps: {
     label: 'Helps',
-    hint: 'Alliance helps given. Rewards being active in the alliance and supporting teammates.',
+    hint: 'Alliance helps given. Rewards being active in the alliance.',
     color: 'bg-sky-500',
   },
   honor: {
     label: 'Honor',
-    hint: 'Honor points earned (PvP, events). Imported from the Statmaster honor rankings file.',
+    hint: 'Honor points earned (PvP, events). From the Statmaster honor rankings file.',
     color: 'bg-emerald-500',
   },
 };
 
-const FORMULA_LABELS: Record<keyof DkpFormula, { label: string; hint: string }> = {
-  t4Kill: {
-    label: 'T4 Kill',
-    hint: 'Points awarded for each Tier 4 kill made during KvK.',
-  },
-  t5Kill: {
-    label: 'T5 Kill',
-    hint: 'Points awarded for each Tier 5 kill. T5 are the strongest troops, so usually weighted higher than T4 kills.',
-  },
-  t4Death: {
-    label: 'T4 Death',
-    hint: 'Points awarded for each Tier 4 death (sacrifice). Deaths typically count more than kills since they cost the player real troops.',
-  },
-  t5Death: {
-    label: 'T5 Death',
-    hint: 'Points awarded for each Tier 5 death. Usually the highest coefficient in the formula since T5 sacrifices are the most costly.',
-  },
-};
-
-const CUTOFF_HINTS: Record<Status, string> = {
-  EXCELLENT:
-    'Top tier — players whose final score is at or above this threshold are marked EXCELLENT.',
-  APPROVED: 'Players hitting at least this threshold are STRONG (clearly pulling weight, just below the top tier).',
-  GOOD: 'Players hitting at least this threshold are GOOD (acceptable). Below this they fall into REVIEW.',
-  REJECTED: 'Anything below the GOOD threshold lands here. Flagged for officer attention rather than auto-rejected.',
-};
-
-/** A clean horizontal weight row: dot + label + slider + number input. */
-function WeightRow({
-  weightKey,
+/** Single editable row for one component of a band's flat formula. */
+function FormulaRow({
+  formulaKey,
   value,
   onChange,
   disabled = false,
 }: {
-  weightKey: keyof WeightSet;
+  formulaKey: FormulaKey;
   value: number;
   onChange: (v: number) => void;
   disabled?: boolean;
 }) {
-  const meta = WEIGHT_LABELS[weightKey];
+  const meta = FORMULA_META[formulaKey];
   const [text, setText] = useState(String(Math.round(value)));
   useEffect(() => {
     setText(String(Math.round(value)));
@@ -2362,12 +2261,12 @@ function WeightRow({
   const isOff = value === 0;
   return (
     <div
-      className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-50' : ''}`}
+      className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-40' : ''}`}
     >
       <Tooltip content={meta.hint} className="w-24 sm:w-28 flex-shrink-0">
         <span className="flex items-center gap-2 cursor-help">
           <span className={`w-2.5 h-2.5 rounded-full ${meta.color}`} />
-          <span className="text-sm font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+          <span className="text-xs font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
             {meta.label}
           </span>
         </span>
@@ -2382,77 +2281,73 @@ function WeightRow({
         onChange={(e) => onChange(parseInt(e.target.value, 10))}
         className="flex-1 accent-[#4318ff] disabled:cursor-not-allowed h-2"
       />
-      <div className="relative flex-shrink-0">
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          max={100}
-          step={1}
-          value={text}
-          disabled={disabled}
-          readOnly={disabled}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-          }}
-          className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
-        />
-      </div>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={100}
+        step={1}
+        value={text}
+        disabled={disabled}
+        readOnly={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+      />
     </div>
   );
 }
 
-/** A card containing all 5 weight rows for one band. */
-function WeightBand({
+/** One full unified-formula card for a band: 7 sliders + effective-share breakdown. */
+function BandFormulaEditor({
   title,
   subtitle,
-  weights,
+  formula,
   onChange,
   disabled = false,
 }: {
   title: string;
   subtitle?: string;
-  weights: WeightSet;
-  onChange: (key: keyof WeightSet, value: number) => void;
+  formula: BandFormula;
+  onChange: (key: FormulaKey, value: number) => void;
   disabled?: boolean;
 }) {
-  const total = (['dkp', 'rss', 'helps', 'honor'] as const).reduce(
-    (s, k) => s + weights[k],
-    0,
-  );
+  const total = FORMULA_KEYS.reduce((s, k) => s + formula[k], 0);
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 py-3">
-      <div className="flex items-baseline justify-between mb-2">
-        <div>
-          <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
-          {subtitle && (
-            <div className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</div>
-          )}
-        </div>
+      <div className="mb-2">
+        <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
+        {subtitle && (
+          <div className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</div>
+        )}
       </div>
       {total > 0 && (
         <div
           className="mb-2 text-[11px] text-[var(--text-muted)] tabular-nums flex flex-wrap items-center gap-x-2 gap-y-0.5"
-          title="What share of the score this band actually gets in each category. Computed as weight ÷ sum-of-weights."
+          title="Effective share each component contributes to this band's score. weight ÷ sum-of-weights."
         >
           <span className="text-[10px] uppercase tracking-wider">Effective share:</span>
-          {(['dkp', 'rss', 'helps', 'honor'] as const).map((k) => (
-            <span key={k} className="inline-flex items-center gap-1">
-              <span className={`w-1.5 h-1.5 rounded-full ${WEIGHT_LABELS[k].color}`} />
-              <span className="text-[var(--text-secondary)]">{WEIGHT_LABELS[k].label}</span>
-              <span>{Math.round((weights[k] / total) * 100)}%</span>
-            </span>
-          ))}
+          {FORMULA_KEYS.map((k) => {
+            if (formula[k] <= 0) return null;
+            return (
+              <span key={k} className="inline-flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${FORMULA_META[k].color}`} />
+                <span className="text-[var(--text-secondary)]">{FORMULA_META[k].label}</span>
+                <span>{Math.round((formula[k] / total) * 100)}%</span>
+              </span>
+            );
+          })}
         </div>
       )}
       <div className="divide-y divide-[var(--border)]/50">
-        {(['dkp', 'rss', 'helps', 'honor'] as const).map((k) => (
-          <WeightRow
+        {FORMULA_KEYS.map((k) => (
+          <FormulaRow
             key={k}
-            weightKey={k}
-            value={weights[k]}
+            formulaKey={k}
+            value={formula[k]}
             disabled={disabled}
             onChange={(v) => onChange(k, v)}
           />
@@ -2462,19 +2357,31 @@ function WeightBand({
   );
 }
 
-/** Status cutoff row with colored badge, slider, and value input. */
-function CutoffRow({
-  status,
+const CUTOFF_HINTS: Record<keyof CutoffSet, string> = {
+  excellent: 'Top tier — players whose band score is at or above this are marked EXCELLENT.',
+  approved: 'Players hitting at least this band score are STRONG (clearly pulling weight).',
+  good: 'Players hitting at least this are GOOD. Below this they fall into REVIEW (if in the top-power pool).',
+};
+
+const CUTOFF_STATUS: Record<keyof CutoffSet, Status> = {
+  excellent: 'EXCELLENT',
+  approved: 'APPROVED',
+  good: 'GOOD',
+};
+
+/** Single editable cutoff row (badge + slider + number). */
+function CutoffRowSimple({
+  cutoffKey,
   value,
   onChange,
   disabled = false,
 }: {
-  status: Status;
+  cutoffKey: keyof CutoffSet;
   value: number;
   onChange: (v: number) => void;
   disabled?: boolean;
 }) {
-  // Cutoffs and the final score live on the same 0–100 scale, so no conversion needed.
+  const status = CUTOFF_STATUS[cutoffKey];
   const toStr = (v: number) => String(Math.round(v));
   const [text, setText] = useState(toStr(value));
   useEffect(() => {
@@ -2498,7 +2405,7 @@ function CutoffRow({
         : 'accent-sky-400';
   return (
     <div className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''}`}>
-      <Tooltip content={CUTOFF_HINTS[status]} className="flex-shrink-0">
+      <Tooltip content={CUTOFF_HINTS[cutoffKey]} className="flex-shrink-0">
         <span
           className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[status]}`}
         >
@@ -2516,23 +2423,70 @@ function CutoffRow({
         onChange={(e) => onChange(parseInt(e.target.value, 10))}
         className={`flex-1 ${accentClass} disabled:cursor-not-allowed h-2`}
       />
-      <div className="relative flex-shrink-0">
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          max={100}
-          step={1}
-          value={text}
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={100}
+        step={1}
+        value={text}
+        disabled={disabled}
+        readOnly={disabled}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+      />
+    </div>
+  );
+}
+
+/** All three cutoff rows for one band, in a labeled card. */
+function BandCutoffsEditor({
+  title,
+  cutoffs,
+  onChange,
+  disabled = false,
+}: {
+  title: string;
+  cutoffs: CutoffSet;
+  onChange: (key: keyof CutoffSet, value: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 py-3">
+      <div className="text-sm font-semibold text-[var(--foreground)] mb-2">{title}</div>
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/50">
+        <CutoffRowSimple
+          cutoffKey="excellent"
+          value={cutoffs.excellent}
           disabled={disabled}
-          readOnly={disabled}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-          }}
-          className="w-16 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+          onChange={(v) => onChange('excellent', v)}
         />
+        <CutoffRowSimple
+          cutoffKey="approved"
+          value={cutoffs.approved}
+          disabled={disabled}
+          onChange={(v) => onChange('approved', v)}
+        />
+        <CutoffRowSimple
+          cutoffKey="good"
+          value={cutoffs.good}
+          disabled={disabled}
+          onChange={(v) => onChange('good', v)}
+        />
+        <div className="flex items-center gap-3 py-1.5">
+          <span
+            className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
+          >
+            {STATUS_LABELS.REJECTED}
+          </span>
+          <span className="text-xs text-[var(--text-muted)] flex-1">
+            anything below {Math.round(cutoffs.good)}
+          </span>
+        </div>
       </div>
     </div>
   );
