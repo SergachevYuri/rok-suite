@@ -49,12 +49,15 @@ interface DkpFormula {
 }
 
 interface Config {
-  // When split is true, `weightsLow` is used for players with highestPower < weightSplitThreshold,
-  // otherwise `weightsHigh` is used. When split is false, `weightsHigh` is used for everyone.
+  // When split is true, each power band gets its own weight set. When false, weightsT5 is used
+  // for everyone (one unified weighting).
   split: boolean;
-  weightSplitThreshold: number;
-  weightsLow: WeightSet;
-  weightsHigh: WeightSet;
+  // Power band boundaries. mT4 = power < mt4T4Threshold, T4 = mt4T4Threshold..t4T5Threshold, T5 ≥ t4T5Threshold.
+  mt4T4Threshold: number;
+  t4T5Threshold: number;
+  weightsMt4: WeightSet;
+  weightsT4: WeightSet;
+  weightsT5: WeightSet;
   dkpFormula: DkpFormula;
   meta: {
     dkpDivisor: number;
@@ -62,11 +65,10 @@ interface Config {
     helpsMultiplier: number;
     honorMultiplier: number;
   };
-  // KP target multipliers — actual KP is compared against power × this number.
-  // Smaller accounts get the low multiplier, larger accounts the high one. The split
-  // uses the same `weightSplitThreshold` as the score weights so officers only set it once.
-  kpTargetLow: number;
-  kpTargetHigh: number;
+  // KP target multipliers per band — actual KP is compared against power × this number.
+  kpTargetMt4: number;
+  kpTargetT4: number;
+  kpTargetT5: number;
   statusThresholds: { excellent: number; approved: number; good: number };
 }
 
@@ -77,9 +79,11 @@ const DEFAULT_DKP_FORMULA: DkpFormula = { t4Kill: 5, t5Kill: 10, t4Death: 8, t5D
 
 const DEFAULT_CONFIG: Config = {
   split: false,
-  weightSplitThreshold: 40_000_000,
-  weightsLow: { ...DEFAULT_WEIGHTS },
-  weightsHigh: { ...DEFAULT_WEIGHTS },
+  mt4T4Threshold: 30_000_000,
+  t4T5Threshold: 42_000_000,
+  weightsMt4: { ...DEFAULT_WEIGHTS },
+  weightsT4: { ...DEFAULT_WEIGHTS },
+  weightsT5: { ...DEFAULT_WEIGHTS },
   dkpFormula: { ...DEFAULT_DKP_FORMULA },
   meta: {
     dkpDivisor: 4,
@@ -87,8 +91,9 @@ const DEFAULT_CONFIG: Config = {
     helpsMultiplier: 0.0003,
     honorMultiplier: 0.001,
   },
-  kpTargetLow: 3,
-  kpTargetHigh: 10,
+  kpTargetMt4: 2,
+  kpTargetT4: 3,
+  kpTargetT5: 10,
   // Scores are now 0–100 (each sub-score = value ÷ kingdom max × 100, then weighted-averaged).
   // Cutoffs are stored on the same 0–100 scale.
   statusThresholds: { excellent: 60, approved: 35, good: 15 },
@@ -129,14 +134,48 @@ function migrateThresholds(
   return t;
 }
 
-/** Merge a partial remote config onto a base, preserving nested defaults. */
+/** Merge a partial remote config onto a base, preserving nested defaults.
+ *  Also migrates the legacy 2-band schema (weightsLow/High, weightSplitThreshold, kpTargetLow/High)
+ *  into the new 3-band schema (weightsMt4/T4/T5, mt4T4Threshold, t4T5Threshold, kpTargetMt4/T4/T5).
+ */
 function mergeConfig(base: Config, partial: Partial<Config> | null | undefined): Config {
   if (!partial) return base;
+  // Some legacy fields aren't in the current Config type, so cast to a permissive shape.
+  const legacy = partial as Partial<Config> & {
+    weightsLow?: Partial<WeightSet>;
+    weightsHigh?: Partial<WeightSet>;
+    weightSplitThreshold?: number;
+    kpTargetLow?: number;
+    kpTargetHigh?: number;
+  };
+
+  // Bands: prefer new fields, fall back to legacy.
+  const t4T5Threshold = partial.t4T5Threshold ?? legacy.weightSplitThreshold ?? base.t4T5Threshold;
+  const mt4T4Threshold = partial.mt4T4Threshold ?? base.mt4T4Threshold;
+
+  // Weights: use new keys if present; otherwise migrate the legacy low/high pair.
+  const legacyLow = migrateWeights(legacy.weightsLow);
+  const legacyHigh = migrateWeights(legacy.weightsHigh);
+  const weightsMt4 = { ...base.weightsMt4, ...legacyLow, ...(migrateWeights(partial.weightsMt4)) };
+  const weightsT4 = { ...base.weightsT4, ...legacyLow, ...(migrateWeights(partial.weightsT4)) };
+  const weightsT5 = { ...base.weightsT5, ...legacyHigh, ...(migrateWeights(partial.weightsT5)) };
+
+  // KP target multipliers per band: prefer new keys, fall back to legacy low/high.
+  const kpTargetMt4 = partial.kpTargetMt4 ?? legacy.kpTargetLow ?? base.kpTargetMt4;
+  const kpTargetT4 = partial.kpTargetT4 ?? legacy.kpTargetLow ?? base.kpTargetT4;
+  const kpTargetT5 = partial.kpTargetT5 ?? legacy.kpTargetHigh ?? base.kpTargetT5;
+
   return {
     ...base,
     ...partial,
-    weightsLow: { ...base.weightsLow, ...migrateWeights(partial.weightsLow) },
-    weightsHigh: { ...base.weightsHigh, ...migrateWeights(partial.weightsHigh) },
+    mt4T4Threshold,
+    t4T5Threshold,
+    weightsMt4,
+    weightsT4,
+    weightsT5,
+    kpTargetMt4,
+    kpTargetT4,
+    kpTargetT5,
     dkpFormula: { ...base.dkpFormula, ...(partial.dkpFormula ?? {}) },
     statusThresholds: { ...base.statusThresholds, ...migrateThresholds(partial.statusThresholds) },
     meta: { ...base.meta, ...(partial.meta ?? {}) },
@@ -153,9 +192,8 @@ const STATUS_LABELS: Record<Status, string> = {
   REJECTED: 'REVIEW',
 };
 
-/** Power band a player belongs to. T5 ≥ weightSplitThreshold, T4 between, Micro below MICRO_THRESHOLD. */
+/** Power band a player belongs to. mT4 < mt4T4Threshold ≤ T4 < t4T5Threshold ≤ T5. */
 type Band = 'micro' | 't4' | 't5';
-const MICRO_THRESHOLD = 30_000_000;
 const BAND_LABELS: Record<Band, string> = { micro: 'mT4', t4: 'T4', t5: 'T5' };
 
 /** "Model player" stat profile for a band — the median of the band's top tertile by band-score. */
@@ -206,9 +244,9 @@ function safeDiv(a: number, b: number): number {
   return a / b;
 }
 
-function bandOf(power: number, t5Threshold: number): Band {
-  if (power >= t5Threshold) return 't5';
-  if (power >= MICRO_THRESHOLD) return 't4';
+function bandOf(power: number, mt4T4Threshold: number, t4T5Threshold: number): Band {
+  if (power >= t4T5Threshold) return 't5';
+  if (power >= mt4T4Threshold) return 't4';
   return 'micro';
 }
 
@@ -256,7 +294,11 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
       p.t5Kills * dkpFormula.t5Kill +
       p.t4Deaths * dkpFormula.t4Death +
       p.t5Deaths * dkpFormula.t5Death;
-    return { ...p, computedDkp, band: bandOf(p.power, config.weightSplitThreshold) };
+    return {
+      ...p,
+      computedDkp,
+      band: bandOf(p.power, config.mt4T4Threshold, config.t4T5Threshold),
+    };
   });
 
   // 2. Kingdom-wide maxes (for the standard view).
@@ -307,10 +349,14 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
 
   // 4. First pass: compute kingdom-wide and per-band scores so we can build the model afterward.
   const firstPass = enriched.map((p) => {
-    const weights =
-      config.split && p.highestPower < config.weightSplitThreshold
-        ? config.weightsLow
-        : config.weightsHigh;
+    // When split is on, each band gets its own weight set. When off, T5 weights apply to everyone.
+    const weights = config.split
+      ? p.band === 'micro'
+        ? config.weightsMt4
+        : p.band === 't4'
+          ? config.weightsT4
+          : config.weightsT5
+      : config.weightsT5;
 
     // Kingdom-wide sub-scores.
     const scoreDkp = safeDiv(p.computedDkp, maxDkp) * 100;
@@ -336,7 +382,11 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
   // 6. Final pass: attach KP target, model, and status.
   return firstPass.map((p) => {
     const kpMultiplier =
-      p.power < config.weightSplitThreshold ? config.kpTargetLow : config.kpTargetHigh;
+      p.band === 'micro'
+        ? config.kpTargetMt4
+        : p.band === 't4'
+          ? config.kpTargetT4
+          : config.kpTargetT5;
     const targetKp = p.power * kpMultiplier;
     const kpRatio = safeDiv(p.totalKP, targetKp);
 
@@ -607,7 +657,11 @@ function DkpPageInner() {
     setDeployError(null);
   };
 
-  const setWeight = (band: 'weightsLow' | 'weightsHigh', key: keyof WeightSet, value: number) => {
+  const setWeight = (
+    band: 'weightsMt4' | 'weightsT4' | 'weightsT5',
+    key: keyof WeightSet,
+    value: number,
+  ) => {
     setConfig((c) => ({ ...c, [band]: { ...c[band], [key]: value } }));
   };
   const setThreshold = (key: keyof Config['statusThresholds'], value: number) => {
@@ -788,19 +842,31 @@ function DkpPageInner() {
                 </label>
               </div>
 
-              {config.split && (
-                <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <span className="font-medium">{t('config.powerThresholdLabel')}</span>
+              <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
+                <span className="font-medium">Band thresholds:</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-sky-400">mT4 / T4</span>
                   <PowerInput
-                    value={config.weightSplitThreshold}
+                    value={config.mt4T4Threshold}
                     disabled={!isOfficer}
                     onChange={(v) =>
-                      setConfig((c) => ({ ...c, weightSplitThreshold: Math.max(0, v) }))
+                      setConfig((c) => ({ ...c, mt4T4Threshold: Math.max(0, v) }))
                     }
                   />
-                  <span className="text-[var(--text-muted)]">{t('config.powerThresholdHelp')}</span>
-                </div>
-              )}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="text-fuchsia-400">T4 / T5</span>
+                  <PowerInput
+                    value={config.t4T5Threshold}
+                    disabled={!isOfficer}
+                    onChange={(v) =>
+                      setConfig((c) => ({ ...c, t4T5Threshold: Math.max(0, v) }))
+                    }
+                  />
+                </span>
+                <span className="text-[var(--text-muted)]">applied to all band-aware calculations</span>
+              </div>
+
 
               {/* Quick how-it-works explainer */}
               <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-[var(--background)]/40 border border-[var(--border)] text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -860,44 +926,53 @@ function DkpPageInner() {
                   title={t('expectedKpCard.title')}
                   hint="The KP each player is expected to produce based on their power. Smaller accounts use the low multiplier, larger accounts the high one. KP performance (actual KP ÷ target KP) feeds into the Score Weights as the 'KP' weight."
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                     <BaselineInput
-                      label="Smaller × power"
-                      hint={`For accounts under ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power, target KP = power × this. Default 3 means a 30M player should hit 90M KP.`}
-                      value={config.kpTargetLow}
+                      label="mT4 × power"
+                      hint={`For mT4 accounts (under ${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M power), target KP = power × this.`}
+                      value={config.kpTargetMt4}
                       step={0.5}
                       decimals={1}
                       disabled={!isOfficer}
-                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetLow: v }))}
+                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetMt4: v }))}
                     />
                     <BaselineInput
-                      label="Larger × power"
-                      hint={`For accounts at or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power, target KP = power × this. Default 10 means a 60M player should hit 600M KP.`}
-                      value={config.kpTargetHigh}
+                      label="T4 × power"
+                      hint={`For T4 accounts (${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M – ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power), target KP = power × this.`}
+                      value={config.kpTargetT4}
                       step={0.5}
                       decimals={1}
                       disabled={!isOfficer}
-                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetHigh: v }))}
+                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetT4: v }))}
+                    />
+                    <BaselineInput
+                      label="T5 × power"
+                      hint={`For T5 accounts (≥ ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power), target KP = power × this.`}
+                      value={config.kpTargetT5}
+                      step={0.5}
+                      decimals={1}
+                      disabled={!isOfficer}
+                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetT5: v }))}
                     />
                   </div>
-                  <p className="text-[11px] text-[var(--text-muted)] mb-3 leading-relaxed">
-                    Threshold:{' '}
-                    <span className="text-[var(--text-secondary)] font-medium">
-                      {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power
-                    </span>{' '}
-                    (shared with the Score Weights split toggle).
-                  </p>
                   {(() => {
-                    // Two examples that adapt to the threshold:
-                    // one clearly below (half the threshold) and one clearly above (double).
+                    // Three example rows: middle of each band's range.
+                    // mT4 mid = mt4T4Threshold/2, T4 mid = avg(mt4T4, t4T5), T5 mid = t4T5 * 1.5.
                     const round5M = (n: number) =>
                       Math.max(5_000_000, Math.round(n / 5_000_000) * 5_000_000);
-                    const smallPower = round5M(config.weightSplitThreshold / 2);
-                    const largePower = round5M(config.weightSplitThreshold * 2);
-                    const rows = [
-                      { power: smallPower, isLow: true, mult: config.kpTargetLow },
-                      { power: largePower, isLow: false, mult: config.kpTargetHigh },
+                    const mt4Power = round5M(config.mt4T4Threshold / 2);
+                    const t4Power = round5M((config.mt4T4Threshold + config.t4T5Threshold) / 2);
+                    const t5Power = round5M(config.t4T5Threshold * 1.5);
+                    const rows: { power: number; band: Band; mult: number }[] = [
+                      { power: mt4Power, band: 'micro', mult: config.kpTargetMt4 },
+                      { power: t4Power, band: 't4', mult: config.kpTargetT4 },
+                      { power: t5Power, band: 't5', mult: config.kpTargetT5 },
                     ];
+                    const colorByBand: Record<Band, string> = {
+                      micro: 'text-sky-400',
+                      t4: 'text-emerald-400',
+                      t5: 'text-fuchsia-400',
+                    };
                     return (
                       <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 overflow-hidden">
                         <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)]/50">
@@ -913,16 +988,14 @@ function DkpPageInner() {
                           </thead>
                           <tbody className="text-[var(--text-secondary)]">
                             {rows.map((r) => (
-                              <tr key={r.power} className="border-t border-[var(--border)]/50">
+                              <tr key={r.band} className="border-t border-[var(--border)]/50">
                                 <td className="text-left px-3 py-2 font-medium text-[var(--foreground)]">
                                   {(r.power / 1_000_000).toFixed(0)}M{' '}
-                                  <span className="text-[10px] text-[var(--text-muted)] font-normal">
-                                    ({r.isLow ? 'smaller' : 'larger'})
+                                  <span className={`text-[10px] font-normal ${colorByBand[r.band]}`}>
+                                    ({BAND_LABELS[r.band]})
                                   </span>
                                 </td>
-                                <td
-                                  className={`text-right px-3 py-2 ${r.isLow ? 'text-sky-400' : 'text-fuchsia-400'}`}
-                                >
+                                <td className={`text-right px-3 py-2 ${colorByBand[r.band]}`}>
                                   ×{r.mult.toFixed(1)}
                                 </td>
                                 <td className="text-right px-3 py-2 font-medium text-[var(--foreground)]">
@@ -1011,30 +1084,39 @@ function DkpPageInner() {
                   hint="How much each sub-score contributes to the final number. Values are relative — the badge on each band shows what share each weight effectively gets."
                 >
                   <div className="space-y-3">
-                    {config.split && (
+                    {config.split ? (
+                      <>
+                        <WeightBand
+                          title="mT4"
+                          subtitle={`Under ${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M power`}
+                          weights={config.weightsMt4}
+                          disabled={!isOfficer}
+                          onChange={(k, v) => setWeight('weightsMt4', k, v)}
+                        />
+                        <WeightBand
+                          title="T4"
+                          subtitle={`${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M – ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
+                          weights={config.weightsT4}
+                          disabled={!isOfficer}
+                          onChange={(k, v) => setWeight('weightsT4', k, v)}
+                        />
+                        <WeightBand
+                          title="T5"
+                          subtitle={`At or above ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
+                          weights={config.weightsT5}
+                          disabled={!isOfficer}
+                          onChange={(k, v) => setWeight('weightsT5', k, v)}
+                        />
+                      </>
+                    ) : (
                       <WeightBand
-                        title={t('weightsCard.smallerTitle')}
-                        subtitle={t('weightsCard.smallerSubtitle', {
-                          threshold: (config.weightSplitThreshold / 1_000_000).toFixed(0),
-                        })}
-                        weights={config.weightsLow}
+                        title={t('weightsCard.allTitle')}
+                        subtitle={t('weightsCard.allSubtitle')}
+                        weights={config.weightsT5}
                         disabled={!isOfficer}
-                        onChange={(k, v) => setWeight('weightsLow', k, v)}
+                        onChange={(k, v) => setWeight('weightsT5', k, v)}
                       />
                     )}
-                    <WeightBand
-                      title={config.split ? t('weightsCard.largerTitle') : t('weightsCard.allTitle')}
-                      subtitle={
-                        config.split
-                          ? t('weightsCard.largerSubtitle', {
-                              threshold: (config.weightSplitThreshold / 1_000_000).toFixed(0),
-                            })
-                          : t('weightsCard.allSubtitle')
-                      }
-                      weights={config.weightsHigh}
-                      disabled={!isOfficer}
-                      onChange={(k, v) => setWeight('weightsHigh', k, v)}
-                    />
                   </div>
                 </ConfigCard>
 
@@ -1556,9 +1638,7 @@ function renderCell(
           {modelView && (
             <span
               className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${BAND_BADGE[p.band]}`}
-              title={`${BAND_LABELS[p.band]} band (${
-                p.band === 'micro' ? '<30M' : p.band === 't4' ? '30M–threshold' : '≥threshold'
-              })`}
+              title={`${BAND_LABELS[p.band]} band`}
             >
               {BAND_LABELS[p.band]}
             </span>
@@ -2123,15 +2203,17 @@ function BaselineInput({
 
 /** Compact one-liner summary of the active config for the collapsed panel. */
 function ConfigSummaryLine({ config }: { config: Config }) {
-  const w = config.weightsHigh;
+  // Show T5 weights as the headline (matches the unsplit "all players" mode).
+  const w = config.weightsT5;
   const cuts = config.statusThresholds;
   return (
     <span>
       DKP {Math.round(w.dkp)} • RSS {Math.round(w.rss)} • Helps {Math.round(w.helps)} • Honor{' '}
       {Math.round(w.honor)}
       {' • '}
-      KP target ×{config.kpTargetLow.toFixed(1)}/×{config.kpTargetHigh.toFixed(1)} @{' '}
-      {(config.weightSplitThreshold / 1_000_000).toFixed(0)}M
+      KP ×{config.kpTargetMt4.toFixed(1)}/×{config.kpTargetT4.toFixed(1)}/×
+      {config.kpTargetT5.toFixed(1)} @ {(config.mt4T4Threshold / 1_000_000).toFixed(0)}M /{' '}
+      {(config.t4T5Threshold / 1_000_000).toFixed(0)}M
       {' • '}
       <span className="text-amber-400/80">≥{Math.round(cuts.excellent)}</span>{' '}
       <span className="text-emerald-400/80">≥{Math.round(cuts.approved)}</span>{' '}
