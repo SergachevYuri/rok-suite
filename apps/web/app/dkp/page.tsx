@@ -100,6 +100,20 @@ const DEFAULT_CONFIG: Config = {
   cutoffsT5: { ...DEFAULT_CUTOFFS },
 };
 
+/** Rescale a formula so its largest nonzero component is ~100. The scoring math is invariant
+ *  to a uniform scaling of weights (numerator and denominator both scale), so this is purely
+ *  cosmetic — it keeps the slider values in a friendly 0–100 range. */
+function normalizeFormula(f: BandFormula): BandFormula {
+  const max = Math.max(0, ...FORMULA_KEYS.map((k) => f[k]));
+  if (max <= 0 || max === 100) return { ...f };
+  const scale = 100 / max;
+  const out = {} as BandFormula;
+  for (const k of FORMULA_KEYS) {
+    out[k] = Math.round(f[k] * scale);
+  }
+  return out;
+}
+
 /** Build a flat BandFormula by combining a legacy DKP formula with a legacy 4-component weight set.
  *  The legacy model was: dkpRaw = t4K*c1 + t5K*c2 + t4D*c3 + t5D*c4, then score = dkpRaw*wDkp + rss*wRss + ...
  *  In the new flat model each weight applies after band-normalization, so we just multiply each
@@ -178,15 +192,23 @@ function mergeConfig(base: Config, partial: Partial<Config> | null | undefined):
   const legacyMt4 = legacy.weightsMt4 ?? legacy.weightsLow;
   const legacyT4 = legacy.weightsT4 ?? legacy.weightsLow;
   const legacyT5 = legacy.weightsT5 ?? legacy.weightsHigh;
-  const formulaMt4 = partial.formulaMt4
-    ? { ...base.formulaMt4, ...partial.formulaMt4 }
-    : legacyToBandFormula(base.formulaMt4, legacy.dkpFormula, legacyMt4);
-  const formulaT4 = partial.formulaT4
-    ? { ...base.formulaT4, ...partial.formulaT4 }
-    : legacyToBandFormula(base.formulaT4, legacy.dkpFormula, legacyT4);
-  const formulaT5 = partial.formulaT5
-    ? { ...base.formulaT5, ...partial.formulaT5 }
-    : legacyToBandFormula(base.formulaT5, legacy.dkpFormula, legacyT5);
+  // Always normalize on load so formulas migrated from legacy configs (which combined a 4-coef
+  // DKP formula with a 0–100 weight, producing values like 1920) get rescaled into 0–100.
+  const formulaMt4 = normalizeFormula(
+    partial.formulaMt4
+      ? { ...base.formulaMt4, ...partial.formulaMt4 }
+      : legacyToBandFormula(base.formulaMt4, legacy.dkpFormula, legacyMt4),
+  );
+  const formulaT4 = normalizeFormula(
+    partial.formulaT4
+      ? { ...base.formulaT4, ...partial.formulaT4 }
+      : legacyToBandFormula(base.formulaT4, legacy.dkpFormula, legacyT4),
+  );
+  const formulaT5 = normalizeFormula(
+    partial.formulaT5
+      ? { ...base.formulaT5, ...partial.formulaT5 }
+      : legacyToBandFormula(base.formulaT5, legacy.dkpFormula, legacyT5),
+  );
 
   // Per-band cutoffs: new keys, falling back to the single legacy statusThresholds set.
   const legacyCuts = migrateCutoffs(legacy.statusThresholds);
@@ -692,8 +714,18 @@ function DkpPageInner() {
     setDeploying(true);
     setDeployError(null);
     try {
-      await saveSharedConfig(config);
-      setPublishedConfig(config);
+      // Normalize each band's formula so its largest weight is ~100 before publishing.
+      // The math is invariant to a uniform scale, so this doesn't change anyone's score —
+      // it just keeps the slider values in a friendly 0–100 range for everyone on next load.
+      const tidied: Config = {
+        ...config,
+        formulaMt4: normalizeFormula(config.formulaMt4),
+        formulaT4: normalizeFormula(config.formulaT4),
+        formulaT5: normalizeFormula(config.formulaT5),
+      };
+      await saveSharedConfig(tidied);
+      setConfig(tidied);
+      setPublishedConfig(tidied);
     } catch (e) {
       setDeployError(e instanceof Error ? e.message : 'Failed to deploy');
     } finally {
