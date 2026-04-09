@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Flag, Wheat, Mountain, Coins, TrendingUp, Gem, Medal, CalendarClock, ChevronsUp, Timer, Warehouse } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { AppSidebar } from '@/components/AppSidebar';
 
 function LogIcon({ className }: { className?: string }) {
@@ -201,12 +202,12 @@ function parseUTCDatetimeLocal(s: string): Date {
 const RSS_KEYS: (keyof FlagCost)[] = ['food', 'wood', 'stone', 'gold', 'crystals', 'credits'];
 
 const RSS_CONFIG = [
-  { key: 'credits' as const, label: 'Credits', icon: Medal, color: 'text-yellow-500', hasProduction: false },
-  { key: 'food' as const, label: 'Food', icon: Wheat, color: 'text-lime-400', hasProduction: true },
-  { key: 'wood' as const, label: 'Wood', icon: LogIcon, color: 'text-amber-600', hasProduction: true },
-  { key: 'stone' as const, label: 'Stone', icon: Mountain, color: 'text-stone-400', hasProduction: true },
-  { key: 'gold' as const, label: 'Gold', icon: Coins, color: 'text-yellow-400', hasProduction: true },
-  { key: 'crystals' as const, label: 'Crystals', icon: Gem, color: 'text-blue-400', hasProduction: true },
+  { key: 'credits' as const, labelKey: 'resources.credits', icon: Medal, color: 'text-yellow-500', hasProduction: false },
+  { key: 'food' as const, labelKey: 'resources.food', icon: Wheat, color: 'text-lime-400', hasProduction: true },
+  { key: 'wood' as const, labelKey: 'resources.wood', icon: LogIcon, color: 'text-amber-600', hasProduction: true },
+  { key: 'stone' as const, labelKey: 'resources.stone', icon: Mountain, color: 'text-stone-400', hasProduction: true },
+  { key: 'gold' as const, labelKey: 'resources.gold', icon: Coins, color: 'text-yellow-400', hasProduction: true },
+  { key: 'crystals' as const, labelKey: 'resources.crystals', icon: Gem, color: 'text-blue-400', hasProduction: true },
 ];
 
 // No caps by default (set very high)
@@ -217,6 +218,7 @@ type StorehouseMode = 'by-time' | 'target-resources';
 type ActiveTab = 'flags' | 'storehouse';
 
 export default function FlagCalculatorPage() {
+  const t = useTranslations('allianceCalculator');
   const [activeTab, setActiveTab] = useState<ActiveTab>('flags');
   const [mode, setMode] = useState<CalcMode>('by-time');
   const [currentFlagsInput, setCurrentFlagsInput] = useState('');
@@ -462,7 +464,7 @@ export default function FlagCalculatorPage() {
           <div key={rss.key} className="flex items-center justify-between text-sm">
             <span className={`flex items-center gap-1.5 ${rss.color}`}>
               <Icon className="w-3.5 h-3.5" />
-              {rss.label}
+              {t(rss.labelKey as 'resources.credits')}
             </span>
             <span className="text-[var(--text-secondary)] font-mono text-xs">{formatNumFull(cost)}</span>
           </div>
@@ -478,7 +480,7 @@ export default function FlagCalculatorPage() {
           {/* Header */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold flex items-center gap-2 text-[var(--foreground)]">
-              Alliance Calculator
+              {t('title')}
             </h1>
           </div>
 
@@ -491,7 +493,7 @@ export default function FlagCalculatorPage() {
               }`}
             >
               <Flag className="w-4 h-4" />
-              Flags
+              {t('tabs.flags')}
             </button>
             <button
               onClick={() => setActiveTab('storehouse')}
@@ -500,7 +502,7 @@ export default function FlagCalculatorPage() {
               }`}
             >
               <Warehouse className="w-4 h-4" />
-              Storehouse
+              {t('tabs.storehouse')}
             </button>
           </div>
 
@@ -509,31 +511,31 @@ export default function FlagCalculatorPage() {
             {/* Current flags + tech (flags tab only) */}
             {activeTab === 'flags' && (
               <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
-                <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">Current Flags</h2>
+                <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">{t('currentFlags')}</h2>
                 <input
                   type="number" min={0} value={currentFlagsInput}
                   onChange={e => setCurrentFlagsInput(e.target.value.replace(/^0+/, ''))}
                   placeholder="0"
                   className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-lg font-mono text-[var(--foreground)] mb-4"
                 />
-                <h2 className="text-sm font-medium text-[var(--text-muted)] mb-2">Alliance Tech</h2>
+                <h2 className="text-sm font-medium text-[var(--text-muted)] mb-2">{t('allianceTech')}</h2>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-[var(--text-secondary)]">Arch I <span className="text-[var(--text-muted)]">(cost)</span></span>
+                    <span className="text-xs text-[var(--text-secondary)]">{t('arch1')} <span className="text-[var(--text-muted)]">{t('cost')}</span></span>
                     <select value={arch1Level} onChange={e => setArch1Level(Number(e.target.value))} className="bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]">
-                      {ARCH1_DISCOUNT.map((d, i) => (<option key={i} value={i}>Lv {i}{i > 0 ? ` (−${d * 100}%)` : ''}</option>))}
+                      {ARCH1_DISCOUNT.map((d, i) => (<option key={i} value={i}>{t('level')} {i}{i > 0 ? ` (−${d * 100}%)` : ''}</option>))}
                     </select>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-[var(--text-secondary)]">Arch II <span className="text-[var(--text-muted)]">(cost)</span></span>
+                    <span className="text-xs text-[var(--text-secondary)]">{t('arch2')} <span className="text-[var(--text-muted)]">{t('cost')}</span></span>
                     <select value={arch2Level} onChange={e => setArch2Level(Number(e.target.value))} className="bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]">
-                      {ARCH2_DISCOUNT.map((d, i) => (<option key={i} value={i}>Lv {i}{i > 0 ? ` (−${d * 100}%)` : ''}</option>))}
+                      {ARCH2_DISCOUNT.map((d, i) => (<option key={i} value={i}>{t('level')} {i}{i > 0 ? ` (−${d * 100}%)` : ''}</option>))}
                     </select>
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-[var(--text-secondary)]">Artisan&apos;s Spirit <span className="text-[var(--text-muted)]">(speed)</span></span>
+                    <span className="text-xs text-[var(--text-secondary)]">{t('artisan')} <span className="text-[var(--text-muted)]">{t('speed')}</span></span>
                     <select value={artisanLevel} onChange={e => setArtisanLevel(Number(e.target.value))} className="bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]">
-                      {ARTISAN_SPEED.map((s, i) => (<option key={i} value={i}>Lv {i}{i > 0 ? ` (+${(s * 100).toFixed(1).replace(/\.0$/, '')}%)` : ''}</option>))}
+                      {ARTISAN_SPEED.map((s, i) => (<option key={i} value={i}>{t('level')} {i}{i > 0 ? ` (+${(s * 100).toFixed(1).replace(/\.0$/, '')}%)` : ''}</option>))}
                     </select>
                   </div>
                 </div>
@@ -543,7 +545,7 @@ export default function FlagCalculatorPage() {
             {/* Alliance resources (current / cap) */}
             <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-medium text-[var(--text-muted)]">Alliance Resources (M)</h2>
+                <h2 className="text-sm font-medium text-[var(--text-muted)]">{t('allianceResourcesM')}</h2>
                 <button
                   onClick={() => setResourceInputs(prev => {
                     const next = { ...prev };
@@ -552,7 +554,7 @@ export default function FlagCalculatorPage() {
                   })}
                   className="flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
                 >
-                  <ChevronsUp className="w-3 h-3" /> Fill Max
+                  <ChevronsUp className="w-3 h-3" /> {t('fillMax')}
                 </button>
               </div>
               <div className="space-y-2">
@@ -563,7 +565,7 @@ export default function FlagCalculatorPage() {
                       <Icon className={`w-4 h-4 flex-shrink-0 ${rss.color}`} />
                       <input type="number" step="0.1" value={resourceInputs[rss.key]} onChange={e => setResourceInputs(prev => ({ ...prev, [rss.key]: e.target.value }))} className="w-full bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--foreground)]" placeholder="0" />
                       <span className="text-[var(--text-muted)] text-xs">/</span>
-                      <input type="number" step="0.1" value={capInputs[rss.key]} onChange={e => setCapInputs(prev => ({ ...prev, [rss.key]: e.target.value }))} className="w-16 bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--text-muted)]" placeholder="cap" />
+                      <input type="number" step="0.1" value={capInputs[rss.key]} onChange={e => setCapInputs(prev => ({ ...prev, [rss.key]: e.target.value }))} className="w-16 bg-[var(--background-secondary)] border border-[var(--border)] rounded px-2 py-1 text-sm font-mono text-[var(--text-muted)]" placeholder={t('capPlaceholder')} />
                     </div>
                   );
                 })}
@@ -572,7 +574,7 @@ export default function FlagCalculatorPage() {
 
             {/* Production rates */}
             <div className="bg-[var(--background-card)] rounded-xl p-5 border border-[var(--border)]">
-              <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">Production /h</h2>
+              <h2 className="text-sm font-medium text-[var(--text-muted)] mb-3">{t('productionHour')}</h2>
               <div className="space-y-2">
                 {RSS_CONFIG.map(rss => {
                   const Icon = rss.icon;
@@ -591,7 +593,7 @@ export default function FlagCalculatorPage() {
           {activeTab === 'flags' && (
             <>
               <p className="text-[var(--text-muted)] text-sm mb-4">
-                {Math.round(techDiscount * 100)}% cost discount &middot; {Math.round(buildMinutesPerFlag)} min/flag
+                {t('techDiscountLine', { pct: Math.round(techDiscount * 100), min: Math.round(buildMinutesPerFlag) })}
               </p>
 
               {/* Flag mode toggle */}
@@ -603,7 +605,7 @@ export default function FlagCalculatorPage() {
                   }`}
                 >
                   <CalendarClock className="w-4 h-4" />
-                  How many by deadline?
+                  {t('flagModeByTime')}
                 </button>
                 <button
                   onClick={() => setMode('target-flags')}
@@ -612,7 +614,7 @@ export default function FlagCalculatorPage() {
                   }`}
                 >
                   <Flag className="w-4 h-4" />
-                  How long for N flags?
+                  {t('flagModeTarget')}
                 </button>
               </div>
 
@@ -622,7 +624,7 @@ export default function FlagCalculatorPage() {
                   <div className="bg-[var(--background-card)] rounded-xl p-5 border border-blue-500/30 mb-6">
                     <div className="flex flex-wrap items-center gap-4">
                       <h2 className="text-sm font-medium text-blue-400 flex items-center gap-1.5">
-                        <CalendarClock className="w-4 h-4" /> Deadline (UTC)
+                        <CalendarClock className="w-4 h-4" /> {t('deadlineUtc')}
                       </h2>
                       <input
                         type="datetime-local" value={targetDateStr} onChange={e => setTargetDateStr(e.target.value)}
@@ -636,7 +638,7 @@ export default function FlagCalculatorPage() {
                           </button>
                         ))}
                       </div>
-                      {hoursUntilTarget > 0 && <span className="text-xs text-[var(--text-muted)]">{formatHours(hoursUntilTarget)} from now</span>}
+                      {hoursUntilTarget > 0 && <span className="text-xs text-[var(--text-muted)]">{t('hoursFromNow', { h: formatHours(hoursUntilTarget) })}</span>}
                     </div>
                   </div>
 
@@ -644,37 +646,37 @@ export default function FlagCalculatorPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                     {/* Right now */}
                     <div className="bg-[var(--background-card)] rounded-xl p-6 border border-[var(--border)]">
-                      <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">With Current Resources</h3>
+                      <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">{t('withCurrentResources')}</h3>
                       <div className="flex items-baseline gap-3 mb-1">
                         <span className="text-4xl font-bold text-red-400">{instantResult.count}</span>
-                        <span className="text-sm text-[var(--text-muted)]">flags affordable now</span>
+                        <span className="text-sm text-[var(--text-muted)]">{t('flagsAffordableNow')}</span>
                       </div>
                       {instantResult.count > 0 && (
                         <p className="text-xs text-[var(--text-muted)] mb-3 flex items-center gap-1.5">
                           <Timer className="w-3 h-3" />
-                          Build time: <span className="font-mono text-[var(--foreground)]">{formatMinutes(instantResult.count * buildMinutesPerFlag)}</span>
+                          {t('buildTime')} <span className="font-mono text-[var(--foreground)]">{formatMinutes(instantResult.count * buildMinutesPerFlag)}</span>
                         </p>
                       )}
                       {instantResult.count === 0 && bottleneck && (
-                        <p className="text-xs text-red-400/70 mb-3">Bottleneck: {RSS_CONFIG.find(r => r.key === bottleneck)?.label}</p>
+                        <p className="text-xs text-red-400/70 mb-3">{t('bottleneck', { name: t((RSS_CONFIG.find(r => r.key === bottleneck)?.labelKey || 'resources.credits') as 'resources.credits') })}</p>
                       )}
                       <ResourceCostList costs={instantResult.count > 0 ? totalCost : nextFlagCost} />
                     </div>
 
                     {/* By target time */}
                     <div className="bg-[var(--background-card)] rounded-xl p-6 border border-blue-500/30">
-                      <h3 className="text-xs font-medium text-blue-400 uppercase tracking-wider mb-4">With Production by Deadline</h3>
+                      <h3 className="text-xs font-medium text-blue-400 uppercase tracking-wider mb-4">{t('withProductionByDeadline')}</h3>
                       <div className="flex items-baseline gap-3 mb-1">
                         <span className="text-4xl font-bold text-blue-400">{forwardResult.count}</span>
-                        <span className="text-sm text-[var(--text-muted)]">flags total</span>
+                        <span className="text-sm text-[var(--text-muted)]">{t('flagsTotal')}</span>
                         {forwardResult.count > instantResult.count && (
-                          <span className="text-xs text-green-400">+{forwardResult.count - instantResult.count} from production</span>
+                          <span className="text-xs text-green-400">{t('fromProduction', { n: forwardResult.count - instantResult.count })}</span>
                         )}
                       </div>
                       <p className="text-xs text-[var(--text-muted)] mb-3 flex items-center gap-1.5">
                         <Timer className="w-3 h-3" />
-                        Build time: <span className="font-mono text-[var(--foreground)]">{formatMinutes(forwardResult.count * buildMinutesPerFlag)}</span>
-                        <span className="text-[var(--text-muted)]">&middot; Time limit: <span className="font-mono text-blue-400">{maxFlagsByTime} flags</span></span>
+                        {t('buildTime')} <span className="font-mono text-[var(--foreground)]">{formatMinutes(forwardResult.count * buildMinutesPerFlag)}</span>
+                        <span className="text-[var(--text-muted)]">&middot; {t('timeLimit', { n: maxFlagsByTime })}</span>
                       </p>
                       {forwardResult.count > 0 && <ResourceCostList costs={forwardTotalCost} />}
                     </div>
@@ -688,13 +690,13 @@ export default function FlagCalculatorPage() {
                   <div className="bg-[var(--background-card)] rounded-xl p-5 border border-emerald-500/30 mb-6">
                     <div className="flex flex-wrap items-center gap-4">
                       <h2 className="text-sm font-medium text-emerald-400 flex items-center gap-1.5">
-                        <Flag className="w-4 h-4" /> I want to build
+                        <Flag className="w-4 h-4" /> {t('iWantToBuild')}
                       </h2>
                       <input
                         type="number" min={1} value={targetFlagsInput} onChange={e => setTargetFlagsInput(e.target.value)}
                         className="w-20 bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg px-3 py-2 text-lg font-mono text-center text-[var(--foreground)]"
                       />
-                      <span className="text-sm text-[var(--text-muted)]">flags (#{currentFlags + 1} &rarr; #{currentFlags + targetFlagCount})</span>
+                      <span className="text-sm text-[var(--text-muted)]">{t('flagsRange', { from: currentFlags + 1, to: currentFlags + targetFlagCount })}</span>
                     </div>
                   </div>
 
@@ -703,26 +705,26 @@ export default function FlagCalculatorPage() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                       {/* Time estimate */}
                       <div className="bg-[var(--background-card)] rounded-xl p-6 border border-emerald-500/30">
-                        <h3 className="text-xs font-medium text-emerald-400 uppercase tracking-wider mb-4">Time Estimate</h3>
+                        <h3 className="text-xs font-medium text-emerald-400 uppercase tracking-wider mb-4">{t('timeEstimate')}</h3>
                         <div className="space-y-3">
                           <div>
-                            <p className="text-xs text-[var(--text-muted)] mb-1 flex items-center gap-1.5"><Timer className="w-3 h-3" /> Build time (construction queue)</p>
+                            <p className="text-xs text-[var(--text-muted)] mb-1 flex items-center gap-1.5"><Timer className="w-3 h-3" /> {t('buildTimeFull')}</p>
                             <p className="text-2xl font-bold text-[var(--foreground)]">{formatMinutes(targetFlagsBuildMinutes)}</p>
                           </div>
                           {Object.keys(targetFlagsResourceDeficit).length > 0 ? (
                             <div>
-                              <p className="text-xs text-[var(--text-muted)] mb-1">+ Wait for resources (production)</p>
+                              <p className="text-xs text-[var(--text-muted)] mb-1">{t('waitForResources')}</p>
                               <p className="text-2xl font-bold text-amber-400">
-                                {targetFlagsHoursForResources === Infinity ? 'Never (no production)' : formatHours(targetFlagsHoursForResources)}
+                                {targetFlagsHoursForResources === Infinity ? t('neverNoProduction') : formatHours(targetFlagsHoursForResources)}
                               </p>
                             </div>
                           ) : (
                             <div>
-                              <p className="text-xs text-green-400">Resources available now!</p>
+                              <p className="text-xs text-green-400">{t('resourcesAvailableNow')}</p>
                             </div>
                           )}
                           <div className="pt-3 border-t border-[var(--border)]">
-                            <p className="text-xs text-[var(--text-muted)] mb-1">Total estimated time</p>
+                            <p className="text-xs text-[var(--text-muted)] mb-1">{t('totalEstimatedTime')}</p>
                             <p className="text-3xl font-bold text-emerald-400">
                               {targetFlagsTotalHours === Infinity ? '—' : formatHours(targetFlagsTotalHours)}
                             </p>
@@ -732,11 +734,11 @@ export default function FlagCalculatorPage() {
 
                       {/* Cost breakdown */}
                       <div className="bg-[var(--background-card)] rounded-xl p-6 border border-[var(--border)]">
-                        <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">Total Cost for {targetFlagCount} Flags</h3>
+                        <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">{t('totalCostForNFlags', { n: targetFlagCount })}</h3>
                         <ResourceCostList costs={targetFlagsCost} />
                         {Object.keys(targetFlagsResourceDeficit).length > 0 && (
                           <div className="mt-4 pt-3 border-t border-[var(--border)]">
-                            <h4 className="text-xs font-medium text-red-400 mb-2">Deficit (need to produce)</h4>
+                            <h4 className="text-xs font-medium text-red-400 mb-2">{t('deficitLabel')}</h4>
                             <div className="space-y-1">
                               {RSS_CONFIG.map(rss => {
                                 const Icon = rss.icon;
@@ -744,7 +746,7 @@ export default function FlagCalculatorPage() {
                                 if (!deficit) return null;
                                 return (
                                   <div key={rss.key} className="flex items-center justify-between text-sm">
-                                    <span className={`flex items-center gap-1.5 ${rss.color}`}><Icon className="w-3.5 h-3.5" />{rss.label}</span>
+                                    <span className={`flex items-center gap-1.5 ${rss.color}`}><Icon className="w-3.5 h-3.5" />{t(rss.labelKey as 'resources.credits')}</span>
                                     <span className="text-red-400 font-mono text-xs">−{formatNumFull(Math.ceil(deficit))}</span>
                                   </div>
                                 );
@@ -762,19 +764,19 @@ export default function FlagCalculatorPage() {
               <div className="bg-[var(--background-card)] rounded-xl border border-[var(--border)] overflow-hidden">
                 <div className="px-5 py-3 border-b border-[var(--border)] flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-[var(--text-muted)]" />
-                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">Upcoming flag costs</h3>
+                  <h3 className="text-sm font-medium text-[var(--text-secondary)]">{t('upcomingFlagCosts')}</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-[var(--text-muted)] text-xs border-b border-[var(--border)]">
-                        <th className="px-3 py-2 text-left">Flag #</th>
+                        <th className="px-3 py-2 text-left">{t('flagHash')}</th>
                         {RSS_CONFIG.map(rss => {
                           const Icon = rss.icon;
                           return (<th key={rss.key} className="px-3 py-2 text-right"><Icon className={`w-3.5 h-3.5 inline ${rss.color}`} /></th>);
                         })}
                         <th className="px-3 py-2 text-right"><Timer className="w-3.5 h-3.5 inline text-[var(--text-muted)]" /></th>
-                        <th className="px-3 py-2 text-right">Status</th>
+                        <th className="px-3 py-2 text-right">{t('status')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -793,9 +795,9 @@ export default function FlagCalculatorPage() {
                             ))}
                             <td className="px-3 py-1.5 text-right font-mono text-xs text-[var(--text-muted)]">{formatMinutes(cumulativeBuildMins)}</td>
                             <td className="px-3 py-1.5 text-right">
-                              {inInstant ? <span className="text-green-400 text-xs">Now</span>
-                              : inForward ? <span className="text-blue-400 text-xs">By deadline</span>
-                              : inTarget ? <span className="text-emerald-400 text-xs">Target</span>
+                              {inInstant ? <span className="text-green-400 text-xs">{t('statusNow')}</span>
+                              : inForward ? <span className="text-blue-400 text-xs">{t('statusByDeadline')}</span>
+                              : inTarget ? <span className="text-emerald-400 text-xs">{t('statusTarget')}</span>
                               : <span className="text-[var(--text-muted)] text-xs">-</span>}
                             </td>
                           </tr>
@@ -807,7 +809,7 @@ export default function FlagCalculatorPage() {
               </div>
 
               <p className="text-xs text-[var(--text-muted)] mt-6 text-center">
-                Base flag costs from rok.guide / Abused Panda #0936
+                {t('baseFlagAttribution')}
               </p>
             </>
           )}
@@ -821,13 +823,13 @@ export default function FlagCalculatorPage() {
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     storehouseMode === 'by-time' ? 'bg-amber-500/20 text-amber-400 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
                   }`}>
-                  How much by date?
+                  {t('howMuchByDate')}
                 </button>
                 <button onClick={() => setStorehouseMode('target-resources')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     storehouseMode === 'target-resources' ? 'bg-emerald-500/20 text-emerald-400 shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
                   }`}>
-                  How long for target?
+                  {t('howLongForTarget')}
                 </button>
               </div>
 
@@ -837,7 +839,7 @@ export default function FlagCalculatorPage() {
                   <div className="bg-[var(--background-card)] rounded-xl p-5 border border-amber-500/30 mb-6">
                     <div className="flex flex-wrap items-center gap-4">
                       <h2 className="text-sm font-medium text-amber-400 flex items-center gap-1.5">
-                        <CalendarClock className="w-4 h-4" /> Target Date (UTC)
+                        <CalendarClock className="w-4 h-4" /> {t('targetDateUtc')}
                       </h2>
                       <input
                         type="datetime-local" value={storehouseDateStr} onChange={e => setStorehouseDateStr(e.target.value)}
@@ -851,7 +853,7 @@ export default function FlagCalculatorPage() {
                           </button>
                         ))}
                       </div>
-                      {storehouseHoursUntil > 0 && <span className="text-xs text-[var(--text-muted)]">{formatHours(storehouseHoursUntil)} from now</span>}
+                      {storehouseHoursUntil > 0 && <span className="text-xs text-[var(--text-muted)]">{t('hoursFromNow', { h: formatHours(storehouseHoursUntil) })}</span>}
                     </div>
                   </div>
 
@@ -859,7 +861,7 @@ export default function FlagCalculatorPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                     {/* Projected totals */}
                     <div className="bg-[var(--background-card)] rounded-xl p-6 border border-amber-500/30">
-                      <h3 className="text-xs font-medium text-amber-400 uppercase tracking-wider mb-4">Projected Resources</h3>
+                      <h3 className="text-xs font-medium text-amber-400 uppercase tracking-wider mb-4">{t('projectedResources')}</h3>
                       <div className="space-y-3">
                         {RSS_CONFIG.map(rss => {
                           const Icon = rss.icon;
@@ -873,16 +875,16 @@ export default function FlagCalculatorPage() {
                               <div className="flex items-center justify-between">
                                 <span className={`flex items-center gap-1.5 text-sm ${rss.color}`}>
                                   <Icon className="w-4 h-4" />
-                                  {rss.label}
+                                  {t(rss.labelKey as 'resources.credits')}
                                 </span>
                                 <div className="text-right">
                                   <span className="font-mono text-sm text-[var(--foreground)]">{formatNum(projected)}</span>
-                                  {atCap && <span className="text-amber-400 text-xs ml-1.5">(capped)</span>}
+                                  {atCap && <span className="text-amber-400 text-xs ml-1.5">{t('cappedTag')}</span>}
                                 </div>
                               </div>
                               <div className="flex items-center justify-between mt-0.5">
                                 <span className="text-xs text-[var(--text-muted)] ml-5.5 pl-0.5">
-                                  {formatNum(current)} now
+                                  {formatNum(current)} {t('nowSuffix')}
                                 </span>
                                 {gained > 0 && (
                                   <span className="text-xs text-green-400 font-mono">+{formatNum(Math.round(gained))}</span>
@@ -896,7 +898,7 @@ export default function FlagCalculatorPage() {
 
                     {/* Time to cap */}
                     <div className="bg-[var(--background-card)] rounded-xl p-6 border border-[var(--border)]">
-                      <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">Time to Cap</h3>
+                      <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">{t('timeToCap')}</h3>
                       <div className="space-y-3">
                         {RSS_CONFIG.filter(rss => rss.hasProduction).map(rss => {
                           const Icon = rss.icon;
@@ -907,15 +909,15 @@ export default function FlagCalculatorPage() {
                             <div key={rss.key} className="flex items-center justify-between">
                               <span className={`flex items-center gap-1.5 text-sm ${rss.color}`}>
                                 <Icon className="w-4 h-4" />
-                                {rss.label}
+                                {t(rss.labelKey as 'resources.credits')}
                               </span>
                               <span className="font-mono text-sm text-[var(--text-secondary)]">
                                 {!hasCap || hours == null ? (
-                                  <span className="text-[var(--text-muted)] text-xs">no cap set</span>
+                                  <span className="text-[var(--text-muted)] text-xs">{t('noCapSet')}</span>
                                 ) : hours === 0 ? (
-                                  <span className="text-green-400 text-xs">already full</span>
+                                  <span className="text-green-400 text-xs">{t('alreadyFull')}</span>
                                 ) : hours === Infinity ? (
-                                  <span className="text-red-400 text-xs">no production</span>
+                                  <span className="text-red-400 text-xs">{t('noProduction')}</span>
                                 ) : (
                                   formatHours(hours)
                                 )}
@@ -928,13 +930,13 @@ export default function FlagCalculatorPage() {
                       {/* Total value summary */}
                       <div className="mt-6 pt-4 border-t border-[var(--border)]">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs text-[var(--text-muted)]">Total projected value</span>
+                          <span className="text-xs text-[var(--text-muted)]">{t('totalProjectedValue')}</span>
                           <span className="font-mono text-lg font-bold text-amber-400">
                             {formatNum(RSS_KEYS.reduce((sum, k) => sum + storehouseProjection.projected[k], 0))}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-[var(--text-muted)]">Total current value</span>
+                          <span className="text-xs text-[var(--text-muted)]">{t('totalCurrentValue')}</span>
                           <span className="font-mono text-sm text-[var(--text-secondary)]">
                             {formatNum(RSS_KEYS.reduce((sum, k) => sum + availableResources[k], 0))}
                           </span>
@@ -950,7 +952,7 @@ export default function FlagCalculatorPage() {
                   {/* Target resource inputs */}
                   <div className="bg-[var(--background-card)] rounded-xl p-5 border border-emerald-500/30 mb-6">
                     <h2 className="text-sm font-medium text-emerald-400 flex items-center gap-1.5 mb-4">
-                      <TrendingUp className="w-4 h-4" /> Target Resources (M)
+                      <TrendingUp className="w-4 h-4" /> {t('targetResourcesM')}
                     </h2>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                       {RSS_CONFIG.map(rss => {
@@ -958,7 +960,7 @@ export default function FlagCalculatorPage() {
                         return (
                           <div key={rss.key}>
                             <label className={`flex items-center gap-1 text-xs mb-1 ${rss.color}`}>
-                              <Icon className="w-3 h-3" /> {rss.label}
+                              <Icon className="w-3 h-3" /> {t(rss.labelKey as 'resources.credits')}
                             </label>
                             <input
                               type="text" inputMode="decimal"
@@ -977,25 +979,25 @@ export default function FlagCalculatorPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                     {/* Time estimate */}
                     <div className="bg-[var(--background-card)] rounded-xl p-6 border border-emerald-500/30">
-                      <h3 className="text-xs font-medium text-emerald-400 uppercase tracking-wider mb-4">Time Estimate</h3>
+                      <h3 className="text-xs font-medium text-emerald-400 uppercase tracking-wider mb-4">{t('timeEstimate')}</h3>
                       {targetResourcesResult.perResource.length === 0 ? (
-                        <p className="text-sm text-[var(--text-muted)]">Enter target amounts above</p>
+                        <p className="text-sm text-[var(--text-muted)]">{t('enterTargetAmounts')}</p>
                       ) : (
                         <>
                           <div className="text-center mb-4">
                             <span className="text-4xl font-bold text-emerald-400">
-                              {targetResourcesResult.bottleneckHours === 0 ? 'Ready' :
+                              {targetResourcesResult.bottleneckHours === 0 ? t('ready') :
                                targetResourcesResult.bottleneckHours === Infinity ? '∞' :
                                formatHours(targetResourcesResult.bottleneckHours)}
                             </span>
                             {targetResourcesResult.bottleneckKey && targetResourcesResult.bottleneckHours > 0 && targetResourcesResult.bottleneckHours < Infinity && (
                               <p className="text-xs text-[var(--text-muted)] mt-1">
-                                Bottleneck: <span className="text-[var(--text-secondary)]">{RSS_CONFIG.find(r => r.key === targetResourcesResult.bottleneckKey)?.label}</span>
+                                {t('bottleneckInline')} <span className="text-[var(--text-secondary)]">{t((RSS_CONFIG.find(r => r.key === targetResourcesResult.bottleneckKey)?.labelKey || 'resources.credits') as 'resources.credits')}</span>
                               </p>
                             )}
                             {targetResourcesResult.targetDate && (
                               <p className="text-xs text-[var(--text-muted)] mt-1">
-                                Ready by: <span className="text-[var(--text-secondary)] font-mono">{targetResourcesResult.targetDate.toISOString().replace('T', ' ').slice(0, 16)} UTC</span>
+                                {t('readyBy')} <span className="text-[var(--text-secondary)] font-mono">{targetResourcesResult.targetDate.toISOString().replace('T', ' ').slice(0, 16)} UTC</span>
                               </p>
                             )}
                           </div>
@@ -1005,9 +1007,9 @@ export default function FlagCalculatorPage() {
 
                     {/* Per-resource breakdown */}
                     <div className="bg-[var(--background-card)] rounded-xl p-6 border border-[var(--border)]">
-                      <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">Per-Resource Breakdown</h3>
+                      <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-4">{t('perResourceBreakdown')}</h3>
                       {targetResourcesResult.perResource.length === 0 ? (
-                        <p className="text-sm text-[var(--text-muted)]">Enter target amounts above</p>
+                        <p className="text-sm text-[var(--text-muted)]">{t('enterTargetAmounts')}</p>
                       ) : (
                         <div className="space-y-3">
                           {targetResourcesResult.perResource.map(({ key, current, target, deficit, hours }) => {
@@ -1019,14 +1021,14 @@ export default function FlagCalculatorPage() {
                                 <div className="flex items-center justify-between">
                                   <span className={`flex items-center gap-1.5 text-sm ${rss.color}`}>
                                     <Icon className="w-4 h-4" />
-                                    {rss.label}
-                                    {isBottleneck && <span className="text-[10px] text-amber-400 ml-1">(bottleneck)</span>}
+                                    {t(rss.labelKey as 'resources.credits')}
+                                    {isBottleneck && <span className="text-[10px] text-amber-400 ml-1">{t('bottleneckTag')}</span>}
                                   </span>
                                   <span className="font-mono text-sm text-[var(--text-secondary)]">
                                     {hours === 0 ? (
-                                      <span className="text-green-400 text-xs">already met</span>
+                                      <span className="text-green-400 text-xs">{t('alreadyMet')}</span>
                                     ) : hours === Infinity ? (
-                                      <span className="text-red-400 text-xs">no production</span>
+                                      <span className="text-red-400 text-xs">{t('noProduction')}</span>
                                     ) : (
                                       formatHours(hours)
                                     )}
