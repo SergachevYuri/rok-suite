@@ -379,6 +379,17 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
   // 5. Build the per-band model player from the top tertile of each band.
   const models = computeModels(firstPass);
 
+  // Power-rank cutoff for REVIEW: anyone outside the top N by current power isn't actively
+  // tracked (farms / inactives / fillers), so they should never be flagged for officer review.
+  // They still appear in the table — they just fall into GOOD instead of REVIEW.
+  const REVIEW_POWER_RANK_CUTOFF = 400;
+  const inReviewPool = new Set<number>(
+    [...firstPass]
+      .sort((a, b) => b.power - a.power)
+      .slice(0, REVIEW_POWER_RANK_CUTOFF)
+      .map((p) => p.characterId),
+  );
+
   // 6. Final pass: attach KP target, model, and status.
   return firstPass.map((p) => {
     const kpMultiplier =
@@ -394,7 +405,10 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     if (p.finalScore >= statusThresholds.excellent) status = 'EXCELLENT';
     else if (p.finalScore >= statusThresholds.approved) status = 'APPROVED';
     else if (p.finalScore >= statusThresholds.good) status = 'GOOD';
-    else status = 'REJECTED';
+    // Only flag REVIEW for players inside the top-power pool. Anyone outside the cutoff
+    // (farms, inactives, fillers) silently falls back to GOOD instead.
+    else if (inReviewPool.has(p.characterId)) status = 'REJECTED';
+    else status = 'GOOD';
 
     return {
       ...p,
@@ -2417,17 +2431,22 @@ function WeightBand({
             <div className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</div>
           )}
         </div>
-        <div
-          className="text-[11px] text-[var(--text-muted)] tabular-nums"
-          title="Effective share of each weight after dividing by the total"
-        >
-          {total > 0
-            ? (['dkp', 'rss', 'helps', 'honor'] as const)
-                .map((k) => `${Math.round((weights[k] / total) * 100)}%`)
-                .join(' / ')
-            : '—'}
-        </div>
       </div>
+      {total > 0 && (
+        <div
+          className="mb-2 text-[11px] text-[var(--text-muted)] tabular-nums flex flex-wrap items-center gap-x-2 gap-y-0.5"
+          title="What share of the score this band actually gets in each category. Computed as weight ÷ sum-of-weights."
+        >
+          <span className="text-[10px] uppercase tracking-wider">Effective share:</span>
+          {(['dkp', 'rss', 'helps', 'honor'] as const).map((k) => (
+            <span key={k} className="inline-flex items-center gap-1">
+              <span className={`w-1.5 h-1.5 rounded-full ${WEIGHT_LABELS[k].color}`} />
+              <span className="text-[var(--text-secondary)]">{WEIGHT_LABELS[k].label}</span>
+              <span>{Math.round((weights[k] / total) * 100)}%</span>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="divide-y divide-[var(--border)]/50">
         {(['dkp', 'rss', 'helps', 'honor'] as const).map((k) => (
           <WeightRow
