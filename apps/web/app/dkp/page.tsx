@@ -1013,19 +1013,23 @@ function DkpPageInner() {
                   <div className="space-y-3">
                     {config.split && (
                       <WeightBand
-                        title="Smaller accounts"
-                        subtitle={`Under ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`}
+                        title={t('weightsCard.smallerTitle')}
+                        subtitle={t('weightsCard.smallerSubtitle', {
+                          threshold: (config.weightSplitThreshold / 1_000_000).toFixed(0),
+                        })}
                         weights={config.weightsLow}
                         disabled={!isOfficer}
                         onChange={(k, v) => setWeight('weightsLow', k, v)}
                       />
                     )}
                     <WeightBand
-                      title={config.split ? 'Larger accounts' : 'All players'}
+                      title={config.split ? t('weightsCard.largerTitle') : t('weightsCard.allTitle')}
                       subtitle={
                         config.split
-                          ? `At or above ${(config.weightSplitThreshold / 1_000_000).toFixed(0)}M power`
-                          : 'Applied uniformly to every player'
+                          ? t('weightsCard.largerSubtitle', {
+                              threshold: (config.weightSplitThreshold / 1_000_000).toFixed(0),
+                            })
+                          : t('weightsCard.allSubtitle')
                       }
                       weights={config.weightsHigh}
                       disabled={!isOfficer}
