@@ -919,221 +919,105 @@ function DkpPageInner() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-                <div className="space-y-4">
-                {/* Expected KP card — KP target = power × multiplier (low/high tier) */}
-                <ConfigCard
-                  title={t('expectedKpCard.title')}
-                  hint="The KP each player is expected to produce based on their power. Smaller accounts use the low multiplier, larger accounts the high one. KP performance (actual KP ÷ target KP) feeds into the Score Weights as the 'KP' weight."
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-                    <BaselineInput
-                      label="mT4 × power"
-                      hint={`For mT4 accounts (under ${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M power), target KP = power × this.`}
-                      value={config.kpTargetMt4}
-                      step={0.5}
-                      decimals={1}
-                      disabled={!isOfficer}
-                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetMt4: v }))}
-                    />
-                    <BaselineInput
-                      label="T4 × power"
-                      hint={`For T4 accounts (${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M – ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power), target KP = power × this.`}
-                      value={config.kpTargetT4}
-                      step={0.5}
-                      decimals={1}
-                      disabled={!isOfficer}
-                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetT4: v }))}
-                    />
-                    <BaselineInput
-                      label="T5 × power"
-                      hint={`For T5 accounts (≥ ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power), target KP = power × this.`}
-                      value={config.kpTargetT5}
-                      step={0.5}
-                      decimals={1}
-                      disabled={!isOfficer}
-                      onChange={(v) => setConfig((c) => ({ ...c, kpTargetT5: v }))}
-                    />
-                  </div>
-                  {(() => {
-                    // Three example rows: middle of each band's range.
-                    // mT4 mid = mt4T4Threshold/2, T4 mid = avg(mt4T4, t4T5), T5 mid = t4T5 * 1.5.
-                    const round5M = (n: number) =>
-                      Math.max(5_000_000, Math.round(n / 5_000_000) * 5_000_000);
-                    const mt4Power = round5M(config.mt4T4Threshold / 2);
-                    const t4Power = round5M((config.mt4T4Threshold + config.t4T5Threshold) / 2);
-                    const t5Power = round5M(config.t4T5Threshold * 1.5);
-                    const rows: { power: number; band: Band; mult: number }[] = [
-                      { power: mt4Power, band: 'micro', mult: config.kpTargetMt4 },
-                      { power: t4Power, band: 't4', mult: config.kpTargetT4 },
-                      { power: t5Power, band: 't5', mult: config.kpTargetT5 },
-                    ];
-                    const colorByBand: Record<Band, string> = {
-                      micro: 'text-sky-400',
-                      t4: 'text-emerald-400',
-                      t5: 'text-fuchsia-400',
-                    };
-                    return (
-                      <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 overflow-hidden">
-                        <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)]/50">
-                          Examples
-                        </div>
-                        <table className="w-full text-sm tabular-nums">
-                          <thead className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-                            <tr>
-                              <th className="text-left px-3 py-2">Power</th>
-                              <th className="text-right px-3 py-2">Multiplier</th>
-                              <th className="text-right px-3 py-2">Target KP</th>
-                            </tr>
-                          </thead>
-                          <tbody className="text-[var(--text-secondary)]">
-                            {rows.map((r) => (
-                              <tr key={r.band} className="border-t border-[var(--border)]/50">
-                                <td className="text-left px-3 py-2 font-medium text-[var(--foreground)]">
-                                  {(r.power / 1_000_000).toFixed(0)}M{' '}
-                                  <span className={`text-[10px] font-normal ${colorByBand[r.band]}`}>
-                                    ({BAND_LABELS[r.band]})
-                                  </span>
-                                </td>
-                                <td className={`text-right px-3 py-2 ${colorByBand[r.band]}`}>
-                                  ×{r.mult.toFixed(1)}
-                                </td>
-                                <td className="text-right px-3 py-2 font-medium text-[var(--foreground)]">
-                                  {fmtCompact(r.power * r.mult)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+              {/* Reading the Table — wide reference at the top */}
+              <ConfigCard
+                title={t('readingTableCard.title')}
+                hint="Quick reference for what each column and color in the player table means."
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start text-sm text-[var(--text-secondary)] leading-relaxed">
+                  <div>
+                    <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                      KP cell color
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full bg-emerald-400 flex-shrink-0" />
+                        <span>
+                          <span className="text-emerald-400 font-medium">Green</span> — at or
+                          above target KP (≥100%)
+                        </span>
                       </div>
-                    );
-                  })()}
-                </ConfigCard>
-
-                {/* Reading-the-table reference (also balances column heights) */}
-                <ConfigCard
-                  title={t('readingTableCard.title')}
-                  hint="Quick reference for what each column and color in the player table means."
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start text-sm text-[var(--text-secondary)] leading-relaxed">
-                    <div>
-                      <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
-                        KP cell color
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
+                        <span>
+                          <span className="text-amber-400 font-medium">Amber</span> — close, but
+                          short (80–99%)
+                        </span>
                       </div>
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block w-3 h-3 rounded-full bg-emerald-400 flex-shrink-0" />
-                          <span>
-                            <span className="text-emerald-400 font-medium">Green</span> — at or
-                            above target KP (≥100%)
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
-                          <span>
-                            <span className="text-amber-400 font-medium">Amber</span> — close, but
-                            short (80–99%)
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block w-3 h-3 rounded-full bg-red-400 flex-shrink-0" />
-                          <span>
-                            <span className="text-red-400 font-medium">Red</span> — well below
-                            target (&lt;80%)
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full bg-red-400 flex-shrink-0" />
+                        <span>
+                          <span className="text-red-400 font-medium">Red</span> — well below
+                          target (&lt;80%)
+                        </span>
                       </div>
                     </div>
-                    <div>
-                      <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
-                        Columns
-                      </div>
-                      <ul className="space-y-1 text-xs">
-                        <li>
-                          <span className="text-[var(--foreground)] font-medium">KP</span> —
-                          actual total kill points
-                        </li>
-                        <li>
-                          <span className="text-[var(--foreground)] font-medium">Target KP</span>{' '}
-                          — power × multiplier (×3 small / ×10 large by default)
-                        </li>
-                        <li>
-                          <span className="text-[var(--foreground)] font-medium">DKP</span> —
-                          weighted kills + deaths from the formula
-                        </li>
-                        <li>
-                          <span className="text-[var(--foreground)] font-medium">Score</span> —
-                          0–100, weighted blend of how this player ranks vs the kingdom max in
-                          each category
-                        </li>
-                        <li>
-                          <span className="text-[var(--foreground)] font-medium">Status</span> —
-                          tier from the cutoffs above
-                        </li>
-                      </ul>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                      Columns
                     </div>
+                    <ul className="space-y-1 text-xs">
+                      <li>
+                        <span className="text-[var(--foreground)] font-medium">KP</span> — actual
+                        total kill points
+                      </li>
+                      <li>
+                        <span className="text-[var(--foreground)] font-medium">Target KP</span> —
+                        power × the band&apos;s multiplier
+                      </li>
+                      <li>
+                        <span className="text-[var(--foreground)] font-medium">Score</span> —
+                        0–100 score within the player&apos;s own band
+                      </li>
+                      <li>
+                        <span className="text-[var(--foreground)] font-medium">Status</span> —
+                        tier from that band&apos;s cutoffs
+                      </li>
+                    </ul>
                   </div>
-                </ConfigCard>
-
                 </div>
+              </ConfigCard>
 
-                {/* Right column: per-band Score Weights (one card per band) + Status Cutoffs */}
-                <div className="space-y-4">
-                <ConfigCard
-                  title="Score Weights"
-                  hint="One flat formula per band. Each weight applies to that raw stat after normalizing the player against their own band's max. Set T5 components to 0 for mT4 since smaller accounts can't earn them."
-                >
-                  <div className="space-y-3">
-                    <BandFormulaEditor
-                      title="mT4"
-                      subtitle={`Under ${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M power`}
-                      formula={config.formulaMt4}
-                      disabled={!isOfficer}
-                      onChange={(k, v) => setFormula('formulaMt4', k, v)}
-                    />
-                    <BandFormulaEditor
-                      title="T4"
-                      subtitle={`${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M – ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
-                      formula={config.formulaT4}
-                      disabled={!isOfficer}
-                      onChange={(k, v) => setFormula('formulaT4', k, v)}
-                    />
-                    <BandFormulaEditor
-                      title="T5"
-                      subtitle={`At or above ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
-                      formula={config.formulaT5}
-                      disabled={!isOfficer}
-                      onChange={(k, v) => setFormula('formulaT5', k, v)}
-                    />
-                  </div>
-                </ConfigCard>
-
-                <ConfigCard
-                  title="Status Cutoffs"
-                  hint="Per-band cutoffs (0–100). Each player is judged against their own band score, so a top mT4 can hit EXCELLENT for being a top mT4."
-                >
-                  <div className="space-y-3">
-                    <BandCutoffsEditor
-                      title="mT4"
-                      cutoffs={config.cutoffsMt4}
-                      disabled={!isOfficer}
-                      onChange={(k, v) => setCutoff('cutoffsMt4', k, v)}
-                    />
-                    <BandCutoffsEditor
-                      title="T4"
-                      cutoffs={config.cutoffsT4}
-                      disabled={!isOfficer}
-                      onChange={(k, v) => setCutoff('cutoffsT4', k, v)}
-                    />
-                    <BandCutoffsEditor
-                      title="T5"
-                      cutoffs={config.cutoffsT5}
-                      disabled={!isOfficer}
-                      onChange={(k, v) => setCutoff('cutoffsT5', k, v)}
-                    />
-                  </div>
-                </ConfigCard>
-                </div>
+              {/* Three columns, one per band. Each column has everything that band owns:
+                  KP target, score formula, status cutoffs. */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start mt-4">
+                <BandColumn
+                  band="micro"
+                  formula={config.formulaMt4}
+                  cutoffs={config.cutoffsMt4}
+                  kpTarget={config.kpTargetMt4}
+                  powerRangeLabel={`Under ${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M power`}
+                  examplePower={Math.max(5_000_000, Math.round(config.mt4T4Threshold / 2 / 5_000_000) * 5_000_000)}
+                  disabled={!isOfficer}
+                  onFormulaChange={(k, v) => setFormula('formulaMt4', k, v)}
+                  onCutoffChange={(k, v) => setCutoff('cutoffsMt4', k, v)}
+                  onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetMt4: v }))}
+                />
+                <BandColumn
+                  band="t4"
+                  formula={config.formulaT4}
+                  cutoffs={config.cutoffsT4}
+                  kpTarget={config.kpTargetT4}
+                  powerRangeLabel={`${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M – ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
+                  examplePower={Math.max(5_000_000, Math.round((config.mt4T4Threshold + config.t4T5Threshold) / 2 / 5_000_000) * 5_000_000)}
+                  disabled={!isOfficer}
+                  onFormulaChange={(k, v) => setFormula('formulaT4', k, v)}
+                  onCutoffChange={(k, v) => setCutoff('cutoffsT4', k, v)}
+                  onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetT4: v }))}
+                />
+                <BandColumn
+                  band="t5"
+                  formula={config.formulaT5}
+                  cutoffs={config.cutoffsT5}
+                  kpTarget={config.kpTargetT5}
+                  powerRangeLabel={`At or above ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
+                  examplePower={Math.max(5_000_000, Math.round(config.t4T5Threshold * 1.5 / 5_000_000) * 5_000_000)}
+                  disabled={!isOfficer}
+                  onFormulaChange={(k, v) => setFormula('formulaT5', k, v)}
+                  onCutoffChange={(k, v) => setCutoff('cutoffsT5', k, v)}
+                  onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetT5: v }))}
+                />
               </div>
             </div>
           )}
@@ -2302,56 +2186,167 @@ function FormulaRow({
 }
 
 /** One full unified-formula card for a band: 7 sliders + effective-share breakdown. */
-function BandFormulaEditor({
-  title,
-  subtitle,
+/** One full per-band column: header strip + KP target + score formula + status cutoffs.
+ *  This is the visual unit officers actually think in — everything that affects mT4/T4/T5
+ *  lives in one column, color-coded to its band. */
+function BandColumn({
+  band,
   formula,
-  onChange,
+  cutoffs,
+  kpTarget,
+  powerRangeLabel,
+  examplePower,
+  onFormulaChange,
+  onCutoffChange,
+  onKpTargetChange,
   disabled = false,
 }: {
-  title: string;
-  subtitle?: string;
+  band: Band;
   formula: BandFormula;
-  onChange: (key: FormulaKey, value: number) => void;
+  cutoffs: CutoffSet;
+  kpTarget: number;
+  powerRangeLabel: string;
+  examplePower: number;
+  onFormulaChange: (key: FormulaKey, value: number) => void;
+  onCutoffChange: (key: keyof CutoffSet, value: number) => void;
+  onKpTargetChange: (v: number) => void;
   disabled?: boolean;
 }) {
+  // Color palette per band — used on the header strip and accents.
+  const palette: Record<Band, { headerBg: string; border: string; text: string; ring: string }> = {
+    micro: {
+      headerBg: 'bg-sky-500/10',
+      border: 'border-sky-500/30',
+      text: 'text-sky-400',
+      ring: 'ring-sky-500/20',
+    },
+    t4: {
+      headerBg: 'bg-emerald-500/10',
+      border: 'border-emerald-500/30',
+      text: 'text-emerald-400',
+      ring: 'ring-emerald-500/20',
+    },
+    t5: {
+      headerBg: 'bg-fuchsia-500/10',
+      border: 'border-fuchsia-500/30',
+      text: 'text-fuchsia-400',
+      ring: 'ring-fuchsia-500/20',
+    },
+  };
+  const c = palette[band];
   const total = FORMULA_KEYS.reduce((s, k) => s + formula[k], 0);
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 py-3">
-      <div className="mb-2">
-        <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
-        {subtitle && (
-          <div className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</div>
+    <div
+      className={`rounded-xl border ${c.border} bg-[var(--background-card)] overflow-hidden flex flex-col`}
+    >
+      {/* Band header strip */}
+      <div className={`${c.headerBg} px-4 py-3 border-b ${c.border}`}>
+        <div className="flex items-baseline justify-between gap-2">
+          <div className={`text-base font-semibold ${c.text}`}>{BAND_LABELS[band]}</div>
+          <div className="text-[11px] text-[var(--text-muted)] tabular-nums">{powerRangeLabel}</div>
+        </div>
+      </div>
+
+      {/* KP Target section */}
+      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)]/60">
+        <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
+          KP Target
+        </div>
+        <div className="flex items-center gap-3">
+          <BaselineInput
+            label="× power"
+            hint={`Target KP for this band = power × this multiplier. Example: a ${(examplePower / 1_000_000).toFixed(0)}M player should hit ${((examplePower * kpTarget) / 1_000_000).toFixed(0)}M KP.`}
+            value={kpTarget}
+            step={0.5}
+            decimals={1}
+            disabled={disabled}
+            onChange={onKpTargetChange}
+          />
+          <div className="flex-1 text-xs text-[var(--text-muted)] leading-snug">
+            {(examplePower / 1_000_000).toFixed(0)}M player →{' '}
+            <span className={`font-medium ${c.text}`}>
+              {((examplePower * kpTarget) / 1_000_000).toFixed(0)}M KP
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Score formula section */}
+      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)]/60">
+        <div className="flex items-baseline justify-between mb-2">
+          <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+            Score Formula
+          </div>
+          {total > 0 && (
+            <div className="text-[10px] text-[var(--text-muted)]">
+              {FORMULA_KEYS.filter((k) => formula[k] > 0).length} active
+            </div>
+          )}
+        </div>
+        <div className="divide-y divide-[var(--border)]/40">
+          {FORMULA_KEYS.map((k) => (
+            <FormulaRow
+              key={k}
+              formulaKey={k}
+              value={formula[k]}
+              disabled={disabled}
+              onChange={(v) => onFormulaChange(k, v)}
+            />
+          ))}
+        </div>
+        {total > 0 && (
+          <div className="mt-2 pt-2 border-t border-[var(--border)]/40 text-[10px] text-[var(--text-muted)] flex flex-wrap gap-x-2 gap-y-0.5">
+            <span className="uppercase tracking-wider">Share:</span>
+            {FORMULA_KEYS.map((k) => {
+              if (formula[k] <= 0) return null;
+              return (
+                <span key={k} className="inline-flex items-center gap-1">
+                  <span className={`w-1.5 h-1.5 rounded-full ${FORMULA_META[k].color}`} />
+                  <span>
+                    {FORMULA_META[k].label} {Math.round((formula[k] / total) * 100)}%
+                  </span>
+                </span>
+              );
+            })}
+          </div>
         )}
       </div>
-      {total > 0 && (
-        <div
-          className="mb-2 text-[11px] text-[var(--text-muted)] tabular-nums flex flex-wrap items-center gap-x-2 gap-y-0.5"
-          title="Effective share each component contributes to this band's score. weight ÷ sum-of-weights."
-        >
-          <span className="text-[10px] uppercase tracking-wider">Effective share:</span>
-          {FORMULA_KEYS.map((k) => {
-            if (formula[k] <= 0) return null;
-            return (
-              <span key={k} className="inline-flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${FORMULA_META[k].color}`} />
-                <span className="text-[var(--text-secondary)]">{FORMULA_META[k].label}</span>
-                <span>{Math.round((formula[k] / total) * 100)}%</span>
-              </span>
-            );
-          })}
+
+      {/* Status cutoffs section */}
+      <div className="px-4 pt-4 pb-4">
+        <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
+          Status Cutoffs
         </div>
-      )}
-      <div className="divide-y divide-[var(--border)]/50">
-        {FORMULA_KEYS.map((k) => (
-          <FormulaRow
-            key={k}
-            formulaKey={k}
-            value={formula[k]}
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/40">
+          <CutoffRowSimple
+            cutoffKey="excellent"
+            value={cutoffs.excellent}
             disabled={disabled}
-            onChange={(v) => onChange(k, v)}
+            onChange={(v) => onCutoffChange('excellent', v)}
           />
-        ))}
+          <CutoffRowSimple
+            cutoffKey="approved"
+            value={cutoffs.approved}
+            disabled={disabled}
+            onChange={(v) => onCutoffChange('approved', v)}
+          />
+          <CutoffRowSimple
+            cutoffKey="good"
+            value={cutoffs.good}
+            disabled={disabled}
+            onChange={(v) => onCutoffChange('good', v)}
+          />
+          <div className="flex items-center gap-3 py-1.5">
+            <span
+              className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
+            >
+              {STATUS_LABELS.REJECTED}
+            </span>
+            <span className="text-[10px] text-[var(--text-muted)] flex-1">
+              below {Math.round(cutoffs.good)}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -2443,51 +2438,3 @@ function CutoffRowSimple({
   );
 }
 
-/** All three cutoff rows for one band, in a labeled card. */
-function BandCutoffsEditor({
-  title,
-  cutoffs,
-  onChange,
-  disabled = false,
-}: {
-  title: string;
-  cutoffs: CutoffSet;
-  onChange: (key: keyof CutoffSet, value: number) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)]/40 px-4 py-3">
-      <div className="text-sm font-semibold text-[var(--foreground)] mb-2">{title}</div>
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/50">
-        <CutoffRowSimple
-          cutoffKey="excellent"
-          value={cutoffs.excellent}
-          disabled={disabled}
-          onChange={(v) => onChange('excellent', v)}
-        />
-        <CutoffRowSimple
-          cutoffKey="approved"
-          value={cutoffs.approved}
-          disabled={disabled}
-          onChange={(v) => onChange('approved', v)}
-        />
-        <CutoffRowSimple
-          cutoffKey="good"
-          value={cutoffs.good}
-          disabled={disabled}
-          onChange={(v) => onChange('good', v)}
-        />
-        <div className="flex items-center gap-3 py-1.5">
-          <span
-            className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
-          >
-            {STATUS_LABELS.REJECTED}
-          </span>
-          <span className="text-xs text-[var(--text-muted)] flex-1">
-            anything below {Math.round(cutoffs.good)}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
