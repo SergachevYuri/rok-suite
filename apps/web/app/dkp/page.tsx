@@ -470,11 +470,21 @@ function fmtCompact(n: number): string {
   return nf.format(Math.round(n));
 }
 
+// Status palette is intentionally distinct from the KP cell palette (green/amber/red).
+// This way the Score color matches the Status pill color and there's no collision.
 const STATUS_STYLES: Record<Status, string> = {
-  EXCELLENT: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  APPROVED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  GOOD: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-  REJECTED: 'bg-red-500/15 text-red-400 border-red-500/30',
+  EXCELLENT: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
+  APPROVED: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+  GOOD: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+  REJECTED: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+};
+
+/** Tailwind text-only class for each status — used to color the Score column to match the pill. */
+const STATUS_TEXT: Record<Status, string> = {
+  EXCELLENT: 'text-violet-400',
+  APPROVED: 'text-cyan-400',
+  GOOD: 'text-indigo-400',
+  REJECTED: 'text-rose-400',
 };
 
 type SortKey =
@@ -802,10 +812,10 @@ function DkpPageInner() {
         <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
           <SummaryCard label={t('summary.players')} value={fmt(summary.total)} />
           <SummaryCard label={t('summary.totalDkp')} value={fmt(summary.totalDkp)} />
-          <SummaryCard label={t('summary.excellent')} value={fmt(summary.counts.EXCELLENT)} tone="amber" />
-          <SummaryCard label={t('summary.strong')} value={fmt(summary.counts.APPROVED)} tone="emerald" />
-          <SummaryCard label={t('summary.good')} value={fmt(summary.counts.GOOD)} tone="sky" />
-          <SummaryCard label={t('summary.review')} value={fmt(summary.counts.REJECTED)} tone="red" />
+          <SummaryCard label={t('summary.excellent')} value={fmt(summary.counts.EXCELLENT)} tone="excellent" />
+          <SummaryCard label={t('summary.strong')} value={fmt(summary.counts.APPROVED)} tone="approved" />
+          <SummaryCard label={t('summary.good')} value={fmt(summary.counts.GOOD)} tone="good" />
+          <SummaryCard label={t('summary.review')} value={fmt(summary.counts.REJECTED)} tone="review" />
         </section>
 
         {/* Scoring Configuration (collapsible) */}
@@ -1534,16 +1544,14 @@ function renderCell(
       return modelView ? ratioCell(v, p.modelStats.computedDkp) : fmtM(v);
     }
     case 'finalScore': {
-      // In model view we still show the kingdom-wide score for status consistency,
-      // but render the band score as a small subtitle for context.
+      // The band score is what drives the status, so it's the headline number and is colored to
+      // match the status pill. The kingdom-wide finalScore is shown as a muted secondary number.
       return (
-        <span className="font-semibold text-[var(--foreground)]">
-          {fmtScore(p.finalScore)}
-          {modelView && (
-            <span className="ml-1 text-[10px] font-normal text-[var(--text-muted)]">
-              ({BAND_LABELS[p.band]} {fmtScore(p.bandScore)})
-            </span>
-          )}
+        <span className={`font-semibold ${STATUS_TEXT[p.status]}`}>
+          {fmtScore(p.bandScore)}
+          <span className="ml-1 text-[10px] font-normal text-[var(--text-muted)]">
+            (k {fmtScore(p.finalScore)})
+          </span>
         </span>
       );
     }
@@ -1831,17 +1839,18 @@ function SummaryCard({
 }: {
   label: string;
   value: string;
-  tone?: 'amber' | 'emerald' | 'sky' | 'red';
+  tone?: 'excellent' | 'approved' | 'good' | 'review';
 }) {
+  // Match the status pill palette so the summary cards visually pair with the table.
   const toneClass =
-    tone === 'amber'
-      ? 'text-amber-400'
-      : tone === 'emerald'
-        ? 'text-emerald-400'
-        : tone === 'sky'
-          ? 'text-sky-400'
-          : tone === 'red'
-            ? 'text-red-400'
+    tone === 'excellent'
+      ? 'text-violet-400'
+      : tone === 'approved'
+        ? 'text-cyan-400'
+        : tone === 'good'
+          ? 'text-indigo-400'
+          : tone === 'review'
+            ? 'text-rose-400'
             : 'text-[var(--foreground)]';
   return (
     <div className="p-2.5 sm:p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
@@ -2394,10 +2403,10 @@ function CutoffRowSimple({
   };
   const accentClass =
     status === 'EXCELLENT'
-      ? 'accent-amber-400'
+      ? 'accent-violet-400'
       : status === 'APPROVED'
-        ? 'accent-emerald-400'
-        : 'accent-sky-400';
+        ? 'accent-cyan-400'
+        : 'accent-indigo-400';
   return (
     <div className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''}`}>
       <Tooltip content={CUTOFF_HINTS[cutoffKey]} className="flex-shrink-0">
