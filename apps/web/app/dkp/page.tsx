@@ -2183,12 +2183,12 @@ function FormulaRow({
   const isOff = value === 0;
   return (
     <div
-      className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-40' : ''}`}
+      className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-40' : ''}`}
     >
-      <Tooltip content={meta.hint} className="w-24 sm:w-28 flex-shrink-0">
+      <Tooltip content={meta.hint} className="w-28 flex-shrink-0">
         <span className="flex items-center gap-2 cursor-help">
           <span className={`w-2.5 h-2.5 rounded-full ${meta.color}`} />
-          <span className="text-xs font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+          <span className="text-sm font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
             {meta.label}
           </span>
         </span>
@@ -2217,7 +2217,7 @@ function FormulaRow({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+        className="w-16 px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -2273,50 +2273,47 @@ function BandColumn({
   };
   const c = palette[band];
   const total = FORMULA_KEYS.reduce((s, k) => s + formula[k], 0);
+  const exP = (examplePower / 1_000_000).toFixed(0);
+  const exKP = ((examplePower * kpTarget) / 1_000_000).toFixed(0);
   return (
     <div
       className={`rounded-xl border ${c.border} bg-[var(--background-card)] overflow-hidden flex flex-col`}
     >
-      {/* Band header strip */}
-      <div className={`${c.headerBg} px-4 py-3 border-b ${c.border}`}>
-        <div className="flex items-baseline justify-between gap-2">
-          <div className={`text-base font-semibold ${c.text}`}>{BAND_LABELS[band]}</div>
-          <div className="text-[11px] text-[var(--text-muted)] tabular-nums">{powerRangeLabel}</div>
-        </div>
+      {/* Band header */}
+      <div className={`${c.headerBg} px-5 py-4 border-b ${c.border}`}>
+        <div className={`text-lg font-bold ${c.text}`}>{BAND_LABELS[band]}</div>
+        <div className="text-xs text-[var(--text-muted)] mt-0.5">{powerRangeLabel}</div>
       </div>
 
-      {/* KP Target section */}
-      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)]/60">
-        <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
+      {/* KP Target */}
+      <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]/60">
+        <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-3">
           KP Target
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-end gap-4">
           <BaselineInput
             label="× power"
-            hint={`Target KP for this band = power × this multiplier. Example: a ${(examplePower / 1_000_000).toFixed(0)}M player should hit ${((examplePower * kpTarget) / 1_000_000).toFixed(0)}M KP.`}
+            hint={`Target KP = power × this. ${exP}M player → ${exKP}M KP.`}
             value={kpTarget}
             step={0.5}
             decimals={1}
             disabled={disabled}
             onChange={onKpTargetChange}
           />
-          <div className="flex-1 text-xs text-[var(--text-muted)] leading-snug">
-            {(examplePower / 1_000_000).toFixed(0)}M player →{' '}
-            <span className={`font-medium ${c.text}`}>
-              {((examplePower * kpTarget) / 1_000_000).toFixed(0)}M KP
-            </span>
+          <div className="pb-1 text-sm text-[var(--text-muted)] whitespace-nowrap">
+            {exP}M → <span className={`font-semibold ${c.text}`}>{exKP}M KP</span>
           </div>
         </div>
       </div>
 
-      {/* Score formula section */}
-      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)]/60">
-        <div className="flex items-baseline justify-between mb-2">
-          <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+      {/* Score Formula */}
+      <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]/60">
+        <div className="flex items-baseline justify-between mb-3">
+          <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold">
             Score Formula
           </div>
           {total > 0 && (
-            <div className="text-[10px] text-[var(--text-muted)]">
+            <div className="text-xs text-[var(--text-muted)]">
               {FORMULA_KEYS.filter((k) => formula[k] > 0).length} active
             </div>
           )}
@@ -2333,15 +2330,15 @@ function BandColumn({
           ))}
         </div>
         {total > 0 && (
-          <div className="mt-2 pt-2 border-t border-[var(--border)]/40 text-[10px] text-[var(--text-muted)] flex flex-wrap gap-x-2 gap-y-0.5">
-            <span className="uppercase tracking-wider">Share:</span>
+          <div className="mt-3 pt-3 border-t border-[var(--border)]/40 text-xs text-[var(--text-muted)] flex flex-wrap gap-x-3 gap-y-1">
             {FORMULA_KEYS.map((k) => {
               if (formula[k] <= 0) return null;
               return (
                 <span key={k} className="inline-flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full ${FORMULA_META[k].color}`} />
-                  <span>
-                    {FORMULA_META[k].label} {Math.round((formula[k] / total) * 100)}%
+                  <span className={`w-2 h-2 rounded-full ${FORMULA_META[k].color}`} />
+                  <span>{FORMULA_META[k].label}</span>
+                  <span className="text-[var(--text-secondary)] font-medium">
+                    {Math.round((formula[k] / total) * 100)}%
                   </span>
                 </span>
               );
@@ -2350,12 +2347,12 @@ function BandColumn({
         )}
       </div>
 
-      {/* Status cutoffs section */}
-      <div className="px-4 pt-4 pb-4">
-        <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
+      {/* Status Cutoffs */}
+      <div className="px-5 pt-5 pb-5">
+        <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-3">
           Status Cutoffs
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--background)]/40 px-3 divide-y divide-[var(--border)]/40">
+        <div className="space-y-2">
           <CutoffRowSimple
             cutoffKey="excellent"
             value={cutoffs.excellent}
@@ -2374,13 +2371,13 @@ function BandColumn({
             disabled={disabled}
             onChange={(v) => onCutoffChange('good', v)}
           />
-          <div className="flex items-center gap-3 py-1.5">
+          <div className="flex items-center gap-3 pt-1">
             <span
-              className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
             >
               {STATUS_LABELS.REJECTED}
             </span>
-            <span className="text-[10px] text-[var(--text-muted)] flex-1">
+            <span className="text-xs text-[var(--text-muted)]">
               below {Math.round(cutoffs.good)}
             </span>
           </div>
@@ -2437,15 +2434,15 @@ function CutoffRowSimple({
         ? 'accent-cyan-400'
         : 'accent-indigo-400';
   return (
-    <div className={`flex items-center gap-3 py-1.5 ${disabled ? 'opacity-70' : ''}`}>
+    <div className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-70' : ''}`}>
       <Tooltip content={CUTOFF_HINTS[cutoffKey]} className="flex-shrink-0">
         <span
-          className={`inline-flex items-center justify-center w-20 px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[status]}`}
+          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border cursor-help ${STATUS_STYLES[status]}`}
         >
           {STATUS_LABELS[status]}
         </span>
       </Tooltip>
-      <span className="text-xs text-[var(--text-muted)] hidden sm:inline">≥</span>
+      <span className="text-sm text-[var(--text-muted)] hidden sm:inline">≥</span>
       <input
         type="range"
         min={0}
@@ -2470,7 +2467,7 @@ function CutoffRowSimple({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-14 px-1.5 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+        className="w-16 px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
       />
     </div>
   );
