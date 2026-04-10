@@ -923,86 +923,121 @@ function DkpPageInner() {
               </div>
 
 
-              {/* Quick how-it-works explainer */}
-              <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-[var(--background)]/40 border border-[var(--border)] text-sm text-[var(--text-secondary)] leading-relaxed">
-                <Info size={16} className="text-sky-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-[var(--foreground)]">How scoring works:</span>{' '}
-                  Players are split into 3 power bands (<span className="text-sky-400">mT4</span>{' '}
-                  / <span className="text-emerald-400">T4</span>{' '}
-                  / <span className="text-fuchsia-400">T5</span>). Each band has its own formula
-                  with 7 weighted components (T4/T5 kills, T4/T5 deaths, RSS, helps, honor).{' '}
-                  <span className="text-[var(--text-muted)]">
-                    Each stat is normalized against the best in that band (top player = 100),
-                    then all 7 sub-scores are blended by their weights to produce a{' '}
-                    <span className="text-[var(--foreground)]">0–100 band score</span>.
-                    The status (EXCELLENT / STRONG / GOOD / REVIEW) is based on{' '}
-                    <span className="text-[var(--foreground)]">that band&apos;s cutoffs</span>,
-                    so a top mT4 can hit EXCELLENT for being the best mT4.
-                    KP Target is separate — it only colors the KP cell.
-                  </span>
+              {/* How Scoring Works — comprehensive visual guide */}
+              <div className="mb-6 rounded-xl bg-[var(--background)]/40 border border-[var(--border)] overflow-hidden">
+                <div className="px-5 py-4 border-b border-[var(--border)]">
+                  <h3 className="text-base font-semibold text-[var(--foreground)]">How Scoring Works</h3>
+                  <p className="text-sm text-[var(--text-muted)] mt-1">
+                    A complete guide to how every player&apos;s score and status are calculated.
+                  </p>
+                </div>
+
+                <div className="px-5 py-5 space-y-6">
+                  {/* Step 1: Bands */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-sky-500/15 text-sky-400 flex items-center justify-center text-xs font-bold">1</span>
+                      <h4 className="text-sm font-semibold text-[var(--foreground)]">Players are grouped into power bands</h4>
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] ml-9 mb-3">
+                      Each player falls into one of three bands based on their current power.
+                      A <span className="text-sky-400 font-medium">mT4</span> is never compared against a{' '}
+                      <span className="text-fuchsia-400 font-medium">T5</span> whale — they&apos;re in different leagues.
+                    </p>
+                    <div className="ml-9 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-lg bg-sky-500/10 border border-sky-500/30 py-2 px-3">
+                        <div className="text-sm font-bold text-sky-400">mT4</div>
+                        <div className="text-xs text-[var(--text-muted)]">&lt; {(config.mt4T4Threshold / 1_000_000).toFixed(0)}M</div>
+                      </div>
+                      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 py-2 px-3">
+                        <div className="text-sm font-bold text-emerald-400">T4</div>
+                        <div className="text-xs text-[var(--text-muted)]">{(config.mt4T4Threshold / 1_000_000).toFixed(0)}–{(config.t4T5Threshold / 1_000_000).toFixed(0)}M</div>
+                      </div>
+                      <div className="rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/30 py-2 px-3">
+                        <div className="text-sm font-bold text-fuchsia-400">T5</div>
+                        <div className="text-xs text-[var(--text-muted)]">≥ {(config.t4T5Threshold / 1_000_000).toFixed(0)}M</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Formula */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-xs font-bold">2</span>
+                      <h4 className="text-sm font-semibold text-[var(--foreground)]">Each band has its own scoring formula</h4>
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] ml-9">
+                      7 components: <span className="text-[var(--foreground)]">T4 Kills, T5 Kills, T4 Deaths, T5 Deaths, RSS, Helps, Honor</span>.
+                      Each gets a <span className="text-[var(--foreground)] font-medium">weight from 0–100</span>.
+                      Weights are <em>relative</em> — they don&apos;t need to sum to 100.
+                      A weight of 50 vs 25 just means that stat counts twice as much.
+                      Set a weight to <span className="text-[var(--foreground)] font-medium">0</span> to ignore that stat
+                      entirely (e.g. T5 Deaths = 0 for mT4 since they can&apos;t field T5 troops).
+                    </p>
+                  </div>
+
+                  {/* Step 3: Normalization */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-fuchsia-500/15 text-fuchsia-400 flex items-center justify-center text-xs font-bold">3</span>
+                      <h4 className="text-sm font-semibold text-[var(--foreground)]">Stats are normalized within the band</h4>
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] ml-9">
+                      For each stat, the <span className="text-[var(--foreground)] font-medium">top player in that band = 100</span>.
+                      Everyone else scores proportionally.
+                      This is what makes it fair — a mT4 with 50M T4 kills gets judged against other mT4s, not against a whale doing 500M.
+                    </p>
+                  </div>
+
+                  {/* Step 4: Score */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-violet-500/15 text-violet-400 flex items-center justify-center text-xs font-bold">4</span>
+                      <h4 className="text-sm font-semibold text-[var(--foreground)]">Weighted average → 0–100 band score</h4>
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] ml-9">
+                      All 7 normalized sub-scores are blended using the band&apos;s weights.
+                      Result is a single <span className="text-[var(--foreground)] font-medium">0–100 number</span> shown in the{' '}
+                      <span className="text-[var(--foreground)] font-medium">Score</span> column.
+                      The small gray <span className="text-[var(--text-muted)]">(k X.X)</span> next to it is the same math but against the whole kingdom — for reference only.
+                    </p>
+                  </div>
+
+                  {/* Step 5: Status */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="flex-shrink-0 w-7 h-7 rounded-full bg-cyan-500/15 text-cyan-400 flex items-center justify-center text-xs font-bold">5</span>
+                      <h4 className="text-sm font-semibold text-[var(--foreground)]">Band score → status tier</h4>
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] ml-9 mb-3">
+                      Each band has its own cutoffs. If a player&apos;s band score hits the threshold, they get that tier.
+                      A top mT4 can hit <span className="text-violet-400 font-medium">EXCELLENT</span> for being the best mT4 — they don&apos;t compete against whales.
+                    </p>
+                    <div className="ml-9 flex flex-wrap gap-2 text-xs">
+                      <span className={`px-3 py-1 rounded-full border ${STATUS_STYLES.EXCELLENT}`}>EXCELLENT</span>
+                      <span className="text-[var(--text-muted)] self-center">→</span>
+                      <span className={`px-3 py-1 rounded-full border ${STATUS_STYLES.APPROVED}`}>STRONG</span>
+                      <span className="text-[var(--text-muted)] self-center">→</span>
+                      <span className={`px-3 py-1 rounded-full border ${STATUS_STYLES.GOOD}`}>GOOD</span>
+                      <span className="text-[var(--text-muted)] self-center">→</span>
+                      <span className={`px-3 py-1 rounded-full border ${STATUS_STYLES.REJECTED}`}>REVIEW</span>
+                    </div>
+                  </div>
+
+                  {/* KP Target note */}
+                  <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-4 flex items-start gap-3">
+                    <Info size={16} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-[var(--text-secondary)]">
+                      <span className="font-semibold text-[var(--foreground)]">KP Target</span> is independent from the score.
+                      It sets an expected KP based on power × a multiplier.
+                      The KP cell turns <span className="text-emerald-400 font-medium">green</span> (≥100%),{' '}
+                      <span className="text-amber-400 font-medium">amber</span> (80–99%), or{' '}
+                      <span className="text-red-400 font-medium">red</span> (&lt;80%) based on how the player&apos;s actual KP compares to that target.
+                      It does <em>not</em> affect the score or status.
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              {/* Reading the Table — wide reference at the top */}
-              <ConfigCard
-                title={t('readingTableCard.title')}
-                hint="Quick reference for what each column and color in the player table means."
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start text-sm text-[var(--text-secondary)] leading-relaxed">
-                  <div>
-                    <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
-                      KP cell color
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block w-3 h-3 rounded-full bg-emerald-400 flex-shrink-0" />
-                        <span>
-                          <span className="text-emerald-400 font-medium">Green</span> — at or
-                          above target KP (≥100%)
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
-                        <span>
-                          <span className="text-amber-400 font-medium">Amber</span> — close, but
-                          short (80–99%)
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block w-3 h-3 rounded-full bg-red-400 flex-shrink-0" />
-                        <span>
-                          <span className="text-red-400 font-medium">Red</span> — well below
-                          target (&lt;80%)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
-                      Columns
-                    </div>
-                    <ul className="space-y-1 text-xs">
-                      <li>
-                        <span className="text-[var(--foreground)] font-medium">KP</span> — actual
-                        total kill points
-                      </li>
-                      <li>
-                        <span className="text-[var(--foreground)] font-medium">Target KP</span> —
-                        power × the band&apos;s multiplier
-                      </li>
-                      <li>
-                        <span className="text-[var(--foreground)] font-medium">Score</span> —
-                        0–100 score within the player&apos;s own band
-                      </li>
-                      <li>
-                        <span className="text-[var(--foreground)] font-medium">Status</span> —
-                        tier from that band&apos;s cutoffs
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </ConfigCard>
 
               {/* Three columns, one per band. Each column has everything that band owns:
                   KP target, score formula, status cutoffs. */}
@@ -1960,38 +1995,6 @@ function Tooltip({
   );
 }
 
-/** A consistent card wrapper for each config section (formula / weights / cutoffs). */
-function ConfigCard({
-  title,
-  hint,
-  rightSlot,
-  children,
-}: {
-  title: string;
-  hint: string;
-  rightSlot?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wider">
-            {title}
-          </span>
-          <Tooltip content={hint}>
-            <span className="cursor-help text-[var(--text-muted)] hover:text-[var(--foreground)]">
-              <Info size={11} />
-            </span>
-          </Tooltip>
-        </div>
-        {rightSlot}
-      </div>
-      {children}
-    </div>
-  );
-}
-
 /** Decimal coefficient input with tooltip — used for the expected baseline multipliers. */
 function BaselineInput({
   label,
@@ -2287,9 +2290,12 @@ function BandColumn({
 
       {/* KP Target */}
       <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]/60">
-        <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-3">
+        <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-1">
           KP Target
         </div>
+        <p className="text-xs text-[var(--text-muted)] mb-3">
+          Expected KP = power × this multiplier. Colors the KP cell — does not affect the score.
+        </p>
         <div className="flex items-end gap-4">
           <BaselineInput
             label="× power"
@@ -2309,8 +2315,13 @@ function BandColumn({
       {/* Score Formula */}
       <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]/60">
         <div className="flex items-baseline justify-between mb-3">
-          <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold">
-            Score Formula
+          <div>
+            <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold">
+              Score Formula
+            </div>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              Weights are relative (0–100). They don&apos;t need to add to 100 — only the ratio matters.
+            </p>
           </div>
           {total > 0 && (
             <div className="text-xs text-[var(--text-muted)]">
@@ -2349,9 +2360,12 @@ function BandColumn({
 
       {/* Status Cutoffs */}
       <div className="px-5 pt-5 pb-5">
-        <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-3">
+        <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-1">
           Status Cutoffs
         </div>
+        <p className="text-xs text-[var(--text-muted)] mb-3">
+          Minimum band score needed for each tier. Applied to this band only.
+        </p>
         <div className="space-y-2">
           <CutoffRowSimple
             cutoffKey="excellent"
