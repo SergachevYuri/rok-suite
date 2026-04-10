@@ -272,10 +272,6 @@ interface ScoredPlayer extends Player {
   /** actual KP / target KP — higher is better. */
   kpRatio: number;
   totalDeaths: number;
-  scoreDkp: number;
-  scoreRss: number;
-  scoreHelps: number;
-  scoreHonor: number;
   /** Kingdom-wide weighted score (0–100, top player in kingdom = 100 in each category). */
   finalScore: number;
   /** Per-band weighted score (0–100, top player in band = 100 in each category). */
@@ -463,11 +459,6 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
       kpMultiplier,
       kpRatio,
       totalDeaths: p.t4Deaths + p.t5Deaths,
-      // Sub-score fields no longer used by the table but kept on the type for compat.
-      scoreDkp: 0,
-      scoreRss: 0,
-      scoreHelps: 0,
-      scoreHonor: 0,
       finalScore: p.finalScore,
       bandScore: p.bandScore,
       band: p.band,
@@ -483,14 +474,6 @@ const fmt = (n: number) => nf.format(Math.round(n));
 const fmtM = (n: number) => `${(n / 1_000_000).toFixed(2)}M`;
 /** Display the final score as a 0–100 number rounded to one decimal. */
 const fmtScore = (n: number) => n.toFixed(1);
-/** Compact integer format like 1.2M / 340K / 1,234. */
-function fmtCompact(n: number): string {
-  const a = Math.abs(n);
-  if (a >= 1_000_000_000) return (n / 1_000_000_000).toFixed(a >= 10_000_000_000 ? 0 : 1) + 'B';
-  if (a >= 1_000_000) return (n / 1_000_000).toFixed(a >= 10_000_000 ? 0 : 1) + 'M';
-  if (a >= 10_000) return Math.round(n / 1_000) + 'K';
-  return nf.format(Math.round(n));
-}
 
 // Status palette is intentionally distinct from the KP cell palette (green/amber/red).
 // This way the Score color matches the Status pill color and there's no collision.
@@ -559,7 +542,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 't5Deaths', label: 'T5 Deaths', numeric: true, defaultVisible: true, hint: 'T5 troop deaths from the kingdom export.' },
   { key: 'totalDeaths', label: 'Total Deaths', numeric: true, defaultVisible: true, hint: 'T4 + T5 troop deaths combined.' },
   { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths weighted).' },
-  { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Final 0–100 score. Each of DKP, RSS, helps and honor is scored 0–100 relative to the top player in the kingdom for that category, then blended using the score weights. 100 = top player in every weighted category.' },
+  { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Band Score (colored, drives status): 0–100 within the player\'s own power band — each stat is normalized against the best in that band. Kingdom Score (gray "k" number): same math but against the whole kingdom. The status tier (EXCELLENT/STRONG/GOOD/REVIEW) uses the band score.' },
   { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / STRONG / GOOD / REVIEW).' },
   { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: true, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
 ];
@@ -944,19 +927,19 @@ function DkpPageInner() {
               <div className="mb-4 flex items-start gap-2 p-3 rounded-lg bg-[var(--background)]/40 border border-[var(--border)] text-sm text-[var(--text-secondary)] leading-relaxed">
                 <Info size={16} className="text-sky-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-[var(--foreground)]">How it works:</span>{' '}
-                  Each category is scored 0–100 relative to the top player in the kingdom for
-                  that category.{' '}
+                  <span className="font-semibold text-[var(--foreground)]">How scoring works:</span>{' '}
+                  Players are split into 3 power bands (<span className="text-sky-400">mT4</span>{' '}
+                  / <span className="text-emerald-400">T4</span>{' '}
+                  / <span className="text-fuchsia-400">T5</span>). Each band has its own formula
+                  with 7 weighted components (T4/T5 kills, T4/T5 deaths, RSS, helps, honor).{' '}
                   <span className="text-[var(--text-muted)]">
-                    DKP is computed from the formula (T4/T5 kills + deaths). Then DKP, RSS,
-                    helps and honor are each divided by the kingdom&apos;s max in that category
-                    (top player = 100). Those four sub-scores are blended using the weights to
-                    produce a final 0–100 number, which maps to a status tier. Expected KP is
-                    independent and only affects the KP cell color. Hover any{' '}
-                    <span className="underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
-                      dotted label
-                    </span>{' '}
-                    for details.
+                    Each stat is normalized against the best in that band (top player = 100),
+                    then all 7 sub-scores are blended by their weights to produce a{' '}
+                    <span className="text-[var(--foreground)]">0–100 band score</span>.
+                    The status (EXCELLENT / STRONG / GOOD / REVIEW) is based on{' '}
+                    <span className="text-[var(--foreground)]">that band&apos;s cutoffs</span>,
+                    so a top mT4 can hit EXCELLENT for being the best mT4.
+                    KP Target is separate — it only colors the KP cell.
                   </span>
                 </div>
               </div>
@@ -1065,7 +1048,7 @@ function DkpPageInner() {
           )}
         </section>
 
-        {/* Search + view toggle (row 1) */}
+        {/* Search + view toggle + result count */}
         <section className="mb-3 flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[180px]">
             <Search
@@ -1079,19 +1062,18 @@ function DkpPageInner() {
               className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
             />
           </div>
-          <div
-            className={`inline-flex rounded-xl p-1 transition-all duration-300 ${
-              modelView
-                ? 'bg-gradient-to-r from-sky-500/20 via-emerald-500/20 to-fuchsia-500/20 border border-emerald-500/40 shadow-lg shadow-emerald-500/10'
-                : 'bg-gradient-to-r from-sky-500/15 via-emerald-500/15 to-fuchsia-500/15 border border-emerald-500/30 shadow-md shadow-emerald-500/5 animate-pulse-slow'
-            }`}
-          >
+          {/* Result count */}
+          <span className="text-xs text-[var(--text-muted)] tabular-nums">
+            {filtered.length} / {scored.length}
+          </span>
+          {/* View toggle — clean pill, no distracting animation */}
+          <div className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--background-card)] p-0.5">
             <button
               type="button"
               onClick={() => setModelView(false)}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                 !modelView
-                  ? 'bg-[var(--foreground)] text-[var(--background)] shadow'
+                  ? 'bg-[var(--foreground)] text-[var(--background)]'
                   : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
               }`}
             >
@@ -1100,13 +1082,13 @@ function DkpPageInner() {
             <button
               type="button"
               onClick={() => setModelView(true)}
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
                 modelView
-                  ? 'bg-gradient-to-r from-sky-500 via-emerald-500 to-fuchsia-500 text-white shadow-lg'
-                  : 'text-[var(--foreground)] hover:bg-[var(--background-card)]/60'
+                  ? 'bg-[var(--foreground)] text-[var(--background)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--foreground)]'
               }`}
             >
-              <Sparkles size={14} className={modelView ? 'text-white' : 'text-emerald-400'} />
+              <Sparkles size={12} />
               <span className="hidden sm:inline">{t('view.modelLong')}</span>
               <span className="sm:hidden">{t('view.model')}</span>
             </button>
@@ -1122,20 +1104,12 @@ function DkpPageInner() {
           </button>
         </section>
 
-        {/* Status filter pills (row 2) — horizontal scroll on mobile */}
-        <section className="mb-3 -mx-1 overflow-x-auto">
-          <div className="px-1 flex gap-1 whitespace-nowrap">
-            {(['ALL', 'EXCELLENT', 'APPROVED', 'GOOD', 'REJECTED'] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors flex-shrink-0 ${
-                  statusFilter === s
-                    ? 'bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)]'
-                    : 'bg-[var(--background-card)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--foreground)]'
-                }`}
-              >
-                {s === 'ALL'
+        {/* Status filter pills + power band legend */}
+        <section className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex gap-1 flex-wrap">
+            {(['ALL', 'EXCELLENT', 'APPROVED', 'GOOD', 'REJECTED'] as const).map((s) => {
+              const label =
+                s === 'ALL'
                   ? t('status.all')
                   : s === 'EXCELLENT'
                     ? t('status.excellent')
@@ -1143,44 +1117,67 @@ function DkpPageInner() {
                       ? t('status.strong')
                       : s === 'GOOD'
                         ? t('status.good')
-                        : t('status.review')}
-              </button>
-            ))}
+                        : t('status.review');
+              return (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    statusFilter === s
+                      ? 'bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)]'
+                      : 'bg-[var(--background-card)] text-[var(--text-secondary)] border-[var(--border)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
-        </section>
-
-        {/* Column toggles + KP color legend — desktop only (table scrolls horizontally on mobile) */}
-        <section className="mb-3 hidden sm:flex flex-wrap items-center gap-2 justify-between">
-          <div className="flex flex-wrap gap-2">
-            {COLUMNS.map((c) => (
-              <button
-                key={c.key}
-                onClick={() => toggleCol(c.key)}
-                className={`px-2 py-1 rounded text-[10px] uppercase tracking-wider border transition-colors ${
-                  visibleCols.has(c.key)
-                    ? 'bg-[var(--background-card)] text-[var(--foreground)] border-[var(--border)]'
-                    : 'bg-transparent text-[var(--text-muted)] border-[var(--border)] opacity-50'
-                }`}
-              >
-                {t(COLUMN_LABEL_KEYS[c.key])}
-              </button>
-            ))}
-          </div>
+          {/* Power band legend */}
           <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
-            <span className="uppercase tracking-wider">{t('filters.kpColorLabel')}</span>
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="text-emerald-400">≥100%</span>
+              <span className="w-2 h-2 rounded-full bg-sky-400" />
+              <span className="text-sky-400">mT4</span>
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="text-emerald-400">T4</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-fuchsia-400" />
+              <span className="text-fuchsia-400">T5</span>
+            </span>
+            <span className="text-[var(--text-muted)]">|</span>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="text-emerald-400">KP ≥100%</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
               <span className="text-amber-400">80–99%</span>
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-red-400" />
+              <span className="w-2 h-2 rounded-full bg-red-400" />
               <span className="text-red-400">&lt;80%</span>
             </span>
           </div>
+        </section>
+
+        {/* Column toggles — desktop only */}
+        <section className="mb-3 hidden sm:flex flex-wrap gap-2">
+          {COLUMNS.map((c) => (
+            <button
+              key={c.key}
+              onClick={() => toggleCol(c.key)}
+              className={`px-2 py-1 rounded text-[10px] uppercase tracking-wider border transition-colors ${
+                visibleCols.has(c.key)
+                  ? 'bg-[var(--background-card)] text-[var(--foreground)] border-[var(--border)]'
+                  : 'bg-transparent text-[var(--text-muted)] border-[var(--border)] opacity-50'
+              }`}
+            >
+              {t(COLUMN_LABEL_KEYS[c.key])}
+            </button>
+          ))}
         </section>
 
         {modelInfoOpen && <ModelExplainer onClose={() => setModelInfoOpen(false)} />}
@@ -1885,7 +1882,7 @@ function SummaryCard({
             ? 'text-rose-400'
             : 'text-[var(--foreground)]';
   return (
-    <div className="p-2.5 sm:p-3 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+    <div className="p-3 sm:p-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
       <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1 truncate">
         {label}
       </div>
