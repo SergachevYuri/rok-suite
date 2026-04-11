@@ -209,7 +209,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           </Link>
         </div>
         <div className="flex items-center gap-1">
-          <LanguageSwitcher collapsed />
+          <LanguageSwitcher collapsed dropdownDown />
           <ThemeToggle />
         </div>
       </header>

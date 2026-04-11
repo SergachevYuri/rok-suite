@@ -7,9 +7,11 @@ import { locales, localeNames, type Locale } from '@/lib/i18n/config';
 
 interface LanguageSwitcherProps {
   collapsed?: boolean;
+  /** Open the dropdown downward (for top-of-page headers) instead of the default upward. */
+  dropdownDown?: boolean;
 }
 
-export function LanguageSwitcher({ collapsed = false }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ collapsed = false, dropdownDown = false }: LanguageSwitcherProps) {
   const currentLocale = useLocale() as Locale;
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -49,7 +51,7 @@ export function LanguageSwitcher({ collapsed = false }: LanguageSwitcherProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-48 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-lg overflow-hidden z-[60]">
+        <div className={`absolute ${dropdownDown ? 'top-full mt-2 right-0' : 'bottom-full mb-2 left-0'} w-48 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-lg overflow-hidden z-[60]`}>
           <div className="max-h-80 overflow-y-auto py-1">
             {locales.map((locale) => (
               <button
