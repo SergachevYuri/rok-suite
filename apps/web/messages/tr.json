@@ -629,6 +629,23 @@
       "cutoffsHelp": "Her seviye için gereken minimum bant puanı. Yalnızca bu gruba uygulanır.",
       "cutoffsBelow": "{n} altında",
       "playerArrow": "{power}M → {kp}M KP"
+    },
+    "formulaMeta": {
+      "t4KillLabel": "K4 Öldürmeler",
+      "t4KillHint": "4. kademe öldürme puanları. Bu grubun T4 öldürmelerine göre değerlendirilmesini istemiyorsanız 0'a ayarlayın.",
+      "t5KillLabel": "T5 Öldürmeler",
+      "t5KillHint": "Seviye 5 öldürme puanları. Daha küçük hesaplar bunları kazanamayacağından mT4 için genellikle 0 olur.",
+      "t4DeathLabel": "T4 Ölümleri",
+      "t4DeathHint": "4. Kademe ölümler (fedakarlık). Sadece darbe almakla kalmayıp, darbe almayı da ödüllendirin.",
+      "t5DeathLabel": "T5 Ölümleri",
+      "t5DeathHint": "5. seviye ölümler. Daha küçük hesaplar T5 birliklerini sahaya çıkaramadığı için mT4 için genellikle 0'dır.",
+      "rssLabel": "RSS",
+      "rssHint": "Krallık haritasından toplanan kaynaklar. Aktif toplanmayı ödüllendirir.",
+      "helpsLabel": "yardımcı olur",
+      "helpsHint": "İttifak yardımları verildi. İttifakta aktif olmanın ödülleri.",
+      "honorLabel": "Onur",
+      "honorHint": "Kazanılan onur puanları (PvP, etkinlikler). Statmaster onur sıralaması dosyasından.",
+      "shareLabel": "Paylaşmak:"
     }
   },
   "mge": {

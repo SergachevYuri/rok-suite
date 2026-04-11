@@ -629,6 +629,23 @@
       "cutoffsHelp": "Điểm số tối thiểu cần thiết cho mỗi cấp độ. Chỉ áp dụng cho ban nhạc này.",
       "cutoffsBelow": "dưới {n}",
       "playerArrow": "{power}M → {kp}M KP"
+    },
+    "formulaMeta": {
+      "t4KillLabel": "T4 giết chết",
+      "t4KillHint": "Điểm tiêu diệt cấp 4. Đặt thành 0 nếu bạn không muốn dải này được đánh giá dựa trên số lần tiêu diệt T4.",
+      "t5KillLabel": "T5 giết chết",
+      "t5KillHint": "Điểm tiêu diệt cấp 5. Thông thường là 0 cho mT4 vì các tài khoản nhỏ hơn không thể kiếm được số tiền này.",
+      "t4DeathLabel": "T4 Tử vong",
+      "t4DeathHint": "Cái chết cấp 4 (hy sinh). Phần thưởng khi trúng đòn chứ không chỉ xử lý chúng.",
+      "t5DeathLabel": "T5 Tử vong",
+      "t5DeathHint": "Tử vong cấp 5. Thông thường là 0 đối với mT4 vì các tài khoản nhỏ hơn không thể triển khai quân T5.",
+      "rssLabel": "RSS",
+      "rssHint": "Tài nguyên được thu thập từ bản đồ vương quốc. Phần thưởng tích cực tụ tập.",
+      "helpsLabel": "Giúp",
+      "helpsHint": "Liên minh giúp đỡ nhất định. Phần thưởng đang hoạt động trong liên minh.",
+      "honorLabel": "Tôn kính",
+      "honorHint": "Điểm danh dự kiếm được (PvP, sự kiện). Từ tập tin xếp hạng danh dự Statmaster.",
+      "shareLabel": "Chia sẻ:"
     }
   },
   "mge": {

@@ -629,6 +629,23 @@
       "cutoffsHelp": "每个级别所需的最低分数。仅适用于该频段。",
       "cutoffsBelow": "低于 {n}",
       "playerArrow": "{power}M → {kp}M KP"
+    },
+    "formulaMeta": {
+      "t4KillLabel": "T4击杀数",
+      "t4KillHint": "4 级击杀点。如果您不希望该乐队根据 T4 击杀数进行评判，请设置为 0。",
+      "t5KillLabel": "T5击杀数",
+      "t5KillHint": "5 级击杀点。 mT4 通常为 0，因为较小的帐户无法赚取这些。",
+      "t4DeathLabel": "T4 死亡",
+      "t4DeathHint": "4 级死亡（牺牲）。奖励受到打击，而不仅仅是处理它们。",
+      "t5DeathLabel": "T5 死亡",
+      "t5DeathHint": "5级死亡。 mT4 通常为 0，因为较小的帐户无法部署 T5 部队。",
+      "rssLabel": "RSS",
+      "rssHint": "从王国地图中收集的资源。奖励积极聚集。",
+      "helpsLabel": "帮助",
+      "helpsHint": "联盟给予帮助。积极参与联盟的奖励。",
+      "honorLabel": "荣誉",
+      "honorHint": "获得的荣誉点数（PvP、活动）。来自 Statmaster 荣誉排名文件。",
+      "shareLabel": "分享："
     }
   },
   "mge": {

@@ -629,6 +629,23 @@
       "cutoffsHelp": "Minimum band score needed for each tier. Applied to this band only.",
       "cutoffsBelow": "below {n}",
       "playerArrow": "{power}M → {kp}M KP"
+    },
+    "formulaMeta": {
+      "t4KillLabel": "T4 Kills",
+      "t4KillHint": "Tier 4 kill points. Set to 0 if you don't want this band judged on T4 kills.",
+      "t5KillLabel": "T5 Kills",
+      "t5KillHint": "Tier 5 kill points. Usually 0 for mT4 since smaller accounts can't earn these.",
+      "t4DeathLabel": "T4 Deaths",
+      "t4DeathHint": "Tier 4 deaths (sacrifice). Rewards taking hits, not just dealing them.",
+      "t5DeathLabel": "T5 Deaths",
+      "t5DeathHint": "Tier 5 deaths. Usually 0 for mT4 since smaller accounts can't field T5 troops.",
+      "rssLabel": "RSS",
+      "rssHint": "Resources gathered from the kingdom map. Rewards active gathering.",
+      "helpsLabel": "Helps",
+      "helpsHint": "Alliance helps given. Rewards being active in the alliance.",
+      "honorLabel": "Honor",
+      "honorHint": "Honor points earned (PvP, events). From the Statmaster honor rankings file.",
+      "shareLabel": "Share:"
     }
   },
   "mge": {

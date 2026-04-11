@@ -629,6 +629,23 @@
       "cutoffsHelp": "Für jede Stufe ist eine Mindestbandpunktzahl erforderlich. Gilt nur für diese Band.",
       "cutoffsBelow": "unter {n}",
       "playerArrow": "{power}M → {kp}M KP"
+    },
+    "formulaMeta": {
+      "t4KillLabel": "T4-Kills",
+      "t4KillHint": "Tötungspunkte der Stufe 4. Stellen Sie den Wert auf 0 ein, wenn Sie nicht möchten, dass diese Band anhand von T4-Kills beurteilt wird.",
+      "t5KillLabel": "T5-Kills",
+      "t5KillHint": "Tötungspunkte der Stufe 5. Normalerweise 0 für mT4, da kleinere Konten diese nicht verdienen können.",
+      "t4DeathLabel": "T4-Todesfälle",
+      "t4DeathHint": "Todesfälle der Stufe 4 (Opfer). Belohnt das Einstecken von Treffern, nicht nur das Austeilen von Treffern.",
+      "t5DeathLabel": "T5-Todesfälle",
+      "t5DeathHint": "Todesfälle der Stufe 5. Normalerweise 0 für mT4, da kleinere Konten keine T5-Truppen aufstellen können.",
+      "rssLabel": "RSS",
+      "rssHint": "Von der Königreichskarte gesammelte Ressourcen. Belohnt aktives Sammeln.",
+      "helpsLabel": "Hilft",
+      "helpsHint": "Allianz hilft gegeben. Belohnungen, wenn man in der Allianz aktiv ist.",
+      "honorLabel": "Ehre",
+      "honorHint": "Verdiente Ehrenpunkte (PvP, Events). Aus der Statmaster-Ehrenrangliste.",
+      "shareLabel": "Aktie:"
     }
   },
   "mge": {

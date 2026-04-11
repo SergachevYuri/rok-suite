@@ -629,6 +629,23 @@
       "cutoffsHelp": "Score de bande minimum requis pour chaque niveau. Appliqué à ce groupe uniquement.",
       "cutoffsBelow": "en dessous de {n}",
       "playerArrow": "{power}M → {kp}M KP"
+    },
+    "formulaMeta": {
+      "t4KillLabel": "T4 tue",
+      "t4KillHint": "Points de destruction de niveau 4. Réglez-le sur 0 si vous ne voulez pas que ce groupe soit jugé sur les kills T4.",
+      "t5KillLabel": "T5 tue",
+      "t5KillHint": "Points de destruction de niveau 5. Généralement 0 pour mT4, car les petits comptes ne peuvent pas les gagner.",
+      "t4DeathLabel": "Décès T4",
+      "t4DeathHint": "Décès de niveau 4 (sacrifice). Récompense les coups reçus, pas seulement les infligés.",
+      "t5DeathLabel": "Décès T5",
+      "t5DeathHint": "Décès de niveau 5. Généralement 0 pour mT4 puisque les petits comptes ne peuvent pas déployer de troupes T5.",
+      "rssLabel": "RSS",
+      "rssHint": "Ressources collectées sur la carte du royaume. Récompense le rassemblement actif.",
+      "helpsLabel": "Aide",
+      "helpsHint": "Alliance aide donnée. Récompense le fait d'être actif dans l'alliance.",
+      "honorLabel": "Honneur",
+      "honorHint": "Points d'honneur gagnés (PvP, événements). À partir du fichier de classement d'honneur Statmaster.",
+      "shareLabel": "Partager:"
     }
   },
   "mge": {

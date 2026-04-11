@@ -629,6 +629,23 @@
       "cutoffsHelp": "各層に必要な最小バンドスコア。このバンドのみに適用されます。",
       "cutoffsBelow": "{n}以下",
       "playerArrow": "{power}M → {kp}M KP"
+    },
+    "formulaMeta": {
+      "t4KillLabel": "T4 キル数",
+      "t4KillHint": "レベル4のキルポイント。このバンドを T4 キルで判定したくない場合は、0 に設定します。",
+      "t5KillLabel": "T5キル",
+      "t5KillHint": "レベル5のキルポイント。小規模アカウントではこれらを獲得できないため、通常、mT4 の場合は 0 です。",
+      "t4DeathLabel": "T4死亡者",
+      "t4DeathHint": "Tier 4 の死亡数 (犠牲)。攻撃を与えるだけでなく、攻撃を受けると報酬が得られます。",
+      "t5DeathLabel": "T5 死亡数",
+      "t5DeathHint": "ティア5の死亡者。小規模アカウントでは T5 部隊を派遣できないため、mT4 では通常 0 です。",
+      "rssLabel": "RSS",
+      "rssHint": "王国の地図から集めたリソース。アクティブな収集に報酬を与えます。",
+      "helpsLabel": "役立つ",
+      "helpsHint": "同盟は与えられた助けを与えます。同盟内で活動中の報酬。",
+      "honorLabel": "名誉",
+      "honorHint": "獲得した名誉ポイント (PvP、イベント)。 Statmaster 名誉ランキング ファイルより。",
+      "shareLabel": "共有："
     }
   },
   "mge": {

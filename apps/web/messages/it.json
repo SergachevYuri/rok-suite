@@ -629,6 +629,23 @@
       "cutoffsHelp": "Punteggio minimo della fascia necessario per ciascun livello. Applicato solo a questa banda.",
       "cutoffsBelow": "sotto {n}",
       "playerArrow": "{power}M → {kp}M KP"
+    },
+    "formulaMeta": {
+      "t4KillLabel": "T4 uccide",
+      "t4KillHint": "Punti uccisione di livello 4. Imposta su 0 se non vuoi che questa banda venga giudicata sulle uccisioni T4.",
+      "t5KillLabel": "T5 uccide",
+      "t5KillHint": "Punti uccisione di livello 5. Di solito 0 per mT4 poiché gli account più piccoli non possono guadagnarli.",
+      "t4DeathLabel": "Morti T4",
+      "t4DeathHint": "Morti di livello 4 (sacrificio). Premia i colpi subiti, non solo quelli inflitti.",
+      "t5DeathLabel": "Morti T5",
+      "t5DeathHint": "Morti di livello 5. Di solito 0 per mT4 poiché gli account più piccoli non possono schierare truppe T5.",
+      "rssLabel": "RSS",
+      "rssHint": "Risorse raccolte dalla mappa del regno. Premia la raccolta attiva.",
+      "helpsLabel": "Aiuta",
+      "helpsHint": "L'alleanza aiuta dato. Ricompense attive nell'alleanza.",
+      "honorLabel": "Onore",
+      "honorHint": "Punti onore guadagnati (PvP, eventi). Dal file delle classifiche d'onore di Statmaster.",
+      "shareLabel": "Condividere:"
     }
   },
   "mge": {

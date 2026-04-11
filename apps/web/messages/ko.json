@@ -629,6 +629,23 @@
       "cutoffsHelp": "각 계층에 필요한 최소 밴드 점수입니다. 이 밴드에만 적용됩니다.",
       "cutoffsBelow": "{n} 아래",
       "playerArrow": "{power}M → {kp}M KP"
+    },
+    "formulaMeta": {
+      "t4KillLabel": "T4 처치",
+      "t4KillHint": "4티어 킬 포인트. 이 밴드가 T4 킬로 평가되지 않도록 하려면 0으로 설정하십시오.",
+      "t5KillLabel": "T5 처치",
+      "t5KillHint": "5등급 킬 포인트. 소규모 계정에서는 이를 획득할 수 없으므로 mT4의 경우 일반적으로 0입니다.",
+      "t4DeathLabel": "T4 사망",
+      "t4DeathHint": "Tier 4 죽음(희생). 히트를 처리하는 것뿐만 아니라 히트를 치는 것에 대한 보상입니다.",
+      "t5DeathLabel": "T5 사망",
+      "t5DeathHint": "5등급 사망. 소규모 계정에서는 T5 부대를 배치할 수 없으므로 mT4의 경우 일반적으로 0입니다.",
+      "rssLabel": "RSS",
+      "rssHint": "왕국 지도에서 자원을 수집합니다. 활동적인 모임에 보상을 줍니다.",
+      "helpsLabel": "도움",
+      "helpsHint": "얼라이언스가 도움을 줍니다. 동맹에서 활성화되는 보상.",
+      "honorLabel": "명예",
+      "honorHint": "획득한 명예 점수(PvP, 이벤트) Statmaster 명예 순위 파일에서.",
+      "shareLabel": "공유하다:"
     }
   },
   "mge": {

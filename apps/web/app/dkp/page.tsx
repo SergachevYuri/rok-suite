@@ -2091,42 +2091,26 @@ function PowerInput({
   );
 }
 
-const FORMULA_META: Record<FormulaKey, { label: string; hint: string; color: string }> = {
-  t4Kill: {
-    label: 'T4 Kills',
-    hint: 'Tier 4 kill points. Set to 0 if you don\'t want this band judged on T4 kills.',
-    color: 'bg-violet-400',
-  },
-  t5Kill: {
-    label: 'T5 Kills',
-    hint: 'Tier 5 kill points. Usually 0 for mT4 since smaller accounts can\'t earn these.',
-    color: 'bg-violet-600',
-  },
-  t4Death: {
-    label: 'T4 Deaths',
-    hint: 'Tier 4 deaths (sacrifice). Rewards taking hits, not just dealing them.',
-    color: 'bg-rose-400',
-  },
-  t5Death: {
-    label: 'T5 Deaths',
-    hint: 'Tier 5 deaths. Usually 0 for mT4 since smaller accounts can\'t field T5 troops.',
-    color: 'bg-rose-600',
-  },
-  rss: {
-    label: 'RSS',
-    hint: 'Resources gathered from the kingdom map. Rewards active gathering.',
-    color: 'bg-amber-500',
-  },
-  helps: {
-    label: 'Helps',
-    hint: 'Alliance helps given. Rewards being active in the alliance.',
-    color: 'bg-sky-500',
-  },
-  honor: {
-    label: 'Honor',
-    hint: 'Honor points earned (PvP, events). From the Statmaster honor rankings file.',
-    color: 'bg-emerald-500',
-  },
+/** Color per formula key — non-translatable. */
+const FORMULA_COLORS: Record<FormulaKey, string> = {
+  t4Kill: 'bg-violet-400',
+  t5Kill: 'bg-violet-600',
+  t4Death: 'bg-rose-400',
+  t5Death: 'bg-rose-600',
+  rss: 'bg-amber-500',
+  helps: 'bg-sky-500',
+  honor: 'bg-emerald-500',
+};
+
+/** Translation key mapping for each formula component's label and hint. */
+const FORMULA_LABEL_KEYS: Record<FormulaKey, { label: string; hint: string }> = {
+  t4Kill: { label: 'formulaMeta.t4KillLabel', hint: 'formulaMeta.t4KillHint' },
+  t5Kill: { label: 'formulaMeta.t5KillLabel', hint: 'formulaMeta.t5KillHint' },
+  t4Death: { label: 'formulaMeta.t4DeathLabel', hint: 'formulaMeta.t4DeathHint' },
+  t5Death: { label: 'formulaMeta.t5DeathLabel', hint: 'formulaMeta.t5DeathHint' },
+  rss: { label: 'formulaMeta.rssLabel', hint: 'formulaMeta.rssHint' },
+  helps: { label: 'formulaMeta.helpsLabel', hint: 'formulaMeta.helpsHint' },
+  honor: { label: 'formulaMeta.honorLabel', hint: 'formulaMeta.honorHint' },
 };
 
 /** Single editable row for one component of a band's flat formula. */
@@ -2141,7 +2125,11 @@ function FormulaRow({
   onChange: (v: number) => void;
   disabled?: boolean;
 }) {
-  const meta = FORMULA_META[formulaKey];
+  const t = useTranslations('dkp');
+  const keys = FORMULA_LABEL_KEYS[formulaKey];
+  const color = FORMULA_COLORS[formulaKey];
+  const label = t(keys.label as 'formulaMeta.t4KillLabel');
+  const hint = t(keys.hint as 'formulaMeta.t4KillHint');
   const [text, setText] = useState(String(Math.round(value)));
   useEffect(() => {
     setText(String(Math.round(value)));
@@ -2161,11 +2149,11 @@ function FormulaRow({
     <div
       className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-40' : ''}`}
     >
-      <Tooltip content={meta.hint} className="w-28 flex-shrink-0">
+      <Tooltip content={hint} className="w-28 flex-shrink-0">
         <span className="flex items-center gap-2 cursor-help">
-          <span className={`w-2.5 h-2.5 rounded-full ${meta.color}`} />
+          <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
           <span className="text-sm font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
-            {meta.label}
+            {label}
           </span>
         </span>
       </Tooltip>
@@ -2227,6 +2215,7 @@ function BandColumn({
   disabled?: boolean;
 }) {
   const t = useTranslations('dkp.bandColumn');
+  const tf = useTranslations('dkp');
   // Color palette per band — used on the header strip and accents.
   const palette: Record<Band, { headerBg: string; border: string; text: string; ring: string }> = {
     micro: {
@@ -2320,8 +2309,8 @@ function BandColumn({
               if (formula[k] <= 0) return null;
               return (
                 <span key={k} className="inline-flex items-center gap-1">
-                  <span className={`w-2 h-2 rounded-full ${FORMULA_META[k].color}`} />
-                  <span>{FORMULA_META[k].label}</span>
+                  <span className={`w-2 h-2 rounded-full ${FORMULA_COLORS[k]}`} />
+                  <span>{tf(FORMULA_LABEL_KEYS[k].label as 'formulaMeta.t4KillLabel')}</span>
                   <span className="text-[var(--text-secondary)] font-medium">
                     {Math.round((formula[k] / total) * 100)}%
                   </span>
