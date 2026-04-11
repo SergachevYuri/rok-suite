@@ -601,6 +601,34 @@
     "configSummary": {
       "kpTarget": "KP hedefi",
       "splitAt": " @ "
+    },
+    "guide": {
+      "title": "Puanlama Nasıl Çalışır?",
+      "subtitle": "Her oyuncunun puanının ve durumunun nasıl hesaplandığına dair eksiksiz bir kılavuz.",
+      "step1Title": "Oyuncular güç bantlarına göre gruplandırılır",
+      "step1Body": "Her oyuncu mevcut gücüne göre üç gruptan birine girer. Bir {mt4} asla bir {t5} balinasıyla karşılaştırılmaz; onlar farklı ligdedirler.",
+      "step2Title": "Her grubun kendine ait puanlama formülü vardır",
+      "step2Body": "7 bileşen: T4 Öldürmeler, T5 Öldürmeler, T4 Ölümleri, T5 Ölümleri, RSS, Yardımlar, Onur. Her biri 0-100 arasında bir ağırlık alır. Ağırlıklar görecelidir; toplamlarının 100 olması gerekmez. 50'ye 25'lik bir ağırlık, istatistiğin iki kat daha fazla sayıldığı anlamına gelir. Bu istatistiği tamamen göz ardı etmek için ağırlığı 0'a ayarlayın (örneğin, T5 birliklerini sahaya çıkaramayacakları için mT4 için T5 Ölümleri = 0).",
+      "step3Title": "İstatistikler bant içinde normalleştirildi",
+      "step3Body": "Her istatistik için o gruptaki en iyi oyuncu = 100. Diğer herkes orantılı olarak puan alır. Bunu adil kılan da budur - 50M T4 öldürmesi olan bir mT4, 500M yapan bir balinaya karşı değil, diğer mT4'lere göre değerlendirilir.",
+      "step4Title": "Ağırlıklı ortalama → 0-100 bant puanı",
+      "step4Body": "7 normalize edilmiş alt puanın tümü, grubun ağırlıkları kullanılarak harmanlanır. Sonuç, Puan sütununda gösterilen 0-100 arası tek bir sayıdır. Yanındaki küçük gri (k X.X) aynı matematiktir ancak tüm krallığa karşıdır - yalnızca referans amaçlıdır.",
+      "step5Title": "Bant puanı → durum katmanı",
+      "step5Body": "Her grubun kendine has kesimleri vardır. Bir oyuncunun grup puanı eşiğe ulaşırsa o kademeyi alır. En iyi mT4, en iyi mT4 olarak MÜKEMMEL'i vurabilir; balinalarla rekabet etmezler.",
+      "kpNote": "KP Hedefi puandan bağımsızdır. Güç × çarpana dayalı olarak beklenen bir KP belirler. KP hücresi, oyuncunun gerçek KP'sinin bu hedefle karşılaştırmasına bağlı olarak yeşile (≥%100), sarıya (%80-99) veya kırmızıya (<%80) döner. Puanı veya durumu etkilemez."
+    },
+    "bandColumn": {
+      "kpTargetTitle": "KP Hedefi",
+      "kpTargetHelp": "Beklenen KP = güç × bu çarpan. KP hücresini renklendirir — puanı etkilemez.",
+      "kpTargetHint": "Hedef KP = güç × bu. {example}M oyuncu → {target}M KP.",
+      "kpTargetLabel": "× güç",
+      "formulaTitle": "Puan Formülü",
+      "formulaHelp": "Ağırlıklar görecelidir (0–100). 100'e eklemeleri gerekmez; yalnızca oran önemlidir.",
+      "formulaActive": "{n} aktif",
+      "cutoffsTitle": "Durum Kesintileri",
+      "cutoffsHelp": "Her seviye için gereken minimum bant puanı. Yalnızca bu gruba uygulanır.",
+      "cutoffsBelow": "{n} altında",
+      "playerArrow": "{power}M → {kp}M KP"
     }
   },
   "mge": {

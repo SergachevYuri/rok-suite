@@ -601,6 +601,34 @@
     "configSummary": {
       "kpTarget": "objetivo de KP",
       "splitAt": " @ "
+    },
+    "guide": {
+      "title": "Cómo funciona la puntuación",
+      "subtitle": "Una guía completa sobre cómo se calcula la puntuación y el estado de cada jugador.",
+      "step1Title": "Los jugadores se agrupan en bandas de poder.",
+      "step1Body": "Cada jugador cae en una de tres bandas según su poder actual. Una ballena {mt4} nunca se compara con una ballena {t5}: están en ligas diferentes.",
+      "step2Title": "Cada banda tiene su propia fórmula de puntuación",
+      "step2Body": "7 componentes: T4 Kills, T5 Kills, T4 Deaths, T5 Deaths, RSS, Ayuda, Honor. Cada uno recibe un peso de 0 a 100. Los pesos son relativos: no es necesario que sumen 100. Un peso de 50 frente a 25 solo significa que la estadística cuenta el doble. Establezca un peso en 0 para ignorar esa estadística por completo (por ejemplo, Muertes T5 = 0 para mT4 ya que no pueden desplegar tropas T5).",
+      "step3Title": "Las estadísticas están normalizadas dentro de la banda.",
+      "step3Body": "Para cada estadística, el mejor jugador de esa banda = 100. Todos los demás puntúan proporcionalmente. Esto es lo que lo hace justo: un mT4 con 50 millones de muertes de T4 es juzgado frente a otros mT4, no frente a una ballena que logra 500 millones.",
+      "step4Title": "Promedio ponderado → puntuación de banda de 0 a 100",
+      "step4Body": "Las 7 subpuntuaciones normalizadas se combinan utilizando las ponderaciones de la banda. El resultado es un único número del 0 al 100 que se muestra en la columna Puntuación. El pequeño gris (k X.X) al lado es la misma matemática pero en comparación con todo el reino, solo como referencia.",
+      "step5Title": "Puntuación de banda → nivel de estado",
+      "step5Body": "Cada banda tiene sus propios límites. Si la puntuación de la banda de un jugador alcanza el umbral, obtiene ese nivel. Un mT4 superior puede alcanzar EXCELENTE por ser el mejor mT4: no compiten contra las ballenas.",
+      "kpNote": "KP Target es independiente de la puntuación. Establece un KP esperado basado en la potencia × un multiplicador. La celda de KP se vuelve verde (≥100%), ámbar (80–99%) o roja (<80%) según cómo se compara el KP real del jugador con ese objetivo. No afecta la puntuación ni el estado."
+    },
+    "bandColumn": {
+      "kpTargetTitle": "Objetivo KP",
+      "kpTargetHelp": "KP esperado = potencia × este multiplicador. Colorea la celda KP; no afecta la puntuación.",
+      "kpTargetHint": "Objetivo KP = potencia × esto. {example}M jugador → {target}M KP.",
+      "kpTargetLabel": "× poder",
+      "formulaTitle": "Fórmula de puntuación",
+      "formulaHelp": "Los pesos son relativos (0-100). No necesitan sumar 100, sólo importa la proporción.",
+      "formulaActive": "{n} activo",
+      "cutoffsTitle": "Límites de estado",
+      "cutoffsHelp": "Puntuación de banda mínima necesaria para cada nivel. Aplicado solo a esta banda.",
+      "cutoffsBelow": "debajo de {n}",
+      "playerArrow": "{power}M → {kp}M KP"
     }
   },
   "mge": {

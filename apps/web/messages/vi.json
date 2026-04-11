@@ -601,6 +601,34 @@
     "configSummary": {
       "kpTarget": "mục tiêu KP",
       "splitAt": " @ "
+    },
+    "guide": {
+      "title": "Cách tính điểm hoạt động",
+      "subtitle": "Hướng dẫn đầy đủ về cách tính điểm và trạng thái của mọi người chơi.",
+      "step1Title": "Người chơi được nhóm thành các ban nhạc quyền lực",
+      "step1Body": "Mỗi người chơi rơi vào một trong ba dải dựa trên sức mạnh hiện tại của họ. {mt4} không bao giờ được so sánh với một con cá voi {t5} — chúng ở các hạng khác nhau.",
+      "step2Title": "Mỗi ban nhạc có công thức tính điểm riêng",
+      "step2Body": "7 thành phần: T4 Kills, T5 Kills, T4 Death, T5 Death, RSS, Help, Honor. Mỗi cái có trọng số từ 0–100. Trọng số chỉ mang tính chất tương đối — chúng không cần tổng bằng 100. Trọng số 50 so với 25 chỉ có nghĩa là chỉ số đó nhiều gấp đôi. Đặt trọng số thành 0 để bỏ qua hoàn toàn chỉ số đó (ví dụ: T5 Tử vong = 0 đối với mT4 vì họ không thể triển khai quân T5).",
+      "step3Title": "Số liệu thống kê được chuẩn hóa trong dải",
+      "step3Body": "Đối với mỗi chỉ số, người chơi đứng đầu trong nhóm đó = 100. Những người còn lại đều ghi điểm tương ứng. Đây là điều khiến mọi việc trở nên công bằng - một mT4 với 50 triệu lần tiêu diệt T4 được đánh giá dựa trên các mT4 khác, chứ không phải chống lại một con cá voi đạt được 500 triệu lần tiêu diệt.",
+      "step4Title": "Trung bình có trọng số → điểm 0–100",
+      "step4Body": "Tất cả 7 điểm phụ chuẩn hóa được kết hợp bằng cách sử dụng trọng số của dải. Kết quả là một số duy nhất từ ​​0–100 được hiển thị trong cột Điểm. Màu xám nhỏ (k X.X) bên cạnh cũng là phép toán tương tự nhưng chống lại cả vương quốc - chỉ mang tính chất tham khảo.",
+      "step5Title": "Điểm ban nhạc → cấp trạng thái",
+      "step5Body": "Mỗi ban nhạc đều có điểm cắt riêng. Nếu điểm ban nhạc của người chơi đạt đến ngưỡng, họ sẽ đạt được cấp độ đó. Một mT4 hàng đầu có thể đạt thành tích TUYỆT VỜI vì là mT4 tốt nhất - chúng không cạnh tranh với cá voi.",
+      "kpNote": "KP Target độc lập với điểm số. Nó đặt KP dự kiến ​​dựa trên sức mạnh × hệ số nhân. Ô KP chuyển sang màu xanh lục ( ≥100%), hổ phách (80–99%) hoặc đỏ (<80%) dựa trên mức KP thực tế của người chơi so với mục tiêu đó. Nó không ảnh hưởng đến điểm số hoặc trạng thái."
+    },
+    "bandColumn": {
+      "kpTargetTitle": "Mục tiêu KP",
+      "kpTargetHelp": "KP dự kiến ​​= công suất × hệ số nhân này. Tô màu ô KP - không ảnh hưởng đến điểm số.",
+      "kpTargetHint": "Mục tiêu KP = sức mạnh × cái này. {example}M người chơi → {target}M KP.",
+      "kpTargetLabel": "× quyền lực",
+      "formulaTitle": "Công thức tính điểm",
+      "formulaHelp": "Trọng số là tương đối (0–100). Họ không cần cộng tới 100 - chỉ có tỷ lệ mới quan trọng.",
+      "formulaActive": "{n} đang hoạt động",
+      "cutoffsTitle": "Giới hạn trạng thái",
+      "cutoffsHelp": "Điểm số tối thiểu cần thiết cho mỗi cấp độ. Chỉ áp dụng cho ban nhạc này.",
+      "cutoffsBelow": "dưới {n}",
+      "playerArrow": "{power}M → {kp}M KP"
     }
   },
   "mge": {

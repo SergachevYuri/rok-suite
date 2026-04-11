@@ -601,6 +601,34 @@
     "configSummary": {
       "kpTarget": "Alvo do PC",
       "splitAt": " @ "
+    },
+    "guide": {
+      "title": "Como funciona a pontuação",
+      "subtitle": "Um guia completo sobre como a pontuação e o status de cada jogador são calculados.",
+      "step1Title": "Os jogadores são agrupados em faixas de poder",
+      "step1Body": "Cada jogador se enquadra em uma das três faixas com base em seu poder atual. Uma baleia {mt4} nunca é comparada a uma baleia {t5} – elas estão em ligas diferentes.",
+      "step2Title": "Cada banda tem sua própria fórmula de pontuação",
+      "step2Body": "7 componentes: T4 Kills, T5 Kills, T4 Deaths, T5 Deaths, RSS, Helps, Honor. Cada um recebe um peso de 0 a 100. Os pesos são relativos – eles não precisam somar 100. Um peso de 50 versus 25 significa apenas que as estatísticas contam duas vezes mais. Defina um peso como 0 para ignorar totalmente essa estatística (por exemplo, T5 Mortes = 0 para mT4, pois eles não podem colocar tropas T5 em campo).",
+      "step3Title": "As estatísticas são normalizadas dentro da banda",
+      "step3Body": "Para cada estatística, o melhor jogador daquela faixa = 100. Todos os outros pontuam proporcionalmente. Isso é o que o torna justo – um mT4 com 50 milhões de mortes de T4 é julgado contra outros mT4s, não contra uma baleia que mata 500 milhões.",
+      "step4Title": "Média ponderada → pontuação da banda de 0 a 100",
+      "step4Body": "Todas as 7 subpontuações normalizadas são combinadas usando os pesos da banda. O resultado é um único número de 0 a 100 mostrado na coluna Pontuação. O pequeno cinza (k X.X) próximo a ele é a mesma matemática, mas contra todo o reino – apenas para referência.",
+      "step5Title": "Pontuação da banda → nível de status",
+      "step5Body": "Cada banda tem seus próprios cortes. Se a pontuação da banda de um jogador atingir o limite, ele obterá esse nível. Um mT4 top pode atingir EXCELENTE por ser o melhor mT4 – eles não competem contra baleias.",
+      "kpNote": "KP Target é independente da pontuação. Ele define um KP esperado com base na potência × um multiplicador. A célula KP fica verde (≥100%), âmbar (80–99%) ou vermelha (<80%) com base em como o KP real do jogador se compara a esse alvo. Isso não afeta a pontuação ou o status."
+    },
+    "bandColumn": {
+      "kpTargetTitle": "Alvo do PC",
+      "kpTargetHelp": "KP esperado = potência × este multiplicador. Colore a célula KP – não afeta a pontuação.",
+      "kpTargetHint": "Alvo KP = potência × isto. {example}M jogador → {target}M KP.",
+      "kpTargetLabel": "× poder",
+      "formulaTitle": "Fórmula de pontuação",
+      "formulaHelp": "Os pesos são relativos (0–100). Eles não precisam somar 100 – apenas a proporção é importante.",
+      "formulaActive": "{n} ativo",
+      "cutoffsTitle": "Cortes de status",
+      "cutoffsHelp": "Pontuação mínima da banda necessária para cada nível. Aplicado apenas a esta banda.",
+      "cutoffsBelow": "abaixo de {n}",
+      "playerArrow": "{power}M → {kp}M KP"
     }
   },
   "mge": {

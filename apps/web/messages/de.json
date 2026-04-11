@@ -601,6 +601,34 @@
     "configSummary": {
       "kpTarget": "KP-Ziel",
       "splitAt": " @ "
+    },
+    "guide": {
+      "title": "So funktioniert das Scoring",
+      "subtitle": "Eine vollständige Anleitung zur Berechnung der Punktzahl und des Status jedes Spielers.",
+      "step1Title": "Die Spieler werden in Leistungsgruppen eingeteilt",
+      "step1Body": "Jeder Spieler wird basierend auf seiner aktuellen Stärke in eine von drei Gruppen eingeteilt. Ein {mt4}-Wal wird nie mit einem {t5}-Wal verglichen – sie spielen in verschiedenen Ligen.",
+      "step2Title": "Jede Band hat ihre eigene Bewertungsformel",
+      "step2Body": "7 Komponenten: T4-Kills, T5-Kills, T4-Todesfälle, T5-Todesfälle, RSS, Hilfen, Ehre. Jeder erhält eine Gewichtung von 0–100. Gewichtungen sind relativ – sie müssen nicht 100 ergeben. Eine Gewichtung von 50 vs. 25 bedeutet lediglich, dass die Statistik doppelt so viel zählt. Setzen Sie eine Gewichtung auf 0, um diesen Wert vollständig zu ignorieren (z. B. T5-Todesfälle = 0 für mT4, da sie keine T5-Truppen aufstellen können).",
+      "step3Title": "Die Statistiken werden innerhalb der Band normalisiert",
+      "step3Body": "Für jede Statistik ist der beste Spieler in dieser Gruppe = 100. Alle anderen punkten proportional. Das macht es fair – ein mT4 mit 50 Millionen T4-Kills wird mit anderen mT4s verglichen, nicht mit einem Wal, der 500 Millionen schafft.",
+      "step4Title": "Gewichteter Durchschnitt → 0–100 Bandpunktzahl",
+      "step4Body": "Alle 7 normalisierten Teilwerte werden unter Verwendung der Bandgewichte gemischt. Das Ergebnis ist eine einzelne Zahl zwischen 0 und 100, die in der Spalte „Punktzahl“ angezeigt wird. Das kleine Grau (k X.X) daneben ist die gleiche Mathematik, jedoch für das gesamte Königreich – nur als Referenz.",
+      "step5Title": "Bandpunktzahl → Statusstufe",
+      "step5Body": "Jede Band hat ihre eigenen Cutoffs. Wenn die Bandpunktzahl eines Spielers den Schwellenwert erreicht, erhält er diese Stufe. Ein Top-mT4 kann als bester mT4 mit AUSGEZEICHNET bewertet werden – er konkurriert nicht mit Walen.",
+      "kpNote": "KP Target ist unabhängig von der Punktzahl. Es legt einen erwarteten KP basierend auf der Leistung × einem Multiplikator fest. Die KP-Zelle wird grün (≥100 %), gelb (80–99 %) oder rot (<80 %), je nachdem, wie die tatsächliche KP des Spielers im Vergleich zu diesem Ziel abschneidet. Es hat keinen Einfluss auf die Punktzahl oder den Status."
+    },
+    "bandColumn": {
+      "kpTargetTitle": "KP-Ziel",
+      "kpTargetHelp": "Erwarteter KP = Leistung × dieser Multiplikator. Färbt die KP-Zelle – hat keinen Einfluss auf die Punktzahl.",
+      "kpTargetHint": "Ziel-KP = Leistung × dies. {example}M Spieler → {target}M KP.",
+      "kpTargetLabel": "× Leistung",
+      "formulaTitle": "Punkteformel",
+      "formulaHelp": "Gewichtungen sind relativ (0–100). Sie müssen nicht zu 100 addieren – nur das Verhältnis zählt.",
+      "formulaActive": "{n} aktiv",
+      "cutoffsTitle": "Status-Cutoffs",
+      "cutoffsHelp": "Für jede Stufe ist eine Mindestbandpunktzahl erforderlich. Gilt nur für diese Band.",
+      "cutoffsBelow": "unter {n}",
+      "playerArrow": "{power}M → {kp}M KP"
     }
   },
   "mge": {

@@ -601,6 +601,34 @@
     "configSummary": {
       "kpTarget": "Objectif du PK",
       "splitAt": " @ "
+    },
+    "guide": {
+      "title": "Comment fonctionne la notation",
+      "subtitle": "Un guide complet sur la façon dont le score et le statut de chaque joueur sont calculés.",
+      "step1Title": "Les joueurs sont regroupés en groupes de puissance",
+      "step1Body": "Chaque joueur appartient à l'une des trois bandes en fonction de sa puissance actuelle. Une baleine {mt4} n'est jamais comparée à une baleine {t5} : elles appartiennent à des ligues différentes.",
+      "step2Title": "Chaque groupe a sa propre formule de notation",
+      "step2Body": "7 composants : T4 Kills, T5 Kills, T4 Deaths, T5 Deaths, RSS, Helps, Honor. Chacun reçoit un poids de 0 à 100. Les poids sont relatifs : il n'est pas nécessaire qu'ils totalisent 100. Un poids de 50 contre 25 signifie simplement que cette statistique compte deux fois plus. Définissez un poids sur 0 pour ignorer complètement cette statistique (par exemple, Décès T5 = 0 pour mT4 car ils ne peuvent pas déployer de troupes T5).",
+      "step3Title": "Les statistiques sont normalisées au sein du groupe",
+      "step3Body": "Pour chaque statistique, le meilleur joueur de ce groupe = 100. Tous les autres marquent proportionnellement. C'est ce qui le rend juste : un mT4 avec 50 millions de victimes de T4 est jugé par rapport à d'autres mT4, pas par rapport à une baleine faisant 500 M.",
+      "step4Title": "Moyenne pondérée → score de bande de 0 à 100",
+      "step4Body": "Les 7 sous-scores normalisés sont mélangés en utilisant les poids du groupe. Le résultat est un seul nombre de 0 à 100 affiché dans la colonne Score. Le petit gris (k X.X) à côté est le même calcul mais contre tout le royaume – à titre de référence uniquement.",
+      "step5Title": "Score du groupe → niveau de statut",
+      "step5Body": "Chaque groupe a ses propres coupures. Si le score de groupe d'un joueur atteint le seuil, il obtient ce niveau. Un meilleur mT4 peut atteindre EXCELLENT pour être le meilleur mT4 – il ne rivalise pas avec les baleines.",
+      "kpNote": "KP Target est indépendant du score. Il définit un KP attendu basé sur la puissance × un multiplicateur. La cellule KP devient verte (≥100 %), orange (80 à 99 %) ou rouge (<80 %) en fonction de la façon dont le KP réel du joueur se compare à cette cible. Cela n'affecte pas le score ou le statut."
+    },
+    "bandColumn": {
+      "kpTargetTitle": "Cible du PK",
+      "kpTargetHelp": "KP attendu = puissance × ce multiplicateur. Colore la cellule KP – n’affecte pas le score.",
+      "kpTargetHint": "KP cible = puissance × ceci. Joueur {example}M → {target}M KP.",
+      "kpTargetLabel": "× puissance",
+      "formulaTitle": "Formule de score",
+      "formulaHelp": "Les poids sont relatifs (0 à 100). Ils n’ont pas besoin d’additionner jusqu’à 100 : seul le ratio compte.",
+      "formulaActive": "{n} actif",
+      "cutoffsTitle": "Seuils de statut",
+      "cutoffsHelp": "Score de bande minimum requis pour chaque niveau. Appliqué à ce groupe uniquement.",
+      "cutoffsBelow": "en dessous de {n}",
+      "playerArrow": "{power}M → {kp}M KP"
     }
   },
   "mge": {

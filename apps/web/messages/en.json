@@ -601,6 +601,34 @@
     "configSummary": {
       "kpTarget": "KP target",
       "splitAt": " @ "
+    },
+    "guide": {
+      "title": "How Scoring Works",
+      "subtitle": "A complete guide to how every player's score and status are calculated.",
+      "step1Title": "Players are grouped into power bands",
+      "step1Body": "Each player falls into one of three bands based on their current power. A {mt4} is never compared against a {t5} whale — they're in different leagues.",
+      "step2Title": "Each band has its own scoring formula",
+      "step2Body": "7 components: T4 Kills, T5 Kills, T4 Deaths, T5 Deaths, RSS, Helps, Honor. Each gets a weight from 0–100. Weights are relative — they don't need to sum to 100. A weight of 50 vs 25 just means that stat counts twice as much. Set a weight to 0 to ignore that stat entirely (e.g. T5 Deaths = 0 for mT4 since they can't field T5 troops).",
+      "step3Title": "Stats are normalized within the band",
+      "step3Body": "For each stat, the top player in that band = 100. Everyone else scores proportionally. This is what makes it fair — a mT4 with 50M T4 kills gets judged against other mT4s, not against a whale doing 500M.",
+      "step4Title": "Weighted average → 0–100 band score",
+      "step4Body": "All 7 normalized sub-scores are blended using the band's weights. Result is a single 0–100 number shown in the Score column. The small gray (k X.X) next to it is the same math but against the whole kingdom — for reference only.",
+      "step5Title": "Band score → status tier",
+      "step5Body": "Each band has its own cutoffs. If a player's band score hits the threshold, they get that tier. A top mT4 can hit EXCELLENT for being the best mT4 — they don't compete against whales.",
+      "kpNote": "KP Target is independent from the score. It sets an expected KP based on power × a multiplier. The KP cell turns green (≥100%), amber (80–99%), or red (<80%) based on how the player's actual KP compares to that target. It does not affect the score or status."
+    },
+    "bandColumn": {
+      "kpTargetTitle": "KP Target",
+      "kpTargetHelp": "Expected KP = power × this multiplier. Colors the KP cell — does not affect the score.",
+      "kpTargetHint": "Target KP = power × this. {example}M player → {target}M KP.",
+      "kpTargetLabel": "× power",
+      "formulaTitle": "Score Formula",
+      "formulaHelp": "Weights are relative (0–100). They don't need to add to 100 — only the ratio matters.",
+      "formulaActive": "{n} active",
+      "cutoffsTitle": "Status Cutoffs",
+      "cutoffsHelp": "Minimum band score needed for each tier. Applied to this band only.",
+      "cutoffsBelow": "below {n}",
+      "playerArrow": "{power}M → {kp}M KP"
     }
   },
   "mge": {

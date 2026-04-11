@@ -601,6 +601,34 @@
     "configSummary": {
       "kpTarget": "Obiettivo KP",
       "splitAt": " @ "
+    },
+    "guide": {
+      "title": "Come funziona il punteggio",
+      "subtitle": "Una guida completa su come vengono calcolati il ​​punteggio e lo status di ogni giocatore.",
+      "step1Title": "I giocatori sono raggruppati in fasce di potere",
+      "step1Body": "Ogni giocatore rientra in una delle tre fasce in base al suo potere attuale. Una {mt4} non viene mai paragonata a una balena {t5}: sono di leghe diverse.",
+      "step2Title": "Ogni fascia ha la propria formula di punteggio",
+      "step2Body": "7 componenti: T4 Kills, T5 Kills, T4 Deaths, T5 Deaths, RSS, Helps, Honor. Ciascuno ottiene un peso compreso tra 0 e 100. I pesi sono relativi: non è necessario che la loro somma dia 100. Un peso di 50 contro 25 significa semplicemente che la statistica conta il doppio. Imposta un peso su 0 per ignorare completamente quella statistica (ad esempio Morti T5 = 0 per mT4 poiché non possono schierare truppe T5).",
+      "step3Title": "Le statistiche sono normalizzate all'interno della fascia",
+      "step3Body": "Per ogni statistica, il miglior giocatore in quella fascia = 100. Tutti gli altri ottengono punteggi proporzionali. Questo è ciò che lo rende giusto: un mT4 con 50 milioni di uccisioni di T4 viene giudicato rispetto ad altri mT4, non contro una balena che fa 500 milioni.",
+      "step4Title": "Media ponderata → punteggio della fascia 0–100",
+      "step4Body": "Tutti e 7 i sottopunteggi normalizzati vengono miscelati utilizzando i pesi della fascia. Il risultato è un singolo numero compreso tra 0 e 100 visualizzato nella colonna Punteggio. Il piccolo grigio (k X.X) accanto è la stessa matematica ma rispetto all'intero regno - solo come riferimento.",
+      "step5Title": "Punteggio della fascia → livello di stato",
+      "step5Body": "Ogni banda ha i propri limiti. Se il punteggio della fascia di un giocatore raggiunge la soglia, ottiene quel livello. Un mT4 eccellente può raggiungere il livello ECCELLENTE perché è il migliore mT4: non compete con le balene.",
+      "kpNote": "Il KP Target è indipendente dal punteggio. Imposta un KP atteso basato sulla potenza × un moltiplicatore. La cella KP diventa verde (≥100%), ambra (80–99%) o rossa (<80%) in base al confronto tra il KP effettivo del giocatore e l'obiettivo. Non influisce sul punteggio o sullo stato."
+    },
+    "bandColumn": {
+      "kpTargetTitle": "Obiettivo KP",
+      "kpTargetHelp": "KP atteso = potenza × questo moltiplicatore. Colora la cella KP: non influisce sul punteggio.",
+      "kpTargetHint": "Obiettivo KP = potenza × questo. Giocatore {example}M → {target}M KP.",
+      "kpTargetLabel": "× potenza",
+      "formulaTitle": "Formula del punteggio",
+      "formulaHelp": "I pesi sono relativi (0–100). Non è necessario aggiungere a 100: conta solo il rapporto.",
+      "formulaActive": "{n} attivo",
+      "cutoffsTitle": "Limiti di stato",
+      "cutoffsHelp": "Punteggio minimo della fascia necessario per ciascun livello. Applicato solo a questa banda.",
+      "cutoffsBelow": "sotto {n}",
+      "playerArrow": "{power}M → {kp}M KP"
     }
   },
   "mge": {
