@@ -558,7 +558,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 'totalDeaths', label: 'Total Deaths', numeric: true, defaultVisible: true, hint: 'T4 + T5 troop deaths combined.' },
   { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths weighted).' },
   { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: '0–100 score within the player\'s own power band. Each stat is normalized against the best in that band, then blended by the band\'s formula weights. This score drives the status tier.' },
-  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / STRONG / GOOD / REVIEW).' },
+  { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier based on the player\'s band score: EXCELLENT / STRONG / GOOD / REVIEW (top 400 by power) or UNRANKED (outside top 400). Hover any pill for details.' },
   { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: true, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
 ];
 
@@ -1020,6 +1020,11 @@ function DkpPageInner() {
                       <span className="text-[var(--text-muted)] self-center">→</span>
                       <span className={`px-3 py-1 rounded-full border ${STATUS_STYLES.REJECTED}`}>{t('status.review')}</span>
                     </div>
+                    <p className="text-sm text-[var(--text-muted)] ml-9 mt-3">
+                      Players outside the top 400 by power are tagged{' '}
+                      <span className={`px-2 py-0.5 rounded-full border text-xs font-semibold ${STATUS_STYLES.UNRANKED}`}>UNRANKED</span>
+                      {' '}— they are not scored or ranked, and are not flagged for review.
+                    </p>
                   </div>
 
                   {/* KP Target note */}
@@ -1604,9 +1609,17 @@ function renderCell(
       );
     }
     case 'status': {
+      const statusHints: Record<Status, string> = {
+        EXCELLENT: `Top of the ${BAND_LABELS[p.band]} band (score ${fmtScore(p.bandScore)})`,
+        APPROVED: `Strong performer in ${BAND_LABELS[p.band]} band (score ${fmtScore(p.bandScore)})`,
+        GOOD: `Meeting expectations for ${BAND_LABELS[p.band]} band (score ${fmtScore(p.bandScore)})`,
+        REJECTED: `Below the GOOD cutoff for ${BAND_LABELS[p.band]} band — flagged for officer review (score ${fmtScore(p.bandScore)})`,
+        UNRANKED: `Outside the top 400 by power — not scored or ranked. These accounts are not actively tracked for performance.`,
+      };
       return (
         <span
-          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[p.status]}`}
+          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[p.status]}`}
+          title={statusHints[p.status]}
         >
           {STATUS_LABELS[p.status]}
         </span>
@@ -2307,7 +2320,10 @@ function BandColumn({
           ))}
         </div>
         {total > 0 && (
-          <div className="mt-3 pt-3 border-t border-[var(--border)]/40 text-xs text-[var(--text-muted)] flex flex-wrap gap-x-3 gap-y-1">
+          <div
+            className="mt-3 pt-3 border-t border-[var(--border)]/40 text-xs text-[var(--text-muted)] flex flex-wrap gap-x-3 gap-y-1 cursor-help"
+            title="Effective share: shows what percentage of this band's final score each component actually contributes. Calculated as each weight ÷ sum of all weights. Components set to 0 don't appear."
+          >
             {FORMULA_KEYS.map((k) => {
               if (formula[k] <= 0) return null;
               return (
