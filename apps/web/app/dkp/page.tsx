@@ -237,14 +237,15 @@ function mergeConfig(base: Config, partial: Partial<Config> | null | undefined):
   };
 }
 
-type Status = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED';
+type Status = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED' | 'UNRANKED';
 
-/** Friendlier display labels (REJECTED → REVIEW). */
+/** Friendlier display labels. */
 const STATUS_LABELS: Record<Status, string> = {
   EXCELLENT: 'EXCELLENT',
   APPROVED: 'STRONG',
   GOOD: 'GOOD',
   REJECTED: 'REVIEW',
+  UNRANKED: 'UNRANKED',
 };
 
 /** Power band a player belongs to. mT4 < mt4T4Threshold ≤ T4 < t4T5Threshold ≤ T5. */
@@ -353,15 +354,16 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
 
   // 2. Per-band raw maxes for each formula component. Used to normalize each player to 0–100
   //    against their own band, which is what makes the score fair across bands.
+  // Clamp to 0 — some kingdom exports contain negative deltas (e.g. power loss between snapshots).
   const rawValue = (p: Player, key: FormulaKey): number => {
     switch (key) {
-      case 't4Kill': return p.t4Kills;
-      case 't5Kill': return p.t5Kills;
-      case 't4Death': return p.t4Deaths;
-      case 't5Death': return p.t5Deaths;
-      case 'rss': return p.rssGathered;
-      case 'helps': return p.allianceHelps;
-      case 'honor': return p.honorPoints;
+      case 't4Kill': return Math.max(0, p.t4Kills);
+      case 't5Kill': return Math.max(0, p.t5Kills);
+      case 't4Death': return Math.max(0, p.t4Deaths);
+      case 't5Death': return Math.max(0, p.t5Deaths);
+      case 'rss': return Math.max(0, p.rssGathered);
+      case 'helps': return Math.max(0, p.allianceHelps);
+      case 'honor': return Math.max(0, p.honorPoints);
     }
   };
   const bandComponentMax = (band: Band): Record<FormulaKey, number> => {
@@ -446,11 +448,13 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
           : config.cutoffsT5;
 
     let status: Status;
-    if (p.bandScore >= cuts.excellent) status = 'EXCELLENT';
+    if (!inReviewPool.has(p.characterId)) {
+      // Outside the top-power pool — not actively tracked.
+      status = 'UNRANKED';
+    } else if (p.bandScore >= cuts.excellent) status = 'EXCELLENT';
     else if (p.bandScore >= cuts.approved) status = 'APPROVED';
     else if (p.bandScore >= cuts.good) status = 'GOOD';
-    else if (inReviewPool.has(p.characterId)) status = 'REJECTED';
-    else status = 'GOOD';
+    else status = 'REJECTED';
 
     return {
       ...p,
@@ -482,6 +486,7 @@ const STATUS_STYLES: Record<Status, string> = {
   APPROVED: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
   GOOD: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
   REJECTED: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+  UNRANKED: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
 };
 
 /** Tailwind text-only class for each status — used to color the Score column to match the pill. */
@@ -490,6 +495,7 @@ const STATUS_TEXT: Record<Status, string> = {
   APPROVED: 'text-cyan-400',
   GOOD: 'text-indigo-400',
   REJECTED: 'text-rose-400',
+  UNRANKED: 'text-zinc-400',
 };
 
 type SortKey =
@@ -684,7 +690,7 @@ function DkpPageInner() {
   }, [scored, search, sortKey, sortDir, statusFilter]);
 
   const summary = useMemo(() => {
-    const counts: Record<Status, number> = { EXCELLENT: 0, APPROVED: 0, GOOD: 0, REJECTED: 0 };
+    const counts: Record<Status, number> = { EXCELLENT: 0, APPROVED: 0, GOOD: 0, REJECTED: 0, UNRANKED: 0 };
     let totalDkp = 0;
     for (const p of scored) {
       counts[p.status]++;
@@ -1115,17 +1121,16 @@ function DkpPageInner() {
         {/* Status filter pills + power band legend */}
         <section className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex gap-1 flex-wrap">
-            {(['ALL', 'EXCELLENT', 'APPROVED', 'GOOD', 'REJECTED'] as const).map((s) => {
-              const label =
-                s === 'ALL'
-                  ? t('status.all')
-                  : s === 'EXCELLENT'
-                    ? t('status.excellent')
-                    : s === 'APPROVED'
-                      ? t('status.strong')
-                      : s === 'GOOD'
-                        ? t('status.good')
-                        : t('status.review');
+            {(['ALL', 'EXCELLENT', 'APPROVED', 'GOOD', 'REJECTED', 'UNRANKED'] as const).map((s) => {
+              const labelMap: Record<string, string> = {
+                ALL: t('status.all'),
+                EXCELLENT: t('status.excellent'),
+                APPROVED: t('status.strong'),
+                GOOD: t('status.good'),
+                REJECTED: t('status.review'),
+                UNRANKED: STATUS_LABELS.UNRANKED,
+              };
+              const label = labelMap[s] ?? s;
               return (
                 <button
                   key={s}
@@ -1233,7 +1238,7 @@ function DkpPageInner() {
                         key={c.key}
                         className={`px-3 py-2 ${c.numeric ? 'text-right tabular-nums' : ''}`}
                       >
-                        {renderCell(p, c.key, modelView, t)}
+                        {renderCell(p, c.key, modelView)}
                       </td>
                     ))}
                   </tr>
@@ -1526,7 +1531,6 @@ function renderCell(
   p: ScoredPlayer,
   key: ColumnDef['key'],
   modelView: boolean,
-  t: (k: string) => string,
 ) {
   switch (key) {
     case 'username':
@@ -1593,19 +1597,11 @@ function renderCell(
       );
     }
     case 'status': {
-      const label =
-        p.status === 'EXCELLENT'
-          ? t('status.excellent')
-          : p.status === 'APPROVED'
-            ? t('status.strong')
-            : p.status === 'GOOD'
-              ? t('status.good')
-              : t('status.review');
       return (
         <span
           className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[p.status]}`}
         >
-          {label}
+          {STATUS_LABELS[p.status]}
         </span>
       );
     }
