@@ -662,19 +662,22 @@ function DkpPageInner() {
   const players = dataset?.players ?? [];
   const scored = useMemo(() => computeScores(players, config), [players, config]);
 
+  // The Score column (key 'finalScore') now displays bandScore, so sort by bandScore when that key is active.
+  const sortProp = sortKey === 'finalScore' ? 'bandScore' : sortKey;
+
   // Global rank by current sort, ignoring filters — so search doesn't renumber rows.
   const globalRankById = useMemo(() => {
     const dir = sortDir === 'asc' ? 1 : -1;
     const sorted = [...scored].sort((a, b) => {
-      if (sortKey === 'username') return a.username.localeCompare(b.username) * dir;
-      const av = (a as unknown as Record<string, number>)[sortKey] ?? 0;
-      const bv = (b as unknown as Record<string, number>)[sortKey] ?? 0;
+      if (sortProp === 'username') return a.username.localeCompare(b.username) * dir;
+      const av = (a as unknown as Record<string, number>)[sortProp] ?? 0;
+      const bv = (b as unknown as Record<string, number>)[sortProp] ?? 0;
       return (av - bv) * dir;
     });
     const map = new Map<number, number>();
     sorted.forEach((p, i) => map.set(p.characterId, i + 1));
     return map;
-  }, [scored, sortKey, sortDir]);
+  }, [scored, sortProp, sortDir]);
 
   const filtered = useMemo(() => {
     let list = scored;
@@ -690,13 +693,13 @@ function DkpPageInner() {
     }
     const dir = sortDir === 'asc' ? 1 : -1;
     list = [...list].sort((a, b) => {
-      if (sortKey === 'username') return a.username.localeCompare(b.username) * dir;
-      const av = (a as unknown as Record<string, number>)[sortKey] ?? 0;
-      const bv = (b as unknown as Record<string, number>)[sortKey] ?? 0;
+      if (sortProp === 'username') return a.username.localeCompare(b.username) * dir;
+      const av = (a as unknown as Record<string, number>)[sortProp] ?? 0;
+      const bv = (b as unknown as Record<string, number>)[sortProp] ?? 0;
       return (av - bv) * dir;
     });
     return list;
-  }, [scored, search, sortKey, sortDir, statusFilter]);
+  }, [scored, search, sortProp, sortDir, statusFilter]);
 
   const summary = useMemo(() => {
     const counts: Record<Status, number> = { EXCELLENT: 0, APPROVED: 0, GOOD: 0, REJECTED: 0, UNRANKED: 0 };
