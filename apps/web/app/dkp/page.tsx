@@ -556,7 +556,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 't4Deaths', label: 'T4 Deaths', numeric: true, defaultVisible: true, hint: 'T4 troop deaths from the kingdom export.' },
   { key: 't5Deaths', label: 'T5 Deaths', numeric: true, defaultVisible: true, hint: 'T5 troop deaths from the kingdom export.' },
   { key: 'totalDeaths', label: 'Total Deaths', numeric: true, defaultVisible: true, hint: 'T4 + T5 troop deaths combined.' },
-  { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths weighted).' },
+  { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'DKP = (T4 Kills × weight) + (T5 Kills × weight) + (T4 Deaths × weight) + (T5 Deaths × weight), using the band\'s formula weights. This is a standalone combat number — it does NOT determine the Score or Status. The Score uses all 7 components (kills, deaths, RSS, helps, honor) normalized within the band.' },
   { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: '0–100 score within the player\'s own power band. Each stat is normalized against the best in that band, then blended by the band\'s formula weights. This score drives the status tier.' },
   { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier based on the player\'s band score: EXCELLENT / STRONG / GOOD / REVIEW (top 400 by power) or UNRANKED (outside top 400). Hover any pill for details.' },
   { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: true, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
@@ -1599,7 +1599,15 @@ function renderCell(
       return <span className={modelView ? DIM : ''}>{fmtMClamped(p.t4Deaths + p.t5Deaths)}</span>;
     case 'dkp': {
       const v = p.dkp || p.computedDkp;
-      return modelView ? ratioCell(v, p.modelStats.computedDkp) : fmtM(v);
+      if (modelView) return ratioCell(v, p.modelStats.computedDkp);
+      return (
+        <span
+          className="cursor-help"
+          title={`DKP = T4K×w + T5K×w + T4D×w + T5D×w (combat only, using ${BAND_LABELS[p.band]} band weights). This number is separate from the Score — Score uses all 7 components.`}
+        >
+          {fmtM(v)}
+        </span>
+      );
     }
     case 'finalScore': {
       return (
