@@ -2293,20 +2293,20 @@ function BandColumn({
 
       {/* Score Formula */}
       <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]/60">
-        <div className="flex items-baseline justify-between mb-3">
-          <div>
+        <div className="mb-3">
+          <div className="flex items-center justify-between">
             <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold">
               {t('formulaTitle')}
             </div>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              {t('formulaHelp')}
-            </p>
+            {total > 0 && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--background-secondary)] text-[var(--text-muted)]">
+                {t('formulaActive', { n: FORMULA_KEYS.filter((k) => formula[k] > 0).length })}
+              </span>
+            )}
           </div>
-          {total > 0 && (
-            <div className="text-xs text-[var(--text-muted)]">
-              {t('formulaActive', { n: FORMULA_KEYS.filter((k) => formula[k] > 0).length })}
-            </div>
-          )}
+          <p className="text-xs text-[var(--text-muted)] mt-1">
+            {t('formulaHelp')}
+          </p>
         </div>
         <div className="divide-y divide-[var(--border)]/40">
           {FORMULA_KEYS.map((k) => (
