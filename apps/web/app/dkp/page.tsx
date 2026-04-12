@@ -1601,12 +1601,11 @@ function renderCell(
       const v = p.dkp || p.computedDkp;
       if (modelView) return ratioCell(v, p.modelStats.computedDkp);
       return (
-        <span
-          className="cursor-help"
-          title={`DKP = T4K×w + T5K×w + T4D×w + T5D×w (combat only, using ${BAND_LABELS[p.band]} band weights). This number is separate from the Score — Score uses all 7 components.`}
+        <Tooltip
+          content={`DKP = T4K×w + T5K×w + T4D×w + T5D×w (combat only, using ${BAND_LABELS[p.band]} band weights). This number is separate from the Score — Score uses all 7 components.`}
         >
-          {fmtM(v)}
-        </span>
+          <span className="cursor-help">{fmtM(v)}</span>
+        </Tooltip>
       );
     }
     case 'finalScore': {
@@ -1625,12 +1624,13 @@ function renderCell(
         UNRANKED: `Outside the top 400 by power — not scored or ranked. These accounts are not actively tracked for performance.`,
       };
       return (
-        <span
-          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[p.status]}`}
-          title={statusHints[p.status]}
-        >
-          {STATUS_LABELS[p.status]}
-        </span>
+        <Tooltip content={statusHints[p.status]}>
+          <span
+            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[p.status]}`}
+          >
+            {STATUS_LABELS[p.status]}
+          </span>
+        </Tooltip>
       );
     }
     case 'honorPoints':
