@@ -401,23 +401,13 @@ function TeamBuilderTab({
         return lines.join('\n');
     };
 
-    // Copy mail to clipboard
+    // Store mail as a draft and open RoK Mail in a new tab with it pre-loaded.
     const copyMailToClipboard = async (team: TeamNumber) => {
-        try {
-            const mail = generateMail(team);
-            await navigator.clipboard.writeText(mail);
-            setCopiedMail(true);
-            setTimeout(() => setCopiedMail(false), 2000);
-        } catch {
-            const textArea = document.createElement('textarea');
-            textArea.value = generateMail(team);
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            setCopiedMail(true);
-            setTimeout(() => setCopiedMail(false), 2000);
-        }
+        const mail = generateMail(team);
+        localStorage.setItem('rok-mail-draft', mail);
+        window.open('/rok-mail', '_blank');
+        setCopiedMail(true);
+        setTimeout(() => setCopiedMail(false), 2000);
     };
 
     // Copy summary to clipboard
