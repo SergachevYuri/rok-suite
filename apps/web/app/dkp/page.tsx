@@ -548,7 +548,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 't5Deaths', label: 'T5 Deaths', numeric: true, defaultVisible: true, hint: 'T5 troop deaths from the kingdom export.' },
   { key: 'totalDeaths', label: 'Total Deaths', numeric: true, defaultVisible: true, hint: 'T4 + T5 troop deaths combined.' },
   { key: 'dkp', label: 'DKP', numeric: true, defaultVisible: true, hint: 'Raw DKP for this player from the formula in the config panel (T4/T5 kills + T4/T5 deaths weighted).' },
-  { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: 'Band Score (colored, drives status): 0–100 within the player\'s own power band — each stat is normalized against the best in that band. Kingdom Score (gray "k" number): same math but against the whole kingdom. The status tier (EXCELLENT/STRONG/GOOD/REVIEW) uses the band score.' },
+  { key: 'finalScore', label: 'Score', numeric: true, defaultVisible: true, hint: '0–100 score within the player\'s own power band. Each stat is normalized against the best in that band, then blended by the band\'s formula weights. This score drives the status tier.' },
   { key: 'status', label: 'Status', defaultVisible: true, hint: 'Tier the score lands in (EXCELLENT / STRONG / GOOD / REVIEW).' },
   { key: 'honorPoints', label: 'Honor', numeric: true, defaultVisible: true, hint: 'Raw honor points from the Statmaster honor file (matched by name).' },
 ];
@@ -1585,14 +1585,9 @@ function renderCell(
       return modelView ? ratioCell(v, p.modelStats.computedDkp) : fmtM(v);
     }
     case 'finalScore': {
-      // The band score is what drives the status, so it's the headline number and is colored to
-      // match the status pill. The kingdom-wide finalScore is shown as a muted secondary number.
       return (
         <span className={`font-semibold ${STATUS_TEXT[p.status]}`}>
           {fmtScore(p.bandScore)}
-          <span className="ml-1 text-[10px] font-normal text-[var(--text-muted)]">
-            (k {fmtScore(p.finalScore)})
-          </span>
         </span>
       );
     }
