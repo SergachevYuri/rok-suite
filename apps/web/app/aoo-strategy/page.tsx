@@ -349,9 +349,11 @@ function TeamBuilderTab({
             const garrison = garrisonLeads[zone.num];
             const carrier = isMid ? arkCarrier : '';
             const tpPlayers = players.filter(p => teleportFirst.has(p.name));
-            const regularPlayers = players.filter(p =>
-                p.name !== rally && p.name !== garrison && p.name !== carrier && !teleportFirst.has(p.name)
-            );
+            // "Team:" lists everyone except the rally lead, garrison lead, and ark carrier
+            // (those are already called out by name in their own lines above).
+            // TP-first players stay in the team list — they're just also listed on the TP line.
+            const namedLeaders = new Set([rally, garrison, carrier].filter(Boolean));
+            const regularPlayers = players.filter(p => !namedLeaders.has(p.name));
 
             // Build zone leader label
             const leaderNames = isMid
