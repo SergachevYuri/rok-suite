@@ -478,6 +478,15 @@ const fmt = (n: number) => nf.format(Math.round(n));
 const fmtM = (n: number) => `${(n / 1_000_000).toFixed(2)}M`;
 /** Display the final score as a 0–100 number rounded to one decimal. */
 const fmtScore = (n: number) => n.toFixed(1);
+/** Format as millions, clamped to 0. If the raw value is negative, show 0.00M with a warning tooltip. */
+function fmtMClamped(n: number) {
+  if (n >= 0) return fmtM(n);
+  return (
+    <span className="text-amber-400 cursor-help" title={`Raw data: ${fmtM(n)} (negative — likely a spreadsheet import issue)`}>
+      0.00M ⚠
+    </span>
+  );
+}
 
 // Status palette is intentionally distinct from the KP cell palette (green/amber/red).
 // This way the Score color matches the Status pill color and there's no collision.
@@ -1575,11 +1584,11 @@ function renderCell(
     case 't5Kills':
       return <span className={modelView ? DIM : ''}>{fmtM(p.t5Kills)}</span>;
     case 't4Deaths':
-      return <span className={modelView ? DIM : ''}>{fmtM(p.t4Deaths)}</span>;
+      return <span className={modelView ? DIM : ''}>{fmtMClamped(p.t4Deaths)}</span>;
     case 't5Deaths':
-      return <span className={modelView ? DIM : ''}>{fmtM(p.t5Deaths)}</span>;
+      return <span className={modelView ? DIM : ''}>{fmtMClamped(p.t5Deaths)}</span>;
     case 'totalDeaths':
-      return <span className={modelView ? DIM : ''}>{fmtM(p.t4Deaths + p.t5Deaths)}</span>;
+      return <span className={modelView ? DIM : ''}>{fmtMClamped(p.t4Deaths + p.t5Deaths)}</span>;
     case 'dkp': {
       const v = p.dkp || p.computedDkp;
       return modelView ? ratioCell(v, p.modelStats.computedDkp) : fmtM(v);
