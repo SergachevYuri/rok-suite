@@ -933,100 +933,125 @@ function DkpPageInner() {
                 </div>
               </div>
 
-              <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
-                <span className="font-medium">Band thresholds:</span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-sky-400">mT4 / T4</span>
-                  <PowerInput
-                    value={config.mt4T4Threshold}
-                    disabled={!isOfficer}
-                    onChange={(v) =>
-                      setConfig((c) => ({ ...c, mt4T4Threshold: Math.max(0, v) }))
-                    }
-                  />
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="text-fuchsia-400">T4 / T5</span>
-                  <PowerInput
-                    value={config.t4T5Threshold}
-                    disabled={!isOfficer}
-                    onChange={(v) =>
-                      setConfig((c) => ({ ...c, t4T5Threshold: Math.max(0, v) }))
-                    }
-                  />
-                </span>
-                <span className="text-[var(--text-muted)]">applied to all band-aware calculations</span>
-              </div>
+              {/* Global settings card — band thresholds + ranked cutoff */}
+              <div className="mb-6 rounded-xl bg-[var(--background)]/40 border border-[var(--border)] p-5">
+                <h3 className="text-sm font-semibold text-[var(--foreground)] mb-4">Global Settings</h3>
 
-              {/* Ranked cutoff */}
-              <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
-                <span className="font-medium">Ranked cutoff:</span>
-                <div className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--background-card)] p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => isOfficer && setConfig((c) => ({ ...c, rankedMode: 'topN' }))}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                      config.rankedMode === 'topN'
-                        ? 'bg-[var(--foreground)] text-[var(--background)]'
-                        : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                    } ${!isOfficer ? 'cursor-not-allowed opacity-60' : ''}`}
-                  >
-                    Top N
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => isOfficer && setConfig((c) => ({ ...c, rankedMode: 'minPower' }))}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                      config.rankedMode === 'minPower'
-                        ? 'bg-[var(--foreground)] text-[var(--background)]'
-                        : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                    } ${!isOfficer ? 'cursor-not-allowed opacity-60' : ''}`}
-                  >
-                    Min Power
-                  </button>
+                {/* Band thresholds */}
+                <div className="mb-5">
+                  <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-1">
+                    Power Band Thresholds
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)] mb-3">
+                    Where the boundaries fall between mT4, T4, and T5. Applied to scoring, KP targets, and the model player view.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-sky-400">mT4 / T4</span>
+                      <PowerInput
+                        value={config.mt4T4Threshold}
+                        disabled={!isOfficer}
+                        onChange={(v) =>
+                          setConfig((c) => ({ ...c, mt4T4Threshold: Math.max(0, v) }))
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-fuchsia-400">T4 / T5</span>
+                      <PowerInput
+                        value={config.t4T5Threshold}
+                        disabled={!isOfficer}
+                        onChange={(v) =>
+                          setConfig((c) => ({ ...c, t4T5Threshold: Math.max(0, v) }))
+                        }
+                      />
+                    </div>
+                  </div>
                 </div>
-                {config.rankedMode === 'topN' ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span>Top</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={9999}
-                      value={config.rankedTopN}
-                      disabled={!isOfficer}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10);
-                        if (!Number.isNaN(v) && v > 0) setConfig((c) => ({ ...c, rankedTopN: v }));
-                      }}
-                      className="w-16 px-2 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
-                    />
-                    <span>by power</span>
-                    {scored.length > 0 && (() => {
-                      const sorted = [...scored].sort((a, b) => b.power - a.power);
-                      const cutoffPlayer = sorted[Math.min(config.rankedTopN - 1, sorted.length - 1)];
-                      return (
-                        <span className="text-[var(--text-muted)]">
-                          (cutoff ≈ {(cutoffPlayer.power / 1_000_000).toFixed(1)}M)
-                        </span>
-                      );
-                    })()}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span>≥</span>
-                    <PowerInput
-                      value={config.rankedMinPower}
-                      disabled={!isOfficer}
-                      onChange={(v) => setConfig((c) => ({ ...c, rankedMinPower: Math.max(0, v) }))}
-                    />
-                    <span>power</span>
-                    {scored.length > 0 && (
-                      <span className="text-[var(--text-muted)]">
-                        ({scored.filter((p) => p.power >= config.rankedMinPower).length} ranked)
-                      </span>
+
+                {/* Ranked cutoff */}
+                <div>
+                  <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-1">
+                    Ranked Cutoff
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)] mb-3">
+                    Who gets scored vs tagged UNRANKED. Choose a mode:
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {/* Mode toggle */}
+                    <div className="flex rounded-lg overflow-hidden border border-[var(--border)]">
+                      <button
+                        type="button"
+                        onClick={() => isOfficer && setConfig((c) => ({ ...c, rankedMode: 'topN' }))}
+                        className={`px-4 py-2 text-sm font-medium transition-colors ${
+                          config.rankedMode === 'topN'
+                            ? 'bg-[#4318ff] text-white'
+                            : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                        } ${!isOfficer ? 'cursor-not-allowed opacity-60' : ''}`}
+                      >
+                        Top N by Power
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => isOfficer && setConfig((c) => ({ ...c, rankedMode: 'minPower' }))}
+                        className={`px-4 py-2 text-sm font-medium transition-colors ${
+                          config.rankedMode === 'minPower'
+                            ? 'bg-[#4318ff] text-white'
+                            : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                        } ${!isOfficer ? 'cursor-not-allowed opacity-60' : ''}`}
+                      >
+                        Minimum Power
+                      </button>
+                    </div>
+
+                    {/* Mode-specific input */}
+                    {config.rankedMode === 'topN' ? (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-[var(--text-secondary)]">Rank the top</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={9999}
+                          value={config.rankedTopN}
+                          disabled={!isOfficer}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value, 10);
+                            if (!Number.isNaN(v) && v > 0) setConfig((c) => ({ ...c, rankedTopN: v }));
+                          }}
+                          className="w-20 px-2 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                        />
+                        <span className="text-[var(--text-secondary)]">players by power</span>
+                        {scored.length > 0 && (() => {
+                          const sorted = [...scored].sort((a, b) => b.power - a.power);
+                          const cutoffPlayer = sorted[Math.min(config.rankedTopN - 1, sorted.length - 1)];
+                          return (
+                            <span className="text-xs text-[var(--text-muted)] ml-1">
+                              (cutoff ≈ {(cutoffPlayer.power / 1_000_000).toFixed(1)}M power)
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-[var(--text-secondary)]">Rank players with ≥</span>
+                        <PowerInput
+                          value={config.rankedMinPower}
+                          disabled={!isOfficer}
+                          onChange={(v) => setConfig((c) => ({ ...c, rankedMinPower: Math.max(0, v) }))}
+                        />
+                        <span className="text-[var(--text-secondary)]">power</span>
+                        {scored.length > 0 && (
+                          <span className="text-xs text-[var(--text-muted)] ml-1">
+                            ({scored.filter((p) => p.power >= config.rankedMinPower).length} of {scored.length} ranked)
+                          </span>
+                        )}
+                      </div>
                     )}
-                  </span>
-                )}
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)] mt-2">
+                    Everyone outside the cutoff is tagged UNRANKED and hidden from the table by default.
+                  </p>
+                </div>
               </div>
 
               {/* How Scoring Works — comprehensive visual guide */}
