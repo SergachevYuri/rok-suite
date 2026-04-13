@@ -72,6 +72,11 @@ interface Config {
   cutoffsMt4: CutoffSet;
   cutoffsT4: CutoffSet;
   cutoffsT5: CutoffSet;
+  // UNRANKED cutoff: determines which players get scored vs tagged UNRANKED.
+  // 'topN' = top N by power are ranked. 'minPower' = anyone above this power is ranked.
+  rankedMode: 'topN' | 'minPower';
+  rankedTopN: number;
+  rankedMinPower: number;
 }
 
 // mT4 sees no T5 troops, so the T5 components default to 0.
@@ -98,6 +103,9 @@ const DEFAULT_CONFIG: Config = {
   cutoffsMt4: { ...DEFAULT_CUTOFFS },
   cutoffsT4: { ...DEFAULT_CUTOFFS },
   cutoffsT5: { ...DEFAULT_CUTOFFS },
+  rankedMode: 'topN',
+  rankedTopN: 400,
+  rankedMinPower: 15_000_000,
 };
 
 /** Rescale a formula so its largest nonzero component is ~100. The scoring math is invariant
@@ -234,6 +242,9 @@ function mergeConfig(base: Config, partial: Partial<Config> | null | undefined):
     cutoffsMt4,
     cutoffsT4,
     cutoffsT5,
+    rankedMode: partial.rankedMode ?? base.rankedMode,
+    rankedTopN: partial.rankedTopN ?? base.rankedTopN,
+    rankedMinPower: partial.rankedMinPower ?? base.rankedMinPower,
   };
 }
 
@@ -420,12 +431,17 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
   // Power-rank cutoff for REVIEW: anyone outside the top N by current power isn't actively
   // tracked (farms / inactives / fillers), so they should never be flagged for officer review.
   // They still appear in the table — they just fall into GOOD instead of REVIEW.
-  const REVIEW_POWER_RANK_CUTOFF = 400;
+  // Determine which players are "ranked" (eligible for EXCELLENT/STRONG/GOOD/REVIEW).
+  // Two modes: top N by power, or minimum power threshold.
   const inReviewPool = new Set<number>(
-    [...firstPass]
-      .sort((a, b) => b.power - a.power)
-      .slice(0, REVIEW_POWER_RANK_CUTOFF)
-      .map((p) => p.characterId),
+    config.rankedMode === 'topN'
+      ? [...firstPass]
+          .sort((a, b) => b.power - a.power)
+          .slice(0, config.rankedTopN)
+          .map((p) => p.characterId)
+      : firstPass
+          .filter((p) => p.power >= config.rankedMinPower)
+          .map((p) => p.characterId),
   );
 
   // 5. Final pass: attach KP target and band-specific status.
@@ -588,6 +604,7 @@ function DkpPageInner() {
   const [sortKey, setSortKey] = useState<SortKey>('finalScore');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
+  const [hideUnranked, setHideUnranked] = useState(true);
   /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
   const [modelView, setModelView] = useState(false);
   const [modelInfoOpen, setModelInfoOpen] = useState(false);
@@ -681,6 +698,7 @@ function DkpPageInner() {
 
   const filtered = useMemo(() => {
     let list = scored;
+    if (hideUnranked && statusFilter !== 'UNRANKED') list = list.filter((p) => p.status !== 'UNRANKED');
     if (statusFilter !== 'ALL') list = list.filter((p) => p.status === statusFilter);
     if (search.trim()) {
       const q = search.trim();
@@ -699,7 +717,7 @@ function DkpPageInner() {
       return (av - bv) * dir;
     });
     return list;
-  }, [scored, search, sortProp, sortDir, statusFilter]);
+  }, [scored, search, sortProp, sortDir, statusFilter, hideUnranked]);
 
   const summary = useMemo(() => {
     const counts: Record<Status, number> = { EXCELLENT: 0, APPROVED: 0, GOOD: 0, REJECTED: 0, UNRANKED: 0 };
@@ -940,6 +958,76 @@ function DkpPageInner() {
                 <span className="text-[var(--text-muted)]">applied to all band-aware calculations</span>
               </div>
 
+              {/* Ranked cutoff */}
+              <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
+                <span className="font-medium">Ranked cutoff:</span>
+                <div className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--background-card)] p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => isOfficer && setConfig((c) => ({ ...c, rankedMode: 'topN' }))}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      config.rankedMode === 'topN'
+                        ? 'bg-[var(--foreground)] text-[var(--background)]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                    } ${!isOfficer ? 'cursor-not-allowed opacity-60' : ''}`}
+                  >
+                    Top N
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => isOfficer && setConfig((c) => ({ ...c, rankedMode: 'minPower' }))}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      config.rankedMode === 'minPower'
+                        ? 'bg-[var(--foreground)] text-[var(--background)]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                    } ${!isOfficer ? 'cursor-not-allowed opacity-60' : ''}`}
+                  >
+                    Min Power
+                  </button>
+                </div>
+                {config.rankedMode === 'topN' ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>Top</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={9999}
+                      value={config.rankedTopN}
+                      disabled={!isOfficer}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (!Number.isNaN(v) && v > 0) setConfig((c) => ({ ...c, rankedTopN: v }));
+                      }}
+                      className="w-16 px-2 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                    />
+                    <span>by power</span>
+                    {scored.length > 0 && (() => {
+                      const sorted = [...scored].sort((a, b) => b.power - a.power);
+                      const cutoffPlayer = sorted[Math.min(config.rankedTopN - 1, sorted.length - 1)];
+                      return (
+                        <span className="text-[var(--text-muted)]">
+                          (cutoff ≈ {(cutoffPlayer.power / 1_000_000).toFixed(1)}M)
+                        </span>
+                      );
+                    })()}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>≥</span>
+                    <PowerInput
+                      value={config.rankedMinPower}
+                      disabled={!isOfficer}
+                      onChange={(v) => setConfig((c) => ({ ...c, rankedMinPower: Math.max(0, v) }))}
+                    />
+                    <span>power</span>
+                    {scored.length > 0 && (
+                      <span className="text-[var(--text-muted)]">
+                        ({scored.filter((p) => p.power >= config.rankedMinPower).length} ranked)
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
 
               {/* How Scoring Works — comprehensive visual guide */}
               <div className="mb-6 rounded-xl bg-[var(--background)]/40 border border-[var(--border)] overflow-hidden">
@@ -1163,6 +1251,25 @@ function DkpPageInner() {
               );
             })}
           </div>
+          {/* Hide unranked toggle */}
+          <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={hideUnranked}
+              onChange={(e) => setHideUnranked(e.target.checked)}
+              className="accent-[#4318ff]"
+            />
+            Hide unranked
+            <Tooltip content={
+              config.rankedMode === 'topN'
+                ? `Only the top ${config.rankedTopN} players by power are ranked. Everyone else is UNRANKED.`
+                : `Players with power ≥ ${(config.rankedMinPower / 1_000_000).toFixed(0)}M are ranked. Everyone else is UNRANKED.`
+            }>
+              <span className="cursor-help text-[var(--text-muted)] hover:text-[var(--foreground)]">
+                <Info size={12} />
+              </span>
+            </Tooltip>
+          </label>
           {/* Power band legend */}
           <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1">
