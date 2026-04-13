@@ -2371,10 +2371,10 @@ function FormulaRow({
     <div
       className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-70' : ''} ${isOff ? 'opacity-40' : ''}`}
     >
-      <Tooltip content={hint} className="w-28 flex-shrink-0">
-        <span className="flex items-center gap-2 cursor-help">
-          <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
-          <span className="text-sm font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2">
+      <Tooltip content={hint} className="w-20 xl:w-24 flex-shrink-0">
+        <span className="flex items-center gap-1.5 cursor-help">
+          <span className={`w-2 h-2 rounded-full ${color} flex-shrink-0`} />
+          <span className="text-xs font-medium text-[var(--foreground)] underline decoration-dotted decoration-[var(--text-muted)] underline-offset-2 truncate">
             {label}
           </span>
         </span>
@@ -2403,7 +2403,7 @@ function FormulaRow({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-16 px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+        className="w-12 px-1 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -2471,7 +2471,7 @@ function BandColumn({
   const exKP = ((examplePower * kpTarget) / 1_000_000).toFixed(0);
   return (
     <div
-      className={`rounded-xl border ${c.border} bg-[var(--background-card)] overflow-hidden flex flex-col`}
+      className={`rounded-xl border ${c.border} bg-[var(--background-card)] flex flex-col`}
     >
       {/* Band header */}
       <div className={`${c.headerBg} px-5 py-4 border-b ${c.border}`}>
@@ -2581,7 +2581,7 @@ function BandColumn({
           />
           <div className="flex items-center gap-3 pt-1">
             <span
-              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
+              className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
             >
               {STATUS_LABELS.REJECTED}
             </span>
@@ -2645,7 +2645,7 @@ function CutoffRowSimple({
     <div className={`flex items-center gap-3 py-2 ${disabled ? 'opacity-70' : ''}`}>
       <Tooltip content={CUTOFF_HINTS[cutoffKey]} className="flex-shrink-0">
         <span
-          className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border cursor-help ${STATUS_STYLES[status]}`}
+          className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[status]}`}
         >
           {STATUS_LABELS[status]}
         </span>
@@ -2675,7 +2675,7 @@ function CutoffRowSimple({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-16 px-2 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+        className="w-12 px-1 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
       />
     </div>
   );
