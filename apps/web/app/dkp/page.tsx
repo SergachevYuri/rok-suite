@@ -56,52 +56,61 @@ interface CutoffSet {
   good: number;
 }
 
+/** 4 power bands: μT4 < microMidThreshold ≤ mT4 < midStrongThreshold ≤ sT4 < strongT5Threshold ≤ T5. */
 interface Config {
-  // Power band boundaries. mT4 < mt4T4Threshold ≤ T4 < t4T5Threshold ≤ T5.
-  mt4T4Threshold: number;
-  t4T5Threshold: number;
-  // One flat 7-component formula per band.
-  formulaMt4: BandFormula;
-  formulaT4: BandFormula;
+  microMidThreshold: number;
+  midStrongThreshold: number;
+  strongT5Threshold: number;
+  formulaMicroT4: BandFormula;
+  formulaMidT4: BandFormula;
+  formulaStrongT4: BandFormula;
   formulaT5: BandFormula;
-  // KP target multipliers per band — informational only (drives the KP cell color).
-  kpTargetMt4: number;
-  kpTargetT4: number;
+  kpTargetMicroT4: number;
+  kpTargetMidT4: number;
+  kpTargetStrongT4: number;
   kpTargetT5: number;
-  // Status cutoffs per band, applied to the 0–100 per-band score.
-  cutoffsMt4: CutoffSet;
-  cutoffsT4: CutoffSet;
+  cutoffsMicroT4: CutoffSet;
+  cutoffsMidT4: CutoffSet;
+  cutoffsStrongT4: CutoffSet;
   cutoffsT5: CutoffSet;
-  // UNRANKED cutoff: determines which players get scored vs tagged UNRANKED.
-  // 'topN' = top N by power are ranked. 'minPower' = anyone above this power is ranked.
   rankedMode: 'topN' | 'minPower';
   rankedTopN: number;
   rankedMinPower: number;
 }
 
-// mT4 sees no T5 troops, so the T5 components default to 0.
-const DEFAULT_FORMULA_MT4: BandFormula = {
+// μT4 — micro accounts, no T5 troops at all.
+const DEFAULT_FORMULA_MICRO: BandFormula = {
   t4Kill: 5, t5Kill: 0, t4Death: 8, t5Death: 0, rss: 5, helps: 5, honor: 10,
 };
-const DEFAULT_FORMULA_T4: BandFormula = {
+// mT4 — mid T4, some might have minimal T5 but mostly T4.
+const DEFAULT_FORMULA_MID: BandFormula = {
+  t4Kill: 5, t5Kill: 5, t4Death: 8, t5Death: 8, rss: 5, helps: 5, honor: 10,
+};
+// sT4 — strong T4, actively mixing T4 and T5.
+const DEFAULT_FORMULA_STRONG: BandFormula = {
   t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24, rss: 5, helps: 5, honor: 10,
 };
+// T5 — whales, full T5 focus.
 const DEFAULT_FORMULA_T5: BandFormula = {
   t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24, rss: 5, helps: 5, honor: 10,
 };
 const DEFAULT_CUTOFFS: CutoffSet = { excellent: 60, approved: 35, good: 15 };
 
 const DEFAULT_CONFIG: Config = {
-  mt4T4Threshold: 30_000_000,
-  t4T5Threshold: 42_000_000,
-  formulaMt4: { ...DEFAULT_FORMULA_MT4 },
-  formulaT4: { ...DEFAULT_FORMULA_T4 },
+  microMidThreshold: 22_000_000,
+  midStrongThreshold: 30_000_000,
+  strongT5Threshold: 42_000_000,
+  formulaMicroT4: { ...DEFAULT_FORMULA_MICRO },
+  formulaMidT4: { ...DEFAULT_FORMULA_MID },
+  formulaStrongT4: { ...DEFAULT_FORMULA_STRONG },
   formulaT5: { ...DEFAULT_FORMULA_T5 },
-  kpTargetMt4: 2,
-  kpTargetT4: 3,
+  kpTargetMicroT4: 2,
+  kpTargetMidT4: 3,
+  kpTargetStrongT4: 5,
   kpTargetT5: 10,
-  cutoffsMt4: { ...DEFAULT_CUTOFFS },
-  cutoffsT4: { ...DEFAULT_CUTOFFS },
+  cutoffsMicroT4: { ...DEFAULT_CUTOFFS },
+  cutoffsMidT4: { ...DEFAULT_CUTOFFS },
+  cutoffsStrongT4: { ...DEFAULT_CUTOFFS },
   cutoffsT5: { ...DEFAULT_CUTOFFS },
   rankedMode: 'topN',
   rankedTopN: 400,
@@ -193,54 +202,72 @@ function mergeConfig(base: Config, partial: Partial<Config> | null | undefined):
     statusThresholds?: Partial<CutoffSet>;
   };
 
-  const mt4T4Threshold = partial.mt4T4Threshold ?? base.mt4T4Threshold;
-  const t4T5Threshold = partial.t4T5Threshold ?? legacy.weightSplitThreshold ?? base.t4T5Threshold;
+  // Thresholds: prefer new 4-band keys, fall back to legacy 3-band (mt4T4/t4T5) or 2-band.
+  const microMidThreshold = partial.microMidThreshold
+    ?? (legacy as Record<string, unknown>).mt4T4Threshold as number | undefined
+    ?? base.microMidThreshold;
+  const midStrongThreshold = partial.midStrongThreshold ?? base.midStrongThreshold;
+  const strongT5Threshold = partial.strongT5Threshold
+    ?? (legacy as Record<string, unknown>).t4T5Threshold as number | undefined
+    ?? legacy.weightSplitThreshold
+    ?? base.strongT5Threshold;
 
-  // Per-band flat formula: prefer the new key, otherwise reconstruct from legacy split parts.
-  const legacyMt4 = legacy.weightsMt4 ?? legacy.weightsLow;
-  const legacyT4 = legacy.weightsT4 ?? legacy.weightsLow;
-  const legacyT5 = legacy.weightsT5 ?? legacy.weightsHigh;
-  // Always normalize on load so formulas migrated from legacy configs (which combined a 4-coef
-  // DKP formula with a 0–100 weight, producing values like 1920) get rescaled into 0–100.
-  const formulaMt4 = normalizeFormula(
-    partial.formulaMt4
-      ? { ...base.formulaMt4, ...partial.formulaMt4 }
-      : legacyToBandFormula(base.formulaMt4, legacy.dkpFormula, legacyMt4),
-  );
-  const formulaT4 = normalizeFormula(
-    partial.formulaT4
-      ? { ...base.formulaT4, ...partial.formulaT4 }
-      : legacyToBandFormula(base.formulaT4, legacy.dkpFormula, legacyT4),
-  );
-  const formulaT5 = normalizeFormula(
-    partial.formulaT5
-      ? { ...base.formulaT5, ...partial.formulaT5 }
-      : legacyToBandFormula(base.formulaT5, legacy.dkpFormula, legacyT5),
-  );
+  // Per-band formulas: prefer new 4-band keys, then legacy 3-band (formulaMt4/T4), then 2-band.
+  const legacyLow = legacy.weightsMt4 ?? legacy.weightsLow;
+  const legacyHigh = legacy.weightsT5 ?? legacy.weightsHigh;
+  const legacyMid = legacy.weightsT4 ?? legacyLow;
+  const prev3 = partial as Record<string, BandFormula | undefined>;
 
-  // Per-band cutoffs: new keys, falling back to the single legacy statusThresholds set.
+  const mergeF = (key: keyof Config, fallback3: string, legacyW: typeof legacyLow) =>
+    normalizeFormula(
+      (partial as Record<string, BandFormula | undefined>)[key]
+        ? { ...((base as unknown as Record<string, BandFormula>)[key]), ...(partial as Record<string, BandFormula>)[key] }
+        : prev3[fallback3]
+          ? { ...(base as unknown as Record<string, BandFormula>)[key], ...prev3[fallback3]! }
+          : legacyToBandFormula((base as unknown as Record<string, BandFormula>)[key], legacy.dkpFormula, legacyW),
+    );
+
+  const formulaMicroT4 = mergeF('formulaMicroT4', 'formulaMicroT4', legacyLow);
+  const formulaMidT4 = mergeF('formulaMidT4', 'formulaMicroT4', legacyLow);
+  const formulaStrongT4 = mergeF('formulaStrongT4', 'formulaStrongT4', legacyMid);
+  const formulaT5 = mergeF('formulaT5', 'formulaT5', legacyHigh);
+
+  // Per-band cutoffs.
   const legacyCuts = migrateCutoffs(legacy.statusThresholds);
-  const cutoffsMt4 = { ...base.cutoffsMt4, ...legacyCuts, ...(partial.cutoffsMt4 ?? {}) };
-  const cutoffsT4 = { ...base.cutoffsT4, ...legacyCuts, ...(partial.cutoffsT4 ?? {}) };
-  const cutoffsT5 = { ...base.cutoffsT5, ...legacyCuts, ...(partial.cutoffsT5 ?? {}) };
+  const mergeC = (key: keyof Config, fallback3: string) => ({
+    ...(base as unknown as Record<string, CutoffSet>)[key],
+    ...legacyCuts,
+    ...((prev3[fallback3] ?? {}) as Partial<CutoffSet>),
+    ...((partial as Record<string, Partial<CutoffSet> | undefined>)[key] ?? {}),
+  });
+  const cutoffsMicroT4 = mergeC('cutoffsMicroT4', 'cutoffsMicroT4');
+  const cutoffsMidT4 = mergeC('cutoffsMidT4', 'cutoffsMicroT4');
+  const cutoffsStrongT4 = mergeC('cutoffsStrongT4', 'cutoffsStrongT4');
+  const cutoffsT5 = mergeC('cutoffsT5', 'cutoffsT5');
 
-  const kpTargetMt4 = partial.kpTargetMt4 ?? legacy.kpTargetLow ?? base.kpTargetMt4;
-  const kpTargetT4 = partial.kpTargetT4 ?? legacy.kpTargetLow ?? base.kpTargetT4;
+  // KP targets.
+  const kpTargetMicroT4 = partial.kpTargetMicroT4 ?? (legacy as Record<string, number>).kpTargetMt4 ?? legacy.kpTargetLow ?? base.kpTargetMicroT4;
+  const kpTargetMidT4 = partial.kpTargetMidT4 ?? (legacy as Record<string, number>).kpTargetMt4 ?? legacy.kpTargetLow ?? base.kpTargetMidT4;
+  const kpTargetStrongT4 = partial.kpTargetStrongT4 ?? (legacy as Record<string, number>).kpTargetT4 ?? legacy.kpTargetLow ?? base.kpTargetStrongT4;
   const kpTargetT5 = partial.kpTargetT5 ?? legacy.kpTargetHigh ?? base.kpTargetT5;
 
   return {
     ...base,
     ...partial,
-    mt4T4Threshold,
-    t4T5Threshold,
-    formulaMt4,
-    formulaT4,
+    microMidThreshold,
+    midStrongThreshold,
+    strongT5Threshold,
+    formulaMicroT4,
+    formulaMidT4,
+    formulaStrongT4,
     formulaT5,
-    kpTargetMt4,
-    kpTargetT4,
+    kpTargetMicroT4,
+    kpTargetMidT4,
+    kpTargetStrongT4,
     kpTargetT5,
-    cutoffsMt4,
-    cutoffsT4,
+    cutoffsMicroT4,
+    cutoffsMidT4,
+    cutoffsStrongT4,
     cutoffsT5,
     rankedMode: partial.rankedMode ?? base.rankedMode,
     rankedTopN: partial.rankedTopN ?? base.rankedTopN,
@@ -259,9 +286,9 @@ const STATUS_LABELS: Record<Status, string> = {
   UNRANKED: 'UNRANKED',
 };
 
-/** Power band a player belongs to. mT4 < mt4T4Threshold ≤ T4 < t4T5Threshold ≤ T5. */
-type Band = 'micro' | 't4' | 't5';
-const BAND_LABELS: Record<Band, string> = { micro: 'mT4', t4: 'T4', t5: 'T5' };
+/** Power band: μT4 < microMid ≤ mT4 < midStrong ≤ sT4 < strongT5 ≤ T5. */
+type Band = 'microT4' | 'midT4' | 'strongT4' | 't5';
+const BAND_LABELS: Record<Band, string> = { microT4: 'μT4', midT4: 'mT4', strongT4: 'sT4', t5: 'T5' };
 
 /** "Model player" stat profile for a band — the median of the band's top tertile by band-score. */
 interface ModelStats {
@@ -307,10 +334,11 @@ function safeDiv(a: number, b: number): number {
   return a / b;
 }
 
-function bandOf(power: number, mt4T4Threshold: number, t4T5Threshold: number): Band {
-  if (power >= t4T5Threshold) return 't5';
-  if (power >= mt4T4Threshold) return 't4';
-  return 'micro';
+function bandOf(power: number, microMid: number, midStrong: number, strongT5: number): Band {
+  if (power >= strongT5) return 't5';
+  if (power >= midStrong) return 'strongT4';
+  if (power >= microMid) return 'midT4';
+  return 'microT4';
 }
 
 /** Compute the model-player profile for each band: median of the band's top tertile by band score. */
@@ -326,8 +354,8 @@ function computeModels(
     honorPoints: 0,
     cohortSize: 0,
   };
-  const out: Record<Band, ModelStats> = { micro: empty, t4: empty, t5: empty };
-  for (const band of ['micro', 't4', 't5'] as const) {
+  const out: Record<Band, ModelStats> = { microT4: empty, midT4: empty, strongT4: empty, t5: empty };
+  for (const band of ['microT4', 'midT4', 'strongT4', 't5'] as const) {
     const inBand = players.filter((p) => p.band === band);
     if (inBand.length === 0) continue;
     // Top tertile by band score — at least 1 player.
@@ -350,11 +378,11 @@ function computeModels(
 function computeScores(players: Player[], config: Config): ScoredPlayer[] {
   // 1. Assign each player a band and pull the raw stat value for each formula key.
   const enriched = players.map((p) => {
-    const band = bandOf(p.power, config.mt4T4Threshold, config.t4T5Threshold);
+    const band = bandOf(p.power, config.microMidThreshold, config.midStrongThreshold, config.strongT5Threshold);
     // Legacy "computed DKP" — kept for the table's DKP column and the model-player display.
     // It uses the player's own band's formula coefficients for the four DKP-like components.
     const f =
-      band === 'micro' ? config.formulaMt4 : band === 't4' ? config.formulaT4 : config.formulaT5;
+      band === 'microT4' ? config.formulaMicroT4 : band === 'midT4' ? config.formulaMidT4 : band === 'strongT4' ? config.formulaStrongT4 : config.formulaT5;
     const computedDkp =
       p.t4Kills * f.t4Kill +
       p.t5Kills * f.t5Kill +
@@ -386,8 +414,9 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
     return out;
   };
   const bandMaxes: Record<Band, Record<FormulaKey, number>> = {
-    micro: bandComponentMax('micro'),
-    t4: bandComponentMax('t4'),
+    microT4: bandComponentMax('microT4'),
+    midT4: bandComponentMax('midT4'),
+    strongT4: bandComponentMax('strongT4'),
     t5: bandComponentMax('t5'),
   };
 
@@ -417,7 +446,7 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
 
   const firstPass = enriched.map((p) => {
     const f =
-      p.band === 'micro' ? config.formulaMt4 : p.band === 't4' ? config.formulaT4 : config.formulaT5;
+      p.band === 'microT4' ? config.formulaMicroT4 : p.band === 'midT4' ? config.formulaMidT4 : p.band === 'strongT4' ? config.formulaStrongT4 : config.formulaT5;
     // Per-band normalized score — this is what drives the status tier.
     const bandScore = scoreFor(p, f, bandMaxes[p.band]);
     // Kingdom-wide normalized score — secondary "vs the whole kingdom" view.
@@ -447,21 +476,25 @@ function computeScores(players: Player[], config: Config): ScoredPlayer[] {
   // 5. Final pass: attach KP target and band-specific status.
   return firstPass.map((p) => {
     const kpMultiplier =
-      p.band === 'micro'
-        ? config.kpTargetMt4
-        : p.band === 't4'
-          ? config.kpTargetT4
-          : config.kpTargetT5;
+      p.band === 'microT4'
+        ? config.kpTargetMicroT4
+        : p.band === 'midT4'
+          ? config.kpTargetMidT4
+          : p.band === 'strongT4'
+            ? config.kpTargetStrongT4
+            : config.kpTargetT5;
     const targetKp = p.power * kpMultiplier;
     const kpRatio = safeDiv(p.totalKP, targetKp);
 
     // Per-band cutoffs — judged against the player's own band score, not the kingdom score.
     const cuts =
-      p.band === 'micro'
-        ? config.cutoffsMt4
-        : p.band === 't4'
-          ? config.cutoffsT4
-          : config.cutoffsT5;
+      p.band === 'microT4'
+        ? config.cutoffsMicroT4
+        : p.band === 'midT4'
+          ? config.cutoffsMidT4
+          : p.band === 'strongT4'
+            ? config.cutoffsStrongT4
+            : config.cutoffsT5;
 
     let status: Status;
     if (!inReviewPool.has(p.characterId)) {
@@ -738,8 +771,9 @@ function DkpPageInner() {
       // it just keeps the slider values in a friendly 0–100 range for everyone on next load.
       const tidied: Config = {
         ...config,
-        formulaMt4: normalizeFormula(config.formulaMt4),
-        formulaT4: normalizeFormula(config.formulaT4),
+        formulaMicroT4: normalizeFormula(config.formulaMicroT4),
+        formulaMidT4: normalizeFormula(config.formulaMidT4),
+        formulaStrongT4: normalizeFormula(config.formulaStrongT4),
         formulaT5: normalizeFormula(config.formulaT5),
       };
       await saveSharedConfig(tidied);
@@ -758,14 +792,14 @@ function DkpPageInner() {
   };
 
   const setFormula = (
-    band: 'formulaMt4' | 'formulaT4' | 'formulaT5',
+    band: 'formulaMicroT4' | 'formulaMidT4' | 'formulaStrongT4' | 'formulaT5',
     key: FormulaKey,
     value: number,
   ) => {
     setConfig((c) => ({ ...c, [band]: { ...c[band], [key]: value } }));
   };
   const setCutoff = (
-    band: 'cutoffsMt4' | 'cutoffsT4' | 'cutoffsT5',
+    band: 'cutoffsMicroT4' | 'cutoffsMidT4' | 'cutoffsStrongT4' | 'cutoffsT5',
     key: keyof CutoffSet,
     value: number,
   ) => {
@@ -943,26 +977,36 @@ function DkpPageInner() {
                     Power Band Thresholds
                   </div>
                   <p className="text-xs text-[var(--text-muted)] mb-3">
-                    Where the boundaries fall between mT4, T4, and T5. Applied to scoring, KP targets, and the model player view.
+                    Where the boundaries fall between μT4, mT4, sT4, and T5. Applied to scoring, KP targets, and the model player view.
                   </p>
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-sky-400">mT4 / T4</span>
+                      <span className="text-xs font-medium text-sky-400">μT4 / mT4</span>
                       <PowerInput
-                        value={config.mt4T4Threshold}
+                        value={config.microMidThreshold}
                         disabled={!isOfficer}
                         onChange={(v) =>
-                          setConfig((c) => ({ ...c, mt4T4Threshold: Math.max(0, v) }))
+                          setConfig((c) => ({ ...c, microMidThreshold: Math.max(0, v) }))
                         }
                       />
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-fuchsia-400">T4 / T5</span>
+                      <span className="text-xs font-medium text-teal-400">mT4 / sT4</span>
                       <PowerInput
-                        value={config.t4T5Threshold}
+                        value={config.midStrongThreshold}
                         disabled={!isOfficer}
                         onChange={(v) =>
-                          setConfig((c) => ({ ...c, t4T5Threshold: Math.max(0, v) }))
+                          setConfig((c) => ({ ...c, midStrongThreshold: Math.max(0, v) }))
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-fuchsia-400">sT4 / T5</span>
+                      <PowerInput
+                        value={config.strongT5Threshold}
+                        disabled={!isOfficer}
+                        onChange={(v) =>
+                          setConfig((c) => ({ ...c, strongT5Threshold: Math.max(0, v) }))
                         }
                       />
                     </div>
@@ -1074,18 +1118,22 @@ function DkpPageInner() {
                         t5: 'T5',
                       })}
                     </p>
-                    <div className="ml-9 grid grid-cols-3 gap-2 text-center">
+                    <div className="ml-9 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                       <div className="rounded-lg bg-sky-500/10 border border-sky-500/30 py-2 px-3">
-                        <div className="text-sm font-bold text-sky-400">mT4</div>
-                        <div className="text-xs text-[var(--text-muted)]">&lt; {(config.mt4T4Threshold / 1_000_000).toFixed(0)}M</div>
+                        <div className="text-sm font-bold text-sky-400">μT4</div>
+                        <div className="text-xs text-[var(--text-muted)]">&lt; {(config.microMidThreshold / 1_000_000).toFixed(0)}M</div>
+                      </div>
+                      <div className="rounded-lg bg-teal-500/10 border border-teal-500/30 py-2 px-3">
+                        <div className="text-sm font-bold text-teal-400">mT4</div>
+                        <div className="text-xs text-[var(--text-muted)]">{(config.microMidThreshold / 1_000_000).toFixed(0)}–{(config.midStrongThreshold / 1_000_000).toFixed(0)}M</div>
                       </div>
                       <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 py-2 px-3">
-                        <div className="text-sm font-bold text-emerald-400">T4</div>
-                        <div className="text-xs text-[var(--text-muted)]">{(config.mt4T4Threshold / 1_000_000).toFixed(0)}–{(config.t4T5Threshold / 1_000_000).toFixed(0)}M</div>
+                        <div className="text-sm font-bold text-emerald-400">sT4</div>
+                        <div className="text-xs text-[var(--text-muted)]">{(config.midStrongThreshold / 1_000_000).toFixed(0)}–{(config.strongT5Threshold / 1_000_000).toFixed(0)}M</div>
                       </div>
                       <div className="rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/30 py-2 px-3">
                         <div className="text-sm font-bold text-fuchsia-400">T5</div>
-                        <div className="text-xs text-[var(--text-muted)]">≥ {(config.t4T5Threshold / 1_000_000).toFixed(0)}M</div>
+                        <div className="text-xs text-[var(--text-muted)]">≥ {(config.strongT5Threshold / 1_000_000).toFixed(0)}M</div>
                       </div>
                     </div>
                   </div>
@@ -1148,40 +1196,51 @@ function DkpPageInner() {
                 </div>
               </div>
 
-              {/* Three columns, one per band. Each column has everything that band owns:
-                  KP target, score formula, status cutoffs. */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start mt-4">
+              {/* Four columns, one per band */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 items-start mt-4">
                 <BandColumn
-                  band="micro"
-                  formula={config.formulaMt4}
-                  cutoffs={config.cutoffsMt4}
-                  kpTarget={config.kpTargetMt4}
-                  powerRangeLabel={`Under ${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M power`}
-                  examplePower={Math.max(5_000_000, Math.round(config.mt4T4Threshold / 2 / 5_000_000) * 5_000_000)}
+                  band="microT4"
+                  formula={config.formulaMicroT4}
+                  cutoffs={config.cutoffsMicroT4}
+                  kpTarget={config.kpTargetMicroT4}
+                  powerRangeLabel={`Under ${(config.microMidThreshold / 1_000_000).toFixed(0)}M`}
+                  examplePower={Math.max(5_000_000, Math.round(config.microMidThreshold / 2 / 5_000_000) * 5_000_000)}
                   disabled={!isOfficer}
-                  onFormulaChange={(k, v) => setFormula('formulaMt4', k, v)}
-                  onCutoffChange={(k, v) => setCutoff('cutoffsMt4', k, v)}
-                  onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetMt4: v }))}
+                  onFormulaChange={(k, v) => setFormula('formulaMicroT4', k, v)}
+                  onCutoffChange={(k, v) => setCutoff('cutoffsMicroT4', k, v)}
+                  onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetMicroT4: v }))}
                 />
                 <BandColumn
-                  band="t4"
-                  formula={config.formulaT4}
-                  cutoffs={config.cutoffsT4}
-                  kpTarget={config.kpTargetT4}
-                  powerRangeLabel={`${(config.mt4T4Threshold / 1_000_000).toFixed(0)}M – ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
-                  examplePower={Math.max(5_000_000, Math.round((config.mt4T4Threshold + config.t4T5Threshold) / 2 / 5_000_000) * 5_000_000)}
+                  band="midT4"
+                  formula={config.formulaMidT4}
+                  cutoffs={config.cutoffsMidT4}
+                  kpTarget={config.kpTargetMidT4}
+                  powerRangeLabel={`${(config.microMidThreshold / 1_000_000).toFixed(0)}–${(config.midStrongThreshold / 1_000_000).toFixed(0)}M`}
+                  examplePower={Math.max(5_000_000, Math.round((config.microMidThreshold + config.midStrongThreshold) / 2 / 5_000_000) * 5_000_000)}
                   disabled={!isOfficer}
-                  onFormulaChange={(k, v) => setFormula('formulaT4', k, v)}
-                  onCutoffChange={(k, v) => setCutoff('cutoffsT4', k, v)}
-                  onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetT4: v }))}
+                  onFormulaChange={(k, v) => setFormula('formulaMidT4', k, v)}
+                  onCutoffChange={(k, v) => setCutoff('cutoffsMidT4', k, v)}
+                  onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetMidT4: v }))}
+                />
+                <BandColumn
+                  band="strongT4"
+                  formula={config.formulaStrongT4}
+                  cutoffs={config.cutoffsStrongT4}
+                  kpTarget={config.kpTargetStrongT4}
+                  powerRangeLabel={`${(config.midStrongThreshold / 1_000_000).toFixed(0)}–${(config.strongT5Threshold / 1_000_000).toFixed(0)}M`}
+                  examplePower={Math.max(5_000_000, Math.round((config.midStrongThreshold + config.strongT5Threshold) / 2 / 5_000_000) * 5_000_000)}
+                  disabled={!isOfficer}
+                  onFormulaChange={(k, v) => setFormula('formulaStrongT4', k, v)}
+                  onCutoffChange={(k, v) => setCutoff('cutoffsStrongT4', k, v)}
+                  onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetStrongT4: v }))}
                 />
                 <BandColumn
                   band="t5"
                   formula={config.formulaT5}
                   cutoffs={config.cutoffsT5}
                   kpTarget={config.kpTargetT5}
-                  powerRangeLabel={`At or above ${(config.t4T5Threshold / 1_000_000).toFixed(0)}M power`}
-                  examplePower={Math.max(5_000_000, Math.round(config.t4T5Threshold * 1.5 / 5_000_000) * 5_000_000)}
+                  powerRangeLabel={`≥ ${(config.strongT5Threshold / 1_000_000).toFixed(0)}M`}
+                  examplePower={Math.max(5_000_000, Math.round(config.strongT5Threshold * 1.5 / 5_000_000) * 5_000_000)}
                   disabled={!isOfficer}
                   onFormulaChange={(k, v) => setFormula('formulaT5', k, v)}
                   onCutoffChange={(k, v) => setCutoff('cutoffsT5', k, v)}
@@ -1299,11 +1358,15 @@ function DkpPageInner() {
           <div className="flex items-center gap-3 text-[11px] text-[var(--text-muted)]">
             <span className="inline-flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-sky-400" />
-              <span className="text-sky-400">mT4</span>
+              <span className="text-sky-400">μT4</span>
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-teal-400" />
+              <span className="text-teal-400">mT4</span>
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="text-emerald-400">T4</span>
+              <span className="text-emerald-400">sT4</span>
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-fuchsia-400" />
@@ -1671,8 +1734,9 @@ function ModelExplainer({ onClose }: { onClose: () => void }) {
 const DIM = 'text-[var(--text-muted)]/60';
 
 const BAND_BADGE: Record<Band, string> = {
-  micro: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-  t4: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  microT4: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+  midT4: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
+  strongT4: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   t5: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
 };
 
@@ -1688,11 +1752,13 @@ function renderCell(
       // Power keeps its raw value — the band IS the power category, so it doesn't get normalized.
       // Instead, the band membership is shown as a colored pill next to the value.
       const powerCls =
-        p.band === 'micro'
+        p.band === 'microT4'
           ? 'text-sky-400'
-          : p.band === 't4'
-            ? 'text-emerald-400'
-            : 'text-fuchsia-400';
+          : p.band === 'midT4'
+            ? 'text-teal-400'
+            : p.band === 'strongT4'
+              ? 'text-emerald-400'
+              : 'text-fuchsia-400';
       return (
         <span className="inline-flex items-center gap-1.5 justify-end">
           <span className={`font-medium ${powerCls}`}>{fmtM(p.power)}</span>
@@ -2190,9 +2256,9 @@ function ConfigSummaryLine({ config }: { config: Config }) {
       T5: T4K {f.t4Kill} • T5K {f.t5Kill} • T4D {f.t4Death} • T5D {f.t5Death} • RSS {f.rss} • H{' '}
       {f.helps} • Hnr {f.honor}
       {' • '}
-      KP ×{config.kpTargetMt4.toFixed(1)}/×{config.kpTargetT4.toFixed(1)}/×
-      {config.kpTargetT5.toFixed(1)} @ {(config.mt4T4Threshold / 1_000_000).toFixed(0)}M /{' '}
-      {(config.t4T5Threshold / 1_000_000).toFixed(0)}M
+      KP ×{config.kpTargetMicroT4.toFixed(1)}/×{config.kpTargetMidT4.toFixed(1)}/×{config.kpTargetStrongT4.toFixed(1)}/×
+      {config.kpTargetT5.toFixed(1)} @ {(config.microMidThreshold / 1_000_000).toFixed(0)}M /{' '}
+      {(config.midStrongThreshold / 1_000_000).toFixed(0)}M / {(config.strongT5Threshold / 1_000_000).toFixed(0)}M
       {' • '}
       <span className="text-amber-400/80">≥{Math.round(cuts.excellent)}</span>{' '}
       <span className="text-emerald-400/80">≥{Math.round(cuts.approved)}</span>{' '}
@@ -2374,13 +2440,19 @@ function BandColumn({
   const tf = useTranslations('dkp');
   // Color palette per band — used on the header strip and accents.
   const palette: Record<Band, { headerBg: string; border: string; text: string; ring: string }> = {
-    micro: {
+    microT4: {
       headerBg: 'bg-sky-500/10',
       border: 'border-sky-500/30',
       text: 'text-sky-400',
       ring: 'ring-sky-500/20',
     },
-    t4: {
+    midT4: {
+      headerBg: 'bg-teal-500/10',
+      border: 'border-teal-500/30',
+      text: 'text-teal-400',
+      ring: 'ring-teal-500/20',
+    },
+    strongT4: {
       headerBg: 'bg-emerald-500/10',
       border: 'border-emerald-500/30',
       text: 'text-emerald-400',
