@@ -642,6 +642,7 @@ function DkpPageInner() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
   const [hideUnranked, setHideUnranked] = useState(true);
+  const [showGovId, setShowGovId] = useState(false);
   /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
   const [modelView, setModelView] = useState(false);
   const [modelInfoOpen, setModelInfoOpen] = useState(false);
@@ -1607,6 +1608,16 @@ function DkpPageInner() {
               );
             })}
           </div>
+          {/* Show Gov ID toggle */}
+          <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showGovId}
+              onChange={(e) => setShowGovId(e.target.checked)}
+              className="accent-[#4318ff]"
+            />
+            Gov ID
+          </label>
           {/* Hide unranked toggle */}
           <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] cursor-pointer select-none">
             <input
@@ -1745,7 +1756,7 @@ function DkpPageInner() {
                         key={c.key}
                         className={`px-3 py-2 ${c.numeric ? 'text-right tabular-nums' : ''}`}
                       >
-                        {renderCell(p, c.key, modelView)}
+                        {renderCell(p, c.key, modelView, showGovId)}
                       </td>
                     ))}
                   </tr>
@@ -2035,13 +2046,12 @@ const BAND_BADGE: Record<Band, string> = {
   t5: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
 };
 
-/** Player name cell: shows name, gov ID on hover via tooltip, click-to-copy for both. */
-function PlayerNameCell({ name, govId }: { name: string; govId: number }) {
-  const [copied, setCopied] = useState<'name' | 'id' | null>(null);
-  const copy = async (text: string, what: 'name' | 'id') => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
+/** Player name cell: name with copy icon, expandable gov ID with its own copy icon. */
+function PlayerNameCell({ name, govId, showGovId }: { name: string; govId: number; showGovId: boolean }) {
+  const [copiedName, setCopiedName] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+  const copy = async (text: string, setCb: (v: boolean) => void) => {
+    try { await navigator.clipboard.writeText(text); } catch {
       const ta = document.createElement('textarea');
       ta.value = text;
       document.body.appendChild(ta);
@@ -2049,36 +2059,44 @@ function PlayerNameCell({ name, govId }: { name: string; govId: number }) {
       document.execCommand('copy');
       document.body.removeChild(ta);
     }
-    setCopied(what);
-    setTimeout(() => setCopied(null), 1500);
+    setCb(true);
+    setTimeout(() => setCb(false), 1500);
   };
   return (
-    <Tooltip
-      content={
-        <div className="space-y-1.5">
-          <div className="text-xs text-[var(--text-muted)]">Gov ID</div>
-          <div className="text-sm font-mono text-[var(--foreground)]">{govId}</div>
-          <div className="flex gap-1.5 mt-2">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); copy(name, 'name'); }}
-              className="px-2 py-0.5 text-[10px] rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
-            >
-              {copied === 'name' ? '✓ Copied' : 'Copy name'}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); copy(String(govId), 'id'); }}
-              className="px-2 py-0.5 text-[10px] rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
-            >
-              {copied === 'id' ? '✓ Copied' : 'Copy ID'}
-            </button>
-          </div>
+    <div className="flex flex-col gap-0.5">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[var(--foreground)] font-medium">{name}</span>
+        <button
+          type="button"
+          onClick={() => copy(name, setCopiedName)}
+          className={`p-0.5 rounded transition-colors ${copiedName ? 'text-emerald-400' : 'text-[var(--text-muted)]/40 hover:text-[var(--foreground)]'}`}
+          title="Copy name"
+        >
+          {copiedName ? (
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3"><path d="M3 8.5l3 3 7-7" /></svg>
+          ) : (
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3"><path d="M4 2a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2V4h8a2 2 0 0 0-2-2H4zm2 4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6z"/></svg>
+          )}
+        </button>
+      </div>
+      {showGovId && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-mono text-[var(--text-muted)]">{govId}</span>
+          <button
+            type="button"
+            onClick={() => copy(String(govId), setCopiedId)}
+            className={`p-0.5 rounded transition-colors ${copiedId ? 'text-emerald-400' : 'text-[var(--text-muted)]/40 hover:text-[var(--foreground)]'}`}
+            title="Copy Gov ID"
+          >
+            {copiedId ? (
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3"><path d="M3 8.5l3 3 7-7" /></svg>
+            ) : (
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3"><path d="M4 2a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2V4h8a2 2 0 0 0-2-2H4zm2 4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6z"/></svg>
+            )}
+          </button>
         </div>
-      }
-    >
-      <span className="text-[var(--foreground)] font-medium cursor-help">{name}</span>
-    </Tooltip>
+      )}
+    </div>
   );
 }
 
@@ -2086,10 +2104,11 @@ function renderCell(
   p: ScoredPlayer,
   key: ColumnDef['key'],
   modelView: boolean,
+  showGovId: boolean,
 ) {
   switch (key) {
     case 'username':
-      return <PlayerNameCell name={p.username} govId={p.characterId} />;
+      return <PlayerNameCell name={p.username} govId={p.characterId} showGovId={showGovId} />;
     case 'power': {
       // Power keeps its raw value — the band IS the power category, so it doesn't get normalized.
       // Instead, the band membership is shown as a colored pill next to the value.
