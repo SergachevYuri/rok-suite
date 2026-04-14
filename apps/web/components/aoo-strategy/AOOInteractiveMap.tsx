@@ -64,10 +64,10 @@ const buildings: Building[] = [
 ];
 
 // Zone colors - colorblind friendly
-const teamColors: Record<number, { bg: string; text: string; name: string }> = {
-  1: { bg: '#2563EB', text: 'white', name: 'Top Lane' },
-  2: { bg: '#D97706', text: 'white', name: 'Mid Lane' },
-  3: { bg: '#7C3AED', text: 'white', name: 'Bottom Lane' },
+const teamColors: Record<number, { bg: string; text: string }> = {
+  1: { bg: '#2563EB', text: 'white' },
+  2: { bg: '#D97706', text: 'white' },
+  3: { bg: '#7C3AED', text: 'white' },
 };
 
 // Conquer order by zone - NOT USED, assignments come from database mapAssignments
@@ -133,7 +133,12 @@ const getDefaultAssignments = (): MapAssignments => {
 };
 
 export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor = true, players = [] }: Props) {
-  const t = useTranslations('aoo.map');
+  const tm = useTranslations('aoo.map');
+  const teamNames: Record<number, string> = {
+    1: tm('topLane'),
+    2: tm('midLaneArk'),
+    3: tm('bottomLane'),
+  };
   const [isDark, setIsDark] = useState(true);
   const [assignments, setAssignments] = useState<MapAssignments>(() => {
     return initialAssignments || getDefaultAssignments();
@@ -231,15 +236,15 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
       {/* Header */}
       <header className={`${theme.bgSecondary} border-b ${theme.border} px-4 py-3 sticky top-0 z-50`}>
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
-          <h1 className={`text-xl font-bold ${theme.text}`}>{t('title')}</h1>
+          <h1 className={`text-xl font-bold ${theme.text}`}>{tm('title')}</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSwapCorners(!swapCorners)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${theme.bgTertiary} ${theme.text} text-sm hover:opacity-80`}
-              title={t('swapCorners')}
+              title={tm('swapCorners')}
             >
               <RotateCw size={16} />
-              {swapCorners ? t('startBottomRight') : t('startTopLeft')}
+              {swapCorners ? tm('startBottomRight') : tm('startTopLeft')}
             </button>
             {isEditor && (
               <button
@@ -247,7 +252,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${theme.bgTertiary} ${theme.text} text-sm hover:opacity-80`}
               >
                 <RotateCcw size={16} />
-                {t('clear')}
+                {tm('clear')}
               </button>
             )}
             <button
@@ -268,7 +273,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
             {/* Filter by Zone */}
             <div className={`${theme.bgSecondary} rounded-xl p-4 border ${theme.border}`}>
               <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-3`}>
-                {t('viewZone')}
+                {tm('viewZone')}
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -277,7 +282,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     filterTeam === 'all' ? 'bg-emerald-600 text-white' : `${theme.bgTertiary} ${theme.text}`
                   }`}
                 >
-                  {t('all')}
+                  {tm('all')}
                 </button>
                 {[1, 2, 3].map(t => (
                   <button
@@ -286,7 +291,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all`}
                     style={filterTeam === t ? { backgroundColor: teamColors[t].bg, color: 'white' } : {}}
                   >
-                    {teamColors[t].name}
+                    {teamNames[t]}
                   </button>
                 ))}
               </div>
@@ -305,13 +310,13 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       style={{ backgroundColor: teamColors[team].bg }}
                     />
                     <h3 className={`text-sm font-semibold ${theme.text}`}>
-                      {teamColors[team].name} {t('attackOrder')}
+                      {teamNames[team]} {tm('attackOrder')}
                     </h3>
                     <span className={`text-xs ${theme.textMuted}`}>({teamBuildings.length})</span>
                   </div>
                   
                   {teamBuildings.length === 0 ? (
-                    <p className={`text-sm ${theme.textMuted}`}>{t('noBuildings')}</p>
+                    <p className={`text-sm ${theme.textMuted}`}>{tm('noBuildings')}</p>
                   ) : (
                     <div className="space-y-1">
                       {teamBuildings.map((building) => (
@@ -389,7 +394,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   }}
                 >
                   <span>⚔️</span>
-                  <span>{t('start')}</span>
+                  <span>{tm('start')}</span>
                 </div>
 
                 {/* ENEMY Marker - position swaps based on swapCorners */}
@@ -403,7 +408,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   }}
                 >
                   <span>☠️</span>
-                  <span>{t('enemy')}</span>
+                  <span>{tm('enemy')}</span>
                 </div>
 
                 {/* Building Markers */}
@@ -486,7 +491,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                                 transform: 'translate(-50%, -50%)',
                                 zIndex: 15,
                               }}
-                              title={`${teamColors[zone].name} - Priority ${order}`}
+                              title={`${teamNames[zone]} - Priority ${order}`}
                             >
                               {order}
                             </div>
@@ -513,7 +518,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                                 transform: 'translate(-50%, -50%)',
                                 zIndex: 15,
                               }}
-                              title={`${teamColors[zone].name} - Priority ${order}`}
+                              title={`${teamNames[zone]} - Priority ${order}`}
                             >
                               {order}
                             </div>
@@ -539,7 +544,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                           </div>
                           {assignment?.team && (
                             <div className="text-[10px] mt-0.5" style={{ color: teamColors[assignment.team].bg }}>
-                              {teamColors[assignment.team].name} • Phase {assignment.order || 1}
+                              {teamNames[assignment.team]} • Phase {assignment.order || 1}
                             </div>
                           )}
                         </div>
@@ -607,7 +612,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                           className="text-sm font-bold px-2 py-0.5 rounded"
                           style={{ backgroundColor: teamColors[assignments[selectedBuilding.id].team!].bg, color: 'white' }}
                         >
-                          {teamColors[assignments[selectedBuilding.id].team!].name}
+                          {teamNames[assignments[selectedBuilding.id].team!]}
                         </span>
                       </div>
                       <div className="flex justify-between items-center mt-1">
@@ -858,7 +863,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                                 className="w-5 h-5 rounded-full"
                                 style={{ backgroundColor: teamColors[team].bg }}
                               />
-                              <span className="font-medium">{teamColors[team].name}</span>
+                              <span className="font-medium">{teamNames[team]}</span>
                             </button>
                           ))}
                         </div>

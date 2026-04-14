@@ -209,6 +209,11 @@ function TeamBuilderTab({
 }: TeamBuilderTabProps) {
     const t = useTranslations('aoo.builder');
     const tz = useTranslations('aoo.zones');
+    const ZONE_NAMES_T: Record<number, string> = {
+        1: tz('topLane'),
+        2: tz('midLaneArk'),
+        3: tz('bottomLane'),
+    };
     // Local state for search and add member form
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddForm, setShowAddForm] = useState(false);
@@ -1475,7 +1480,7 @@ function TeamBuilderTab({
                                 <section key={zone} className={`${theme.card} border-l-4 ${zoneColor.border} rounded-xl p-4`}>
                                     <div className="flex items-center justify-between mb-3">
                                         <h3 className={`font-semibold ${zoneColor.text}`}>
-                                            {ZONE_NAMES[zone]} ({zonePlayers.length})
+                                            {ZONE_NAMES_T[zone]} ({zonePlayers.length})
                                         </h3>
                                         <div className="flex items-center gap-2">
                                             <select
@@ -1508,7 +1513,7 @@ function TeamBuilderTab({
                                                 <option value="">{isMidLane ? t('selectArkCarrier') : t('selectRallyLead')}</option>
                                                 {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
                                                     <option key={p.name} value={p.name}>
-                                                        {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
+                                                        {p.name} | {formatPower(p.power)} | {t('kp')}: {formatPower(p.kills || killsByName[p.name] || 0)}
                                                     </option>
                                                 ))}
                                             </select>
@@ -1527,7 +1532,7 @@ function TeamBuilderTab({
                                                         <option value="">{t('selectGarrisonLead')}</option>
                                                         {[...zonePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name)).map(p => (
                                                             <option key={p.name} value={p.name}>
-                                                                {p.name} | {formatPower(p.power)} | KP: {formatPower(p.kills || killsByName[p.name] || 0)}
+                                                                {p.name} | {formatPower(p.power)} | {t('kp')}: {formatPower(p.kills || killsByName[p.name] || 0)}
                                                             </option>
                                                         ))}
                                                     </select>
@@ -1579,7 +1584,7 @@ function TeamBuilderTab({
                                                 </span>
                                                 {/* KP — hidden on mobile */}
                                                 <span className="hidden sm:inline text-xs tabular-nums text-right text-blue-400" title="Kill Points">
-                                                    KP: {formatPower(player.kills || killsByName[player.name] || 0)}
+                                                    {t('kp')}: {formatPower(player.kills || killsByName[player.name] || 0)}
                                                 </span>
                                                 {/* Move zone + Remove */}
                                                 <div className="flex items-center gap-0.5">
@@ -1848,7 +1853,7 @@ function TeamBuilderTab({
                                     // Validate rally leads for top (1) and bottom (3) lanes only — mid lane (2) doesn't need one
                                     const missingLeads = [1, 3].filter(z => !rallyLeads[z] && (zones[z]?.length || 0) > 0);
                                     if (missingLeads.length > 0) {
-                                        alert(`Team ${team}: ${t('builder.selectRallyLeads', { zones: missingLeads.map(z => ZONE_NAMES[z]).join(', ') })}`);
+                                        alert(`Team ${team}: ${t('selectRallyLeads', { zones: missingLeads.map(z => ZONE_NAMES_T[z]).join(', ') })}`);
                                         setActiveTeam(team);
                                         return;
                                     }
