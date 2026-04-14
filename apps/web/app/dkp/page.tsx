@@ -641,6 +641,37 @@ function DkpPageInner() {
   /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
   const [modelView, setModelView] = useState(false);
   const [modelInfoOpen, setModelInfoOpen] = useState(false);
+  /** Set of characterIds that officers have flagged for migration. Local state — persisted in localStorage. */
+  const [flaggedForMigration, setFlaggedForMigration] = useState<Set<number>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const stored = localStorage.getItem('dkp-flagged-migration');
+      return stored ? new Set(JSON.parse(stored) as number[]) : new Set();
+    } catch { return new Set(); }
+  });
+  // Persist flagged set to localStorage on change.
+  useEffect(() => {
+    localStorage.setItem('dkp-flagged-migration', JSON.stringify([...flaggedForMigration]));
+  }, [flaggedForMigration]);
+
+  const toggleFlagged = (id: number) => {
+    setFlaggedForMigration((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const flagAllReview = () => {
+    const reviewIds = scored.filter((p) => p.status === 'REJECTED').map((p) => p.characterId);
+    setFlaggedForMigration((prev) => {
+      const next = new Set(prev);
+      for (const id of reviewIds) next.add(id);
+      return next;
+    });
+  };
+  const clearFlagged = () => setFlaggedForMigration(new Set());
+
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     () => new Set(COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)),
   );
@@ -761,6 +792,29 @@ function DkpPageInner() {
     }
     return { counts, totalDkp, total: scored.length };
   }, [scored]);
+
+  /** Migration impact stats — computed from the flagged set. */
+  const migrationImpact = useMemo(() => {
+    const flaggedPlayers = scored.filter((p) => flaggedForMigration.has(p.characterId));
+    const flaggedPower = flaggedPlayers.reduce((s, p) => s + p.power, 0);
+    // Total kingdom power of all ranked players (for context).
+    const minPowerForTotal = config.rankedMinPower || 15_000_000;
+    const allAboveMin = scored.filter((p) => p.power >= minPowerForTotal);
+    const totalPowerAboveMin = allAboveMin.reduce((s, p) => s + p.power, 0);
+    // Top N power (using the ranked cutoff).
+    const topN = [...scored].sort((a, b) => b.power - a.power).slice(0, config.rankedTopN);
+    const topNPower = topN.reduce((s, p) => s + p.power, 0);
+    const flaggedInTopN = flaggedPlayers.filter((p) => topN.some((t) => t.characterId === p.characterId));
+    const flaggedTopNPower = flaggedInTopN.reduce((s, p) => s + p.power, 0);
+    return {
+      count: flaggedPlayers.length,
+      power: flaggedPower,
+      totalPowerAboveMin,
+      minPowerForTotal,
+      topNPower,
+      flaggedTopNPower,
+    };
+  }, [scored, flaggedForMigration, config.rankedMinPower, config.rankedTopN]);
 
   const handleDeploy = async () => {
     setDeploying(true);
@@ -902,6 +956,104 @@ function DkpPageInner() {
           <SummaryCard label={t('summary.good')} value={fmt(summary.counts.GOOD)} tone="good" />
           <SummaryCard label={t('summary.review')} value={fmt(summary.counts.REJECTED)} tone="review" />
         </section>
+
+        {/* Officer-only: Review & Migration panel */}
+        {isOfficer && summary.counts.REJECTED > 0 && (
+          <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-rose-500/30 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-rose-400 flex items-center gap-2">
+                <Info size={14} />
+                Review &amp; Migration ({summary.counts.REJECTED} players in REVIEW)
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={flagAllReview}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 transition-colors"
+                >
+                  Flag all REVIEW for migration
+                </button>
+                {flaggedForMigration.size > 0 && (
+                  <button
+                    onClick={clearFlagged}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--background)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+                  >
+                    Clear ({flaggedForMigration.size})
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Flagged players list */}
+            {flaggedForMigration.size > 0 && (
+              <div className="mb-4">
+                <div className="text-xs text-[var(--text-muted)] mb-2">
+                  Flagged for migration ({flaggedForMigration.size} players):
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {scored
+                    .filter((p) => flaggedForMigration.has(p.characterId))
+                    .sort((a, b) => a.power - b.power)
+                    .map((p) => (
+                      <button
+                        key={p.characterId}
+                        onClick={() => toggleFlagged(p.characterId)}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors"
+                        title={`Click to unflag. Power: ${fmtM(p.power)}`}
+                      >
+                        {p.username}
+                        <span className="text-[10px] text-rose-400/60">{fmtM(p.power)}</span>
+                        <X size={10} />
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Migration impact stats */}
+            {flaggedForMigration.size > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-lg bg-[var(--background)]/40 border border-[var(--border)] p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1">Flagged Power</div>
+                  <div className="text-lg font-semibold text-rose-400">{fmtM(migrationImpact.power)}</div>
+                  <div className="text-xs text-[var(--text-muted)]">{migrationImpact.count} players</div>
+                </div>
+                <div className="rounded-lg bg-[var(--background)]/40 border border-[var(--border)] p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                    Kingdom Power Impact (≥{(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M)
+                  </div>
+                  <div className="text-lg font-semibold text-[var(--foreground)]">
+                    {migrationImpact.totalPowerAboveMin > 0
+                      ? `-${((migrationImpact.power / migrationImpact.totalPowerAboveMin) * 100).toFixed(1)}%`
+                      : '—'}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {fmtM(migrationImpact.totalPowerAboveMin)} → {fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-[var(--background)]/40 border border-[var(--border)] p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                    Top {config.rankedTopN} Power Impact
+                  </div>
+                  <div className="text-lg font-semibold text-[var(--foreground)]">
+                    {migrationImpact.topNPower > 0
+                      ? `-${((migrationImpact.flaggedTopNPower / migrationImpact.topNPower) * 100).toFixed(1)}%`
+                      : '—'}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {fmtM(migrationImpact.topNPower)} → {fmtM(migrationImpact.topNPower - migrationImpact.flaggedTopNPower)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {flaggedForMigration.size === 0 && (
+              <p className="text-sm text-[var(--text-muted)]">
+                No players flagged yet. Click &quot;Flag all REVIEW&quot; above, or flag individual players from the table
+                by clicking the flag icon in their row.
+              </p>
+            )}
+          </section>
+        )}
 
         {/* Scoring Configuration (collapsible) */}
         <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
@@ -1419,6 +1571,9 @@ function DkpPageInner() {
                   >
                     #
                   </th>
+                  {isOfficer && (
+                    <th className="px-1 py-3 w-8" title="Flag for migration" />
+                  )}
                   {COLUMNS.filter((c) => visibleCols.has(c.key)).map((c) => (
                     <th
                       key={c.key}
@@ -1440,11 +1595,31 @@ function DkpPageInner() {
                 {filtered.map((p) => (
                   <tr
                     key={p.characterId}
-                    className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors"
+                    className={`border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${
+                      flaggedForMigration.has(p.characterId) ? 'bg-rose-500/5' : ''
+                    }`}
                   >
                     <td className="px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">
                       {globalRankById.get(p.characterId)}
                     </td>
+                    {isOfficer && (
+                      <td className="px-1 py-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleFlagged(p.characterId)}
+                          className={`p-1 rounded transition-colors ${
+                            flaggedForMigration.has(p.characterId)
+                              ? 'text-rose-400 hover:text-rose-300'
+                              : 'text-[var(--text-muted)]/30 hover:text-rose-400'
+                          }`}
+                          title={flaggedForMigration.has(p.characterId) ? 'Unflag for migration' : 'Flag for migration'}
+                        >
+                          <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                            <path d="M2 1a1 1 0 0 1 1 1v1h9.5a.5.5 0 0 1 .4.8L10.5 7l2.4 3.2a.5.5 0 0 1-.4.8H3v4a1 1 0 1 1-2 0V2a1 1 0 0 1 1-1z"/>
+                          </svg>
+                        </button>
+                      </td>
+                    )}
                     {COLUMNS.filter((c) => visibleCols.has(c.key)).map((c) => (
                       <td
                         key={c.key}
@@ -1458,7 +1633,7 @@ function DkpPageInner() {
                 {filtered.length === 0 && (
                   <tr>
                     <td
-                      colSpan={visibleCols.size + 1}
+                      colSpan={visibleCols.size + 1 + (isOfficer ? 1 : 0)}
                       className="px-3 py-10 text-center text-[var(--text-muted)] text-sm"
                     >
                       {loadingDefault ? t('filters.loading') : t('filters.noPlayers')}
