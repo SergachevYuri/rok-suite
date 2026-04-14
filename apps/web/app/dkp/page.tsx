@@ -957,101 +957,176 @@ function DkpPageInner() {
           <SummaryCard label={t('summary.review')} value={fmt(summary.counts.REJECTED)} tone="review" />
         </section>
 
-        {/* Officer-only: Review & Migration panel */}
-        {isOfficer && summary.counts.REJECTED > 0 && (
-          <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-rose-500/30 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-rose-400 flex items-center gap-2">
-                <Info size={14} />
-                Review &amp; Migration ({summary.counts.REJECTED} players in REVIEW)
-              </h2>
-              <div className="flex items-center gap-2">
+        {/* Officer-only: Migration Simulator */}
+        {isOfficer && (
+          <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
+            <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-[var(--foreground)]">Migration Simulator</h2>
+                <p className="text-sm text-[var(--text-muted)] mt-0.5">
+                  Flag players to see the power impact before committing. Use the flag icons in the table, or the quick-actions below.
+                </p>
+              </div>
+              {flaggedForMigration.size > 0 && (
+                <span className="text-sm font-semibold text-rose-400 tabular-nums">
+                  {flaggedForMigration.size} flagged
+                </span>
+              )}
+            </div>
+
+            <div className="p-5">
+              {/* Quick actions */}
+              <div className="flex flex-wrap items-center gap-2 mb-5">
                 <button
                   onClick={flagAllReview}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 transition-colors"
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 transition-colors"
                 >
-                  Flag all REVIEW for migration
+                  Flag all {summary.counts.REJECTED} REVIEW players
+                </button>
+                <button
+                  onClick={() => {
+                    const unrankedIds = scored.filter((p) => p.status === 'UNRANKED').map((p) => p.characterId);
+                    setFlaggedForMigration((prev) => {
+                      const next = new Set(prev);
+                      for (const id of unrankedIds) next.add(id);
+                      return next;
+                    });
+                  }}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-500/15 text-zinc-400 border border-zinc-500/30 hover:bg-zinc-500/25 transition-colors"
+                >
+                  Flag all {summary.counts.UNRANKED} UNRANKED
                 </button>
                 {flaggedForMigration.size > 0 && (
                   <button
                     onClick={clearFlagged}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--background)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-[var(--background)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
                   >
-                    Clear ({flaggedForMigration.size})
+                    Clear all flags
                   </button>
                 )}
               </div>
+
+              {flaggedForMigration.size > 0 ? (
+                <>
+                  {/* Impact dashboard */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                    {/* Players leaving */}
+                    <div className="rounded-xl bg-rose-500/5 border border-rose-500/20 p-4">
+                      <div className="text-xs uppercase tracking-wider text-rose-400 font-semibold mb-2">
+                        Players Leaving
+                      </div>
+                      <div className="text-3xl font-bold text-rose-400 tabular-nums">
+                        {migrationImpact.count}
+                      </div>
+                      <div className="text-sm text-[var(--text-muted)] mt-1">
+                        of {scored.length} total ({((migrationImpact.count / scored.length) * 100).toFixed(1)}%)
+                      </div>
+                    </div>
+
+                    {/* Power leaving */}
+                    <div className="rounded-xl bg-rose-500/5 border border-rose-500/20 p-4">
+                      <div className="text-xs uppercase tracking-wider text-rose-400 font-semibold mb-2">
+                        Power Leaving
+                      </div>
+                      <div className="text-3xl font-bold text-rose-400 tabular-nums">
+                        {fmtM(migrationImpact.power)}
+                      </div>
+                      <div className="text-sm text-[var(--text-muted)] mt-1">
+                        {migrationImpact.totalPowerAboveMin > 0
+                          ? `${((migrationImpact.power / migrationImpact.totalPowerAboveMin) * 100).toFixed(1)}% of kingdom power (≥${(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M)`
+                          : '—'}
+                      </div>
+                    </div>
+
+                    {/* Kingdom after */}
+                    <div className="rounded-xl bg-[var(--background)]/40 border border-[var(--border)] p-4">
+                      <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-2">
+                        Kingdom After Migration
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-sm text-[var(--text-secondary)]">Total power (≥{(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M)</span>
+                          <div className="text-right">
+                            <span className="text-lg font-bold text-[var(--foreground)] tabular-nums">{fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}</span>
+                            <span className="text-xs text-rose-400 ml-1.5">−{fmtM(migrationImpact.power)}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-sm text-[var(--text-secondary)]">Top {config.rankedTopN} power</span>
+                          <div className="text-right">
+                            <span className="text-lg font-bold text-[var(--foreground)] tabular-nums">{fmtM(migrationImpact.topNPower - migrationImpact.flaggedTopNPower)}</span>
+                            <span className="text-xs text-rose-400 ml-1.5">−{fmtM(migrationImpact.flaggedTopNPower)}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-sm text-[var(--text-secondary)]">Remaining players</span>
+                          <span className="text-lg font-bold text-[var(--foreground)] tabular-nums">{scored.length - migrationImpact.count}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Flagged player chips */}
+                  <div className="mb-4">
+                    <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-2">
+                      Flagged Players (click to remove)
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                      {scored
+                        .filter((p) => flaggedForMigration.has(p.characterId))
+                        .sort((a, b) => a.power - b.power)
+                        .map((p) => (
+                          <button
+                            key={p.characterId}
+                            onClick={() => toggleFlagged(p.characterId)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/25 transition-colors"
+                          >
+                            <span>{p.username}</span>
+                            <span className="text-[10px] text-rose-400/50">{fmtM(p.power)}</span>
+                            <X size={10} />
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Commit action */}
+                  <div className="flex items-center gap-3 pt-4 border-t border-[var(--border)]">
+                    <button
+                      onClick={() => {
+                        // Store the flagged list in localStorage so the migration/zero page can read it.
+                        const flaggedPlayers = scored
+                          .filter((p) => flaggedForMigration.has(p.characterId))
+                          .map((p) => ({
+                            characterId: p.characterId,
+                            username: p.username,
+                            power: p.power,
+                            band: p.band,
+                            bandScore: p.bandScore,
+                            status: p.status,
+                          }));
+                        localStorage.setItem('dkp-migration-commit', JSON.stringify(flaggedPlayers));
+                        // TODO: navigate to migration/zero page once it exists
+                        alert(`${flaggedPlayers.length} players committed to migration list. Saved to local storage.`);
+                      }}
+                      className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-rose-500 text-white hover:bg-rose-600 transition-colors"
+                    >
+                      Commit {flaggedForMigration.size} players to migration list
+                    </button>
+                    <span className="text-xs text-[var(--text-muted)]">
+                      This saves the list locally. You can send it to the migration page from there.
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3">🏴</div>
+                  <p className="text-sm text-[var(--text-secondary)] mb-1">No players flagged for migration yet.</p>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Use the flag icons (<svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 inline text-[var(--text-muted)]"><path d="M2 1a1 1 0 0 1 1 1v1h9.5a.5.5 0 0 1 .4.8L10.5 7l2.4 3.2a.5.5 0 0 1-.4.8H3v4a1 1 0 1 1-2 0V2a1 1 0 0 1 1-1z"/></svg>) in the table to flag individual players, or use the quick-actions above to flag by status.
+                  </p>
+                </div>
+              )}
             </div>
-
-            {/* Flagged players list */}
-            {flaggedForMigration.size > 0 && (
-              <div className="mb-4">
-                <div className="text-xs text-[var(--text-muted)] mb-2">
-                  Flagged for migration ({flaggedForMigration.size} players):
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {scored
-                    .filter((p) => flaggedForMigration.has(p.characterId))
-                    .sort((a, b) => a.power - b.power)
-                    .map((p) => (
-                      <button
-                        key={p.characterId}
-                        onClick={() => toggleFlagged(p.characterId)}
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors"
-                        title={`Click to unflag. Power: ${fmtM(p.power)}`}
-                      >
-                        {p.username}
-                        <span className="text-[10px] text-rose-400/60">{fmtM(p.power)}</span>
-                        <X size={10} />
-                      </button>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* Migration impact stats */}
-            {flaggedForMigration.size > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-lg bg-[var(--background)]/40 border border-[var(--border)] p-3">
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1">Flagged Power</div>
-                  <div className="text-lg font-semibold text-rose-400">{fmtM(migrationImpact.power)}</div>
-                  <div className="text-xs text-[var(--text-muted)]">{migrationImpact.count} players</div>
-                </div>
-                <div className="rounded-lg bg-[var(--background)]/40 border border-[var(--border)] p-3">
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1">
-                    Kingdom Power Impact (≥{(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M)
-                  </div>
-                  <div className="text-lg font-semibold text-[var(--foreground)]">
-                    {migrationImpact.totalPowerAboveMin > 0
-                      ? `-${((migrationImpact.power / migrationImpact.totalPowerAboveMin) * 100).toFixed(1)}%`
-                      : '—'}
-                  </div>
-                  <div className="text-xs text-[var(--text-muted)]">
-                    {fmtM(migrationImpact.totalPowerAboveMin)} → {fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}
-                  </div>
-                </div>
-                <div className="rounded-lg bg-[var(--background)]/40 border border-[var(--border)] p-3">
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1">
-                    Top {config.rankedTopN} Power Impact
-                  </div>
-                  <div className="text-lg font-semibold text-[var(--foreground)]">
-                    {migrationImpact.topNPower > 0
-                      ? `-${((migrationImpact.flaggedTopNPower / migrationImpact.topNPower) * 100).toFixed(1)}%`
-                      : '—'}
-                  </div>
-                  <div className="text-xs text-[var(--text-muted)]">
-                    {fmtM(migrationImpact.topNPower)} → {fmtM(migrationImpact.topNPower - migrationImpact.flaggedTopNPower)}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {flaggedForMigration.size === 0 && (
-              <p className="text-sm text-[var(--text-muted)]">
-                No players flagged yet. Click &quot;Flag all REVIEW&quot; above, or flag individual players from the table
-                by clicking the flag icon in their row.
-              </p>
-            )}
           </section>
         )}
 
