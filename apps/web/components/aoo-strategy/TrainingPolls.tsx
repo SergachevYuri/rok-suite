@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { Clock, Plus, Check, X, Users, ChevronDown, ChevronUp, Trash2, Lock, Unlock, Globe, MapPin, User, Info, Calendar, CheckCircle2, Eye, EyeOff, Download } from 'lucide-react';
 import { useRef, useCallback } from 'react';
 import {
@@ -1288,6 +1289,7 @@ function AvailabilityCard({ poll, isLeader, isAuthenticated, userName, onAvailab
 // =============================================================================
 
 export function TrainingPolls() {
+  const t = useTranslations('aoo.polls');
   const { polls, loading, error, refetch } = useTrainingPolls();
   const { isLeaderOrAdmin, loading: roleLoading } = useUserRole();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -1335,7 +1337,7 @@ export function TrainingPolls() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-stone-200">Training Availability</h3>
+          <h3 className="text-lg font-semibold text-stone-200">{t('title')}</h3>
           <p className="text-xs text-stone-500">{timezone}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -1343,7 +1345,7 @@ export function TrainingPolls() {
           {isLeaderOrAdmin && (
             <button onClick={() => setShowCreateModal(true)}
               className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-500 flex items-center gap-1.5">
-              <Plus className="w-4 h-4" /> New
+              <Plus className="w-4 h-4" /> {t('new')}
             </button>
           )}
         </div>
@@ -1356,7 +1358,7 @@ export function TrainingPolls() {
             className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
               filter === f ? 'bg-emerald-600 text-white' : 'bg-stone-700 text-stone-400 hover:bg-stone-600'
             }`}>
-            {f.charAt(0).toUpperCase() + f.slice(1)}
+            {f === 'all' ? t('all') : f === 'open' ? t('open') : t('closed')}
             {f === 'open' && openPolls.length > 0 && (
               <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded text-xs">{openPolls.length}</span>
             )}
@@ -1369,11 +1371,11 @@ export function TrainingPolls() {
       {filteredPolls.length === 0 ? (
         <div className="text-center py-12 text-stone-500">
           <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p className="text-lg">No {filter !== 'all' ? filter : ''} polls</p>
+          <p className="text-lg">{t('noPolls', { filter: filter !== 'all' ? filter : '' })}</p>
           {isLeaderOrAdmin && filter !== 'closed' && (
             <button onClick={() => setShowCreateModal(true)}
               className="mt-4 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-500">
-              Create Poll
+              {t('createPoll')}
             </button>
           )}
         </div>

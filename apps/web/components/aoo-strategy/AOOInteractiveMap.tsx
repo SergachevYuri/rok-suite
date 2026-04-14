@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Moon, Sun, RotateCcw, RotateCw } from 'lucide-react';
 import type { Player, MapAssignments, MapAssignment } from '@/lib/aoo-strategy/types';
 
@@ -132,6 +133,7 @@ const getDefaultAssignments = (): MapAssignments => {
 };
 
 export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor = true, players = [] }: Props) {
+  const t = useTranslations('aoo.map');
   const [isDark, setIsDark] = useState(true);
   const [assignments, setAssignments] = useState<MapAssignments>(() => {
     return initialAssignments || getDefaultAssignments();
@@ -229,15 +231,15 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
       {/* Header */}
       <header className={`${theme.bgSecondary} border-b ${theme.border} px-4 py-3 sticky top-0 z-50`}>
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
-          <h1 className={`text-xl font-bold ${theme.text}`}>AOO Strategy Map</h1>
+          <h1 className={`text-xl font-bold ${theme.text}`}>{t('title')}</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSwapCorners(!swapCorners)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${theme.bgTertiary} ${theme.text} text-sm hover:opacity-80`}
-              title="Swap start/enemy corners"
+              title={t('swapCorners')}
             >
               <RotateCw size={16} />
-              {swapCorners ? 'Start: Bottom-Right' : 'Start: Top-Left'}
+              {swapCorners ? t('startBottomRight') : t('startTopLeft')}
             </button>
             {isEditor && (
               <button
@@ -245,7 +247,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${theme.bgTertiary} ${theme.text} text-sm hover:opacity-80`}
               >
                 <RotateCcw size={16} />
-                Clear
+                {t('clear')}
               </button>
             )}
             <button
@@ -266,7 +268,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
             {/* Filter by Zone */}
             <div className={`${theme.bgSecondary} rounded-xl p-4 border ${theme.border}`}>
               <h3 className={`text-xs font-semibold uppercase tracking-wider ${theme.textMuted} mb-3`}>
-                View Zone
+                {t('viewZone')}
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -275,7 +277,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                     filterTeam === 'all' ? 'bg-emerald-600 text-white' : `${theme.bgTertiary} ${theme.text}`
                   }`}
                 >
-                  All
+                  {t('all')}
                 </button>
                 {[1, 2, 3].map(t => (
                   <button
@@ -303,13 +305,13 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                       style={{ backgroundColor: teamColors[team].bg }}
                     />
                     <h3 className={`text-sm font-semibold ${theme.text}`}>
-                      {teamColors[team].name} Attack Order
+                      {teamColors[team].name} {t('attackOrder')}
                     </h3>
                     <span className={`text-xs ${theme.textMuted}`}>({teamBuildings.length})</span>
                   </div>
                   
                   {teamBuildings.length === 0 ? (
-                    <p className={`text-sm ${theme.textMuted}`}>No buildings assigned</p>
+                    <p className={`text-sm ${theme.textMuted}`}>{t('noBuildings')}</p>
                   ) : (
                     <div className="space-y-1">
                       {teamBuildings.map((building) => (
@@ -387,7 +389,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   }}
                 >
                   <span>⚔️</span>
-                  <span>START</span>
+                  <span>{t('start')}</span>
                 </div>
 
                 {/* ENEMY Marker - position swaps based on swapCorners */}
@@ -401,7 +403,7 @@ export default function AOOInteractiveMap({ initialAssignments, onSave, isEditor
                   }}
                 >
                   <span>☠️</span>
-                  <span>ENEMY</span>
+                  <span>{t('enemy')}</span>
                 </div>
 
                 {/* Building Markers */}

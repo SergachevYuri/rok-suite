@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { FileSpreadsheet, Loader2, ExternalLink, RefreshCw, Users, Swords, Crown, Target, AlertTriangle, Shield, ChevronDown, ChevronUp, Upload, ArrowRight } from 'lucide-react';
 import { fetchAooRegistrationSheet, parseAooRegistrationCSV } from '@/lib/aoo-strategy/parse';
 import type { AooRegistration } from '@/lib/aoo-strategy/types';
@@ -17,6 +18,8 @@ interface RegistrationTabProps {
 }
 
 export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuilder, isOfficer }: RegistrationTabProps) {
+  const t = useTranslations('aoo.registration');
+  const to = useTranslations('aoo.officer');
   const [sheetUrl, setSheetUrl] = useState('');
   const [registrations, setRegistrations] = useState<AooRegistration[]>([]);
   const [loading, setLoading] = useState(false);
@@ -117,14 +120,14 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
       {/* Import Options */}
       <section className={`${theme.card} border rounded-xl mb-4 sm:mb-6 p-3 sm:p-5`}>
         <h2 className={`text-sm sm:text-base font-semibold uppercase tracking-wider ${theme.textMuted} mb-3 sm:mb-4`}>
-          Import Registrations
+          {t('importTitle')}
         </h2>
 
         {/* Officer badge with quick-load and edit sheet buttons */}
         {isOfficer && (
           <div className="mb-3 sm:mb-4 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
             <div className="flex items-center justify-between">
-              <span className="text-amber-400 text-xs font-semibold uppercase tracking-wider">Officer</span>
+              <span className="text-amber-400 text-xs font-semibold uppercase tracking-wider">{to('badge')}</span>
               <a
                 href={OFFICER_SHEET_URL}
                 target="_blank"
@@ -132,7 +135,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                 className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-amber-400 hover:bg-amber-500/20 transition-colors"
               >
                 <ExternalLink size={11} />
-                Edit Sheet
+                {to('editSheet')}
               </a>
             </div>
             <button
@@ -141,20 +144,20 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
               className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors disabled:opacity-50"
             >
               {loading ? <Loader2 size={14} className="animate-spin" /> : <FileSpreadsheet size={14} />}
-              {loading ? 'Fetching...' : 'Fetch Registration Sheet'}
+              {loading ? to('fetching') : to('fetchSheet')}
             </button>
           </div>
         )}
 
         {/* Google Sheets fetch */}
         <div className="mb-3 sm:mb-4">
-          <label className={`text-xs sm:text-sm font-medium ${theme.text} mb-1.5 block`}>From Google Sheet</label>
+          <label className={`text-xs sm:text-sm font-medium ${theme.text} mb-1.5 block`}>{t('fromGoogleSheet')}</label>
           <div className="space-y-2 sm:space-y-0 sm:flex sm:gap-2">
             <input
               type="url"
               value={sheetUrl}
               onChange={(e) => setSheetUrl(e.target.value)}
-              placeholder="Paste Google Sheets URL..."
+              placeholder={t('pasteUrl')}
               className={`w-full min-w-0 px-3 py-2 rounded-lg text-sm ${theme.input} border`}
               onKeyDown={(e) => e.key === 'Enter' && handleFetch()}
             />
@@ -171,13 +174,13 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                 ) : (
                   <FileSpreadsheet size={14} />
                 )}
-                {loading ? 'Fetching...' : fetched ? 'Refresh' : 'Fetch'}
+                {loading ? to('fetching') : fetched ? t('refresh') : t('fetch')}
               </button>
               {sheetUrl.trim() && (
                 <button
                   onClick={openSheet}
                   className={`px-2.5 py-2 rounded-lg text-sm ${theme.button} flex items-center`}
-                  title="Open in Google Sheets"
+                  title={t('openInSheets')}
                 >
                   <ExternalLink size={14} />
                 </button>
@@ -189,15 +192,15 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
         {/* Divider */}
         <div className="flex items-center gap-3 my-3">
           <div className="flex-1 border-t border-[var(--border)]" />
-          <span className={`text-xs font-medium ${theme.textMuted}`}>OR</span>
+          <span className={`text-xs font-medium ${theme.textMuted}`}>{t('or')}</span>
           <div className="flex-1 border-t border-[var(--border)]" />
         </div>
 
         {/* CSV Upload */}
         <div className="mb-3">
-          <label className={`text-xs sm:text-sm font-medium ${theme.text} mb-1.5 block`}>Upload CSV</label>
+          <label className={`text-xs sm:text-sm font-medium ${theme.text} mb-1.5 block`}>{t('uploadCsv')}</label>
           <p className={`text-xs ${theme.textMuted} mb-2 hidden sm:block`}>
-            Export your Google Sheet as CSV (File → Download → Comma-separated values).
+            {t('uploadCsvHint')}
           </p>
           <input
             ref={fileInputRef}
@@ -212,7 +215,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
             className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${theme.button} border border-[var(--border)] hover:bg-[var(--background-hover)] disabled:opacity-50`}
           >
             <Upload size={14} />
-            Choose CSV File...
+            {t('chooseCsvFile')}
           </button>
         </div>
 
@@ -226,7 +229,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
         {/* Divider */}
         <div className="flex items-center gap-3 my-3">
           <div className="flex-1 border-t border-[var(--border)]" />
-          <span className={`text-xs font-medium ${theme.textMuted}`}>OR</span>
+          <span className={`text-xs font-medium ${theme.textMuted}`}>{t('or')}</span>
           <div className="flex-1 border-t border-[var(--border)]" />
         </div>
 
@@ -236,7 +239,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
           className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${theme.button} border border-[var(--border)] hover:bg-[var(--background-hover)]`}
         >
           <ArrowRight size={14} />
-          Skip to Team Builder
+          {t('skipToBuilder')}
         </button>
       </section>
 
@@ -247,7 +250,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
           className="flex items-center justify-between w-full text-left"
         >
           <h2 className={`text-xs sm:text-base font-semibold uppercase tracking-wider ${theme.textMuted}`}>
-            Sheet / CSV Format
+            {t('sheetFormat')}
           </h2>
           <span className={theme.textMuted}>
             {showColumnHelp ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -256,19 +259,19 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
         {showColumnHelp && (
           <div className={`mt-3 text-xs ${theme.textMuted} space-y-2`}>
             <p className={`text-xs sm:text-sm ${theme.text}`}>
-              Your sheet should have these columns (order doesn&apos;t matter):
+              {t('sheetFormatDesc')}
             </p>
             {/* Mobile: stacked list | Desktop: table */}
             <div className="sm:hidden space-y-1.5">
               {[
-                { col: 'Name', desc: 'In-game name (required)' },
-                { col: 'Gov ID', desc: 'Governor ID' },
-                { col: 'Power', desc: 'Player power' },
-                { col: 'Team 1', desc: 'x = available' },
-                { col: 'Team 2', desc: 'x = available' },
-                { col: 'Rally Leader', desc: 'x = can rally' },
-                { col: 'Garrison Leader', desc: 'x = can garrison' },
-                { col: 'Mid', desc: 'x = prefers mid' },
+                { col: t('columns.name'), desc: t('columns.nameDesc') },
+                { col: t('columns.govId'), desc: t('columns.govIdDesc') },
+                { col: t('columns.power'), desc: t('columns.powerDesc') },
+                { col: t('columns.team1'), desc: t('columns.team1Desc') },
+                { col: t('columns.team2'), desc: t('columns.team2Desc') },
+                { col: t('columns.rallyLeader'), desc: t('columns.rallyLeaderDesc') },
+                { col: t('columns.garrisonLeader'), desc: t('columns.garrisonLeaderDesc') },
+                { col: t('columns.mid'), desc: t('columns.midDesc') },
               ].map(({ col, desc }) => (
                 <div key={col} className="flex gap-2">
                   <span className="font-medium text-[var(--foreground)] shrink-0 w-24">{col}</span>
@@ -279,20 +282,20 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
             <table className="hidden sm:table w-full text-left">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  <th className="py-1.5 pr-3 font-semibold">Column</th>
-                  <th className="py-1.5 pr-3 font-semibold">Type</th>
-                  <th className="py-1.5 font-semibold">Description</th>
+                  <th className="py-1.5 pr-3 font-semibold">{t('column')}</th>
+                  <th className="py-1.5 pr-3 font-semibold">{t('type')}</th>
+                  <th className="py-1.5 font-semibold">{t('columnDescription')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Name</td><td className="py-1.5 pr-3">Text</td><td className="py-1.5">Player&apos;s in-game name (required)</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Gov ID</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">Governor ID</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Power</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">Player power (e.g. 85000000)</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Team 1</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Available for Team 1</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Team 2</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Available for Team 2</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Rally Leader</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Can lead rallies</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Garrison Leader</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Can lead garrisons</td></tr>
-                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">Mid</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">Prefers mid lane / ark carrier</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.name')}</td><td className="py-1.5 pr-3">Text</td><td className="py-1.5">{t('columns.nameDescFull')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.govId')}</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">{t('columns.govIdDesc')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.power')}</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">{t('columns.powerDescFull')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.team1')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.team1DescFull')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.team2')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.team2DescFull')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.rallyLeader')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.rallyLeaderDescFull')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.garrisonLeader')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.garrisonLeaderDescFull')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.mid')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.midDescFull')}</td></tr>
               </tbody>
             </table>
             <p className="hidden sm:block">
@@ -310,25 +313,25 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
           <section className={`${theme.card} border rounded-xl mb-4 sm:mb-6 p-3 sm:p-5`}>
             <div className="flex items-center justify-between gap-3 mb-3">
               <h2 className={`text-xs sm:text-base font-semibold uppercase tracking-wider ${theme.textMuted}`}>
-                Summary
+                {t('summary')}
               </h2>
               <button
                 onClick={() => onApplyToBuilder(registrations)}
                 className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 ${theme.buttonPrimary} shrink-0`}
               >
                 <Swords size={14} />
-                Distribute
+                {t('distribute')}
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-              <StatCard label="Registered" value={registrations.length} icon={<Users size={14} />} theme={theme} />
-              <StatCard label="Team 1" value={stats.team1.length} icon={<span className="text-blue-400 font-bold text-xs">T1</span>} theme={theme} />
-              <StatCard label="Team 2" value={stats.team2.length} icon={<span className="text-orange-400 font-bold text-xs">T2</span>} theme={theme} />
-              <StatCard label="Rally" value={stats.rallyLeaders.length} icon={<Crown size={14} className="text-yellow-400" />} theme={theme} />
-              <StatCard label="Garrison" value={stats.garrisonLeaders.length} icon={<Shield size={14} className="text-cyan-400" />} theme={theme} />
-              <StatCard label="Mid Pref" value={stats.midPlayers.length} icon={<Target size={14} className="text-purple-400" />} theme={theme} />
-              <StatCard label="Both" value={stats.both.length} icon={<span className="text-emerald-400 font-bold text-[10px]">T1+2</span>} theme={theme} />
-              <StatCard label="Power" value={formatPower(stats.totalPower)} icon={<Swords size={14} className="text-red-400" />} theme={theme} />
+              <StatCard label={t('registered')} value={registrations.length} icon={<Users size={14} />} theme={theme} />
+              <StatCard label={t('team1')} value={stats.team1.length} icon={<span className="text-blue-400 font-bold text-xs">T1</span>} theme={theme} />
+              <StatCard label={t('team2')} value={stats.team2.length} icon={<span className="text-orange-400 font-bold text-xs">T2</span>} theme={theme} />
+              <StatCard label={t('rally')} value={stats.rallyLeaders.length} icon={<Crown size={14} className="text-yellow-400" />} theme={theme} />
+              <StatCard label={t('garrisonLabel')} value={stats.garrisonLeaders.length} icon={<Shield size={14} className="text-cyan-400" />} theme={theme} />
+              <StatCard label={t('midPref')} value={stats.midPlayers.length} icon={<Target size={14} className="text-purple-400" />} theme={theme} />
+              <StatCard label={t('both')} value={stats.both.length} icon={<span className="text-emerald-400 font-bold text-[10px]">T1+2</span>} theme={theme} />
+              <StatCard label={t('powerLabel')} value={formatPower(stats.totalPower)} icon={<Swords size={14} className="text-red-400" />} theme={theme} />
             </div>
           </section>
 
@@ -339,15 +342,15 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)]">
-                    <th className={`text-left px-4 py-3 font-medium ${theme.textMuted}`}>#</th>
-                    <th className={`text-left px-4 py-3 font-medium ${theme.textMuted}`}>Name</th>
-                    <th className={`text-right px-4 py-3 font-medium ${theme.textMuted}`}>Gov ID</th>
-                    <th className={`text-right px-4 py-3 font-medium ${theme.textMuted}`}>Power</th>
-                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>T1</th>
-                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>T2</th>
-                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>Rally</th>
-                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>Garr.</th>
-                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>Mid</th>
+                    <th className={`text-left px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.hash')}</th>
+                    <th className={`text-left px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.name')}</th>
+                    <th className={`text-right px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.govId')}</th>
+                    <th className={`text-right px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.power')}</th>
+                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.t1')}</th>
+                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.t2')}</th>
+                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.rally')}</th>
+                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.garrison')}</th>
+                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.mid')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -407,7 +410,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
 
       {fetched && registrations.length === 0 && !error && (
         <div className={`${theme.card} border rounded-xl p-8 sm:p-12 text-center`}>
-          <p className={theme.textMuted}>No registrations found. Check that the sheet has the expected columns.</p>
+          <p className={theme.textMuted}>{t('noRegistrations')}</p>
         </div>
       )}
     </div>
