@@ -793,12 +793,14 @@ function DkpPageInner() {
     return { counts, totalDkp, total: scored.length };
   }, [scored]);
 
+  /** Power floor for the "Kingdom Power" migration card — adjustable by the officer. */
+  const [migrationPowerFloor, setMigrationPowerFloor] = useState(15_000_000);
+
   /** Migration impact stats — computed from the flagged set. */
   const migrationImpact = useMemo(() => {
     const flaggedPlayers = scored.filter((p) => flaggedForMigration.has(p.characterId));
     const flaggedPower = flaggedPlayers.reduce((s, p) => s + p.power, 0);
-    // Total kingdom power of all ranked players (for context).
-    const minPowerForTotal = config.rankedMinPower || 15_000_000;
+    const minPowerForTotal = migrationPowerFloor;
     const allAboveMin = scored.filter((p) => p.power >= minPowerForTotal);
     const totalPowerAboveMin = allAboveMin.reduce((s, p) => s + p.power, 0);
     // Top N power (using the ranked cutoff).
@@ -814,7 +816,7 @@ function DkpPageInner() {
       topNPower,
       flaggedTopNPower,
     };
-  }, [scored, flaggedForMigration, config.rankedMinPower, config.rankedTopN]);
+  }, [scored, flaggedForMigration, migrationPowerFloor, config.rankedTopN]);
 
   const handleDeploy = async () => {
     setDeploying(true);
@@ -975,6 +977,21 @@ function DkpPageInner() {
             </div>
 
             <div className="p-5">
+              {/* Settings row */}
+              <div className="flex flex-wrap items-center gap-3 mb-4 text-sm text-[var(--text-secondary)]">
+                <span>Kingdom power floor:</span>
+                <Tooltip content="Only players above this power level are counted in the 'Kingdom Power' card. Adjust to see impact on different power tiers.">
+                  <span className="cursor-help"><Info size={13} className="text-[var(--text-muted)]" /></span>
+                </Tooltip>
+                <PowerInput
+                  value={migrationPowerFloor}
+                  onChange={(v) => setMigrationPowerFloor(Math.max(0, v))}
+                />
+                <span className="text-xs text-[var(--text-muted)]">
+                  ({scored.filter((p) => p.power >= migrationPowerFloor).length} players above this)
+                </span>
+              </div>
+
               {/* Quick actions */}
               <div className="flex flex-wrap items-center gap-2 mb-5">
                 <Tooltip content={`Instantly flag all ${summary.counts.REJECTED} players currently in REVIEW status. These are ranked players whose band score fell below the GOOD cutoff — likely underperforming for their power level.`}>
