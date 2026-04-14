@@ -977,25 +977,29 @@ function DkpPageInner() {
             <div className="p-5">
               {/* Quick actions */}
               <div className="flex flex-wrap items-center gap-2 mb-5">
-                <button
-                  onClick={flagAllReview}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 transition-colors"
-                >
-                  Flag all {summary.counts.REJECTED} REVIEW players
-                </button>
-                <button
-                  onClick={() => {
-                    const unrankedIds = scored.filter((p) => p.status === 'UNRANKED').map((p) => p.characterId);
-                    setFlaggedForMigration((prev) => {
-                      const next = new Set(prev);
-                      for (const id of unrankedIds) next.add(id);
-                      return next;
-                    });
-                  }}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-500/15 text-zinc-400 border border-zinc-500/30 hover:bg-zinc-500/25 transition-colors"
-                >
-                  Flag all {summary.counts.UNRANKED} UNRANKED
-                </button>
+                <Tooltip content={`Instantly flag all ${summary.counts.REJECTED} players currently in REVIEW status. These are ranked players whose band score fell below the GOOD cutoff — likely underperforming for their power level.`}>
+                  <button
+                    onClick={flagAllReview}
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25 transition-colors"
+                  >
+                    Flag all {summary.counts.REJECTED} REVIEW players
+                  </button>
+                </Tooltip>
+                <Tooltip content={`Instantly flag all ${summary.counts.UNRANKED} UNRANKED players. These are outside the top ${config.rankedTopN} by power — not actively scored. They're the primary migration candidates.`}>
+                  <button
+                    onClick={() => {
+                      const unrankedIds = scored.filter((p) => p.status === 'UNRANKED').map((p) => p.characterId);
+                      setFlaggedForMigration((prev) => {
+                        const next = new Set(prev);
+                        for (const id of unrankedIds) next.add(id);
+                        return next;
+                      });
+                    }}
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-500/15 text-zinc-400 border border-zinc-500/30 hover:bg-zinc-500/25 transition-colors"
+                  >
+                    Flag all {summary.counts.UNRANKED} UNRANKED
+                  </button>
+                </Tooltip>
                 {flaggedForMigration.size > 0 && (
                   <button
                     onClick={clearFlagged}
@@ -1012,8 +1016,11 @@ function DkpPageInner() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
                     {/* Players leaving */}
                     <div className="rounded-xl bg-rose-500/5 border border-rose-500/20 p-4">
-                      <div className="text-xs uppercase tracking-wider text-rose-400 font-semibold mb-2">
+                      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-rose-400 font-semibold mb-2">
                         Players Leaving
+                        <Tooltip content={`If all ${migrationImpact.count} flagged players leave, the kingdom drops from ${scored.length} to ${scored.length - migrationImpact.count} players — a ${((migrationImpact.count / scored.length) * 100).toFixed(1)}% reduction in headcount.`}>
+                          <span className="cursor-help"><Info size={12} /></span>
+                        </Tooltip>
                       </div>
                       <div className="text-3xl font-bold text-rose-400 tabular-nums">
                         {migrationImpact.count}
@@ -1025,8 +1032,11 @@ function DkpPageInner() {
 
                     {/* Power leaving */}
                     <div className="rounded-xl bg-rose-500/5 border border-rose-500/20 p-4">
-                      <div className="text-xs uppercase tracking-wider text-rose-400 font-semibold mb-2">
+                      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-rose-400 font-semibold mb-2">
                         Power Leaving
+                        <Tooltip content={`The combined power of all flagged players is ${fmtM(migrationImpact.power)}. This is ${migrationImpact.totalPowerAboveMin > 0 ? ((migrationImpact.power / migrationImpact.totalPowerAboveMin) * 100).toFixed(1) : 0}% of the total kingdom power among accounts ≥${(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M. The kingdom's total power would drop from ${fmtM(migrationImpact.totalPowerAboveMin)} to ${fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}.`}>
+                          <span className="cursor-help"><Info size={12} /></span>
+                        </Tooltip>
                       </div>
                       <div className="text-3xl font-bold text-rose-400 tabular-nums">
                         {fmtM(migrationImpact.power)}
@@ -1040,8 +1050,11 @@ function DkpPageInner() {
 
                     {/* Kingdom after */}
                     <div className="rounded-xl bg-[var(--background)] border border-[var(--border)] p-4">
-                      <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-2">
+                      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-2">
                         Kingdom After Migration
+                        <Tooltip content={`What the kingdom looks like if all ${migrationImpact.count} flagged players leave. Total power (of accounts ≥${(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M) drops by ${fmtM(migrationImpact.power)} to ${fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}. The top ${config.rankedTopN} players' combined power drops by ${fmtM(migrationImpact.flaggedTopNPower)} to ${fmtM(migrationImpact.topNPower - migrationImpact.flaggedTopNPower)}. ${scored.length - migrationImpact.count} players remain.`}>
+                          <span className="cursor-help"><Info size={12} /></span>
+                        </Tooltip>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-baseline justify-between">
