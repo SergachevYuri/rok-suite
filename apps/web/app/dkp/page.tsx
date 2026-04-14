@@ -1012,70 +1012,94 @@ function DkpPageInner() {
 
               {flaggedForMigration.size > 0 ? (
                 <>
-                  {/* Impact dashboard */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-                    {/* Players leaving */}
-                    <div className="rounded-xl bg-rose-500/5 border border-rose-500/20 p-4">
-                      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-rose-400 font-semibold mb-2">
-                        Players Leaving
-                        <Tooltip content={`If all ${migrationImpact.count} flagged players leave, the kingdom drops from ${scored.length} to ${scored.length - migrationImpact.count} players — a ${((migrationImpact.count / scored.length) * 100).toFixed(1)}% reduction in headcount.`}>
-                          <span className="cursor-help"><Info size={12} /></span>
+                  {/* Impact dashboard — 4 standalone cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+                    {/* 1. Players leaving */}
+                    <div className="rounded-xl bg-rose-500/5 border border-rose-500/20 p-5">
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <div className="text-sm font-semibold text-rose-400">Players Leaving</div>
+                        <Tooltip content="How many flagged players would leave the kingdom.">
+                          <span className="cursor-help text-rose-400/60"><Info size={13} /></span>
                         </Tooltip>
                       </div>
-                      <div className="text-3xl font-bold text-rose-400 tabular-nums">
+                      <div className="text-4xl font-bold text-rose-400 tabular-nums">
                         {migrationImpact.count}
                       </div>
-                      <div className="text-sm text-[var(--text-muted)] mt-1">
-                        of {scored.length} total ({((migrationImpact.count / scored.length) * 100).toFixed(1)}%)
+                      <div className="text-sm text-[var(--text-muted)] mt-2">
+                        out of {scored.length} total ({((migrationImpact.count / scored.length) * 100).toFixed(1)}%)
+                      </div>
+                      <div className="text-sm text-[var(--text-secondary)] mt-1">
+                        {scored.length - migrationImpact.count} would remain
                       </div>
                     </div>
 
-                    {/* Power leaving */}
-                    <div className="rounded-xl bg-rose-500/5 border border-rose-500/20 p-4">
-                      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-rose-400 font-semibold mb-2">
-                        Power Leaving
-                        <Tooltip content={`The combined power of all flagged players is ${fmtM(migrationImpact.power)}. This is ${migrationImpact.totalPowerAboveMin > 0 ? ((migrationImpact.power / migrationImpact.totalPowerAboveMin) * 100).toFixed(1) : 0}% of the total kingdom power among accounts ≥${(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M. The kingdom's total power would drop from ${fmtM(migrationImpact.totalPowerAboveMin)} to ${fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}.`}>
-                          <span className="cursor-help"><Info size={12} /></span>
+                    {/* 2. Total power leaving */}
+                    <div className="rounded-xl bg-rose-500/5 border border-rose-500/20 p-5">
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <div className="text-sm font-semibold text-rose-400">Power Leaving</div>
+                        <Tooltip content="The raw sum of every flagged player's current power. Not weighted by band or score — just the actual power numbers added up.">
+                          <span className="cursor-help text-rose-400/60"><Info size={13} /></span>
                         </Tooltip>
                       </div>
-                      <div className="text-3xl font-bold text-rose-400 tabular-nums">
+                      <div className="text-4xl font-bold text-rose-400 tabular-nums">
                         {fmtM(migrationImpact.power)}
                       </div>
-                      <div className="text-sm text-[var(--text-muted)] mt-1">
+                      <div className="text-sm text-[var(--text-muted)] mt-2">
                         {migrationImpact.totalPowerAboveMin > 0
-                          ? `${((migrationImpact.power / migrationImpact.totalPowerAboveMin) * 100).toFixed(1)}% of kingdom power (≥${(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M)`
+                          ? `${((migrationImpact.power / migrationImpact.totalPowerAboveMin) * 100).toFixed(1)}% of all power ≥${(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M`
                           : '—'}
                       </div>
                     </div>
 
-                    {/* Kingdom after */}
-                    <div className="rounded-xl bg-[var(--background)] border border-[var(--border)] p-4">
-                      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-2">
-                        Kingdom After Migration
-                        <Tooltip content={`What the kingdom looks like if all ${migrationImpact.count} flagged players leave. Total power (of accounts ≥${(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M) drops by ${fmtM(migrationImpact.power)} to ${fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}. The top ${config.rankedTopN} players' combined power drops by ${fmtM(migrationImpact.flaggedTopNPower)} to ${fmtM(migrationImpact.topNPower - migrationImpact.flaggedTopNPower)}. ${scored.length - migrationImpact.count} players remain.`}>
-                          <span className="cursor-help"><Info size={12} /></span>
+                    {/* 3. Kingdom total power impact */}
+                    <div className="rounded-xl bg-[var(--background)] border border-[var(--border)] p-5">
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <div className="text-sm font-semibold text-[var(--foreground)]">Kingdom Power</div>
+                        <Tooltip content={`Total power of all players with ≥${(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M power. If the flagged players leave, it drops from ${fmtM(migrationImpact.totalPowerAboveMin)} to ${fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}.`}>
+                          <span className="cursor-help text-[var(--text-muted)]"><Info size={13} /></span>
                         </Tooltip>
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-sm text-[var(--text-secondary)]">Total power (≥{(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M)</span>
-                          <div className="text-right">
-                            <span className="text-lg font-bold text-[var(--foreground)] tabular-nums">{fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}</span>
-                            <span className="text-xs text-rose-400 ml-1.5">−{fmtM(migrationImpact.power)}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-sm text-[var(--text-secondary)]">Top {config.rankedTopN} power</span>
-                          <div className="text-right">
-                            <span className="text-lg font-bold text-[var(--foreground)] tabular-nums">{fmtM(migrationImpact.topNPower - migrationImpact.flaggedTopNPower)}</span>
-                            <span className="text-xs text-rose-400 ml-1.5">−{fmtM(migrationImpact.flaggedTopNPower)}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-sm text-[var(--text-secondary)]">Remaining players</span>
-                          <span className="text-lg font-bold text-[var(--foreground)] tabular-nums">{scored.length - migrationImpact.count}</span>
-                        </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-[var(--foreground)] tabular-nums">
+                          {fmtM(migrationImpact.totalPowerAboveMin - migrationImpact.power)}
+                        </span>
                       </div>
+                      <div className="text-sm text-[var(--text-muted)] mt-2">
+                        Currently {fmtM(migrationImpact.totalPowerAboveMin)}
+                      </div>
+                      <div className="text-sm text-rose-400 font-medium mt-0.5">
+                        −{fmtM(migrationImpact.power)} ({((migrationImpact.power / migrationImpact.totalPowerAboveMin) * 100).toFixed(1)}% drop)
+                      </div>
+                      <div className="text-xs text-[var(--text-muted)] mt-1">
+                        accounts ≥{(migrationImpact.minPowerForTotal / 1_000_000).toFixed(0)}M only
+                      </div>
+                    </div>
+
+                    {/* 4. Top N power impact */}
+                    <div className="rounded-xl bg-[var(--background)] border border-[var(--border)] p-5">
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <div className="text-sm font-semibold text-[var(--foreground)]">Top {config.rankedTopN} Power</div>
+                        <Tooltip content={`Combined power of the top ${config.rankedTopN} players by power. If any flagged players are in this group, their power is subtracted. Currently ${fmtM(migrationImpact.topNPower)} → after migration ${fmtM(migrationImpact.topNPower - migrationImpact.flaggedTopNPower)}.`}>
+                          <span className="cursor-help text-[var(--text-muted)]"><Info size={13} /></span>
+                        </Tooltip>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold text-[var(--foreground)] tabular-nums">
+                          {fmtM(migrationImpact.topNPower - migrationImpact.flaggedTopNPower)}
+                        </span>
+                      </div>
+                      <div className="text-sm text-[var(--text-muted)] mt-2">
+                        Currently {fmtM(migrationImpact.topNPower)}
+                      </div>
+                      {migrationImpact.flaggedTopNPower > 0 ? (
+                        <div className="text-sm text-rose-400 font-medium mt-0.5">
+                          −{fmtM(migrationImpact.flaggedTopNPower)} ({((migrationImpact.flaggedTopNPower / migrationImpact.topNPower) * 100).toFixed(1)}% drop)
+                        </div>
+                      ) : (
+                        <div className="text-sm text-emerald-400 font-medium mt-0.5">
+                          No impact — no flagged players in top {config.rankedTopN}
+                        </div>
+                      )}
                     </div>
                   </div>
 
