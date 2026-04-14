@@ -2346,6 +2346,162 @@ export default function AooStrategyPage() {
         }
     }, [generateZoneText]);
 
+    // Generate full text summary from roster data (for strategy tab)
+    const [rosterCopiedSummary, setRosterCopiedSummary] = useState(false);
+    const [rosterCopiedMail, setRosterCopiedMail] = useState(false);
+
+    const generateRosterSummary = useCallback(() => {
+        const lines: string[] = [];
+        lines.push('=========================================');
+        lines.push('         AoO TEAM ASSIGNMENTS');
+        lines.push('=========================================');
+        lines.push('');
+
+        // Detect which AoO teams exist (T1, T2, T3 tags)
+        const aooTeams = new Set<string>();
+        players.forEach(p => {
+            p.tags.forEach(tag => { if (tag.match(/^T[123]$/)) aooTeams.add(tag); });
+        });
+        const teamList = [...aooTeams].sort();
+
+        for (const teamTag of teamList.length > 0 ? teamList : ['']) {
+            if (teamTag) {
+                lines.push(`>> ${teamTag}`);
+                lines.push('-----------------------------------------');
+            }
+
+            for (const zoneNum of [1, 2, 3]) {
+                let zonePlayers = players.filter(p => p.team === zoneNum);
+                if (teamTag) zonePlayers = zonePlayers.filter(p => p.tags.includes(teamTag));
+                zonePlayers = sortPlayers(zonePlayers);
+                if (zonePlayers.length === 0) continue;
+
+                const zoneName = teams[zoneNum - 1]?.name || `Zone ${zoneNum}`;
+                lines.push(`\n[${zoneName}] - ${zonePlayers.length} players`);
+
+                for (const p of zonePlayers) {
+                    const badges: string[] = [];
+                    if (p.tags.includes('Rally Leader')) badges.push('Rally Lead');
+                    if (p.tags.includes('Garrison')) badges.push('Garrison Lead');
+                    if (p.tags.includes('Ark Carrier')) badges.push('Ark Carrier');
+                    if (p.tags.includes('Coordinator')) badges.push('Coord');
+                    if (p.tags.includes('Teleport 1st')) badges.push('TP First');
+                    const badgeStr = badges.length > 0 ? ` [${badges.join(', ')}]` : '';
+                    lines.push(`  - ${p.name} (${formatPower(p.power || powerByName[p.name] || 0)})${badgeStr}`);
+                }
+            }
+
+            // Subs for this team
+            let teamSubs = substitutes;
+            if (teamTag) teamSubs = teamSubs.filter(s => s.tags.includes(teamTag));
+            if (teamSubs.length > 0) {
+                lines.push(`\n[Substitutes] - ${teamSubs.length}`);
+                for (const p of teamSubs) {
+                    lines.push(`  - ${p.name} (${formatPower(p.power || powerByName[p.name] || 0)})`);
+                }
+            }
+            lines.push('');
+        }
+
+        lines.push('=========================================');
+        return lines.join('\n');
+    }, [players, substitutes, teams, sortPlayers, powerByName]);
+
+    const generateRosterMail = useCallback((teamTag: string) => {
+        const HEADER = `<size=30px><color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>`;
+        const DIVIDER = '►═════════❂❂❂═════════◄';
+        const SECTION = '━━━━━━━━━━━━━━━━━━━━';
+
+        const teamNum = teamTag.replace('T', '');
+        const lines: string[] = [];
+        lines.push(HEADER);
+        lines.push(DIVIDER);
+        lines.push('');
+        lines.push(`<b><color=#ff3333>AoO Team ${teamNum}</color></b>`);
+        lines.push('');
+        lines.push('Find your name, know your lane.');
+        lines.push('');
+        lines.push('<b>!! NON-NEGOTIABLE RULES !!</b>');
+        lines.push('- <b>Do NOT</b> teleport immediately unless you have been assigned.');
+        lines.push('- The obelisk is <b>ALWAYS</b> fully garrisoned before you advance.');
+        lines.push('- We attack with rallies.');
+        lines.push('- Stay in your assigned lane.');
+        lines.push('- <b>Do NOT</b> move down the field until your building is secured.');
+        lines.push('- <b>Do NOT</b> lose an obelisk or building from poor garrisoning.');
+
+        const zoneConfig = [
+            { num: 1, label: 'TOP LANE', color: '#3399ff' },
+            { num: 2, label: 'MID LANE — ARK', color: '#cc6600' },
+            { num: 3, label: 'BOTTOM LANE', color: '#9933cc' },
+        ];
+
+        for (const zone of zoneConfig) {
+            let zonePlayers = players.filter(p => p.team === zone.num && p.tags.includes(teamTag));
+            zonePlayers = sortPlayers(zonePlayers);
+            if (zonePlayers.length === 0) continue;
+
+            const isMid = zone.num === 2;
+            const rally = zonePlayers.find(p => p.tags.includes('Rally Leader'))?.name || '';
+            const garrison = zonePlayers.find(p => p.tags.includes('Garrison'))?.name || '';
+            const carrier = isMid ? zonePlayers.find(p => p.tags.includes('Ark Carrier'))?.name || '' : '';
+            const tpPlayers = zonePlayers.filter(p => p.tags.includes('Teleport 1st'));
+            const namedLeaders = new Set([rally, garrison, carrier].filter(Boolean));
+            const regularPlayers = zonePlayers.filter(p => !namedLeaders.has(p.name));
+
+            const leaderNames = isMid
+                ? (carrier || 'TBD')
+                : [rally, garrison].filter(Boolean).join(' & ') || 'TBD';
+
+            lines.push('');
+            lines.push(SECTION);
+            lines.push(`<b><color=${zone.color}>${zone.label} (${leaderNames})</color></b>`);
+
+            if (isMid) {
+                if (carrier) lines.push(`<b>Ark Carrier:</b> ${carrier}`);
+            } else {
+                if (rally) lines.push(`<b>Rally Lead:</b> ${rally}`);
+                if (garrison) lines.push(`<b>Garrison Lead:</b> ${garrison}`);
+            }
+
+            if (tpPlayers.length > 0) {
+                lines.push(`<b>1st Teleport:</b> ${tpPlayers.map(p => p.name).join(', ')}`);
+            }
+
+            if (regularPlayers.length > 0) {
+                lines.push(`<b>Team:</b> ${regularPlayers.map(p => p.name).join(', ')}`);
+            }
+        }
+
+        // Subs
+        const subs = substitutes.filter(s => s.tags.includes(teamTag));
+        if (subs.length > 0) {
+            lines.push('');
+            lines.push(SECTION);
+            lines.push(`<b>Subs:</b> ${subs.map(p => p.name).join(', ')}`);
+        }
+
+        lines.push('');
+        lines.push(DIVIDER);
+
+        return lines.join('\n');
+    }, [players, substitutes, sortPlayers]);
+
+    const copyRosterSummary = useCallback(async () => {
+        try {
+            await navigator.clipboard.writeText(generateRosterSummary());
+            setRosterCopiedSummary(true);
+            setTimeout(() => setRosterCopiedSummary(false), 2000);
+        } catch { /* ignore */ }
+    }, [generateRosterSummary]);
+
+    const copyRosterMail = useCallback(async (teamTag: string) => {
+        const mail = generateRosterMail(teamTag);
+        localStorage.setItem('rok-mail-draft', mail);
+        window.open('/rok-mail', '_blank');
+        setRosterCopiedMail(true);
+        setTimeout(() => setRosterCopiedMail(false), 2000);
+    }, [generateRosterMail]);
+
     const exportRosterImage = useCallback(() => {
         const canvas = rosterCanvasRef.current;
         if (!canvas) return;
@@ -3129,6 +3285,38 @@ export default function AooStrategyPage() {
                             >
                                 📷 {ts('export')}
                             </button>
+                            {/* Copy text summary */}
+                            <button
+                                onClick={copyRosterSummary}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                    rosterCopiedSummary ? 'bg-green-600 text-white' : theme.button
+                                }`}
+                            >
+                                {rosterCopiedSummary ? '✓ Copied!' : '📋 Text'}
+                            </button>
+                            {/* Mail copy buttons — one per detected AoO team */}
+                            {(() => {
+                                const aooTeams = new Set<string>();
+                                players.forEach(p => p.tags.forEach(tag => { if (tag.match(/^T[123]$/)) aooTeams.add(tag); }));
+                                const teamList = [...aooTeams].sort();
+                                if (teamList.length === 0) return null;
+                                const teamColorMap: Record<string, string> = {
+                                    T1: 'text-blue-400 border-blue-500/30 hover:bg-blue-500/10',
+                                    T2: 'text-orange-400 border-orange-500/30 hover:bg-orange-500/10',
+                                    T3: 'text-purple-400 border-purple-500/30 hover:bg-purple-500/10',
+                                };
+                                return teamList.map(teamTag => (
+                                    <button
+                                        key={teamTag}
+                                        onClick={() => copyRosterMail(teamTag)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                                            rosterCopiedMail ? 'bg-green-600 text-white border-green-600' : teamColorMap[teamTag] || theme.button
+                                        }`}
+                                    >
+                                        {rosterCopiedMail ? '✓' : `✉ ${teamTag}`}
+                                    </button>
+                                ));
+                            })()}
                         </div>
                     </div>
                     {/* Hidden canvas for export */}
