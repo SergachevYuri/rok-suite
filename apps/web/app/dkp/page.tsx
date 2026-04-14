@@ -2035,6 +2035,53 @@ const BAND_BADGE: Record<Band, string> = {
   t5: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
 };
 
+/** Player name cell: shows name, gov ID on hover via tooltip, click-to-copy for both. */
+function PlayerNameCell({ name, govId }: { name: string; govId: number }) {
+  const [copied, setCopied] = useState<'name' | 'id' | null>(null);
+  const copy = async (text: string, what: 'name' | 'id') => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopied(what);
+    setTimeout(() => setCopied(null), 1500);
+  };
+  return (
+    <Tooltip
+      content={
+        <div className="space-y-1.5">
+          <div className="text-xs text-[var(--text-muted)]">Gov ID</div>
+          <div className="text-sm font-mono text-[var(--foreground)]">{govId}</div>
+          <div className="flex gap-1.5 mt-2">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); copy(name, 'name'); }}
+              className="px-2 py-0.5 text-[10px] rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
+            >
+              {copied === 'name' ? '✓ Copied' : 'Copy name'}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); copy(String(govId), 'id'); }}
+              className="px-2 py-0.5 text-[10px] rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
+            >
+              {copied === 'id' ? '✓ Copied' : 'Copy ID'}
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <span className="text-[var(--foreground)] font-medium cursor-help">{name}</span>
+    </Tooltip>
+  );
+}
+
 function renderCell(
   p: ScoredPlayer,
   key: ColumnDef['key'],
@@ -2042,7 +2089,7 @@ function renderCell(
 ) {
   switch (key) {
     case 'username':
-      return <span className="text-[var(--foreground)] font-medium">{p.username}</span>;
+      return <PlayerNameCell name={p.username} govId={p.characterId} />;
     case 'power': {
       // Power keeps its raw value — the band IS the power category, so it doesn't get normalized.
       // Instead, the band membership is shown as a colored pill next to the value.
