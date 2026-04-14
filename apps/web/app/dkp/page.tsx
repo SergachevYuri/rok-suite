@@ -1002,21 +1002,6 @@ function DkpPageInner() {
                     Flag all {summary.counts.REJECTED} REVIEW players
                   </button>
                 </Tooltip>
-                <Tooltip content={`Instantly flag all ${summary.counts.UNRANKED} UNRANKED players. These are outside the top ${config.rankedTopN} by power — not actively scored. They're the primary migration candidates.`}>
-                  <button
-                    onClick={() => {
-                      const unrankedIds = scored.filter((p) => p.status === 'UNRANKED').map((p) => p.characterId);
-                      setFlaggedForMigration((prev) => {
-                        const next = new Set(prev);
-                        for (const id of unrankedIds) next.add(id);
-                        return next;
-                      });
-                    }}
-                    className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-500/15 text-zinc-400 border border-zinc-500/30 hover:bg-zinc-500/25 transition-colors"
-                  >
-                    Flag all {summary.counts.UNRANKED} UNRANKED
-                  </button>
-                </Tooltip>
                 {flaggedForMigration.size > 0 && (
                   <button
                     onClick={clearFlagged}
