@@ -959,7 +959,7 @@ function DkpPageInner() {
 
         {/* Officer-only: Migration Simulator */}
         {isOfficer && (
-          <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
+          <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold text-[var(--foreground)]">Migration Simulator</h2>
@@ -999,7 +999,7 @@ function DkpPageInner() {
                 {flaggedForMigration.size > 0 && (
                   <button
                     onClick={clearFlagged}
-                    className="px-4 py-2 text-sm font-medium rounded-lg bg-[var(--background)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
                   >
                     Clear all flags
                   </button>
@@ -1039,7 +1039,7 @@ function DkpPageInner() {
                     </div>
 
                     {/* Kingdom after */}
-                    <div className="rounded-xl bg-[var(--background)]/40 border border-[var(--border)] p-4">
+                    <div className="rounded-xl bg-[var(--background)] border border-[var(--border)] p-4">
                       <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-2">
                         Kingdom After Migration
                       </div>
@@ -1131,7 +1131,7 @@ function DkpPageInner() {
         )}
 
         {/* Scoring Configuration (collapsible) */}
-        <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
+        <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
           <button
             onClick={() => setConfigOpen((o) => !o)}
             className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 text-left hover:bg-[var(--background-hover)] transition-colors"
@@ -1183,7 +1183,7 @@ function DkpPageInner() {
                         onClick={handleDiscardChanges}
                         disabled={!isDirty || deploying}
                         title={t('config.discardHint')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <RotateCcw size={12} />
                         {t('config.discard')}
@@ -1195,7 +1195,7 @@ function DkpPageInner() {
               </div>
 
               {/* Global settings card — band thresholds + ranked cutoff */}
-              <div className="mb-6 rounded-xl bg-[var(--background)]/40 border border-[var(--border)] p-5">
+              <div className="mb-6 rounded-xl bg-[var(--background)] border border-[var(--border)] p-5">
                 <h3 className="text-sm font-semibold text-[var(--foreground)] mb-4">Global Settings</h3>
 
                 {/* Band thresholds */}
@@ -1289,7 +1289,7 @@ function DkpPageInner() {
                             const v = parseInt(e.target.value, 10);
                             if (!Number.isNaN(v) && v > 0) setConfig((c) => ({ ...c, rankedTopN: v }));
                           }}
-                          className="w-20 px-2 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-20 px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                         <span className="text-[var(--text-secondary)]">players by power</span>
                         {scored.length > 0 && (() => {
@@ -1326,7 +1326,7 @@ function DkpPageInner() {
               </div>
 
               {/* How Scoring Works — comprehensive visual guide */}
-              <div className="mb-6 rounded-xl bg-[var(--background)]/40 border border-[var(--border)] overflow-hidden">
+              <div className="mb-6 rounded-xl bg-[var(--background)] border border-[var(--border)] overflow-hidden">
                 <div className="px-5 py-4 border-b border-[var(--border)]">
                   <h3 className="text-base font-semibold text-[var(--foreground)]">{t('guide.title')}</h3>
                   <p className="text-sm text-[var(--text-muted)] mt-1">{t('guide.subtitle')}</p>
@@ -1346,19 +1346,19 @@ function DkpPageInner() {
                       })}
                     </p>
                     <div className="ml-9 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                      <div className="rounded-lg bg-sky-500/10 border border-sky-500/30 py-2 px-3">
+                      <div className="rounded-lg bg-sky-500/20 border border-sky-500/30 py-2 px-3">
                         <div className="text-sm font-bold text-sky-400">μT4</div>
                         <div className="text-xs text-[var(--text-muted)]">&lt; {(config.microMidThreshold / 1_000_000).toFixed(0)}M</div>
                       </div>
-                      <div className="rounded-lg bg-teal-500/10 border border-teal-500/30 py-2 px-3">
+                      <div className="rounded-lg bg-teal-500/20 border border-teal-500/30 py-2 px-3">
                         <div className="text-sm font-bold text-teal-400">mT4</div>
                         <div className="text-xs text-[var(--text-muted)]">{(config.microMidThreshold / 1_000_000).toFixed(0)}–{(config.midStrongThreshold / 1_000_000).toFixed(0)}M</div>
                       </div>
-                      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 py-2 px-3">
+                      <div className="rounded-lg bg-emerald-500/20 border border-emerald-500/30 py-2 px-3">
                         <div className="text-sm font-bold text-emerald-400">sT4</div>
                         <div className="text-xs text-[var(--text-muted)]">{(config.midStrongThreshold / 1_000_000).toFixed(0)}–{(config.strongT5Threshold / 1_000_000).toFixed(0)}M</div>
                       </div>
-                      <div className="rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/30 py-2 px-3">
+                      <div className="rounded-lg bg-fuchsia-500/20 border border-fuchsia-500/30 py-2 px-3">
                         <div className="text-sm font-bold text-fuchsia-400">T5</div>
                         <div className="text-xs text-[var(--text-muted)]">≥ {(config.strongT5Threshold / 1_000_000).toFixed(0)}M</div>
                       </div>
@@ -1635,7 +1635,7 @@ function DkpPageInner() {
         {modelInfoOpen && <ModelExplainer onClose={() => setModelInfoOpen(false)} />}
 
         {/* Table */}
-        <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+        <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)]">
           <div className="overflow-auto rounded-xl max-h-[calc(100vh-180px)]">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
@@ -1845,7 +1845,7 @@ function ModelExplainer({ onClose }: { onClose: () => void }) {
               becomes the typical &quot;strong&quot; player for that band — the bar everyone else
               gets compared to.
             </p>
-            <div className="ml-11 rounded-lg border border-[var(--border)] bg-[var(--background)]/40 p-4">
+            <div className="ml-11 rounded-lg border border-[var(--border)] bg-[var(--background)] p-4">
               <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
                 Example: a strong T4 might look like
               </div>
@@ -1922,7 +1922,7 @@ function ModelExplainer({ onClose }: { onClose: () => void }) {
                 Why this matters
               </h3>
             </div>
-            <div className="ml-11 rounded-lg border border-[var(--border)] bg-[var(--background)]/40 p-4 text-sm text-[var(--text-secondary)] leading-relaxed">
+            <div className="ml-11 rounded-lg border border-[var(--border)] bg-[var(--background)] p-4 text-sm text-[var(--text-secondary)] leading-relaxed">
               <p className="mb-3">
                 A <b className="text-[var(--foreground)]">28M-power scout</b> who deals 100M DKP
                 looks weak next to an{' '}
@@ -2124,7 +2124,7 @@ function OfficerBadge() {
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-5">
+          <div className="w-full max-w-sm rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-[var(--foreground)]">{t('signInTitle')}</h3>
               <button
@@ -2154,7 +2154,7 @@ function OfficerBadge() {
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                  className="mt-1 w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
                 />
               </div>
               <div>
@@ -2164,7 +2164,7 @@ function OfficerBadge() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoFocus
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                  className="mt-1 w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
                 />
               </div>
               {error && <p className="text-xs text-red-400">{error}</p>}
@@ -2239,7 +2239,7 @@ function UploadPanel({
   };
 
   return (
-    <section className="mb-6 p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+    <section className="mb-6 p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)]">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-[var(--foreground)] flex items-center gap-2">
           <Upload size={14} /> {t('heading')}
@@ -2322,7 +2322,7 @@ function FileInput({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="px-3 py-2 rounded-lg bg-[var(--background)] border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
+          className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
         >
           {t('chooseFile')}
         </button>
@@ -2362,7 +2362,7 @@ function SummaryCard({
             ? 'text-rose-400'
             : 'text-[var(--foreground)]';
   return (
-    <div className="p-3 sm:p-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
+    <div className="p-3 sm:p-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)]">
       <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1 truncate">
         {label}
       </div>
@@ -2490,7 +2490,7 @@ function BaselineInput({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-full px-2.5 py-2 rounded bg-[var(--background)] border border-[var(--border)] text-base tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full px-2.5 py-2 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-base tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -2533,7 +2533,7 @@ function PowerInput({
     setText(toM(value));
   }, [value]);
   return (
-    <div className="inline-flex items-center rounded-lg bg-[var(--background)] border border-[var(--border)] focus-within:border-[var(--foreground)]/30 overflow-hidden">
+    <div className="inline-flex items-center rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] focus-within:border-[var(--foreground)]/30 overflow-hidden">
       <input
         type="number"
         inputMode="decimal"
@@ -2653,7 +2653,7 @@ function FormulaRow({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-12 px-1 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+        className="w-12 px-1 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -2691,25 +2691,25 @@ function BandColumn({
   // Color palette per band — used on the header strip and accents.
   const palette: Record<Band, { headerBg: string; border: string; text: string; ring: string }> = {
     microT4: {
-      headerBg: 'bg-sky-500/10',
+      headerBg: 'bg-sky-500/20',
       border: 'border-sky-500/30',
       text: 'text-sky-400',
       ring: 'ring-sky-500/20',
     },
     midT4: {
-      headerBg: 'bg-teal-500/10',
+      headerBg: 'bg-teal-500/20',
       border: 'border-teal-500/30',
       text: 'text-teal-400',
       ring: 'ring-teal-500/20',
     },
     strongT4: {
-      headerBg: 'bg-emerald-500/10',
+      headerBg: 'bg-emerald-500/20',
       border: 'border-emerald-500/30',
       text: 'text-emerald-400',
       ring: 'ring-emerald-500/20',
     },
     t5: {
-      headerBg: 'bg-fuchsia-500/10',
+      headerBg: 'bg-fuchsia-500/20',
       border: 'border-fuchsia-500/30',
       text: 'text-fuchsia-400',
       ring: 'ring-fuchsia-500/20',
@@ -2730,7 +2730,7 @@ function BandColumn({
       </div>
 
       {/* KP Target */}
-      <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]/60">
+      <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]">
         <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-1">
           {t('kpTargetTitle')}
         </div>
@@ -2754,7 +2754,7 @@ function BandColumn({
       </div>
 
       {/* Score Formula */}
-      <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]/60">
+      <div className="px-5 pt-5 pb-4 border-b border-[var(--border)]">
         <div className="mb-3">
           <div className="flex items-center justify-between">
             <div className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold">
@@ -2925,7 +2925,7 @@ function CutoffRowSimple({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
         }}
-        className="w-12 px-1 py-1 rounded bg-[var(--background)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
+        className="w-12 px-1 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30 disabled:cursor-not-allowed"
       />
     </div>
   );

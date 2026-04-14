@@ -7,11 +7,11 @@
 
 /* Default to dark theme, then override with .light class */
 .dark {
-  /* Background colors - deeper, more sophisticated */
-  --background: #0a0e1a;
-  --background-secondary: #111827;
-  --background-card: rgba(17, 24, 39, 0.95);
-  --background-hover: rgba(31, 41, 55, 0.8);
+  /* Background colors — stepped for clear visual hierarchy */
+  --background: #080c16;
+  --background-secondary: #0f1629;
+  --background-card: #161e35;
+  --background-hover: #1e2847;
 
   /* Primary gradient colors */
   --primary: #4318ff;
@@ -36,13 +36,13 @@
   --text-secondary: #9ca3af;
   --text-muted: #6b7280;
 
-  /* Border */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.15);
+  /* Border — visible enough to separate cards */
+  --border: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.2);
 
-  /* Card shadow - minimal for dark mode */
-  --card-shadow: none;
-  --card-shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.3);
+  /* Card shadow — subtle depth cue */
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --card-shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .light {
