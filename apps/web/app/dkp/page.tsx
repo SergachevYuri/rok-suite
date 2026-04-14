@@ -32,6 +32,10 @@ import {
   loadSharedConfig,
   saveSharedConfig,
   subscribeToSharedConfig,
+  loadConfigRow,
+  saveConfigRow,
+  subscribeToConfigRow,
+  MIGRATION_ROW_ID,
 } from './data';
 
 /** Flat 7-component formula: every raw stat the score uses, in one place. Each weight applies
@@ -641,18 +645,26 @@ function DkpPageInner() {
   /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
   const [modelView, setModelView] = useState(false);
   const [modelInfoOpen, setModelInfoOpen] = useState(false);
-  /** Set of characterIds that officers have flagged for migration. Local state — persisted in localStorage. */
-  const [flaggedForMigration, setFlaggedForMigration] = useState<Set<number>>(() => {
-    if (typeof window === 'undefined') return new Set();
-    try {
-      const stored = localStorage.getItem('dkp-flagged-migration');
-      return stored ? new Set(JSON.parse(stored) as number[]) : new Set();
-    } catch { return new Set(); }
-  });
-  // Persist flagged set to localStorage on change.
+  /** Set of characterIds that officers have flagged for migration. Shared via Supabase. */
+  const [flaggedForMigration, setFlaggedForMigration] = useState<Set<number>>(new Set());
+  const migrationDirtyRef = useRef(false);
+
+  // Load migration list from Supabase on mount + subscribe to remote changes.
   useEffect(() => {
-    localStorage.setItem('dkp-flagged-migration', JSON.stringify([...flaggedForMigration]));
-  }, [flaggedForMigration]);
+    let cancelled = false;
+    (async () => {
+      const remote = await loadConfigRow<number[]>(MIGRATION_ROW_ID);
+      if (!cancelled && remote) {
+        setFlaggedForMigration(new Set(remote));
+      }
+    })();
+    const unsub = subscribeToConfigRow<number[]>(MIGRATION_ROW_ID, (ids) => {
+      if (!migrationDirtyRef.current) {
+        setFlaggedForMigration(new Set(ids));
+      }
+    });
+    return () => { cancelled = true; unsub(); };
+  }, []);
 
   const toggleFlagged = (id: number) => {
     setFlaggedForMigration((prev) => {
@@ -1131,28 +1143,22 @@ function DkpPageInner() {
                   {/* Commit action */}
                   <div className="flex items-center gap-3 pt-4 border-t border-[var(--border)]">
                     <button
-                      onClick={() => {
-                        // Store the flagged list in localStorage so the migration/zero page can read it.
-                        const flaggedPlayers = scored
-                          .filter((p) => flaggedForMigration.has(p.characterId))
-                          .map((p) => ({
-                            characterId: p.characterId,
-                            username: p.username,
-                            power: p.power,
-                            band: p.band,
-                            bandScore: p.bandScore,
-                            status: p.status,
-                          }));
-                        localStorage.setItem('dkp-migration-commit', JSON.stringify(flaggedPlayers));
-                        // TODO: navigate to migration/zero page once it exists
-                        alert(`${flaggedPlayers.length} players committed to migration list. Saved to local storage.`);
+                      onClick={async () => {
+                        try {
+                          migrationDirtyRef.current = true;
+                          await saveConfigRow(MIGRATION_ROW_ID, [...flaggedForMigration]);
+                          migrationDirtyRef.current = false;
+                        } catch (e) {
+                          console.error('Failed to save migration list', e);
+                          migrationDirtyRef.current = false;
+                        }
                       }}
                       className="px-5 py-2.5 text-sm font-semibold rounded-lg bg-rose-500 text-white hover:bg-rose-600 transition-colors"
                     >
-                      Commit {flaggedForMigration.size} players to migration list
+                      Save migration list for all officers
                     </button>
                     <span className="text-xs text-[var(--text-muted)]">
-                      This saves the list locally. You can send it to the migration page from there.
+                      Saves to the shared database — all officers will see this list.
                     </span>
                   </div>
                 </>

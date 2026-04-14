@@ -189,6 +189,58 @@ export async function deleteDataset(id: string): Promise<void> {
 }
 
 const CONFIG_SINGLETON_ID = 'singleton';
+const MIGRATION_ID = 'migration';
+
+/** Load a named config row from dkp_config. */
+export async function loadConfigRow<T>(id: string): Promise<T | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('dkp_config')
+    .select('config')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) {
+    console.error(`loadConfigRow(${id}) failed`, error);
+    return null;
+  }
+  return (data?.config as T) ?? null;
+}
+
+/** Upsert a named config row into dkp_config. */
+export async function saveConfigRow<T>(id: string, config: T): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('dkp_config')
+    .upsert(
+      { id, config: config as object, updated_at: new Date().toISOString() },
+      { onConflict: 'id' },
+    );
+  if (error) throw error;
+}
+
+/** Subscribe to changes on a named config row. Returns an unsubscribe function. */
+export function subscribeToConfigRow<T>(
+  id: string,
+  onChange: (config: T) => void,
+): () => void {
+  const supabase = createClient();
+  const channel = supabase
+    .channel(`dkp_config_${id}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'dkp_config', filter: `id=eq.${id}` },
+      (payload) => {
+        const next = (payload.new as { config?: T } | null)?.config;
+        if (next) onChange(next);
+      },
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+export const MIGRATION_ROW_ID = MIGRATION_ID;
 
 /** Load the shared score config (weights, cutoffs, split, meta). Returns null if not yet seeded. */
 export async function loadSharedConfig<T>(): Promise<T | null> {
