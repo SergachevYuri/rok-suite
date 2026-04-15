@@ -667,8 +667,9 @@ function DkpPageInner() {
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
   const [hideUnranked, setHideUnranked] = useState(true);
   const [scoringMode, setScoringMode] = useState<'bands' | 'simple'>('bands');
-  const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status'>('ratio');
+  const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status' | 't4Kills' | 't5Kills' | 't4Deaths' | 't5Deaths'>('ratio');
   const [simpleSortDir, setSimpleSortDir] = useState<'asc' | 'desc'>('asc');
+  const [simpleHideOutsideTop, setSimpleHideOutsideTop] = useState(true);
   const [showGovId, setShowGovId] = useState(false);
   /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
   const [modelView, setModelView] = useState(false);
@@ -799,8 +800,15 @@ function DkpPageInner() {
     });
   }, [players, config.simpleFormula, config.simpleMultiplier]);
 
+  // Top-N gov IDs by power — used to hide accounts outside the top N in the simple view.
+  const simpleTopNIds = useMemo(() => {
+    const sorted = [...simpleScored].sort((a, b) => b.power - a.power);
+    return new Set(sorted.slice(0, config.rankedTopN).map((p) => p.characterId));
+  }, [simpleScored, config.rankedTopN]);
+
   const simpleFiltered = useMemo(() => {
     let list = simpleScored;
+    if (simpleHideOutsideTop) list = list.filter((p) => simpleTopNIds.has(p.characterId));
     if (search.trim()) {
       const q = search.trim();
       const qDigits = q.replace(/\D/g, '');
@@ -816,10 +824,14 @@ function DkpPageInner() {
         case 'dkp': return (a.simpleDkp - b.simpleDkp) * dir;
         case 'ratio': return (a.simpleRatio - b.simpleRatio) * dir;
         case 'status': return (a.simpleStatus === b.simpleStatus ? 0 : a.simpleStatus === 'PASS' ? -1 : 1) * dir;
+        case 't4Kills': return (a.t4Kills - b.t4Kills) * dir;
+        case 't5Kills': return (a.t5Kills - b.t5Kills) * dir;
+        case 't4Deaths': return (a.t4Deaths - b.t4Deaths) * dir;
+        case 't5Deaths': return (a.t5Deaths - b.t5Deaths) * dir;
       }
     });
     return sorted;
-  }, [simpleScored, search, simpleSortKey, simpleSortDir]);
+  }, [simpleScored, search, simpleSortKey, simpleSortDir, simpleHideOutsideTop, simpleTopNIds]);
 
   const simpleCounts = useMemo(() => {
     let pass = 0, below = 0;
@@ -2000,6 +2012,15 @@ function DkpPageInner() {
                   className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
                 />
               </div>
+              <label className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={simpleHideOutsideTop}
+                  onChange={(e) => setSimpleHideOutsideTop(e.target.checked)}
+                  className="accent-[#4318ff]"
+                />
+                Hide outside top {config.rankedTopN} by power
+              </label>
               <span className="text-xs text-[var(--text-muted)]">{simpleFiltered.length} shown</span>
             </section>
 
@@ -2014,6 +2035,10 @@ function DkpPageInner() {
                       {([
                         { key: 'name' as const, label: 'Name', align: 'text-left' },
                         { key: 'power' as const, label: 'Power', align: 'text-right' },
+                        { key: 't4Kills' as const, label: 'T4 Kills', align: 'text-right' },
+                        { key: 't5Kills' as const, label: 'T5 Kills', align: 'text-right' },
+                        { key: 't4Deaths' as const, label: 'T4 Deaths', align: 'text-right' },
+                        { key: 't5Deaths' as const, label: 'T5 Deaths', align: 'text-right' },
                         { key: 'dkp' as const, label: 'DKP', align: 'text-right' },
                         { key: 'ratio' as const, label: 'Ratio', align: 'text-right' },
                         { key: 'status' as const, label: 'Status', align: 'text-center' },
@@ -2069,6 +2094,18 @@ function DkpPageInner() {
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                           {fmtM(p.power)}
                         </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                          {fmt(p.t4Kills)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                          {fmt(p.t5Kills)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                          {fmt(p.t4Deaths)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                          {fmt(p.t5Deaths)}
+                        </td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                           {fmt(Math.round(p.simpleDkp))}
                         </td>
@@ -2092,7 +2129,7 @@ function DkpPageInner() {
                     ))}
                     {simpleFiltered.length === 0 && (
                       <tr>
-                        <td colSpan={isOfficer ? 7 : 6} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
+                        <td colSpan={isOfficer ? 11 : 10} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
                           {loadingDefault ? t('filters.loading') : t('filters.noPlayers')}
                         </td>
                       </tr>
