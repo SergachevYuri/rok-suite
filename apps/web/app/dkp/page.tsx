@@ -80,6 +80,17 @@ interface Config {
   rankedMode: 'topN' | 'minPower';
   rankedTopN: number;
   rankedMinPower: number;
+  /** Simple-ratio scoring mode: DKP = sum(weights * kill/death counts); player passes when DKP ≥ power × multiplier. */
+  simpleFormula: SimpleFormula;
+  simpleMultiplier: number;
+}
+
+/** Weights used by the alternate "simple ratio" scoring mode. Just 4 keys — no rss/helps/honor. */
+interface SimpleFormula {
+  t4Kill: number;
+  t5Kill: number;
+  t4Death: number;
+  t5Death: number;
 }
 
 // μT4 — micro accounts, no T5 troops at all.
@@ -99,6 +110,7 @@ const DEFAULT_FORMULA_T5: BandFormula = {
   t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24, rss: 5, helps: 5, honor: 10,
 };
 const DEFAULT_CUTOFFS: CutoffSet = { excellent: 60, approved: 35, good: 15 };
+const DEFAULT_SIMPLE_FORMULA: SimpleFormula = { t4Kill: 5, t5Kill: 10, t4Death: 8, t5Death: 24 };
 
 const DEFAULT_CONFIG: Config = {
   microMidThreshold: 22_000_000,
@@ -119,6 +131,8 @@ const DEFAULT_CONFIG: Config = {
   rankedMode: 'topN',
   rankedTopN: 400,
   rankedMinPower: 15_000_000,
+  simpleFormula: { ...DEFAULT_SIMPLE_FORMULA },
+  simpleMultiplier: 2,
 };
 
 /** Rescale a formula so its largest nonzero component is ~100. The scoring math is invariant
@@ -276,6 +290,10 @@ function mergeConfig(base: Config, partial: Partial<Config> | null | undefined):
     rankedMode: partial.rankedMode ?? base.rankedMode,
     rankedTopN: partial.rankedTopN ?? base.rankedTopN,
     rankedMinPower: partial.rankedMinPower ?? base.rankedMinPower,
+    simpleFormula: partial.simpleFormula
+      ? { ...base.simpleFormula, ...partial.simpleFormula }
+      : base.simpleFormula,
+    simpleMultiplier: partial.simpleMultiplier ?? base.simpleMultiplier,
   };
 }
 
@@ -289,6 +307,12 @@ const STATUS_LABELS: Record<Status, string> = {
   REJECTED: 'REVIEW',
   UNRANKED: 'UNRANKED',
 };
+
+/** Softer label for non-officers so visitors don't panic when they see their own row. */
+function statusLabel(status: Status, isOfficer: boolean): string {
+  if (!isOfficer && status === 'REJECTED') return 'LOW';
+  return STATUS_LABELS[status];
+}
 
 /** Power band: μT4 < microMid ≤ mT4 < midStrong ≤ sT4 < strongT5 ≤ T5. */
 type Band = 'microT4' | 'midT4' | 'strongT4' | 't5';
@@ -642,6 +666,9 @@ function DkpPageInner() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
   const [hideUnranked, setHideUnranked] = useState(true);
+  const [scoringMode, setScoringMode] = useState<'bands' | 'simple'>('bands');
+  const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status'>('ratio');
+  const [simpleSortDir, setSimpleSortDir] = useState<'asc' | 'desc'>('asc');
   const [showGovId, setShowGovId] = useState(false);
   /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
   const [modelView, setModelView] = useState(false);
@@ -755,6 +782,53 @@ function DkpPageInner() {
 
   const players = dataset?.players ?? [];
   const scored = useMemo(() => computeScores(players, config), [players, config]);
+
+  // Simple-ratio scoring: just DKP vs power multiplier. Independent from the band system.
+  const simpleScored = useMemo(() => {
+    const f = config.simpleFormula;
+    return players.map((p) => {
+      const dkp =
+        (p.t4Kills ?? 0) * f.t4Kill +
+        (p.t5Kills ?? 0) * f.t5Kill +
+        (p.t4Deaths ?? 0) * f.t4Death +
+        (p.t5Deaths ?? 0) * f.t5Death;
+      const target = p.power * config.simpleMultiplier;
+      const ratio = p.power > 0 ? dkp / p.power : 0;
+      const pass = dkp >= target;
+      return { ...p, simpleDkp: dkp, simpleTarget: target, simpleRatio: ratio, simpleStatus: pass ? ('PASS' as const) : ('BELOW' as const) };
+    });
+  }, [players, config.simpleFormula, config.simpleMultiplier]);
+
+  const simpleFiltered = useMemo(() => {
+    let list = simpleScored;
+    if (search.trim()) {
+      const q = search.trim();
+      const qDigits = q.replace(/\D/g, '');
+      list = list.filter(
+        (p) => looseMatch(p.username, q) || (qDigits.length >= 3 && String(p.characterId).includes(qDigits)),
+      );
+    }
+    const dir = simpleSortDir === 'asc' ? 1 : -1;
+    const sorted = [...list].sort((a, b) => {
+      switch (simpleSortKey) {
+        case 'name': return a.username.localeCompare(b.username) * dir;
+        case 'power': return (a.power - b.power) * dir;
+        case 'dkp': return (a.simpleDkp - b.simpleDkp) * dir;
+        case 'ratio': return (a.simpleRatio - b.simpleRatio) * dir;
+        case 'status': return (a.simpleStatus === b.simpleStatus ? 0 : a.simpleStatus === 'PASS' ? -1 : 1) * dir;
+      }
+    });
+    return sorted;
+  }, [simpleScored, search, simpleSortKey, simpleSortDir]);
+
+  const simpleCounts = useMemo(() => {
+    let pass = 0, below = 0;
+    for (const p of simpleScored) {
+      if (p.simpleStatus === 'PASS') pass++;
+      else below++;
+    }
+    return { pass, below };
+  }, [simpleScored]);
 
   // The Score column (key 'finalScore') now displays bandScore, so sort by bandScore when that key is active.
   const sortProp = sortKey === 'finalScore' ? 'bandScore' : sortKey;
@@ -962,18 +1036,64 @@ function DkpPageInner() {
           />
         )}
 
-        {/* Summary */}
-        <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
-          <SummaryCard label={t('summary.players')} value={fmt(summary.total)} />
-          <SummaryCard label={t('summary.totalDkp')} value={fmt(summary.totalDkp)} />
-          <SummaryCard label={t('summary.excellent')} value={fmt(summary.counts.EXCELLENT)} tone="excellent" />
-          <SummaryCard label={t('summary.strong')} value={fmt(summary.counts.APPROVED)} tone="approved" />
-          <SummaryCard label={t('summary.good')} value={fmt(summary.counts.GOOD)} tone="good" />
-          <SummaryCard label={t('summary.review')} value={fmt(summary.counts.REJECTED)} tone="review" />
+        {/* Scoring mode toggle */}
+        <section className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider mr-1">Scoring mode:</span>
+          <div className="inline-flex rounded-lg overflow-hidden border border-[var(--border)]">
+            <button
+              type="button"
+              onClick={() => setScoringMode('bands')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                scoringMode === 'bands'
+                  ? 'bg-[#4318ff] text-white'
+                  : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              Power Bands
+            </button>
+            <button
+              type="button"
+              onClick={() => setScoringMode('simple')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                scoringMode === 'simple'
+                  ? 'bg-[#4318ff] text-white'
+                  : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              Simple Ratio
+            </button>
+          </div>
+          {scoringMode === 'simple' && (
+            <span className="text-xs text-[var(--text-muted)]">
+              DKP ≥ power × <span className="font-mono text-[var(--text-secondary)]">{config.simpleMultiplier}</span>
+            </span>
+          )}
         </section>
 
+        {/* Summary */}
+        {scoringMode === 'bands' && (
+          <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
+            <SummaryCard label={t('summary.players')} value={fmt(summary.total)} />
+            <SummaryCard label={t('summary.totalDkp')} value={fmt(summary.totalDkp)} />
+            <SummaryCard label={t('summary.excellent')} value={fmt(summary.counts.EXCELLENT)} tone="excellent" />
+            <SummaryCard label={t('summary.strong')} value={fmt(summary.counts.APPROVED)} tone="approved" />
+            <SummaryCard label={t('summary.good')} value={fmt(summary.counts.GOOD)} tone="good" />
+            <SummaryCard label={isOfficer ? t('summary.review') : t('summary.low')} value={fmt(summary.counts.REJECTED)} tone="review" />
+          </section>
+        )}
+
+        {/* Simple-ratio summary */}
+        {scoringMode === 'simple' && (
+          <section className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
+            <SummaryCard label="Players" value={fmt(simpleScored.length)} />
+            <SummaryCard label="Pass" value={fmt(simpleCounts.pass)} tone="good" />
+            <SummaryCard label={isOfficer ? 'Below' : 'Low'} value={fmt(simpleCounts.below)} tone="review" />
+            <SummaryCard label="Total DKP" value={fmt(simpleScored.reduce((s, p) => s + p.simpleDkp, 0))} />
+          </section>
+        )}
+
         {/* Officer-only: Migration Simulator */}
-        {isOfficer && (
+        {scoringMode === 'bands' && isOfficer && (
           <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div>
@@ -1176,6 +1296,7 @@ function DkpPageInner() {
           </section>
         )}
 
+        {scoringMode === 'bands' && (<>
         {/* Scoring Configuration (collapsible) */}
         <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
           <button
@@ -1190,12 +1311,12 @@ function DkpPageInner() {
                 </h2>
                 {!isOfficer && (
                   <span className="text-[10px] font-normal text-[var(--text-muted)] uppercase tracking-wider">
-                    {t('config.readOnly')}
+                    {t('config.sandbox')}
                   </span>
                 )}
-                {isOfficer && isDirty && (
+                {isDirty && (
                   <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">
-                    {t('config.unsaved')}
+                    {isOfficer ? t('config.unsaved') : t('config.localEdits')}
                   </span>
                 )}
               </div>
@@ -1215,28 +1336,31 @@ function DkpPageInner() {
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   {isOfficer && (
-                    <>
-                      <button
-                        onClick={handleDeploy}
-                        disabled={!isDirty || deploying}
-                        title={t('config.deployHint')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <Rocket size={12} />
-                        {deploying ? t('config.deploying') : t('config.deploy')}
-                      </button>
-                      <button
-                        onClick={handleDiscardChanges}
-                        disabled={!isDirty || deploying}
-                        title={t('config.discardHint')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <RotateCcw size={12} />
-                        {t('config.discard')}
-                      </button>
-                      {deployError && <span className="text-xs text-red-400">{deployError}</span>}
-                    </>
+                    <button
+                      onClick={handleDeploy}
+                      disabled={!isDirty || deploying}
+                      title={t('config.deployHint')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Rocket size={12} />
+                      {deploying ? t('config.deploying') : t('config.deploy')}
+                    </button>
                   )}
+                  <button
+                    onClick={handleDiscardChanges}
+                    disabled={!isDirty || deploying}
+                    title={isOfficer ? t('config.discardHint') : t('config.resetHint')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <RotateCcw size={12} />
+                    {isOfficer ? t('config.discard') : t('config.reset')}
+                  </button>
+                  {!isOfficer && (
+                    <span className="text-[11px] text-[var(--text-muted)]">
+                      {t('config.sandboxHint')}
+                    </span>
+                  )}
+                  {deployError && <span className="text-xs text-red-400">{deployError}</span>}
                 </div>
               </div>
 
@@ -1257,7 +1381,6 @@ function DkpPageInner() {
                       <span className="text-xs font-medium text-sky-400">μT4 / mT4</span>
                       <PowerInput
                         value={config.microMidThreshold}
-                        disabled={!isOfficer}
                         onChange={(v) =>
                           setConfig((c) => ({ ...c, microMidThreshold: Math.max(0, v) }))
                         }
@@ -1267,7 +1390,6 @@ function DkpPageInner() {
                       <span className="text-xs font-medium text-teal-400">mT4 / sT4</span>
                       <PowerInput
                         value={config.midStrongThreshold}
-                        disabled={!isOfficer}
                         onChange={(v) =>
                           setConfig((c) => ({ ...c, midStrongThreshold: Math.max(0, v) }))
                         }
@@ -1277,7 +1399,6 @@ function DkpPageInner() {
                       <span className="text-xs font-medium text-fuchsia-400">sT4 / T5</span>
                       <PowerInput
                         value={config.strongT5Threshold}
-                        disabled={!isOfficer}
                         onChange={(v) =>
                           setConfig((c) => ({ ...c, strongT5Threshold: Math.max(0, v) }))
                         }
@@ -1299,23 +1420,23 @@ function DkpPageInner() {
                     <div className="flex rounded-lg overflow-hidden border border-[var(--border)]">
                       <button
                         type="button"
-                        onClick={() => isOfficer && setConfig((c) => ({ ...c, rankedMode: 'topN' }))}
+                        onClick={() => setConfig((c) => ({ ...c, rankedMode: 'topN' }))}
                         className={`px-4 py-2 text-sm font-medium transition-colors ${
                           config.rankedMode === 'topN'
                             ? 'bg-[#4318ff] text-white'
                             : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                        } ${!isOfficer ? 'cursor-not-allowed opacity-60' : ''}`}
+                        }`}
                       >
                         Top N by Power
                       </button>
                       <button
                         type="button"
-                        onClick={() => isOfficer && setConfig((c) => ({ ...c, rankedMode: 'minPower' }))}
+                        onClick={() => setConfig((c) => ({ ...c, rankedMode: 'minPower' }))}
                         className={`px-4 py-2 text-sm font-medium transition-colors ${
                           config.rankedMode === 'minPower'
                             ? 'bg-[#4318ff] text-white'
                             : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
-                        } ${!isOfficer ? 'cursor-not-allowed opacity-60' : ''}`}
+                        }`}
                       >
                         Minimum Power
                       </button>
@@ -1330,12 +1451,11 @@ function DkpPageInner() {
                           min={1}
                           max={9999}
                           value={config.rankedTopN}
-                          disabled={!isOfficer}
                           onChange={(e) => {
                             const v = parseInt(e.target.value, 10);
                             if (!Number.isNaN(v) && v > 0) setConfig((c) => ({ ...c, rankedTopN: v }));
                           }}
-                          className="w-20 px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-20 px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--foreground)]/30"
                         />
                         <span className="text-[var(--text-secondary)]">players by power</span>
                         {scored.length > 0 && (() => {
@@ -1353,7 +1473,6 @@ function DkpPageInner() {
                         <span className="text-[var(--text-secondary)]">Rank players with ≥</span>
                         <PowerInput
                           value={config.rankedMinPower}
-                          disabled={!isOfficer}
                           onChange={(v) => setConfig((c) => ({ ...c, rankedMinPower: Math.max(0, v) }))}
                         />
                         <span className="text-[var(--text-secondary)]">power</span>
@@ -1452,7 +1571,7 @@ function DkpPageInner() {
                       <span className="text-[var(--text-muted)] self-center">→</span>
                       <span className={`px-3 py-1 rounded-full border ${STATUS_STYLES.GOOD}`}>{t('status.good')}</span>
                       <span className="text-[var(--text-muted)] self-center">→</span>
-                      <span className={`px-3 py-1 rounded-full border ${STATUS_STYLES.REJECTED}`}>{t('status.review')}</span>
+                      <span className={`px-3 py-1 rounded-full border ${STATUS_STYLES.REJECTED}`}>{isOfficer ? t('status.review') : t('status.low')}</span>
                     </div>
                     <p className="text-sm text-[var(--text-muted)] ml-9 mt-3">
                       Players outside the top 400 by power are tagged{' '}
@@ -1478,7 +1597,7 @@ function DkpPageInner() {
                   kpTarget={config.kpTargetMicroT4}
                   powerRangeLabel={`Under ${(config.microMidThreshold / 1_000_000).toFixed(0)}M`}
                   examplePower={Math.max(5_000_000, Math.round(config.microMidThreshold / 2 / 5_000_000) * 5_000_000)}
-                  disabled={!isOfficer}
+                  isOfficer={isOfficer}
                   onFormulaChange={(k, v) => setFormula('formulaMicroT4', k, v)}
                   onCutoffChange={(k, v) => setCutoff('cutoffsMicroT4', k, v)}
                   onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetMicroT4: v }))}
@@ -1490,7 +1609,7 @@ function DkpPageInner() {
                   kpTarget={config.kpTargetMidT4}
                   powerRangeLabel={`${(config.microMidThreshold / 1_000_000).toFixed(0)}–${(config.midStrongThreshold / 1_000_000).toFixed(0)}M`}
                   examplePower={Math.max(5_000_000, Math.round((config.microMidThreshold + config.midStrongThreshold) / 2 / 5_000_000) * 5_000_000)}
-                  disabled={!isOfficer}
+                  isOfficer={isOfficer}
                   onFormulaChange={(k, v) => setFormula('formulaMidT4', k, v)}
                   onCutoffChange={(k, v) => setCutoff('cutoffsMidT4', k, v)}
                   onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetMidT4: v }))}
@@ -1502,7 +1621,7 @@ function DkpPageInner() {
                   kpTarget={config.kpTargetStrongT4}
                   powerRangeLabel={`${(config.midStrongThreshold / 1_000_000).toFixed(0)}–${(config.strongT5Threshold / 1_000_000).toFixed(0)}M`}
                   examplePower={Math.max(5_000_000, Math.round((config.midStrongThreshold + config.strongT5Threshold) / 2 / 5_000_000) * 5_000_000)}
-                  disabled={!isOfficer}
+                  isOfficer={isOfficer}
                   onFormulaChange={(k, v) => setFormula('formulaStrongT4', k, v)}
                   onCutoffChange={(k, v) => setCutoff('cutoffsStrongT4', k, v)}
                   onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetStrongT4: v }))}
@@ -1514,7 +1633,7 @@ function DkpPageInner() {
                   kpTarget={config.kpTargetT5}
                   powerRangeLabel={`≥ ${(config.strongT5Threshold / 1_000_000).toFixed(0)}M`}
                   examplePower={Math.max(5_000_000, Math.round(config.strongT5Threshold * 1.5 / 5_000_000) * 5_000_000)}
-                  disabled={!isOfficer}
+                  isOfficer={isOfficer}
                   onFormulaChange={(k, v) => setFormula('formulaT5', k, v)}
                   onCutoffChange={(k, v) => setCutoff('cutoffsT5', k, v)}
                   onKpTargetChange={(v) => setConfig((c) => ({ ...c, kpTargetT5: v }))}
@@ -1589,7 +1708,7 @@ function DkpPageInner() {
                 EXCELLENT: t('status.excellent'),
                 APPROVED: t('status.strong'),
                 GOOD: t('status.good'),
-                REJECTED: t('status.review'),
+                REJECTED: isOfficer ? t('status.review') : t('status.low'),
                 UNRANKED: STATUS_LABELS.UNRANKED,
               };
               const label = labelMap[s] ?? s;
@@ -1727,7 +1846,7 @@ function DkpPageInner() {
                   <tr
                     key={p.characterId}
                     className={`border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${
-                      flaggedForMigration.has(p.characterId) ? 'bg-rose-500/5' : ''
+                      isOfficer && flaggedForMigration.has(p.characterId) ? 'bg-rose-500/5' : ''
                     }`}
                   >
                     <td className="px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">
@@ -1756,7 +1875,7 @@ function DkpPageInner() {
                         key={c.key}
                         className={`px-3 py-2 ${c.numeric ? 'text-right tabular-nums' : ''}`}
                       >
-                        {renderCell(p, c.key, modelView, showGovId)}
+                        {renderCell(p, c.key, modelView, showGovId, isOfficer)}
                       </td>
                     ))}
                   </tr>
@@ -1775,6 +1894,215 @@ function DkpPageInner() {
             </table>
           </div>
         </section>
+        </>)}
+
+        {/* ===== SIMPLE RATIO MODE ===== */}
+        {scoringMode === 'simple' && (
+          <>
+            {/* Simple-mode config */}
+            <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
+              <div className="px-4 sm:px-5 py-3 flex items-center gap-3 border-b border-[var(--border)]">
+                <Settings2 size={16} className="text-[var(--text-muted)] flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-sm font-semibold text-[var(--foreground)]">Simple Ratio Scoring</h2>
+                    {!isOfficer && (
+                      <span className="text-[10px] font-normal text-[var(--text-muted)] uppercase tracking-wider">
+                        sandbox
+                      </span>
+                    )}
+                    {isDirty && (
+                      <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wider">
+                        {isOfficer ? '• unsaved' : '• local edits'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                    DKP = T4K·{config.simpleFormula.t4Kill} + T5K·{config.simpleFormula.t5Kill} + T4D·{config.simpleFormula.t4Death} + T5D·{config.simpleFormula.t5Death}. Pass when DKP ≥ power × {config.simpleMultiplier}.
+                  </p>
+                </div>
+              </div>
+              <div className="p-4 sm:p-5">
+                {/* Deploy/reset buttons */}
+                <div className="mb-4 flex flex-wrap items-center gap-2">
+                  {isOfficer && (
+                    <button
+                      onClick={handleDeploy}
+                      disabled={!isDirty || deploying}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Rocket size={12} />
+                      {deploying ? 'Deploying…' : 'Confirm for everyone'}
+                    </button>
+                  )}
+                  <button
+                    onClick={handleDiscardChanges}
+                    disabled={!isDirty || deploying}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <RotateCcw size={12} />
+                    {isOfficer ? 'Discard' : 'Reset to officer settings'}
+                  </button>
+                  {deployError && <span className="text-xs text-red-400">{deployError}</span>}
+                </div>
+
+                {/* Weights grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  {(['t4Kill', 't5Kill', 't4Death', 't5Death'] as const).map((k) => {
+                    const labels: Record<typeof k, string> = { t4Kill: 'T4 kill', t5Kill: 'T5 kill', t4Death: 'T4 death', t5Death: 'T5 death' } as const;
+                    return (
+                      <div key={k}>
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">{labels[k]}</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          value={config.simpleFormula[k]}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            if (!Number.isNaN(v) && v >= 0) {
+                              setConfig((c) => ({ ...c, simpleFormula: { ...c.simpleFormula, [k]: v } }));
+                            }
+                          }}
+                          className="w-full px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                        />
+                      </div>
+                    );
+                  })}
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Power multiplier</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.1}
+                      value={config.simpleMultiplier}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value);
+                        if (!Number.isNaN(v) && v >= 0) {
+                          setConfig((c) => ({ ...c, simpleMultiplier: v }));
+                        }
+                      }}
+                      className="w-full px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Search */}
+            <section className="mb-3 flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('filters.searchPlaceholder')}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                />
+              </div>
+              <span className="text-xs text-[var(--text-muted)]">{simpleFiltered.length} shown</span>
+            </section>
+
+            {/* Simple-mode table */}
+            <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider">
+                      <th className="px-3 py-2 text-right w-10">#</th>
+                      {isOfficer && <th className="px-1 py-2 w-8"></th>}
+                      {([
+                        { key: 'name' as const, label: 'Name', align: 'text-left' },
+                        { key: 'power' as const, label: 'Power', align: 'text-right' },
+                        { key: 'dkp' as const, label: 'DKP', align: 'text-right' },
+                        { key: 'ratio' as const, label: 'Ratio', align: 'text-right' },
+                        { key: 'status' as const, label: 'Status', align: 'text-center' },
+                      ]).map((col) => {
+                        const active = simpleSortKey === col.key;
+                        return (
+                          <th key={col.key} className={`px-3 py-2 ${col.align}`}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (simpleSortKey === col.key) {
+                                  setSimpleSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                                } else {
+                                  setSimpleSortKey(col.key);
+                                  setSimpleSortDir(col.key === 'name' ? 'asc' : 'desc');
+                                }
+                              }}
+                              className={`inline-flex items-center gap-0.5 hover:text-[var(--foreground)] transition-colors ${active ? 'text-[var(--foreground)]' : ''}`}
+                            >
+                              {col.label}
+                              {active && <span className="text-[9px]">{simpleSortDir === 'asc' ? '▲' : '▼'}</span>}
+                            </button>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {simpleFiltered.map((p, idx) => (
+                      <tr key={p.characterId} className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
+                        <td className="px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">{idx + 1}</td>
+                        {isOfficer && (
+                          <td className="px-1 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => toggleFlagged(p.characterId)}
+                              className={`p-1 rounded transition-colors ${
+                                flaggedForMigration.has(p.characterId)
+                                  ? 'text-rose-400 hover:text-rose-300'
+                                  : 'text-[var(--text-muted)]/30 hover:text-rose-400'
+                              }`}
+                              title={flaggedForMigration.has(p.characterId) ? 'Unflag for migration' : 'Flag for migration'}
+                            >
+                              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                                <path d="M2 1a1 1 0 0 1 1 1v1h9.5a.5.5 0 0 1 .4.8L10.5 7l2.4 3.2a.5.5 0 0 1-.4.8H3v4a1 1 0 1 1-2 0V2a1 1 0 0 1 1-1z"/>
+                              </svg>
+                            </button>
+                          </td>
+                        )}
+                        <td className="px-3 py-2 text-left">
+                          <PlayerNameCell name={p.username} govId={p.characterId} showGovId={showGovId} />
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+                          {fmtM(p.power)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+                          {fmt(Math.round(p.simpleDkp))}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums">
+                          <span className={p.simpleStatus === 'PASS' ? 'text-green-400' : 'text-rose-400'}>
+                            {p.simpleRatio.toFixed(2)}×
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                              p.simpleStatus === 'PASS'
+                                ? 'bg-green-500/15 text-green-400 border-green-500/30'
+                                : STATUS_STYLES.REJECTED
+                            }`}
+                          >
+                            {p.simpleStatus === 'PASS' ? 'PASS' : isOfficer ? 'BELOW' : 'LOW'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {simpleFiltered.length === 0 && (
+                      <tr>
+                        <td colSpan={isOfficer ? 7 : 6} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
+                          {loadingDefault ? t('filters.loading') : t('filters.noPlayers')}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        )}
       </div>
     </div>
   );
@@ -2105,6 +2433,7 @@ function renderCell(
   key: ColumnDef['key'],
   modelView: boolean,
   showGovId: boolean,
+  isOfficer: boolean,
 ) {
   switch (key) {
     case 'username':
@@ -2179,7 +2508,9 @@ function renderCell(
         EXCELLENT: `Top of the ${BAND_LABELS[p.band]} band (score ${fmtScore(p.bandScore)})`,
         APPROVED: `Strong performer in ${BAND_LABELS[p.band]} band (score ${fmtScore(p.bandScore)})`,
         GOOD: `Meeting expectations for ${BAND_LABELS[p.band]} band (score ${fmtScore(p.bandScore)})`,
-        REJECTED: `Below the GOOD cutoff for ${BAND_LABELS[p.band]} band — flagged for officer review (score ${fmtScore(p.bandScore)})`,
+        REJECTED: isOfficer
+          ? `Below the GOOD cutoff for ${BAND_LABELS[p.band]} band — flagged for officer review (score ${fmtScore(p.bandScore)})`
+          : `Below the GOOD cutoff for ${BAND_LABELS[p.band]} band (score ${fmtScore(p.bandScore)})`,
         UNRANKED: `Outside the top 400 by power — not scored or ranked. These accounts are not actively tracked for performance.`,
       };
       return (
@@ -2187,7 +2518,7 @@ function renderCell(
           <span
             className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-help ${STATUS_STYLES[p.status]}`}
           >
-            {STATUS_LABELS[p.status]}
+            {statusLabel(p.status, isOfficer)}
           </span>
         </Tooltip>
       );
@@ -2785,6 +3116,7 @@ function BandColumn({
   onCutoffChange,
   onKpTargetChange,
   disabled = false,
+  isOfficer = true,
 }: {
   band: Band;
   formula: BandFormula;
@@ -2796,6 +3128,7 @@ function BandColumn({
   onCutoffChange: (key: keyof CutoffSet, value: number) => void;
   onKpTargetChange: (v: number) => void;
   disabled?: boolean;
+  isOfficer?: boolean;
 }) {
   const t = useTranslations('dkp.bandColumn');
   const tf = useTranslations('dkp');
@@ -2944,7 +3277,7 @@ function BandColumn({
             <span
               className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES.REJECTED} flex-shrink-0`}
             >
-              {STATUS_LABELS.REJECTED}
+              {statusLabel('REJECTED', isOfficer)}
             </span>
             <span className="text-xs text-[var(--text-muted)]">
               {t('cutoffsBelow', { n: Math.round(cutoffs.good) })}

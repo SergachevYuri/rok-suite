@@ -723,17 +723,23 @@
       "excellent": "Excellent",
       "strong": "Strong",
       "good": "Good",
-      "review": "Review"
+      "review": "Review",
+      "low": "Low"
     },
     "config": {
       "title": "Scoring Configuration",
       "readOnly": "read-only",
+      "sandbox": "sandbox",
+      "sandboxHint": "Edits are local-only — they won't affect what others see.",
       "unsaved": "• unsaved",
+      "localEdits": "• local edits",
       "deploy": "Confirm for everyone",
       "deploying": "Deploying…",
       "deployHint": "Publish your current edits to the shared kingdom database — every viewer will see them on next refresh.",
       "discard": "Discard",
       "discardHint": "Throw away your local edits and revert to the published config.",
+      "reset": "Reset to officer settings",
+      "resetHint": "Revert your local edits back to the settings officers have deployed.",
       "splitToggleLabel": "Split weights by power",
       "splitToggleHint": "Use two separate weight sets — one for accounts under the power threshold, one for accounts at or above. Lets you score smaller accounts differently than whales.",
       "powerThresholdLabel": "Power threshold:",
@@ -835,7 +841,8 @@
       "excellent": "EXCELLENT",
       "strong": "STRONG",
       "good": "GOOD",
-      "review": "REVIEW"
+      "review": "REVIEW",
+      "low": "LOW"
     },
     "columns": {
       "player": "Player",
