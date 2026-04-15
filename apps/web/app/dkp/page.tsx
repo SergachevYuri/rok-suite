@@ -666,9 +666,9 @@ function DkpPageInner() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
   const [hideUnranked, setHideUnranked] = useState(true);
-  const [scoringMode, setScoringMode] = useState<'bands' | 'simple'>('bands');
-  const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status' | 't4Kills' | 't5Kills' | 't4Deaths' | 't5Deaths'>('ratio');
-  const [simpleSortDir, setSimpleSortDir] = useState<'asc' | 'desc'>('asc');
+  const [scoringMode, setScoringMode] = useState<'bands' | 'simple'>('simple');
+  const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status' | 't4Kills' | 't5Kills' | 't4Deaths' | 't5Deaths'>('dkp');
+  const [simpleSortDir, setSimpleSortDir] = useState<'asc' | 'desc'>('desc');
   const [simpleHideOutsideTop, setSimpleHideOutsideTop] = useState(true);
   const [showGovId, setShowGovId] = useState(false);
   /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
@@ -806,18 +806,12 @@ function DkpPageInner() {
     return new Set(sorted.slice(0, config.rankedTopN).map((p) => p.characterId));
   }, [simpleScored, config.rankedTopN]);
 
-  const simpleFiltered = useMemo(() => {
+  // Sort + top-N filter first (search-independent) so rank stays stable across searches.
+  const simpleRanked = useMemo(() => {
     let list = simpleScored;
     if (simpleHideOutsideTop) list = list.filter((p) => simpleTopNIds.has(p.characterId));
-    if (search.trim()) {
-      const q = search.trim();
-      const qDigits = q.replace(/\D/g, '');
-      list = list.filter(
-        (p) => looseMatch(p.username, q) || (qDigits.length >= 3 && String(p.characterId).includes(qDigits)),
-      );
-    }
     const dir = simpleSortDir === 'asc' ? 1 : -1;
-    const sorted = [...list].sort((a, b) => {
+    return [...list].sort((a, b) => {
       switch (simpleSortKey) {
         case 'name': return a.username.localeCompare(b.username) * dir;
         case 'power': return (a.power - b.power) * dir;
@@ -830,8 +824,22 @@ function DkpPageInner() {
         case 't5Deaths': return (a.t5Deaths - b.t5Deaths) * dir;
       }
     });
-    return sorted;
-  }, [simpleScored, search, simpleSortKey, simpleSortDir, simpleHideOutsideTop, simpleTopNIds]);
+  }, [simpleScored, simpleSortKey, simpleSortDir, simpleHideOutsideTop, simpleTopNIds]);
+
+  const simpleRankById = useMemo(() => {
+    const m = new Map<number, number>();
+    simpleRanked.forEach((p, i) => m.set(p.characterId, i + 1));
+    return m;
+  }, [simpleRanked]);
+
+  const simpleFiltered = useMemo(() => {
+    if (!search.trim()) return simpleRanked;
+    const q = search.trim();
+    const qDigits = q.replace(/\D/g, '');
+    return simpleRanked.filter(
+      (p) => looseMatch(p.username, q) || (qDigits.length >= 3 && String(p.characterId).includes(qDigits)),
+    );
+  }, [simpleRanked, search]);
 
   const simpleCounts = useMemo(() => {
     let pass = 0, below = 0;
@@ -2067,9 +2075,9 @@ function DkpPageInner() {
                     </tr>
                   </thead>
                   <tbody>
-                    {simpleFiltered.map((p, idx) => (
+                    {simpleFiltered.map((p) => (
                       <tr key={p.characterId} className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
-                        <td className="px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">{idx + 1}</td>
+                        <td className="px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">{simpleRankById.get(p.characterId)}</td>
                         {isOfficer && (
                           <td className="px-1 py-2 text-center">
                             <button
