@@ -1071,39 +1071,41 @@ function DkpPageInner() {
           />
         )}
 
-        {/* Scoring mode toggle */}
-        <section className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider mr-1">Scoring mode:</span>
-          <div className="inline-flex rounded-lg overflow-hidden border border-[var(--border)]">
-            <button
-              type="button"
-              onClick={() => setScoringMode('bands')}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                scoringMode === 'bands'
-                  ? 'bg-[#4318ff] text-white'
-                  : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
-              }`}
-            >
-              Power Bands
-            </button>
-            <button
-              type="button"
-              onClick={() => setScoringMode('simple')}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                scoringMode === 'simple'
-                  ? 'bg-[#4318ff] text-white'
-                  : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
-              }`}
-            >
-              Simple Ratio
-            </button>
-          </div>
-          {scoringMode === 'simple' && (
-            <span className="text-xs text-[var(--text-muted)]">
-              DKP ≥ power × <span className="font-mono text-[var(--text-secondary)]">{config.simpleMultiplier}</span>
-            </span>
-          )}
-        </section>
+        {/* Scoring mode toggle — officers only; non-officers always see simple mode. */}
+        {isOfficer && (
+          <section className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider mr-1">Scoring mode:</span>
+            <div className="inline-flex rounded-lg overflow-hidden border border-[var(--border)]">
+              <button
+                type="button"
+                onClick={() => setScoringMode('bands')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  scoringMode === 'bands'
+                    ? 'bg-[#4318ff] text-white'
+                    : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                }`}
+              >
+                Power Bands
+              </button>
+              <button
+                type="button"
+                onClick={() => setScoringMode('simple')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  scoringMode === 'simple'
+                    ? 'bg-[#4318ff] text-white'
+                    : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                }`}
+              >
+                Simple Ratio
+              </button>
+            </div>
+            {scoringMode === 'simple' && (
+              <span className="text-xs text-[var(--text-muted)]">
+                DKP ≥ power × <span className="font-mono text-[var(--text-secondary)]">{config.simpleMultiplier}</span>
+              </span>
+            )}
+          </section>
+        )}
 
         {/* Summary */}
         {scoringMode === 'bands' && (
