@@ -1147,10 +1147,32 @@ function DkpPageInner() {
         {/* Simple-ratio summary */}
         {scoringMode === 'simple' && (
           <section className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
-            <SummaryCard label="Players" value={fmt(simpleRanked.length)} subvalue={`of ${fmt(simpleScored.length)} total`} />
-            <SummaryCard label="Pass" value={fmt(simpleCounts.pass)} subvalue={`of ${fmt(simpleCounts.passAll)} total`} tone="good" />
-            <SummaryCard label={isOfficer ? 'Below' : 'Low'} value={fmt(simpleCounts.below)} subvalue={`of ${fmt(simpleCounts.belowAll)} total`} tone="review" />
-            <SummaryCard label="Total DKP" value={fmt(simpleRanked.reduce((s, p) => s + p.simpleDkp, 0))} subvalue={`of ${fmt(simpleScored.reduce((s, p) => s + p.simpleDkp, 0))} total`} />
+            {(() => {
+              const filterParts: string[] = [];
+              if (simpleHideOutsideTop) filterParts.push(`top ${config.rankedTopN} by power`);
+              if (simpleMinPower > 0) filterParts.push(`≥${(simpleMinPower / 1_000_000).toFixed(0)}M power`);
+              const filterDesc = filterParts.length ? filterParts.join(' · ') : 'no filter';
+              const passExcluded = simpleCounts.passAll - simpleCounts.pass;
+              const belowExcluded = simpleCounts.belowAll - simpleCounts.below;
+              const playersExcluded = simpleScored.length - simpleRanked.length;
+              const totalDkpInFilter = simpleRanked.reduce((s, p) => s + p.simpleDkp, 0);
+              const totalDkpAll = simpleScored.reduce((s, p) => s + p.simpleDkp, 0);
+              const dkpExcluded = totalDkpAll - totalDkpInFilter;
+              const sub = (excluded: number) =>
+                filterParts.length === 0
+                  ? 'no filter applied'
+                  : excluded === 0
+                    ? `match: ${filterDesc}`
+                    : `match: ${filterDesc} · ${fmt(excluded)} hidden`;
+              return (
+                <>
+                  <SummaryCard label="Players in view" value={fmt(simpleRanked.length)} subvalue={sub(playersExcluded)} />
+                  <SummaryCard label="Pass (in view)" value={fmt(simpleCounts.pass)} subvalue={sub(passExcluded)} tone="good" />
+                  <SummaryCard label={isOfficer ? 'Below (in view)' : 'Low (in view)'} value={fmt(simpleCounts.below)} subvalue={sub(belowExcluded)} tone="review" />
+                  <SummaryCard label="DKP (in view)" value={fmt(totalDkpInFilter)} subvalue={sub(dkpExcluded)} />
+                </>
+              );
+            })()}
           </section>
         )}
 
