@@ -4,11 +4,12 @@ export type MigrationState =
   | 'pending'
   | 'claimed'
   | 'contacted'
-  | 'acknowledged'
-  | 'migrated'
   | 'excepted'
+  | 'migrated'
+  | 'marked_to_zero'
   | 'zeroed';
 
+/** States that end the lifecycle (no further action expected). marked_to_zero is NOT terminal — zeroing still needs confirmation. */
 export const TERMINAL_STATES: MigrationState[] = ['migrated', 'excepted', 'zeroed'];
 
 export interface MigrationCycle {
@@ -31,13 +32,14 @@ export interface MigrationCase {
   claimed_by: string | null;
   claimed_at: string | null;
   contacted_at: string | null;
-  acknowledged_at: string | null;
   migration_suggested_at: string | null;
   migrated_confirmed_at: string | null;
   migrated_confirmed_by: string | null;
   excepted_at: string | null;
   excepted_by: string | null;
   exception_reason: string | null;
+  marked_to_zero_at: string | null;
+  marked_to_zero_by: string | null;
   zeroed_at: string | null;
   zeroed_by: string | null;
   notes: string | null;
@@ -168,10 +170,11 @@ export async function markContacted(id: string) {
   });
 }
 
-export async function markAcknowledged(id: string) {
+export async function markToZero(id: string, officerName: string) {
   return patchCase(id, {
-    state: 'acknowledged',
-    acknowledged_at: new Date().toISOString(),
+    state: 'marked_to_zero',
+    marked_to_zero_at: new Date().toISOString(),
+    marked_to_zero_by: officerName,
   });
 }
 
@@ -213,12 +216,13 @@ export async function resetCaseToPending(id: string) {
     claimed_by: null,
     claimed_at: null,
     contacted_at: null,
-    acknowledged_at: null,
     migrated_confirmed_at: null,
     migrated_confirmed_by: null,
     excepted_at: null,
     excepted_by: null,
     exception_reason: null,
+    marked_to_zero_at: null,
+    marked_to_zero_by: null,
     zeroed_at: null,
     zeroed_by: null,
   });

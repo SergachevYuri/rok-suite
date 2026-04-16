@@ -34,7 +34,7 @@ import {
   claimCase,
   unclaimCase,
   markContacted,
-  markAcknowledged,
+  markToZero,
   suggestMigrated,
   confirmMigrated,
   markException,
@@ -49,9 +49,9 @@ const STATE_LABELS: Record<MigrationState, string> = {
   pending: 'Pending',
   claimed: 'Claimed',
   contacted: 'Contacted',
-  acknowledged: 'Acknowledged',
-  migrated: 'Migrated',
   excepted: 'Excepted',
+  migrated: 'Migrated',
+  marked_to_zero: 'To Zero',
   zeroed: 'Zeroed',
 };
 
@@ -59,11 +59,14 @@ const STATE_STYLES: Record<MigrationState, string> = {
   pending: 'bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]',
   claimed: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   contacted: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-  acknowledged: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
-  migrated: 'bg-green-500/15 text-green-400 border-green-500/30',
   excepted: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  migrated: 'bg-green-500/15 text-green-400 border-green-500/30',
+  marked_to_zero: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
   zeroed: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
 };
+
+/** Summary strip + filter dropdown order (also the mental flow). */
+const STATE_ORDER: MigrationState[] = ['pending', 'claimed', 'contacted', 'excepted', 'migrated', 'marked_to_zero', 'zeroed'];
 
 const ZERO_POWER_DROP = 0.15;
 
@@ -193,7 +196,7 @@ function MigrationPageInner() {
   // Derived state
   const counts = useMemo(() => {
     const c: Record<MigrationState, number> = {
-      pending: 0, claimed: 0, contacted: 0, acknowledged: 0, migrated: 0, excepted: 0, zeroed: 0,
+      pending: 0, claimed: 0, contacted: 0, excepted: 0, migrated: 0, marked_to_zero: 0, zeroed: 0,
     };
     for (const k of cases) c[k.state]++;
     return c;
@@ -444,10 +447,11 @@ function MigrationPageInner() {
                 <ol className="space-y-1.5 text-xs list-decimal pl-5">
                   <li><strong>Admin creates a cycle</strong> at the start of a migration round (e.g. "April 2026"), sets a UTC deadline, and snapshots the currently flagged players into it.</li>
                   <li><strong>Officer claims a case</strong> — click "Claim" on a pending row. This is your commitment to message that player. Claimed cases show your name so others don't duplicate work.</li>
-                  <li><strong>Mark contacted</strong> once you've DM'd them. Mark <strong>Acknowledged</strong> once they've replied.</li>
+                  <li><strong>Mark Contacted</strong> once you've DM'd them.</li>
                   <li><strong>Mark Migrated</strong> if they leave the kingdom. Can be done at any state.</li>
                   <li><strong>Admin grants an Exception</strong> (with a required reason) if a player has a legitimate excuse. Exceptions can be granted any time before the deadline.</li>
-                  <li><strong>After the deadline</strong> — any case still not migrated/excepted shows as at-risk. Officers confirm <strong>Zeroed</strong> once the zeroing actually happens in-game.</li>
+                  <li><strong>After the deadline</strong> — officers click <strong>Mark to Zero</strong> on active cases that didn't migrate or get excepted. This flags them for zeroing but doesn't mean it's done.</li>
+                  <li><strong>Confirm Zeroed</strong> once the zeroing actually happens in-game. (Or click Migrated instead if the player left before you could zero them.)</li>
                 </ol>
               </div>
               <div>
@@ -456,10 +460,10 @@ function MigrationPageInner() {
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]">Pending</span> nobody claimed yet</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-blue-500/15 text-blue-400 border-blue-500/30">Claimed</span> an officer is handling the contact</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-sky-500/15 text-sky-400 border-sky-500/30">Contacted</span> message sent</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-violet-500/15 text-violet-400 border-violet-500/30">Acknowledged</span> player responded</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Migrated</span> player left the kingdom</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">Excepted</span> admin granted a pass (with a reason)</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> deadline hit, player was zeroed</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Migrated</span> player left the kingdom</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-orange-500/15 text-orange-400 border-orange-500/30">To Zero</span> officer decided to zero them — not yet confirmed</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> confirmed zeroed in-game</li>
                 </ul>
               </div>
               <div>
@@ -483,7 +487,7 @@ function MigrationPageInner() {
           <>
             {/* Summary strip */}
             <section className="mb-4 grid grid-cols-3 sm:grid-cols-7 gap-2 sm:gap-3">
-              {(['pending', 'claimed', 'contacted', 'acknowledged', 'migrated', 'excepted', 'zeroed'] as MigrationState[]).map((s) => (
+              {STATE_ORDER.map((s) => (
                 <button
                   key={s}
                   onClick={() => setStateFilter(s)}
@@ -559,13 +563,9 @@ function MigrationPageInner() {
               >
                 <option value="active">Active (non-terminal)</option>
                 <option value="all">All</option>
-                <option value="pending">Pending</option>
-                <option value="claimed">Claimed</option>
-                <option value="contacted">Contacted</option>
-                <option value="acknowledged">Acknowledged</option>
-                <option value="migrated">Migrated</option>
-                <option value="excepted">Excepted</option>
-                <option value="zeroed">Zeroed</option>
+                {STATE_ORDER.map((s) => (
+                  <option key={s} value={s}>{STATE_LABELS[s]}</option>
+                ))}
               </select>
               <span className="text-xs text-[var(--text-muted)] ml-auto">{filteredCases.length} shown · {cases.length} total</span>
             </section>
@@ -925,10 +925,10 @@ function CaseRow({
   const lastAction = (() => {
     const entries = [
       { label: 'zeroed', iso: c.zeroed_at },
+      { label: 'marked to zero', iso: c.marked_to_zero_at },
       { label: 'excepted', iso: c.excepted_at },
       { label: 'migrated', iso: c.migrated_confirmed_at },
       { label: 'suggested', iso: c.migration_suggested_at },
-      { label: 'acknowledged', iso: c.acknowledged_at },
       { label: 'contacted', iso: c.contacted_at },
       { label: 'claimed', iso: c.claimed_at },
     ].filter((e) => e.iso);
@@ -981,17 +981,20 @@ function CaseRow({
               <button disabled={busy} onClick={() => wrap(() => unclaimCase(c.id))} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">Unclaim</button>
             </>
           )}
-          {isOfficer && c.state === 'contacted' && (
-            <button disabled={busy} onClick={() => wrap(() => markAcknowledged(c.id))} className="px-2 py-1 text-[11px] rounded bg-violet-500/15 text-violet-400 border border-violet-500/30 hover:bg-violet-500/25">Acknowledged</button>
-          )}
-          {isOfficer && isActive && (
+          {isOfficer && isActive && c.state !== 'marked_to_zero' && (
             <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25">Migrated</button>
           )}
-          {isActive && isAdmin && (
+          {isActive && isAdmin && c.state !== 'marked_to_zero' && (
             <button disabled={busy} onClick={() => setShowException(true)} className="px-2 py-1 text-[11px] rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25">Exception</button>
           )}
-          {isOfficer && isActive && pastDeadline && (
-            <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmZeroed(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25">Zeroed</button>
+          {isOfficer && isActive && pastDeadline && c.state !== 'marked_to_zero' && (
+            <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => markToZero(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25" title="Mark this player to be zeroed. Doesn't mean they've been zeroed yet — confirm once it's done in-game.">Mark to Zero</button>
+          )}
+          {isOfficer && c.state === 'marked_to_zero' && (
+            <>
+              <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmZeroed(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25" title="Confirm the player has been zeroed in-game.">Confirm Zeroed</button>
+              <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25" title="If they migrated instead of being zeroed.">Migrated</button>
+            </>
           )}
           {isOfficer && !isActive && (
             <button disabled={busy} onClick={() => wrap(() => resetCaseToPending(c.id))} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">Reset</button>
