@@ -144,7 +144,7 @@ export interface KvkAchievementProgress {
 
 // ─── Auth ───────────────────────────────────────────────────────────
 
-export type WarRoomRole = 'viewer' | 'officer' | 'admin';
+export type WarRoomRole = 'viewer' | 'power' | 'officer' | 'admin';
 
 // ─── Allocation Targets ─────────────────────────────────────────────
 

@@ -2,20 +2,21 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { WarRoomRole } from '@/lib/kvk-map-types';
-import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
+import { ADMIN_PASSWORD, OFFICER_PASSWORD, POWER_PASSWORD } from '@/lib/auth-passwords';
 
 const PASSWORDS: Record<Exclude<WarRoomRole, 'viewer'>, string> = {
+  power: POWER_PASSWORD,
   officer: OFFICER_PASSWORD,
   admin: ADMIN_PASSWORD,
 };
 
-const ROLE_RANK: Record<WarRoomRole, number> = { viewer: 0, officer: 1, admin: 2 };
+const ROLE_RANK: Record<WarRoomRole, number> = { viewer: 0, power: 1, officer: 2, admin: 3 };
 
 const OFFICER_NAME_KEY = 'warroom-officer-name';
 const ROLE_KEY = 'warroom-role';
 
 function isValidRole(v: string | null): v is WarRoomRole {
-  return v === 'viewer' || v === 'officer' || v === 'admin';
+  return v === 'viewer' || v === 'power' || v === 'officer' || v === 'admin';
 }
 
 interface WarRoomAuthContextType {
@@ -60,15 +61,22 @@ export function WarRoomAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const login = useCallback((password: string): boolean => {
-    if (password === PASSWORDS.admin) {
+    // Check from most- to least-privileged so stronger creds win ties.
+    if (PASSWORDS.admin && password === PASSWORDS.admin) {
       setRole('admin');
       localStorage.setItem(ROLE_KEY, 'admin');
       setShowLoginPrompt(false);
       return true;
     }
-    if (password === PASSWORDS.officer) {
+    if (PASSWORDS.officer && password === PASSWORDS.officer) {
       setRole('officer');
       localStorage.setItem(ROLE_KEY, 'officer');
+      setShowLoginPrompt(false);
+      return true;
+    }
+    if (PASSWORDS.power && password === PASSWORDS.power) {
+      setRole('power');
+      localStorage.setItem(ROLE_KEY, 'power');
       setShowLoginPrompt(false);
       return true;
     }

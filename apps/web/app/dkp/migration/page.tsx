@@ -98,6 +98,7 @@ export default function MigrationPage() {
 
 function MigrationPageInner() {
   const { isAtLeast, officerName } = useWarRoomAuth();
+  const canView = isAtLeast('power');
   const isOfficer = isAtLeast('officer');
   const isAdmin = isAtLeast('admin');
 
@@ -294,7 +295,7 @@ function MigrationPageInner() {
     );
   }
 
-  if (!isOfficer) {
+  if (!canView) {
     return (
       <div className="min-h-screen">
         <div className="max-w-[800px] mx-auto px-4 sm:px-6 py-10">
@@ -303,13 +304,16 @@ function MigrationPageInner() {
           </Link>
           <div className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-8 text-center">
             <Lock className="mx-auto text-[var(--text-muted)] mb-3" />
-            <h1 className="text-lg font-semibold text-[var(--foreground)] mb-2">Migration tracking is officer-only</h1>
+            <h1 className="text-lg font-semibold text-[var(--foreground)] mb-2">Sign in required</h1>
             <p className="text-sm text-[var(--text-muted)] mb-4">
-              Sign in on the DKP page to access migration case management.
+              Migration tracking requires at least power-user access. Sign in on the DKP page or use the Sign in button to continue.
             </p>
-            <Link href="/dkp" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] transition-colors">
-              Go to DKP page
-            </Link>
+            <div className="flex items-center justify-center gap-2">
+              <SessionBadge />
+              <Link href="/dkp" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors">
+                Back to DKP
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -363,7 +367,7 @@ function MigrationPageInner() {
             </>
           )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {selectedCycle && !selectedCycle.closed_at && (
+            {isOfficer && selectedCycle && !selectedCycle.closed_at && (
               <button
                 onClick={handleAddFlaggedToCycle}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
@@ -535,7 +539,7 @@ function MigrationPageInner() {
             )}
 
             {/* Scan delta uploader */}
-            <ScanDeltaPanel cases={cases} cycleId={selectedCycle.id} />
+            {isOfficer && <ScanDeltaPanel cases={cases} cycleId={selectedCycle.id} />}
 
             {/* Controls */}
             <section className="mb-3 flex flex-wrap items-center gap-2">
@@ -586,6 +590,7 @@ function MigrationPageInner() {
                         key={c.id}
                         caseRow={c}
                         officerName={officerName}
+                        isOfficer={isOfficer}
                         isAdmin={isAdmin}
                         pastDeadline={pastDeadline}
                       />
@@ -898,11 +903,13 @@ function ScanDeltaPanel({ cases, cycleId }: { cases: MigrationCase[]; cycleId: s
 function CaseRow({
   caseRow: c,
   officerName,
+  isOfficer,
   isAdmin,
   pastDeadline,
 }: {
   caseRow: MigrationCase;
   officerName: string | null;
+  isOfficer: boolean;
   isAdmin: boolean;
   pastDeadline: boolean;
 }) {
@@ -965,31 +972,31 @@ function CaseRow({
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap gap-1">
-          {c.state === 'pending' && (
+          {isOfficer && c.state === 'pending' && (
             <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => claimCase(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25">Claim</button>
           )}
-          {c.state === 'claimed' && (
+          {isOfficer && c.state === 'claimed' && (
             <>
               <button disabled={busy} onClick={() => wrap(() => markContacted(c.id))} className="px-2 py-1 text-[11px] rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 hover:bg-sky-500/25">Contacted</button>
               <button disabled={busy} onClick={() => wrap(() => unclaimCase(c.id))} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">Unclaim</button>
             </>
           )}
-          {c.state === 'contacted' && (
+          {isOfficer && c.state === 'contacted' && (
             <button disabled={busy} onClick={() => wrap(() => markAcknowledged(c.id))} className="px-2 py-1 text-[11px] rounded bg-violet-500/15 text-violet-400 border border-violet-500/30 hover:bg-violet-500/25">Acknowledged</button>
           )}
-          {isActive && (
+          {isOfficer && isActive && (
             <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25">Migrated</button>
           )}
           {isActive && isAdmin && (
             <button disabled={busy} onClick={() => setShowException(true)} className="px-2 py-1 text-[11px] rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25">Exception</button>
           )}
-          {isActive && pastDeadline && (
+          {isOfficer && isActive && pastDeadline && (
             <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmZeroed(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25">Zeroed</button>
           )}
-          {!isActive && (
+          {isOfficer && !isActive && (
             <button disabled={busy} onClick={() => wrap(() => resetCaseToPending(c.id))} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">Reset</button>
           )}
-          <button onClick={() => setNotesOpen((o) => !o)} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">Notes</button>
+          <button onClick={() => setNotesOpen((o) => !o)} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">{isOfficer ? 'Notes' : 'View notes'}</button>
           {isAdmin && (
             <button
               disabled={busy}
@@ -1006,17 +1013,23 @@ function CaseRow({
         </div>
         {notesOpen && (
           <div className="mt-2">
-            <textarea
-              value={notesVal}
-              onChange={(e) => setNotesVal(e.target.value)}
-              placeholder="Notes (visible to all officers)…"
-              className="w-full px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
-              rows={2}
-            />
-            <div className="flex gap-1 mt-1">
-              <button onClick={() => wrap(() => updateCaseNotes(c.id, notesVal.trim() || null))} className="px-2 py-1 text-[11px] rounded bg-[#4318ff] text-white">Save</button>
-              <button onClick={() => { setNotesOpen(false); setNotesVal(c.notes ?? ''); }} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)]">Cancel</button>
-            </div>
+            {isOfficer ? (
+              <>
+                <textarea
+                  value={notesVal}
+                  onChange={(e) => setNotesVal(e.target.value)}
+                  placeholder="Notes (visible to all officers)…"
+                  className="w-full px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                  rows={2}
+                />
+                <div className="flex gap-1 mt-1">
+                  <button onClick={() => wrap(() => updateCaseNotes(c.id, notesVal.trim() || null))} className="px-2 py-1 text-[11px] rounded bg-[#4318ff] text-white">Save</button>
+                  <button onClick={() => { setNotesOpen(false); setNotesVal(c.notes ?? ''); }} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)]">Cancel</button>
+                </div>
+              </>
+            ) : (
+              <div className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap">{c.notes || <span className="text-[var(--text-muted)] italic">No notes.</span>}</div>
+            )}
           </div>
         )}
         {c.exception_reason && c.state === 'excepted' && (
