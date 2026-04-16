@@ -2111,8 +2111,9 @@ function DkpPageInner() {
             </section>
 
             {/* Search */}
-            <section className="mb-3 flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[180px]">
+            <section className="mb-3 space-y-2">
+              {/* Search */}
+              <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   value={search}
@@ -2121,41 +2122,44 @@ function DkpPageInner() {
                   className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
                 />
               </div>
-              <label className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={simpleHideOutsideTop}
-                  onChange={(e) => setSimpleHideOutsideTop(e.target.checked)}
-                  className="accent-[#4318ff]"
-                />
-                Hide outside top {config.rankedTopN} by power
-              </label>
-              <label className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] select-none">
-                Min power
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={simpleMinPowerInput}
-                  onChange={(e) => setSimpleMinPowerInput(e.target.value)}
-                  placeholder="0"
-                  className="w-16 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
-                  title="Hide players below this power (in millions). Blank = no floor."
-                />
-                <span className="text-[var(--text-muted)]">M</span>
-              </label>
-              <label className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={showGovId}
-                  onChange={(e) => setShowGovId(e.target.checked)}
-                  className="accent-[#4318ff]"
-                />
-                Show Gov ID
-              </label>
-              <span className="text-xs text-[var(--text-muted)]">{simpleFiltered.length} shown</span>
-              <span className="text-xs text-[var(--text-muted)] ml-auto">
-                Goal: DKP ≥ power × <span className="font-mono text-[var(--text-secondary)]">{config.simpleMultiplier}</span>
-              </span>
+              {/* Filters row */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <label className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={simpleHideOutsideTop}
+                    onChange={(e) => setSimpleHideOutsideTop(e.target.checked)}
+                    className="accent-[#4318ff]"
+                  />
+                  Top {config.rankedTopN}
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] select-none">
+                  Min
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={simpleMinPowerInput}
+                    onChange={(e) => setSimpleMinPowerInput(e.target.value)}
+                    placeholder="0"
+                    className="w-14 px-1.5 py-0.5 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                    title="Hide players below this power (in millions). Blank = no floor."
+                  />
+                  M
+                </label>
+                <label className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={showGovId}
+                    onChange={(e) => setShowGovId(e.target.checked)}
+                    className="accent-[#4318ff]"
+                  />
+                  Gov ID
+                </label>
+                <span className="text-xs text-[var(--text-muted)]">{simpleFiltered.length} shown</span>
+                <span className="text-xs text-[var(--text-muted)] sm:ml-auto">
+                  Goal: DKP ≥ power × <span className="font-mono text-[var(--text-secondary)]">{config.simpleMultiplier}</span>
+                </span>
+              </div>
             </section>
 
             {/* Simple-mode table */}
@@ -2164,7 +2168,7 @@ function DkpPageInner() {
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
                     <tr>
-                      <th className="px-3 py-2 text-right w-10">#</th>
+                      <th className="px-1 sm:px-3 py-2 text-right w-8 sm:w-10">#</th>
                       {isOfficer && (
                         <th className="px-1 py-2 w-8">
                           <button
@@ -2188,20 +2192,20 @@ function DkpPageInner() {
                         </th>
                       )}
                       {(([
-                        { key: 'name' as const, label: 'Name', align: 'text-left' },
-                        { key: 'power' as const, label: 'Power', align: 'text-right' },
-                        { key: 't4Kills' as const, label: 'T4 Kills', align: 'text-right' },
-                        { key: 't5Kills' as const, label: 'T5 Kills', align: 'text-right' },
-                        { key: 't4Deaths' as const, label: 'T4 Deaths', align: 'text-right' },
-                        { key: 't5Deaths' as const, label: 'T5 Deaths', align: 'text-right' },
-                        { key: 'kp' as const, label: 'KP', align: 'text-right' },
-                        { key: 'dkp' as const, label: 'DKP', align: 'text-right' },
-                        { key: 'ratio' as const, label: 'Ratio', align: 'text-right' },
-                        ...(isOfficer ? [{ key: 'status' as const, label: 'Status', align: 'text-center' }] : []),
+                        { key: 'name' as const, label: 'Name', align: 'text-left', hide: '' },
+                        { key: 'power' as const, label: 'Power', align: 'text-right', hide: '' },
+                        { key: 't4Kills' as const, label: 'T4K', align: 'text-right', hide: 'hidden md:table-cell' },
+                        { key: 't5Kills' as const, label: 'T5K', align: 'text-right', hide: 'hidden md:table-cell' },
+                        { key: 't4Deaths' as const, label: 'T4D', align: 'text-right', hide: 'hidden md:table-cell' },
+                        { key: 't5Deaths' as const, label: 'T5D', align: 'text-right', hide: 'hidden md:table-cell' },
+                        { key: 'kp' as const, label: 'KP', align: 'text-right', hide: 'hidden lg:table-cell' },
+                        { key: 'dkp' as const, label: 'DKP', align: 'text-right', hide: '' },
+                        { key: 'ratio' as const, label: 'Ratio', align: 'text-right', hide: '' },
+                        ...(isOfficer ? [{ key: 'status' as const, label: 'Status', align: 'text-center', hide: '' }] : []),
                       ])).map((col) => {
                         const active = simpleSortKey === col.key;
                         return (
-                          <th key={col.key} className={`px-3 py-2 ${col.align}`}>
+                          <th key={col.key} className={`px-2 sm:px-3 py-2 ${col.align} ${col.hide}`}>
                             <button
                               type="button"
                               onClick={() => {
@@ -2225,7 +2229,7 @@ function DkpPageInner() {
                   <tbody>
                     {simpleFiltered.map((p) => (
                       <tr key={p.characterId} className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
-                        <td className="px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">{simpleRankById.get(p.characterId)}</td>
+                        <td className="px-1 sm:px-3 py-2 text-right text-[var(--text-muted)] tabular-nums text-xs sm:text-sm">{simpleRankById.get(p.characterId)}</td>
                         {isOfficer && (
                           <td className="px-1 py-2 text-center">
                             <button
@@ -2244,31 +2248,31 @@ function DkpPageInner() {
                             </button>
                           </td>
                         )}
-                        <td className="px-3 py-2 text-left">
+                        <td className="px-2 sm:px-3 py-2 text-left">
                           <PlayerNameCell name={p.username} govId={p.characterId} showGovId={showGovId} />
                         </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+                        <td className="px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                           {fmtM(p.power)}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                        <td className="hidden md:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
                           {fmt(p.t4Kills)}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                        <td className="hidden md:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
                           {fmt(p.t5Kills)}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                        <td className="hidden md:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
                           {fmt(p.t4Deaths)}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                        <td className="hidden md:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
                           {fmt(p.t5Deaths)}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                        <td className="hidden lg:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
                           {fmt(p.totalKP)}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+                        <td className="px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                           {fmt(Math.round(p.simpleDkp))}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+                        <td className="px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                           {p.simpleRatio.toFixed(2)}×
                         </td>
                         {isOfficer && (
