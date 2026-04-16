@@ -866,14 +866,19 @@ function DkpPageInner() {
     return { totalPower, flaggedPower, afterMigration, zeroLoss, afterZero };
   }, [simpleScored, flaggedForMigration]);
 
+  // Two sets of counts: filtered (reflects Top-N + min-power) and full (all scored).
   const simpleCounts = useMemo(() => {
-    let pass = 0, below = 0;
-    for (const p of simpleScored) {
+    let pass = 0, below = 0, passAll = 0, belowAll = 0;
+    for (const p of simpleRanked) {
       if (p.simpleStatus === 'PASS') pass++;
       else below++;
     }
-    return { pass, below };
-  }, [simpleScored]);
+    for (const p of simpleScored) {
+      if (p.simpleStatus === 'PASS') passAll++;
+      else belowAll++;
+    }
+    return { pass, below, passAll, belowAll };
+  }, [simpleRanked, simpleScored]);
 
   // The Score column (key 'finalScore') now displays bandScore, so sort by bandScore when that key is active.
   const sortProp = sortKey === 'finalScore' ? 'bandScore' : sortKey;
@@ -1142,10 +1147,10 @@ function DkpPageInner() {
         {/* Simple-ratio summary */}
         {scoringMode === 'simple' && (
           <section className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
-            <SummaryCard label="Players" value={fmt(simpleScored.length)} />
-            <SummaryCard label="Pass" value={fmt(simpleCounts.pass)} tone="good" />
-            <SummaryCard label={isOfficer ? 'Below' : 'Low'} value={fmt(simpleCounts.below)} tone="review" />
-            <SummaryCard label="Total DKP" value={fmt(simpleScored.reduce((s, p) => s + p.simpleDkp, 0))} />
+            <SummaryCard label="Players" value={fmt(simpleRanked.length)} subvalue={`of ${fmt(simpleScored.length)} total`} />
+            <SummaryCard label="Pass" value={fmt(simpleCounts.pass)} subvalue={`of ${fmt(simpleCounts.passAll)} total`} tone="good" />
+            <SummaryCard label={isOfficer ? 'Below' : 'Low'} value={fmt(simpleCounts.below)} subvalue={`of ${fmt(simpleCounts.belowAll)} total`} tone="review" />
+            <SummaryCard label="Total DKP" value={fmt(simpleRanked.reduce((s, p) => s + p.simpleDkp, 0))} subvalue={`of ${fmt(simpleScored.reduce((s, p) => s + p.simpleDkp, 0))} total`} />
           </section>
         )}
 
@@ -2930,10 +2935,13 @@ function FileInput({
 function SummaryCard({
   label,
   value,
+  subvalue,
   tone,
 }: {
   label: string;
   value: string;
+  /** Optional muted second line — e.g. 'of N total' when the primary value is filtered. */
+  subvalue?: string;
   tone?: 'excellent' | 'approved' | 'good' | 'review';
 }) {
   // Match the status pill palette so the summary cards visually pair with the table.
@@ -2953,6 +2961,7 @@ function SummaryCard({
         {label}
       </div>
       <div className={`text-lg sm:text-xl font-semibold ${toneClass} tabular-nums`}>{value}</div>
+      {subvalue && <div className="text-[11px] text-[var(--text-muted)] tabular-nums mt-0.5">{subvalue}</div>}
     </div>
   );
 }
