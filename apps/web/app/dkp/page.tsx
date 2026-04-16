@@ -2138,6 +2138,15 @@ function DkpPageInner() {
                 />
                 <span className="text-[var(--text-muted)]">M</span>
               </label>
+              <label className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showGovId}
+                  onChange={(e) => setShowGovId(e.target.checked)}
+                  className="accent-[#4318ff]"
+                />
+                Show Gov ID
+              </label>
               <span className="text-xs text-[var(--text-muted)]">{simpleFiltered.length} shown</span>
               <span className="text-xs text-[var(--text-muted)] ml-auto">
                 Goal: DKP ≥ power × <span className="font-mono text-[var(--text-secondary)]">{config.simpleMultiplier}</span>

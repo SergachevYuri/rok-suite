@@ -878,7 +878,7 @@
       "honorHint": "Raw honor points from the Statmaster honor file (matched by name)."
     },
     "filters": {
-      "searchPlaceholder": "Search…",
+      "searchPlaceholder": "Search by name or Gov ID…",
       "rankTooltip": "Global rank by current sort. Search/filter does not renumber.",
       "noPlayers": "No players match.",
       "loading": "Loading…",
