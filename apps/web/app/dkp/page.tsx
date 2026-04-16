@@ -2079,6 +2079,9 @@ function DkpPageInner() {
                 Hide outside top {config.rankedTopN} by power
               </label>
               <span className="text-xs text-[var(--text-muted)]">{simpleFiltered.length} shown</span>
+              <span className="text-xs text-[var(--text-muted)] ml-auto">
+                Goal: DKP ≥ power × <span className="font-mono text-[var(--text-secondary)]">{config.simpleMultiplier}</span>
+              </span>
             </section>
 
             {/* Simple-mode table */}
@@ -2089,7 +2092,7 @@ function DkpPageInner() {
                     <tr>
                       <th className="px-3 py-2 text-right w-10">#</th>
                       {isOfficer && <th className="px-1 py-2 w-8"></th>}
-                      {([
+                      {(([
                         { key: 'name' as const, label: 'Name', align: 'text-left' },
                         { key: 'power' as const, label: 'Power', align: 'text-right' },
                         { key: 't4Kills' as const, label: 'T4 Kills', align: 'text-right' },
@@ -2098,8 +2101,8 @@ function DkpPageInner() {
                         { key: 't5Deaths' as const, label: 'T5 Deaths', align: 'text-right' },
                         { key: 'dkp' as const, label: 'DKP', align: 'text-right' },
                         { key: 'ratio' as const, label: 'Ratio', align: 'text-right' },
-                        { key: 'status' as const, label: 'Status', align: 'text-center' },
-                      ]).map((col) => {
+                        ...(isOfficer ? [{ key: 'status' as const, label: 'Status', align: 'text-center' }] : []),
+                      ])).map((col) => {
                         const active = simpleSortKey === col.key;
                         return (
                           <th key={col.key} className={`px-3 py-2 ${col.align}`}>
@@ -2167,26 +2170,36 @@ function DkpPageInner() {
                           {fmt(Math.round(p.simpleDkp))}
                         </td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums">
-                          <span className={p.simpleStatus === 'PASS' ? 'text-green-400' : 'text-rose-400'}>
+                          <span
+                            className={
+                              p.simpleStatus === 'PASS'
+                                ? 'text-green-400'
+                                : isOfficer
+                                  ? 'text-rose-400'
+                                  : 'text-[var(--text-secondary)]'
+                            }
+                          >
                             {p.simpleRatio.toFixed(2)}×
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-center">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                              p.simpleStatus === 'PASS'
-                                ? 'bg-green-500/15 text-green-400 border-green-500/30'
-                                : STATUS_STYLES.REJECTED
-                            }`}
-                          >
-                            {p.simpleStatus === 'PASS' ? 'PASS' : isOfficer ? 'BELOW' : 'LOW'}
-                          </span>
-                        </td>
+                        {isOfficer && (
+                          <td className="px-3 py-2 text-center">
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                p.simpleStatus === 'PASS'
+                                  ? 'bg-green-500/15 text-green-400 border-green-500/30'
+                                  : STATUS_STYLES.REJECTED
+                              }`}
+                            >
+                              {p.simpleStatus === 'PASS' ? 'PASS' : 'BELOW'}
+                            </span>
+                          </td>
+                        )}
                       </tr>
                     ))}
                     {simpleFiltered.length === 0 && (
                       <tr>
-                        <td colSpan={isOfficer ? 11 : 10} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
+                        <td colSpan={isOfficer ? 11 : 9} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
                           {loadingDefault ? t('filters.loading') : t('filters.noPlayers')}
                         </td>
                       </tr>
