@@ -16,6 +16,7 @@ import {
   Settings2,
   Info,
   Sparkles,
+  Flag,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
@@ -1059,7 +1060,17 @@ function DkpPageInner() {
               {dataset?.uploadedBy && t('uploadedBy', { name: dataset.uploadedBy })}
             </p>
           </div>
-          <OfficerBadge />
+          <div className="flex items-center gap-2">
+            {isOfficer && (
+              <a
+                href="/dkp/migration"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--background-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
+              >
+                <Flag size={12} /> Migration Cases
+              </a>
+            )}
+            <OfficerBadge />
+          </div>
         </header>
 
         {/* Officer-only upload panel */}
