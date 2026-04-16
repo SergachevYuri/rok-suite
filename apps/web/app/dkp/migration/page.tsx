@@ -15,8 +15,7 @@ import {
 } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
-import { loadLatestDataset, loadConfigRow, MIGRATION_ROW_ID, parseStatsFile } from '../data';
-import type { Player } from '@/lib/kingdom/types';
+import { loadLatestDataset, loadConfigRow, MIGRATION_ROW_ID, parseStatsFile, type Player } from '../data';
 import {
   type MigrationCase,
   type MigrationCycle,
