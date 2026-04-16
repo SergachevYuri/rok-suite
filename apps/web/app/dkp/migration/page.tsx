@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  ChevronDown,
   Flag,
   Lock,
   LogOut,
@@ -111,6 +112,18 @@ function MigrationPageInner() {
   const [showNewCycle, setShowNewCycle] = useState(false);
   const [showEditCycle, setShowEditCycle] = useState(false);
   const [now, setNow] = useState<Date>(() => new Date());
+  // Instructions panel — collapsed state persists per browser.
+  const [guideOpen, setGuideOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem('migration-guide-collapsed') !== '1';
+  });
+  const toggleGuide = () => {
+    setGuideOpen((o) => {
+      const next = !o;
+      try { window.localStorage.setItem('migration-guide-collapsed', next ? '0' : '1'); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -403,6 +416,59 @@ function MigrationPageInner() {
               </>
             )}
           </div>
+        </section>
+
+        {/* How this works */}
+        <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
+          <button
+            onClick={toggleGuide}
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--background-hover)] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-[var(--foreground)]">How this works</span>
+              {!guideOpen && <span className="text-[11px] text-[var(--text-muted)]">click to expand</span>}
+            </div>
+            <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${guideOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {guideOpen && (
+            <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-3">
+              <p className="text-xs text-[var(--text-muted)]">
+                Goal: track everyone flagged on the DKP page from the moment we decide they need to migrate, through contact and outcome, with a record of who's been zeroed or excepted and why.
+              </p>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Workflow</div>
+                <ol className="space-y-1.5 text-xs list-decimal pl-5">
+                  <li><strong>Admin creates a cycle</strong> at the start of a migration round (e.g. "April 2026"), sets a UTC deadline, and snapshots the currently flagged players into it.</li>
+                  <li><strong>Officer claims a case</strong> — click "Claim" on a pending row. This is your commitment to message that player. Claimed cases show your name so others don't duplicate work.</li>
+                  <li><strong>Mark contacted</strong> once you've DM'd them. Mark <strong>Acknowledged</strong> once they've replied.</li>
+                  <li><strong>Mark Migrated</strong> if they leave the kingdom. Can be done at any state.</li>
+                  <li><strong>Admin grants an Exception</strong> (with a required reason) if a player has a legitimate excuse. Exceptions can be granted any time before the deadline.</li>
+                  <li><strong>After the deadline</strong> — any case still not migrated/excepted shows as at-risk. Officers confirm <strong>Zeroed</strong> once the zeroing actually happens in-game.</li>
+                </ol>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">State meanings</div>
+                <ul className="text-xs space-y-1">
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]">Pending</span> nobody claimed yet</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-blue-500/15 text-blue-400 border-blue-500/30">Claimed</span> an officer is handling the contact</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-sky-500/15 text-sky-400 border-sky-500/30">Contacted</span> message sent</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-violet-500/15 text-violet-400 border-violet-500/30">Acknowledged</span> player responded</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Migrated</span> player left the kingdom</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">Excepted</span> admin granted a pass (with a reason)</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> deadline hit, player was zeroed</li>
+                </ul>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Good to know</div>
+                <ul className="text-xs space-y-1 list-disc pl-5">
+                  <li><strong>Scan delta</strong> — upload a fresh stats XLSX and players missing from it are suggested as migrated. You still have to click Migrated to confirm, but this saves auditing one by one.</li>
+                  <li><strong>Add current flags</strong> — if officers flag more people on the DKP page mid-cycle, click this button in the cycle bar to pull the new flags in. Duplicates are skipped.</li>
+                  <li><strong>Notes</strong> — every case has a shared notes field; use it for context other officers should see ("they said they'd move on Friday", "alt account", etc.).</li>
+                  <li><strong>Admin-only actions</strong> — creating/editing/closing/deleting cycles, and granting exceptions. Everything else is officer.</li>
+                </ul>
+              </div>
+            </div>
+          )}
         </section>
 
         {!selectedCycle ? (
