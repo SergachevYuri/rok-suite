@@ -668,7 +668,7 @@ function DkpPageInner() {
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
   const [hideUnranked, setHideUnranked] = useState(true);
   const [scoringMode, setScoringMode] = useState<'bands' | 'simple'>('simple');
-  const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status' | 't4Kills' | 't5Kills' | 't4Deaths' | 't5Deaths' | 'kp'>('dkp');
+  const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status' | 't4Kills' | 't5Kills' | 't4Deaths' | 't5Deaths' | 'kp' | 'flagged'>('dkp');
   const [simpleSortDir, setSimpleSortDir] = useState<'asc' | 'desc'>('desc');
   const [simpleHideOutsideTop, setSimpleHideOutsideTop] = useState(false);
   const [simpleMinPowerInput, setSimpleMinPowerInput] = useState('');
@@ -832,9 +832,14 @@ function DkpPageInner() {
         case 't4Deaths': return (a.t4Deaths - b.t4Deaths) * dir;
         case 't5Deaths': return (a.t5Deaths - b.t5Deaths) * dir;
         case 'kp': return (a.totalKP - b.totalKP) * dir;
+        case 'flagged': {
+          const af = flaggedForMigration.has(a.characterId) ? 1 : 0;
+          const bf = flaggedForMigration.has(b.characterId) ? 1 : 0;
+          return (af - bf) * dir;
+        }
       }
     });
-  }, [simpleScored, simpleSortKey, simpleSortDir, simpleHideOutsideTop, simpleTopNIds, simpleMinPower]);
+  }, [simpleScored, simpleSortKey, simpleSortDir, simpleHideOutsideTop, simpleTopNIds, simpleMinPower, flaggedForMigration]);
 
   const simpleRankById = useMemo(() => {
     const m = new Map<number, number>();
@@ -2160,7 +2165,26 @@ function DkpPageInner() {
                   <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
                     <tr>
                       <th className="px-3 py-2 text-right w-10">#</th>
-                      <th className="px-1 py-2 w-8" title="Flagged for emigration"></th>
+                      <th className="px-1 py-2 w-8">
+                        <button
+                          type="button"
+                          title="Sort by emigration flag"
+                          onClick={() => {
+                            if (simpleSortKey === 'flagged') {
+                              setSimpleSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                            } else {
+                              setSimpleSortKey('flagged');
+                              setSimpleSortDir('desc');
+                            }
+                          }}
+                          className={`inline-flex items-center justify-center p-0.5 hover:text-[var(--foreground)] transition-colors ${simpleSortKey === 'flagged' ? 'text-[var(--foreground)]' : 'text-[var(--text-muted)]'}`}
+                        >
+                          <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                            <path d="M2 1a1 1 0 0 1 1 1v1h9.5a.5.5 0 0 1 .4.8L10.5 7l2.4 3.2a.5.5 0 0 1-.4.8H3v4a1 1 0 1 1-2 0V2a1 1 0 0 1 1-1z"/>
+                          </svg>
+                          {simpleSortKey === 'flagged' && <span className="text-[9px] ml-0.5">{simpleSortDir === 'asc' ? '▲' : '▼'}</span>}
+                        </button>
+                      </th>
                       {(([
                         { key: 'name' as const, label: 'Name', align: 'text-left' },
                         { key: 'power' as const, label: 'Power', align: 'text-right' },
@@ -2248,18 +2272,8 @@ function DkpPageInner() {
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                           {fmt(Math.round(p.simpleDkp))}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono tabular-nums">
-                          <span
-                            className={
-                              p.simpleStatus === 'PASS'
-                                ? 'text-green-400'
-                                : isOfficer
-                                  ? 'text-rose-400'
-                                  : 'text-[var(--text-secondary)]'
-                            }
-                          >
-                            {p.simpleRatio.toFixed(2)}×
-                          </span>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
+                          {p.simpleRatio.toFixed(2)}×
                         </td>
                         {isOfficer && (
                           <td className="px-3 py-2 text-center">
