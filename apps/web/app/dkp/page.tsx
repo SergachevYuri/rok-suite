@@ -841,6 +841,21 @@ function DkpPageInner() {
     );
   }, [simpleRanked, search]);
 
+  // Migration impact stats for the simple view (officer-only UI).
+  // "Zeroing drops power by ~15%" → kingdom loses 15% of each zeroed player's current power.
+  const ZERO_POWER_DROP = 0.15;
+  const simpleMigrationImpact = useMemo(() => {
+    const totalPower = simpleScored.reduce((s, p) => s + p.power, 0);
+    let flaggedPower = 0;
+    for (const p of simpleScored) {
+      if (flaggedForMigration.has(p.characterId)) flaggedPower += p.power;
+    }
+    const afterMigration = totalPower - flaggedPower;
+    const zeroLoss = flaggedPower * ZERO_POWER_DROP;
+    const afterZero = totalPower - zeroLoss;
+    return { totalPower, flaggedPower, afterMigration, zeroLoss, afterZero };
+  }, [simpleScored, flaggedForMigration]);
+
   const simpleCounts = useMemo(() => {
     let pass = 0, below = 0;
     for (const p of simpleScored) {
@@ -1109,6 +1124,54 @@ function DkpPageInner() {
             <SummaryCard label="Pass" value={fmt(simpleCounts.pass)} tone="good" />
             <SummaryCard label={isOfficer ? 'Below' : 'Low'} value={fmt(simpleCounts.below)} tone="review" />
             <SummaryCard label="Total DKP" value={fmt(simpleScored.reduce((s, p) => s + p.simpleDkp, 0))} />
+          </section>
+        )}
+
+        {/* Simple-ratio migration impact (officer-only) */}
+        {scoringMode === 'simple' && isOfficer && (
+          <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h2 className="text-sm font-semibold text-[var(--foreground)]">Migration Impact</h2>
+              <span className="text-xs text-[var(--text-muted)] tabular-nums">
+                {flaggedForMigration.size} flagged · {fmtM(simpleMigrationImpact.flaggedPower)} power
+                {simpleMigrationImpact.totalPower > 0 && (
+                  <> ({((simpleMigrationImpact.flaggedPower / simpleMigrationImpact.totalPower) * 100).toFixed(1)}% of kingdom)</>
+                )}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] p-3">
+                <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-1">Kingdom Power</div>
+                <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">
+                  {fmtM(simpleMigrationImpact.totalPower)}
+                </div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">Current total (all visible players)</div>
+              </div>
+              <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 p-3">
+                <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Flagged Migrate</div>
+                <div className="text-xl font-bold tabular-nums text-rose-400">
+                  {fmtM(simpleMigrationImpact.afterMigration)}
+                </div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  −{fmtM(simpleMigrationImpact.flaggedPower)}
+                  {simpleMigrationImpact.totalPower > 0 && (
+                    <> ({((simpleMigrationImpact.flaggedPower / simpleMigrationImpact.totalPower) * 100).toFixed(1)}% loss)</>
+                  )}
+                </div>
+              </div>
+              <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-3">
+                <div className="text-xs text-amber-400 uppercase tracking-wider mb-1">If Flagged Zeroed ({Math.round(ZERO_POWER_DROP * 100)}%)</div>
+                <div className="text-xl font-bold tabular-nums text-amber-400">
+                  {fmtM(simpleMigrationImpact.afterZero)}
+                </div>
+                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  −{fmtM(simpleMigrationImpact.zeroLoss)}
+                  {simpleMigrationImpact.totalPower > 0 && (
+                    <> ({((simpleMigrationImpact.zeroLoss / simpleMigrationImpact.totalPower) * 100).toFixed(2)}% loss)</>
+                  )}
+                </div>
+              </div>
+            </div>
           </section>
         )}
 
