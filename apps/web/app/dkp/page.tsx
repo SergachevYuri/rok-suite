@@ -670,7 +670,7 @@ function DkpPageInner() {
   const [scoringMode, setScoringMode] = useState<'bands' | 'simple'>('simple');
   const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status' | 't4Kills' | 't5Kills' | 't4Deaths' | 't5Deaths' | 'kp'>('dkp');
   const [simpleSortDir, setSimpleSortDir] = useState<'asc' | 'desc'>('desc');
-  const [simpleHideOutsideTop, setSimpleHideOutsideTop] = useState(true);
+  const [simpleHideOutsideTop, setSimpleHideOutsideTop] = useState(false);
   const [simpleMinPowerInput, setSimpleMinPowerInput] = useState('');
   const [showGovId, setShowGovId] = useState(false);
   /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
@@ -2151,7 +2151,7 @@ function DkpPageInner() {
                   <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
                     <tr>
                       <th className="px-3 py-2 text-right w-10">#</th>
-                      {isOfficer && <th className="px-1 py-2 w-8"></th>}
+                      <th className="px-1 py-2 w-8" title="Flagged for emigration"></th>
                       {(([
                         { key: 'name' as const, label: 'Name', align: 'text-left' },
                         { key: 'power' as const, label: 'Power', align: 'text-right' },
@@ -2191,8 +2191,8 @@ function DkpPageInner() {
                     {simpleFiltered.map((p) => (
                       <tr key={p.characterId} className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
                         <td className="px-3 py-2 text-right text-[var(--text-muted)] tabular-nums">{simpleRankById.get(p.characterId)}</td>
-                        {isOfficer && (
-                          <td className="px-1 py-2 text-center">
+                        <td className="px-1 py-2 text-center">
+                          {isOfficer ? (
                             <button
                               type="button"
                               onClick={() => toggleFlagged(p.characterId)}
@@ -2201,14 +2201,20 @@ function DkpPageInner() {
                                   ? 'text-rose-400 hover:text-rose-300'
                                   : 'text-[var(--text-muted)]/30 hover:text-rose-400'
                               }`}
-                              title={flaggedForMigration.has(p.characterId) ? 'Unflag for migration' : 'Flag for migration'}
+                              title={flaggedForMigration.has(p.characterId) ? 'Unflag for emigration' : 'Flag for emigration'}
                             >
                               <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
                                 <path d="M2 1a1 1 0 0 1 1 1v1h9.5a.5.5 0 0 1 .4.8L10.5 7l2.4 3.2a.5.5 0 0 1-.4.8H3v4a1 1 0 1 1-2 0V2a1 1 0 0 1 1-1z"/>
                               </svg>
                             </button>
-                          </td>
-                        )}
+                          ) : flaggedForMigration.has(p.characterId) ? (
+                            <span className="inline-flex items-center text-rose-400" title="Flagged for emigration">
+                              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                                <path d="M2 1a1 1 0 0 1 1 1v1h9.5a.5.5 0 0 1 .4.8L10.5 7l2.4 3.2a.5.5 0 0 1-.4.8H3v4a1 1 0 1 1-2 0V2a1 1 0 0 1 1-1z"/>
+                              </svg>
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="px-3 py-2 text-left">
                           <PlayerNameCell name={p.username} govId={p.characterId} showGovId={showGovId} />
                         </td>
@@ -2263,7 +2269,7 @@ function DkpPageInner() {
                     ))}
                     {simpleFiltered.length === 0 && (
                       <tr>
-                        <td colSpan={isOfficer ? 12 : 10} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
+                        <td colSpan={isOfficer ? 12 : 11} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
                           {loadingDefault ? t('filters.loading') : t('filters.noPlayers')}
                         </td>
                       </tr>
