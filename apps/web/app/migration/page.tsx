@@ -46,9 +46,9 @@ import {
 } from '@/lib/supabase/use-migration-cases';
 
 const STATE_LABELS: Record<MigrationState, string> = {
-  pending: 'Pending',
-  claimed: 'Claimed',
-  contacted: 'Contacted',
+  pending: 'Notified',
+  claimed: 'Notified',
+  contacted: 'Notified',
   excepted: 'Excepted',
   migrated: 'Emigrated',
   marked_to_zero: 'To Zero',
@@ -57,16 +57,16 @@ const STATE_LABELS: Record<MigrationState, string> = {
 
 const STATE_STYLES: Record<MigrationState, string> = {
   pending: 'bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]',
-  claimed: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  contacted: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+  claimed: 'bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]',
+  contacted: 'bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]',
   excepted: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
   migrated: 'bg-green-500/15 text-green-400 border-green-500/30',
   marked_to_zero: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
   zeroed: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
 };
 
-/** Summary strip + filter dropdown order (also the mental flow). */
-const STATE_ORDER: MigrationState[] = ['pending', 'claimed', 'contacted', 'excepted', 'migrated', 'marked_to_zero', 'zeroed'];
+/** Visible states in the summary strip + filter dropdown. claimed/contacted are merged into pending (Notified). */
+const STATE_ORDER: MigrationState[] = ['pending', 'excepted', 'migrated', 'marked_to_zero', 'zeroed'];
 
 const ZERO_POWER_DROP = 0.15;
 
@@ -193,12 +193,13 @@ function MigrationPageInner() {
   const pastDeadline = !!selectedCycle && now.getTime() > deadlineMs;
   const hoursToDeadline = selectedCycle ? (deadlineMs - now.getTime()) / 3_600_000 : 0;
 
-  // Derived state
+  // Derived state — claimed/contacted are rolled into pending for display purposes.
   const counts = useMemo(() => {
     const c: Record<MigrationState, number> = {
       pending: 0, claimed: 0, contacted: 0, excepted: 0, migrated: 0, marked_to_zero: 0, zeroed: 0,
     };
     for (const k of cases) c[k.state]++;
+    c.pending += c.claimed + c.contacted;
     return c;
   }, [cases]);
 
@@ -215,6 +216,7 @@ function MigrationPageInner() {
   const filteredCases = useMemo(() => {
     let list = cases;
     if (stateFilter === 'active') list = list.filter((c) => !TERMINAL_STATES.includes(c.state));
+    else if (stateFilter === 'pending') list = list.filter((c) => c.state === 'pending' || c.state === 'claimed' || c.state === 'contacted');
     else if (stateFilter !== 'all') list = list.filter((c) => c.state === stateFilter);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -446,20 +448,17 @@ function MigrationPageInner() {
                 <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Workflow</div>
                 <ol className="space-y-1.5 text-xs list-decimal pl-5">
                   <li><strong>Admin creates a cycle</strong> at the start of an emigration round (e.g. "April 2026"), sets a UTC deadline, and snapshots the currently flagged players into it.</li>
-                  <li><strong>Officer claims a case</strong> — click "Claim" on a pending row. This is your commitment to message that player. Claimed cases show your name so others don't duplicate work.</li>
-                  <li><strong>Mark Contacted</strong> once you've DM'd them.</li>
-                  <li><strong>Mark Emigrated</strong> if they leave the kingdom. Can be done at any state.</li>
-                  <li><strong>Admin grants an Exception</strong> (with a required reason) if a player has a legitimate excuse. Exceptions can be granted any time before the deadline.</li>
-                  <li><strong>After the deadline</strong> — officers click <strong>Mark to Zero</strong> on active cases that didn't emigrate or get excepted. This flags them for zeroing but doesn't mean it's done.</li>
-                  <li><strong>Confirm Zeroed</strong> once the zeroing actually happens in-game. (Or click Emigrated instead if the player left before you could zero them.)</li>
+                  <li><strong>Players are notified</strong> via a bulk email/message with the list. Everyone starts in the "Notified" state.</li>
+                  <li><strong>Admin grants an Exception</strong> (with a required reason) if a player has a legitimate excuse.</li>
+                  <li><strong>Mark Emigrated</strong> if they leave the kingdom. Officers can do this at any point, or use the scan-delta tool to auto-detect departures.</li>
+                  <li><strong>After the deadline</strong> — officers click <strong>Mark to Zero</strong> on cases that didn't emigrate or get excepted.</li>
+                  <li><strong>Confirm Zeroed</strong> once the zeroing actually happens in-game. (Or click Emigrated instead if the player left before being zeroed.)</li>
                 </ol>
               </div>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">State meanings</div>
                 <ul className="text-xs space-y-1">
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]">Pending</span> nobody claimed yet</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-blue-500/15 text-blue-400 border-blue-500/30">Claimed</span> an officer is handling the contact</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-sky-500/15 text-sky-400 border-sky-500/30">Contacted</span> message sent</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]">Notified</span> player has been notified, waiting for action</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">Excepted</span> admin granted a pass (with a reason)</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Emigrated</span> player left the kingdom</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-orange-500/15 text-orange-400 border-orange-500/30">To Zero</span> officer decided to zero them — not yet confirmed</li>
@@ -579,7 +578,6 @@ function MigrationPageInner() {
                       <th className="px-3 py-2 text-left">Player</th>
                       <th className="px-3 py-2 text-right">Power</th>
                       <th className="px-3 py-2 text-left">State</th>
-                      <th className="px-3 py-2 text-left">Claimed by</th>
                       <th className="px-3 py-2 text-left">Last action</th>
                       <th className="px-3 py-2 text-left">Actions</th>
                     </tr>
@@ -597,7 +595,7 @@ function MigrationPageInner() {
                     ))}
                     {filteredCases.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
+                        <td colSpan={5} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
                           No cases match your filters.
                         </td>
                       </tr>
@@ -964,23 +962,11 @@ function CaseRow({
           <div className="text-[10px] text-amber-400 mt-1">Suggested emigrated from scan</div>
         )}
       </td>
-      <td className="px-3 py-2 text-xs text-[var(--text-secondary)]">
-        {c.claimed_by ?? <span className="text-[var(--text-muted)]">—</span>}
-      </td>
       <td className="px-3 py-2 text-xs text-[var(--text-muted)]">
         {lastAction ? <>{lastAction.label} · {formatDateTime(lastAction.iso)}</> : '—'}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap gap-1">
-          {isOfficer && c.state === 'pending' && (
-            <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => claimCase(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 hover:bg-blue-500/25">Claim</button>
-          )}
-          {isOfficer && c.state === 'claimed' && (
-            <>
-              <button disabled={busy} onClick={() => wrap(() => markContacted(c.id))} className="px-2 py-1 text-[11px] rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 hover:bg-sky-500/25">Contacted</button>
-              <button disabled={busy} onClick={() => wrap(() => unclaimCase(c.id))} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">Unclaim</button>
-            </>
-          )}
           {isOfficer && isActive && c.state !== 'marked_to_zero' && (
             <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25">Emigrated</button>
           )}
