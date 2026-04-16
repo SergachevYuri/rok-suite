@@ -1973,17 +1973,9 @@ function DkpPageInner() {
                     return (
                       <div key={k}>
                         <label className="block text-xs text-[var(--text-muted)] mb-1">{labels[k]}</label>
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.1}
+                        <NumberDraftInput
                           value={config.simpleFormula[k]}
-                          onChange={(e) => {
-                            const v = parseFloat(e.target.value);
-                            if (!Number.isNaN(v) && v >= 0) {
-                              setConfig((c) => ({ ...c, simpleFormula: { ...c.simpleFormula, [k]: v } }));
-                            }
-                          }}
+                          onChange={(v) => setConfig((c) => ({ ...c, simpleFormula: { ...c.simpleFormula, [k]: v } }))}
                           className="w-full px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
                         />
                       </div>
@@ -1991,17 +1983,9 @@ function DkpPageInner() {
                   })}
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">Power multiplier</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.1}
+                    <NumberDraftInput
                       value={config.simpleMultiplier}
-                      onChange={(e) => {
-                        const v = parseFloat(e.target.value);
-                        if (!Number.isNaN(v) && v >= 0) {
-                          setConfig((c) => ({ ...c, simpleMultiplier: v }));
-                        }
-                      }}
+                      onChange={(v) => setConfig((c) => ({ ...c, simpleMultiplier: v }))}
                       className="w-full px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm tabular-nums text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
                     />
                   </div>
@@ -3005,6 +2989,46 @@ function ConfigSummaryLine({ config }: { config: Config }) {
 }
 
 /** Power input shown/edited in millions (e.g. "40" → 40,000,000). */
+/** A plain numeric input that keeps a local text draft so typing is never blocked. */
+function NumberDraftInput({
+  value,
+  onChange,
+  className,
+  step = 0.1,
+  min = 0,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  className?: string;
+  step?: number;
+  min?: number;
+}) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => {
+    setText(String(value));
+  }, [value]);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={text}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setText(raw);
+        const n = parseFloat(raw);
+        if (!Number.isNaN(n) && n >= min) onChange(n);
+      }}
+      onBlur={() => {
+        const n = parseFloat(text);
+        if (Number.isNaN(n) || n < min) setText(String(value));
+        else setText(String(n));
+      }}
+      step={step}
+      className={className}
+    />
+  );
+}
+
 function PowerInput({
   value,
   onChange,
