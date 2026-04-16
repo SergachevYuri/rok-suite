@@ -2164,8 +2164,8 @@ function DkpPageInner() {
 
             {/* Simple-mode table */}
             <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)]">
-              <div className="overflow-auto rounded-xl max-h-[calc(100vh-180px)]">
-                <table className="w-full text-sm">
+              <div className="overflow-y-auto overflow-x-hidden rounded-xl max-h-[calc(100vh-180px)]">
+                <table className="w-full text-sm table-fixed">
                   <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
                     <tr>
                       <th className="px-1 sm:px-3 py-2 text-right w-8 sm:w-10">#</th>
@@ -2255,22 +2255,22 @@ function DkpPageInner() {
                           {fmtM(p.power)}
                         </td>
                         <td className="hidden md:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
-                          {fmt(p.t4Kills)}
+                          {fmtM(p.t4Kills)}
                         </td>
                         <td className="hidden md:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
-                          {fmt(p.t5Kills)}
+                          {fmtM(p.t5Kills)}
                         </td>
                         <td className="hidden md:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
-                          {fmt(p.t4Deaths)}
+                          {fmtM(p.t4Deaths)}
                         </td>
                         <td className="hidden md:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
-                          {fmt(p.t5Deaths)}
+                          {fmtM(p.t5Deaths)}
                         </td>
                         <td className="hidden lg:table-cell px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
-                          {fmt(p.totalKP)}
+                          {fmtM(p.totalKP)}
                         </td>
                         <td className="px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
-                          {fmt(Math.round(p.simpleDkp))}
+                          {fmtM(Math.round(p.simpleDkp))}
                         </td>
                         <td className="px-2 sm:px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                           {p.simpleRatio.toFixed(2)}×
