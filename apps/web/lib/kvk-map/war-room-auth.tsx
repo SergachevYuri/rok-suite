@@ -12,6 +12,11 @@ const PASSWORDS: Record<Exclude<WarRoomRole, 'viewer'>, string> = {
 const ROLE_RANK: Record<WarRoomRole, number> = { viewer: 0, officer: 1, admin: 2 };
 
 const OFFICER_NAME_KEY = 'warroom-officer-name';
+const ROLE_KEY = 'warroom-role';
+
+function isValidRole(v: string | null): v is WarRoomRole {
+  return v === 'viewer' || v === 'officer' || v === 'admin';
+}
 
 interface WarRoomAuthContextType {
   role: WarRoomRole;
@@ -31,10 +36,13 @@ export function WarRoomAuthProvider({ children }: { children: ReactNode }) {
   const [officerName, setOfficerNameState] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  // Restore officer name from localStorage on mount
+  // Restore officer name + role from localStorage on mount so signing in
+  // persists across page navigations (each page wraps its own provider).
   useEffect(() => {
-    const saved = localStorage.getItem(OFFICER_NAME_KEY);
-    if (saved) setOfficerNameState(saved);
+    const savedName = localStorage.getItem(OFFICER_NAME_KEY);
+    if (savedName) setOfficerNameState(savedName);
+    const savedRole = localStorage.getItem(ROLE_KEY);
+    if (isValidRole(savedRole) && savedRole !== 'viewer') setRole(savedRole);
   }, []);
 
   const setOfficerName = useCallback((name: string | null) => {
@@ -54,11 +62,13 @@ export function WarRoomAuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback((password: string): boolean => {
     if (password === PASSWORDS.admin) {
       setRole('admin');
+      localStorage.setItem(ROLE_KEY, 'admin');
       setShowLoginPrompt(false);
       return true;
     }
     if (password === PASSWORDS.officer) {
       setRole('officer');
+      localStorage.setItem(ROLE_KEY, 'officer');
       setShowLoginPrompt(false);
       return true;
     }
@@ -67,6 +77,7 @@ export function WarRoomAuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setRole('viewer');
+    localStorage.removeItem(ROLE_KEY);
   }, []);
 
   return (
