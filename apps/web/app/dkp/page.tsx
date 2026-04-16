@@ -1149,8 +1149,8 @@ function DkpPageInner() {
           </section>
         )}
 
-        {/* Simple-ratio summary */}
-        {scoringMode === 'simple' && (
+        {/* Simple-ratio summary — officer+ only; viewers see just the table. */}
+        {scoringMode === 'simple' && isOfficer && (
           <section className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
             {(() => {
               const filterParts: string[] = [];
