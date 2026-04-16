@@ -671,6 +671,7 @@ function DkpPageInner() {
   const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status' | 't4Kills' | 't5Kills' | 't4Deaths' | 't5Deaths' | 'kp'>('dkp');
   const [simpleSortDir, setSimpleSortDir] = useState<'asc' | 'desc'>('desc');
   const [simpleHideOutsideTop, setSimpleHideOutsideTop] = useState(true);
+  const [simpleMinPowerInput, setSimpleMinPowerInput] = useState('');
   const [showGovId, setShowGovId] = useState(false);
   /** When true, numeric stat cells render as ratios vs the player's band model instead of raw values. */
   const [modelView, setModelView] = useState(false);
@@ -807,10 +808,17 @@ function DkpPageInner() {
     return new Set(sorted.slice(0, config.rankedTopN).map((p) => p.characterId));
   }, [simpleScored, config.rankedTopN]);
 
+  // Parsed min-power threshold (input is in millions; empty/invalid means no floor).
+  const simpleMinPower = useMemo(() => {
+    const n = parseFloat(simpleMinPowerInput.trim());
+    return Number.isFinite(n) && n > 0 ? n * 1_000_000 : 0;
+  }, [simpleMinPowerInput]);
+
   // Sort + top-N filter first (search-independent) so rank stays stable across searches.
   const simpleRanked = useMemo(() => {
     let list = simpleScored;
     if (simpleHideOutsideTop) list = list.filter((p) => simpleTopNIds.has(p.characterId));
+    if (simpleMinPower > 0) list = list.filter((p) => p.power >= simpleMinPower);
     const dir = simpleSortDir === 'asc' ? 1 : -1;
     return [...list].sort((a, b) => {
       switch (simpleSortKey) {
@@ -826,7 +834,7 @@ function DkpPageInner() {
         case 'kp': return (a.totalKP - b.totalKP) * dir;
       }
     });
-  }, [simpleScored, simpleSortKey, simpleSortDir, simpleHideOutsideTop, simpleTopNIds]);
+  }, [simpleScored, simpleSortKey, simpleSortDir, simpleHideOutsideTop, simpleTopNIds, simpleMinPower]);
 
   const simpleRankById = useMemo(() => {
     const m = new Map<number, number>();
@@ -2089,6 +2097,19 @@ function DkpPageInner() {
                   className="accent-[#4318ff]"
                 />
                 Hide outside top {config.rankedTopN} by power
+              </label>
+              <label className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] select-none">
+                Min power
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={simpleMinPowerInput}
+                  onChange={(e) => setSimpleMinPowerInput(e.target.value)}
+                  placeholder="0"
+                  className="w-16 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-xs tabular-nums text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                  title="Hide players below this power (in millions). Blank = no floor."
+                />
+                <span className="text-[var(--text-muted)]">M</span>
               </label>
               <span className="text-xs text-[var(--text-muted)]">{simpleFiltered.length} shown</span>
               <span className="text-xs text-[var(--text-muted)] ml-auto">
