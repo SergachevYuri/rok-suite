@@ -1077,7 +1077,7 @@ function DkpPageInner() {
           <div className="flex items-center gap-2">
             {isOfficer && (
               <a
-                href="/dkp/migration"
+                href="/migration"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--background-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
               >
                 <Flag size={12} /> Migration Cases

@@ -13,6 +13,7 @@ import {
   Calculator,
   ScrollText,
   Trophy,
+  ClipboardList,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -59,6 +60,16 @@ export default function Home() {
       hoverShadow: 'hover:shadow-yellow-500/10',
       iconHoverBg: 'group-hover:bg-yellow-500/15',
       iconHoverColor: 'group-hover:text-yellow-500',
+    },
+    {
+      href: '/migration',
+      titleKey: 'tools.migration.title',
+      descriptionKey: 'tools.migration.description',
+      icon: ClipboardList,
+      hoverBorder: 'hover:border-orange-500/40',
+      hoverShadow: 'hover:shadow-orange-500/10',
+      iconHoverBg: 'group-hover:bg-orange-500/15',
+      iconHoverColor: 'group-hover:text-orange-500',
     },
     {
       href: '/aoo-strategy',
