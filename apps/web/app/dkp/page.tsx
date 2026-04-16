@@ -1080,7 +1080,7 @@ function DkpPageInner() {
                 href="/migration"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--background-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
               >
-                <Flag size={12} /> Migration Cases
+                <Flag size={12} /> Emigration Cases
               </a>
             )}
             <OfficerBadge />
@@ -1180,7 +1180,7 @@ function DkpPageInner() {
         {scoringMode === 'simple' && isOfficer && (
           <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <h2 className="text-sm font-semibold text-[var(--foreground)]">Migration Impact</h2>
+              <h2 className="text-sm font-semibold text-[var(--foreground)]">Emigration Impact</h2>
               <span className="text-xs text-[var(--text-muted)] tabular-nums">
                 {flaggedForMigration.size} flagged · {fmtM(simpleMigrationImpact.flaggedPower)} power
                 {simpleMigrationImpact.totalPower > 0 && (
@@ -1197,7 +1197,7 @@ function DkpPageInner() {
                 <div className="text-[11px] text-[var(--text-muted)] mt-0.5">Current total (all visible players)</div>
               </div>
               <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 p-3">
-                <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Flagged Migrate</div>
+                <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Flagged Emigrate</div>
                 <div className="text-xl font-bold tabular-nums text-rose-400">
                   {fmtM(simpleMigrationImpact.afterMigration)}
                 </div>
@@ -1229,7 +1229,7 @@ function DkpPageInner() {
           <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
             <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-[var(--foreground)]">Migration Simulator</h2>
+                <h2 className="text-base font-semibold text-[var(--foreground)]">Emigration Simulator</h2>
                 <p className="text-sm text-[var(--text-muted)] mt-0.5">
                   Flag players to see the power impact before committing. Use the flag icons in the table, or the quick-actions below.
                 </p>

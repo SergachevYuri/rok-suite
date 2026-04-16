@@ -50,7 +50,7 @@ const STATE_LABELS: Record<MigrationState, string> = {
   claimed: 'Claimed',
   contacted: 'Contacted',
   excepted: 'Excepted',
-  migrated: 'Migrated',
+  migrated: 'Emigrated',
   marked_to_zero: 'To Zero',
   zeroed: 'Zeroed',
 };
@@ -309,7 +309,7 @@ function MigrationPageInner() {
             <Lock className="mx-auto text-[var(--text-muted)] mb-3" />
             <h1 className="text-lg font-semibold text-[var(--foreground)] mb-2">Sign in required</h1>
             <p className="text-sm text-[var(--text-muted)] mb-4">
-              Migration tracking requires at least power-user access. Sign in on the DKP page or use the Sign in button to continue.
+              Emigration tracking requires at least power-user access. Sign in on the DKP page or use the Sign in button to continue.
             </p>
             <div className="flex items-center justify-center gap-2">
               <SessionBadge />
@@ -332,9 +332,9 @@ function MigrationPageInner() {
             <Link href="/dkp" className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-2">
               <ArrowLeft size={12} /> Back to DKP
             </Link>
-            <h1 className="text-xl font-semibold text-[var(--foreground)]">Migration Cases</h1>
+            <h1 className="text-xl font-semibold text-[var(--foreground)]">Emigration Cases</h1>
             <p className="text-xs text-[var(--text-muted)] mt-1">
-              Track players flagged for migration through claim → contact → outcome.
+              Track players flagged for emigration through claim → contact → outcome.
             </p>
           </div>
           <SessionBadge />
@@ -440,18 +440,18 @@ function MigrationPageInner() {
           {guideOpen && (
             <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-3">
               <p className="text-xs text-[var(--text-muted)]">
-                Goal: track everyone flagged on the DKP page from the moment we decide they need to migrate, through contact and outcome, with a record of who's been zeroed or excepted and why.
+                Goal: track everyone flagged on the DKP page from the moment we decide they need to emigrate, through contact and outcome, with a record of who's been zeroed or excepted and why.
               </p>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Workflow</div>
                 <ol className="space-y-1.5 text-xs list-decimal pl-5">
-                  <li><strong>Admin creates a cycle</strong> at the start of a migration round (e.g. "April 2026"), sets a UTC deadline, and snapshots the currently flagged players into it.</li>
+                  <li><strong>Admin creates a cycle</strong> at the start of an emigration round (e.g. "April 2026"), sets a UTC deadline, and snapshots the currently flagged players into it.</li>
                   <li><strong>Officer claims a case</strong> — click "Claim" on a pending row. This is your commitment to message that player. Claimed cases show your name so others don't duplicate work.</li>
                   <li><strong>Mark Contacted</strong> once you've DM'd them.</li>
-                  <li><strong>Mark Migrated</strong> if they leave the kingdom. Can be done at any state.</li>
+                  <li><strong>Mark Emigrated</strong> if they leave the kingdom. Can be done at any state.</li>
                   <li><strong>Admin grants an Exception</strong> (with a required reason) if a player has a legitimate excuse. Exceptions can be granted any time before the deadline.</li>
-                  <li><strong>After the deadline</strong> — officers click <strong>Mark to Zero</strong> on active cases that didn't migrate or get excepted. This flags them for zeroing but doesn't mean it's done.</li>
-                  <li><strong>Confirm Zeroed</strong> once the zeroing actually happens in-game. (Or click Migrated instead if the player left before you could zero them.)</li>
+                  <li><strong>After the deadline</strong> — officers click <strong>Mark to Zero</strong> on active cases that didn't emigrate or get excepted. This flags them for zeroing but doesn't mean it's done.</li>
+                  <li><strong>Confirm Zeroed</strong> once the zeroing actually happens in-game. (Or click Emigrated instead if the player left before you could zero them.)</li>
                 </ol>
               </div>
               <div>
@@ -461,7 +461,7 @@ function MigrationPageInner() {
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-blue-500/15 text-blue-400 border-blue-500/30">Claimed</span> an officer is handling the contact</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-sky-500/15 text-sky-400 border-sky-500/30">Contacted</span> message sent</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">Excepted</span> admin granted a pass (with a reason)</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Migrated</span> player left the kingdom</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Emigrated</span> player left the kingdom</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-orange-500/15 text-orange-400 border-orange-500/30">To Zero</span> officer decided to zero them — not yet confirmed</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> confirmed zeroed in-game</li>
                 </ul>
@@ -469,7 +469,7 @@ function MigrationPageInner() {
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Good to know</div>
                 <ul className="text-xs space-y-1 list-disc pl-5">
-                  <li><strong>Scan delta</strong> — upload a fresh stats XLSX and players missing from it are suggested as migrated. You still have to click Migrated to confirm, but this saves auditing one by one.</li>
+                  <li><strong>Scan delta</strong> — upload a fresh stats XLSX and players missing from it are suggested as emigrated. You still have to click Emigrated to confirm, but this saves auditing one by one.</li>
                   <li><strong>Add current flags</strong> — if officers flag more people on the DKP page mid-cycle, click this button in the cycle bar to pull the new flags in. Duplicates are skipped.</li>
                   <li><strong>Notes</strong> — every case has a shared notes field; use it for context other officers should see ("they said they'd move on Friday", "alt account", etc.).</li>
                   <li><strong>Admin-only actions</strong> — creating/editing/closing/deleting cycles, and granting exceptions. Everything else is officer.</li>
@@ -481,7 +481,7 @@ function MigrationPageInner() {
 
         {!selectedCycle ? (
           <div className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-8 text-center text-sm text-[var(--text-muted)]">
-            {isAdmin ? 'Create a cycle to start tracking migration cases.' : 'No cycle selected. Ask an admin to create one.'}
+            {isAdmin ? 'Create a cycle to start tracking emigration cases.' : 'No cycle selected. Ask an admin to create one.'}
           </div>
         ) : (
           <>
@@ -517,7 +517,7 @@ function MigrationPageInner() {
                   <div className="text-[11px] text-[var(--text-muted)] mt-0.5">From latest DKP scan</div>
                 </div>
                 <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 p-3">
-                  <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Active Cases Migrate</div>
+                  <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Active Cases Emigrate</div>
                   <div className="text-xl font-bold tabular-nums text-rose-400">{fmtM(powerImpact.afterMigrate)}</div>
                   <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
                     −{fmtM(powerImpact.activePower)}
@@ -783,7 +783,7 @@ function NewCycleDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="w-full max-w-md rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">New migration cycle</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">New emigration cycle</h3>
           <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--foreground)]"><X size={16} /></button>
         </div>
         <form
@@ -862,7 +862,7 @@ function ScanDeltaPanel({ cases, cycleId }: { cases: MigrationCase[]; cycleId: s
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[200px]">
           <h3 className="text-sm font-semibold text-[var(--foreground)]">Scan delta</h3>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">Upload a fresh kingdom stats XLSX. Players missing from the scan will be suggested as migrated.</p>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">Upload a fresh kingdom stats XLSX. Players missing from the scan will be suggested as emigrated.</p>
         </div>
         <input
           ref={fileRef}
@@ -889,7 +889,7 @@ function ScanDeltaPanel({ cases, cycleId }: { cases: MigrationCase[]; cycleId: s
           {suggestions.length === 0
             ? <span className="text-[var(--text-muted)]">Scan checked — no active cases are missing from the new scan.</span>
             : <>
-                <span className="text-amber-400 font-medium">{suggestions.length}</span> active case{suggestions.length === 1 ? '' : 's'} missing from the new scan — marked as suggested-migrated. Confirm each in the table below.
+                <span className="text-amber-400 font-medium">{suggestions.length}</span> active case{suggestions.length === 1 ? '' : 's'} missing from the new scan — marked as suggested-emigrated. Confirm each in the table below.
               </>
           }
         </div>
@@ -927,7 +927,7 @@ function CaseRow({
       { label: 'zeroed', iso: c.zeroed_at },
       { label: 'marked to zero', iso: c.marked_to_zero_at },
       { label: 'excepted', iso: c.excepted_at },
-      { label: 'migrated', iso: c.migrated_confirmed_at },
+      { label: 'emigrated', iso: c.migrated_confirmed_at },
       { label: 'suggested', iso: c.migration_suggested_at },
       { label: 'contacted', iso: c.contacted_at },
       { label: 'claimed', iso: c.claimed_at },
@@ -961,7 +961,7 @@ function CaseRow({
           {STATE_LABELS[c.state]}
         </span>
         {suggested && isActive && (
-          <div className="text-[10px] text-amber-400 mt-1">Suggested migrated from scan</div>
+          <div className="text-[10px] text-amber-400 mt-1">Suggested emigrated from scan</div>
         )}
       </td>
       <td className="px-3 py-2 text-xs text-[var(--text-secondary)]">
@@ -982,7 +982,7 @@ function CaseRow({
             </>
           )}
           {isOfficer && isActive && c.state !== 'marked_to_zero' && (
-            <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25">Migrated</button>
+            <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25">Emigrated</button>
           )}
           {isActive && isAdmin && c.state !== 'marked_to_zero' && (
             <button disabled={busy} onClick={() => setShowException(true)} className="px-2 py-1 text-[11px] rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25">Exception</button>
@@ -993,7 +993,7 @@ function CaseRow({
           {isOfficer && c.state === 'marked_to_zero' && (
             <>
               <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmZeroed(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25" title="Confirm the player has been zeroed in-game.">Confirm Zeroed</button>
-              <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25" title="If they migrated instead of being zeroed.">Migrated</button>
+              <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25" title="If they emigrated instead of being zeroed.">Emigrated</button>
             </>
           )}
           {isOfficer && !isActive && (

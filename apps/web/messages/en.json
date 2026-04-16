@@ -51,7 +51,7 @@
     "kingdomStats": "Kingdom Stats",
     "allianceCalculator": "Alliance Calculator",
     "dkp": "DKP Score",
-    "migration": "Migration Cases"
+    "migration": "Emigration Cases"
   },
   "home": {
     "tagline": "Kingdom 23 • Rise of Kingdoms",
@@ -126,8 +126,8 @@
         "description": "Kingdom contribution scoring: normalized DKP, deaths, RSS, helps, honor"
       },
       "migration": {
-        "title": "Migration Cases",
-        "description": "Track players flagged on DKP through claim, contact, migration, and zeroing outcomes"
+        "title": "Emigration Cases",
+        "description": "Track players flagged on DKP through claim, contact, emigration, and zeroing outcomes"
       }
     },
     "guide": {
