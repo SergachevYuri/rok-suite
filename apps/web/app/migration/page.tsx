@@ -332,7 +332,7 @@ function MigrationPageInner() {
             <Link href="/dkp" className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-2">
               <ArrowLeft size={12} /> Back to DKP
             </Link>
-            <h1 className="text-xl font-semibold text-[var(--foreground)]">Emigration Cases</h1>
+            <h1 className="text-xl font-semibold text-[var(--foreground)]">Emigration</h1>
             <p className="text-xs text-[var(--text-muted)] mt-1">
               Track players flagged for emigration through claim → contact → outcome.
             </p>

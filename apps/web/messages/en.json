@@ -126,7 +126,7 @@
         "description": "Kingdom contribution scoring: normalized DKP, deaths, RSS, helps, honor"
       },
       "migration": {
-        "title": "Emigration Cases",
+        "title": "Emigration",
         "description": "Track players flagged on DKP through claim, contact, emigration, and zeroing outcomes"
       }
     },
