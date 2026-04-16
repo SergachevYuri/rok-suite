@@ -25,6 +25,7 @@ import {
   createCycle,
   closeCycle,
   deleteCycle as deleteCycleRow,
+  updateCycle,
   listCases,
   bulkCreateCases,
   addCase,
@@ -108,6 +109,7 @@ function MigrationPageInner() {
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active'>('active');
   const [showNewCycle, setShowNewCycle] = useState(false);
+  const [showEditCycle, setShowEditCycle] = useState(false);
   const [now, setNow] = useState<Date>(() => new Date());
 
   useEffect(() => {
@@ -372,6 +374,15 @@ function MigrationPageInner() {
                 >
                   <Plus size={12} /> New cycle
                 </button>
+                {selectedCycle && (
+                  <button
+                    onClick={() => setShowEditCycle(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
+                    title="Edit cycle name or deadline"
+                  >
+                    Edit
+                  </button>
+                )}
                 {selectedCycle && !selectedCycle.closed_at && (
                   <button
                     onClick={handleCloseCycle}
@@ -534,6 +545,16 @@ function MigrationPageInner() {
             onCreate={handleCreateCycle}
           />
         )}
+        {showEditCycle && selectedCycle && (
+          <EditCycleDialog
+            cycle={selectedCycle}
+            onClose={() => setShowEditCycle(false)}
+            onSave={async (name, deadlineISO, notes) => {
+              await updateCycle(selectedCycle.id, { name, deadline: deadlineISO, notes });
+              setShowEditCycle(false);
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -608,6 +629,66 @@ function SessionBadge() {
 }
 
 // ——— Cycle creation dialog ———
+
+function EditCycleDialog({
+  cycle,
+  onClose,
+  onSave,
+}: {
+  cycle: MigrationCycle;
+  onClose: () => void;
+  onSave: (name: string, deadlineISO: string, notes: string | null) => Promise<void>;
+}) {
+  const [name, setName] = useState(cycle.name);
+  const [deadlineStr, setDeadlineStr] = useState(() => toUTCDatetimeLocal(new Date(cycle.deadline)));
+  const [notes, setNotes] = useState(cycle.notes ?? '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">Edit cycle</h3>
+          <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--foreground)]"><X size={16} /></button>
+        </div>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setErr(null);
+            try {
+              const deadline = parseUTCDatetimeLocal(deadlineStr).toISOString();
+              await onSave(name.trim(), deadline, notes.trim() || null);
+            } catch (x) {
+              setErr(x instanceof Error ? x.message : 'Failed to save');
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="space-y-3"
+        >
+          <div>
+            <label className="text-xs text-[var(--text-muted)]">Cycle name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} required className="mt-1 w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30" />
+          </div>
+          <div>
+            <label className="text-xs text-[var(--text-muted)]">Deadline (UTC)</label>
+            <input type="datetime-local" value={deadlineStr} onChange={(e) => setDeadlineStr(e.target.value)} required className="mt-1 w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm font-mono text-[var(--foreground)] [color-scheme:dark] focus:outline-none focus:border-[var(--foreground)]/30" />
+          </div>
+          <div>
+            <label className="text-xs text-[var(--text-muted)]">Notes (optional)</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-1 w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30" />
+          </div>
+          {err && <p className="text-xs text-red-400">{err}</p>}
+          <button disabled={busy} type="submit" className="w-full px-3 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] disabled:opacity-60 transition-colors">
+            {busy ? 'Saving…' : 'Save changes'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function NewCycleDialog({
   defaultFlaggedCount,
