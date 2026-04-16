@@ -668,7 +668,7 @@ function DkpPageInner() {
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
   const [hideUnranked, setHideUnranked] = useState(true);
   const [scoringMode, setScoringMode] = useState<'bands' | 'simple'>('simple');
-  const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status' | 't4Kills' | 't5Kills' | 't4Deaths' | 't5Deaths'>('dkp');
+  const [simpleSortKey, setSimpleSortKey] = useState<'name' | 'power' | 'dkp' | 'ratio' | 'status' | 't4Kills' | 't5Kills' | 't4Deaths' | 't5Deaths' | 'kp'>('dkp');
   const [simpleSortDir, setSimpleSortDir] = useState<'asc' | 'desc'>('desc');
   const [simpleHideOutsideTop, setSimpleHideOutsideTop] = useState(true);
   const [showGovId, setShowGovId] = useState(false);
@@ -823,6 +823,7 @@ function DkpPageInner() {
         case 't5Kills': return (a.t5Kills - b.t5Kills) * dir;
         case 't4Deaths': return (a.t4Deaths - b.t4Deaths) * dir;
         case 't5Deaths': return (a.t5Deaths - b.t5Deaths) * dir;
+        case 'kp': return (a.totalKP - b.totalKP) * dir;
       }
     });
   }, [simpleScored, simpleSortKey, simpleSortDir, simpleHideOutsideTop, simpleTopNIds]);
@@ -2110,6 +2111,7 @@ function DkpPageInner() {
                         { key: 't5Kills' as const, label: 'T5 Kills', align: 'text-right' },
                         { key: 't4Deaths' as const, label: 'T4 Deaths', align: 'text-right' },
                         { key: 't5Deaths' as const, label: 'T5 Deaths', align: 'text-right' },
+                        { key: 'kp' as const, label: 'KP', align: 'text-right' },
                         { key: 'dkp' as const, label: 'DKP', align: 'text-right' },
                         { key: 'ratio' as const, label: 'Ratio', align: 'text-right' },
                         ...(isOfficer ? [{ key: 'status' as const, label: 'Status', align: 'text-center' }] : []),
@@ -2177,6 +2179,9 @@ function DkpPageInner() {
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
                           {fmt(p.t5Deaths)}
                         </td>
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-muted)]">
+                          {fmt(p.totalKP)}
+                        </td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
                           {fmt(Math.round(p.simpleDkp))}
                         </td>
@@ -2210,7 +2215,7 @@ function DkpPageInner() {
                     ))}
                     {simpleFiltered.length === 0 && (
                       <tr>
-                        <td colSpan={isOfficer ? 11 : 9} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
+                        <td colSpan={isOfficer ? 12 : 10} className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
                           {loadingDefault ? t('filters.loading') : t('filters.noPlayers')}
                         </td>
                       </tr>
