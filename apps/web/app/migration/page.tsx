@@ -939,13 +939,7 @@ function CaseRow({
     try { await fn(); } finally { setBusy(false); }
   };
 
-  const ensureOfficer = () => {
-    if (!officerName || !officerName.trim()) {
-      alert('Please set your officer name first via the Sign In dialog.');
-      return false;
-    }
-    return true;
-  };
+  const actorName = officerName?.trim() || 'officer';
 
   return (
     <tr className={`border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${pastDeadline && isActive ? 'bg-rose-500/5' : ''}`}>
@@ -967,18 +961,18 @@ function CaseRow({
       <td className="px-3 py-2">
         <div className="flex flex-wrap gap-1">
           {isOfficer && isActive && c.state !== 'marked_to_zero' && (
-            <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25">Emigrated</button>
+            <button disabled={busy} onClick={() => wrap(() => confirmMigrated(c.id, actorName))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25">Emigrated</button>
           )}
           {isActive && isAdmin && c.state !== 'marked_to_zero' && (
             <button disabled={busy} onClick={() => setShowException(true)} className="px-2 py-1 text-[11px] rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25">Exception</button>
           )}
           {isOfficer && isActive && pastDeadline && c.state !== 'marked_to_zero' && (
-            <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => markToZero(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25" title="Mark this player to be zeroed. Doesn't mean they've been zeroed yet — confirm once it's done in-game.">Mark to Zero</button>
+            <button disabled={busy} onClick={() => wrap(() => markToZero(c.id, actorName))} className="px-2 py-1 text-[11px] rounded bg-orange-500/15 text-orange-400 border border-orange-500/30 hover:bg-orange-500/25" title="Mark this player to be zeroed. Doesn't mean they've been zeroed yet — confirm once it's done in-game.">Mark to Zero</button>
           )}
           {isOfficer && c.state === 'marked_to_zero' && (
             <>
-              <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmZeroed(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25" title="Confirm the player has been zeroed in-game.">Confirm Zeroed</button>
-              <button disabled={busy} onClick={() => ensureOfficer() && wrap(() => confirmMigrated(c.id, officerName!))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25" title="If they emigrated instead of being zeroed.">Emigrated</button>
+              <button disabled={busy} onClick={() => wrap(() => confirmZeroed(c.id, actorName))} className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25" title="Confirm the player has been zeroed in-game.">Confirm Zeroed</button>
+              <button disabled={busy} onClick={() => wrap(() => confirmMigrated(c.id, actorName))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25" title="If they emigrated instead of being zeroed.">Emigrated</button>
             </>
           )}
           {isOfficer && !isActive && (
@@ -1032,8 +1026,7 @@ function CaseRow({
           <ExceptionDialog
             onClose={() => setShowException(false)}
             onConfirm={async (r) => {
-              if (!officerName) { alert('Set your admin name via Sign In first.'); return; }
-              await markException(c.id, officerName, r);
+              await markException(c.id, officerName?.trim() || 'admin', r);
               setShowException(false);
             }}
             initial={reason}
