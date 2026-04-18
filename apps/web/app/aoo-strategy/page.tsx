@@ -156,6 +156,8 @@ interface TeamBuilderTabProps {
     setSelectedArkCarriersByTeam: (a: ArkCarriersByTeam) => void;
     selectedTeleportFirstByTeam: TeleportFirstByTeam;
     setSelectedTeleportFirstByTeam: (t: TeleportFirstByTeam) => void;
+    coordinatorsByTeam: Record<TeamNumber, Set<string>>;
+    setCoordinatorsByTeam: (c: Record<TeamNumber, Set<string>>) => void;
     zoneSizesByTeam: ZoneSizesByTeam;
     setZoneSizesByTeam: (z: ZoneSizesByTeam) => void;
     pendingAdditions: PendingMember[];
@@ -195,6 +197,8 @@ function TeamBuilderTab({
     setSelectedArkCarriersByTeam,
     selectedTeleportFirstByTeam,
     setSelectedTeleportFirstByTeam,
+    coordinatorsByTeam,
+    setCoordinatorsByTeam,
     zoneSizesByTeam,
     setZoneSizesByTeam,
     pendingAdditions,
@@ -228,7 +232,6 @@ function TeamBuilderTab({
     const [copiedMail, setCopiedMail] = useState(false);
     const [distributeAddSearch, setDistributeAddSearch] = useState('');
     const [distributeAddZone, setDistributeAddZone] = useState(0);
-    const [coordinatorsByTeam, setCoordinatorsByTeam] = useState<Record<TeamNumber, Set<string>>>({ 1: new Set(), 2: new Set(), 3: new Set() });
     const coordinators = coordinatorsByTeam[activeTeam] || new Set<string>();
     const setCoordinators = (c: Set<string>) => setCoordinatorsByTeam({ ...coordinatorsByTeam, [activeTeam]: c });
     const { openPlayer } = usePlayerDrawer();
@@ -2001,6 +2004,7 @@ export default function AooStrategyPage() {
     const [selectedGarrisonLeadsByTeam, setSelectedGarrisonLeadsByTeam] = useState<GarrisonLeadsByTeam>({ 1: {}, 2: {}, 3: {} });
     const [selectedArkCarriersByTeam, setSelectedArkCarriersByTeam] = useState<ArkCarriersByTeam>({ 1: '', 2: '', 3: '' });
     const [selectedTeleportFirstByTeam, setSelectedTeleportFirstByTeam] = useState<TeleportFirstByTeam>({ 1: new Set(), 2: new Set(), 3: new Set() });
+    const [coordinatorsByTeam, setCoordinatorsByTeam] = useState<Record<TeamNumber, Set<string>>>({ 1: new Set(), 2: new Set(), 3: new Set() });
     const [zoneSizesByTeam, setZoneSizesByTeam] = useState<ZoneSizesByTeam>({
         1: { 0: '', 1: '', 2: '', 3: '' },
         2: { 0: '', 1: '', 2: '', 3: '' },
@@ -3082,6 +3086,8 @@ export default function AooStrategyPage() {
                     setSelectedArkCarriersByTeam={setSelectedArkCarriersByTeam}
                     selectedTeleportFirstByTeam={selectedTeleportFirstByTeam}
                     setSelectedTeleportFirstByTeam={setSelectedTeleportFirstByTeam}
+                    coordinatorsByTeam={coordinatorsByTeam}
+                    setCoordinatorsByTeam={setCoordinatorsByTeam}
                     zoneSizesByTeam={zoneSizesByTeam}
                     setZoneSizesByTeam={setZoneSizesByTeam}
                     pendingAdditions={pendingAdditions}
