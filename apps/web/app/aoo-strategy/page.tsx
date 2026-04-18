@@ -2108,6 +2108,7 @@ export default function AooStrategyPage() {
                 if (strategyData?.zoneSizesByTeam) setZoneSizesByTeam(strategyData.zoneSizesByTeam as ZoneSizesByTeam);
                 if (strategyData?.selectedGarrisonLeadsByTeam) setSelectedGarrisonLeadsByTeam(strategyData.selectedGarrisonLeadsByTeam as GarrisonLeadsByTeam);
                 if (strategyData?.selectedArkCarriersByTeam) setSelectedArkCarriersByTeam(strategyData.selectedArkCarriersByTeam as ArkCarriersByTeam);
+                setActiveTab('builder');
             } else {
                 // Plan not found
                 console.log('Plan not found:', planShareId);
