@@ -2106,6 +2106,8 @@ export default function AooStrategyPage() {
                     setSelectedTeleportFirstByTeam(restored);
                 }
                 if (strategyData?.zoneSizesByTeam) setZoneSizesByTeam(strategyData.zoneSizesByTeam as ZoneSizesByTeam);
+                if (strategyData?.selectedGarrisonLeadsByTeam) setSelectedGarrisonLeadsByTeam(strategyData.selectedGarrisonLeadsByTeam as GarrisonLeadsByTeam);
+                if (strategyData?.selectedArkCarriersByTeam) setSelectedArkCarriersByTeam(strategyData.selectedArkCarriersByTeam as ArkCarriersByTeam);
             } else {
                 // Plan not found
                 console.log('Plan not found:', planShareId);
@@ -2146,6 +2148,8 @@ export default function AooStrategyPage() {
                 3: Array.from(selectedTeleportFirstByTeam[3] || []),
             },
             zoneSizesByTeam: updatedData.zoneSizesByTeam ?? zoneSizesByTeam,
+            selectedGarrisonLeadsByTeam: updatedData.selectedGarrisonLeadsByTeam ?? selectedGarrisonLeadsByTeam,
+            selectedArkCarriersByTeam: updatedData.selectedArkCarriersByTeam ?? selectedArkCarriersByTeam,
         };
 
         try {
@@ -2177,7 +2181,7 @@ export default function AooStrategyPage() {
         }
         saveData({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam]);
+    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam]);
 
     const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isEditor) return;
