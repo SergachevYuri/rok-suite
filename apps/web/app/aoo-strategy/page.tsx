@@ -2147,6 +2147,13 @@ export default function AooStrategyPage() {
                 if (strategyData?.zoneSizesByTeam) setZoneSizesByTeam(strategyData.zoneSizesByTeam as ZoneSizesByTeam);
                 if (strategyData?.selectedGarrisonLeadsByTeam) setSelectedGarrisonLeadsByTeam(strategyData.selectedGarrisonLeadsByTeam as GarrisonLeadsByTeam);
                 if (strategyData?.selectedArkCarriersByTeam) setSelectedArkCarriersByTeam(strategyData.selectedArkCarriersByTeam as ArkCarriersByTeam);
+                if (strategyData?.coordinatorsByTeam) {
+                    setCoordinatorsByTeam({
+                        1: new Set(strategyData.coordinatorsByTeam[1] || []),
+                        2: new Set(strategyData.coordinatorsByTeam[2] || []),
+                        3: new Set(strategyData.coordinatorsByTeam[3] || []),
+                    });
+                }
                 setActiveTab('builder');
             } else {
                 // Plan not found
@@ -2190,6 +2197,11 @@ export default function AooStrategyPage() {
             zoneSizesByTeam: updatedData.zoneSizesByTeam ?? zoneSizesByTeam,
             selectedGarrisonLeadsByTeam: updatedData.selectedGarrisonLeadsByTeam ?? selectedGarrisonLeadsByTeam,
             selectedArkCarriersByTeam: updatedData.selectedArkCarriersByTeam ?? selectedArkCarriersByTeam,
+            coordinatorsByTeam: updatedData.coordinatorsByTeam ?? {
+                1: Array.from(coordinatorsByTeam[1] || []),
+                2: Array.from(coordinatorsByTeam[2] || []),
+                3: Array.from(coordinatorsByTeam[3] || []),
+            },
         };
 
         try {
@@ -2221,7 +2233,7 @@ export default function AooStrategyPage() {
         }
         saveData({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam]);
+    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam]);
 
     const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isEditor) return;

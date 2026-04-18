@@ -48,6 +48,7 @@ export interface StrategyData {
   selectedGarrisonLeadsByTeam?: Record<number, Record<number, string>>;
   selectedArkCarriersByTeam?: Record<number, string>; // One ark carrier per team (mid lane)
   selectedTeleportFirstByTeam?: Record<number, string[]>; // Sets serialized as arrays
+  coordinatorsByTeam?: Record<number, string[]>; // Sets serialized as arrays
   zoneSizesByTeam?: Record<number, Record<number, string>>;
 }
 
