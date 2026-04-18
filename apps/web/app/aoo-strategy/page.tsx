@@ -1853,10 +1853,62 @@ function TeamBuilderTab({
                                 }
                                 return allTeamData;
                             })())} />
+                        <CopyTeleportFirstButton
+                            selectedTeleportFirstByTeam={selectedTeleportFirstByTeam}
+                            teamCount={teamCount}
+                        />
                     </div>
                 </>
             )}
         </div>
+    );
+}
+
+function CopyTeleportFirstButton({
+    selectedTeleportFirstByTeam,
+    teamCount,
+}: {
+    selectedTeleportFirstByTeam: Record<number, Set<string>>;
+    teamCount: number;
+}) {
+    const [copied, setCopied] = useState(false);
+    const handleCopy = async () => {
+        const lines: string[] = [];
+        for (let team = 1; team <= teamCount; team++) {
+            const names = [...(selectedTeleportFirstByTeam[team] || [])];
+            if (names.length > 0) {
+                if (teamCount > 1) {
+                    lines.push(`Team ${team} - First to teleport: ${names.join(', ')}`);
+                } else {
+                    lines.push(`First to teleport: ${names.join(', ')}`);
+                }
+            }
+        }
+        const text = lines.join('\n');
+        if (!text) return;
+        try { await navigator.clipboard.writeText(text); } catch {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+    };
+    return (
+        <button
+            onClick={handleCopy}
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                copied
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-[var(--background-secondary,#1e1e2e)] border border-[var(--border,#333)] text-[var(--text-secondary,#aaa)] hover:text-[var(--foreground,#fff)]'
+            }`}
+            title="Copy teleport-first list for in-game chat"
+        >
+            {copied ? '✓ Copied!' : 'Copy TP First List'}
+        </button>
     );
 }
 
