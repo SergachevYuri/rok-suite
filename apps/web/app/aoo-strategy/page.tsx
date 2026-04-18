@@ -1836,49 +1836,47 @@ function TeamBuilderTab({
                                 </button>
                             );
                         })}
-                        <button
-                            onClick={() => {
-                                // Build all team data for apply
+                        <ConfirmForEveryoneButton onConfirm={() => onApply((() => {
                                 type TeamData = { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; coordinators: Set<string>; substitutes: { name: string; power: number; kills: number }[] };
                                 const allTeamData: Record<TeamNumber, TeamData> = {} as Record<TeamNumber, TeamData>;
-
                                 for (const team of [1, 2, 3] as TeamNumber[]) {
                                     if (team > teamCount) continue;
-                                    const zones = suggestedZonesByTeam[team] || {};
-                                    const rallyLeads = selectedRallyLeadsByTeam[team] || {};
-                                    const garrisonLeads = selectedGarrisonLeadsByTeam[team] || {};
-                                    const arkCarrier = selectedArkCarriersByTeam[team] || '';
-                                    const teleportFirst = selectedTeleportFirstByTeam[team] || new Set<string>();
-
-                                    // Validate rally leads for top (1) and bottom (3) lanes only — mid lane (2) doesn't need one
-                                    const missingLeads = [1, 3].filter(z => !rallyLeads[z] && (zones[z]?.length || 0) > 0);
-                                    if (missingLeads.length > 0) {
-                                        alert(`Team ${team}: ${t('selectRallyLeads', { zones: missingLeads.map(z => ZONE_NAMES_T[z]).join(', ') })}`);
-                                        setActiveTeam(team);
-                                        return;
-                                    }
-
                                     allTeamData[team] = {
-                                        zones,
-                                        rallyLeads,
-                                        garrisonLeads,
-                                        arkCarrier,
-                                        teleportFirst,
+                                        zones: suggestedZonesByTeam[team] || {},
+                                        rallyLeads: selectedRallyLeadsByTeam[team] || {},
+                                        garrisonLeads: selectedGarrisonLeadsByTeam[team] || {},
+                                        arkCarrier: selectedArkCarriersByTeam[team] || '',
+                                        teleportFirst: selectedTeleportFirstByTeam[team] || new Set<string>(),
                                         coordinators: coordinatorsByTeam[team] || new Set<string>(),
-                                        substitutes: zones[0] || []
+                                        substitutes: (suggestedZonesByTeam[team] || {})[0] || [],
                                     };
                                 }
-
-                                onApply(allTeamData);
-                            }}
-                            className="px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80"
-                        >
-                            {t('applyAll')}
-                        </button>
+                                return allTeamData;
+                            })())} />
                     </div>
                 </>
             )}
         </div>
+    );
+}
+
+function ConfirmForEveryoneButton({ onConfirm }: { onConfirm: () => void }) {
+    const [confirmed, setConfirmed] = useState(false);
+    return (
+        <button
+            onClick={() => {
+                onConfirm();
+                setConfirmed(true);
+                setTimeout(() => setConfirmed(false), 2500);
+            }}
+            className={`px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                confirmed
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'text-white bg-[#4318ff] hover:bg-[#4318ff]/80'
+            }`}
+        >
+            {confirmed ? '✓ Confirmed!' : 'Confirm for everyone'}
+        </button>
     );
 }
 
@@ -3096,7 +3094,6 @@ export default function AooStrategyPage() {
                         setPlayers(newPlayers);
                         setSubstitutes(newSubstitutes);
                         saveData({ players: newPlayers, substitutes: newSubstitutes });
-                        setActiveTab('roster');
                     }}
                     theme={theme}
                     formatPower={formatPower}
