@@ -1854,8 +1854,8 @@ function TeamBuilderTab({
                                 return allTeamData;
                             })())} />
                         <CopyTeleportFirstButton
-                            selectedTeleportFirstByTeam={selectedTeleportFirstByTeam}
-                            teamCount={teamCount}
+                            names={[...(selectedTeleportFirstByTeam[activeTeam] || [])]}
+                            team={activeTeam}
                         />
                     </div>
                 </>
@@ -1865,27 +1865,16 @@ function TeamBuilderTab({
 }
 
 function CopyTeleportFirstButton({
-    selectedTeleportFirstByTeam,
-    teamCount,
+    names,
+    team,
 }: {
-    selectedTeleportFirstByTeam: Record<number, Set<string>>;
-    teamCount: number;
+    names: string[];
+    team: number;
 }) {
     const [copied, setCopied] = useState(false);
     const handleCopy = async () => {
-        const lines: string[] = [];
-        for (let team = 1; team <= teamCount; team++) {
-            const names = [...(selectedTeleportFirstByTeam[team] || [])];
-            if (names.length > 0) {
-                if (teamCount > 1) {
-                    lines.push(`Team ${team} - First to teleport: ${names.join(', ')}`);
-                } else {
-                    lines.push(`First to teleport: ${names.join(', ')}`);
-                }
-            }
-        }
-        const text = lines.join('\n');
-        if (!text) return;
+        if (names.length === 0) return;
+        const text = `First to teleport: ${names.join(', ')}`;
         try { await navigator.clipboard.writeText(text); } catch {
             const ta = document.createElement('textarea');
             ta.value = text;
@@ -1907,7 +1896,7 @@ function CopyTeleportFirstButton({
             }`}
             title="Copy teleport-first list for in-game chat"
         >
-            {copied ? '✓ Copied!' : 'Copy TP First List'}
+            {copied ? '✓ Copied!' : `Copy Team ${team} TP First`}
         </button>
     );
 }
