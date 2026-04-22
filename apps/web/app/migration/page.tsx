@@ -188,6 +188,14 @@ function MigrationPageInner() {
     };
   }, [selectedCycleId]);
 
+  // Manual refetch used by row actions so the UI updates immediately even if
+  // Supabase realtime isn't enabled for the migration_cases table.
+  const refetchCases = useCallback(async () => {
+    if (!selectedCycleId) return;
+    const fresh = await listCases(selectedCycleId);
+    setCases(fresh);
+  }, [selectedCycleId]);
+
   const selectedCycle = useMemo(() => cycles.find((c) => c.id === selectedCycleId) ?? null, [cycles, selectedCycleId]);
 
   const deadlineMs = selectedCycle ? new Date(selectedCycle.deadline).getTime() : 0;
@@ -594,6 +602,7 @@ function MigrationPageInner() {
                         isOfficer={isOfficer}
                         isAdmin={isAdmin}
                         pastDeadline={pastDeadline}
+                        onRefresh={refetchCases}
                       />
                     ))}
                     {filteredCases.length === 0 && (
@@ -918,11 +927,13 @@ function CaseRow({
   isOfficer,
   isAdmin,
   pastDeadline,
+  onRefresh,
 }: {
   caseRow: MigrationCase;
   officerName: string | null;
   isOfficer: boolean;
   isAdmin: boolean;
+  onRefresh: () => Promise<void>;
   pastDeadline: boolean;
 }) {
   const [showException, setShowException] = useState(false);
@@ -950,7 +961,15 @@ function CaseRow({
   const wrap = async (fn: () => Promise<void>) => {
     if (busy) return;
     setBusy(true);
-    try { await fn(); } finally { setBusy(false); }
+    try {
+      await fn();
+      await onRefresh();
+    } catch (e) {
+      console.error('Case action failed', e);
+      alert(`Action failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const actorName = officerName?.trim() || 'officer';
