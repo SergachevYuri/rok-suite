@@ -112,7 +112,7 @@ function MigrationPageInner() {
   const [flaggedIds, setFlaggedIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active'>('active');
+  const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active' | 'suggested'>('active');
   const [showNewCycle, setShowNewCycle] = useState(false);
   const [showEditCycle, setShowEditCycle] = useState(false);
   const [now, setNow] = useState<Date>(() => new Date());
@@ -216,6 +216,7 @@ function MigrationPageInner() {
   const filteredCases = useMemo(() => {
     let list = cases;
     if (stateFilter === 'active') list = list.filter((c) => !TERMINAL_STATES.includes(c.state));
+    else if (stateFilter === 'suggested') list = list.filter((c) => c.migration_suggested_at !== null && !TERMINAL_STATES.includes(c.state));
     else if (stateFilter === 'pending') list = list.filter((c) => c.state === 'pending' || c.state === 'claimed' || c.state === 'contacted');
     else if (stateFilter !== 'all') list = list.filter((c) => c.state === stateFilter);
     if (search.trim()) {
@@ -561,6 +562,7 @@ function MigrationPageInner() {
                 className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
               >
                 <option value="active">Active (non-terminal)</option>
+                <option value="suggested">Suggested from scan</option>
                 <option value="all">All</option>
                 {STATE_ORDER.map((s) => (
                   <option key={s} value={s}>{STATE_LABELS[s]}</option>
@@ -884,12 +886,23 @@ function ScanDeltaPanel({ cases, cycleId }: { cases: MigrationCase[]; cycleId: s
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
       {suggestions && (
         <div className="mt-3 text-xs text-[var(--text-secondary)]">
-          {suggestions.length === 0
-            ? <span className="text-[var(--text-muted)]">Scan checked — no active cases are missing from the new scan.</span>
-            : <>
-                <span className="text-amber-400 font-medium">{suggestions.length}</span> active case{suggestions.length === 1 ? '' : 's'} missing from the new scan — marked as suggested-emigrated. Confirm each in the table below.
-              </>
-          }
+          {suggestions.length === 0 ? (
+            <span className="text-[var(--text-muted)]">Scan checked — no active cases are missing from the new scan.</span>
+          ) : (
+            <>
+              <div className="mb-2">
+                <span className="text-amber-400 font-medium">{suggestions.length}</span> active case{suggestions.length === 1 ? '' : 's'} missing from the new scan — marked as suggested-emigrated. Confirm each in the table below (or click the "Suggested" filter).
+              </div>
+              <ul className="space-y-0.5 max-h-48 overflow-y-auto pl-4 list-disc text-[var(--text-muted)]">
+                {suggestions.map((c) => (
+                  <li key={c.id}>
+                    <span className="text-[var(--text-secondary)]">{c.username}</span>
+                    <span className="ml-2 font-mono text-[10px]">#{c.character_id}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
     </section>
