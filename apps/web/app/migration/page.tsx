@@ -111,9 +111,34 @@ function MigrationPageInner() {
   const [cases, setCases] = useState<MigrationCase[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [flaggedIds, setFlaggedIds] = useState<number[]>([]);
-  // Latest uploaded-scan totals — overrides the DKP-dataset power in the Power Impact card.
+  // Latest uploaded-scan totals — required for the Power Impact card. Persisted in
+  // localStorage so a refresh doesn't lose the reading.
   const [latestScanTotalPower, setLatestScanTotalPower] = useState<number | null>(null);
   const [latestScanLabel, setLatestScanLabel] = useState<string | null>(null);
+  const [latestScanUploadedAt, setLatestScanUploadedAt] = useState<string | null>(null);
+
+  // Restore last-uploaded scan metadata on mount.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('emigration-latest-scan');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { totalPower: number; label: string; uploadedAt: string };
+        setLatestScanTotalPower(parsed.totalPower);
+        setLatestScanLabel(parsed.label);
+        setLatestScanUploadedAt(parsed.uploadedAt);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const recordScanTotals = (totalPower: number, label: string) => {
+    const uploadedAt = new Date().toISOString();
+    setLatestScanTotalPower(totalPower);
+    setLatestScanLabel(label);
+    setLatestScanUploadedAt(uploadedAt);
+    try {
+      window.localStorage.setItem('emigration-latest-scan', JSON.stringify({ totalPower, label, uploadedAt }));
+    } catch { /* ignore */ }
+  };
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active' | 'suggested'>('active');
@@ -242,17 +267,16 @@ function MigrationPageInner() {
     return list;
   }, [cases, search, stateFilter]);
 
-  // Power math — scoped to the current cycle. Prefer the freshly-uploaded scan
-  // total when the officer has just uploaded one; otherwise fall back to the
-  // DKP dataset that was already on the site.
+  // Power math — scoped to the current cycle. Kingdom power comes from the
+  // admin-uploaded scan; the card shows a prompt until a scan is uploaded.
   const powerImpact = useMemo(() => {
-    const totalKingdom = latestScanTotalPower ?? players.reduce((s, p) => s + (p.power ?? 0), 0);
+    const totalKingdom = latestScanTotalPower ?? 0;
     const activePower = activeCases.reduce((s, c) => s + c.power_at_open, 0);
     const afterMigrate = totalKingdom - activePower;
     const zeroLoss = activePower * ZERO_POWER_DROP;
     const afterZero = totalKingdom - zeroLoss;
     return { totalKingdom, activePower, afterMigrate, zeroLoss, afterZero };
-  }, [players, activeCases, latestScanTotalPower]);
+  }, [activeCases, latestScanTotalPower]);
 
   const refreshFlagged = useCallback(async () => {
     const flagged = await loadConfigRow<number[]>(MIGRATION_ROW_ID);
@@ -513,6 +537,18 @@ function MigrationPageInner() {
               ))}
             </section>
 
+            {/* Scan delta uploader — drives both Kingdom Power and emigration suggestions */}
+            {isOfficer && (
+              <ScanDeltaPanel
+                cases={cases}
+                cycleId={selectedCycle.id}
+                onScanTotals={recordScanTotals}
+                currentScanLabel={latestScanLabel}
+                currentScanUploadedAt={latestScanUploadedAt}
+                hasScan={latestScanTotalPower !== null}
+              />
+            )}
+
             {/* Power impact */}
             <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -524,29 +560,35 @@ function MigrationPageInner() {
                   )}
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] p-3">
-                  <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-1">Kingdom Power</div>
-                  <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">{fmtM(powerImpact.totalKingdom)}</div>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{latestScanLabel ? 'From uploaded scan' : 'From latest DKP scan'}</div>
+              {latestScanTotalPower === null ? (
+                <div className="rounded-lg bg-[var(--background-secondary)] border border-dashed border-[var(--border)] p-4 text-center text-sm text-[var(--text-muted)]">
+                  Upload today&apos;s kingdom export above to calculate kingdom power and check for emigrants.
                 </div>
-                <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 p-3">
-                  <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Active Cases Emigrate</div>
-                  <div className="text-xl font-bold tabular-nums text-rose-400">{fmtM(powerImpact.afterMigrate)}</div>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                    −{fmtM(powerImpact.activePower)}
-                    {powerImpact.totalKingdom > 0 && <> ({((powerImpact.activePower / powerImpact.totalKingdom) * 100).toFixed(1)}% loss)</>}
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] p-3">
+                    <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-1">Kingdom Power</div>
+                    <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">{fmtM(powerImpact.totalKingdom)}</div>
+                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate" title={latestScanLabel ?? ''}>From {latestScanLabel}</div>
+                  </div>
+                  <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 p-3">
+                    <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Active Cases Emigrate</div>
+                    <div className="text-xl font-bold tabular-nums text-rose-400">{fmtM(powerImpact.afterMigrate)}</div>
+                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      −{fmtM(powerImpact.activePower)}
+                      {powerImpact.totalKingdom > 0 && <> ({((powerImpact.activePower / powerImpact.totalKingdom) * 100).toFixed(1)}% loss)</>}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-3">
+                    <div className="text-xs text-amber-400 uppercase tracking-wider mb-1">If Zeroed ({Math.round(ZERO_POWER_DROP * 100)}%)</div>
+                    <div className="text-xl font-bold tabular-nums text-amber-400">{fmtM(powerImpact.afterZero)}</div>
+                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      −{fmtM(powerImpact.zeroLoss)}
+                      {powerImpact.totalKingdom > 0 && <> ({((powerImpact.zeroLoss / powerImpact.totalKingdom) * 100).toFixed(2)}% loss)</>}
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-3">
-                  <div className="text-xs text-amber-400 uppercase tracking-wider mb-1">If Zeroed ({Math.round(ZERO_POWER_DROP * 100)}%)</div>
-                  <div className="text-xl font-bold tabular-nums text-amber-400">{fmtM(powerImpact.afterZero)}</div>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                    −{fmtM(powerImpact.zeroLoss)}
-                    {powerImpact.totalKingdom > 0 && <> ({((powerImpact.zeroLoss / powerImpact.totalKingdom) * 100).toFixed(2)}% loss)</>}
-                  </div>
-                </div>
-              </div>
+              )}
             </section>
 
             {/* At-risk banner */}
@@ -554,19 +596,6 @@ function MigrationPageInner() {
               <section className="mb-4 rounded-xl bg-rose-500/10 border border-rose-500/30 p-3 text-sm text-rose-300">
                 <strong>{atRisk.length}</strong> case{atRisk.length === 1 ? '' : 's'} past the deadline and not yet resolved.
               </section>
-            )}
-
-            {/* Scan delta uploader */}
-            {isOfficer && (
-              <ScanDeltaPanel
-                cases={cases}
-                cycleId={selectedCycle.id}
-                onScanTotals={(power, label) => {
-                  setLatestScanTotalPower(power);
-                  setLatestScanLabel(label);
-                }}
-                currentScanLabel={latestScanLabel}
-              />
             )}
 
             {/* Controls */}
@@ -859,11 +888,15 @@ function ScanDeltaPanel({
   cycleId,
   onScanTotals,
   currentScanLabel,
+  currentScanUploadedAt,
+  hasScan,
 }: {
   cases: MigrationCase[];
   cycleId: string;
   onScanTotals: (totalPower: number, label: string) => void;
   currentScanLabel: string | null;
+  currentScanUploadedAt: string | null;
+  hasScan: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -894,16 +927,24 @@ function ScanDeltaPanel({
   // Suppress unused-var lint for cycleId (kept for future reuse / scoping).
   void cycleId;
 
+  const uploadedWhen = currentScanUploadedAt ? new Date(currentScanUploadedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
+
   return (
-    <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[200px]">
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">Scan delta</h3>
+    <section className={`mb-4 rounded-xl border p-4 ${hasScan ? 'bg-[var(--background-card)] border-[var(--border)]' : 'bg-amber-500/5 border-amber-500/40'}`}>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex-1 min-w-[220px]">
+          <h3 className={`text-sm font-semibold ${hasScan ? 'text-[var(--foreground)]' : 'text-amber-400'}`}>
+            {hasScan ? 'Kingdom scan' : 'Upload today\'s kingdom export'}
+          </h3>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Upload a fresh kingdom stats XLSX. Players missing from the scan will be suggested as emigrated. Kingdom power in the card above will switch to this scan&apos;s total.
+            {hasScan
+              ? 'Kingdom Power is calculated from this scan. Upload a newer one anytime to refresh and re-check for emigrants.'
+              : 'Required: a single-day kingdom stats XLSX. Used for (1) current kingdom power and (2) detecting who emigrated.'}
           </p>
-          {currentScanLabel && (
-            <p className="text-[11px] text-emerald-400 mt-1">Power card using: <span className="font-mono">{currentScanLabel}</span></p>
+          {hasScan && currentScanLabel && (
+            <p className="text-[11px] text-emerald-400 mt-1 font-mono break-all">
+              {currentScanLabel}{uploadedWhen ? ` · uploaded ${uploadedWhen}` : ''}
+            </p>
           )}
         </div>
         <input
@@ -920,9 +961,13 @@ function ScanDeltaPanel({
         <button
           disabled={busy}
           onClick={() => fileRef.current?.click()}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-60 transition-colors"
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-60 ${
+            hasScan
+              ? 'bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+              : 'bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+          }`}
         >
-          <Upload size={12} /> {busy ? 'Scanning…' : 'Upload scan'}
+          <Upload size={12} /> {busy ? 'Scanning…' : hasScan ? 'Upload newer scan' : 'Upload kingdom export'}
         </button>
       </div>
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
