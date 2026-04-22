@@ -184,6 +184,12 @@ export async function suggestMigrated(id: string) {
   });
 }
 
+export async function dismissMigrationSuggestion(id: string) {
+  return patchCase(id, {
+    migration_suggested_at: null,
+  });
+}
+
 export async function confirmMigrated(id: string, officerName: string) {
   return patchCase(id, {
     state: 'migrated',

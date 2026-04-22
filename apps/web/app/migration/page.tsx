@@ -36,6 +36,7 @@ import {
   markContacted,
   markToZero,
   suggestMigrated,
+  dismissMigrationSuggestion,
   confirmMigrated,
   markException,
   confirmZeroed,
@@ -965,7 +966,19 @@ function CaseRow({
           {STATE_LABELS[c.state]}
         </span>
         {suggested && isActive && (
-          <div className="text-[10px] text-amber-400 mt-1">Suggested emigrated from scan</div>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className="text-[10px] text-amber-400">Suggested emigrated from scan</span>
+            {isOfficer && (
+              <button
+                disabled={busy}
+                onClick={() => wrap(() => dismissMigrationSuggestion(c.id))}
+                className="text-[10px] text-[var(--text-muted)] hover:text-[var(--foreground)] underline"
+                title="They didn't actually emigrate — remove the suggestion flag"
+              >
+                Not emigrated
+              </button>
+            )}
+          </div>
         )}
       </td>
       <td className="px-3 py-2 text-xs text-[var(--text-muted)]">
