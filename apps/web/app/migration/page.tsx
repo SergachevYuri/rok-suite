@@ -111,6 +111,9 @@ function MigrationPageInner() {
   const [cases, setCases] = useState<MigrationCase[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [flaggedIds, setFlaggedIds] = useState<number[]>([]);
+  // Latest uploaded-scan totals — overrides the DKP-dataset power in the Power Impact card.
+  const [latestScanTotalPower, setLatestScanTotalPower] = useState<number | null>(null);
+  const [latestScanLabel, setLatestScanLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active' | 'suggested'>('active');
@@ -239,15 +242,17 @@ function MigrationPageInner() {
     return list;
   }, [cases, search, stateFilter]);
 
-  // Power math — scoped to the current cycle
+  // Power math — scoped to the current cycle. Prefer the freshly-uploaded scan
+  // total when the officer has just uploaded one; otherwise fall back to the
+  // DKP dataset that was already on the site.
   const powerImpact = useMemo(() => {
-    const totalKingdom = players.reduce((s, p) => s + (p.power ?? 0), 0);
+    const totalKingdom = latestScanTotalPower ?? players.reduce((s, p) => s + (p.power ?? 0), 0);
     const activePower = activeCases.reduce((s, c) => s + c.power_at_open, 0);
     const afterMigrate = totalKingdom - activePower;
     const zeroLoss = activePower * ZERO_POWER_DROP;
     const afterZero = totalKingdom - zeroLoss;
     return { totalKingdom, activePower, afterMigrate, zeroLoss, afterZero };
-  }, [players, activeCases]);
+  }, [players, activeCases, latestScanTotalPower]);
 
   const refreshFlagged = useCallback(async () => {
     const flagged = await loadConfigRow<number[]>(MIGRATION_ROW_ID);
@@ -523,7 +528,7 @@ function MigrationPageInner() {
                 <div className="rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] p-3">
                   <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-1">Kingdom Power</div>
                   <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">{fmtM(powerImpact.totalKingdom)}</div>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">From latest DKP scan</div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{latestScanLabel ? 'From uploaded scan' : 'From latest DKP scan'}</div>
                 </div>
                 <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 p-3">
                   <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Active Cases Emigrate</div>
@@ -552,7 +557,17 @@ function MigrationPageInner() {
             )}
 
             {/* Scan delta uploader */}
-            {isOfficer && <ScanDeltaPanel cases={cases} cycleId={selectedCycle.id} />}
+            {isOfficer && (
+              <ScanDeltaPanel
+                cases={cases}
+                cycleId={selectedCycle.id}
+                onScanTotals={(power, label) => {
+                  setLatestScanTotalPower(power);
+                  setLatestScanLabel(label);
+                }}
+                currentScanLabel={latestScanLabel}
+              />
+            )}
 
             {/* Controls */}
             <section className="mb-3 flex flex-wrap items-center gap-2">
@@ -839,7 +854,17 @@ function NewCycleDialog({
 
 // ——— Scan delta uploader ———
 
-function ScanDeltaPanel({ cases, cycleId }: { cases: MigrationCase[]; cycleId: string }) {
+function ScanDeltaPanel({
+  cases,
+  cycleId,
+  onScanTotals,
+  currentScanLabel,
+}: {
+  cases: MigrationCase[];
+  cycleId: string;
+  onScanTotals: (totalPower: number, label: string) => void;
+  currentScanLabel: string | null;
+}) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -853,6 +878,8 @@ function ScanDeltaPanel({ cases, cycleId }: { cases: MigrationCase[]; cycleId: s
     try {
       const rows = await parseStatsFile(file);
       const scanIds = new Set(rows.map((r) => r.governorId));
+      const totalPower = rows.reduce((s, r) => s + (r.power ?? 0), 0);
+      onScanTotals(totalPower, file.name);
       const missing = cases.filter((c) => activeCaseIds.has(c.character_id) && !scanIds.has(c.character_id));
       // Mark suggested_at for each so the UI highlights them even if operator navigates away.
       await Promise.all(missing.map((c) => suggestMigrated(c.id)));
@@ -872,7 +899,12 @@ function ScanDeltaPanel({ cases, cycleId }: { cases: MigrationCase[]; cycleId: s
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[200px]">
           <h3 className="text-sm font-semibold text-[var(--foreground)]">Scan delta</h3>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">Upload a fresh kingdom stats XLSX. Players missing from the scan will be suggested as emigrated.</p>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+            Upload a fresh kingdom stats XLSX. Players missing from the scan will be suggested as emigrated. Kingdom power in the card above will switch to this scan&apos;s total.
+          </p>
+          {currentScanLabel && (
+            <p className="text-[11px] text-emerald-400 mt-1">Power card using: <span className="font-mono">{currentScanLabel}</span></p>
+          )}
         </div>
         <input
           ref={fileRef}
