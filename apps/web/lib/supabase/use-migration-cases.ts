@@ -39,6 +39,10 @@ export interface MigrationCase {
   excepted_at: string | null;
   excepted_by: string | null;
   exception_reason: string | null;
+  exception_requested_at: string | null;
+  exception_requested_by: string | null;
+  exception_request_reason: string | null;
+  exception_suggestion: 'approve' | 'deny' | null;
   marked_to_zero_at: string | null;
   marked_to_zero_by: string | null;
   zeroed_at: string | null;
@@ -207,6 +211,36 @@ export async function markException(id: string, adminName: string, reason: strin
     excepted_at: new Date().toISOString(),
     excepted_by: adminName,
     exception_reason: reason,
+    // Clear any pending request so it no longer shows in the review queue.
+    exception_requested_at: null,
+    exception_requested_by: null,
+    exception_request_reason: null,
+    exception_suggestion: null,
+  });
+}
+
+/** Officer flags a case for admin review, with a reason and suggested outcome. */
+export async function requestException(
+  id: string,
+  officerName: string,
+  reason: string,
+  suggestion: 'approve' | 'deny',
+) {
+  return patchCase(id, {
+    exception_requested_at: new Date().toISOString(),
+    exception_requested_by: officerName,
+    exception_request_reason: reason,
+    exception_suggestion: suggestion,
+  });
+}
+
+/** Admin denies a pending exception request — clears the request, state stays. */
+export async function denyExceptionRequest(id: string) {
+  return patchCase(id, {
+    exception_requested_at: null,
+    exception_requested_by: null,
+    exception_request_reason: null,
+    exception_suggestion: null,
   });
 }
 
@@ -238,6 +272,10 @@ export async function resetCaseToPending(id: string) {
     excepted_at: null,
     excepted_by: null,
     exception_reason: null,
+    exception_requested_at: null,
+    exception_requested_by: null,
+    exception_request_reason: null,
+    exception_suggestion: null,
     marked_to_zero_at: null,
     marked_to_zero_by: null,
     zeroed_at: null,

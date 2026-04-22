@@ -36,6 +36,8 @@ import {
   markContacted,
   markToZero,
   markAfk,
+  requestException,
+  denyExceptionRequest,
   suggestMigrated,
   dismissMigrationSuggestion,
   confirmMigrated,
@@ -144,7 +146,7 @@ function MigrationPageInner() {
   };
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active' | 'suggested'>('active');
+  const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active' | 'suggested' | 'exception_requested'>('active');
   const [showNewCycle, setShowNewCycle] = useState(false);
   const [showEditCycle, setShowEditCycle] = useState(false);
   const [now, setNow] = useState<Date>(() => new Date());
@@ -257,6 +259,7 @@ function MigrationPageInner() {
     let list = cases;
     if (stateFilter === 'active') list = list.filter((c) => !TERMINAL_STATES.includes(c.state));
     else if (stateFilter === 'suggested') list = list.filter((c) => c.migration_suggested_at !== null && !TERMINAL_STATES.includes(c.state));
+    else if (stateFilter === 'exception_requested') list = list.filter((c) => c.exception_requested_at !== null && !TERMINAL_STATES.includes(c.state));
     else if (stateFilter === 'pending') list = list.filter((c) => c.state === 'pending' || c.state === 'claimed' || c.state === 'contacted');
     else if (stateFilter !== 'all') list = list.filter((c) => c.state === stateFilter);
     if (search.trim()) {
@@ -497,7 +500,7 @@ function MigrationPageInner() {
                 <ol className="space-y-1.5 text-xs list-decimal pl-5">
                   <li><strong>Admin creates a cycle</strong> at the start of an emigration round (e.g. "April 2026"), sets a UTC deadline, and snapshots the currently flagged players into it.</li>
                   <li><strong>Players are notified</strong> via a bulk email/message with the list. Everyone starts in the "Notified" state.</li>
-                  <li><strong>Admin grants an Exception</strong> (with a required reason) if a player has a legitimate excuse.</li>
+                  <li><strong>Exceptions</strong> — officers can click "Request Exception" with a reason and a yes/no suggestion. Admins see pending requests in a banner and approve or deny. Admins can also grant an exception directly without a request.</li>
                   <li><strong>Mark Emigrated</strong> if they leave the kingdom. Officers can do this at any point, or use the scan-delta tool to auto-detect departures.</li>
                   <li><strong>After the deadline</strong> — officers click <strong>Mark to Zero</strong> on cases that didn't emigrate or get excepted.</li>
                   <li><strong>Confirm Zeroed</strong> once the zeroing actually happens in-game. (Or click Emigrated instead if the player left before being zeroed.)</li>
@@ -613,6 +616,25 @@ function MigrationPageInner() {
               </section>
             )}
 
+            {/* Pending exception requests (admin-visible cue) */}
+            {isAdmin && (() => {
+              const pending = cases.filter((c) => c.exception_requested_at !== null && !TERMINAL_STATES.includes(c.state));
+              if (pending.length === 0) return null;
+              return (
+                <section className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-sm text-amber-300 flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    <strong>{pending.length}</strong> exception request{pending.length === 1 ? '' : 's'} waiting for your review.
+                  </span>
+                  <button
+                    onClick={() => setStateFilter('exception_requested')}
+                    className="text-xs underline hover:text-amber-200"
+                  >
+                    Show only these
+                  </button>
+                </section>
+              );
+            })()}
+
             {/* Controls */}
             <section className="mb-3 flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[180px]">
@@ -631,6 +653,7 @@ function MigrationPageInner() {
               >
                 <option value="active">Active (non-terminal)</option>
                 <option value="suggested">Suggested from scan</option>
+                <option value="exception_requested">Exception requests pending</option>
                 <option value="all">All</option>
                 {STATE_ORDER.map((s) => (
                   <option key={s} value={s}>{STATE_LABELS[s]}</option>
@@ -1029,10 +1052,13 @@ function CaseRow({
   pastDeadline: boolean;
 }) {
   const [showException, setShowException] = useState(false);
+  const [showRequestException, setShowRequestException] = useState(false);
   const [reason, setReason] = useState(c.exception_reason ?? '');
   const [notesOpen, setNotesOpen] = useState(false);
   const [notesVal, setNotesVal] = useState(c.notes ?? '');
   const [busy, setBusy] = useState(false);
+
+  const hasPendingRequest = c.exception_requested_at !== null;
 
   const isActive = !TERMINAL_STATES.includes(c.state);
   const suggested = c.migration_suggested_at !== null;
@@ -1092,6 +1118,35 @@ function CaseRow({
             )}
           </div>
         )}
+        {hasPendingRequest && isActive && (
+          <div className="mt-1 rounded border border-amber-500/30 bg-amber-500/5 p-1.5 text-[10px] text-[var(--text-secondary)]">
+            <div className="text-amber-300 font-semibold">
+              Exception requested by {c.exception_requested_by}
+              {c.exception_suggestion && <> · suggests <span className={c.exception_suggestion === 'approve' ? 'text-green-400' : 'text-rose-400'}>{c.exception_suggestion}</span></>}
+            </div>
+            {c.exception_request_reason && (
+              <div className="italic mt-0.5 whitespace-pre-wrap">{c.exception_request_reason}</div>
+            )}
+            {isAdmin && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                <button
+                  disabled={busy}
+                  onClick={() => { setReason(c.exception_request_reason ?? ''); setShowException(true); }}
+                  className="px-1.5 py-0.5 text-[10px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25"
+                >
+                  Approve exception
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => wrap(() => denyExceptionRequest(c.id))}
+                  className="px-1.5 py-0.5 text-[10px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25"
+                >
+                  Deny
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </td>
       <td className="px-3 py-2 text-xs text-[var(--text-muted)]">
         {lastAction ? <>{lastAction.label} · {formatDateTime(lastAction.iso)}</> : '—'}
@@ -1103,6 +1158,9 @@ function CaseRow({
           )}
           {isOfficer && isActive && c.state !== 'marked_to_zero' && (
             <button disabled={busy} onClick={() => wrap(() => markAfk(c.id, actorName))} className="px-2 py-1 text-[11px] rounded bg-slate-500/15 text-slate-300 border border-slate-500/30 hover:bg-slate-500/25" title="Player is going inactive / AFK. Power will be subtracted from the Kingdom Power total.">AFK</button>
+          )}
+          {isOfficer && !isAdmin && isActive && c.state !== 'marked_to_zero' && !c.exception_requested_at && (
+            <button disabled={busy} onClick={() => setShowRequestException(true)} className="px-2 py-1 text-[11px] rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 hover:bg-amber-500/20" title="Request an exception review from an admin. They'll see your reason and suggestion.">Request Exception</button>
           )}
           {isActive && isAdmin && c.state !== 'marked_to_zero' && (
             <button disabled={busy} onClick={() => setShowException(true)} className="px-2 py-1 text-[11px] rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25">Exception</button>
@@ -1175,7 +1233,85 @@ function CaseRow({
           />
         </td>
       )}
+      {showRequestException && (
+        <td className="sr-only">
+          <RequestExceptionDialog
+            onClose={() => setShowRequestException(false)}
+            onSubmit={async (r, suggestion) => {
+              await requestException(c.id, officerName?.trim() || 'officer', r, suggestion);
+              setShowRequestException(false);
+            }}
+          />
+        </td>
+      )}
     </tr>
+  );
+}
+
+function RequestExceptionDialog({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void;
+  onSubmit: (reason: string, suggestion: 'approve' | 'deny') => Promise<void>;
+}) {
+  const [reason, setReason] = useState('');
+  const [suggestion, setSuggestion] = useState<'approve' | 'deny'>('approve');
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">Request exception review</h3>
+          <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--foreground)]"><X size={16} /></button>
+        </div>
+        <p className="text-xs text-[var(--text-muted)] mb-3">An admin will see your reason and suggestion, then approve or deny.</p>
+        <label className="text-xs text-[var(--text-muted)]">Reason</label>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          autoFocus
+          rows={4}
+          className="mt-1 mb-3 w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+          placeholder="Why should this player get an exception?"
+        />
+        <label className="text-xs text-[var(--text-muted)]">Your suggestion</label>
+        <div className="mt-1 mb-4 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setSuggestion('approve')}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              suggestion === 'approve'
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            Approve
+          </button>
+          <button
+            type="button"
+            onClick={() => setSuggestion('deny')}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              suggestion === 'deny'
+                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                : 'bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+            }`}
+          >
+            Deny
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <button
+            disabled={busy || !reason.trim()}
+            onClick={async () => { setBusy(true); try { await onSubmit(reason.trim(), suggestion); } finally { setBusy(false); } }}
+            className="flex-1 px-3 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] disabled:opacity-60 transition-colors"
+          >
+            {busy ? 'Submitting…' : 'Submit request'}
+          </button>
+          <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--foreground)]">Cancel</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
