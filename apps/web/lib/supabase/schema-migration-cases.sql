@@ -38,7 +38,7 @@ create table if not exists public.migration_cases (
   username text not null,
   power_at_open bigint not null default 0,
   state text not null default 'pending'
-    check (state in ('pending','claimed','contacted','excepted','migrated','marked_to_zero','zeroed')),
+    check (state in ('pending','claimed','contacted','excepted','migrated','marked_to_zero','zeroed','afk')),
   claimed_by text,
   claimed_at timestamptz,
   contacted_at timestamptz,
@@ -52,6 +52,8 @@ create table if not exists public.migration_cases (
   marked_to_zero_by text,
   zeroed_at timestamptz,
   zeroed_by text,
+  afk_at timestamptz,
+  afk_by text,
   notes text,
   updated_at timestamptz not null default now(),
   unique (cycle_id, character_id)

@@ -7,10 +7,11 @@ export type MigrationState =
   | 'excepted'
   | 'migrated'
   | 'marked_to_zero'
-  | 'zeroed';
+  | 'zeroed'
+  | 'afk';
 
 /** States that end the lifecycle (no further action expected). marked_to_zero is NOT terminal — zeroing still needs confirmation. */
-export const TERMINAL_STATES: MigrationState[] = ['migrated', 'excepted', 'zeroed'];
+export const TERMINAL_STATES: MigrationState[] = ['migrated', 'excepted', 'zeroed', 'afk'];
 
 export interface MigrationCycle {
   id: string;
@@ -42,6 +43,8 @@ export interface MigrationCase {
   marked_to_zero_by: string | null;
   zeroed_at: string | null;
   zeroed_by: string | null;
+  afk_at: string | null;
+  afk_by: string | null;
   notes: string | null;
   updated_at: string;
 }
@@ -215,6 +218,14 @@ export async function confirmZeroed(id: string, officerName: string) {
   });
 }
 
+export async function markAfk(id: string, officerName: string) {
+  return patchCase(id, {
+    state: 'afk',
+    afk_at: new Date().toISOString(),
+    afk_by: officerName,
+  });
+}
+
 /** Reset a case back to pending (undo). Clears per-state timestamps but keeps suggestion markers + notes. */
 export async function resetCaseToPending(id: string) {
   return patchCase(id, {
@@ -231,6 +242,8 @@ export async function resetCaseToPending(id: string) {
     marked_to_zero_by: null,
     zeroed_at: null,
     zeroed_by: null,
+    afk_at: null,
+    afk_by: null,
   });
 }
 

@@ -35,6 +35,7 @@ import {
   unclaimCase,
   markContacted,
   markToZero,
+  markAfk,
   suggestMigrated,
   dismissMigrationSuggestion,
   confirmMigrated,
@@ -54,6 +55,7 @@ const STATE_LABELS: Record<MigrationState, string> = {
   migrated: 'Emigrated',
   marked_to_zero: 'To Zero',
   zeroed: 'Zeroed',
+  afk: 'AFK',
 };
 
 const STATE_STYLES: Record<MigrationState, string> = {
@@ -64,10 +66,11 @@ const STATE_STYLES: Record<MigrationState, string> = {
   migrated: 'bg-green-500/15 text-green-400 border-green-500/30',
   marked_to_zero: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
   zeroed: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+  afk: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
 };
 
 /** Visible states in the summary strip + filter dropdown. claimed/contacted are merged into pending (Notified). */
-const STATE_ORDER: MigrationState[] = ['pending', 'excepted', 'migrated', 'marked_to_zero', 'zeroed'];
+const STATE_ORDER: MigrationState[] = ['pending', 'excepted', 'migrated', 'afk', 'marked_to_zero', 'zeroed'];
 
 const ZERO_POWER_DROP = 0.15;
 
@@ -233,7 +236,7 @@ function MigrationPageInner() {
   // Derived state — claimed/contacted are rolled into pending for display purposes.
   const counts = useMemo(() => {
     const c: Record<MigrationState, number> = {
-      pending: 0, claimed: 0, contacted: 0, excepted: 0, migrated: 0, marked_to_zero: 0, zeroed: 0,
+      pending: 0, claimed: 0, contacted: 0, excepted: 0, migrated: 0, marked_to_zero: 0, zeroed: 0, afk: 0,
     };
     for (const k of cases) c[k.state]++;
     c.pending += c.claimed + c.contacted;
@@ -268,15 +271,21 @@ function MigrationPageInner() {
   }, [cases, search, stateFilter]);
 
   // Power math — scoped to the current cycle. Kingdom power comes from the
-  // admin-uploaded scan; the card shows a prompt until a scan is uploaded.
+  // admin-uploaded scan; AFK cases are subtracted to get the active-kingdom
+  // power that we can actually count on. The card shows a prompt until a scan
+  // is uploaded.
   const powerImpact = useMemo(() => {
-    const totalKingdom = latestScanTotalPower ?? 0;
+    const rawKingdom = latestScanTotalPower ?? 0;
+    const afkPower = cases
+      .filter((c) => c.state === 'afk')
+      .reduce((s, c) => s + c.power_at_open, 0);
+    const totalKingdom = Math.max(0, rawKingdom - afkPower);
     const activePower = activeCases.reduce((s, c) => s + c.power_at_open, 0);
     const afterMigrate = totalKingdom - activePower;
     const zeroLoss = activePower * ZERO_POWER_DROP;
     const afterZero = totalKingdom - zeroLoss;
-    return { totalKingdom, activePower, afterMigrate, zeroLoss, afterZero };
-  }, [activeCases, latestScanTotalPower]);
+    return { totalKingdom, rawKingdom, afkPower, activePower, afterMigrate, zeroLoss, afterZero };
+  }, [cases, activeCases, latestScanTotalPower]);
 
   const refreshFlagged = useCallback(async () => {
     const flagged = await loadConfigRow<number[]>(MIGRATION_ROW_ID);
@@ -500,6 +509,7 @@ function MigrationPageInner() {
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]">Notified</span> player has been notified, waiting for action</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">Excepted</span> admin granted a pass (with a reason)</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Emigrated</span> player left the kingdom</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-slate-500/15 text-slate-300 border-slate-500/30">AFK</span> player is going inactive — subtracted from Kingdom Power</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-orange-500/15 text-orange-400 border-orange-500/30">To Zero</span> officer decided to zero them — not yet confirmed</li>
                   <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> confirmed zeroed in-game</li>
                 </ul>
@@ -570,6 +580,11 @@ function MigrationPageInner() {
                     <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-1">Kingdom Power</div>
                     <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">{fmtM(powerImpact.totalKingdom)}</div>
                     <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate" title={latestScanLabel ?? ''}>From {latestScanLabel}</div>
+                    {powerImpact.afkPower > 0 && (
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        −{fmtM(powerImpact.afkPower)} AFK ({counts.afk})
+                      </div>
+                    )}
                   </div>
                   <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 p-3">
                     <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Active Cases Emigrate</div>
@@ -1026,6 +1041,7 @@ function CaseRow({
     const entries = [
       { label: 'zeroed', iso: c.zeroed_at },
       { label: 'marked to zero', iso: c.marked_to_zero_at },
+      { label: 'afk', iso: c.afk_at },
       { label: 'excepted', iso: c.excepted_at },
       { label: 'emigrated', iso: c.migrated_confirmed_at },
       { label: 'suggested', iso: c.migration_suggested_at },
@@ -1084,6 +1100,9 @@ function CaseRow({
         <div className="flex flex-wrap gap-1">
           {isOfficer && isActive && c.state !== 'marked_to_zero' && (
             <button disabled={busy} onClick={() => wrap(() => confirmMigrated(c.id, actorName))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25">Emigrated</button>
+          )}
+          {isOfficer && isActive && c.state !== 'marked_to_zero' && (
+            <button disabled={busy} onClick={() => wrap(() => markAfk(c.id, actorName))} className="px-2 py-1 text-[11px] rounded bg-slate-500/15 text-slate-300 border border-slate-500/30 hover:bg-slate-500/25" title="Player is going inactive / AFK. Power will be subtracted from the Kingdom Power total.">AFK</button>
           )}
           {isActive && isAdmin && c.state !== 'marked_to_zero' && (
             <button disabled={busy} onClick={() => setShowException(true)} className="px-2 py-1 text-[11px] rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25">Exception</button>
