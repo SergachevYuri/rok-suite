@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -1220,29 +1221,29 @@ function CaseRow({
           <div className="mt-1 text-[11px] text-[var(--text-muted)] italic">{c.notes}</div>
         )}
       </td>
-      {showException && (
-        <td className="sr-only">
-          <ExceptionDialog
-            onClose={() => setShowException(false)}
-            onConfirm={async (r) => {
-              await markException(c.id, officerName?.trim() || 'admin', r);
-              setShowException(false);
-            }}
-            initial={reason}
-            setInitial={setReason}
-          />
-        </td>
+      {showException && typeof document !== 'undefined' && createPortal(
+        <ExceptionDialog
+          onClose={() => setShowException(false)}
+          onConfirm={async (r) => {
+            await markException(c.id, officerName?.trim() || 'admin', r);
+            setShowException(false);
+            await onRefresh();
+          }}
+          initial={reason}
+          setInitial={setReason}
+        />,
+        document.body,
       )}
-      {showRequestException && (
-        <td className="sr-only">
-          <RequestExceptionDialog
-            onClose={() => setShowRequestException(false)}
-            onSubmit={async (r, suggestion) => {
-              await requestException(c.id, officerName?.trim() || 'officer', r, suggestion);
-              setShowRequestException(false);
-            }}
-          />
-        </td>
+      {showRequestException && typeof document !== 'undefined' && createPortal(
+        <RequestExceptionDialog
+          onClose={() => setShowRequestException(false)}
+          onSubmit={async (r, suggestion) => {
+            await requestException(c.id, officerName?.trim() || 'officer', r, suggestion);
+            setShowRequestException(false);
+            await onRefresh();
+          }}
+        />,
+        document.body,
       )}
     </tr>
   );
