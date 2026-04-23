@@ -1,112 +1,69 @@
 # ROK Suite Web App
 
-Strategy tools and battle planning for Rise of Kingdoms.
+Next.js app for **Rise of Kingdoms** alliance and kingdom management — KvK war room, DKP scoring, emigration tracking, mail composer, event planning.
 
-**Live Site: [rok-suite.vercel.app](https://rok-suite.vercel.app)**
+**Live Site:** [rok-suite-web.vercel.app](https://rok-suite-web.vercel.app)
+
+For the overall repo layout, features, and setup story, see the [root README](../../README.md). This file covers the Next.js app specifically.
 
 ---
 
-## Features
+## Tools (Sidebar)
 
-### Alliance Roster (`/roster`)
-Comprehensive member tracking and growth analysis dashboard:
-- **Member data** — power, kill points (T4/T5 breakdown), honor points, role, tier, alliance tags
-- **Historical snapshots** — daily snapshots stored in Supabase with date comparison
-- **Growth tables** — KP Growth, Power Growth, and Honor Growth with gradient bar graphs
-- **Member history** — click any member to see line charts of their stats over time
-- **Customizable columns** — toggle 17+ metrics across core, combat, support, events, and profile categories
-- **Name change handling** — `alternate_names` arrays and `merged_into` FK for tracking renames and account merges
-- **Bulk operations** — CSV/JSON import, member merge, deactivation, tag management
-- **Advanced sorting & filtering** — sort by any column, search by name, filter by role
+| Page | Purpose |
+|------|---------|
+| `/calendar` | Google Calendar embed (alliance / kingdom / RoK events) with multi-timezone support |
+| `/alliance-calculator` | Flag cost + build-time calculator (Architecture I/II, Artisan's Spirit) |
+| `/rok-mail` | WYSIWYG composer for in-game mail markup + Gemini AI assistant |
+| `/dkp` | Normalized kingdom-contribution scoring |
+| `/migration` | Emigration case tracking (flagged → contacted → terminal state) |
+| `/aoo-strategy` | 30v30 AoO planner with training polls |
+| `/mge` | Mightiest Governor Event bracket tracking |
+| `/kingdom/kingdom-stats` | Daily kingdom-wide rankings and trends |
+| `/kvk-map` | Leaflet KvK war room with assignments + achievement progress |
 
-### Alliance Events (`/events`)
-Event hub for alliance-wide challenges:
-- **KP Push Challenge** (Jan 2026) — leaderboard tracking KP gains, power changes, and P/KP ratio
-- **Top 3 podium** with gold/silver/bronze accent styling
-- **KP distribution bar chart** showing gain spread across all participants
-- **Rankings table** with gradient bar graphs for KP and Power columns
-- **Leadership table** (R4/R5) with expandable rows, same visual treatment as rankings
-- **Expandable snapshot history** — click any row to see date-by-date data + sparkline charts
-- **P/KP ratio tracking** — start → end ratio with delta indicator, Best Ratio Gain card
-
-### Alliance Calendar (`/calendar`)
-Google Calendar integration:
-- **Embedded calendar** for alliance events (AoO training, KvK schedules, rallies)
-- **Multi-timezone support** — UTC, US Eastern/Pacific, UK, Europe, Asia-Pacific, Australia
-- **iCal subscription URLs** for Apple Calendar, Outlook, and other apps
-
-### Ark of Osiris Strategy Planner (`/aoo-strategy`)
-30v30 battle planning tool with:
-- **3-Zone Team System** - Blue (Zone 1), Orange (Zone 2), Purple (Zone 3) matching in-game colors
-- **Interactive Battle Map** - 18 strategic buildings with phase-based attack orders
-- **Corner Swap Toggle** - Mirror strategy for different spawn positions (top-left vs bottom-right)
-- **Training Availability Polls** - Multi-day/time polls with drag-to-select, timezone conversion, and image export
-- **Roster Management** - Import players from CSV, track power, auto-assign teleport waves
-- **Player Role Tags** - Rally Leader, Coordinator, Teleport 1st/2nd
-- **Per-Zone Export** - Copy strategy text for each zone to share in Discord
-- **Real-time Data Sync** - Supabase backend for persistence
-
-### Sunset Canyon Simulator (`/sunset-canyon`)
-5v5 defensive formation optimizer with:
-- **Commander Roster** - Full stats tracking (level, stars, skills, talents)
-- **JSON Import** - Bulk import commanders from JSON files with format documentation
-- **Screenshot Scanner** - OCR (Tesseract.js) + Vision AI (Roboflow) for bulk import
-- **Formation Optimizer** - Multi-layered scoring with primary/secondary position preferences
-- **Meta Synergies** - Based on research from ROK community guides
-- **Win Rate Analysis** - Synergy-based probability estimates
-
-### Upgrade Calculator (`/upgrade-calculator`)
-City Hall progression planner with:
-- **Dependency Graph** - Interactive SVG visualization with pan/zoom
-- **List View** - Collapsible tree with +/- controls
-- **Resource Calculator** - Food, Wood, Stone, Gold totals
-- **Speed Bonuses** - VIP levels 0-17 and custom bonuses
-- **All 20+ Buildings** - Levels 1-25 with smart defaults
-
-### Game Guides (`/guide`)
-Comprehensive strategy guides:
-- **Event Guides** - Solo, alliance, co-op PvE, and PvP events
-- **Alliance Protocols** - Guardian runs, rally procedures, territory management
-- **Commander Progression** - F2P and P2P paths with efficiency tips
-- **Checklists** - Preparation and execution steps with rewards info
-
-### Beta Tools (`/beta-tools`)
-Experimental features hub for testing scanners, simulators, and calculators.
+Legacy/archived pages (`/roster`, `/rosters`, `/events`, `/recognition`, `/sunset-canyon`, `/upgrade-calculator`, `/scanners`, `/guide`, `/kingdom/migration-tracker`, `/kingdom/alliance-sorter`, `/kingdom/wanted`, `/beta-tools`) still exist but are not in the sidebar or home. See the root README for the full list.
 
 ---
 
 ## Tech Stack
 
-- **Framework:** Next.js 16 (App Router)
-- **UI:** React 19, Tailwind CSS 4
-- **Icons:** Lucide React
-- **Charts:** Recharts (bar charts, line charts, sparklines)
-- **Database:** Supabase (PostgreSQL + real-time)
-- **Auth:** Supabase (Discord & Google OAuth)
-- **OCR:** Tesseract.js
-- **Vision AI:** Roboflow
+- **Framework:** Next.js 16 (App Router), React 19
+- **UI:** Tailwind CSS 4, Lucide React icons
+- **Charts:** Recharts
+- **Maps:** Leaflet with custom CRS for image overlays
+- **i18n:** next-intl (15 locales)
+- **Database:** Supabase (PostgreSQL + realtime subscriptions)
+- **AI:** Google Gemini (RoK Mail), Anthropic Claude (optional — KvK RSS node detection)
+- **OCR / Vision:** Tesseract.js, Roboflow (legacy scanner pages)
 - **State:** Zustand + localStorage
 - **Hosting:** Vercel
 
 ---
 
-## Supabase Tables
+## Auth Model
 
-| Table | Purpose |
-|-------|---------|
-| `alliance_roster` | Active members — name, power, kills, t4/t5 kills, honor, role, tier, tags, alternate_names, merged_into |
-| `roster_snapshots` | Daily snapshots — member_name, snapshot_date, power, kills, t4/t5 kills, honor_points, is_active |
-| `roster_daily_totals` | Aggregated daily stats (database view) — member_count, total_power, total_kills, avg_power |
-| `event_participation` | Event tracking — member_name, event_type (aoo/mobilization), event_date, team, score |
-| `aoo_strategy` | AoO player assignments, map positions, and roster data |
-| `training_polls` | Training availability polls with multi-day/time support |
-| `poll_responses` | Individual poll responses with voter tracking |
+Client-side role gating using four passwords (no real auth). Roles in ascending privilege:
 
-### Key Supabase Patterns
+```
+viewer (no password) < power < officer < admin
+```
 
-- **`fetchAllRows()`** (`lib/supabase/client.ts`) — auto-paginates past Supabase's 1,000-row limit
-- **`use-roster-snapshots.ts`** — data layer for snapshots, growth tracking, name resolution, and member history
-- **Name resolution** — canonical name mapping handles `alternate_names`, `merged_into`, and normalized tag matching
+Passwords come from `NEXT_PUBLIC_*_PASSWORD` env vars in [.env.local.example](.env.local.example). All gating is UX-only — row-level security on Supabase is the authoritative rule for writes. See `lib/auth-passwords.ts` and `lib/kvk-map/war-room-auth.tsx`.
+
+Which page uses which gate:
+
+| Page | Viewer | Officer | Admin |
+|------|--------|---------|-------|
+| Calendar | Public + 3 shared calendars | — | Leadership calendar unlock |
+| Alliance Calculator | Full access | — | — |
+| RoK Mail | Full access (incl. AI) | — | — |
+| DKP | Read rankings | Upload data, flag players | Edit weights |
+| Emigration | Read cases | Claim, contact, request exception | Create cycles, approve/deny exceptions |
+| AoO Planner | View strategy | Edit assignments, create polls | — |
+| MGE | View events | Assign members | Create/delete events |
+| Kingdom Stats | Full access | — | — |
+| KvK War Room | View map + progress | Edit assignments, strategy notes | Draw zones, switch seasons |
 
 ---
 
@@ -115,80 +72,50 @@ Experimental features hub for testing scanners, simulators, and calculators.
 ### Prerequisites
 - Node.js 20+
 - pnpm 9+
+- A Supabase project (free tier works)
 
 ### Setup
+
 ```bash
 # From repo root
 pnpm install
 
 # Create environment file
-cp .env.local.example .env.local
-# Edit .env.local with your keys
+cp apps/web/.env.local.example apps/web/.env.local
+# Edit .env.local with your Supabase keys and passwords
 ```
+
+Then apply the Supabase schemas — see [Supabase Setup](../../README.md#supabase-setup) in the root README.
 
 ### Run locally
+
 ```bash
-pnpm dev
+pnpm --filter @rok-suite/web dev
+# or: cd apps/web && pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000).
 
-### Environment Variables
-
-```env
-# Required - Supabase
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-
-# Required for admin scripts
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# Optional - Roboflow (screenshot scanning)
-NEXT_PUBLIC_ROBOFLOW_API_KEY=your-api-key
-NEXT_PUBLIC_ROBOFLOW_WORKSPACE=your-workspace
-NEXT_PUBLIC_ROBOFLOW_WORKFLOW=your-workflow-id
-NEXT_PUBLIC_ROBOFLOW_PROJECT=your-project
-```
-
----
-
-## Scripts
+### Scripts
 
 ```bash
 pnpm dev          # Start development server
 pnpm build        # Production build
 pnpm start        # Run production server
 pnpm lint         # Run ESLint
+pnpm typecheck    # TypeScript check
 ```
 
-### Roster Management Scripts
-
-```bash
-# Generate SQL from roster CSV
-NEXT_PUBLIC_SUPABASE_URL="..." NEXT_PUBLIC_SUPABASE_ANON_KEY="..." \
-  npx tsx scripts/generate-sql.ts
-
-# Seed roster directly to Supabase
-NEXT_PUBLIC_SUPABASE_URL="..." SUPABASE_SERVICE_ROLE_KEY="..." \
-  npx tsx scripts/seed-aoo-roster.ts
-
-# Check snapshot data for specific members and dates
-NEXT_PUBLIC_SUPABASE_URL="..." SUPABASE_SERVICE_ROLE_KEY="..." \
-  npx tsx scripts/check-snapshot.ts
-```
+Data-admin scripts live in [scripts/](scripts/) (require `SUPABASE_SERVICE_ROLE_KEY`).
 
 ---
 
 ## Deployment
 
-Auto-deploys to Vercel on push to `main`.
+Auto-deploys to Vercel on push to `main`. Environment variables are set in the Vercel project settings — mirror the ones in `.env.local.example`.
 
 ---
 
 ## License
 
 MIT
-
----
-
-**Angmar Nazgul Guards** • Rise of Kingdoms

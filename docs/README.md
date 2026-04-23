@@ -65,6 +65,26 @@ These pages still work in the app but are no longer featured on the home screen 
 
 ---
 
+## Who can use what on the live site
+
+The live app is configured for **Angmar Nazgul Guards** (Kingdom 23). If you don't have an Angmar password, you still get a useful read-only experience; officer/admin features will not accept an arbitrary password.
+
+| Tool | Viewer (public) | Officer | Admin |
+|------|-----------------|---------|-------|
+| Calendar | Public + 3 shared calendars | — | Leadership calendar |
+| Alliance Calculator | Full | — | — |
+| RoK Mail | Full (incl. AI) | — | — |
+| DKP | Read rankings | Upload + flag | Edit weights |
+| Emigration | Read cases | Claim, contact, request exception | Create cycles, approve/deny |
+| AoO Planner | View strategy | Edit assignments, polls | — |
+| MGE | View events | Assign members | Create/delete |
+| Kingdom Stats | Full | — | — |
+| KvK War Room | View map + progress | Edit assignments, notes | Draw zones, switch seasons |
+
+To use officer/admin features for your own alliance, clone the repo and run it against your own Supabase instance — see the [root README](https://github.com/avweigel/rok-suite#getting-started).
+
+---
+
 ## Quick Links
 
 | | |

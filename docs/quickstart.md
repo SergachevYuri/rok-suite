@@ -8,7 +8,9 @@ The easiest way to use RoK Suite is through the live deployment:
 
 **[rok-suite-web.vercel.app](https://rok-suite-web.vercel.app)**
 
-No installation required — just open and start planning. Most tools are public; officer and admin features are gated by passwords configured in environment variables.
+No installation required — just open and start planning. The live site is configured for **Angmar Nazgul Guards**; if you don't have an Angmar password, you still get a read-only experience. To unlock officer/admin features for your own alliance you'll need to run your own copy — see [Running Locally](#running-locally) below.
+
+See the [access table](README.md#who-can-use-what-on-the-live-site) for what viewer / officer / admin can do on each page.
 
 ## Tour of the Tools
 
@@ -41,6 +43,8 @@ In **MGE**, set up brackets for Mightiest Governor Event cycles and assign roste
 
 ## Running Locally
 
+Prerequisites: **Node.js 20+**, **pnpm 9+**, a **Supabase** project (free tier works).
+
 ```bash
 # Clone the repo
 git clone https://github.com/avweigel/rok-suite.git
@@ -52,6 +56,8 @@ pnpm install
 # Set up environment variables
 cp apps/web/.env.local.example apps/web/.env.local
 # Edit .env.local with your Supabase keys and passwords
+
+# Apply the Supabase schema (see the root README's Supabase Setup section)
 
 # Run development server
 pnpm dev
@@ -67,7 +73,13 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 | `NEXT_PUBLIC_ADMIN_PASSWORD` | Admin role gating (client-side) |
 | `NEXT_PUBLIC_OFFICER_PASSWORD` | Officer role gating (client-side) |
+| `NEXT_PUBLIC_POWER_PASSWORD` | Power-user role gating (client-side) |
 | `GEMINI_API_KEY` | Optional — RoK Mail AI assistant |
+| `ANTHROPIC_API_KEY` | Optional — KvK map RSS node detection |
+
+### Supabase
+
+The repo ships raw SQL schemas in [apps/web/lib/supabase/](https://github.com/avweigel/rok-suite/tree/main/apps/web/lib/supabase) and incremental migrations in [apps/web/lib/supabase/migrations/](https://github.com/avweigel/rok-suite/tree/main/apps/web/lib/supabase/migrations). There's no migration runner — apply them manually in the Supabase SQL Editor. See the [root README → Supabase Setup](https://github.com/avweigel/rok-suite#supabase-setup) for the required vs. optional file list.
 
 ## Need Help?
 
