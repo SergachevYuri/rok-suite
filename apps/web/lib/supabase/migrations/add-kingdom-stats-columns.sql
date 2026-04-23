@@ -1,0 +1,21 @@
+-- Add new columns from kingdom stats export to roster_snapshots
+-- Columns: deaths by tier, resources gathered, alliance helps
+
+ALTER TABLE roster_snapshots
+  ADD COLUMN IF NOT EXISTS deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS t1_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS t2_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS t3_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS t4_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS t5_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS gathered BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS alliance_helps BIGINT DEFAULT 0;
+
+-- Also add to alliance_roster if not present
+ALTER TABLE alliance_roster
+  ADD COLUMN IF NOT EXISTS t1_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS t2_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS t3_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS t4_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS t5_deads BIGINT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS alliance_helps BIGINT DEFAULT 0;

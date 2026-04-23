@@ -26,6 +26,44 @@ apps/web/data/*.pptx
 apps/web/data/*.ics
 apps/web/data/*.png
 apps/web/data/*.jpg
+apps/web/data/*.json
+apps/web/data/*.bak
+apps/web/data/*.txt
+apps/web/data/kvk2-map/
+
+# Top-level scratch data (alliance CSVs, etc. — gitignore instead of moving so
+# they don't end up committed by accident)
+/*.csv
+/*.numbers
+/*.xlsx
+
+# Local scratch scripts (one-off data-admin helpers). Tracked scripts stay
+# tracked — gitignore only affects untracked files — so these patterns just
+# keep ad-hoc scripts from cluttering `git status`.
+apps/web/scripts/check-*.ts
+apps/web/scripts/check-*.mjs
+apps/web/scripts/fix-*.ts
+apps/web/scripts/fix-*.mjs
+apps/web/scripts/fix-*.js
+apps/web/scripts/find-*.ts
+apps/web/scripts/find-*.mjs
+apps/web/scripts/debug-*.ts
+apps/web/scripts/debug-*.mjs
+apps/web/scripts/diagnose-*.ts
+apps/web/scripts/dump-*.ts
+apps/web/scripts/verify-*.ts
+apps/web/scripts/investigate-*.ts
+apps/web/scripts/investigate-*.mjs
+apps/web/scripts/cleanup-*.ts
+apps/web/scripts/import-*.ts
+apps/web/scripts/import-*.mjs
+apps/web/scripts/insert-*.ts
+apps/web/scripts/sync-*.ts
+apps/web/scripts/populate-*.ts
+apps/web/scripts/merge-*.mjs
+apps/web/scripts/mark-*.ts
+apps/web/scripts/update-*.ts
+apps/web/scripts/add-*.ts
 
 # macOS
 .DS_Store
