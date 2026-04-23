@@ -1,5 +1,5 @@
 -- Add missing commanders to the database
--- Run this in Supabase SQL Editor: https://supabase.com/dashboard/project/mzvxlawobzwiqohmoskm/sql/new
+-- Run this in Supabase SQL Editor: https://supabase.com/dashboard/project/_/sql/new
 
 -- Pyrrhus of Epirus
 INSERT INTO public.commanders (id, name, rarity, roles, troop_type, specialties, attack, defense, health, march_speed, skill_1_name, skill_1_description, skill_1_rage, skill_1_damage_coefficient, skill_1_targets, synergies)

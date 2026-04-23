@@ -1,6 +1,6 @@
 -- Migration: Add King's Recognition Trophy System
 -- Run this in your Supabase SQL Editor
--- https://supabase.com/dashboard/project/mzvxlawobzwiqohmoskm/sql/new
+-- https://supabase.com/dashboard/project/_/sql/new
 
 -- =============================================================================
 -- CREATE KING_TROPHIES TABLE

@@ -24,3 +24,8 @@ apps/web/data/*.xlsx
 apps/web/data/*.numbers
 apps/web/data/*.pptx
 apps/web/data/*.ics
+apps/web/data/*.png
+apps/web/data/*.jpg
+
+# macOS
+.DS_Store

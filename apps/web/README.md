@@ -49,7 +49,7 @@ Client-side role gating using four passwords (no real auth). Roles in ascending 
 viewer (no password) < power < officer < admin
 ```
 
-Passwords come from `NEXT_PUBLIC_*_PASSWORD` env vars in [.env.local.example](.env.local.example). All gating is UX-only — row-level security on Supabase is the authoritative rule for writes. See `lib/auth-passwords.ts` and `lib/kvk-map/war-room-auth.tsx`.
+Passwords come from `NEXT_PUBLIC_*_PASSWORD` env vars in [.env.local.example](.env.local.example) — they're shipped in the client bundle and are not a real security boundary. Supabase tables mostly use "allow public" RLS policies so the app can read/write with the anon key; the passwords are the primary write gate, with RLS tightened only where [migrations/tighten-rls-policies.sql](lib/supabase/migrations/tighten-rls-policies.sql) removed write policies. For server-side AI proxies, the Anthropic endpoint additionally checks an `x-rok-auth` header against the officer/admin password. See `lib/auth-passwords.ts` and `lib/kvk-map/war-room-auth.tsx`.
 
 Which page uses which gate:
 

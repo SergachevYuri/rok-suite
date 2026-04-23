@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
 
 // Allow up to 60 seconds for Claude Vision API calls on Vercel
 export const maxDuration = 60;
+
+// Claude Sonnet with vision + 4096 max_tokens is ~$0.01–0.03 per call.
+// Gate on officer/admin password AND cap per-IP to bound damage if a
+// password leaks. RSS-node detection is a low-volume officer workflow,
+// so 10/hour is plenty.
+const LIMIT = 10;
+const WINDOW_MS = 60 * 60 * 1000;
 
 interface AnnotationInput {
   x: number;
@@ -68,6 +76,23 @@ If no nodes are found, respond with: []`;
  * Accepts a single tile + annotations, returns detected nodes for that tile.
  */
 export async function POST(request: NextRequest) {
+  const provided = request.headers.get('x-rok-auth') ?? '';
+  const officer = process.env.NEXT_PUBLIC_OFFICER_PASSWORD ?? '';
+  const admin = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? '';
+  const authorized = (officer && provided === officer) || (admin && provided === admin);
+  if (!authorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const ip = getClientIp(request);
+  const rl = rateLimit(`kvk-detect:${ip}`, LIMIT, WINDOW_MS);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: `Rate limit exceeded. Try again in ${Math.ceil(rl.resetMs / 60000)} minutes.` },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.resetMs / 1000)) } },
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

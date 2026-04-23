@@ -1,6 +1,6 @@
 -- Migration: Add ROKstats columns to alliance_roster
 -- Run this in your Supabase SQL Editor
--- https://supabase.com/dashboard/project/mzvxlawobzwiqohmoskm/sql/new
+-- https://supabase.com/dashboard/project/_/sql/new
 
 -- =============================================================================
 -- ADD NEW COLUMNS TO ALLIANCE_ROSTER

@@ -120,7 +120,7 @@ viewer (no password) < power < officer < admin
 | Kingdom Stats | Full | — | — |
 | KvK War Room | View map + progress | Edit assignments, notes | Draw zones, switch seasons |
 
-Passwords are UX-only. Authoritative rules are enforced by Supabase row-level security — so running your own instance is the only way to use officer/admin features; the live Angmar site rejects any password you haven't been given.
+Passwords are **client-side** — a determined attacker could extract them from the `NEXT_PUBLIC_*` bundle. In practice the Supabase instance uses broad "allow public" row-level security policies for most tables so the app can read/write freely with the anon key. Writes are gated primarily by the passwords, with RLS as a partial second layer (see [migrations/tighten-rls-policies.sql](apps/web/lib/supabase/migrations/tighten-rls-policies.sql) for what's locked down). To use officer/admin features for your own alliance, run your own instance — the live Angmar site won't accept passwords you don't have.
 
 ---
 

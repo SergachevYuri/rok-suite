@@ -1,6 +1,6 @@
 -- Schema for Roster Snapshots (Historical Tracking)
 -- Run this in your Supabase SQL Editor
--- https://supabase.com/dashboard/project/mzvxlawobzwiqohmoskm/sql/new
+-- https://supabase.com/dashboard/project/_/sql/new
 
 -- =============================================================================
 -- ROSTER SNAPSHOTS (Daily power/KP snapshots for historical tracking)

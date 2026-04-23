@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getClientIp, rateLimit } from '@/lib/rate-limit';
+
+// Gemini is the cheapest of the AI proxies but still not free under attack.
+// 20 req/hour per IP is plenty for an officer drafting a mail, but caps a
+// scripted abuser at ~500 calls/day across a handful of instances.
+const LIMIT = 20;
+const WINDOW_MS = 60 * 60 * 1000;
 
 const SYSTEM_PROMPT = `You are a Rise of Kingdoms mail formatting assistant.
 You write in-game mail messages using RoK markup:
@@ -16,6 +23,15 @@ Rules:
 - Output ONLY the formatted mail content, no explanations or surrounding text`;
 
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = rateLimit(`rok-mail:${ip}`, LIMIT, WINDOW_MS);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: `Rate limit exceeded. Try again in ${Math.ceil(rl.resetMs / 60000)} minutes.` },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.resetMs / 1000)) } },
+    );
+  }
+
   const { prompt, currentContent } = await request.json();
 
   if (!prompt || typeof prompt !== 'string') {

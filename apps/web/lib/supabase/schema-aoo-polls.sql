@@ -1,6 +1,6 @@
 -- Schema for AoO Training Time Polls
 -- Run this in your Supabase SQL Editor
--- https://supabase.com/dashboard/project/mzvxlawobzwiqohmoskm/sql/new
+-- https://supabase.com/dashboard/project/_/sql/new
 
 -- =============================================================================
 -- TRAINING POLLS (Leaders create polls to find optimal training times)

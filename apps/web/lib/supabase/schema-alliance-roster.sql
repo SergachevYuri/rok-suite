@@ -1,6 +1,6 @@
 -- Schema for Alliance Roster
 -- Run this in your Supabase SQL Editor
--- https://supabase.com/dashboard/project/mzvxlawobzwiqohmoskm/sql/new
+-- https://supabase.com/dashboard/project/_/sql/new
 
 -- =============================================================================
 -- ALLIANCE ROSTER (Members with power levels and optional metadata)
