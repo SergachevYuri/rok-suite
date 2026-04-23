@@ -1,66 +1,69 @@
 # RoK Suite Documentation
 
-Welcome to the Rise of Kingdoms Strategy Suite documentation.
+Welcome to the Rise of Kingdoms Strategy Suite documentation. Built for **Kingdom 23 — Angmar Nazgul Guards**.
 
-## Tools
+## Current Tools
 
-### [Alliance Roster](roster/README.md)
+### [Calendar](calendar/README.md)
+Google Calendar embed for alliance, kingdom, and global RoK events, with multi-timezone support and iCal subscription URLs.
 
-Track your alliance members' growth over time with daily snapshots and visual analytics.
+### [Alliance Calculator](alliance-calculator/README.md)
+Flag cost calculator (with Architecture I/II discounts and Artisan's Spirit build-time scaling) and storehouse resource projections.
 
-- [Snapshots & Growth](roster/README.md#snapshots) - Daily data collection and comparison
-- [Growth Tables](roster/README.md#growth-tables) - KP, Power, and Honor growth with bar graphs
-- [Member Management](roster/README.md#member-management) - Bulk operations, merges, and name changes
+### [RoK Mail](rok-mail/README.md)
+WYSIWYG composer for the game's rich-text mail markup, with templates, a Gemini-powered AI assistant, color/gradient/symbol pickers, and shareable draft links.
 
-### [Alliance Events](events/README.md)
+### [DKP Score](dkp/README.md)
+Normalized kingdom-contribution scoring that blends DKP, deaths, resources gathered, helps, and honor. Backed by Supabase with configurable weights.
 
-Run alliance-wide challenges and track participation with leaderboards.
+### [Emigration](emigration/README.md)
+Case-tracking workflow for players flagged on DKP — claim → contact → emigrate / zero / AFK — with a two-step officer-request / admin-decide exception flow.
 
-- [KP Push Challenge](events/README.md#kp-push-challenge) - Kill point growth competition
-- [Leaderboards](events/README.md#leaderboards) - Rankings with bar graphs and ratio tracking
+### [AoO Planner](aoo-strategy/README.md)
+Coordinate 30v30 Ark of Osiris battles with an interactive map, zone assignments, and training polls.
 
-### [Ark of Osiris Planner](aoo-strategy/README.md)
+- [Battle Phases](aoo-strategy/phases.md)
+- [Team Roles](aoo-strategy/roles.md)
+- [Map Guide](aoo-strategy/map.md)
+- [Training Polls](aoo-strategy/training-polls.md)
+- [Editor Guide](aoo-strategy/editor.md)
 
-Coordinate your alliance's 30v30 battles with interactive maps and role assignments.
+### [MGE](mge/README.md)
+Plan and track Mightiest Governor Event rankings with officer-managed brackets.
 
-- [Battle Phases](aoo-strategy/phases.md) - Rush, Secure, Ark, Hold phase strategies
-- [Team Roles](aoo-strategy/roles.md) - Rally leader, teleporter, garrison responsibilities
-- [Map Guide](aoo-strategy/map.md) - Building positions, zone control, corner swap
-- [Training Polls](aoo-strategy/training-polls.md) - Schedule training with availability polls
-- [Editor Guide](aoo-strategy/editor.md) - Customize strategies for your alliance
+### [Kingdom Stats](kingdom-stats/README.md)
+Daily kingdom-wide rankings, power trends, and alliance breakdowns built from uploaded scans.
 
-### [Sunset Canyon Optimizer](sunset-canyon/README.md)
+### [KvK War Room](kvk-map/README.md)
+Interactive Leaflet map for KvK zone planning, alliance feature assignments, live achievement progress (Crusader + KvK2), and officer-gated strategy notes.
 
-Build optimal 5v5 defensive formations with our research-backed algorithm.
+---
 
-- [Optimization Algorithm](sunset-canyon/algorithm.md) - Power calculations, pairing scores, positioning logic
-- [Commander Pairings](sunset-canyon/pairings.md) - Meta pairings, tier lists, synergy explanations
-- [Formation Strategy](sunset-canyon/formations.md) - Positioning tactics, troop types, defensive tips
+## Legacy / Archived
 
-### [Upgrade Calculator](upgrade-calculator/README.md)
+These pages still work in the app but are no longer featured on the home screen or sidebar. Documentation is preserved here for reference; the code may be removed in a future release.
 
-Plan your City Hall progression with an interactive dependency graph.
+- [Alliance Roster](roster/README.md) — replaced by the DKP + Emigration flow
+- [Alliance Events](events/README.md) — KP Push Challenge leaderboards
+- [Sunset Canyon](sunset-canyon/README.md) — formation optimizer
+  - [Optimization Algorithm](sunset-canyon/algorithm.md)
+  - [Commander Pairings](sunset-canyon/pairings.md)
+  - [Formation Strategy](sunset-canyon/formations.md)
+- [Upgrade Calculator](upgrade-calculator/README.md) — City Hall dependency graph
+  - [Dependency System](upgrade-calculator/dependencies.md)
+  - [Buildings Reference](upgrade-calculator/buildings.md)
+  - [Resource Planning](upgrade-calculator/resources.md)
+  - [Graph Navigation](upgrade-calculator/graph.md)
+- [Scanners](scanners/README.md) — OCR/Vision screenshot scanners
+  - [Commander Scanner](scanners/commander.md)
+  - [Equipment Scanner](scanners/equipment.md)
+  - [Bag Scanner](scanners/bag.md)
+- [Game Guides](guide/README.md) — static event and commander guides
+  - [Event Guides](guide/events.md)
+  - [Alliance Protocols](guide/alliance.md)
+  - [Commander Strategy](guide/commanders.md)
 
-- [Dependency System](upgrade-calculator/dependencies.md) - How building prerequisites work
-- [Buildings Reference](upgrade-calculator/buildings.md) - All 20 buildings detailed
-- [Resource Planning](upgrade-calculator/resources.md) - Efficient upgrade strategies
-- [Graph Navigation](upgrade-calculator/graph.md) - Using the interactive visualization
-
-### [Scanners](scanners/README.md)
-
-Screenshot analysis tools to build your in-game inventory.
-
-- [Commander Scanner](scanners/commander.md) - Extract commander stats from screenshots
-- [Equipment Scanner](scanners/equipment.md) - Build your gear inventory
-- [Bag Scanner](scanners/bag.md) - Inventory resources, speedups, and items
-
-### [Game Guides](guide/README.md)
-
-Comprehensive strategy guides for events, alliance coordination, and commander progression.
-
-- [Event Guides](guide/events.md) - Solo, alliance, co-op PvE, and PvP events
-- [Alliance Protocols](guide/alliance.md) - Guardian runs, rallies, territory management
-- [Commander Strategy](guide/commanders.md) - Progression paths for F2P and P2P
+---
 
 ## Quick Links
 
@@ -72,18 +75,7 @@ Comprehensive strategy guides for events, alliance coordination, and commander p
 
 ## About
 
-RoK Suite is a toolkit for Rise of Kingdoms strategy planning, built for the **Angmar Nazgul Guards** alliance. The app is backed by **Supabase** (PostgreSQL) for persistent data storage, real-time sync, and authentication.
-
-### Recent Updates
-
-- **Alliance Roster** - Full member tracking with daily snapshots, growth tables (KP/Power/Honor), and name change handling
-- **Alliance Events** - KP Push Challenge with leaderboards, podium, bar graphs, ratio tracking, and expandable snapshot history
-- **Alliance Calendar** - Google Calendar integration with multi-timezone support and iCal subscriptions
-- **Visual Overhaul** - Bar graphs, sparkline charts, and distribution charts across roster and event pages
-- **Supabase Schema** - Added `alliance_roster`, `roster_snapshots`, `roster_daily_totals`, and `event_participation` tables
-- **Scanners Hub** - Screenshot analysis tools for commanders, equipment, and bag items
-- **Training Polls** - Schedule AoO training with drag-to-select availability polls
-- **Game Guides** - Comprehensive event and alliance documentation
+RoK Suite is a toolkit for Rise of Kingdoms strategy planning. The app is backed by **Supabase** (PostgreSQL) for persistent data storage, real-time sync, and role-based access. The docs site is built with **docsify** and deployed to GitHub Pages.
 
 ### Data Sources
 
@@ -95,4 +87,4 @@ The optimization algorithms and meta data are sourced from community guides incl
 
 ---
 
-*Last updated: January 2026*
+*Last updated: April 2026*

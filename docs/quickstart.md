@@ -6,35 +6,38 @@ Get up and running with RoK Suite in minutes.
 
 The easiest way to use RoK Suite is through the live deployment:
 
-**[rok-suite.vercel.app](https://rok-suite.vercel.app)**
+**[rok-suite-web.vercel.app](https://rok-suite-web.vercel.app)**
 
-No installation required - just open and start planning.
+No installation required — just open and start planning. Most tools are public; officer and admin features are gated by passwords configured in environment variables.
 
-## Features
+## Tour of the Tools
 
-### Sunset Canyon Optimizer
+### Calendar
+Navigate to **Calendar** for upcoming alliance, kingdom, and RoK events with multi-timezone support. Use the iCal URL to subscribe from Apple Calendar, Outlook, or Google Calendar.
 
-1. Navigate to **Sunset Canyon** from the homepage
-2. Add your commanders (level, stars, skills)
-3. Set your City Hall level
-4. Click **Optimize Formation**
-5. Review the recommended formations and win rates
+### Alliance Calculator
+Open **Alliance Calculator** to estimate flag costs (with Architecture I/II and Artisan's Spirit discounts) and project alliance storehouse resource coverage.
 
-> **Tip:** Use the screenshot scanner to bulk-import commanders from game screenshots.
+### RoK Mail
+Draft in-game mails in **RoK Mail**. Pick a template, format with the toolbar (bold, color, gradient, symbols), optionally use the Gemini AI assistant, then copy the markup or share a link.
 
-### Ark of Osiris Planner
+### DKP Score
+Upload your kingdom stats export to **DKP Score** to compute normalized kingdom-contribution scores. Officers can tune weights and flag low-contribution players for follow-up in Emigration.
 
-1. Navigate to **AoO Strategy**
-2. Assign players to zones (Structure, Altar, Shrine)
-3. Drag and drop to position on the battle map
-4. Copy the strategy guide to share with your alliance
+### Emigration
+**Emigration** tracks flagged players through claim → contact → emigrate / zero / AFK outcomes. Officers can request exceptions; admins approve or deny.
 
-### Upgrade Calculator
+### AoO Planner
+Use **AoO Planner** for 30v30 Ark of Osiris coordination — zone assignments, battle map, phase planning, training polls, and exportable strategy guides.
 
-1. Navigate to **Upgrade Calculator**
-2. Set your current City Hall level
-3. Explore the building dependency graph
-4. Plan your upgrade path efficiently
+### MGE
+In **MGE**, set up brackets for Mightiest Governor Event cycles and assign roster members across tiers.
+
+### Kingdom Stats
+**Kingdom Stats** shows daily kingdom-wide rankings, power trends, and alliance breakdowns from uploaded scans.
+
+### KvK War Room
+**KvK War Room** is the Leaflet-based map for zone assignments, achievement progress tracking (Crusader / KvK2), and officer strategy notes.
 
 ## Running Locally
 
@@ -48,7 +51,7 @@ pnpm install
 
 # Set up environment variables
 cp apps/web/.env.local.example apps/web/.env.local
-# Add your Supabase keys to .env.local
+# Edit .env.local with your Supabase keys and passwords
 
 # Run development server
 pnpm dev
@@ -56,7 +59,17 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
 
+### Required Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `NEXT_PUBLIC_ADMIN_PASSWORD` | Admin role gating (client-side) |
+| `NEXT_PUBLIC_OFFICER_PASSWORD` | Officer role gating (client-side) |
+| `GEMINI_API_KEY` | Optional — RoK Mail AI assistant |
+
 ## Need Help?
 
-- Check the [Sunset Canyon docs](sunset-canyon/README.md) for optimization details
+- Browse the tool pages in the sidebar for feature-level docs
 - Open an issue on [GitHub](https://github.com/avweigel/rok-suite/issues)

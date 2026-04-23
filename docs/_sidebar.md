@@ -4,11 +4,15 @@
   * [Home](/)
   * [Quick Start](quickstart.md)
 
-* **Alliance Roster**
-  * [Overview](roster/README.md)
-
-* **Alliance Events**
-  * [Overview](events/README.md)
+* **Current Tools**
+  * [Calendar](calendar/README.md)
+  * [Alliance Calculator](alliance-calculator/README.md)
+  * [RoK Mail](rok-mail/README.md)
+  * [DKP Score](dkp/README.md)
+  * [Emigration](emigration/README.md)
+  * [MGE](mge/README.md)
+  * [Kingdom Stats](kingdom-stats/README.md)
+  * [KvK War Room](kvk-map/README.md)
 
 * **Ark of Osiris**
   * [Overview](aoo-strategy/README.md)
@@ -18,30 +22,26 @@
   * [Training Polls](aoo-strategy/training-polls.md)
   * [Editor Guide](aoo-strategy/editor.md)
 
-* **Sunset Canyon**
-  * [Overview](sunset-canyon/README.md)
-  * [Optimization Algorithm](sunset-canyon/algorithm.md)
-  * [Commander Pairings](sunset-canyon/pairings.md)
-  * [Formation Strategy](sunset-canyon/formations.md)
-
-* **Upgrade Calculator**
-  * [Overview](upgrade-calculator/README.md)
-  * [Dependency System](upgrade-calculator/dependencies.md)
-  * [Buildings Reference](upgrade-calculator/buildings.md)
-  * [Resource Planning](upgrade-calculator/resources.md)
-  * [Graph Navigation](upgrade-calculator/graph.md)
-
-* **Scanners**
-  * [Overview](scanners/README.md)
-  * [Commander Scanner](scanners/commander.md)
-  * [Equipment Scanner](scanners/equipment.md)
-  * [Bag Scanner](scanners/bag.md)
-
-* **Game Guides**
-  * [Overview](guide/README.md)
-  * [Event Guides](guide/events.md)
-  * [Alliance Protocols](guide/alliance.md)
-  * [Commander Strategy](guide/commanders.md)
+* **Legacy / Archived**
+  * [Alliance Roster](roster/README.md)
+  * [Alliance Events](events/README.md)
+  * [Sunset Canyon](sunset-canyon/README.md)
+    * [Algorithm](sunset-canyon/algorithm.md)
+    * [Pairings](sunset-canyon/pairings.md)
+    * [Formations](sunset-canyon/formations.md)
+  * [Upgrade Calculator](upgrade-calculator/README.md)
+    * [Dependencies](upgrade-calculator/dependencies.md)
+    * [Buildings](upgrade-calculator/buildings.md)
+    * [Resources](upgrade-calculator/resources.md)
+    * [Graph](upgrade-calculator/graph.md)
+  * [Scanners](scanners/README.md)
+    * [Commander](scanners/commander.md)
+    * [Equipment](scanners/equipment.md)
+    * [Bag](scanners/bag.md)
+  * [Game Guides](guide/README.md)
+    * [Events](guide/events.md)
+    * [Alliance Protocols](guide/alliance.md)
+    * [Commanders](guide/commanders.md)
 
 * **Resources**
   * [Sources & Credits](sources.md)
