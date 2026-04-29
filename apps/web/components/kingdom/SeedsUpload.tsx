@@ -402,8 +402,18 @@ function identifyAndParse(wb: XLSX.WorkBook): { kd: ParsedKdRow[]; players: Pars
   if (!kdSheet) throw new Error(`KD aggregate sheet not found. Expected columns: ${KD_COLS.join(', ')}`);
   if (!playerSheet) throw new Error(`Players sheet not found. Expected columns: ${PLAYER_COLS.join(', ')}`);
 
-  const kd = kdSheet.map(parseKdRow).filter(Boolean) as ParsedKdRow[];
-  const players = playerSheet.map(parsePlayerRow).filter(Boolean) as ParsedPlayerRow[];
+  const kdRaw = kdSheet.map(parseKdRow).filter(Boolean) as ParsedKdRow[];
+  const playersRaw = playerSheet.map(parsePlayerRow).filter(Boolean) as ParsedPlayerRow[];
+
+  // Dedupe by primary key (last occurrence wins). Postgres rejects upsert
+  // batches that target the same PK twice, so we collapse duplicates here.
+  const kdMap = new Map<number, ParsedKdRow>();
+  for (const r of kdRaw) kdMap.set(r.kingdom_id, r);
+  const kd = Array.from(kdMap.values());
+
+  const playerMap = new Map<string, ParsedPlayerRow>();
+  for (const r of playersRaw) playerMap.set(`${r.kingdom_id}:${r.player_id}`, r);
+  const players = Array.from(playerMap.values());
 
   if (kd.length === 0) throw new Error('KD sheet has no valid rows');
   if (players.length === 0) throw new Error('Players sheet has no valid rows');
