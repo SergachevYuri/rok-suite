@@ -24,6 +24,9 @@ const METRICS = [
 
 const KD_COLORS = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#fb923c', '#a78bfa', '#22d3ee', '#f472b6', '#a3e635', '#fb7185'];
 
+// Our home kingdom — highlighted in tables for quick visual reference.
+const MY_KINGDOM_ID = 3923;
+
 type TabType = 'table' | 'charts' | 'comparison' | 'upload';
 const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'upload'];
 
@@ -446,8 +449,16 @@ export default function KingdomStats() {
                       const pos = i + 1;
                       const seed = seedAssignment(pos);
                       const fromRank = fromRanks.get(row.kingdom_id);
+                      const isMine = row.kingdom_id === MY_KINGDOM_ID;
                       return (
-                        <tr key={row.kingdom_id} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
+                        <tr
+                          key={row.kingdom_id}
+                          className={`border-b border-[var(--border)] transition-colors ${
+                            isMine
+                              ? 'bg-amber-500/10 hover:bg-amber-500/15 ring-1 ring-inset ring-amber-500/30'
+                              : 'hover:bg-[var(--background-secondary)]'
+                          }`}
+                        >
                           <td className="px-4 py-3 text-[var(--text-muted)] font-medium">{pos}</td>
                           <td className="px-3 py-3 text-center"><DeltaCell from={fromRank} to={pos} hasFrom={fromRanks.size > 0} /></td>
                           <td className="px-3 py-3 text-center"><SeedBadge seed={seed} /></td>
@@ -653,8 +664,8 @@ function SeedBadge({ seed }: { seed: SeedAssignment }) {
     ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
     : 'bg-[var(--background-secondary)] text-[var(--text-muted)] border-[var(--border)]';
   return (
-    <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded border text-xs font-mono tabular-nums ${color}`}>
-      {seed.seed}{seed.letter}
+    <span className={`inline-flex items-center justify-center w-6 h-6 rounded border text-xs font-mono font-semibold ${color}`}>
+      {seed.letter}
     </span>
   );
 }
