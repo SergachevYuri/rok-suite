@@ -4,7 +4,7 @@ import { useState, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Calendar, Trash2, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
+import { ADMIN_PASSWORD } from '@/lib/auth-passwords';
 
 type Status = 'idle' | 'parsing' | 'preview' | 'uploading' | 'done' | 'error';
 
@@ -46,7 +46,7 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
   const [pwError, setPwError] = useState('');
 
   const handlePasswordSubmit = () => {
-    if (password === ADMIN_PASSWORD || password === OFFICER_PASSWORD) {
+    if (password === ADMIN_PASSWORD) {
       setIsUnlocked(true);
       setPassword('');
       setPwError('');
@@ -162,7 +162,7 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
             </div>
             <div>
               <h3 className="text-sm font-semibold text-[var(--foreground)]">Restricted</h3>
-              <p className="text-xs text-[var(--text-muted)]">Officer or Admin password required to upload scans</p>
+              <p className="text-xs text-[var(--text-muted)]">Admin password required to upload scans</p>
             </div>
           </div>
 
@@ -304,11 +304,13 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
                 title="KD aggregate"
                 cols={['KD', '400_power', 'total_KP', 'Power Rank', 'KP Rank']}
                 rows={kdRows.slice(0, 5).map(r => [r.kingdom_id, r.power_400, r.total_kp, r.power_rank, r.kp_rank])}
+                rawCols={[0, 3, 4]}
               />
               <SampleTable
                 title="Players"
                 cols={['KD', 'player_id', 'name', 'Power', 'KP', 'cityhall', 'Rank_in_KD']}
                 rows={playerRows.slice(0, 5).map(r => [r.kingdom_id, r.player_id, r.name, r.power, r.kp, r.cityhall, r.rank_in_kd])}
+                rawCols={[0, 1, 5, 6]}
               />
             </div>
           </details>
@@ -475,7 +477,18 @@ function Stat({ label, value, color, small }: { label: string; value: string; co
   );
 }
 
-function SampleTable({ title, cols, rows }: { title: string; cols: string[]; rows: (string | number)[][] }) {
+function SampleTable({ title, cols, rows, rawCols = [] }: {
+  title: string;
+  cols: string[];
+  rows: (string | number)[][];
+  /** Column indices that should render numbers raw (no thousand-separator formatting). */
+  rawCols?: number[];
+}) {
+  const rawSet = new Set(rawCols);
+  const fmt = (v: string | number, j: number) => {
+    if (typeof v !== 'number') return v;
+    return rawSet.has(j) ? String(v) : v.toLocaleString();
+  };
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-1">{title}</div>
@@ -487,7 +500,7 @@ function SampleTable({ title, cols, rows }: { title: string; cols: string[]; row
           <tbody>
             {rows.map((r, i) => (
               <tr key={i} className="border-t border-[var(--border)]">
-                {r.map((v, j) => <td key={j} className="px-2 py-1 tabular-nums text-[var(--foreground)]">{typeof v === 'number' ? v.toLocaleString() : v}</td>)}
+                {r.map((v, j) => <td key={j} className="px-2 py-1 tabular-nums text-[var(--foreground)]">{fmt(v, j)}</td>)}
               </tr>
             ))}
           </tbody>
