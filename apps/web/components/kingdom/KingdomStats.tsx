@@ -24,8 +24,8 @@ const METRICS = [
 
 const KD_COLORS = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#fb923c', '#a78bfa', '#22d3ee', '#f472b6', '#a3e635', '#fb7185'];
 
-// Our home kingdom — highlighted in tables for quick visual reference.
-const MY_KINGDOM_ID = 3923;
+// Default kingdom to pre-select in the highlight dropdown.
+const DEFAULT_HIGHLIGHT_KD = 3923;
 
 type TabType = 'table' | 'charts' | 'comparison' | 'upload';
 const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'upload'];
@@ -65,6 +65,7 @@ export default function KingdomStats() {
   const [comparisonToDate, setComparisonToDate] = useState<string>('');
   const [compSortField, setCompSortField] = useState<'power_400' | 'total_kp' | 'power_rank' | 'kp_rank' | 'kingdom_id'>('power_400');
   const [compSortDir, setCompSortDir] = useState<SortDir>('desc');
+  const [highlightedKingdom, setHighlightedKingdom] = useState<number | null>(DEFAULT_HIGHLIGHT_KD);
 
   // Refresh trigger to re-fetch after an upload
   const [refreshKey, setRefreshKey] = useState(0);
@@ -418,6 +419,15 @@ export default function KingdomStats() {
               {allDates.length === 0 && <option>Loading...</option>}
               {allDates.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
+            <label className="text-xs text-[var(--text-muted)] ml-2">Highlight</label>
+            <select
+              value={highlightedKingdom ?? ''}
+              onChange={e => setHighlightedKingdom(e.target.value ? Number(e.target.value) : null)}
+              className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+            >
+              <option value="">— none —</option>
+              {kingdoms.map(k => <option key={k} value={k}>KD {k}</option>)}
+            </select>
             <span className="text-sm text-[var(--text-muted)]">
               {comparisonRows.length} kingdom{comparisonRows.length !== 1 ? 's' : ''}
               {comparisonFromDate && fromRanks.size > 0 && ` · Δ vs ${comparisonFromDate}`}
@@ -449,12 +459,19 @@ export default function KingdomStats() {
                       const pos = i + 1;
                       const seed = seedAssignment(pos);
                       const fromRank = fromRanks.get(row.kingdom_id);
-                      const isMine = row.kingdom_id === MY_KINGDOM_ID;
+                      const isHighlighted = highlightedKingdom !== null && row.kingdom_id === highlightedKingdom;
+                      // Red divider between the 16th (last B) and 17th (first C) row —
+                      // marks the boundary between top half (ABBB groups) and bottom half (CDDD).
+                      const isHalfBoundary = pos === 16;
                       return (
                         <tr
                           key={row.kingdom_id}
-                          className={`border-b border-[var(--border)] transition-colors ${
-                            isMine
+                          className={`transition-colors ${
+                            isHalfBoundary
+                              ? 'border-b-2 border-red-500/60'
+                              : 'border-b border-[var(--border)]'
+                          } ${
+                            isHighlighted
                               ? 'bg-amber-500/10 hover:bg-amber-500/15 ring-1 ring-inset ring-amber-500/30'
                               : 'hover:bg-[var(--background-secondary)]'
                           }`}
