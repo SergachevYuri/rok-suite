@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   useAvailableSeedKingdoms,
@@ -55,9 +55,11 @@ export default function KingdomStats() {
   const [chartMetric, setChartMetric] = useState<'power_400' | 'total_kp'>('power_400');
   const [chartDateFrom, setChartDateFrom] = useState<string>('');
   const [chartDateTo, setChartDateTo] = useState<string>('');
+  const [hoveredKd, setHoveredKd] = useState<number | null>(null);
 
   // Comparison state
-  const [comparisonDate, setComparisonDate] = useState<string>('');
+  const [comparisonFromDate, setComparisonFromDate] = useState<string>('');
+  const [comparisonToDate, setComparisonToDate] = useState<string>('');
   const [compSortField, setCompSortField] = useState<'power_400' | 'total_kp' | 'power_rank' | 'kp_rank' | 'kingdom_id'>('power_400');
   const [compSortDir, setCompSortDir] = useState<SortDir>('desc');
 
@@ -77,10 +79,23 @@ export default function KingdomStats() {
     chartDateTo || null,
   );
 
+  // Range fetch covers both From and To (inclusive). We then filter client-side
+  // to those two specific dates for ranking + delta computation.
+  const compRangeFrom = useMemo(() => {
+    if (!comparisonToDate) return null;
+    if (!comparisonFromDate) return comparisonToDate;
+    return comparisonFromDate < comparisonToDate ? comparisonFromDate : comparisonToDate;
+  }, [comparisonFromDate, comparisonToDate]);
+  const compRangeTo = useMemo(() => {
+    if (!comparisonToDate) return null;
+    if (!comparisonFromDate) return comparisonToDate;
+    return comparisonFromDate > comparisonToDate ? comparisonFromDate : comparisonToDate;
+  }, [comparisonFromDate, comparisonToDate]);
+
   const { stats: compStats, loading: loadingComparison } = useSeedKdStats(
     kingdoms,
-    comparisonDate || null,
-    comparisonDate || null,
+    compRangeFrom,
+    compRangeTo,
   );
 
   // Auto-select first kingdom & default chart selection
@@ -96,8 +111,12 @@ export default function KingdomStats() {
   }, [dates, selectedDate]);
 
   React.useEffect(() => {
-    if (allDates.length > 0 && !comparisonDate) setComparisonDate(allDates[0]);
-  }, [allDates, comparisonDate]);
+    // Default: To = latest date, From = second-latest (if any)
+    if (allDates.length > 0 && !comparisonToDate) {
+      setComparisonToDate(allDates[0]);
+      if (allDates.length > 1 && !comparisonFromDate) setComparisonFromDate(allDates[1]);
+    }
+  }, [allDates, comparisonToDate, comparisonFromDate]);
 
   React.useEffect(() => { setPage(0); }, [search, selectedKingdom, selectedDate, sortField, sortDir]);
 
@@ -172,22 +191,73 @@ export default function KingdomStats() {
     return Array.from(s).sort();
   }, [chartStats]);
 
-  // Comparison: one row per KD for selected date, sortable
+  // Y-axis domain — auto-zoom around min/max with 5% padding so 32 lines
+  // don't compress to a thick band near the top.
+  const yDomain = useMemo<[number, number] | ['auto', 'auto']>(() => {
+    if (chartData.length === 0) return ['auto', 'auto'];
+    const vals: number[] = [];
+    for (const row of chartData) {
+      for (const k of chartKingdomIds) {
+        const v = row[`KD ${k}`];
+        if (typeof v === 'number') vals.push(v);
+      }
+    }
+    if (vals.length === 0) return ['auto', 'auto'];
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const span = max - min || max * 0.1 || 1;
+    return [Math.max(0, Math.floor(min - span * 0.05)), Math.ceil(max + span * 0.05)];
+  }, [chartData, chartKingdomIds]);
+
+  // Top N kingdoms by current metric at the latest available date — used by
+  // the quick-filter buttons.
+  const topNKingdoms = useCallback((n: number): number[] => {
+    if (chartStats.length === 0) return kingdoms.slice(0, n);
+    const latestVal = new Map<number, number>();
+    const latestDate = new Map<number, string>();
+    for (const s of chartStats) {
+      const prev = latestDate.get(s.kingdom_id);
+      if (!prev || s.scan_date > prev) {
+        latestDate.set(s.kingdom_id, s.scan_date);
+        latestVal.set(s.kingdom_id, s[chartMetric] as number);
+      }
+    }
+    return [...kingdoms]
+      .sort((a, b) => (latestVal.get(b) || 0) - (latestVal.get(a) || 0))
+      .slice(0, n);
+  }, [chartStats, chartMetric, kingdoms]);
+
+  // Sorter for comparison rows — used both for the displayed To-date ranking
+  // and for computing the From-date rank (so we compare like-for-like).
+  const compSorter = useCallback((a: SeedKdStat, b: SeedKdStat) => {
+    const av = a[compSortField] || 0;
+    const bv = b[compSortField] || 0;
+    if (av < bv) return compSortDir === 'asc' ? -1 : 1;
+    if (av > bv) return compSortDir === 'asc' ? 1 : -1;
+    return 0;
+  }, [compSortField, compSortDir]);
+
+  // Ranking @ To date — one row per KD, sorted by the chosen field/direction
   const comparisonRows = useMemo(() => {
-    if (compStats.length === 0) return [];
-    const forDate = comparisonDate ? compStats.filter(s => s.scan_date === comparisonDate) : compStats;
+    if (compStats.length === 0 || !comparisonToDate) return [];
+    const forDate = compStats.filter(s => s.scan_date === comparisonToDate);
     const byKd = new Map<number, SeedKdStat>();
     for (const s of forDate) if (!byKd.has(s.kingdom_id)) byKd.set(s.kingdom_id, s);
-    const rows = Array.from(byKd.values());
-    rows.sort((a, b) => {
-      const av = a[compSortField] || 0;
-      const bv = b[compSortField] || 0;
-      if (av < bv) return compSortDir === 'asc' ? -1 : 1;
-      if (av > bv) return compSortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-    return rows;
-  }, [compStats, comparisonDate, compSortField, compSortDir]);
+    return Array.from(byKd.values()).sort(compSorter);
+  }, [compStats, comparisonToDate, compSorter]);
+
+  // Rank lookup @ From date (1-indexed). Empty if no From date selected.
+  const fromRanks = useMemo(() => {
+    const m = new Map<number, number>();
+    if (!comparisonFromDate || compStats.length === 0) return m;
+    const forDate = compStats.filter(s => s.scan_date === comparisonFromDate);
+    const byKd = new Map<number, SeedKdStat>();
+    for (const s of forDate) if (!byKd.has(s.kingdom_id)) byKd.set(s.kingdom_id, s);
+    Array.from(byKd.values())
+      .sort(compSorter)
+      .forEach((r, i) => m.set(r.kingdom_id, i + 1));
+    return m;
+  }, [compStats, comparisonFromDate, compSorter]);
 
   const handleCompSort = (field: typeof compSortField) => {
     if (compSortField === field) setCompSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -326,17 +396,28 @@ export default function KingdomStats() {
       {/* ═══ COMPARISON ═══ */}
       {activeTab === 'comparison' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-xs text-[var(--text-muted)]">From</label>
             <select
-              value={comparisonDate}
-              onChange={e => setComparisonDate(e.target.value)}
+              value={comparisonFromDate}
+              onChange={e => setComparisonFromDate(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+            >
+              <option value="">— none —</option>
+              {allDates.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <label className="text-xs text-[var(--text-muted)]">To</label>
+            <select
+              value={comparisonToDate}
+              onChange={e => setComparisonToDate(e.target.value)}
               className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
             >
               {allDates.length === 0 && <option>Loading...</option>}
               {allDates.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <span className="text-sm text-[var(--text-muted)]">
-              {comparisonRows.length} kingdom{comparisonRows.length !== 1 ? 's' : ''} compared
+              {comparisonRows.length} kingdom{comparisonRows.length !== 1 ? 's' : ''}
+              {comparisonFromDate && fromRanks.size > 0 && ` · Δ vs ${comparisonFromDate}`}
             </span>
           </div>
 
@@ -351,6 +432,8 @@ export default function KingdomStats() {
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">#</th>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">Δ</th>
+                      <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Seed</th>
                       <CompHeader label="Kingdom"    field="kingdom_id" sortField={compSortField} sortDir={compSortDir} onSort={handleCompSort} />
                       <CompHeader label="Power 400"  field="power_400"  sortField={compSortField} sortDir={compSortDir} onSort={handleCompSort} align="right" />
                       <CompHeader label="Total KP"   field="total_kp"   sortField={compSortField} sortDir={compSortDir} onSort={handleCompSort} align="right" />
@@ -359,22 +442,29 @@ export default function KingdomStats() {
                     </tr>
                   </thead>
                   <tbody>
-                    {comparisonRows.map((row, i) => (
-                      <tr key={row.kingdom_id} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
-                        <td className="px-4 py-3 text-[var(--text-muted)] font-medium">{i + 1}</td>
-                        <td className="px-4 py-3 font-semibold text-[var(--foreground)]">
-                          <span
-                            className="inline-block w-3 h-3 rounded-full mr-2"
-                            style={{ backgroundColor: KD_COLORS[kingdoms.indexOf(row.kingdom_id) % KD_COLORS.length] }}
-                          />
-                          KD {row.kingdom_id}
-                        </td>
-                        <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{(row.power_400 || 0).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right text-red-400 tabular-nums">{(row.total_kp || 0).toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{row.power_rank || '–'}</td>
-                        <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{row.kp_rank || '–'}</td>
-                      </tr>
-                    ))}
+                    {comparisonRows.map((row, i) => {
+                      const pos = i + 1;
+                      const seed = seedAssignment(pos);
+                      const fromRank = fromRanks.get(row.kingdom_id);
+                      return (
+                        <tr key={row.kingdom_id} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
+                          <td className="px-4 py-3 text-[var(--text-muted)] font-medium">{pos}</td>
+                          <td className="px-3 py-3 text-center"><DeltaCell from={fromRank} to={pos} hasFrom={fromRanks.size > 0} /></td>
+                          <td className="px-3 py-3 text-center"><SeedBadge seed={seed} /></td>
+                          <td className="px-4 py-3 font-semibold text-[var(--foreground)]">
+                            <span
+                              className="inline-block w-3 h-3 rounded-full mr-2"
+                              style={{ backgroundColor: KD_COLORS[kingdoms.indexOf(row.kingdom_id) % KD_COLORS.length] }}
+                            />
+                            KD {row.kingdom_id}
+                          </td>
+                          <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{(row.power_400 || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right text-red-400 tabular-nums">{(row.total_kp || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{row.power_rank || '–'}</td>
+                          <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{row.kp_rank || '–'}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -389,12 +479,22 @@ export default function KingdomStats() {
           <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-4">
             <div className="flex flex-wrap items-start gap-4">
               <div>
-                <div className="text-xs text-[var(--text-muted)] mb-2">Kingdoms</div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs text-[var(--text-muted)]">Kingdoms</div>
+                  <div className="flex gap-1">
+                    <button onClick={() => setChartKingdoms(new Set(kingdoms))} className="px-2 py-0.5 text-[10px] rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--text-secondary)] transition-colors">All</button>
+                    <button onClick={() => setChartKingdoms(new Set(topNKingdoms(8)))} className="px-2 py-0.5 text-[10px] rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--text-secondary)] transition-colors">Top 8</button>
+                    <button onClick={() => setChartKingdoms(new Set(topNKingdoms(16)))} className="px-2 py-0.5 text-[10px] rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--text-secondary)] transition-colors">Top 16</button>
+                    <button onClick={() => setChartKingdoms(new Set())} className="px-2 py-0.5 text-[10px] rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--text-secondary)] transition-colors">None</button>
+                  </div>
+                </div>
                 <div className="flex gap-2 flex-wrap max-w-2xl">
                   {kingdoms.map((k, i) => (
                     <button
                       key={k}
                       onClick={() => toggleChartKingdom(k)}
+                      onMouseEnter={() => setHoveredKd(k)}
+                      onMouseLeave={() => setHoveredKd(null)}
                       className={`px-3 py-1.5 text-xs rounded-lg border transition-colors font-medium ${
                         chartKingdoms.has(k)
                           ? 'border-transparent text-white'
@@ -459,13 +559,13 @@ export default function KingdomStats() {
             </h2>
 
             {loadingChart ? (
-              <div className="h-80 flex items-center justify-center text-[var(--text-muted)]">Loading...</div>
+              <div className="h-[480px] flex items-center justify-center text-[var(--text-muted)]">Loading...</div>
             ) : chartData.length === 0 ? (
-              <div className="h-80 flex items-center justify-center text-[var(--text-muted)]">No historical data yet</div>
+              <div className="h-[480px] flex items-center justify-center text-[var(--text-muted)]">No historical data yet</div>
             ) : (
-              <div className="h-80">
+              <div className="h-[480px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
+                  <LineChart data={chartData} margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis
                       dataKey="scan_date"
@@ -473,6 +573,7 @@ export default function KingdomStats() {
                       tickFormatter={(d: string) => d.slice(5)}
                     />
                     <YAxis
+                      domain={yDomain}
                       tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
                       tickFormatter={formatCompact}
                     />
@@ -487,19 +588,25 @@ export default function KingdomStats() {
                       labelFormatter={(label: string) => `Date: ${label}`}
                     />
                     <Legend />
-                    {sortedChartKingdomIds.map((k) => (
-                      <Line
-                        key={k}
-                        type="monotone"
-                        dataKey={`KD ${k}`}
-                        name={`KD ${k}`}
-                        stroke={KD_COLORS[kingdoms.indexOf(k) % KD_COLORS.length]}
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                        connectNulls
-                      />
-                    ))}
+                    {sortedChartKingdomIds.map((k) => {
+                      const isHovered = hoveredKd === k;
+                      const dimmed = hoveredKd !== null && !isHovered;
+                      return (
+                        <Line
+                          key={k}
+                          type="monotone"
+                          dataKey={`KD ${k}`}
+                          name={`KD ${k}`}
+                          stroke={KD_COLORS[kingdoms.indexOf(k) % KD_COLORS.length]}
+                          strokeWidth={isHovered ? 3 : 1.5}
+                          strokeOpacity={dimmed ? 0.12 : 1}
+                          dot={false}
+                          activeDot={{ r: 4 }}
+                          connectNulls
+                          isAnimationActive={false}
+                        />
+                      );
+                    })}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -507,7 +614,7 @@ export default function KingdomStats() {
 
             {chartData.length > 0 && (
               <div className="mt-4 text-xs text-[var(--text-muted)]">
-                {chartData.length} dates &middot; {chartKingdomIds.length} kingdom{chartKingdomIds.length > 1 ? 's' : ''}
+                {chartData.length} date{chartData.length > 1 ? 's' : ''} &middot; {chartKingdomIds.length} kingdom{chartKingdomIds.length > 1 ? 's' : ''} &middot; <span className="text-[var(--text-secondary)]">hover a KD button above to highlight</span>
               </div>
             )}
           </div>
@@ -519,6 +626,60 @@ export default function KingdomStats() {
         <SeedsUpload onUploaded={handleUploaded} />
       )}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Seed assignment for KvK matchmaking.
+// Pattern across the 32 ranked KDs: ABBB ABBB ABBB ABBB CDDD CDDD CDDD CDDD
+// (8 seed groups of 4: 4 "ABBB" groups in the top half, 4 "CDDD" in the bottom)
+// ─────────────────────────────────────────────────────────────
+type SeedAssignment = { seed: number; letter: 'A' | 'B' | 'C' | 'D' } | null;
+
+function seedAssignment(position: number): SeedAssignment {
+  if (position < 1 || position > 32) return null;
+  const seed = Math.ceil(position / 4); // 1..8
+  const slot = (position - 1) % 4;       // 0=primary, 1..3=fillers
+  const isTopHalf = position <= 16;
+  const letter: 'A' | 'B' | 'C' | 'D' =
+    slot === 0 ? (isTopHalf ? 'A' : 'C') : (isTopHalf ? 'B' : 'D');
+  return { seed, letter };
+}
+
+function SeedBadge({ seed }: { seed: SeedAssignment }) {
+  if (!seed) return <span className="text-[var(--text-muted)]">–</span>;
+  const isPrimary = seed.letter === 'A' || seed.letter === 'C';
+  const color = isPrimary
+    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+    : 'bg-[var(--background-secondary)] text-[var(--text-muted)] border-[var(--border)]';
+  return (
+    <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded border text-xs font-mono tabular-nums ${color}`}>
+      {seed.seed}{seed.letter}
+    </span>
+  );
+}
+
+function DeltaCell({ from, to, hasFrom }: { from: number | undefined; to: number; hasFrom: boolean }) {
+  if (!hasFrom) return <span className="text-[var(--text-muted)]">–</span>;
+  if (from === undefined) {
+    // KD has no row at the From date — treat as "no comparison available"
+    return <span className="text-[var(--text-muted)] text-xs">–</span>;
+  }
+  const delta = from - to; // positive = moved up (lower rank number)
+  if (delta === 0) {
+    return <Minus size={14} className="inline text-[var(--text-muted)]" />;
+  }
+  if (delta > 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-emerald-400 tabular-nums text-xs">
+        <ArrowUp size={12} />{delta}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-0.5 text-red-400 tabular-nums text-xs">
+      <ArrowDown size={12} />{Math.abs(delta)}
+    </span>
   );
 }
 
