@@ -66,10 +66,19 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const [detectedDate, setDetectedDate] = useState<string | null>(null);
+
   const handleFile = async (file: File) => {
     setStatus('parsing');
     setError('');
     setFileName(file.name);
+    const fromName = parseDateFromFilename(file.name);
+    if (fromName) {
+      setScanDate(fromName);
+      setDetectedDate(fromName);
+    } else {
+      setDetectedDate(null);
+    }
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array' });
@@ -268,6 +277,11 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
                 disabled={status === 'uploading' || status === 'done'}
                 className="px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm disabled:opacity-60"
               />
+              {detectedDate && (
+                <span className="text-xs text-emerald-400">
+                  {scanDate === detectedDate ? '· detected from filename' : '· edited'}
+                </span>
+              )}
             </label>
             <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">
               <input
@@ -334,6 +348,38 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
 // ─────────────────────────────────────────────────────────────
 // Parsing helpers
 // ─────────────────────────────────────────────────────────────
+
+const MONTHS: Record<string, number> = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+/**
+ * Try to extract a date from a filename like "Seeding_Details_28Apr.xlsx".
+ * Matches "<day><MonShort>" anywhere in the filename. Year is inferred:
+ * uses the current year, but if the resulting date would be in the future
+ * (e.g. file from previous Dec named with month=Dec, parsed in Jan), rolls
+ * back one year.
+ */
+function parseDateFromFilename(filename: string): string | null {
+  const m = filename.toLowerCase().match(/(\d{1,2})\s*([a-z]{3,})/);
+  if (!m) return null;
+  const day = parseInt(m[1], 10);
+  const monKey = m[2].slice(0, 3);
+  const month = MONTHS[monKey];
+  if (!month || day < 1 || day > 31) return null;
+
+  const now = new Date();
+  let year = now.getFullYear();
+  const candidate = new Date(year, month - 1, day);
+  // If the candidate is more than a few days in the future, assume previous year
+  const diffDays = (candidate.getTime() - now.getTime()) / 86_400_000;
+  if (diffDays > 7) year -= 1;
+
+  const mm = String(month).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${year}-${mm}-${dd}`;
+}
 
 type Row = Record<string, unknown>;
 
