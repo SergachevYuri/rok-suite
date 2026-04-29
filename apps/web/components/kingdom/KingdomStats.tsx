@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   useAvailableSeedKingdoms,
@@ -50,8 +50,6 @@ export default function KingdomStats() {
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('rank_in_kd');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   // Chart state
   const [chartKingdoms, setChartKingdoms] = useState<Set<number>>(new Set());
@@ -122,8 +120,6 @@ export default function KingdomStats() {
     }
   }, [allDates, comparisonToDate, comparisonFromDate]);
 
-  React.useEffect(() => { setPage(0); }, [search, selectedKingdom, selectedDate, sortField, sortDir]);
-
   // Force re-fetch by remounting on refresh — easier than threading refetch through hooks
   // (used after a successful upload)
   const handleUploaded = useCallback(() => {
@@ -147,9 +143,6 @@ export default function KingdomStats() {
     });
     return data;
   }, [players, search, sortField, sortDir]);
-
-  const totalPages = Math.ceil(filtered.length / rowsPerPage);
-  const paged = filtered.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -356,7 +349,7 @@ export default function KingdomStats() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paged.map(p => (
+                      {filtered.map(p => (
                         <tr key={p.player_id} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
                           <td className="px-3 py-2.5 text-[var(--text-muted)] tabular-nums">{p.rank_in_kd}</td>
                           <td className="px-3 py-2.5 text-[var(--text-muted)] text-xs tabular-nums">{p.player_id}</td>
@@ -370,26 +363,8 @@ export default function KingdomStats() {
                   </table>
                 </div>
 
-                <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)]">
-                  <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                    <span>{filtered.length} player{filtered.length !== 1 ? 's' : ''}</span>
-                    <select
-                      value={rowsPerPage}
-                      onChange={e => { setRowsPerPage(Number(e.target.value)); setPage(0); }}
-                      className="px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-xs"
-                    >
-                      {[25, 50, 100, 200].map(n => <option key={n} value={n}>{n} / page</option>)}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30 text-[var(--text-secondary)]">
-                      <ChevronLeft size={16} />
-                    </button>
-                    <span className="px-3 py-1 text-sm text-[var(--foreground)]">{page + 1} / {totalPages || 1}</span>
-                    <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-1.5 rounded hover:bg-[var(--background-secondary)] disabled:opacity-30 text-[var(--text-secondary)]">
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
+                <div className="px-4 py-3 border-t border-[var(--border)] text-sm text-[var(--text-muted)]">
+                  {filtered.length} player{filtered.length !== 1 ? 's' : ''}
                 </div>
               </>
             )}
