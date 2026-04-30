@@ -10,7 +10,10 @@ const PASSWORDS: Record<Exclude<WarRoomRole, 'viewer'>, string> = {
   admin: ADMIN_PASSWORD,
 };
 
-const ROLE_RANK: Record<WarRoomRole, number> = { viewer: 0, power: 1, officer: 2, admin: 3 };
+// 'power' is no longer a separate login tier — what was previously gated to
+// power+ is now available with no login. Viewer and power share rank 1, so
+// `isAtLeast('power')` returns true for anyone, including unlogged users.
+const ROLE_RANK: Record<WarRoomRole, number> = { viewer: 1, power: 1, officer: 2, admin: 3 };
 
 const OFFICER_NAME_KEY = 'warroom-officer-name';
 const ROLE_KEY = 'warroom-role';
