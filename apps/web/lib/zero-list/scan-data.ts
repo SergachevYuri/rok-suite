@@ -568,6 +568,100 @@ export async function deleteLocationScan(id: number): Promise<void> {
   if (error) throw error;
 }
 
+/** Build the union of every gov_id that has appeared in any scan source older
+ *  than the cutoff timestamp. Pulls from kingdom_scan_players, seeds_kd_players,
+ *  and location_scan_points to give "illegal arrivals" detection enough history
+ *  to work — auto-scrape alone usually has only a handful of days. */
+export async function loadHistoricalGovIds(beforeIso: string): Promise<{
+  ids: Set<number>;
+  sources: { name: string; rows: number }[];
+}> {
+  const sb = createClient();
+  const ids = new Set<number>();
+  const sources: { name: string; rows: number }[] = [];
+  const beforeDate = beforeIso.slice(0, 10); // YYYY-MM-DD for seeds_kd
+
+  // 1. kingdom_scan_players — pull scan IDs older than cutoff first
+  try {
+    const { data: ks } = await sb
+      .from('kingdom_scans')
+      .select('id')
+      .lt('created_at', beforeIso);
+    const scanIds = (ks ?? []).map((r) => r.id as number);
+    if (scanIds.length > 0) {
+      let from = 0;
+      let count = 0;
+      while (true) {
+        const { data, error } = await sb
+          .from('kingdom_scan_players')
+          .select('governor_id')
+          .in('scan_id', scanIds)
+          .range(from, from + 999);
+        if (error || !data || data.length === 0) break;
+        for (const r of data) ids.add(r.governor_id as number);
+        count += data.length;
+        if (data.length < 1000) break;
+        from += 1000;
+      }
+      sources.push({ name: 'kingdom_scans', rows: count });
+    }
+  } catch (e) {
+    console.warn('historical kingdom_scans load failed', e);
+  }
+
+  // 2. seeds_kd_players for K23 with scan_date earlier than cutoff
+  try {
+    let from = 0;
+    let count = 0;
+    while (true) {
+      const { data, error } = await sb
+        .from('seeds_kd_players')
+        .select('player_id')
+        .eq('kingdom_id', KINGDOM_ID)
+        .lt('scan_date', beforeDate)
+        .range(from, from + 999);
+      if (error || !data || data.length === 0) break;
+      for (const r of data) ids.add(r.player_id as number);
+      count += data.length;
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+    if (count > 0) sources.push({ name: 'seeds_kd', rows: count });
+  } catch (e) {
+    console.warn('historical seeds_kd load failed', e);
+  }
+
+  // 3. location_scan_points joined with location_scans created_at < cutoff
+  try {
+    const { data: ls } = await sb
+      .from('location_scans')
+      .select('id')
+      .lt('created_at', beforeIso);
+    const scanIds = (ls ?? []).map((r) => r.id as number);
+    if (scanIds.length > 0) {
+      let from = 0;
+      let count = 0;
+      while (true) {
+        const { data, error } = await sb
+          .from('location_scan_points')
+          .select('governor_id')
+          .in('scan_id', scanIds)
+          .range(from, from + 999);
+        if (error || !data || data.length === 0) break;
+        for (const r of data) ids.add(r.governor_id as number);
+        count += data.length;
+        if (data.length < 1000) break;
+        from += 1000;
+      }
+      if (count > 0) sources.push({ name: 'location_scans', rows: count });
+    }
+  } catch (e) {
+    console.warn('historical location_scans load failed', e);
+  }
+
+  return { ids, sources };
+}
+
 /** Compare two unified scans. Same logic as compareScans but works against
  *  UnifiedScanPlayer (so it works with both sources). */
 export function compareUnifiedScans(

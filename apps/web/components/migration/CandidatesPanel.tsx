@@ -18,6 +18,7 @@ import {
   listAllScans,
   loadUnifiedScanPlayers,
   loadLatestLocationPoints,
+  loadHistoricalGovIds,
   type ScanRef,
   type UnifiedScanPlayer,
   type LocationPoint,
@@ -464,51 +465,42 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
 // ─── Card 2: Illegal immigrants ──────────────────────────────────────────────
 
 function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void }) {
-  // New arrivals = in latest but not in ANY scan in the baseline window.
-  //
-  // CAVEAT: auto-scrape data only covers the top ~400 by power per day. So a
-  // player whose power crosses the rank-400 boundary appears/disappears between
-  // adjacent scans even though they've been in the kingdom forever. To avoid
-  // false-positives, we load the chosen baseline scan AND every same-source
-  // scan within a 7-day window before it, and require the player to be absent
-  // from EVERY one of them.
-  const sameKindScans = data.scans.filter((s) => s.kind === data.latest!.kind);
-  const defaultA = sameKindScans[Math.min(7, sameKindScans.length - 1)] ?? sameKindScans[sameKindScans.length - 1];
-  const [aKey, setAKey] = useState<string>(`${defaultA.kind}:${defaultA.id}`);
+  // "New arrival" = in latest scan AND has NEVER appeared in any scan source
+  // (kingdom_scans, seeds_kd, location_scans) older than `daysAgo`.
+  // Pulling from all three sources gives enough history to reliably tell who
+  // is actually new — auto-scrape alone usually only has a handful of days.
+  const [daysAgo, setDaysAgo] = useState<number>(7);
   const [unionIds, setUnionIds] = useState<Set<number>>(new Set());
-  const [windowSize, setWindowSize] = useState<number>(0);
+  const [historySources, setHistorySources] = useState<{ name: string; rows: number }[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const baseline = data.scans.find((s) => `${s.kind}:${s.id}` === aKey);
-    if (!baseline) return;
     setLoading(true);
     void (async () => {
-      // Window: baseline scan + everything older within 7 days
-      const baselineTs = new Date(baseline.ts).getTime();
-      const cutoff = baselineTs - 7 * 86_400_000;
-      const window = sameKindScans.filter((s) => {
-        const ts = new Date(s.ts).getTime();
-        return ts >= cutoff && ts <= baselineTs;
-      });
-      const all = await Promise.all(window.map((ref) => loadUnifiedScanPlayers(ref)));
-      const ids = new Set<number>();
-      for (const players of all) for (const p of players) ids.add(p.governorId);
+      const cutoffIso = new Date(Date.now() - daysAgo * 86_400_000).toISOString();
+      const { ids, sources } = await loadHistoricalGovIds(cutoffIso);
       setUnionIds(ids);
-      setWindowSize(window.length);
+      setHistorySources(sources);
       setLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aKey, data.scans]);
+  }, [daysAgo]);
 
   const candidates = useMemo(() => {
     if (unionIds.size === 0) return [];
     return data.latestPlayers
-      // Absent from every scan in the baseline window
+      // 1) Has never appeared in any K23 scan source older than the cutoff
       .filter((b) => !unionIds.has(b.governorId))
+      // 2) Not already on the Zero List
       .filter((b) => !data.zeroListIds.has(b.governorId))
+      // 3) Not currently in a K23 alliance — players in any alliance were
+      //    accepted by alliance leadership, so they're not "illegal" even if
+      //    our scan history is limited. Treats empty / noally as suspect.
+      .filter((b) => {
+        const a = (b.alliance ?? '').trim().toLowerCase();
+        return !a || a === 'noally';
+      })
       .map((b) => ({ player: b, decision: data.decisionsByGov.get(b.governorId) }))
-      // 'Yes' on the migrant sheet = approved migrant, hide them
+      // 4) Not Yes-approved on the migrant sheet
       .filter((c) => c.decision?.decision !== 'yes')
       .sort((a, b) => b.player.power - a.player.power);
   }, [unionIds, data]);
@@ -517,30 +509,53 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
     <Card
       icon={<UserPlus size={14} className="text-cyan-400" />}
       title="Illegal arrivals"
-      subtitle="People who showed up in K23 since the chosen baseline date AND aren't on the Yes list of the migrant sheet. They migrated in without approval — by definition not allowed."
-      count={candidates.length}
+      subtitle={`People in today's scan who joined K23 in the last ${daysAgo} day${daysAgo === 1 ? '' : 's'}, aren't in any K23 alliance, and aren't Yes-approved on the migrant sheet.`}
+      count={loading ? 0 : candidates.length}
       explainer={
         <>
           <p>
-            The list is computed as: in today&apos;s latest scan, AND <strong>missing from every scan in a 7-day window ending at the chosen baseline</strong>, AND not Yes-approved on the migrant sheet.
-            {windowSize > 1 && <> ({windowSize} scans checked in the baseline window.)</>}
+            A player is flagged if <strong>all four</strong> are true:
+          </p>
+          <ol className="list-decimal pl-5 space-y-0.5 text-[var(--text-secondary)]">
+            <li>In today&apos;s latest scan (so they&apos;re here right now).</li>
+            <li>Has never been seen in any historical scan source older than the cutoff. We pool gov_ids from kingdom_scans, seeds_kd, and location_scans for the union.
+              {historySources.length > 0 && <> ({historySources.map((s) => `${s.name}: ${s.rows.toLocaleString()} rows`).join(' · ')}.)</>}
+            </li>
+            <li>Not currently in a K23 alliance (alliance is <code className="text-[var(--text-secondary)]">noally</code> or empty). Anyone accepted into ANG/MNG/etc. is by definition not illegal — alliance leaders approved them.</li>
+            <li>Not Yes-approved on the migrant sheet.</li>
+          </ol>
+          <p className="text-[var(--text-muted)]">
+            <strong>Why all four?</strong> Without the alliance check, players whose alliance prefix appears in their name (like <em>ᵃⁿᵍMorven</em>) showed up as illegal whenever our scan history happened to miss them. The alliance signal is the strongest &quot;definitely belongs&quot; check we have.
           </p>
           <p className="text-[var(--text-muted)]">
-            <strong>Why a window?</strong> The auto-scrape only covers the top ~400 players by power. People near the rank-400 boundary blip in and out daily even though they&apos;ve been here forever. Requiring absence from <em>every</em> scan in the window filters out that boundary noise. If you set the baseline to today, the window collapses to one scan and you&apos;ll see those false positives again.
-          </p>
-          <p className="text-[var(--text-muted)]">
-            The Decision column shows what the migrant sheet says. <em>No</em> = explicitly rejected (zero them). <em>Maybe / Pending</em> = under review. <em>—</em> = not on the sheet at all (truly snuck in).
+            Caveats: the auto-scrape covers only the top ~400 by power. Players who fluctuate around that boundary may briefly show up here if they also drop their alliance. False positives are uncommon but possible — verify by checking if you recognize the name from active alliance work.
           </p>
         </>
       }
       controls={
-        <DatePresetPicker
-          scans={sameKindScans}
-          scanKey={aKey}
-          onChange={setAKey}
-          excludeKey={`${data.latest!.kind}:${data.latest!.id}`}
-          label="since:"
-        />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider mr-1">arrived since:</span>
+          {[
+            { id: 1, label: 'Yesterday' },
+            { id: 3, label: '3 days' },
+            { id: 7, label: '1 week' },
+            { id: 14, label: '2 weeks' },
+            { id: 30, label: '1 month' },
+            { id: 60, label: '2 months' },
+          ].map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setDaysAgo(p.id)}
+              className={`px-2 py-1 text-[11px] rounded-md border transition-colors ${
+                daysAgo === p.id
+                  ? 'bg-[#4318ff] border-[#4318ff] text-white'
+                  : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
       }
     >
       {loading ? (
