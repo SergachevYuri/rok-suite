@@ -100,13 +100,24 @@ export default function KingdomStats() {
     compRangeTo,
   );
 
-  // Auto-select first kingdom & default chart selection
+  // Auto-select kingdom from URL (?kd=) on first load, or fall back to the first
+  // available KD. The URL takes precedence so a shared link opens on the right KD.
   React.useEffect(() => {
-    if (kingdoms.length > 0 && !selectedKingdom) {
-      setSelectedKingdom(kingdoms[0]);
-      setChartKingdoms(new Set(kingdoms));
-    }
-  }, [kingdoms, selectedKingdom]);
+    if (kingdoms.length === 0 || selectedKingdom) return;
+    const fromUrl = Number(searchParams.get('kd'));
+    if (fromUrl && kingdoms.includes(fromUrl)) setSelectedKingdom(fromUrl);
+    else setSelectedKingdom(kingdoms[0]);
+    setChartKingdoms(new Set(kingdoms));
+  }, [kingdoms, selectedKingdom, searchParams]);
+
+  // Update the URL when the user picks a different KD in the Table tab.
+  const updateSelectedKingdom = useCallback((kd: number) => {
+    setSelectedKingdom(kd);
+    setSelectedDate(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('kd', String(kd));
+    router.push(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
 
   React.useEffect(() => {
     if (dates.length > 0 && !selectedDate) setSelectedDate(dates[0]);
@@ -256,6 +267,29 @@ export default function KingdomStats() {
     return m;
   }, [compStats, comparisonFromDate, compSorter]);
 
+  // Summary card for the highlighted kingdom — its rank+value at From and at To.
+  const highlightedInfo = useMemo(() => {
+    if (!highlightedKingdom) return null;
+    const toIdx = comparisonRows.findIndex(r => r.kingdom_id === highlightedKingdom);
+    if (toIdx === -1) return null;
+    const toRow = comparisonRows[toIdx];
+    const toValue = (toRow[compSortField] as number) || 0;
+
+    const fromRow = comparisonFromDate
+      ? compStats.find(s => s.scan_date === comparisonFromDate && s.kingdom_id === highlightedKingdom)
+      : undefined;
+    const fromRank = fromRanks.get(highlightedKingdom) ?? null;
+    const fromValue = fromRow ? ((fromRow[compSortField] as number) || 0) : null;
+
+    return {
+      kd: highlightedKingdom,
+      toRank: toIdx + 1,
+      toValue,
+      fromRank,
+      fromValue,
+    };
+  }, [highlightedKingdom, comparisonRows, fromRanks, compStats, comparisonFromDate, compSortField]);
+
   const handleCompSort = (field: typeof compSortField) => {
     if (compSortField === field) setCompSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else {
@@ -292,7 +326,7 @@ export default function KingdomStats() {
           <div className="flex flex-wrap items-center gap-3 mb-6">
             <select
               value={selectedKingdom || ''}
-              onChange={e => { setSelectedKingdom(Number(e.target.value)); setSelectedDate(null); }}
+              onChange={e => updateSelectedKingdom(Number(e.target.value))}
               className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
             >
               {loadingKingdoms && <option>Loading...</option>}
@@ -379,20 +413,30 @@ export default function KingdomStats() {
             <label className="text-xs text-[var(--text-muted)]">From</label>
             <select
               value={comparisonFromDate}
-              onChange={e => setComparisonFromDate(e.target.value)}
+              onChange={e => {
+                const v = e.target.value;
+                setComparisonFromDate(v);
+                // If new From is later than current To, push To to match.
+                if (v && comparisonToDate && v > comparisonToDate) setComparisonToDate(v);
+              }}
               className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
             >
               <option value="">— none —</option>
-              {allDates.map(d => <option key={d} value={d}>{d}</option>)}
+              {allDates.filter(d => !comparisonToDate || d <= comparisonToDate).map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <label className="text-xs text-[var(--text-muted)]">To</label>
             <select
               value={comparisonToDate}
-              onChange={e => setComparisonToDate(e.target.value)}
+              onChange={e => {
+                const v = e.target.value;
+                setComparisonToDate(v);
+                // If new To is earlier than current From, clear From.
+                if (v && comparisonFromDate && v < comparisonFromDate) setComparisonFromDate('');
+              }}
               className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
             >
               {allDates.length === 0 && <option>Loading...</option>}
-              {allDates.map(d => <option key={d} value={d}>{d}</option>)}
+              {allDates.filter(d => !comparisonFromDate || d >= comparisonFromDate).map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <label className="text-xs text-[var(--text-muted)] ml-2">Highlight</label>
             <select
@@ -403,6 +447,18 @@ export default function KingdomStats() {
               <option value="">— none —</option>
               {kingdoms.map(k => <option key={k} value={k}>KD {k}</option>)}
             </select>
+            {highlightedInfo && (
+              <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex items-center gap-2">
+                <span className="font-semibold">KD {highlightedInfo.kd}</span>
+                {highlightedInfo.fromRank !== null && highlightedInfo.fromValue !== null && (
+                  <span className="text-amber-300/80">
+                    #{highlightedInfo.fromRank} · {formatCompact(highlightedInfo.fromValue)}
+                    <span className="mx-1 text-amber-200/50">→</span>
+                  </span>
+                )}
+                <span>#{highlightedInfo.toRank} · {formatCompact(highlightedInfo.toValue)}</span>
+              </div>
+            )}
             <span className="text-sm text-[var(--text-muted)]">
               {comparisonRows.length} kingdom{comparisonRows.length !== 1 ? 's' : ''}
               {comparisonFromDate && fromRanks.size > 0 && ` · Δ vs ${comparisonFromDate}`}
@@ -580,16 +636,7 @@ export default function KingdomStats() {
                       tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
                       tickFormatter={formatCompact}
                     />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--background-card)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '8px',
-                        color: 'var(--foreground)',
-                      }}
-                      formatter={(value?: number) => formatCompact(value ?? 0)}
-                      labelFormatter={(label: string) => `Date: ${label}`}
-                    />
+                    <Tooltip content={<TwoColTooltip />} />
                     <Legend />
                     {sortedChartKingdomIds.map((k) => {
                       const isHovered = hoveredKd === k;
@@ -628,6 +675,34 @@ export default function KingdomStats() {
       {activeTab === 'upload' && (
         <SeedsUpload onUploaded={handleUploaded} />
       )}
+    </div>
+  );
+}
+
+// Custom 2-column chart tooltip, items sorted by value desc.
+type TooltipPayloadItem = { name?: string | number; value?: number | string; color?: string };
+type TooltipProps = { active?: boolean; payload?: TooltipPayloadItem[]; label?: string | number };
+
+function TwoColTooltip(props: TooltipProps) {
+  const { active, payload, label } = props;
+  if (!active || !payload || payload.length === 0) return null;
+  const items = [...payload].sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
+  const half = Math.ceil(items.length / 2);
+  const left = items.slice(0, half);
+  const right = items.slice(half);
+  const renderRow = (it: TooltipPayloadItem, i: number) => (
+    <div key={i} className="flex items-center justify-between gap-4 leading-tight">
+      <span className="truncate" style={{ color: it.color }}>{String(it.name ?? '')}</span>
+      <span className="tabular-nums text-[var(--foreground)]">{formatCompact(Number(it.value) || 0)}</span>
+    </div>
+  );
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--background-card)]/95 backdrop-blur p-2.5 text-xs shadow-lg">
+      <div className="text-[var(--text-muted)] mb-1.5">Date: {String(label ?? '')}</div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 min-w-[280px]">
+        <div className="space-y-0.5">{left.map(renderRow)}</div>
+        <div className="space-y-0.5">{right.map(renderRow)}</div>
+      </div>
     </div>
   );
 }
