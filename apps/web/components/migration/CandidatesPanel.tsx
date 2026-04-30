@@ -17,8 +17,10 @@ import { ArrowUp, ChevronDown, RotateCcw, UserPlus, Users, Trophy } from 'lucide
 import {
   listAllScans,
   loadUnifiedScanPlayers,
+  loadLatestLocationPoints,
   type ScanRef,
   type UnifiedScanPlayer,
+  type LocationPoint,
 } from '@/lib/zero-list/scan-data';
 import {
   listZeroListCases,
@@ -48,11 +50,15 @@ interface CycleLeftover {
 interface SharedData {
   scans: ScanRef[];
   latest: ScanRef | null;
+  /** Latest scan players with coords merged in from the most recent location scan if available. */
   latestPlayers: UnifiedScanPlayer[];
   zeroListIds: Set<number>;
   cycleActiveIds: Set<number>;
   decisionsByGov: Map<number, MigrantDecision>;
   cycleLeftovers: CycleLeftover[];
+  /** Latest location-scan timestamp + label, for showing in the header. */
+  locationScanLabel: string | null;
+  locationScanTs: string | null;
 }
 
 function fmtM(n: number | null | undefined): string {
@@ -198,7 +204,32 @@ export function CandidatesPanel({ isAdmin, actorName }: Props) {
       // 1. Scans
       const scans = await listAllScans();
       const latest = scans[0] ?? null;
-      const latestPlayers = latest ? await loadUnifiedScanPlayers(latest) : [];
+      let latestPlayers = latest ? await loadUnifiedScanPlayers(latest) : [];
+
+      // 1b. Merge in coords + alliance from the most recent location scan, if any
+      let locationScanLabel: string | null = null;
+      let locationScanTs: string | null = null;
+      try {
+        const { scan: locScan, points } = await loadLatestLocationPoints();
+        if (locScan && points.length > 0) {
+          locationScanLabel = locScan.label;
+          locationScanTs = locScan.created_at;
+          const byGov = new Map<number, LocationPoint>();
+          for (const p of points) byGov.set(p.governorId, p);
+          latestPlayers = latestPlayers.map((p) => {
+            const pt = byGov.get(p.governorId);
+            if (!pt) return p;
+            return {
+              ...p,
+              x: p.x ?? pt.x,
+              y: p.y ?? pt.y,
+              alliance: p.alliance ?? pt.alliance,
+            };
+          });
+        }
+      } catch (e) {
+        console.warn('Location-scan merge failed (non-fatal)', e);
+      }
 
       // 2. Zero list IDs (so we can exclude already-listed)
       const zlist = await listZeroListCases();
@@ -268,6 +299,8 @@ export function CandidatesPanel({ isAdmin, actorName }: Props) {
         cycleActiveIds,
         decisionsByGov,
         cycleLeftovers: leftovers,
+        locationScanLabel,
+        locationScanTs,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -296,15 +329,27 @@ export function CandidatesPanel({ isAdmin, actorName }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs text-[var(--text-muted)]">
-          Latest scan: <span className="text-[var(--text-secondary)]">{data.latest.label}</span>
-          {' · '}
-          {data.zeroListIds.size} on Zero List · {data.cycleActiveIds.size} in active cycles
-        </p>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="text-xs text-[var(--text-muted)] space-y-0.5">
+          <div>
+            Latest scan: <span className="text-[var(--text-secondary)]">{data.latest.label}</span>
+            {' · '}
+            {data.zeroListIds.size} on Zero List · {data.cycleActiveIds.size} in active cycles
+          </div>
+          {data.locationScanLabel ? (
+            <div>
+              Coordinates from: <span className="text-[var(--text-secondary)]">{data.locationScanLabel}</span>
+              {data.locationScanTs && <> ({new Date(data.locationScanTs).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})</>}
+            </div>
+          ) : (
+            <div className="text-amber-400">
+              No location scan uploaded yet — coords will be empty until an admin uploads via <em>Location Upload</em>.
+            </div>
+          )}
+        </div>
         <button
           onClick={() => void refresh()}
-          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] transition-colors"
+          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] transition-colors flex-shrink-0"
           title="Refresh all data"
         >
           <RotateCcw size={14} />
@@ -419,31 +464,54 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
 // ─── Card 2: Illegal immigrants ──────────────────────────────────────────────
 
 function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void }) {
-  // New arrivals = in latest but not in scan A (sometime in the past)
+  // New arrivals = in latest but not in ANY scan in the baseline window.
+  //
+  // CAVEAT: auto-scrape data only covers the top ~400 by power per day. So a
+  // player whose power crosses the rank-400 boundary appears/disappears between
+  // adjacent scans even though they've been in the kingdom forever. To avoid
+  // false-positives, we load the chosen baseline scan AND every same-source
+  // scan within a 7-day window before it, and require the player to be absent
+  // from EVERY one of them.
   const sameKindScans = data.scans.filter((s) => s.kind === data.latest!.kind);
   const defaultA = sameKindScans[Math.min(7, sameKindScans.length - 1)] ?? sameKindScans[sameKindScans.length - 1];
   const [aKey, setAKey] = useState<string>(`${defaultA.kind}:${defaultA.id}`);
-  const [aPlayers, setAPlayers] = useState<UnifiedScanPlayer[]>([]);
+  const [unionIds, setUnionIds] = useState<Set<number>>(new Set());
+  const [windowSize, setWindowSize] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const ref = data.scans.find((s) => `${s.kind}:${s.id}` === aKey);
-    if (!ref) return;
+    const baseline = data.scans.find((s) => `${s.kind}:${s.id}` === aKey);
+    if (!baseline) return;
     setLoading(true);
-    void loadUnifiedScanPlayers(ref).then(setAPlayers).finally(() => setLoading(false));
+    void (async () => {
+      // Window: baseline scan + everything older within 7 days
+      const baselineTs = new Date(baseline.ts).getTime();
+      const cutoff = baselineTs - 7 * 86_400_000;
+      const window = sameKindScans.filter((s) => {
+        const ts = new Date(s.ts).getTime();
+        return ts >= cutoff && ts <= baselineTs;
+      });
+      const all = await Promise.all(window.map((ref) => loadUnifiedScanPlayers(ref)));
+      const ids = new Set<number>();
+      for (const players of all) for (const p of players) ids.add(p.governorId);
+      setUnionIds(ids);
+      setWindowSize(window.length);
+      setLoading(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aKey, data.scans]);
 
   const candidates = useMemo(() => {
-    if (aPlayers.length === 0) return [];
-    const aIds = new Set(aPlayers.map((p) => p.governorId));
+    if (unionIds.size === 0) return [];
     return data.latestPlayers
-      .filter((b) => !aIds.has(b.governorId))
+      // Absent from every scan in the baseline window
+      .filter((b) => !unionIds.has(b.governorId))
       .filter((b) => !data.zeroListIds.has(b.governorId))
       .map((b) => ({ player: b, decision: data.decisionsByGov.get(b.governorId) }))
       // 'Yes' on the migrant sheet = approved migrant, hide them
       .filter((c) => c.decision?.decision !== 'yes')
       .sort((a, b) => b.player.power - a.player.power);
-  }, [aPlayers, data]);
+  }, [unionIds, data]);
 
   return (
     <Card
@@ -453,8 +521,16 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
       count={candidates.length}
       explainer={
         <>
-          <p>The list is computed as: in the latest scan, NOT in the older scan, AND not Yes-approved on the migrant sheet. Pick a more recent baseline (like &quot;yesterday&quot;) for daily check-ins, or pick &quot;a week ago&quot; to catch all illegal arrivals from the past week.</p>
-          <p>The Decision column shows what the migrant sheet says. <em>No</em> = explicitly rejected (zero them). <em>Maybe / Pending</em> = under review (admin should follow up before zeroing). <em>—</em> = not on the sheet at all (snuck in completely).</p>
+          <p>
+            The list is computed as: in today&apos;s latest scan, AND <strong>missing from every scan in a 7-day window ending at the chosen baseline</strong>, AND not Yes-approved on the migrant sheet.
+            {windowSize > 1 && <> ({windowSize} scans checked in the baseline window.)</>}
+          </p>
+          <p className="text-[var(--text-muted)]">
+            <strong>Why a window?</strong> The auto-scrape only covers the top ~400 players by power. People near the rank-400 boundary blip in and out daily even though they&apos;ve been here forever. Requiring absence from <em>every</em> scan in the window filters out that boundary noise. If you set the baseline to today, the window collapses to one scan and you&apos;ll see those false positives again.
+          </p>
+          <p className="text-[var(--text-muted)]">
+            The Decision column shows what the migrant sheet says. <em>No</em> = explicitly rejected (zero them). <em>Maybe / Pending</em> = under review. <em>—</em> = not on the sheet at all (truly snuck in).
+          </p>
         </>
       }
       controls={

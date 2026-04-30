@@ -453,6 +453,121 @@ export function unifiedToDkpPlayer(p: UnifiedScanPlayer): DkpPlayer {
   };
 }
 
+// ─── Location scans ─────────────────────────────────────────────────────────
+// Persisted separately from kingdom_scans because they're a different thing.
+// A location scan is just coordinates + power + alliance for every player; a
+// kingdom scan is the rich stats snapshot. Conflating them muddies the picker.
+
+export interface LocationScanRow {
+  id: number;
+  created_at: string;
+  label: string | null;
+  point_count: number;
+  uploaded_by: string | null;
+}
+
+export interface LocationPoint {
+  governorId: number;
+  name: string;
+  power: number;
+  kills: number;
+  alliance: string | null;
+  x: number | null;
+  y: number | null;
+  castleHall: number | null;
+  shieldTimeLeft: string | null;
+}
+
+export async function listLocationScans(): Promise<LocationScanRow[]> {
+  const { data, error } = await createClient()
+    .from('location_scans')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as LocationScanRow[];
+}
+
+export async function loadLatestLocationPoints(): Promise<{
+  scan: LocationScanRow | null;
+  points: LocationPoint[];
+}> {
+  const sb = createClient();
+  const { data: scans } = await sb
+    .from('location_scans')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const scan = (scans?.[0] as LocationScanRow | undefined) ?? null;
+  if (!scan) return { scan: null, points: [] };
+  let all: LocationPoint[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await sb
+      .from('location_scan_points')
+      .select('*')
+      .eq('scan_id', scan.id)
+      .range(from, from + 999);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all = all.concat(
+      data.map((r) => ({
+        governorId: r.governor_id as number,
+        name: (r.name as string) ?? '',
+        power: (r.power as number) ?? 0,
+        kills: (r.kills as number) ?? 0,
+        alliance: (r.alliance as string) || null,
+        x: (r.x as number) ?? null,
+        y: (r.y as number) ?? null,
+        castleHall: (r.castle_hall as number) ?? null,
+        shieldTimeLeft: (r.shield_time_left as string) ?? null,
+      })),
+    );
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+  return { scan, points: all };
+}
+
+/** Insert a new location scan with all its points. Returns the new scan ID. */
+export async function uploadLocationScan(
+  label: string,
+  points: LocationPoint[],
+  uploadedBy: string | null,
+): Promise<number> {
+  const sb = createClient();
+  const { data: scanRow, error: e1 } = await sb
+    .from('location_scans')
+    .insert({ label, point_count: points.length, uploaded_by: uploadedBy })
+    .select()
+    .single();
+  if (e1) throw e1;
+  const scanId = scanRow.id as number;
+  // Insert in batches of 500 to stay under request size limits.
+  const batchSize = 500;
+  for (let i = 0; i < points.length; i += batchSize) {
+    const slice = points.slice(i, i + batchSize).map((p) => ({
+      scan_id: scanId,
+      governor_id: p.governorId,
+      name: p.name,
+      power: p.power,
+      kills: p.kills,
+      alliance: p.alliance,
+      x: p.x,
+      y: p.y,
+      castle_hall: p.castleHall,
+      shield_time_left: p.shieldTimeLeft,
+    }));
+    const { error } = await sb.from('location_scan_points').insert(slice);
+    if (error) throw error;
+  }
+  return scanId;
+}
+
+export async function deleteLocationScan(id: number): Promise<void> {
+  const { error } = await createClient().from('location_scans').delete().eq('id', id);
+  if (error) throw error;
+}
+
 /** Compare two unified scans. Same logic as compareScans but works against
  *  UnifiedScanPlayer (so it works with both sources). */
 export function compareUnifiedScans(

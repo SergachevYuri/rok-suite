@@ -524,7 +524,12 @@ function ComparePanel({ scans, isAdmin, actorName }: { scans: ScanRef[]; isAdmin
         <select value={bKey} onChange={(e) => setBKey(e.target.value)} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none min-w-[260px]">
           {scans.map((s) => (<option key={scanRefKey(s)} value={scanRefKey(s)}>{s.label}</option>))}
         </select>
-        <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider ml-2">Δ threshold (M):</label>
+        <label
+          className="text-xs text-[var(--text-muted)] uppercase tracking-wider ml-2 cursor-help"
+          title="Players whose absolute power change between A and B is smaller than this are filtered out. 0.5M ignores everyday noise; 5M shows only big movers."
+        >
+          Δ threshold (M):
+        </label>
         <input
           type="number"
           min={0}
@@ -532,11 +537,15 @@ function ComparePanel({ scans, isAdmin, actorName }: { scans: ScanRef[]; isAdmin
           value={(threshold / 1_000_000).toFixed(1)}
           onChange={(e) => setThreshold(Math.max(0, Number(e.target.value) || 0) * 1_000_000)}
           className="w-20 px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm font-mono focus:outline-none"
+          title="Power change in millions. Players whose |power_B − power_A| is less than this don't appear in the Power Growers / Power Drops view."
         />
         <button onClick={() => void runCompare()} className="ml-auto p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]" title="Re-run compare">
           <RotateCcw size={14} />
         </button>
       </section>
+      <p className="-mt-2 mb-3 text-[11px] text-[var(--text-muted)] px-1">
+        <strong>Δ threshold:</strong> minimum absolute power change (in millions) for a player to appear in <em>Power growers</em> or <em>Power drops</em>. Set to 0 to see everyone with any movement; raise it to filter out everyday noise.
+      </p>
 
       {/* View pills */}
       <section className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -974,9 +983,33 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
         power: p.playerPower,
         alliance: p.playerAlliance || null,
       }));
+
+      // Persist to location_scans so coords surface in Find Candidates / Top 400.
+      // This is separate from kingdom_scans on purpose.
+      let savedMsg = '';
+      try {
+        const { uploadLocationScan } = await import('@/lib/zero-list/scan-data');
+        const points = parsed.map((p) => ({
+          governorId: p.playerId,
+          name: p.playerName,
+          power: p.playerPower,
+          kills: p.playerKills,
+          alliance: p.playerAlliance || null,
+          x: p.x,
+          y: p.y,
+          castleHall: p.playerCh,
+          shieldTimeLeft: p.shieldTimeLeft || null,
+        }));
+        const today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        const id = await uploadLocationScan(`${today} · ${file.name}`, points, null);
+        savedMsg = ` Saved as location scan #${id} — coords now available in Find Candidates.`;
+      } catch (e) {
+        savedMsg = ` (Couldn't save the location scan: ${e instanceof Error ? e.message : String(e)} — coord refresh on Zero List still ran.)`;
+      }
+
       const { updated } = await refreshZeroListFromScan(null, rows);
       setResult(
-        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} zero-list ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.`,
+        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} Zero List ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.${savedMsg}`,
       );
     } catch (e) {
       setResult(`Failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -994,7 +1027,7 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
           Drop a location-scan CSV (e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code>). Matches by Gov ID and pushes coordinates + last-seen power + alliance to every Zero List entry. <strong>Only updates existing rows</strong> — doesn&apos;t add or remove anyone.
         </p>
         <p className="text-xs text-[var(--text-muted)] mb-4">
-          The CSV is processed in-browser and <strong>not saved anywhere</strong>. Re-upload whenever you need a fresh coord refresh. Location scans and kingdom (Davide) scans are different things — this won&apos;t appear in Browse / Compare.
+          Saved separately from kingdom scans (in <code className="text-[var(--text-secondary)]">location_scans</code>). The latest one is auto-applied to <em>Find Candidates</em> rows so the Top 400 list shows coordinates. Location scans and kingdom (Davide) scans are <strong>different things</strong> — they don&apos;t replace each other and this won&apos;t appear in Browse / Compare.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <label className="px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] cursor-pointer disabled:opacity-60">
