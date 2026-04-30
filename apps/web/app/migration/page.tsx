@@ -21,6 +21,7 @@ import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth
 import { ZeroListTab } from '@/components/migration/ZeroListTab';
 import { ScansTab } from '@/components/migration/ScansTab';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
+import { SortableTh, type SortDir } from '@/components/migration/SortableTh';
 import { loadLatestDataset, loadConfigRow, MIGRATION_ROW_ID, parseStatsFile, type Player } from '../dkp/data';
 import {
   type MigrationCase,
@@ -82,7 +83,6 @@ const STATE_ORDER: MigrationState[] = ['pending', 'excepted', 'migrated', 'afk',
 const ZERO_POWER_DROP = 0.15;
 
 type SortField = 'username' | 'power_at_open' | 'state' | 'updated_at';
-type SortDir = 'asc' | 'desc';
 
 const DEFAULT_SORT_DIR: Record<SortField, SortDir> = {
   username: 'asc',
@@ -95,38 +95,6 @@ function stateRank(s: MigrationState): number {
   const normalized: MigrationState = s === 'claimed' || s === 'contacted' ? 'pending' : s;
   const idx = STATE_ORDER.indexOf(normalized);
   return idx === -1 ? STATE_ORDER.length : idx;
-}
-
-function SortableTh({
-  label,
-  field,
-  align = 'left',
-  active,
-  dir,
-  onSort,
-}: {
-  label: string;
-  field: SortField;
-  align?: 'left' | 'right';
-  active: SortField;
-  dir: SortDir;
-  onSort: (field: SortField) => void;
-}) {
-  const isActive = active === field;
-  const arrow = isActive ? (dir === 'asc' ? '▲' : '▼') : '';
-  const ariaSort = isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none';
-  return (
-    <th aria-sort={ariaSort} className={`px-3 py-2 ${align === 'right' ? 'text-right' : 'text-left'}`}>
-      <button
-        type="button"
-        onClick={() => onSort(field)}
-        className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-[var(--foreground)] transition-colors ${isActive ? 'text-[var(--foreground)]' : ''}`}
-      >
-        <span>{label}</span>
-        <span className="text-[10px] w-2 inline-block opacity-80">{arrow}</span>
-      </button>
-    </th>
-  );
 }
 
 function fmt(n: number) {

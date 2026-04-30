@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, Lock, RotateCcw, Search, Sparkles, Upload, UserPlus, Users } from 'lucide-react';
 import { CandidatesPanel } from '@/components/migration/CandidatesPanel';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
+import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
 import {
   listAllScans,
   loadUnifiedScanPlayers,
@@ -238,18 +239,46 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: ScanRef[]; 
 
   const sorted = useMemo(() => [...scored].sort((a, b) => b.power - a.power).slice(0, topN), [scored, topN]);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return sorted;
-    const q = search.trim().toLowerCase();
-    const qDigits = q.replace(/\D/g, '');
-    return sorted.filter((p) => p.username.toLowerCase().includes(q) || (qDigits.length >= 3 && String(p.characterId).includes(qDigits)));
-  }, [sorted, search]);
+  type BSortField = 'username' | 'power' | 'kpRatio' | 'bandScore' | 'alliance';
+  const sort = useTableSort<BSortField>('power', {
+    username: 'asc',
+    power: 'desc',
+    kpRatio: 'desc',
+    bandScore: 'desc',
+    alliance: 'asc',
+  });
 
   const playerByGov = useMemo(() => {
     const m = new Map<number, UnifiedScanPlayer>();
     for (const p of players) m.set(p.governorId, p);
     return m;
   }, [players]);
+
+  const filtered = useMemo(() => {
+    let list = sorted;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const qDigits = q.replace(/\D/g, '');
+      list = list.filter((p) => p.username.toLowerCase().includes(q) || (qDigits.length >= 3 && String(p.characterId).includes(qDigits)));
+    }
+    const sign = sort.dir === 'asc' ? 1 : -1;
+    const out = [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sort.field === 'username') cmp = a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
+      else if (sort.field === 'power') cmp = a.power - b.power;
+      else if (sort.field === 'kpRatio') cmp = a.kpRatio - b.kpRatio;
+      else if (sort.field === 'bandScore') cmp = a.bandScore - b.bandScore;
+      else if (sort.field === 'alliance') {
+        const aa = (playerByGov.get(a.characterId)?.alliance ?? '').toLowerCase();
+        const bb = (playerByGov.get(b.characterId)?.alliance ?? '').toLowerCase();
+        cmp = aa.localeCompare(bb);
+      }
+      if (cmp === 0) cmp = b.power - a.power;
+      else cmp *= sign;
+      return cmp;
+    });
+    return out;
+  }, [sorted, search, sort.field, sort.dir, playerByGov]);
 
   const toggleAll = () => {
     if (selected.size === filtered.length) setSelected(new Set());
@@ -359,11 +388,11 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: ScanRef[]; 
                       />
                     </th>
                   )}
-                  <th className="px-3 py-2 text-left">Player</th>
-                  <th className="px-3 py-2 text-right">Power</th>
-                  <th className="px-3 py-2 text-right">P/KP Ratio</th>
-                  <th className="px-3 py-2 text-right">Score</th>
-                  {caps.hasAlliance && <th className="px-3 py-2 text-left">Alliance</th>}
+                  <SortableTh label="Player" field="username" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                  <SortableTh label="Power" field="power" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                  <SortableTh label="P/KP Ratio" field="kpRatio" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                  <SortableTh label="Score" field="bandScore" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                  {caps.hasAlliance && <SortableTh label="Alliance" field="alliance" active={sort.field} dir={sort.dir} onSort={sort.toggle} />}
                   {caps.hasCoords && <th className="px-3 py-2 text-left">Coords</th>}
                 </tr>
               </thead>

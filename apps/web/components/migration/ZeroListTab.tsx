@@ -20,6 +20,7 @@ import {
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestLocationPoints, type LocationPoint } from '@/lib/zero-list/scan-data';
+import { SortableTh, useTableSort, type SortDir } from '@/components/migration/SortableTh';
 
 interface Props {
   isOfficer: boolean;
@@ -111,6 +112,14 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return cases.filter((c) => !c.delayed_until || new Date(c.delayed_until).getTime() <= now);
   }, [cases, isOfficer]);
 
+  type ZSortField = 'username' | 'power' | 'alliance' | 'state';
+  const sort = useTableSort<ZSortField>('power', {
+    username: 'asc',
+    power: 'desc',
+    alliance: 'asc',
+    state: 'asc',
+  });
+
   const filtered = useMemo(() => {
     let list = visibleCases;
     if (filter === 'active') list = list.filter((c) => !TERMINAL_STATES.includes(c.state));
@@ -123,8 +132,26 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           c.username.toLowerCase().includes(q) || (qDigits.length >= 3 && String(c.character_id).includes(qDigits)),
       );
     }
-    return list;
-  }, [visibleCases, filter, search]);
+    const sign = sort.dir === 'asc' ? 1 : -1;
+    const sorted = [...list].sort((a, b) => {
+      let cmp = 0;
+      const fa = locationLookup.get(a.character_id);
+      const fb = locationLookup.get(b.character_id);
+      if (sort.field === 'username') cmp = a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
+      else if (sort.field === 'power') cmp = (a.last_seen_power ?? a.power_at_open) - (b.last_seen_power ?? b.power_at_open);
+      else if (sort.field === 'alliance') {
+        const aa = (a.last_seen_alliance ?? fa?.alliance ?? '').toLowerCase();
+        const bb = (b.last_seen_alliance ?? fb?.alliance ?? '').toLowerCase();
+        cmp = aa.localeCompare(bb);
+      }
+      else if (sort.field === 'state') cmp = a.state.localeCompare(b.state);
+      // Tiebreak on power desc so equal-key rows are stable
+      if (cmp === 0) cmp = (b.last_seen_power ?? b.power_at_open) - (a.last_seen_power ?? a.power_at_open);
+      else cmp *= sign;
+      return cmp;
+    });
+    return sorted;
+  }, [visibleCases, filter, search, sort.field, sort.dir, locationLookup]);
 
   const counts = useMemo(() => {
     const out: Record<string, number> = { active: 0, all: visibleCases.length };
@@ -291,11 +318,11 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
               <tr>
-                <th className="px-3 py-2 text-left">Player</th>
-                <th className="px-3 py-2 text-right">Power</th>
-                <th className="px-3 py-2 text-left">Alliance</th>
+                <SortableTh label="Player" field="username" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                <SortableTh label="Power" field="power" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+                <SortableTh label="Alliance" field="alliance" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <th className="px-3 py-2 text-left">Coords</th>
-                <th className="px-3 py-2 text-left">State</th>
+                <SortableTh label="State" field="state" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
                 <th className="px-3 py-2 text-left">Actions</th>
               </tr>
             </thead>

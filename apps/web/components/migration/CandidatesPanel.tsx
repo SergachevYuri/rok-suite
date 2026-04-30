@@ -29,6 +29,7 @@ import {
 } from '@/lib/supabase/use-migration-cases';
 import { createClient } from '@/lib/supabase/client';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
+import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
 
 interface Props {
   isAdmin: boolean;
@@ -814,9 +815,45 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
 
+  type CSortField = 'name' | 'power' | 'extra' | 'alliance' | 'decision';
+  const sort = useTableSort<CSortField>('power', {
+    name: 'asc',
+    power: 'desc',
+    extra: 'desc',
+    alliance: 'asc',
+    decision: 'asc',
+  });
+
+  const sortedRows = useMemo(() => {
+    const sign = sort.dir === 'asc' ? 1 : -1;
+    const decisionRank = (d: CandidateRow['decision']) => {
+      if (!d) return 99;
+      return { yes: 0, no: 1, maybe: 2, unknown: 3 }[d.decision] ?? 99;
+    };
+    const out = [...rows].sort((a, b) => {
+      let cmp = 0;
+      if (sort.field === 'name') cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+      else if (sort.field === 'power') cmp = a.power - b.power;
+      else if (sort.field === 'alliance') cmp = (a.alliance ?? '').toLowerCase().localeCompare((b.alliance ?? '').toLowerCase());
+      else if (sort.field === 'decision') cmp = decisionRank(a.decision) - decisionRank(b.decision);
+      else if (sort.field === 'extra') {
+        // Parse the extra value if it's numeric (e.g. "+2.34M") so the sort is numeric. Fall back to string compare.
+        const ax = a.extra?.value ?? '';
+        const bx = b.extra?.value ?? '';
+        const an = Number(ax.replace(/[^0-9.+-]/g, ''));
+        const bn = Number(bx.replace(/[^0-9.+-]/g, ''));
+        cmp = Number.isFinite(an) && Number.isFinite(bn) ? an - bn : ax.localeCompare(bx);
+      }
+      if (cmp === 0) cmp = b.power - a.power;
+      else cmp *= sign;
+      return cmp;
+    });
+    return out;
+  }, [rows, sort.field, sort.dir]);
+
   const toggleAll = () => {
-    if (selected.size === rows.length) setSelected(new Set());
-    else setSelected(new Set(rows.map((r) => r.governorId)));
+    if (selected.size === sortedRows.length) setSelected(new Set());
+    else setSelected(new Set(sortedRows.map((r) => r.governorId)));
   };
 
   const addSelected = async () => {
@@ -873,19 +910,28 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
             <tr>
               {isAdmin && (
                 <th className="px-3 py-2 text-left w-8">
-                  <input type="checkbox" checked={selected.size > 0 && selected.size === rows.length} onChange={toggleAll} />
+                  <input type="checkbox" checked={selected.size > 0 && selected.size === sortedRows.length} onChange={toggleAll} />
                 </th>
               )}
-              <th className="px-3 py-2 text-left">Player</th>
-              <th className="px-3 py-2 text-right">Power</th>
-              {rows.some((r) => r.extra !== null) && <th className="px-3 py-2 text-right">{rows.find((r) => r.extra)?.extra?.label}</th>}
-              <th className="px-3 py-2 text-left">Alliance</th>
-              <th className="px-3 py-2 text-left">Decision</th>
+              <SortableTh label="Player" field="name" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+              <SortableTh label="Power" field="power" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+              {sortedRows.some((r) => r.extra !== null) && (
+                <SortableTh
+                  label={sortedRows.find((r) => r.extra)?.extra?.label ?? ''}
+                  field="extra"
+                  align="right"
+                  active={sort.field}
+                  dir={sort.dir}
+                  onSort={sort.toggle}
+                />
+              )}
+              <SortableTh label="Alliance" field="alliance" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+              <SortableTh label="Decision" field="decision" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
               <th className="px-3 py-2 text-left">Coords</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {sortedRows.map((r) => (
               <tr key={r.governorId} className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
                 {isAdmin && (
                   <td className="px-3 py-2">
@@ -904,7 +950,7 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
                   <CopyablePlayerCell name={r.name} govId={r.governorId} />
                 </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtM(r.power)}</td>
-                {rows.some((row) => row.extra !== null) && (
+                {sortedRows.some((row) => row.extra !== null) && (
                   <td className={`px-3 py-2 text-right font-mono tabular-nums ${r.extra ? toneClass(r.extra.tone) : ''}`}>
                     {r.extra?.value ?? '—'}
                   </td>
