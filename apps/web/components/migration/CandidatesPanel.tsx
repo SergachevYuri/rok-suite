@@ -238,8 +238,14 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
     <Card
       icon={<ArrowUp size={14} className="text-orange-400" />}
       title="Power growers"
-      subtitle="Players whose power went up between two scans — usually means they're farming, getting fed, or otherwise making themselves a problem."
+      subtitle="People whose power went UP between two scans. Means they're farming, being fed by allies, or building. If they shouldn't be in K23, growing power is a red flag — they're getting comfortable."
       count={candidates.length}
+      explainer={
+        <>
+          <p>The two scans being compared are: today&apos;s latest scan (newest available) vs. the older one you pick in the <strong>vs:</strong> dropdown. Δ is the difference. The threshold filters out small everyday gains — bump it up to see only big movers.</p>
+          <p>Already on the Zero List? They&apos;re excluded automatically. Already approved (<em>Yes</em> on the migrant sheet)? Filtered too — you don&apos;t want to zero approved migrants.</p>
+        </>
+      }
       controls={
         <>
           <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">vs:</label>
@@ -319,8 +325,14 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
     <Card
       icon={<UserPlus size={14} className="text-cyan-400" />}
       title="Illegal arrivals"
-      subtitle="Governors who appeared in the kingdom since the chosen baseline AND aren't approved on the migrant sheet. Yes-decision migrants are filtered out automatically."
+      subtitle="People who showed up in K23 since the chosen baseline date AND aren't on the Yes list of the migrant sheet. They migrated in without approval — by definition not allowed."
       count={candidates.length}
+      explainer={
+        <>
+          <p>The list is computed as: in the latest scan, NOT in the older scan, AND not Yes-approved on the migrant sheet. Pick a more recent baseline (like &quot;yesterday&quot;) for daily check-ins, or pick &quot;a week ago&quot; to catch all illegal arrivals from the past week.</p>
+          <p>The Decision column shows what the migrant sheet says. <em>No</em> = explicitly rejected (zero them). <em>Maybe / Pending</em> = under review (admin should follow up before zeroing). <em>—</em> = not on the sheet at all (snuck in completely).</p>
+        </>
+      }
       controls={
         <>
           <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">since:</label>
@@ -394,8 +406,14 @@ function CycleLeftoversCard({ data, isAdmin, actorName, onChange }: { data: Shar
     <Card
       icon={<Users size={14} className="text-rose-400" />}
       title="Didn't emigrate"
-      subtitle="Players from past cycles whose deadline passed but who never reached a terminal state (Notified / To Zero) — and they're still showing up in the latest scan."
+      subtitle="People we put on a Cycle (formal emigration round), the cycle deadline passed, but they never left. AND they're still in the kingdom right now. We told them to leave; they didn't. Time to zero."
       count={candidates.length}
+      explainer={
+        <>
+          <p>Pulled from past Cycles where: the deadline has passed, the case never reached a terminal state (still <em>Notified / Claimed / Contacted / To Zero</em>), and the player&apos;s Gov ID is still in the latest scan.</p>
+          <p>If a person here is also already on the Zero List, they&apos;re hidden — the badge in the &quot;extra&quot; column shows which cycle they were in and what their last cycle state was, so officers know they&apos;ve already been through the formal process.</p>
+        </>
+      }
     >
       <CandidateTable
         rows={candidates.map((c) => ({
@@ -437,8 +455,15 @@ function TopNCard({ data, isAdmin, actorName, onChange }: { data: SharedData; is
     <Card
       icon={<Trophy size={14} className="text-amber-400" />}
       title="Top players to evaluate"
-      subtitle="Top-power players in the kingdom who aren't already on the Zero List, in an active cycle, or approved on the migrant sheet. The bucket where you decide who stays and who goes."
+      subtitle="Top-N power players in K23 who haven't been dealt with yet. Already on the Zero List? Hidden. In an active cycle? Hidden. Approved on the migrant sheet (Yes)? Hidden. So what's left is your &quot;haven't decided&quot; bucket."
       count={candidates.length}
+      explainer={
+        <>
+          <p>Walk through this list and decide for each person: should they stay or should they go? If they should go, check the box and add to Zero List.</p>
+          <p>Power members at the top are the ones you most need to be sure about — losing them is the biggest hit if it&apos;s the wrong call, but keeping them illegally is the biggest problem if they shouldn&apos;t be here.</p>
+          <p>Default top-N is 400 (the K23 active-roster size). Bump it up if you also want to evaluate the long tail.</p>
+        </>
+      }
       controls={
         <>
           <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Top:</label>
@@ -482,6 +507,7 @@ function Card({
   subtitle,
   count,
   controls,
+  explainer,
   children,
 }: {
   icon: React.ReactNode;
@@ -489,28 +515,53 @@ function Card({
   subtitle: string;
   count: number;
   controls?: React.ReactNode;
+  explainer?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(true);
+  const [explainOpen, setExplainOpen] = useState(false);
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--background-hover)] transition-colors"
+        className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[var(--background-hover)] transition-colors"
       >
-        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--background-secondary)]">{icon}</span>
+        <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--background-secondary)] flex-shrink-0 mt-0.5">{icon}</span>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
-          <div className="text-xs text-[var(--text-muted)] truncate">{subtitle}</div>
+          <div className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</div>
         </div>
         <span className="text-2xl font-semibold text-[var(--foreground)] tabular-nums">{count}</span>
-        <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform mt-2 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="border-t border-[var(--border)]">
           {controls && (
             <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--background-secondary)]/40">
               {controls}
+              {explainer && (
+                <button
+                  onClick={() => setExplainOpen((o) => !o)}
+                  className="ml-auto text-[10px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--foreground)] underline-offset-2 hover:underline"
+                >
+                  {explainOpen ? 'hide details' : 'how does this work?'}
+                </button>
+              )}
+            </div>
+          )}
+          {!controls && explainer && (
+            <div className="flex justify-end px-4 py-2 bg-[var(--background-secondary)]/40">
+              <button
+                onClick={() => setExplainOpen((o) => !o)}
+                className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--foreground)] underline-offset-2 hover:underline"
+              >
+                {explainOpen ? 'hide details' : 'how does this work?'}
+              </button>
+            </div>
+          )}
+          {explainOpen && explainer && (
+            <div className="px-4 py-3 bg-violet-500/5 border-y border-violet-500/20 text-xs text-[var(--text-secondary)] space-y-2">
+              {explainer}
             </div>
           )}
           {children}

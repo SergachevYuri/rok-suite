@@ -98,63 +98,67 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
           <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${guideOpen ? 'rotate-180' : ''}`} />
         </button>
         {guideOpen && (
-          <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-3">
+          <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-4">
             <p className="text-xs text-[var(--text-muted)]">
-              Read kingdom-wide scan data and feed it into the Zero List. <strong>Two scan sources</strong> are pooled in the picker:
+              The Scans tab is where you <strong>find people to put on the Zero List</strong>. The default sub-tab — <strong>Find Candidates</strong> — does most of the work for you. The other sub-tabs are for specific tasks (location refresh, raw browsing, etc.).
             </p>
-            <ul className="text-xs space-y-1 list-disc pl-5">
-              <li><strong>Auto-scrape</strong> (seeds_kd) — populated daily by the seeds-extractor scraper from Lilith&apos;s API. <strong>Always fresh</strong> but limited to power, KP, CH level, rank. <em>No coords, no alliance, no kill/death breakdown.</em></li>
-              <li><strong>Manual scan</strong> (kingdom_scans) — XLSX or location-CSV uploads via <em>/kingdom/migration-tracker</em>, or location-CSVs uploaded directly through the <em>Location Upload</em> sub-tab here. Has whatever the source format carries: a stats XLSX gives kills/deaths/gathered/helps but no coords; a location CSV (<code className="text-[var(--text-secondary)]">scan_3923.csv</code>) gives coords + alliance + power but no kill breakdown. Both end up in the same table.</li>
-            </ul>
-            <p className="text-xs text-[var(--text-muted)]">
-              Use <strong>Auto-scrape</strong> for finding people (freshest top-N power rank, freshest power growers/shrinkers) and <strong>Manual</strong> when you need coords + alliance + DKP scoring detail. After adding people from Auto-scrape, run <em>Location Upload</em> to backfill coords from the latest location scan.
-            </p>
+
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Sub-tabs</div>
-              <ul className="text-xs space-y-2 list-disc pl-5">
-                <li>
-                  <strong>Find Candidates</strong> (default) — four collapsible cards that surface the people you actually need to act on:
-                  <ul className="mt-1 space-y-0.5 list-circle pl-5">
-                    <li><strong>Power growers</strong> — Δ-power between two scans, cross-checked against the Zero List</li>
-                    <li><strong>Illegal arrivals</strong> — new since chosen baseline AND not approved on the migrant sheet</li>
-                    <li><strong>Didn&apos;t emigrate</strong> — past-deadline cycle leftovers who are still in the kingdom</li>
-                    <li><strong>Top players to evaluate</strong> — top-N by power, minus already-listed/approved/in-cycle</li>
-                  </ul>
-                  Each card has a count badge, a per-card config (date/threshold/N), and one-click multi-select-then-add.
-                </li>
-                <li>
-                  <strong>Browse Scan</strong> (advanced) — raw single-scan view with DKP scoring. Use when you want to manually scan the kingdom.
-                </li>
-                <li>
-                  <strong>Compare</strong> — pick two scans (A → B), see four counts: power growers, power drops, new arrivals, departed.
-                  Click any count to drill in. Adjust the Δ threshold (in millions) to filter noise. Admins can multi-select rows and add to the Zero List.
-                </li>
-                <li>
-                  <strong>Migrant CSV</strong> (admin only) — auto-fetches the K23 migrant-applications Google Sheet on open.
-                  Click <em>Refresh from sheet</em> to re-pull after sheet edits. Decisions are normalized (Yes / No / Maybe) but the raw value (e.g. <em>Pending</em>, <em>Found Another Kingdom</em>) is shown in the badge.
-                  The tool joins the sheet against the chosen scan&apos;s top-N. Approved (<em>Yes</em>) rows are hidden by default — what you see is everyone in the kingdom who shouldn&apos;t be there. CSV upload still works if you want to override with a different sheet.
-                </li>
-                <li>
-                  <strong>Location Upload</strong> (admin only) — drop a location-scan CSV (e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code>) directly. Matches by Gov ID and pushes coords + last-seen power + alliance to every Zero List entry. By default the scan is also saved to <code className="text-[var(--text-secondary)]">kingdom_scans</code> so it appears in Browse / Compare; toggle off if you don&apos;t want a permanent record.
-                </li>
-              </ul>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Find people to add to the Zero List (the main workflow)</div>
+              <ol className="space-y-1 text-xs list-decimal pl-5">
+                <li>You&apos;re already on <strong>Find Candidates</strong> if you just opened the tab.</li>
+                <li>Look at the four cards. Each has a number on the right — that&apos;s how many candidates need attention. Open the biggest one first.</li>
+                <li>The card expands to show a table. Each row has: name, gov ID, power, alliance (if known), the Decision badge (Yes/No/Maybe/etc. from the migrant sheet), and coords (if known).</li>
+                <li>Pick people. Check the box on the left of each row. Or use the header checkbox to select all.</li>
+                <li>An orange action bar appears at the top. Click <strong>Add to Zero List</strong>. Confirm.</li>
+                <li>Switch to the <strong>Zero List</strong> tab — they&apos;re there.</li>
+              </ol>
+              <p className="text-[11px] text-[var(--text-muted)] mt-2">
+                If a card shows 0, you have nothing to do for that category 🎉. If you want to broaden the search, change the threshold or top-N inside the card.
+              </p>
             </div>
+
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Add-to-Zero-List flow</div>
-              <ol className="text-xs space-y-1 list-decimal pl-5">
-                <li>Pick a sub-tab (Browse / Compare / Migrant CSV).</li>
-                <li>Configure the inputs (which scan, top-N, Δ threshold, CSV upload).</li>
-                <li>Check the boxes on rows you want.</li>
-                <li>Click <em>Add to Zero List</em>. Duplicates (already on the list) are silently skipped.</li>
-                <li>Switch to the <em>Zero List</em> tab to see them queued for action.</li>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Refresh coords on the Zero List before a war</div>
+              <ol className="space-y-1 text-xs list-decimal pl-5">
+                <li>You need a fresh location-CSV file (the format with x/y columns — e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code>).</li>
+                <li>Click the <strong>Location Upload</strong> sub-tab.</li>
+                <li>Click <strong>Choose CSV</strong>, pick the file. Leave &quot;Save as kingdom scan&quot; checked unless you have a reason not to.</li>
+                <li>Wait. You&apos;ll get a green message when it&apos;s done (e.g. &quot;Updated 47 zero-list entries&quot;).</li>
+                <li>Open the Zero List tab — every entry with a Gov ID in the CSV now has fresh coords.</li>
               </ol>
             </div>
+
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Caveats</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">When to use each sub-tab</div>
+              <ul className="text-xs space-y-2 list-disc pl-5">
+                <li><strong>Find Candidates</strong> — 95% of the time. The default. Use this unless you have a specific reason not to.</li>
+                <li><strong>Location Upload</strong> — when you have a fresh location CSV and want coords on the Zero List.</li>
+                <li><strong>Browse Scan</strong> — when you want to manually scroll through the whole kingdom (e.g. you&apos;re looking for someone specific by name).</li>
+                <li><strong>Compare</strong> — when you want to drill into one specific scan-pair and see the raw growers/shrinkers/new/departed split. Find Candidates already does this in cards 1 and 2 — Compare is just a manual override.</li>
+                <li><strong>Migrant CSV</strong> — when you want to see <em>everyone</em> in the top-N joined with the migrant sheet, including approved (Yes) people. Find Candidates filters Yes out automatically — Migrant CSV doesn&apos;t.</li>
+              </ul>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Two scan sources, one picker</div>
+              <p className="text-xs">When you see a scan dropdown anywhere on this tab, it pools two sources:</p>
+              <ul className="text-xs space-y-1 list-disc pl-5 mt-1">
+                <li><strong>Auto-scrape</strong> — daily snapshot from the official Lilith API. Always fresh. <em>No coords, no alliance, no kill breakdown</em> — just power, KP, CH level.</li>
+                <li><strong>Manual scan</strong> — uploaded by an admin via Migration Tracker or the Location Upload sub-tab. Has whatever the file format includes (location CSVs have x/y/alliance; stats XLSX has kills/deaths).</li>
+              </ul>
+              <p className="text-[11px] text-[var(--text-muted)] mt-2">
+                Newest first regardless of source. Today&apos;s auto-scrape is usually at the top.
+              </p>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Common gotchas</div>
               <ul className="text-xs space-y-1 list-disc pl-5">
-                <li>Empty scan list? Upload a Davide Frusone snapshot via <a href="/kingdom/migration-tracker" className="text-cyan-400 hover:underline">/kingdom/migration-tracker</a> first.</li>
-                <li>DKP scoring on scan data is slightly biased toward T5 bands because <code className="text-[var(--text-secondary)]">kingdom_scan_players</code> doesn&apos;t track per-tier deaths separately.</li>
-                <li>Honor isn&apos;t in scan data, so the honor weight contributes 0 to scores here. Keep that in mind when comparing scores to the DKP page.</li>
+                <li>Don&apos;t see <em>Add to Zero List</em> buttons or checkboxes? You&apos;re not signed in as admin. Power and Officer can browse but not add.</li>
+                <li>Migrant CSV decisions don&apos;t match what&apos;s in the sheet? Click <strong>Refresh from sheet</strong> in that sub-tab. The fetched copy is cached for 60s.</li>
+                <li>Power-growers card is empty? Either no one grew, or the &quot;vs:&quot; baseline is too recent. Pick an older scan in the &quot;vs:&quot; dropdown inside the card.</li>
+                <li>Adding the same person twice doesn&apos;t do anything — duplicates on the Zero List are silently skipped (matched by Gov ID).</li>
               </ul>
             </div>
           </div>

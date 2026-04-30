@@ -123,40 +123,74 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${guideOpen ? 'rotate-180' : ''}`} />
         </button>
         {guideOpen && (
-          <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-3">
+          <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-4">
             <p className="text-xs text-[var(--text-muted)]">
-              Goal: a continuous, kingdom-wide list of players to attack/zero. Different from the Cycle tab — no deadline, no exception workflow, kingdom-scoped instead of DKP-flagged.
+              The Zero List is the <strong>kingdom-wide kill queue</strong>. It&apos;s a single continuous list — no deadline, no exception workflow. Power members come here to grab coords and attack. Admins manage who&apos;s on it.
             </p>
+
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Who can do what</div>
-              <ul className="text-xs space-y-1.5 list-disc pl-5">
-                <li><strong>Power tier</strong>: see the list, copy coordinates to teleport / scout / attack in game. No edit buttons.</li>
-                <li><strong>Officer</strong>: same view as Power. Officers don't curate the list — that's admin-only on this surface so the kill list isn't accidentally modified.</li>
-                <li><strong>Admin</strong>: add players (from the <em>Scans</em> tab), mark <em>To Zero</em> / <em>Confirm Zeroed</em> / <em>Emigrated</em> / <em>AFK</em> / <em>Except</em>, or remove rows entirely.</li>
-              </ul>
-            </div>
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">How to add players</div>
-              <p className="text-xs">Go to the <strong>Scans</strong> tab. Three ways:</p>
-              <ul className="text-xs space-y-1 list-disc pl-5">
-                <li><strong>Browse Scan</strong> → pick a scan → check rows → "Add to Zero List". Useful when you know who you're targeting.</li>
-                <li><strong>Compare</strong> → pick two scans → review power growers / shrinkers / new arrivals / departed → add the ones that look wrong.</li>
-                <li><strong>Migrant CSV</strong> (admin only) → upload the migrant-applications sheet → see top-N players who are <em>not</em> on the Yes list → add them.</li>
-              </ul>
-            </div>
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Once a target is zeroed in-game</div>
-              <ol className="text-xs space-y-1 list-decimal pl-5">
-                <li>Admin clicks <strong>To Zero</strong> when the decision is made and a power member is dispatched.</li>
-                <li>After the attack, click <strong>Confirm Zeroed</strong> to move it to the terminal Zeroed state.</li>
-                <li>If the player emigrated before being zeroed, click <strong>Emigrated</strong> instead.</li>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Power member, going on a hunt</div>
+              <ol className="space-y-1 text-xs list-decimal pl-5">
+                <li>Open this Zero List tab. The default filter is &quot;Active&quot; — that&apos;s everyone who still needs to be dealt with.</li>
+                <li>Pick a target — usually highest power first, or whoever&apos;s closest to your city.</li>
+                <li>Click the <strong>(x, y)</strong> cell. It copies <code className="text-[var(--text-secondary)]">x,y</code> to your clipboard.</li>
+                <li>In game: open Map → click the magnifying glass → paste the coords → teleport / scout / attack.</li>
+                <li>You don&apos;t mark anything here — just attack. Admins update the status when the zero is confirmed.</li>
               </ol>
             </div>
+
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Coordinates</div>
-              <p className="text-xs">
-                The (x, y) cell shows the player's location at the time they were added (or last refreshed via <em>Scans → Location Upload</em>). Click the cell to copy <code className="text-[var(--text-secondary)]">x,y</code> to your clipboard.
-              </p>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Admin, target gets zeroed</div>
+              <ol className="space-y-1 text-xs list-decimal pl-5">
+                <li>When you commit power members to zero a target, click <strong>To Zero</strong> on their row. State turns orange — &quot;decision made, action pending&quot;.</li>
+                <li>After the attack lands and the player is at near-zero power, click <strong>Confirm Zeroed</strong>. State turns red — done.</li>
+                <li>If they bailed and left the kingdom before you finished, click <strong>Emigrated</strong> instead.</li>
+                <li>If they messaged you and have a legit reason to stay, click <strong>Except</strong> with a reason.</li>
+              </ol>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Admin, adding people</div>
+              <p className="text-xs">You don&apos;t add people <em>on this tab</em> — switch to the <strong>Scans</strong> tab. The default sub-tab there is <strong>Find Candidates</strong>:</p>
+              <ol className="space-y-1 text-xs list-decimal pl-5 mt-1">
+                <li>Each card has a count badge. The biggest number is where the work is.</li>
+                <li>Open the card, look at the rows.</li>
+                <li>Check the boxes you want, click <strong>Add to Zero List</strong>.</li>
+                <li>Come back here — they&apos;re queued.</li>
+              </ol>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Admin, fresh coordinates before a war</div>
+              <ol className="space-y-1 text-xs list-decimal pl-5">
+                <li>Open <strong>Scans → Location Upload</strong>.</li>
+                <li>Drop your <code className="text-[var(--text-secondary)]">scan_3923.csv</code> file. Leave &quot;Save as kingdom scan&quot; checked.</li>
+                <li>Within a second, every Zero List entry whose Gov ID is in the file gets fresh coords + power + alliance.</li>
+                <li>Power members can now click coords on this tab and get accurate locations.</li>
+              </ol>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">What each state means</div>
+              <ul className="text-xs space-y-1">
+                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]">Notified</span> On the list, no action yet. Default state for new additions.</li>
+                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-orange-500/15 text-orange-400 border-orange-500/30">To Zero</span> Decision made. Power members should attack.</li>
+                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> Confirmed dead in-game. Done.</li>
+                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Emigrated</span> Left the kingdom on their own.</li>
+                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">Excepted</span> Admin granted a pass. They stay.</li>
+                <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-slate-500/15 text-slate-300 border-slate-500/30">AFK</span> Inactive but staying. Treated as zero for kingdom-power calculation.</li>
+              </ul>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Things you might miss</div>
+              <ul className="text-xs space-y-1 list-disc pl-5">
+                <li>The (x, y) cell is a <strong>button</strong> — click it to copy. The little copy icon turns into a green checkmark for ~1.5s when it works.</li>
+                <li>The Active filter (default) hides terminal cases. Switch to <em>Zeroed</em> or <em>All</em> to see history.</li>
+                <li>If the (x, y) cell is empty (em dash), the player was added from auto-scrape data. Run <em>Location Upload</em> to backfill from a fresh location CSV.</li>
+                <li>Power and Officer roles are <strong>both view-only</strong> here. Only Admin sees action buttons.</li>
+                <li>Don&apos;t click the trash icon casually — it&apos;s a hard delete with no undo. Use a state like Excepted or AFK if you want to keep the record.</li>
+              </ul>
             </div>
           </div>
         )}

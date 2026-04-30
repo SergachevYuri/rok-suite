@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   ArrowLeft,
+  BookOpen,
   ChevronDown,
   Flag,
   Lock,
@@ -223,6 +224,17 @@ function MigrationPageInner() {
     setGuideOpen((o) => {
       const next = !o;
       try { window.localStorage.setItem('migration-guide-collapsed', next ? '0' : '1'); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const [orientationOpen, setOrientationOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem('emigration-orientation-collapsed') !== '1';
+  });
+  const toggleOrientation = () => {
+    setOrientationOpen((o) => {
+      const next = !o;
+      try { window.localStorage.setItem('emigration-orientation-collapsed', next ? '0' : '1'); } catch { /* ignore */ }
       return next;
     });
   };
@@ -474,6 +486,91 @@ function MigrationPageInner() {
           <SessionBadge />
         </header>
 
+        {/* Page-level orientation — for first-time users / refresher. */}
+        <section className="mb-4 rounded-xl bg-violet-500/5 border border-violet-500/30 overflow-hidden">
+          <button
+            onClick={toggleOrientation}
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-violet-500/10 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <BookOpen size={14} className="text-violet-400" />
+              <span className="text-sm font-semibold text-[var(--foreground)]">First time here? Read this.</span>
+              {!orientationOpen && <span className="text-[11px] text-[var(--text-muted)]">click to expand</span>}
+            </div>
+            <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${orientationOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {orientationOpen && (
+            <div className="px-4 pb-4 pt-1 border-t border-violet-500/30 text-sm text-[var(--text-secondary)] space-y-4">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">What is this page?</div>
+                <p className="text-xs">
+                  This is where Angmar leadership decides who shouldn&apos;t be in Kingdom 23 and tracks them through to leaving (emigrating) or being zeroed (attacked until their power drops to ~0). It works by:
+                </p>
+                <ol className="text-xs mt-2 space-y-1 list-decimal pl-5">
+                  <li><strong>Identifying targets</strong> — by looking at scans, comparing them, or cross-referencing the migrant-application sheet</li>
+                  <li><strong>Adding them to a list</strong> — either a time-bound <em>Cycle</em> (with a deadline, formal exception process) or a continuous <em>Zero List</em> (kingdom-wide kill queue)</li>
+                  <li><strong>Acting on the list</strong> — Power members go attack/zero in-game, admins record outcomes</li>
+                </ol>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Three tabs, three jobs</div>
+                <ul className="text-xs space-y-2 list-disc pl-5">
+                  <li>
+                    <strong>Cycle</strong> — formal monthly emigration round. People flagged on DKP get put on this list, contacted via in-game mail, and either leave by the deadline or get zeroed. Has officer / admin / exception workflow.
+                  </li>
+                  <li>
+                    <strong>Zero List</strong> — the kingdom-wide kill queue. Continuous (no deadline). Power members come here to see who to attack and grab coords. Admin manages.
+                  </li>
+                  <li>
+                    <strong>Scans</strong> — where you <em>find</em> people to put on the Zero List. The default sub-tab <em>Find Candidates</em> shows four cards (power growers, illegal arrivals, didn&apos;t emigrate, top players to evaluate). Click a card → check rows → add to Zero List.
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Most common workflow (in 5 steps)</div>
+                <ol className="text-xs space-y-1.5 list-decimal pl-5">
+                  <li>Open the <strong>Scans</strong> tab. <em>Find Candidates</em> is the default sub-tab.</li>
+                  <li>Each of the 4 cards has a number on the right. That&apos;s how many candidates need attention. Open the one with the biggest number first.</li>
+                  <li>Look at the rows. Each shows: name, gov ID, power, alliance (if known), the migrant-sheet decision (Yes/No/Maybe/etc.), and coords (if known).</li>
+                  <li>Check the boxes next to people you want to attack. Click <strong>Add to Zero List</strong>. (Admin only — if you don&apos;t see checkboxes you&apos;re not signed in as admin.)</li>
+                  <li>Switch to the <strong>Zero List</strong> tab. Your additions are there. Power members can now click coordinates to copy <code className="text-[var(--text-secondary)]">x,y</code> and teleport in-game to attack.</li>
+                </ol>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Glossary</div>
+                <div className="text-xs grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                  <div><strong>Scan</strong> — a snapshot of who&apos;s in the kingdom, their power, their stats, and (sometimes) their map coordinates.</div>
+                  <div><strong>Auto-scrape</strong> — daily scan pulled by a script from the official Lilith API. Always fresh but no coords.</div>
+                  <div><strong>Manual scan</strong> — XLSX or CSV uploaded via the Migration Tracker page. Has coords but uploaded less often.</div>
+                  <div><strong>Gov ID</strong> — governor ID, the unique number for each player. Names can change; gov IDs don&apos;t.</div>
+                  <div><strong>Cycle</strong> — a time-bound emigration round (e.g. &quot;April 2026&quot;) with a deadline.</div>
+                  <div><strong>Zero List</strong> — the continuous, no-deadline kingdom-wide kill queue.</div>
+                  <div><strong>DKP</strong> — kingdom contribution score. Players who don&apos;t hit thresholds get flagged → can&apos;t stay.</div>
+                  <div><strong>Migrant sheet</strong> — the Google Sheet where applicants apply to join K23. Decision = Yes / No / Maybe / Pending.</div>
+                  <div><strong>Notified / To Zero / Zeroed / Emigrated / AFK / Excepted</strong> — the lifecycle states a target moves through.</div>
+                  <div><strong>(x, y)</strong> — map coordinates. Click in any list to copy; paste into the in-game teleport / scout / attack dialog.</div>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Who can do what</div>
+                <ul className="text-xs space-y-1 list-disc pl-5">
+                  <li><strong>Power</strong> (no real privileges, but signed in) — read everything, copy coords. <em>Cannot edit anything.</em></li>
+                  <li><strong>Officer</strong> — can claim/contact/mark cases <em>on the Cycle tab</em>. On the Zero List tab they&apos;re still read-only — that surface is admin-only on purpose so the kill queue isn&apos;t modified by anyone but leadership.</li>
+                  <li><strong>Admin</strong> — full access. Creates cycles, manages Zero List, approves exceptions, uploads scans, etc.</li>
+                </ul>
+              </div>
+
+              <p className="text-[11px] text-[var(--text-muted)] pt-2 border-t border-violet-500/20">
+                You can collapse this panel and it&apos;ll stay collapsed across reloads. Each tab also has its own &quot;How this works&quot; for tab-specific instructions.
+              </p>
+            </div>
+          )}
+        </section>
+
         {/* Tab strip */}
         <nav className="mb-4 flex gap-1 border-b border-[var(--border)]">
           {([
@@ -602,39 +699,69 @@ function MigrationPageInner() {
             <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${guideOpen ? 'rotate-180' : ''}`} />
           </button>
           {guideOpen && (
-            <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-3">
+            <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-4">
               <p className="text-xs text-[var(--text-muted)]">
-                Goal: track everyone flagged on the DKP page from the moment we decide they need to emigrate, through contact and outcome, with a record of who's been zeroed or excepted and why.
+                A <strong>Cycle</strong> is a formal time-bound emigration round (e.g. &quot;April 2026&quot;). DKP-flagged players get snapshot into the cycle, contacted, and either emigrate by the deadline or get zeroed. Different from the Zero List tab — Cycles are formal and time-bound; the Zero List is continuous and kingdom-wide.
               </p>
+
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Workflow</div>
-                <ol className="space-y-1.5 text-xs list-decimal pl-5">
-                  <li><strong>Admin creates a cycle</strong> at the start of an emigration round (e.g. "April 2026"), sets a UTC deadline, and snapshots the currently flagged players into it.</li>
-                  <li><strong>Players are notified</strong> via a bulk email/message with the list. Everyone starts in the "Notified" state.</li>
-                  <li><strong>Exceptions</strong> — officers can click "Request Exception" with a reason and a yes/no suggestion. Admins see pending requests in a banner and approve or deny. Admins can also grant an exception directly without a request.</li>
-                  <li><strong>Mark Emigrated</strong> if they leave the kingdom. Officers can do this at any point, or use the scan-delta tool to auto-detect departures.</li>
-                  <li><strong>After the deadline</strong> — officers click <strong>Mark to Zero</strong> on cases that didn't emigrate or get excepted.</li>
-                  <li><strong>Confirm Zeroed</strong> once the zeroing actually happens in-game. (Or click Emigrated instead if the player left before being zeroed.)</li>
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Start a new cycle (admin)</div>
+                <ol className="space-y-1 text-xs list-decimal pl-5">
+                  <li>Make sure DKP flagging is current. Open <a href="/dkp" className="text-cyan-400 hover:underline">/dkp</a> and confirm the flagged-for-emigration list is what you want.</li>
+                  <li>On this Cycle tab, click <strong>+ New cycle</strong> in the cycle bar.</li>
+                  <li>Name it (e.g. &quot;May 2026 — KvK2 → KvK2&quot;), set a UTC deadline, and check &quot;Snapshot currently flagged players&quot;.</li>
+                  <li>Click <strong>Create</strong>. Cases are created in the <em>Notified</em> state.</li>
+                  <li>Bulk-mail the kingdom with the list and the deadline. The page is your reference; messaging happens elsewhere.</li>
                 </ol>
               </div>
+
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">State meanings</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Officer working a case during the cycle</div>
+                <ol className="space-y-1 text-xs list-decimal pl-5">
+                  <li>Find the case in the table. Use the search box if needed.</li>
+                  <li>Click <strong>Claim</strong> to take ownership (your name shows as the owner).</li>
+                  <li>Mail the player in-game. Click <strong>Mark Contacted</strong> when you&apos;ve done it.</li>
+                  <li>Listen for their response, then pick the right outcome:
+                    <ul className="mt-1 space-y-0.5 list-circle pl-5">
+                      <li>They agree to leave → wait, then click <strong>Emigrated</strong> when they&apos;re gone (or use Scan Delta to auto-detect).</li>
+                      <li>They&apos;re going inactive but staying → <strong>AFK</strong>.</li>
+                      <li>They have a legitimate reason to stay → <strong>Request Exception</strong>, write the reason, suggest yes/no for the admin.</li>
+                      <li>They refuse → wait until after the deadline, then <strong>Mark to Zero</strong>.</li>
+                    </ul>
+                  </li>
+                </ol>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Admin closing out the cycle</div>
+                <ol className="space-y-1 text-xs list-decimal pl-5">
+                  <li>After the deadline, every active case should be either <em>To Zero</em> or have an exception request waiting.</li>
+                  <li>Banner at the top shows pending exception requests. Click each one, read the reason, click <strong>Mark Exception</strong> (approve) or <strong>Deny</strong>.</li>
+                  <li>For zeroed targets: once the in-game attack actually happens, click <strong>Confirm Zeroed</strong> on each case. (If they emigrated before being zeroed, click <strong>Emigrated</strong> instead.)</li>
+                  <li>When everyone&apos;s in a terminal state, click <strong>Close cycle</strong>. The cycle stays as a historical record but won&apos;t accept new cases.</li>
+                </ol>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">What each state means</div>
                 <ul className="text-xs space-y-1">
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]">Notified</span> player has been notified, waiting for action</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">Excepted</span> admin granted a pass (with a reason)</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Emigrated</span> player left the kingdom</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-slate-500/15 text-slate-300 border-slate-500/30">AFK</span> player is going inactive — subtracted from Kingdom Power</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-orange-500/15 text-orange-400 border-orange-500/30">To Zero</span> officer decided to zero them — not yet confirmed</li>
-                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> confirmed zeroed in-game</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-[var(--background-secondary)] text-[var(--text-secondary)] border-[var(--border)]">Notified</span> Player has been told. Waiting for officer action.</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30">Excepted</span> Admin granted a pass — they can stay (reason recorded).</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-green-500/15 text-green-400 border-green-500/30">Emigrated</span> Player left the kingdom. Win.</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-slate-500/15 text-slate-300 border-slate-500/30">AFK</span> Player is going inactive but staying. Their power is subtracted from the Kingdom Power calculation since they&apos;re effectively zero.</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-orange-500/15 text-orange-400 border-orange-500/30">To Zero</span> Officer decided to zero them. <em>Not yet zeroed in-game</em> — this is just the decision.</li>
+                  <li><span className="inline-block px-1.5 py-0.5 mr-1 rounded text-[10px] font-semibold border bg-rose-500/15 text-rose-400 border-rose-500/30">Zeroed</span> Confirmed zeroed in-game.</li>
                 </ul>
               </div>
+
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Good to know</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Things you might miss</div>
                 <ul className="text-xs space-y-1 list-disc pl-5">
-                  <li><strong>Scan delta</strong> — upload a fresh stats XLSX and players missing from it are suggested as emigrated. You still have to click Emigrated to confirm, but this saves auditing one by one.</li>
-                  <li><strong>Add current flags</strong> — if officers flag more people on the DKP page mid-cycle, click this button in the cycle bar to pull the new flags in. Duplicates are skipped.</li>
-                  <li><strong>Notes</strong> — every case has a shared notes field; use it for context other officers should see ("they said they'd move on Friday", "alt account", etc.).</li>
-                  <li><strong>Admin-only actions</strong> — creating/editing/closing/deleting cycles, and granting exceptions. Everything else is officer.</li>
+                  <li><strong>Scan Delta panel</strong> (top of cycle, admin only) — upload a fresh stats XLSX. Players missing from the new scan get a &quot;Suggested emigrated&quot; badge so you don&apos;t have to audit one by one. Click Emigrated to confirm.</li>
+                  <li><strong>Add current flags</strong> — if officers flag more people on DKP mid-cycle, click this button to pull them in. Duplicates skipped automatically.</li>
+                  <li><strong>Notes field</strong> — click &quot;Notes&quot; on any case to leave context for other officers (&quot;said they&apos;d move Friday&quot;, &quot;alt account&quot;, etc.). Shared, not private.</li>
+                  <li><strong>Sortable headers</strong> — click <em>Player / Power / State / Last action</em> column headers to sort. Click again to flip direction.</li>
+                  <li><strong>Power role</strong> can&apos;t see this tab at all — it requires officer or admin.</li>
                 </ul>
               </div>
             </div>
