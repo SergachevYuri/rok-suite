@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Lock, RotateCcw, Trash2, X } from 'lucide-react';
+import { ChevronDown, Copy, Lock, RotateCcw, Trash2 } from 'lucide-react';
 import {
   type MigrationCase,
   type MigrationState,
@@ -55,6 +55,15 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'active' | 'all' | MigrationState>('active');
   const [search, setSearch] = useState('');
+  const [guideOpen, setGuideOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem('zero-list-guide-collapsed') !== '1';
+  });
+  const toggleGuide = () => setGuideOpen((o) => {
+    const next = !o;
+    try { window.localStorage.setItem('zero-list-guide-collapsed', next ? '0' : '1'); } catch {}
+    return next;
+  });
 
   const refetch = useCallback(async () => {
     try {
@@ -101,15 +110,67 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 
   return (
     <div>
-      {/* Intro banner — explains the role differences for the Zero List */}
+      {/* How this works — collapsible */}
+      <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
+        <button
+          onClick={toggleGuide}
+          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--background-hover)] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-[var(--foreground)]">How the Zero List works</span>
+            {!guideOpen && <span className="text-[11px] text-[var(--text-muted)]">click to expand</span>}
+          </div>
+          <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${guideOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {guideOpen && (
+          <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-3">
+            <p className="text-xs text-[var(--text-muted)]">
+              Goal: a continuous, kingdom-wide list of players to attack/zero. Different from the Cycle tab — no deadline, no exception workflow, kingdom-scoped instead of DKP-flagged.
+            </p>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Who can do what</div>
+              <ul className="text-xs space-y-1.5 list-disc pl-5">
+                <li><strong>Power tier</strong>: see the list, copy coordinates to teleport / scout / attack in game. No edit buttons.</li>
+                <li><strong>Officer</strong>: same view as Power. Officers don't curate the list — that's admin-only on this surface so the kill list isn't accidentally modified.</li>
+                <li><strong>Admin</strong>: add players (from the <em>Scans</em> tab), mark <em>To Zero</em> / <em>Confirm Zeroed</em> / <em>Emigrated</em> / <em>AFK</em> / <em>Except</em>, or remove rows entirely.</li>
+              </ul>
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">How to add players</div>
+              <p className="text-xs">Go to the <strong>Scans</strong> tab. Three ways:</p>
+              <ul className="text-xs space-y-1 list-disc pl-5">
+                <li><strong>Browse Scan</strong> → pick a scan → check rows → "Add to Zero List". Useful when you know who you're targeting.</li>
+                <li><strong>Compare</strong> → pick two scans → review power growers / shrinkers / new arrivals / departed → add the ones that look wrong.</li>
+                <li><strong>Migrant CSV</strong> (admin only) → upload the migrant-applications sheet → see top-N players who are <em>not</em> on the Yes list → add them.</li>
+              </ul>
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Once a target is zeroed in-game</div>
+              <ol className="text-xs space-y-1 list-decimal pl-5">
+                <li>Admin clicks <strong>To Zero</strong> when the decision is made and a power member is dispatched.</li>
+                <li>After the attack, click <strong>Confirm Zeroed</strong> to move it to the terminal Zeroed state.</li>
+                <li>If the player emigrated before being zeroed, click <strong>Emigrated</strong> instead.</li>
+              </ol>
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Coordinates</div>
+              <p className="text-xs">
+                The (x, y) cell shows the player's location at the time they were added (or last refreshed via <em>Scans → Location Upload</em>). Click the cell to copy <code className="text-[var(--text-secondary)]">x,y</code> to your clipboard.
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Role-specific status line */}
       {!isOfficer && (
-        <section className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-sm text-amber-300">
-          You can <strong>see</strong> the kill list but only admins can add or remove from it. Use the coords to scout / attack in-game; ping an admin to mark targets zeroed.
+        <section className="mb-4 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-300">
+          You're signed in as <strong>Power</strong> — view-only on this list. Use the coords to attack; ping an admin to mark targets zeroed.
         </section>
       )}
       {isOfficer && !isAdmin && (
-        <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-3 text-sm text-[var(--text-secondary)]">
-          Officers see the Zero List read-only. Admins curate the list from the Scans tab.
+        <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-3 text-xs text-[var(--text-secondary)]">
+          You're signed in as <strong>Officer</strong> — view-only on the Zero List. Admins curate this list from the Scans tab.
         </section>
       )}
 

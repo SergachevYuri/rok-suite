@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Copy, Lock, RotateCcw, Search, Upload, UserPlus, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, Lock, RotateCcw, Search, Upload, UserPlus, Users } from 'lucide-react';
 import {
   listScans,
   loadScanPlayers,
@@ -44,6 +44,15 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
   const [scans, setScans] = useState<Scan[]>([]);
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
   const [loadingScans, setLoadingScans] = useState(true);
+  const [guideOpen, setGuideOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem('scans-tab-guide-collapsed') !== '1';
+  });
+  const toggleGuide = () => setGuideOpen((o) => {
+    const next = !o;
+    try { window.localStorage.setItem('scans-tab-guide-collapsed', next ? '0' : '1'); } catch {}
+    return next;
+  });
 
   useEffect(() => {
     void (async () => {
@@ -70,6 +79,69 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
 
   return (
     <div>
+      {/* How this works */}
+      <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
+        <button
+          onClick={toggleGuide}
+          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--background-hover)] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-[var(--foreground)]">How the Scans tab works</span>
+            {!guideOpen && <span className="text-[11px] text-[var(--text-muted)]">click to expand</span>}
+          </div>
+          <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${guideOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {guideOpen && (
+          <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-3">
+            <p className="text-xs text-[var(--text-muted)]">
+              Read kingdom-wide scan data and feed it into the Zero List. The scans here are the rich-format
+              <strong> Davide Frusone snapshots</strong> uploaded via the legacy <em>/kingdom/migration-tracker</em> page —
+              they include power, kills, deaths, alliance, and <strong>x/y coordinates</strong>. (The Kingdom Stats
+              page reads a different lighter-weight dataset that doesn&apos;t have coords.)
+            </p>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Sub-tabs</div>
+              <ul className="text-xs space-y-2 list-disc pl-5">
+                <li>
+                  <strong>Browse Scan</strong> — pick a scan, see the top-N by power with live DKP scoring (band score, P/KP ratio).
+                  Officers can browse; admins can check rows and click <em>Add to Zero List</em>.
+                </li>
+                <li>
+                  <strong>Compare</strong> — pick two scans (A → B), see four counts: power growers, power drops, new arrivals, departed.
+                  Click any count to drill in. Adjust the Δ threshold (in millions) to filter noise. Admins can multi-select rows and add to the Zero List.
+                </li>
+                <li>
+                  <strong>Migrant CSV</strong> (admin only) — export the migrant-applications Google Sheet as CSV and upload it here.
+                  Required columns: <code className="text-[var(--text-secondary)]">Governor ID</code> and <code className="text-[var(--text-secondary)]">Decision</code> (Yes / No / Maybe).
+                  The tool joins the CSV against the chosen scan&apos;s top-N. Approved (<em>Yes</em>) rows are hidden by default — what you see is everyone in the kingdom who shouldn&apos;t be there.
+                </li>
+                <li>
+                  <strong>Location Upload</strong> (admin only) — pick a fresh scan and refresh coords + last-seen power on every existing Zero List entry. Doesn&apos;t add or remove anyone — just updates location data so power-tier members get current coords for attacks.
+                </li>
+              </ul>
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Add-to-Zero-List flow</div>
+              <ol className="text-xs space-y-1 list-decimal pl-5">
+                <li>Pick a sub-tab (Browse / Compare / Migrant CSV).</li>
+                <li>Configure the inputs (which scan, top-N, Δ threshold, CSV upload).</li>
+                <li>Check the boxes on rows you want.</li>
+                <li>Click <em>Add to Zero List</em>. Duplicates (already on the list) are silently skipped.</li>
+                <li>Switch to the <em>Zero List</em> tab to see them queued for action.</li>
+              </ol>
+            </div>
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Caveats</div>
+              <ul className="text-xs space-y-1 list-disc pl-5">
+                <li>Empty scan list? Upload a Davide Frusone snapshot via <a href="/kingdom/migration-tracker" className="text-cyan-400 hover:underline">/kingdom/migration-tracker</a> first.</li>
+                <li>DKP scoring on scan data is slightly biased toward T5 bands because <code className="text-[var(--text-secondary)]">kingdom_scan_players</code> doesn&apos;t track per-tier deaths separately.</li>
+                <li>Honor isn&apos;t in scan data, so the honor weight contributes 0 to scores here. Keep that in mind when comparing scores to the DKP page.</li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </section>
+
       {/* Sub-tabs */}
       <nav className="mb-4 flex gap-1 border-b border-[var(--border)]">
         {([
