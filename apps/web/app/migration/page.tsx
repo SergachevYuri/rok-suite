@@ -547,9 +547,10 @@ function MigrationPageInner() {
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Glossary</div>
                 <div className="text-xs grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-                  <div><strong>Scan</strong> — a snapshot of who&apos;s in the kingdom, their power, their stats, and (sometimes) their map coordinates.</div>
-                  <div><strong>Auto-scrape</strong> — daily scan pulled by a script from the official Lilith API. Always fresh but no coords.</div>
-                  <div><strong>Manual scan</strong> — XLSX or CSV uploaded via the Migration Tracker page. Has coords but uploaded less often.</div>
+                  <div><strong>Scan</strong> — a snapshot of who&apos;s in the kingdom and what their stats are. Different scan types have different fields.</div>
+                  <div><strong>Auto-scrape</strong> — daily scan pulled by a script from the Lilith API. Always fresh but no coords / kills / alliance.</div>
+                  <div><strong>Kingdom (Davide) scan</strong> — power/stats snapshot uploaded via Migration Tracker. Has kills, deaths, gathered.</div>
+                  <div><strong>Location scan</strong> — coordinate-focused CSV (e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code>). Only used to refresh Zero List coords; not saved.</div>
                   <div><strong>Gov ID</strong> — governor ID, the unique number for each player. Names can change; gov IDs don&apos;t.</div>
                   <div><strong>Cycle</strong> — a time-bound emigration round (e.g. &quot;April 2026&quot;) with a deadline.</div>
                   <div><strong>Zero List</strong> — the continuous, no-deadline kingdom-wide kill queue.</div>

@@ -133,7 +133,7 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">When to use each sub-tab</div>
               <ul className="text-xs space-y-2 list-disc pl-5">
                 <li><strong>Find Candidates</strong> — 95% of the time. The default. Use this unless you have a specific reason not to.</li>
-                <li><strong>Location Upload</strong> — when you have a fresh location CSV and want coords on the Zero List.</li>
+                <li><strong>Location Upload</strong> — when you have a fresh location CSV (e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code>) and want coords on the Zero List. The CSV is processed in-browser and not saved — re-upload whenever you want a fresh refresh.</li>
                 <li><strong>Browse Scan</strong> — when you want to manually scroll through the whole kingdom (e.g. you&apos;re looking for someone specific by name).</li>
                 <li><strong>Compare</strong> — when you want to drill into one specific scan-pair and see the raw growers/shrinkers/new/departed split. Find Candidates already does this in cards 1 and 2 — Compare is just a manual override.</li>
                 <li><strong>Migrant CSV</strong> — when you want to see <em>everyone</em> in the top-N joined with the migrant sheet, including approved (Yes) people. Find Candidates filters Yes out automatically — Migrant CSV doesn&apos;t.</li>
@@ -141,15 +141,12 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
             </div>
 
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Two scan sources, one picker</div>
-              <p className="text-xs">When you see a scan dropdown anywhere on this tab, it pools two sources:</p>
-              <ul className="text-xs space-y-1 list-disc pl-5 mt-1">
-                <li><strong>Auto-scrape</strong> — daily snapshot from the official Lilith API. Always fresh. <em>No coords, no alliance, no kill breakdown</em> — just power, KP, CH level.</li>
-                <li><strong>Manual scan</strong> — uploaded by an admin via Migration Tracker or the Location Upload sub-tab. Has whatever the file format includes (location CSVs have x/y/alliance; stats XLSX has kills/deaths).</li>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Three different scan things</div>
+              <ul className="text-xs space-y-1.5 list-disc pl-5">
+                <li><strong>Auto-scrape</strong> (in the Browse / Compare picker) — daily snapshot from the official Lilith API. Always fresh. Power, KP, CH level only. <em>No coords, no alliance, no kill breakdown.</em></li>
+                <li><strong>Kingdom scan</strong> (a.k.a. Davide scan, in the Browse / Compare picker) — the rich power/stats snapshot uploaded via <em>/kingdom/migration-tracker</em>. Has kills, deaths, gathered, helps. Sometimes coords too if a location CSV was merged in at upload time.</li>
+                <li><strong>Location scan</strong> (Location Upload sub-tab only — <em>not</em> in the Browse / Compare picker) — coordinate-focused CSV like <code className="text-[var(--text-secondary)]">scan_3923.csv</code>. Used purely to refresh coords on the Zero List. Ephemeral — not saved.</li>
               </ul>
-              <p className="text-[11px] text-[var(--text-muted)] mt-2">
-                Newest first regardless of source. Today&apos;s auto-scrape is usually at the top.
-              </p>
             </div>
 
             <div>
@@ -936,7 +933,6 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
   const ref = davideScans.find((s) => scanRefKey(s) === scanKey) ?? davideScans[0];
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
-  const [persistScan, setPersistScan] = useState(true);
 
   const runFromExisting = async () => {
     if (!ref) return;
@@ -978,57 +974,9 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
         power: p.playerPower,
         alliance: p.playerAlliance || null,
       }));
-
-      let savedScanId: number | null = null;
-      let savedMsg = '';
-      if (persistScan) {
-        try {
-          const { uploadScan } = await import('@/lib/supabase/use-kingdom-scan');
-          const today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-          const merged = parsed.map((p) => ({
-            governorId: p.playerId,
-            name: p.playerName,
-            power: p.playerPower,
-            highestPower: p.playerPower,
-            killPoints: p.playerKills,
-            t4Kills: 0,
-            t5Kills: 0,
-            deaths: 0,
-            gathered: 0,
-            allianceHelps: 0,
-            currentAlliance: p.playerAlliance || '',
-            x: p.x,
-            y: p.y,
-            castleHall: p.playerCh,
-            shieldTimeLeft: p.shieldTimeLeft || null,
-            isMigrant: false,
-            migrantAccepted: false,
-            migrantGroup: null,
-            migrantRecruiter: null,
-            startingKd: null,
-            existedPreMigration: false,
-            migrationStatus: 'PENDING' as const,
-            sources: ['snapshot' as const],
-          }));
-          savedScanId = await uploadScan(`Location scan ${today} · ${file.name}`, merged, {
-            snapshot: parsed.length,
-            kingdom: 0,
-            migrant: 0,
-            preMigration: 0,
-          });
-          if (savedScanId !== null) {
-            savedMsg = ` Saved as scan #${savedScanId} — visible in Browse/Compare on next refresh.`;
-          } else {
-            savedMsg = ' (Save to kingdom_scans failed — only the zero-list refresh succeeded.)';
-          }
-        } catch (e) {
-          savedMsg = ` (Save to kingdom_scans failed: ${e instanceof Error ? e.message : String(e)} — only the zero-list refresh succeeded.)`;
-        }
-      }
-
-      const { updated } = await refreshZeroListFromScan(savedScanId, rows);
+      const { updated } = await refreshZeroListFromScan(null, rows);
       setResult(
-        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} zero-list ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.${savedMsg}`,
+        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} zero-list ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.`,
       );
     } catch (e) {
       setResult(`Failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -1039,26 +987,15 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
 
   return (
     <div className="space-y-4">
-      {/* Direct CSV upload — primary path now */}
+      {/* Direct CSV upload — primary path */}
       <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-6">
         <h3 className="text-sm font-semibold text-[var(--foreground)] mb-2">Upload location scan CSV</h3>
-        <p className="text-sm text-[var(--text-secondary)] mb-4">
-          Drop a snapshot CSV in the location-scan format (columns: <code className="text-[var(--text-secondary)]">player_id, player_name, player_power, player_kills, player_ch, player_alliance, x, y, shield_time_left</code>). Matches by Gov ID and pushes coordinates + last-seen power + alliance to every Zero List entry. <strong>Only updates existing rows</strong> — doesn&apos;t add or remove anyone.
+        <p className="text-sm text-[var(--text-secondary)] mb-2">
+          Drop a location-scan CSV (e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code>). Matches by Gov ID and pushes coordinates + last-seen power + alliance to every Zero List entry. <strong>Only updates existing rows</strong> — doesn&apos;t add or remove anyone.
         </p>
-        <label className="flex items-start gap-2 mb-4 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={persistScan}
-            onChange={(e) => setPersistScan(e.target.checked)}
-            className="mt-0.5"
-          />
-          <div className="text-xs">
-            <div className="text-[var(--foreground)] font-medium">Save as kingdom scan (recommended)</div>
-            <div className="text-[var(--text-muted)] mt-0.5">
-              Persist this scan to <code className="text-[var(--text-secondary)]">kingdom_scans</code> so it appears in the Browse / Compare picker. Stats fields (kills, deaths, gathered) are saved as 0 since this CSV format only carries location + power + alliance.
-            </div>
-          </div>
-        </label>
+        <p className="text-xs text-[var(--text-muted)] mb-4">
+          The CSV is processed in-browser and <strong>not saved anywhere</strong>. Re-upload whenever you need a fresh coord refresh. Location scans and kingdom (Davide) scans are different things — this won&apos;t appear in Browse / Compare.
+        </p>
         <div className="flex flex-wrap items-center gap-3">
           <label className="px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] cursor-pointer disabled:opacity-60">
             <input
@@ -1070,19 +1007,19 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
             />
             {busy ? 'Working…' : 'Choose CSV'}
           </label>
-          <span className="text-xs text-[var(--text-muted)]">e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code></span>
+          <span className="text-xs text-[var(--text-muted)]">columns: <code className="text-[var(--text-secondary)]">player_id, player_name, player_power, player_kills, player_ch, player_alliance, x, y, shield_time_left</code></span>
         </div>
       </section>
 
-      {/* Existing-scan refresh — kept as alternate */}
+      {/* Existing-scan refresh — kept as alternate for kingdom scans that happen to have coords */}
       {davideScans.length > 0 && (
         <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-6">
-          <h3 className="text-sm font-semibold text-[var(--foreground)] mb-2">Or refresh from a saved Davide scan</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)] mb-2">Or refresh from a saved kingdom scan</h3>
           <p className="text-sm text-[var(--text-secondary)] mb-4">
-            Use this if the snapshot is already in <code className="text-[var(--text-secondary)]">kingdom_scans</code> (uploaded via Migration Tracker). Same effect as the CSV path, but reads the saved version instead of re-parsing.
+            If a Migration-Tracker upload merged a location CSV into its kingdom-stats snapshot, that <code className="text-[var(--text-secondary)]">kingdom_scans</code> row carries coords too. Pick it here to refresh Zero-List coords without re-uploading.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Scan:</label>
+            <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Kingdom scan:</label>
             <select
               value={scanKey}
               onChange={(e) => setScanKey(e.target.value)}
