@@ -518,7 +518,9 @@ function Card({
   explainer?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(true);
+  // Cards default closed — the count badge tells you the workload at a glance,
+  // so click to expand only when you actually want to act on it.
+  const [open, setOpen] = useState(false);
   const [explainOpen, setExplainOpen] = useState(false);
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">

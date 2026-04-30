@@ -56,8 +56,8 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const [filter, setFilter] = useState<'active' | 'all' | MigrationState>('active');
   const [search, setSearch] = useState('');
   const [guideOpen, setGuideOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem('zero-list-guide-collapsed') !== '1';
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('zero-list-guide-collapsed') === '0';
   });
   const toggleGuide = () => setGuideOpen((o) => {
     const next = !o;

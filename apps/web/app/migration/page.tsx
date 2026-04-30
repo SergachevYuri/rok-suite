@@ -198,7 +198,12 @@ function MigrationPageInner() {
   };
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<'cycle' | 'zero_list' | 'scans'>('cycle');
+  const [tab, setTab] = useState<'cycle' | 'zero_list' | 'scans'>(() => {
+    if (typeof window === 'undefined') return 'zero_list';
+    const saved = window.localStorage.getItem('emigration-active-tab');
+    if (saved === 'cycle' || saved === 'zero_list' || saved === 'scans') return saved;
+    return 'zero_list';
+  });
   const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active' | 'suggested' | 'exception_requested'>('active');
   const [sortField, setSortField] = useState<SortField>('power_at_open');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -217,8 +222,8 @@ function MigrationPageInner() {
   const [now, setNow] = useState<Date>(() => new Date());
   // Instructions panel — collapsed state persists per browser.
   const [guideOpen, setGuideOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem('migration-guide-collapsed') !== '1';
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('migration-guide-collapsed') === '0';
   });
   const toggleGuide = () => {
     setGuideOpen((o) => {
@@ -228,8 +233,8 @@ function MigrationPageInner() {
     });
   };
   const [orientationOpen, setOrientationOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem('emigration-orientation-collapsed') !== '1';
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('emigration-orientation-collapsed') === '0';
   });
   const toggleOrientation = () => {
     setOrientationOpen((o) => {
@@ -580,7 +585,10 @@ function MigrationPageInner() {
           ] as const).map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                setTab(t.id);
+                try { window.localStorage.setItem('emigration-active-tab', t.id); } catch { /* ignore */ }
+              }}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 tab === t.id
                   ? 'border-[#4318ff] text-[var(--foreground)]'

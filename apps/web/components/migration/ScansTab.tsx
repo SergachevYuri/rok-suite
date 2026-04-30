@@ -51,8 +51,8 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
   const [loadingScans, setLoadingScans] = useState(true);
   const [guideOpen, setGuideOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return window.localStorage.getItem('scans-tab-guide-collapsed') !== '1';
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('scans-tab-guide-collapsed') === '0';
   });
   const toggleGuide = () => setGuideOpen((o) => {
     const next = !o;
