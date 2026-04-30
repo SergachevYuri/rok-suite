@@ -17,6 +17,7 @@ import {
   resetCaseToPending,
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
+import { loadLatestLocationPoints, type LocationPoint } from '@/lib/zero-list/scan-data';
 
 interface Props {
   isOfficer: boolean;
@@ -66,10 +67,17 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return next;
   });
 
+  const [locationLookup, setLocationLookup] = useState<Map<number, LocationPoint>>(new Map());
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+
   const refetch = useCallback(async () => {
     try {
-      const rows = await listZeroListCases();
+      const [rows, loc] = await Promise.all([listZeroListCases(), loadLatestLocationPoints()]);
       setCases(rows);
+      const m = new Map<number, LocationPoint>();
+      for (const p of loc.points) m.set(p.governorId, p);
+      setLocationLookup(m);
+      setLocationLabel(loc.scan?.label ?? null);
     } catch (e) {
       console.error('Zero list refresh failed', e);
     } finally {
@@ -237,7 +245,12 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         >
           <RotateCcw size={14} />
         </button>
-        <span className="text-xs text-[var(--text-muted)] ml-auto">{filtered.length} shown</span>
+        <span className="text-xs text-[var(--text-muted)] ml-auto">
+          {filtered.length} shown
+          {locationLabel && (
+            <> · coords from <span className="text-[var(--text-secondary)]">{locationLabel}</span></>
+          )}
+        </span>
       </section>
 
       {/* Table */}
@@ -259,6 +272,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <ZeroListRow
                   key={c.id}
                   caseRow={c}
+                  locationFallback={locationLookup.get(c.character_id) ?? null}
                   isAdmin={isAdmin}
                   actorName={actorName}
                   onChange={() => void refetch()}
@@ -285,11 +299,16 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 
 function ZeroListRow({
   caseRow: c,
+  locationFallback,
   isAdmin,
   actorName,
   onChange,
 }: {
   caseRow: MigrationCase;
+  /** Location-scan record for this Gov ID (if any) — used to fill in coords/
+   *  alliance/power that aren't on the migration_cases row itself. Lets cycle
+   *  cases that auto-carry to the Zero List get coords without a DB write. */
+  locationFallback: LocationPoint | null;
   isAdmin: boolean;
   actorName: string | null;
   onChange: () => void;
@@ -297,6 +316,13 @@ function ZeroListRow({
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const isActive = !TERMINAL_STATES.includes(c.state);
+
+  // Effective values — prefer the row's stored value (frozen at add time or
+  // refresh time), fall back to whatever the latest location scan has.
+  const effX = c.x ?? locationFallback?.x ?? null;
+  const effY = c.y ?? locationFallback?.y ?? null;
+  const effAlliance = c.last_seen_alliance ?? locationFallback?.alliance ?? null;
+  const effPower = c.last_seen_power ?? locationFallback?.power ?? c.power_at_open;
 
   const wrap = async (fn: () => Promise<void>) => {
     if (busy) return;
@@ -313,8 +339,8 @@ function ZeroListRow({
   };
 
   const copyCoords = () => {
-    if (c.x == null || c.y == null) return;
-    const text = `${c.x},${c.y}`;
+    if (effX == null || effY == null) return;
+    const text = `${effX},${effY}`;
     void navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
@@ -329,19 +355,19 @@ function ZeroListRow({
         <CopyablePlayerCell name={c.username} govId={c.character_id} />
       </td>
       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
-        {fmtM(c.last_seen_power ?? c.power_at_open)}
+        {fmtM(effPower)}
       </td>
       <td className="px-3 py-2 text-[var(--text-secondary)]">
-        {c.last_seen_alliance || <span className="text-[var(--text-muted)]">—</span>}
+        {effAlliance || <span className="text-[var(--text-muted)]">—</span>}
       </td>
       <td className="px-3 py-2 font-mono text-xs">
-        {c.x != null && c.y != null ? (
+        {effX != null && effY != null ? (
           <button
             onClick={copyCoords}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] transition-colors"
             title="Copy coordinates"
           >
-            ({c.x}, {c.y}) {copied ? <span className="text-emerald-400">✓</span> : <Copy size={10} />}
+            ({effX}, {effY}) {copied ? <span className="text-emerald-400">✓</span> : <Copy size={10} />}
           </button>
         ) : (
           <span className="text-[var(--text-muted)]">—</span>
