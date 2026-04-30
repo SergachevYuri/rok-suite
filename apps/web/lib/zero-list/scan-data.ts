@@ -1,9 +1,24 @@
 // Data layer for the Zero List feature: kingdom-scan reads, scan-compare,
 // scan-player → DKP-Player adapter, migrant-CSV parser.
+//
+// Two scan sources coexist:
+//
+//   davide  → kingdom_scans + kingdom_scan_players. Manual XLSX uploads via
+//             the legacy Migration Tracker page. Rich (coords, kills, alliance,
+//             tiered deaths) but historically infrequent.
+//   seeds   → seeds_kd_stats + seeds_kd_players. Auto-scraped daily from
+//             Lilith's API by seeds-extractor/rok_automation.py. Fresh but
+//             missing coords, alliance, kills/deaths breakdown.
+//
+// We expose a unified ScanRef + UnifiedScanPlayer shape so callers can mix-and-
+// match. Fields that aren't available in a given source are null.
 
 import { createClient } from '@/lib/supabase/client';
 import type { Scan, ScanPlayer } from '@/lib/kingdom/types';
 import type { Player as DkpPlayer } from '@/app/dkp/data';
+
+/** K23. Other kingdoms exist in seeds_kd but the Zero List is K23-scoped. */
+export const KINGDOM_ID = 3923;
 
 // ─── Scan reads ─────────────────────────────────────────────────────────────
 
@@ -246,4 +261,237 @@ function parseCsvLine(line: string): string[] {
   }
   out.push(cur);
   return out;
+}
+
+// ─── Unified scan source ────────────────────────────────────────────────────
+
+export type ScanKind = 'davide' | 'seeds';
+
+export interface ScanRef {
+  kind: ScanKind;
+  /** Stable id within its source. Davide = kingdom_scans.id (number).
+   *  Seeds = scan_date (ISO date string). Compose `${kind}:${id}` for React keys. */
+  id: string;
+  /** Display label for the picker. */
+  label: string;
+  /** ISO timestamp for sorting. */
+  ts: string;
+  playerCount: number;
+}
+
+/** Lowest-common-denominator player shape across both sources. Fields that
+ *  aren't available in a given source come back as null. */
+export interface UnifiedScanPlayer {
+  governorId: number;
+  name: string;
+  power: number;
+  /** Total kill points if available. */
+  kp: number;
+  alliance: string | null;
+  x: number | null;
+  y: number | null;
+  cityHall: number | null;
+  highestPower: number | null;
+  t4Kills: number | null;
+  t5Kills: number | null;
+  deaths: number | null;
+  gathered: number | null;
+  allianceHelps: number | null;
+}
+
+/** Capabilities of a scan source — drives which UI columns and features are shown. */
+export interface ScanCapabilities {
+  hasCoords: boolean;
+  hasAlliance: boolean;
+  hasKills: boolean;
+  hasFullDkp: boolean;
+}
+
+export function capabilitiesOf(kind: ScanKind): ScanCapabilities {
+  if (kind === 'davide') return { hasCoords: true, hasAlliance: true, hasKills: true, hasFullDkp: true };
+  return { hasCoords: false, hasAlliance: false, hasKills: false, hasFullDkp: false };
+}
+
+/** List both sources, merged and sorted newest-first. */
+export async function listAllScans(): Promise<ScanRef[]> {
+  const sb = createClient();
+  const out: ScanRef[] = [];
+
+  // 1) Davide scans
+  try {
+    const { data, error } = await sb
+      .from('kingdom_scans')
+      .select('id, created_at, label, kingdom_count')
+      .order('created_at', { ascending: false });
+    if (!error) {
+      for (const s of data ?? []) {
+        const date = new Date(s.created_at as string).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        out.push({
+          kind: 'davide',
+          id: String(s.id),
+          label: `${date} · Davide upload (${s.kingdom_count} players)${s.label ? ` · ${s.label}` : ''}`,
+          ts: s.created_at as string,
+          playerCount: (s.kingdom_count as number) ?? 0,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to list davide scans', e);
+  }
+
+  // 2) Seeds scans (one per date for K23). Pull distinct dates with counts.
+  try {
+    const { data, error } = await sb
+      .from('seeds_kd_stats')
+      .select('scan_date')
+      .eq('kingdom_id', KINGDOM_ID)
+      .order('scan_date', { ascending: false });
+    if (!error) {
+      const seen = new Set<string>();
+      for (const r of data ?? []) {
+        const d = r.scan_date as string;
+        if (seen.has(d)) continue;
+        seen.add(d);
+        // Get the actual player count for this date+kingdom
+        const { count } = await sb
+          .from('seeds_kd_players')
+          .select('*', { count: 'exact', head: true })
+          .eq('kingdom_id', KINGDOM_ID)
+          .eq('scan_date', d);
+        const pretty = new Date(d + 'T00:00:00Z').toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        out.push({
+          kind: 'seeds',
+          id: d,
+          label: `${pretty} · Auto-scrape (${count ?? '?'} players)`,
+          ts: `${d}T23:59:59Z`,
+          playerCount: count ?? 0,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to list seeds scans', e);
+  }
+
+  out.sort((a, b) => (a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0));
+  return out;
+}
+
+/** Load players for any scan kind. Davide is rich; seeds is power+kp+ch only. */
+export async function loadUnifiedScanPlayers(ref: ScanRef): Promise<UnifiedScanPlayer[]> {
+  if (ref.kind === 'davide') {
+    const rich = await loadScanPlayers(Number(ref.id));
+    return rich.map((p) => ({
+      governorId: p.governor_id,
+      name: p.name,
+      power: p.power ?? 0,
+      kp: p.kill_points ?? 0,
+      alliance: p.current_alliance || null,
+      x: p.x,
+      y: p.y,
+      cityHall: p.castle_hall,
+      highestPower: p.highest_power ?? null,
+      t4Kills: p.t4_kills ?? null,
+      t5Kills: p.t5_kills ?? null,
+      deaths: p.deaths ?? null,
+      gathered: p.gathered ?? null,
+      allianceHelps: p.alliance_helps ?? null,
+    }));
+  }
+  // seeds
+  const sb = createClient();
+  let all: Array<{ player_id: number; name: string; power: number; kp: number; cityhall: number; rank_in_kd: number }> = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await sb
+      .from('seeds_kd_players')
+      .select('player_id, name, power, kp, cityhall, rank_in_kd')
+      .eq('kingdom_id', KINGDOM_ID)
+      .eq('scan_date', ref.id)
+      .range(from, from + 999);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+  return all.map((p) => ({
+    governorId: p.player_id,
+    name: p.name,
+    power: p.power ?? 0,
+    kp: p.kp ?? 0,
+    alliance: null,
+    x: null,
+    y: null,
+    cityHall: p.cityhall ?? null,
+    highestPower: null,
+    t4Kills: null,
+    t5Kills: null,
+    deaths: null,
+    gathered: null,
+    allianceHelps: null,
+  }));
+}
+
+/** Convert UnifiedScanPlayer → DKP Player. Null fields default to 0; per-tier
+ *  death breakdown isn't available in either source so we lump deaths into
+ *  t5Deaths (acknowledged caveat). */
+export function unifiedToDkpPlayer(p: UnifiedScanPlayer): DkpPlayer {
+  return {
+    characterId: p.governorId,
+    username: p.name,
+    power: p.power,
+    highestPower: p.highestPower ?? p.power,
+    t5Deaths: p.deaths ?? 0,
+    t4Deaths: 0,
+    totalKP: p.kp,
+    t5Kills: p.t5Kills ?? 0,
+    t4Kills: p.t4Kills ?? 0,
+    rssGathered: p.gathered ?? 0,
+    allianceHelps: p.allianceHelps ?? 0,
+    dkp: 0,
+    honorPoints: 0,
+  };
+}
+
+/** Compare two unified scans. Same logic as compareScans but works against
+ *  UnifiedScanPlayer (so it works with both sources). */
+export function compareUnifiedScans(
+  a: UnifiedScanPlayer[],
+  b: UnifiedScanPlayer[],
+  options: { growerThreshold?: number } = {},
+): ScanCompareResult {
+  const threshold = options.growerThreshold ?? 0;
+  const byA = new Map<number, UnifiedScanPlayer>();
+  for (const p of a) byA.set(p.governorId, p);
+  const byB = new Map<number, UnifiedScanPlayer>();
+  for (const p of b) byB.set(p.governorId, p);
+
+  const growers: ScanCompareGrower[] = [];
+  const shrinkers: ScanCompareGrower[] = [];
+  const newPlayers: ScanCompareEntry[] = [];
+  const departed: ScanCompareEntry[] = [];
+
+  for (const [id, bp] of byB) {
+    const ap = byA.get(id);
+    if (!ap) {
+      newPlayers.push({ governorId: id, name: bp.name, alliance: bp.alliance, power: bp.power, x: bp.x, y: bp.y });
+      continue;
+    }
+    const delta = bp.power - ap.power;
+    if (delta > threshold) {
+      growers.push({ governorId: id, name: bp.name, alliance: bp.alliance, powerA: ap.power, powerB: bp.power, deltaPower: delta, x: bp.x, y: bp.y });
+    } else if (delta < -threshold) {
+      shrinkers.push({ governorId: id, name: bp.name, alliance: bp.alliance, powerA: ap.power, powerB: bp.power, deltaPower: delta, x: bp.x, y: bp.y });
+    }
+  }
+  for (const [id, ap] of byA) {
+    if (!byB.has(id)) {
+      departed.push({ governorId: id, name: ap.name, alliance: ap.alliance, power: ap.power, x: ap.x, y: ap.y });
+    }
+  }
+  growers.sort((a, b) => b.deltaPower - a.deltaPower);
+  shrinkers.sort((a, b) => a.deltaPower - b.deltaPower);
+  newPlayers.sort((a, b) => b.power - a.power);
+  departed.sort((a, b) => b.power - a.power);
+  return { growers, shrinkers, newPlayers, departed };
 }

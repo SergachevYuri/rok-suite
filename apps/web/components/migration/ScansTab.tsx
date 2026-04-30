@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, Lock, RotateCcw, Search, Upload, UserPlus, Users } from 'lucide-react';
 import {
-  listScans,
-  loadScanPlayers,
-  scanPlayerToDkpPlayer,
-  compareScans,
+  listAllScans,
+  loadUnifiedScanPlayers,
+  unifiedToDkpPlayer,
+  compareUnifiedScans,
+  capabilitiesOf,
   parseMigrantCsv,
   type MigrantDecisionRow,
+  type ScanRef,
+  type UnifiedScanPlayer,
   type ScanCompareResult,
 } from '@/lib/zero-list/scan-data';
-import type { Scan, ScanPlayer } from '@/lib/kingdom/types';
 import { computeScores, DEFAULT_CONFIG, type Config, type ScoredPlayer } from '@/lib/dkp/scoring';
 import { loadSharedConfig } from '@/app/dkp/data';
 import { bulkAddToZeroList, refreshZeroListFromScan } from '@/lib/supabase/use-migration-cases';
@@ -34,14 +36,17 @@ function fmtDelta(n: number): string {
   return `${sign}${(n / 1_000_000).toFixed(2)}M`;
 }
 
-function fmtScanLabel(s: Scan): string {
-  const date = new Date(s.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  return `${date} ${s.label ? `· ${s.label}` : ''} (${s.kingdom_count} players)`;
+function scanRefKey(s: ScanRef): string {
+  return `${s.kind}:${s.id}`;
+}
+
+function findScanRef(scans: ScanRef[], key: string): ScanRef | undefined {
+  return scans.find((s) => scanRefKey(s) === key);
 }
 
 export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
   const [subTab, setSubTab] = useState<SubTab>('browse');
-  const [scans, setScans] = useState<Scan[]>([]);
+  const [scans, setScans] = useState<ScanRef[]>([]);
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
   const [loadingScans, setLoadingScans] = useState(true);
   const [guideOpen, setGuideOpen] = useState<boolean>(() => {
@@ -57,7 +62,7 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
   useEffect(() => {
     void (async () => {
       try {
-        const [s, cfg] = await Promise.all([listScans(), loadSharedConfig<Config>()]);
+        const [s, cfg] = await Promise.all([listAllScans(), loadSharedConfig<Config>()]);
         setScans(s);
         if (cfg) setConfig(cfg);
       } catch (e) {
@@ -94,10 +99,14 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
         {guideOpen && (
           <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-3">
             <p className="text-xs text-[var(--text-muted)]">
-              Read kingdom-wide scan data and feed it into the Zero List. The scans here are the rich-format
-              <strong> Davide Frusone snapshots</strong> uploaded via the legacy <em>/kingdom/migration-tracker</em> page —
-              they include power, kills, deaths, alliance, and <strong>x/y coordinates</strong>. (The Kingdom Stats
-              page reads a different lighter-weight dataset that doesn&apos;t have coords.)
+              Read kingdom-wide scan data and feed it into the Zero List. <strong>Two scan sources</strong> are pooled in the picker:
+            </p>
+            <ul className="text-xs space-y-1 list-disc pl-5">
+              <li><strong>Auto-scrape</strong> (seeds_kd) — populated daily by the seeds-extractor scraper from Lilith&apos;s API. <strong>Always fresh</strong> but limited to power, KP, CH level, rank. <em>No coords, no alliance, no kill/death breakdown.</em></li>
+              <li><strong>Davide upload</strong> (kingdom_scans) — manual XLSX uploads via <em>/kingdom/migration-tracker</em>. Less frequent but has full data: power, kills, deaths-by-tier, alliance, gathered, helps, <strong>x/y coords</strong>.</li>
+            </ul>
+            <p className="text-xs text-[var(--text-muted)]">
+              Use <strong>Auto-scrape</strong> for finding people (freshest top-N power rank, freshest power growers/shrinkers) and <strong>Davide</strong> when you need coords + alliance + DKP scoring detail. After adding people from Auto-scrape, run <em>Location Upload</em> to backfill coords from the latest Davide scan.
             </p>
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Sub-tabs</div>
@@ -188,26 +197,28 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
 
 // ─── Browse: single-scan view with DKP scoring ───────────────────────────────
 
-function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: Scan[]; config: Config; isAdmin: boolean; actorName: string | null }) {
-  const [scanId, setScanId] = useState<number>(scans[0].id);
+function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: ScanRef[]; config: Config; isAdmin: boolean; actorName: string | null }) {
+  const [scanKey, setScanKey] = useState<string>(scanRefKey(scans[0]));
+  const ref = findScanRef(scans, scanKey) ?? scans[0];
+  const caps = capabilitiesOf(ref.kind);
   const [topN, setTopN] = useState<number>(400);
   const [loading, setLoading] = useState(false);
-  const [players, setPlayers] = useState<ScanPlayer[]>([]);
+  const [players, setPlayers] = useState<UnifiedScanPlayer[]>([]);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     setLoading(true);
     setSelected(new Set());
-    loadScanPlayers(scanId)
+    loadUnifiedScanPlayers(ref)
       .then(setPlayers)
       .catch((e) => console.error(e))
       .finally(() => setLoading(false));
-  }, [scanId]);
+  }, [scanKey]);
 
   const scored = useMemo(() => {
     if (players.length === 0) return [] as ScoredPlayer[];
-    const dkpPlayers = players.map(scanPlayerToDkpPlayer);
+    const dkpPlayers = players.map(unifiedToDkpPlayer);
     return computeScores(dkpPlayers, { ...config, rankedTopN: topN, rankedMode: 'topN' });
   }, [players, config, topN]);
 
@@ -221,8 +232,8 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: Scan[]; con
   }, [sorted, search]);
 
   const playerByGov = useMemo(() => {
-    const m = new Map<number, ScanPlayer>();
-    for (const p of players) m.set(p.governor_id, p);
+    const m = new Map<number, UnifiedScanPlayer>();
+    for (const p of players) m.set(p.governorId, p);
     return m;
   }, [players]);
 
@@ -243,10 +254,10 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: Scan[]; con
         power: p.power,
         x: sp?.x ?? null,
         y: sp?.y ?? null,
-        alliance: sp?.current_alliance || null,
-        lastSeenScanId: scanId,
+        alliance: sp?.alliance ?? null,
+        lastSeenScanId: ref.kind === 'davide' ? Number(ref.id) : null,
         addedBy: actorName ?? 'admin',
-        reason: 'top-N browse',
+        reason: `${ref.kind === 'davide' ? 'Davide' : 'Auto-scrape'} scan top-N browse`,
       };
     });
     try {
@@ -263,12 +274,12 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: Scan[]; con
       <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-4 flex flex-wrap items-center gap-3">
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Scan:</label>
         <select
-          value={scanId}
-          onChange={(e) => setScanId(Number(e.target.value))}
-          className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none"
+          value={scanKey}
+          onChange={(e) => setScanKey(e.target.value)}
+          className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none min-w-[280px]"
         >
           {scans.map((s) => (
-            <option key={s.id} value={s.id}>{fmtScanLabel(s)}</option>
+            <option key={scanRefKey(s)} value={scanRefKey(s)}>{s.label}</option>
           ))}
         </select>
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider ml-2">Top N:</label>
@@ -290,6 +301,12 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: Scan[]; con
           />
         </div>
       </section>
+
+      {!caps.hasCoords && (
+        <section className="mb-3 rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs text-amber-300">
+          This scan source <strong>doesn&apos;t include coordinates, alliance, or kill/death breakdown</strong> — only power, KP, CH level. Switch to a Davide upload for full data, or run <em>Location Upload</em> after adding to refresh coords from a richer scan.
+        </section>
+      )}
 
       {isAdmin && selected.size > 0 && (
         <section className="mb-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30">
@@ -314,7 +331,7 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: Scan[]; con
       <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
         <div className="overflow-auto max-h-[calc(100vh-340px)] rounded-xl">
           {loading ? (
-            <div className="p-8 text-center text-sm text-[var(--text-muted)]">Loading {fmtScanLabel(scans.find((s) => s.id === scanId)!) || ''}…</div>
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">Loading {ref.label}…</div>
           ) : (
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
@@ -332,8 +349,8 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: Scan[]; con
                   <th className="px-3 py-2 text-right">Power</th>
                   <th className="px-3 py-2 text-right">P/KP Ratio</th>
                   <th className="px-3 py-2 text-right">Score</th>
-                  <th className="px-3 py-2 text-left">Alliance</th>
-                  <th className="px-3 py-2 text-left">Coords</th>
+                  {caps.hasAlliance && <th className="px-3 py-2 text-left">Alliance</th>}
+                  {caps.hasCoords && <th className="px-3 py-2 text-left">Coords</th>}
                 </tr>
               </thead>
               <tbody>
@@ -366,10 +383,12 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: Scan[]; con
                       <td className="px-3 py-2 text-right font-mono tabular-nums">
                         {p.bandScore > 0 ? p.bandScore.toFixed(1) : '—'}
                       </td>
-                      <td className="px-3 py-2 text-[var(--text-secondary)]">{sp?.current_alliance || '—'}</td>
-                      <td className="px-3 py-2 font-mono text-xs text-[var(--text-secondary)]">
-                        {sp?.x != null && sp?.y != null ? `(${sp.x}, ${sp.y})` : '—'}
-                      </td>
+                      {caps.hasAlliance && <td className="px-3 py-2 text-[var(--text-secondary)]">{sp?.alliance || '—'}</td>}
+                      {caps.hasCoords && (
+                        <td className="px-3 py-2 font-mono text-xs text-[var(--text-secondary)]">
+                          {sp?.x != null && sp?.y != null ? `(${sp.x}, ${sp.y})` : '—'}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -391,9 +410,11 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: Scan[]; con
 
 // ─── Compare: scan A vs scan B ───────────────────────────────────────────────
 
-function ComparePanel({ scans, isAdmin, actorName }: { scans: Scan[]; isAdmin: boolean; actorName: string | null }) {
-  const [aId, setAId] = useState<number>(scans[Math.min(1, scans.length - 1)].id);
-  const [bId, setBId] = useState<number>(scans[0].id);
+function ComparePanel({ scans, isAdmin, actorName }: { scans: ScanRef[]; isAdmin: boolean; actorName: string | null }) {
+  const [aKey, setAKey] = useState<string>(scanRefKey(scans[Math.min(1, scans.length - 1)]));
+  const [bKey, setBKey] = useState<string>(scanRefKey(scans[0]));
+  const aRef = findScanRef(scans, aKey) ?? scans[Math.min(1, scans.length - 1)];
+  const bRef = findScanRef(scans, bKey) ?? scans[0];
   const [threshold, setThreshold] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScanCompareResult | null>(null);
@@ -401,21 +422,21 @@ function ComparePanel({ scans, isAdmin, actorName }: { scans: Scan[]; isAdmin: b
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const runCompare = useCallback(async () => {
-    if (aId === bId) {
+    if (aKey === bKey) {
       setResult(null);
       return;
     }
     setLoading(true);
     setSelected(new Set());
     try {
-      const [pa, pb] = await Promise.all([loadScanPlayers(aId), loadScanPlayers(bId)]);
-      setResult(compareScans(pa, pb, { growerThreshold: threshold }));
+      const [pa, pb] = await Promise.all([loadUnifiedScanPlayers(aRef), loadUnifiedScanPlayers(bRef)]);
+      setResult(compareUnifiedScans(pa, pb, { growerThreshold: threshold }));
     } catch (e) {
       console.error('Compare failed', e);
     } finally {
       setLoading(false);
     }
-  }, [aId, bId, threshold]);
+  }, [aKey, bKey, aRef, bRef, threshold]);
 
   useEffect(() => {
     void runCompare();
@@ -466,7 +487,7 @@ function ComparePanel({ scans, isAdmin, actorName }: { scans: Scan[]; isAdmin: b
           x: r.x,
           y: r.y,
           alliance: r.alliance,
-          lastSeenScanId: bId,
+          lastSeenScanId: bRef.kind === 'davide' ? Number(bRef.id) : null,
           addedBy: actorName ?? 'admin',
           reason: `compare: ${reasonByView}`,
         })),
@@ -482,13 +503,13 @@ function ComparePanel({ scans, isAdmin, actorName }: { scans: Scan[]; isAdmin: b
     <div>
       <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-4 flex flex-wrap items-center gap-3">
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">A:</label>
-        <select value={aId} onChange={(e) => setAId(Number(e.target.value))} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none">
-          {scans.map((s) => (<option key={s.id} value={s.id}>{fmtScanLabel(s)}</option>))}
+        <select value={aKey} onChange={(e) => setAKey(e.target.value)} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none min-w-[260px]">
+          {scans.map((s) => (<option key={scanRefKey(s)} value={scanRefKey(s)}>{s.label}</option>))}
         </select>
         <span className="text-[var(--text-muted)]">→</span>
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">B:</label>
-        <select value={bId} onChange={(e) => setBId(Number(e.target.value))} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none">
-          {scans.map((s) => (<option key={s.id} value={s.id}>{fmtScanLabel(s)}</option>))}
+        <select value={bKey} onChange={(e) => setBKey(e.target.value)} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none min-w-[260px]">
+          {scans.map((s) => (<option key={scanRefKey(s)} value={scanRefKey(s)}>{s.label}</option>))}
         </select>
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider ml-2">Δ threshold (M):</label>
         <input
@@ -616,14 +637,15 @@ interface RemoteMigrantRow {
   timeZone: string;
 }
 
-function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string | null }) {
-  const [scanId, setScanId] = useState<number>(scans[0].id);
+function MigrantsPanel({ scans, actorName }: { scans: ScanRef[]; actorName: string | null }) {
+  const [scanKey, setScanKey] = useState<string>(scanRefKey(scans[0]));
+  const ref = findScanRef(scans, scanKey) ?? scans[0];
   const [csvRows, setCsvRows] = useState<RemoteMigrantRow[] | MigrantDecisionRow[] | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
-  const [scanPlayers, setScanPlayers] = useState<ScanPlayer[]>([]);
+  const [scanPlayers, setScanPlayers] = useState<UnifiedScanPlayer[]>([]);
   const [loading, setLoading] = useState(false);
   const [topN, setTopN] = useState<number>(400);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -631,8 +653,8 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
 
   useEffect(() => {
     setLoading(true);
-    loadScanPlayers(scanId).then(setScanPlayers).catch((e) => console.error(e)).finally(() => setLoading(false));
-  }, [scanId]);
+    loadUnifiedScanPlayers(ref).then(setScanPlayers).catch((e) => console.error(e)).finally(() => setLoading(false));
+  }, [scanKey]);
 
   // Auto-fetch on first mount so the user doesn't have to click anything.
   useEffect(() => {
@@ -688,14 +710,14 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
   const candidates = useMemo(() => {
     const sorted = [...scanPlayers].sort((a, b) => b.power - a.power).slice(0, topN);
     return sorted.map((p) => ({
-      governorId: p.governor_id,
+      governorId: p.governorId,
       name: p.name,
       power: p.power,
-      alliance: p.current_alliance || null,
+      alliance: p.alliance,
       x: p.x,
       y: p.y,
-      decision: decisionByGov.get(p.governor_id) ?? 'unknown' as const,
-      decisionRaw: rawDecisionByGov.get(p.governor_id) ?? '',
+      decision: decisionByGov.get(p.governorId) ?? 'unknown' as const,
+      decisionRaw: rawDecisionByGov.get(p.governorId) ?? '',
     }));
   }, [scanPlayers, topN, decisionByGov, rawDecisionByGov]);
 
@@ -727,7 +749,7 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
           x: c.x,
           y: c.y,
           alliance: c.alliance,
-          lastSeenScanId: scanId,
+          lastSeenScanId: ref.kind === 'davide' ? Number(ref.id) : null,
           addedBy: actorName ?? 'admin',
           reason: `migrant ${c.decision}`,
         })),
@@ -743,8 +765,8 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
     <div>
       <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-4 flex flex-wrap items-center gap-3">
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Match against scan:</label>
-        <select value={scanId} onChange={(e) => setScanId(Number(e.target.value))} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none">
-          {scans.map((s) => (<option key={s.id} value={s.id}>{fmtScanLabel(s)}</option>))}
+        <select value={scanKey} onChange={(e) => setScanKey(e.target.value)} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none min-w-[260px]">
+          {scans.map((s) => (<option key={scanRefKey(s)} value={scanRefKey(s)}>{s.label}</option>))}
         </select>
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider ml-2">Top N:</label>
         <input
@@ -891,24 +913,28 @@ function DecisionBadge({ d, raw }: { d: 'yes' | 'no' | 'maybe' | 'unknown'; raw?
 
 // ─── Location upload: refresh coords on existing zero-list entries ───────────
 
-function LocationPanel({ scans }: { scans: Scan[] }) {
-  const [scanId, setScanId] = useState<number>(scans[0].id);
+function LocationPanel({ scans }: { scans: ScanRef[] }) {
+  // Only Davide-source scans have coords. Auto-scrape (seeds) doesn't, so filter.
+  const davideScans = useMemo(() => scans.filter((s) => s.kind === 'davide'), [scans]);
+  const [scanKey, setScanKey] = useState<string>(davideScans[0] ? scanRefKey(davideScans[0]) : '');
+  const ref = davideScans.find((s) => scanRefKey(s) === scanKey) ?? davideScans[0];
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
   const run = async () => {
+    if (!ref) return;
     setBusy(true);
     setResult(null);
     try {
-      const players = await loadScanPlayers(scanId);
+      const players = await loadUnifiedScanPlayers(ref);
       const rows = players.map((p) => ({
-        governorId: p.governor_id,
+        governorId: p.governorId,
         x: p.x,
         y: p.y,
         power: p.power,
-        alliance: p.current_alliance || null,
+        alliance: p.alliance,
       }));
-      const { updated } = await refreshZeroListFromScan(scanId, rows);
+      const { updated } = await refreshZeroListFromScan(Number(ref.id), rows);
       setResult(`Updated ${updated} zero-list ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates and power.`);
     } catch (e) {
       setResult(`Failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -917,18 +943,28 @@ function LocationPanel({ scans }: { scans: Scan[] }) {
     }
   };
 
+  if (davideScans.length === 0) {
+    return (
+      <section className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-6 text-sm text-amber-300">
+        No Davide-format scans found. Location refresh needs scans uploaded via{' '}
+        <a href="/kingdom/migration-tracker" className="text-cyan-400 hover:underline">/kingdom/migration-tracker</a>{' '}
+        — those are the only source with x/y coordinates. The auto-scrape feed doesn&apos;t include locations.
+      </section>
+    );
+  }
+
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-6">
       <h3 className="text-sm font-semibold text-[var(--foreground)] mb-2">Refresh Zero List from a scan</h3>
       <p className="text-sm text-[var(--text-secondary)] mb-4">
-        Match all current Zero List entries against the selected kingdom scan and update their coordinates,
-        last-seen power, and current alliance. This <strong>only updates existing rows</strong> — it doesn't add or
-        remove anyone.
+        Match all current Zero List entries against the selected scan and update their coordinates,
+        last-seen power, and alliance. <strong>Only updates existing rows</strong> — doesn&apos;t add or remove anyone.
+        Limited to Davide uploads since auto-scrape doesn&apos;t have coords.
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Scan:</label>
-        <select value={scanId} onChange={(e) => setScanId(Number(e.target.value))} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none">
-          {scans.map((s) => (<option key={s.id} value={s.id}>{fmtScanLabel(s)}</option>))}
+        <select value={scanKey} onChange={(e) => setScanKey(e.target.value)} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none min-w-[260px]">
+          {davideScans.map((s) => (<option key={scanRefKey(s)} value={scanRefKey(s)}>{s.label}</option>))}
         </select>
         <button onClick={run} disabled={busy} className="px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-60">
           {busy ? 'Updating…' : 'Refresh coords'}
