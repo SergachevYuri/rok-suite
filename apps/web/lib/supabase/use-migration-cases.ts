@@ -23,9 +23,14 @@ export interface MigrationCycle {
   notes: string | null;
 }
 
+/** Where a case originated — drives which UI surface it appears on. */
+export type CaseSourceKind = 'cycle' | 'zero_list';
+
 export interface MigrationCase {
   id: string;
-  cycle_id: string;
+  /** Null for source_kind='zero_list'. */
+  cycle_id: string | null;
+  source_kind: CaseSourceKind;
   character_id: number;
   username: string;
   power_at_open: number;
@@ -51,6 +56,14 @@ export interface MigrationCase {
   afk_by: string | null;
   notes: string | null;
   updated_at: string;
+  // Zero-list-specific fields (nullable for cycle cases)
+  x: number | null;
+  y: number | null;
+  last_seen_scan_id: number | null;
+  last_seen_power: number | null;
+  last_seen_alliance: string | null;
+  added_by: string | null;
+  added_reason: string | null;
 }
 
 // ——— Cycles ———
@@ -105,6 +118,18 @@ export async function listCases(cycleId: string): Promise<MigrationCase[]> {
     .from('migration_cases')
     .select('*')
     .eq('cycle_id', cycleId)
+    .eq('source_kind', 'cycle')
+    .order('power_at_open', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as MigrationCase[];
+}
+
+/** All zero-list cases (kingdom-scoped, no cycle). */
+export async function listZeroListCases(): Promise<MigrationCase[]> {
+  const { data, error } = await createClient()
+    .from('migration_cases')
+    .select('*')
+    .eq('source_kind', 'zero_list')
     .order('power_at_open', { ascending: false });
   if (error) throw error;
   return (data ?? []) as MigrationCase[];
@@ -313,4 +338,92 @@ export function subscribeToCases(cycleId: string, onChange: () => void): () => v
   return () => {
     channel.unsubscribe();
   };
+}
+
+/** Zero list realtime — no cycle filter, server-side filter by source_kind isn't supported in
+ *  Supabase realtime so we just receive all changes and let the caller refresh. */
+export function subscribeToZeroList(onChange: () => void): () => void {
+  const channel = createClient()
+    .channel('migration_cases_zero_list')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'migration_cases' },
+      onChange,
+    )
+    .subscribe();
+  return () => {
+    channel.unsubscribe();
+  };
+}
+
+// ——— Zero List specific actions ———
+
+/** Bulk-add players to the zero list (kingdom-scoped, no cycle). Idempotent — duplicate
+ *  character_ids are silently ignored thanks to the unique partial index. */
+export async function bulkAddToZeroList(
+  entries: { characterId: number; username: string; power: number; x?: number | null; y?: number | null; alliance?: string | null; lastSeenScanId?: number | null; addedBy?: string | null; reason?: string | null }[],
+): Promise<void> {
+  if (entries.length === 0) return;
+  const rows = entries.map((e) => ({
+    cycle_id: null,
+    source_kind: 'zero_list' as const,
+    character_id: e.characterId,
+    username: e.username,
+    power_at_open: e.power,
+    last_seen_power: e.power,
+    x: e.x ?? null,
+    y: e.y ?? null,
+    last_seen_alliance: e.alliance ?? null,
+    last_seen_scan_id: e.lastSeenScanId ?? null,
+    added_by: e.addedBy ?? null,
+    added_reason: e.reason ?? null,
+  }));
+  const { error } = await createClient()
+    .from('migration_cases')
+    .upsert(rows, { onConflict: 'character_id', ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+export async function removeFromZeroList(id: string): Promise<void> {
+  const { error } = await createClient().from('migration_cases').delete().eq('id', id).eq('source_kind', 'zero_list');
+  if (error) throw error;
+}
+
+/** Refresh coords + last-seen power/alliance for a set of zero-list cases from a fresh scan.
+ *  Match is by character_id; cases not present in the scan are left alone. */
+export async function refreshZeroListFromScan(
+  scanId: number,
+  scanRows: { governorId: number; x: number | null; y: number | null; power: number; alliance: string | null }[],
+): Promise<{ updated: number }> {
+  if (scanRows.length === 0) return { updated: 0 };
+  const sb = createClient();
+  // Pull current zero-list character_ids — we only update existing rows, never insert.
+  const { data: zlist, error: e1 } = await sb
+    .from('migration_cases')
+    .select('id, character_id')
+    .eq('source_kind', 'zero_list');
+  if (e1) throw e1;
+  const idByChar = new Map<number, string>();
+  for (const r of zlist ?? []) idByChar.set(r.character_id as number, r.id as string);
+  const byChar = new Map<number, typeof scanRows[number]>();
+  for (const r of scanRows) byChar.set(r.governorId, r);
+  let updated = 0;
+  for (const [charId, row] of byChar) {
+    const id = idByChar.get(charId);
+    if (!id) continue;
+    const { error } = await sb
+      .from('migration_cases')
+      .update({
+        x: row.x,
+        y: row.y,
+        last_seen_power: row.power,
+        last_seen_alliance: row.alliance,
+        last_seen_scan_id: scanId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+    if (error) throw error;
+    updated += 1;
+  }
+  return { updated };
 }

@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
+import { ZeroListTab } from '@/components/migration/ZeroListTab';
+import { ScansTab } from '@/components/migration/ScansTab';
 import { loadLatestDataset, loadConfigRow, MIGRATION_ROW_ID, parseStatsFile, type Player } from '../dkp/data';
 import {
   type MigrationCase,
@@ -195,6 +197,7 @@ function MigrationPageInner() {
   };
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'cycle' | 'zero_list' | 'scans'>('cycle');
   const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active' | 'suggested' | 'exception_requested'>('active');
   const [sortField, setSortField] = useState<SortField>('power_at_open');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -470,6 +473,36 @@ function MigrationPageInner() {
           </div>
           <SessionBadge />
         </header>
+
+        {/* Tab strip */}
+        <nav className="mb-4 flex gap-1 border-b border-[var(--border)]">
+          {([
+            { id: 'cycle', label: 'Cycle' },
+            { id: 'zero_list', label: 'Zero List' },
+            { id: 'scans', label: 'Scans' },
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                tab === t.id
+                  ? 'border-[#4318ff] text-[var(--foreground)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        {tab === 'zero_list' && (
+          <ZeroListTab isOfficer={isOfficer} isAdmin={isAdmin} actorName={officerName ?? null} />
+        )}
+        {tab === 'scans' && (
+          <ScansTab isOfficer={isOfficer} isAdmin={isAdmin} actorName={officerName ?? null} />
+        )}
+
+        {tab === 'cycle' && (<>
 
         {/* Cycle bar */}
         <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-4 flex flex-wrap items-center gap-3">
@@ -778,6 +811,8 @@ function MigrationPageInner() {
             </section>
           </>
         )}
+
+        </>)}
 
         {showNewCycle && (
           <NewCycleDialog
