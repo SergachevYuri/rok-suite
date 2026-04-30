@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, Lock, RotateCcw, Search, Sparkles, Upload, UserPlus, Users } from 'lucide-react';
 import { CandidatesPanel } from '@/components/migration/CandidatesPanel';
+import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import {
   listAllScans,
   loadUnifiedScanPlayers,
@@ -386,8 +387,7 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: ScanRef[]; 
                         </td>
                       )}
                       <td className="px-3 py-2">
-                        <div className="text-[var(--foreground)]">{p.username}</div>
-                        <div className="text-[10px] text-[var(--text-muted)] font-mono">{p.characterId}</div>
+                        <CopyablePlayerCell name={p.username} govId={p.characterId} />
                       </td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtM(p.power)}</td>
                       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
@@ -622,8 +622,7 @@ function ComparePanel({ scans, isAdmin, actorName }: { scans: ScanRef[]; isAdmin
                       </td>
                     )}
                     <td className="px-3 py-2">
-                      <div className="text-[var(--foreground)]">{r.name}</div>
-                      <div className="text-[10px] text-[var(--text-muted)] font-mono">{r.governorId}</div>
+                      <CopyablePlayerCell name={r.name} govId={r.governorId} />
                     </td>
                     <td className="px-3 py-2 text-right font-mono tabular-nums">{r.left != null ? fmtM(r.left) : fmtM(r.right)}</td>
                     {(view === 'growers' || view === 'shrinkers') && <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtM(r.right)}</td>}
@@ -893,8 +892,7 @@ function MigrantsPanel({ scans, actorName }: { scans: ScanRef[]; actorName: stri
                       />
                     </td>
                     <td className="px-3 py-2">
-                      <div className="text-[var(--foreground)]">{c.name}</div>
-                      <div className="text-[10px] text-[var(--text-muted)] font-mono">{c.governorId}</div>
+                      <CopyablePlayerCell name={c.name} govId={c.governorId} />
                     </td>
                     <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtM(c.power)}</td>
                     <td className="px-3 py-2 text-[var(--text-secondary)]">{c.alliance || '—'}</td>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Copy, Lock, RotateCcw, Trash2 } from 'lucide-react';
+import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import {
   type MigrationCase,
   type MigrationState,
@@ -125,7 +126,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         {guideOpen && (
           <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-4">
             <p className="text-xs text-[var(--text-muted)]">
-              The Zero List is the <strong>kingdom-wide kill queue</strong>. It&apos;s a single continuous list — no deadline, no exception workflow. Power members come here to grab coords and attack. Admins manage who&apos;s on it.
+              The Zero List is the <strong>kingdom-wide kill queue</strong>. It&apos;s a single continuous list — no deadline, no exception workflow. Power members come here to grab coords and attack. Admins manage who&apos;s on it. Cycle cases marked <em>To Zero</em> automatically appear here too (with a <span className="inline-block px-1 py-0 rounded text-[9px] font-semibold border bg-violet-500/15 text-violet-400 border-violet-500/30">from cycle</span> badge) — no manual sync needed.
             </p>
 
             <div>
@@ -325,8 +326,7 @@ function ZeroListRow({
   return (
     <tr className="border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors">
       <td className="px-3 py-2">
-        <div className="text-[var(--foreground)]">{c.username}</div>
-        <div className="text-[10px] text-[var(--text-muted)] font-mono">{c.character_id}</div>
+        <CopyablePlayerCell name={c.username} govId={c.character_id} />
       </td>
       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">
         {fmtM(c.last_seen_power ?? c.power_at_open)}
@@ -351,6 +351,11 @@ function ZeroListRow({
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATE_STYLES[c.state]}`}>
           {STATE_LABELS[c.state]}
         </span>
+        {c.source_kind === 'cycle' && (
+          <span className="ml-1 inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-violet-500/15 text-violet-400 border-violet-500/30" title="Auto-carried from a Cycle. Resolve via the Cycle tab or via actions on this row.">
+            from cycle
+          </span>
+        )}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -419,7 +424,7 @@ function ZeroListRow({
               <RotateCcw size={10} />
             </button>
           )}
-          {isAdmin && (
+          {isAdmin && c.source_kind === 'zero_list' && (
             <button
               disabled={busy}
               onClick={() => {

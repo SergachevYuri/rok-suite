@@ -124,15 +124,38 @@ export async function listCases(cycleId: string): Promise<MigrationCase[]> {
   return (data ?? []) as MigrationCase[];
 }
 
-/** All zero-list cases (kingdom-scoped, no cycle). */
+/** All cases that should appear on the Zero List view: native zero_list cases
+ *  PLUS cycle cases that have been marked to zero (so once an officer flips a
+ *  cycle case to "To Zero", power members see it on the kill queue without any
+ *  manual sync). Both source kinds use the same state machine, so the Zero List
+ *  UI can act on either uniformly. */
 export async function listZeroListCases(): Promise<MigrationCase[]> {
-  const { data, error } = await createClient()
-    .from('migration_cases')
-    .select('*')
-    .eq('source_kind', 'zero_list')
-    .order('power_at_open', { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as MigrationCase[];
+  const sb = createClient();
+  const [own, fromCycle] = await Promise.all([
+    sb
+      .from('migration_cases')
+      .select('*')
+      .eq('source_kind', 'zero_list')
+      .order('power_at_open', { ascending: false }),
+    sb
+      .from('migration_cases')
+      .select('*')
+      .eq('source_kind', 'cycle')
+      .in('state', ['marked_to_zero'])
+      .order('power_at_open', { ascending: false }),
+  ]);
+  if (own.error) throw own.error;
+  if (fromCycle.error) throw fromCycle.error;
+  // Merge, dedupe by character_id (cycle wins if both — gives the user the cycle context)
+  const seen = new Set<number>();
+  const merged: MigrationCase[] = [];
+  for (const row of [...(fromCycle.data ?? []), ...(own.data ?? [])] as MigrationCase[]) {
+    if (seen.has(row.character_id)) continue;
+    seen.add(row.character_id);
+    merged.push(row);
+  }
+  merged.sort((a, b) => (b.last_seen_power ?? b.power_at_open) - (a.last_seen_power ?? a.power_at_open));
+  return merged;
 }
 
 /** Bulk-create cases from a snapshot of players (e.g. the currently flagged list on the DKP page). */

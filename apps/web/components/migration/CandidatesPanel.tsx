@@ -28,6 +28,7 @@ import {
   bulkAddToZeroList,
 } from '@/lib/supabase/use-migration-cases';
 import { createClient } from '@/lib/supabase/client';
+import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 
 interface Props {
   isAdmin: boolean;
@@ -893,8 +894,7 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
                   </td>
                 )}
                 <td className="px-3 py-2">
-                  <div className="text-[var(--foreground)]">{r.name}</div>
-                  <div className="text-[10px] text-[var(--text-muted)] font-mono">{r.governorId}</div>
+                  <CopyablePlayerCell name={r.name} govId={r.governorId} />
                 </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtM(r.power)}</td>
                 {rows.some((row) => row.extra !== null) && (
