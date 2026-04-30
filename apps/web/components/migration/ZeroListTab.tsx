@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Copy, Lock, RotateCcw, Trash2 } from 'lucide-react';
+import { ChevronDown, Clock, Copy, Lock, RotateCcw, Trash2 } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import {
   type MigrationCase,
@@ -15,6 +15,8 @@ import {
   confirmZeroed,
   confirmMigrated,
   resetCaseToPending,
+  delayCase,
+  undelayCase,
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestLocationPoints, type LocationPoint } from '@/lib/zero-list/scan-data';
@@ -50,6 +52,15 @@ const STATE_STYLES: Record<MigrationState, string> = {
 function fmtM(n: number | null | undefined): string {
   if (n == null) return '—';
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n.toLocaleString();
+}
+
+function fmtDelayRemaining(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'expired';
+  const hours = ms / 3_600_000;
+  if (hours < 1) return `${Math.max(1, Math.round(ms / 60_000))}m left`;
+  if (hours < 48) return `${Math.round(hours)}h left`;
+  return `${Math.round(hours / 24)}d left`;
 }
 
 export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
@@ -91,8 +102,17 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return () => unsub();
   }, [refetch]);
 
+  // Power-tier members shouldn't see entries that an officer/admin has put on
+  // hold — the delay window is meant to give the player a chance to leave
+  // without an immediate attack. Officer/admin still see them with a badge.
+  const visibleCases = useMemo(() => {
+    if (isOfficer) return cases;
+    const now = Date.now();
+    return cases.filter((c) => !c.delayed_until || new Date(c.delayed_until).getTime() <= now);
+  }, [cases, isOfficer]);
+
   const filtered = useMemo(() => {
-    let list = cases;
+    let list = visibleCases;
     if (filter === 'active') list = list.filter((c) => !TERMINAL_STATES.includes(c.state));
     else if (filter !== 'all') list = list.filter((c) => c.state === filter);
     if (search.trim()) {
@@ -104,16 +124,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       );
     }
     return list;
-  }, [cases, filter, search]);
+  }, [visibleCases, filter, search]);
 
   const counts = useMemo(() => {
-    const out: Record<string, number> = { active: 0, all: cases.length };
-    for (const c of cases) {
+    const out: Record<string, number> = { active: 0, all: visibleCases.length };
+    for (const c of visibleCases) {
       if (!TERMINAL_STATES.includes(c.state)) out.active = (out.active ?? 0) + 1;
       out[c.state] = (out[c.state] ?? 0) + 1;
     }
     return out;
-  }, [cases]);
+  }, [visibleCases]);
+
+  const delayedCount = useMemo(() => {
+    if (!isOfficer) return 0;
+    const now = Date.now();
+    return cases.filter((c) => c.delayed_until && new Date(c.delayed_until).getTime() > now).length;
+  }, [cases, isOfficer]);
 
   if (loading) return <div className="text-sm text-[var(--text-muted)] py-8 text-center">Loading…</div>;
 
@@ -135,6 +161,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           <div className="px-4 pb-4 pt-1 border-t border-[var(--border)] text-sm text-[var(--text-secondary)] space-y-4">
             <p className="text-xs text-[var(--text-muted)]">
               The Zero List is the <strong>kingdom-wide kill queue</strong>. It&apos;s a single continuous list — no deadline, no exception workflow. Power members come here to grab coords and attack. Admins manage who&apos;s on it. Cycle cases marked <em>To Zero</em> automatically appear here too (with a <span className="inline-block px-1 py-0 rounded text-[9px] font-semibold border bg-violet-500/15 text-violet-400 border-violet-500/30">from cycle</span> badge) — no manual sync needed.
+            </p>
+            <p className="text-xs text-[var(--text-muted)]">
+              <strong>Delay</strong> button (officer / admin) puts an entry on hold for a chosen number of hours so the player has a chance to leave voluntarily. While delayed, the row is <strong>hidden from the power tier</strong> and shows an amber <em>delayed · Nh left</em> badge to officers/admins. Click <strong>Resume</strong> to lift the delay early.
             </p>
 
             <div>
@@ -247,6 +276,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         </button>
         <span className="text-xs text-[var(--text-muted)] ml-auto">
           {filtered.length} shown
+          {delayedCount > 0 && (
+            <> · <span className="text-amber-400">{delayedCount} delayed</span> (officer-only)</>
+          )}
           {locationLabel && (
             <> · coords from <span className="text-[var(--text-secondary)]">{locationLabel}</span></>
           )}
@@ -273,6 +305,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                   key={c.id}
                   caseRow={c}
                   locationFallback={locationLookup.get(c.character_id) ?? null}
+                  isOfficer={isOfficer}
                   isAdmin={isAdmin}
                   actorName={actorName}
                   onChange={() => void refetch()}
@@ -300,6 +333,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 function ZeroListRow({
   caseRow: c,
   locationFallback,
+  isOfficer,
   isAdmin,
   actorName,
   onChange,
@@ -309,6 +343,7 @@ function ZeroListRow({
    *  alliance/power that aren't on the migration_cases row itself. Lets cycle
    *  cases that auto-carry to the Zero List get coords without a DB write. */
   locationFallback: LocationPoint | null;
+  isOfficer: boolean;
   isAdmin: boolean;
   actorName: string | null;
   onChange: () => void;
@@ -374,14 +409,24 @@ function ZeroListRow({
         )}
       </td>
       <td className="px-3 py-2">
-        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATE_STYLES[c.state]}`}>
-          {STATE_LABELS[c.state]}
-        </span>
-        {c.source_kind === 'cycle' && (
-          <span className="ml-1 inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-violet-500/15 text-violet-400 border-violet-500/30" title="Auto-carried from a Cycle. Resolve via the Cycle tab or via actions on this row.">
-            from cycle
+        <div className="flex flex-wrap items-center gap-1">
+          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATE_STYLES[c.state]}`}>
+            {STATE_LABELS[c.state]}
           </span>
-        )}
+          {c.source_kind === 'cycle' && (
+            <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-violet-500/15 text-violet-400 border-violet-500/30" title="Auto-carried from a Cycle. Resolve via the Cycle tab or via actions on this row.">
+              from cycle
+            </span>
+          )}
+          {c.delayed_until && new Date(c.delayed_until).getTime() > Date.now() && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30"
+              title={`Hidden from power tier until ${new Date(c.delayed_until).toLocaleString()}${c.delayed_reason ? ` · ${c.delayed_reason}` : ''}${c.delayed_by ? ` · by ${c.delayed_by}` : ''}`}
+            >
+              <Clock size={9} /> delayed · {fmtDelayRemaining(c.delayed_until)}
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -450,6 +495,38 @@ function ZeroListRow({
               <RotateCcw size={10} />
             </button>
           )}
+          {isOfficer && isActive && (() => {
+            const isDelayedNow = !!c.delayed_until && new Date(c.delayed_until).getTime() > Date.now();
+            if (isDelayedNow) {
+              return (
+                <button
+                  disabled={busy}
+                  onClick={() => wrap(() => undelayCase(c.id))}
+                  className="px-2 py-1 text-[11px] rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 hover:bg-amber-500/20"
+                  title="Lift the delay — this case becomes visible to power tier again"
+                >
+                  Resume
+                </button>
+              );
+            }
+            return (
+              <button
+                disabled={busy}
+                onClick={() => {
+                  const raw = window.prompt('Delay how many hours? (default 24)', '24');
+                  if (raw === null) return;
+                  const hrs = Number(raw);
+                  if (!Number.isFinite(hrs) || hrs <= 0) return;
+                  const reason = window.prompt('Reason? (optional — power tier won\'t see this row until the delay expires)', '') ?? '';
+                  void wrap(() => delayCase(c.id, hrs, actor, reason || null));
+                }}
+                className="px-2 py-1 text-[11px] rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 hover:bg-amber-500/20 inline-flex items-center gap-1"
+                title="Hide from power tier for a while (gives the player a chance to leave first)"
+              >
+                <Clock size={10} /> Delay
+              </button>
+            );
+          })()}
           {isAdmin && c.source_kind === 'zero_list' && (
             <button
               disabled={busy}

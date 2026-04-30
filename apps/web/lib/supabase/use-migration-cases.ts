@@ -64,6 +64,11 @@ export interface MigrationCase {
   last_seen_alliance: string | null;
   added_by: string | null;
   added_reason: string | null;
+  // Delay window — when set and in the future, the case is hidden from the
+  // power-tier Zero List view (officer/admin still see it with a badge).
+  delayed_until: string | null;
+  delayed_by: string | null;
+  delayed_reason: string | null;
 }
 
 // ——— Cycles ———
@@ -289,6 +294,31 @@ export async function denyExceptionRequest(id: string) {
     exception_requested_by: null,
     exception_request_reason: null,
     exception_suggestion: null,
+  });
+}
+
+/** Hold the case off the power-tier Zero List view for a window. Officers and
+ *  admins still see it (with a "delayed until X" badge). Used to give a player
+ *  a chance to leave voluntarily before power members start attacking. */
+export async function delayCase(
+  id: string,
+  hours: number,
+  by: string,
+  reason: string | null = null,
+) {
+  const ts = new Date(Date.now() + Math.max(0, hours) * 3_600_000).toISOString();
+  return patchCase(id, {
+    delayed_until: ts,
+    delayed_by: by,
+    delayed_reason: reason,
+  });
+}
+
+export async function undelayCase(id: string) {
+  return patchCase(id, {
+    delayed_until: null,
+    delayed_by: null,
+    delayed_reason: null,
   });
 }
 
