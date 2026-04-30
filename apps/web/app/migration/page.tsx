@@ -77,6 +77,54 @@ const STATE_ORDER: MigrationState[] = ['pending', 'excepted', 'migrated', 'afk',
 
 const ZERO_POWER_DROP = 0.15;
 
+type SortField = 'username' | 'power_at_open' | 'state' | 'updated_at';
+type SortDir = 'asc' | 'desc';
+
+const DEFAULT_SORT_DIR: Record<SortField, SortDir> = {
+  username: 'asc',
+  power_at_open: 'desc',
+  state: 'asc',
+  updated_at: 'desc',
+};
+
+function stateRank(s: MigrationState): number {
+  const normalized: MigrationState = s === 'claimed' || s === 'contacted' ? 'pending' : s;
+  const idx = STATE_ORDER.indexOf(normalized);
+  return idx === -1 ? STATE_ORDER.length : idx;
+}
+
+function SortableTh({
+  label,
+  field,
+  align = 'left',
+  active,
+  dir,
+  onSort,
+}: {
+  label: string;
+  field: SortField;
+  align?: 'left' | 'right';
+  active: SortField;
+  dir: SortDir;
+  onSort: (field: SortField) => void;
+}) {
+  const isActive = active === field;
+  const arrow = isActive ? (dir === 'asc' ? '▲' : '▼') : '';
+  const ariaSort = isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none';
+  return (
+    <th aria-sort={ariaSort} className={`px-3 py-2 ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-[var(--foreground)] transition-colors ${isActive ? 'text-[var(--foreground)]' : ''}`}
+      >
+        <span>{label}</span>
+        <span className="text-[10px] w-2 inline-block opacity-80">{arrow}</span>
+      </button>
+    </th>
+  );
+}
+
 function fmt(n: number) {
   return n.toLocaleString();
 }
@@ -148,6 +196,18 @@ function MigrationPageInner() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active' | 'suggested' | 'exception_requested'>('active');
+  const [sortField, setSortField] = useState<SortField>('power_at_open');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const toggleSort = useCallback((field: SortField) => {
+    setSortField((prev) => {
+      if (prev === field) {
+        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
+      setSortDir(DEFAULT_SORT_DIR[field]);
+      return field;
+    });
+  }, []);
   const [showNewCycle, setShowNewCycle] = useState(false);
   const [showEditCycle, setShowEditCycle] = useState(false);
   const [now, setNow] = useState<Date>(() => new Date());
@@ -271,8 +331,25 @@ function MigrationPageInner() {
           c.username.toLowerCase().includes(q) || (qDigits.length >= 3 && String(c.character_id).includes(qDigits)),
       );
     }
-    return list;
-  }, [cases, search, stateFilter]);
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const sorted = [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'username') {
+        cmp = a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
+      } else if (sortField === 'power_at_open') {
+        cmp = a.power_at_open - b.power_at_open;
+      } else if (sortField === 'state') {
+        cmp = stateRank(a.state) - stateRank(b.state);
+      } else if (sortField === 'updated_at') {
+        cmp = a.updated_at.localeCompare(b.updated_at);
+      }
+      // Stable tiebreak on power desc so equal-key rows stay deterministic.
+      if (cmp === 0) cmp = b.power_at_open - a.power_at_open;
+      else cmp *= dir;
+      return cmp;
+    });
+    return sorted;
+  }, [cases, search, stateFilter, sortField, sortDir]);
 
   // Power math — scoped to the current cycle. Kingdom power comes from the
   // admin-uploaded scan; AFK cases are subtracted to get the active-kingdom
@@ -669,10 +746,10 @@ function MigrationPageInner() {
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
                     <tr>
-                      <th className="px-3 py-2 text-left">Player</th>
-                      <th className="px-3 py-2 text-right">Power</th>
-                      <th className="px-3 py-2 text-left">State</th>
-                      <th className="px-3 py-2 text-left">Last action</th>
+                      <SortableTh label="Player" field="username" active={sortField} dir={sortDir} onSort={toggleSort} />
+                      <SortableTh label="Power" field="power_at_open" align="right" active={sortField} dir={sortDir} onSort={toggleSort} />
+                      <SortableTh label="State" field="state" active={sortField} dir={sortDir} onSort={toggleSort} />
+                      <SortableTh label="Last action" field="updated_at" active={sortField} dir={sortDir} onSort={toggleSort} />
                       <th className="px-3 py-2 text-left">Actions</th>
                     </tr>
                   </thead>
