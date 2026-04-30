@@ -125,7 +125,7 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
                   The tool joins the sheet against the chosen scan&apos;s top-N. Approved (<em>Yes</em>) rows are hidden by default — what you see is everyone in the kingdom who shouldn&apos;t be there. CSV upload still works if you want to override with a different sheet.
                 </li>
                 <li>
-                  <strong>Location Upload</strong> (admin only) — pick a fresh scan and refresh coords + last-seen power on every existing Zero List entry. Doesn&apos;t add or remove anyone — just updates location data so power-tier members get current coords for attacks.
+                  <strong>Location Upload</strong> (admin only) — drop a Davide snapshot CSV (e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code>) directly to refresh coords + last-seen power + alliance on every existing Zero List entry whose Gov ID is in the file. Doesn&apos;t add or remove anyone, doesn&apos;t persist the CSV. Also has a fallback to refresh from a saved kingdom_scans row.
                 </li>
               </ul>
             </div>
@@ -921,7 +921,7 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
-  const run = async () => {
+  const runFromExisting = async () => {
     if (!ref) return;
     setBusy(true);
     setResult(null);
@@ -935,7 +935,7 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
         alliance: p.alliance,
       }));
       const { updated } = await refreshZeroListFromScan(Number(ref.id), rows);
-      setResult(`Updated ${updated} zero-list ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates and power.`);
+      setResult(`Updated ${updated} zero-list ${updated === 1 ? 'entry' : 'entries'} from ${ref.label}.`);
     } catch (e) {
       setResult(`Failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -943,34 +943,90 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
     }
   };
 
-  if (davideScans.length === 0) {
-    return (
-      <section className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-6 text-sm text-amber-300">
-        No Davide-format scans found. Location refresh needs scans uploaded via{' '}
-        <a href="/kingdom/migration-tracker" className="text-cyan-400 hover:underline">/kingdom/migration-tracker</a>{' '}
-        — those are the only source with x/y coordinates. The auto-scrape feed doesn&apos;t include locations.
-      </section>
-    );
-  }
+  const runFromCsv = async (file: File) => {
+    setBusy(true);
+    setResult(null);
+    try {
+      const text = await file.text();
+      const { parseSnapshotCSV } = await import('@/lib/kingdom/parse');
+      const parsed = parseSnapshotCSV(text);
+      if (parsed.length === 0) {
+        setResult('CSV had no valid rows. Expected columns: player_id, player_name, player_power, player_kills, player_ch, player_alliance, x, y, shield_time_left.');
+        return;
+      }
+      const rows = parsed.map((p) => ({
+        governorId: p.playerId,
+        x: p.x,
+        y: p.y,
+        power: p.playerPower,
+        alliance: p.playerAlliance || null,
+      }));
+      const { updated } = await refreshZeroListFromScan(null, rows);
+      setResult(`Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} zero-list ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.`);
+    } catch (e) {
+      setResult(`Failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-6">
-      <h3 className="text-sm font-semibold text-[var(--foreground)] mb-2">Refresh Zero List from a scan</h3>
-      <p className="text-sm text-[var(--text-secondary)] mb-4">
-        Match all current Zero List entries against the selected scan and update their coordinates,
-        last-seen power, and alliance. <strong>Only updates existing rows</strong> — doesn&apos;t add or remove anyone.
-        Limited to Davide uploads since auto-scrape doesn&apos;t have coords.
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Scan:</label>
-        <select value={scanKey} onChange={(e) => setScanKey(e.target.value)} className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none min-w-[260px]">
-          {davideScans.map((s) => (<option key={scanRefKey(s)} value={scanRefKey(s)}>{s.label}</option>))}
-        </select>
-        <button onClick={run} disabled={busy} className="px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-60">
-          {busy ? 'Updating…' : 'Refresh coords'}
-        </button>
-      </div>
-      {result && <div className="mt-4 text-sm text-[var(--text-secondary)]">{result}</div>}
-    </section>
+    <div className="space-y-4">
+      {/* Direct CSV upload — primary path now */}
+      <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-6">
+        <h3 className="text-sm font-semibold text-[var(--foreground)] mb-2">Upload location scan CSV</h3>
+        <p className="text-sm text-[var(--text-secondary)] mb-4">
+          Drop a Davide-format snapshot CSV (columns: <code className="text-[var(--text-secondary)]">player_id, player_name, player_power, player_kills, player_ch, player_alliance, x, y, shield_time_left</code>). Coordinates, last-seen power, and alliance get pushed to every existing Zero List entry whose Gov ID is in the file. <strong>Only updates existing rows</strong> — doesn&apos;t add or remove anyone. The CSV isn&apos;t saved to the database.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] cursor-pointer disabled:opacity-60">
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              disabled={busy}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) void runFromCsv(f); e.target.value = ''; }}
+              className="hidden"
+            />
+            {busy ? 'Working…' : 'Choose CSV'}
+          </label>
+          <span className="text-xs text-[var(--text-muted)]">e.g. <code className="text-[var(--text-secondary)]">scan_3923.csv</code></span>
+        </div>
+      </section>
+
+      {/* Existing-scan refresh — kept as alternate */}
+      {davideScans.length > 0 && (
+        <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-6">
+          <h3 className="text-sm font-semibold text-[var(--foreground)] mb-2">Or refresh from a saved Davide scan</h3>
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
+            Use this if the snapshot is already in <code className="text-[var(--text-secondary)]">kingdom_scans</code> (uploaded via Migration Tracker). Same effect as the CSV path, but reads the saved version instead of re-parsing.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Scan:</label>
+            <select
+              value={scanKey}
+              onChange={(e) => setScanKey(e.target.value)}
+              className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm focus:outline-none min-w-[260px]"
+            >
+              {davideScans.map((s) => (
+                <option key={scanRefKey(s)} value={scanRefKey(s)}>{s.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={runFromExisting}
+              disabled={busy}
+              className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] disabled:opacity-60"
+            >
+              {busy ? 'Updating…' : 'Refresh from saved scan'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {result && (
+        <section className={`rounded-xl border px-4 py-3 text-sm ${result.startsWith('Failed') ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'}`}>
+          {result}
+        </section>
+      )}
+    </div>
   );
 }

@@ -392,7 +392,8 @@ export async function removeFromZeroList(id: string): Promise<void> {
 /** Refresh coords + last-seen power/alliance for a set of zero-list cases from a fresh scan.
  *  Match is by character_id; cases not present in the scan are left alone. */
 export async function refreshZeroListFromScan(
-  scanId: number,
+  /** Pass null for ad-hoc CSV uploads that aren't backed by a kingdom_scans row. */
+  scanId: number | null,
   scanRows: { governorId: number; x: number | null; y: number | null; power: number; alliance: string | null }[],
 ): Promise<{ updated: number }> {
   if (scanRows.length === 0) return { updated: 0 };
