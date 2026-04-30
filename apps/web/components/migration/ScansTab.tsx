@@ -111,9 +111,9 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
                   Click any count to drill in. Adjust the Δ threshold (in millions) to filter noise. Admins can multi-select rows and add to the Zero List.
                 </li>
                 <li>
-                  <strong>Migrant CSV</strong> (admin only) — export the migrant-applications Google Sheet as CSV and upload it here.
-                  Required columns: <code className="text-[var(--text-secondary)]">Governor ID</code> and <code className="text-[var(--text-secondary)]">Decision</code> (Yes / No / Maybe).
-                  The tool joins the CSV against the chosen scan&apos;s top-N. Approved (<em>Yes</em>) rows are hidden by default — what you see is everyone in the kingdom who shouldn&apos;t be there.
+                  <strong>Migrant CSV</strong> (admin only) — auto-fetches the K23 migrant-applications Google Sheet on open.
+                  Click <em>Refresh from sheet</em> to re-pull after sheet edits. Decisions are normalized (Yes / No / Maybe) but the raw value (e.g. <em>Pending</em>, <em>Found Another Kingdom</em>) is shown in the badge.
+                  The tool joins the sheet against the chosen scan&apos;s top-N. Approved (<em>Yes</em>) rows are hidden by default — what you see is everyone in the kingdom who shouldn&apos;t be there. CSV upload still works if you want to override with a different sheet.
                 </li>
                 <li>
                   <strong>Location Upload</strong> (admin only) — pick a fresh scan and refresh coords + last-seen power on every existing Zero List entry. Doesn&apos;t add or remove anyone — just updates location data so power-tier members get current coords for attacks.
@@ -607,10 +607,22 @@ function ComparePanel({ scans, isAdmin, actorName }: { scans: Scan[]; isAdmin: b
 
 // ─── Migrants: upload CSV, match against latest scan, add non-Yes to Zero List ──
 
+interface RemoteMigrantRow {
+  governorId: number;
+  decision: 'yes' | 'no' | 'maybe' | 'unknown';
+  decisionRaw: string;
+  name: string;
+  playerType: string;
+  timeZone: string;
+}
+
 function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string | null }) {
   const [scanId, setScanId] = useState<number>(scans[0].id);
-  const [csvRows, setCsvRows] = useState<MigrantDecisionRow[] | null>(null);
+  const [csvRows, setCsvRows] = useState<RemoteMigrantRow[] | MigrantDecisionRow[] | null>(null);
   const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(false);
   const [scanPlayers, setScanPlayers] = useState<ScanPlayer[]>([]);
   const [loading, setLoading] = useState(false);
   const [topN, setTopN] = useState<number>(400);
@@ -622,16 +634,53 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
     loadScanPlayers(scanId).then(setScanPlayers).catch((e) => console.error(e)).finally(() => setLoading(false));
   }, [scanId]);
 
+  // Auto-fetch on first mount so the user doesn't have to click anything.
+  useEffect(() => {
+    void fetchFromSheet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchFromSheet = async () => {
+    setFetching(true);
+    setCsvErrors([]);
+    try {
+      const res = await fetch('/api/migrant-sheet', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) {
+        setCsvErrors([data.error ?? `HTTP ${res.status}`]);
+        return;
+      }
+      setCsvRows(data.rows as RemoteMigrantRow[]);
+      setFetchedAt(data.fetchedAt ?? new Date().toISOString());
+      setSheetUrl(data.sheetUrl ?? null);
+    } catch (e) {
+      setCsvErrors([`Fetch failed: ${e instanceof Error ? e.message : String(e)}`]);
+    } finally {
+      setFetching(false);
+    }
+  };
+
   const handleFile = async (file: File) => {
     const text = await file.text();
     const { rows, errors } = parseMigrantCsv(text);
     setCsvRows(rows);
     setCsvErrors(errors);
+    setFetchedAt(null);
+    setSheetUrl(null);
   };
 
   const decisionByGov = useMemo(() => {
-    const m = new Map<number, MigrantDecisionRow['decision']>();
+    const m = new Map<number, 'yes' | 'no' | 'maybe' | 'unknown'>();
     for (const r of csvRows ?? []) m.set(r.governorId, r.decision);
+    return m;
+  }, [csvRows]);
+
+  const rawDecisionByGov = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const r of csvRows ?? []) {
+      // Remote rows include decisionRaw; local-uploaded rows don't.
+      if ('decisionRaw' in r) m.set(r.governorId, (r as RemoteMigrantRow).decisionRaw);
+    }
     return m;
   }, [csvRows]);
 
@@ -645,9 +694,10 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
       alliance: p.current_alliance || null,
       x: p.x,
       y: p.y,
-      decision: decisionByGov.get(p.governor_id) ?? 'unknown',
+      decision: decisionByGov.get(p.governor_id) ?? 'unknown' as const,
+      decisionRaw: rawDecisionByGov.get(p.governor_id) ?? '',
     }));
-  }, [scanPlayers, topN, decisionByGov]);
+  }, [scanPlayers, topN, decisionByGov, rawDecisionByGov]);
 
   const filtered = useMemo(() => {
     return hideYes ? candidates.filter((c) => c.decision !== 'yes') : candidates;
@@ -713,13 +763,34 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
 
       <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-4">
         <div className="flex flex-wrap items-center gap-3">
-          <label className="px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] cursor-pointer">
+          <button
+            onClick={() => void fetchFromSheet()}
+            disabled={fetching}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-60"
+          >
+            <RotateCcw size={12} className={fetching ? 'animate-spin' : ''} />
+            {fetching ? 'Fetching…' : csvRows ? 'Refresh from sheet' : 'Fetch from Google Sheet'}
+          </button>
+          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] cursor-pointer">
             <input type="file" accept=".csv,text/csv" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f); }} className="hidden" />
-            Upload migrant CSV
+            Or upload CSV
           </label>
           {csvRows && (
             <span className="text-xs text-[var(--text-secondary)]">
               {csvRows.length} rows · Yes: {counts.yes} · No: {counts.no} · Maybe: {counts.maybe} · Unknown: {counts.unknown}
+            </span>
+          )}
+          {fetchedAt && (
+            <span className="ml-auto text-[10px] text-[var(--text-muted)]">
+              Fetched {new Date(fetchedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+              {sheetUrl && (
+                <>
+                  {' · '}
+                  <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
+                    open sheet ↗
+                  </a>
+                </>
+              )}
             </span>
           )}
         </div>
@@ -728,9 +799,9 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
             {csvErrors.map((e, i) => (<li key={i}>{e}</li>))}
           </ul>
         )}
-        {!csvRows && csvErrors.length === 0 && (
+        {!csvRows && csvErrors.length === 0 && !fetching && (
           <p className="mt-2 text-xs text-[var(--text-muted)]">
-            Export the migrant-applications Google Sheet as CSV. Required columns: <code className="text-[var(--text-secondary)]">Governor ID</code> and <code className="text-[var(--text-secondary)]">Decision</code> (Yes/No/Maybe).
+            Auto-fetches the K23 migrant-applications sheet on load. Click Refresh after edits in the sheet, or upload a CSV manually if you need to override.
           </p>
         )}
       </section>
@@ -784,7 +855,7 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
                     <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtM(c.power)}</td>
                     <td className="px-3 py-2 text-[var(--text-secondary)]">{c.alliance || '—'}</td>
                     <td className="px-3 py-2">
-                      <DecisionBadge d={c.decision} />
+                      <DecisionBadge d={c.decision} raw={c.decisionRaw} />
                     </td>
                     <td className="px-3 py-2 font-mono text-xs text-[var(--text-secondary)]">{c.x != null && c.y != null ? `(${c.x}, ${c.y})` : '—'}</td>
                   </tr>
@@ -801,15 +872,21 @@ function MigrantsPanel({ scans, actorName }: { scans: Scan[]; actorName: string 
   );
 }
 
-function DecisionBadge({ d }: { d: 'yes' | 'no' | 'maybe' | 'unknown' }) {
+function DecisionBadge({ d, raw }: { d: 'yes' | 'no' | 'maybe' | 'unknown'; raw?: string }) {
   const styles: Record<typeof d, string> = {
     yes: 'bg-green-500/15 text-green-400 border-green-500/30',
     no: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
     maybe: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
     unknown: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
   };
-  const labels = { yes: 'Yes', no: 'No', maybe: 'Maybe', unknown: 'Not on sheet' };
-  return <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${styles[d]}`}>{labels[d]}</span>;
+  const fallback = { yes: 'Yes', no: 'No', maybe: 'Maybe', unknown: 'Not on sheet' };
+  const label = raw && raw.trim().length > 0 ? raw : fallback[d];
+  const title = d === 'no' && raw && /found/i.test(raw) ? 'Mapped to "No" because they should not be in K23' : raw && raw !== fallback[d] ? `Raw: ${raw}` : undefined;
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${styles[d]}`} title={title}>
+      {label}
+    </span>
+  );
 }
 
 // ─── Location upload: refresh coords on existing zero-list entries ───────────
