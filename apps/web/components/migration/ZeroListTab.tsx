@@ -242,7 +242,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       )}
       {isOfficer && !isAdmin && (
         <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-3 text-xs text-[var(--text-secondary)]">
-          You're signed in as <strong>Officer</strong> — view-only on the Zero List. Admins curate this list from the Scans tab.
+          You're signed in as <strong>Officer</strong> — you can mark people <em>Emigrated</em> if they leave, and put a row on <em>Delay</em> to give them a window before power members attack. Adding/removing entries and the other terminal-state actions are admin-only — admins curate this list from the Scans tab.
         </section>
       )}
 
@@ -453,7 +453,7 @@ function ZeroListRow({
               Confirm Zeroed
             </button>
           )}
-          {isAdmin && isActive && (
+          {isOfficer && isActive && (
             <button
               disabled={busy}
               onClick={() => wrap(() => confirmMigrated(c.id, actor))}
