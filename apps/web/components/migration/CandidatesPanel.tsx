@@ -65,6 +65,127 @@ function fmtDelta(n: number): string {
   return `${sign}${(n / 1_000_000).toFixed(2)}M`;
 }
 
+const DATE_PRESETS: { id: string; label: string; daysAgo: number }[] = [
+  { id: '1d', label: 'Yesterday', daysAgo: 1 },
+  { id: '3d', label: '3 days', daysAgo: 3 },
+  { id: '1w', label: '1 week', daysAgo: 7 },
+  { id: '2w', label: '2 weeks', daysAgo: 14 },
+  { id: '1m', label: '1 month', daysAgo: 30 },
+];
+
+/** Find the scan with the closest timestamp to (now - daysAgo days). */
+function findScanByDaysAgo(scans: ScanRef[], daysAgo: number): ScanRef | null {
+  if (scans.length === 0) return null;
+  const target = Date.now() - daysAgo * 86_400_000;
+  let best = scans[0];
+  let bestDiff = Math.abs(new Date(best.ts).getTime() - target);
+  for (const s of scans) {
+    const diff = Math.abs(new Date(s.ts).getTime() - target);
+    if (diff < bestDiff) {
+      best = s;
+      bestDiff = diff;
+    }
+  }
+  return best;
+}
+
+/** Best-effort match: which preset is closest to the chosen scan? */
+function presetForScan(scans: ScanRef[], scanKey: string): string {
+  const ref = scans.find((s) => `${s.kind}:${s.id}` === scanKey);
+  if (!ref) return 'custom';
+  const ageDays = (Date.now() - new Date(ref.ts).getTime()) / 86_400_000;
+  let closest = DATE_PRESETS[0];
+  let closestDiff = Math.abs(closest.daysAgo - ageDays);
+  for (const p of DATE_PRESETS) {
+    const d = Math.abs(p.daysAgo - ageDays);
+    if (d < closestDiff) {
+      closest = p;
+      closestDiff = d;
+    }
+  }
+  // Only snap to a preset if the chosen scan is within 1.5 days of it. Otherwise call it custom.
+  return closestDiff <= 1.5 ? closest.id : 'custom';
+}
+
+function DatePresetPicker({
+  scans,
+  scanKey,
+  onChange,
+  excludeKey,
+  label = 'vs:',
+}: {
+  scans: ScanRef[];
+  scanKey: string;
+  onChange: (scanKey: string) => void;
+  /** Don't allow selecting the same scan as the comparison target (i.e. the latest). */
+  excludeKey?: string;
+  label?: string;
+}) {
+  const usable = scans.filter((s) => `${s.kind}:${s.id}` !== excludeKey);
+  const activePreset = presetForScan(usable, scanKey);
+  const [showCustom, setShowCustom] = useState(activePreset === 'custom');
+
+  const pickPreset = (presetId: string) => {
+    if (presetId === 'custom') {
+      setShowCustom(true);
+      return;
+    }
+    setShowCustom(false);
+    const preset = DATE_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    const ref = findScanByDaysAgo(usable, preset.daysAgo);
+    if (ref) onChange(`${ref.kind}:${ref.id}`);
+  };
+
+  const activeRef = usable.find((s) => `${s.kind}:${s.id}` === scanKey);
+  const activeAgeDays = activeRef ? Math.round((Date.now() - new Date(activeRef.ts).getTime()) / 86_400_000) : null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider mr-1">{label}</span>
+      {DATE_PRESETS.map((p) => (
+        <button
+          key={p.id}
+          onClick={() => pickPreset(p.id)}
+          className={`px-2 py-1 text-[11px] rounded-md border transition-colors ${
+            activePreset === p.id && !showCustom
+              ? 'bg-[#4318ff] border-[#4318ff] text-white'
+              : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+          }`}
+        >
+          {p.label}
+        </button>
+      ))}
+      <button
+        onClick={() => pickPreset('custom')}
+        className={`px-2 py-1 text-[11px] rounded-md border transition-colors ${
+          activePreset === 'custom' || showCustom
+            ? 'bg-[#4318ff] border-[#4318ff] text-white'
+            : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+        }`}
+      >
+        Custom
+      </button>
+      {(showCustom || activePreset === 'custom') && (
+        <select
+          value={scanKey}
+          onChange={(e) => onChange(e.target.value)}
+          className="ml-1 px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-[11px] focus:outline-none max-w-[280px]"
+        >
+          {usable.map((s) => (
+            <option key={`${s.kind}:${s.id}`} value={`${s.kind}:${s.id}`}>{s.label}</option>
+          ))}
+        </select>
+      )}
+      {activeAgeDays !== null && (
+        <span className="text-[10px] text-[var(--text-muted)] ml-1">
+          ({activeAgeDays === 0 ? 'today' : activeAgeDays === 1 ? '1 day ago' : `${activeAgeDays} days ago`})
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function CandidatesPanel({ isAdmin, actorName }: Props) {
   const [data, setData] = useState<SharedData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -247,24 +368,27 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
         </>
       }
       controls={
-        <>
-          <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">vs:</label>
-          <select value={aKey} onChange={(e) => setAKey(e.target.value)} className="px-2 py-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs focus:outline-none">
-            {sameKindScans.slice(1).map((s) => (
-              <option key={`${s.kind}:${s.id}`} value={`${s.kind}:${s.id}`}>{s.label}</option>
-            ))}
-          </select>
-          <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider ml-2">Δ ≥</label>
-          <input
-            type="number"
-            min={0}
-            step={0.1}
-            value={thresholdM}
-            onChange={(e) => setThresholdM(Math.max(0, Number(e.target.value) || 0))}
-            className="w-16 px-2 py-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-mono focus:outline-none"
+        <div className="flex flex-wrap items-center gap-3">
+          <DatePresetPicker
+            scans={sameKindScans}
+            scanKey={aKey}
+            onChange={setAKey}
+            excludeKey={`${data.latest!.kind}:${data.latest!.id}`}
+            label="vs:"
           />
-          <span className="text-xs text-[var(--text-muted)]">M</span>
-        </>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Δ ≥</label>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={thresholdM}
+              onChange={(e) => setThresholdM(Math.max(0, Number(e.target.value) || 0))}
+              className="w-16 px-2 py-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs font-mono focus:outline-none"
+            />
+            <span className="text-xs text-[var(--text-muted)]">M</span>
+          </div>
+        </div>
       }
     >
       {loading ? (
@@ -334,14 +458,13 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
         </>
       }
       controls={
-        <>
-          <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">since:</label>
-          <select value={aKey} onChange={(e) => setAKey(e.target.value)} className="px-2 py-1 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs focus:outline-none">
-            {sameKindScans.slice(1).map((s) => (
-              <option key={`${s.kind}:${s.id}`} value={`${s.kind}:${s.id}`}>{s.label}</option>
-            ))}
-          </select>
-        </>
+        <DatePresetPicker
+          scans={sameKindScans}
+          scanKey={aKey}
+          onChange={setAKey}
+          excludeKey={`${data.latest!.kind}:${data.latest!.id}`}
+          label="since:"
+        />
       }
     >
       {loading ? (
