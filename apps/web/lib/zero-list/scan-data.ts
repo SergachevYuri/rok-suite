@@ -329,7 +329,7 @@ export async function listAllScans(): Promise<ScanRef[]> {
         out.push({
           kind: 'davide',
           id: String(s.id),
-          label: `${date} · Davide upload (${s.kingdom_count} players)${s.label ? ` · ${s.label}` : ''}`,
+          label: `${date} · Manual scan (${s.kingdom_count} players)${s.label ? ` · ${s.label}` : ''}`,
           ts: s.created_at as string,
           playerCount: (s.kingdom_count as number) ?? 0,
         });
