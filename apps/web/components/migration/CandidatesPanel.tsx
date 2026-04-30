@@ -669,7 +669,7 @@ function TopNCard({ data, isAdmin, actorName, onChange }: { data: SharedData; is
   return (
     <Card
       icon={<Trophy size={14} className="text-amber-400" />}
-      title="Top players to evaluate"
+      title="Suggested players to evaluate"
       subtitle="Top-N power players in K23 who haven't been dealt with yet. Already on the Zero List? Hidden. In an active cycle? Hidden. Approved on the migrant sheet (Yes)? Hidden. So what's left is your &quot;haven't decided&quot; bucket."
       count={candidates.length}
       explainer={
@@ -821,7 +821,7 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
     if (!confirm(`Add ${chosen.length} player${chosen.length === 1 ? '' : 's'} to the Zero List?`)) return;
     setBusy(true);
     try {
-      await bulkAddToZeroList(
+      const { added, skipped } = await bulkAddToZeroList(
         chosen.map((c) => ({
           characterId: c.governorId,
           username: c.name,
@@ -836,6 +836,9 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
       );
       setSelected(new Set());
       await onChange();
+      if (skipped > 0) {
+        alert(`Added ${added}. ${skipped} ${skipped === 1 ? 'was' : 'were'} already on the Zero List.`);
+      }
     } catch (e) {
       alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {

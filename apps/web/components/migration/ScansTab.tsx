@@ -275,9 +275,9 @@ function BrowsePanel({ scans, config, isAdmin, actorName }: { scans: ScanRef[]; 
       };
     });
     try {
-      await bulkAddToZeroList(entries);
+      const { added, skipped } = await bulkAddToZeroList(entries);
       setSelected(new Set());
-      alert(`Added ${entries.length} entries. Some may have been skipped (already on Zero List).`);
+      alert(`Added ${added}.${skipped > 0 ? ` ${skipped} ${skipped === 1 ? 'was' : 'were'} already on the Zero List.` : ''}`);
     } catch (e) {
       alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -492,7 +492,7 @@ function ComparePanel({ scans, isAdmin, actorName }: { scans: ScanRef[]; isAdmin
     if (!confirm(`Add ${chosen.length} player${chosen.length === 1 ? '' : 's'} to the Zero List?`)) return;
     const reasonByView = { growers: 'power growth', shrinkers: 'power drop (pre-zero?)', newPlayers: 'new arrival', departed: 'no longer in scan' }[view];
     try {
-      await bulkAddToZeroList(
+      const { added, skipped } = await bulkAddToZeroList(
         chosen.map((r) => ({
           characterId: r.governorId,
           username: r.name,
@@ -506,7 +506,7 @@ function ComparePanel({ scans, isAdmin, actorName }: { scans: ScanRef[]; isAdmin
         })),
       );
       setSelected(new Set());
-      alert(`Added ${chosen.length} entries. Duplicates were skipped.`);
+      alert(`Added ${added}.${skipped > 0 ? ` ${skipped} ${skipped === 1 ? 'was' : 'were'} already on the Zero List.` : ''}`);
     } catch (e) {
       alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -762,7 +762,7 @@ function MigrantsPanel({ scans, actorName }: { scans: ScanRef[]; actorName: stri
     const chosen = filtered.filter((c) => selected.has(c.governorId));
     if (!confirm(`Add ${chosen.length} player${chosen.length === 1 ? '' : 's'} to the Zero List?`)) return;
     try {
-      await bulkAddToZeroList(
+      const { added, skipped } = await bulkAddToZeroList(
         chosen.map((c) => ({
           characterId: c.governorId,
           username: c.name,
@@ -776,7 +776,7 @@ function MigrantsPanel({ scans, actorName }: { scans: ScanRef[]; actorName: stri
         })),
       );
       setSelected(new Set());
-      alert(`Added ${chosen.length} entries. Duplicates were skipped.`);
+      alert(`Added ${added}.${skipped > 0 ? ` ${skipped} ${skipped === 1 ? 'was' : 'were'} already on the Zero List.` : ''}`);
     } catch (e) {
       alert(`Add failed: ${e instanceof Error ? e.message : String(e)}`);
     }

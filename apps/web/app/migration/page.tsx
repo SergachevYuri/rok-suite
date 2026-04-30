@@ -529,7 +529,7 @@ function MigrationPageInner() {
                     <strong>Zero List</strong> — the kingdom-wide kill queue. Continuous (no deadline). Power members come here to see who to attack and grab coords. Admin manages.
                   </li>
                   <li>
-                    <strong>Scans</strong> — where you <em>find</em> people to put on the Zero List. The default sub-tab <em>Find Candidates</em> shows four cards (power growers, illegal arrivals, didn&apos;t emigrate, top players to evaluate). Click a card → check rows → add to Zero List.
+                    <strong>Scans</strong> — where you <em>find</em> people to put on the Zero List. The default sub-tab <em>Find Candidates</em> shows four cards (power growers, illegal arrivals, didn&apos;t emigrate, suggested players to evaluate). Click a card → check rows → add to Zero List.
                   </li>
                 </ul>
               </div>

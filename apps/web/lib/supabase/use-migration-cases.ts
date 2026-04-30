@@ -385,9 +385,25 @@ export function subscribeToZeroList(onChange: () => void): () => void {
  *  character_ids are silently ignored thanks to the unique partial index. */
 export async function bulkAddToZeroList(
   entries: { characterId: number; username: string; power: number; x?: number | null; y?: number | null; alliance?: string | null; lastSeenScanId?: number | null; addedBy?: string | null; reason?: string | null }[],
-): Promise<void> {
-  if (entries.length === 0) return;
-  const rows = entries.map((e) => ({
+): Promise<{ added: number; skipped: number }> {
+  if (entries.length === 0) return { added: 0, skipped: 0 };
+  const sb = createClient();
+  // Look up which character_ids already have a zero_list row, so we only insert
+  // genuine new entries. PostgREST upsert with our partial-unique index
+  // (UNIQUE (character_id) WHERE source_kind='zero_list') doesn't accept the
+  // index predicate as an onConflict target, which is why a plain upsert was
+  // failing with a generic Supabase error.
+  const ids = entries.map((e) => e.characterId);
+  const { data: existing, error: e1 } = await sb
+    .from('migration_cases')
+    .select('character_id')
+    .eq('source_kind', 'zero_list')
+    .in('character_id', ids);
+  if (e1) throw new Error(`Lookup failed: ${e1.message}`);
+  const existingIds = new Set((existing ?? []).map((r) => r.character_id as number));
+  const fresh = entries.filter((e) => !existingIds.has(e.characterId));
+  if (fresh.length === 0) return { added: 0, skipped: entries.length };
+  const rows = fresh.map((e) => ({
     cycle_id: null,
     source_kind: 'zero_list' as const,
     character_id: e.characterId,
@@ -401,10 +417,14 @@ export async function bulkAddToZeroList(
     added_by: e.addedBy ?? null,
     added_reason: e.reason ?? null,
   }));
-  const { error } = await createClient()
-    .from('migration_cases')
-    .upsert(rows, { onConflict: 'character_id', ignoreDuplicates: true });
-  if (error) throw error;
+  const { error: e2 } = await sb.from('migration_cases').insert(rows);
+  if (e2) {
+    // Surface the actual Postgres error message (was previously stringifying
+    // the whole object → "[object Object]" in the alert).
+    const detail = [e2.message, e2.details, e2.hint].filter(Boolean).join(' · ');
+    throw new Error(detail || 'unknown insert error');
+  }
+  return { added: fresh.length, skipped: entries.length - fresh.length };
 }
 
 export async function removeFromZeroList(id: string): Promise<void> {
