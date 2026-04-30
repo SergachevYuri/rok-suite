@@ -267,7 +267,8 @@ export function CandidatesPanel({ isAdmin, actorName }: Props) {
           .eq('cycle_id', cy.id)
           .in('state', ['pending', 'claimed', 'contacted', 'marked_to_zero']);
         for (const c of cases ?? []) {
-          if (zeroListIds.has(c.character_id as number)) continue; // already moved
+          // Keep them visible even if also on the Zero List — the row gets a
+          // badge so it's obvious without disappearing from this card.
           leftovers.push({
             characterId: c.character_id as number,
             username: c.username as string,
@@ -394,7 +395,7 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
         if (!a) return null;
         const delta = b.power - a.power;
         if (delta < threshold) return null;
-        if (data.zeroListIds.has(b.governorId)) return null;
+        // No longer filter out zero-list members — keep them visible with a flag.
         const decision = data.decisionsByGov.get(b.governorId);
         return { player: b, deltaPower: delta, powerA: a.power, decision };
       })
@@ -452,6 +453,7 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
             extra: { label: 'Δ Power', value: fmtDelta(c.deltaPower), tone: 'orange' as const },
             decision: c.decision,
             inCycle: data.cycleActiveIds.has(c.player.governorId),
+            onZeroList: data.zeroListIds.has(c.player.governorId),
           }))}
           isAdmin={isAdmin}
           actorName={actorName}
@@ -491,9 +493,7 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
     return data.latestPlayers
       // 1) Has never appeared in any K23 scan source older than the cutoff
       .filter((b) => !unionIds.has(b.governorId))
-      // 2) Not already on the Zero List
-      .filter((b) => !data.zeroListIds.has(b.governorId))
-      // 3) Not currently in a K23 alliance — players in any alliance were
+      // 2) Not currently in a K23 alliance — players in any alliance were
       //    accepted by alliance leadership, so they're not "illegal" even if
       //    our scan history is limited. Treats empty / noally as suspect.
       .filter((b) => {
@@ -573,6 +573,7 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
             extra: null,
             decision: c.decision,
             inCycle: data.cycleActiveIds.has(c.player.governorId),
+            onZeroList: data.zeroListIds.has(c.player.governorId),
           }))}
           isAdmin={isAdmin}
           actorName={actorName}
@@ -641,6 +642,7 @@ function CycleLeftoversCard({ data, isAdmin, actorName, onChange }: { data: Shar
           extra: { label: c.cycleName, value: c.state.replace(/_/g, ' '), tone: 'rose' as const },
           decision: c.decision,
           inCycle: true, // they ARE in a cycle by definition
+          onZeroList: data.zeroListIds.has(c.governorId),
         }))}
         isAdmin={isAdmin}
         actorName={actorName}
@@ -659,8 +661,7 @@ function TopNCard({ data, isAdmin, actorName, onChange }: { data: SharedData; is
   const candidates = useMemo(() => {
     const sorted = [...data.latestPlayers].sort((a, b) => b.power - a.power).slice(0, topN);
     return sorted
-      .filter((p) => !data.zeroListIds.has(p.governorId))
-      .filter((p) => !data.cycleActiveIds.has(p.governorId))
+      // Keep zero-list and active-cycle members visible — flagged via badges.
       .map((p) => ({ player: p, decision: data.decisionsByGov.get(p.governorId) }))
       // Filter out approved migrants — they're allowed
       .filter((c) => c.decision?.decision !== 'yes');
@@ -670,12 +671,13 @@ function TopNCard({ data, isAdmin, actorName, onChange }: { data: SharedData; is
     <Card
       icon={<Trophy size={14} className="text-amber-400" />}
       title="Suggested players to evaluate"
-      subtitle="Top-N power players in K23 who haven't been dealt with yet. Already on the Zero List? Hidden. In an active cycle? Hidden. Approved on the migrant sheet (Yes)? Hidden. So what's left is your &quot;haven't decided&quot; bucket."
+      subtitle="Top-N power players in K23 minus anyone Yes-approved on the migrant sheet. Players already on the Zero List or in an active cycle stay visible with a flag — so you can see the full picture."
       count={candidates.length}
       explainer={
         <>
           <p>Walk through this list and decide for each person: should they stay or should they go? If they should go, check the box and add to Zero List.</p>
           <p>Power members at the top are the ones you most need to be sure about — losing them is the biggest hit if it&apos;s the wrong call, but keeping them illegally is the biggest problem if they shouldn&apos;t be here.</p>
+          <p>People already on the Zero List or in an active cycle stay visible here with an <em>on zero list</em> or <em>in cycle</em> flag — so you can see the full ranking at once instead of having to cross-reference. Yes-approved migrants are the only ones filtered out.</p>
           <p>Default top-N is 400 (the K23 active-roster size). Bump it up if you also want to evaluate the long tail.</p>
         </>
       }
@@ -704,6 +706,7 @@ function TopNCard({ data, isAdmin, actorName, onChange }: { data: SharedData; is
           extra: null,
           decision: c.decision,
           inCycle: false,
+          onZeroList: data.zeroListIds.has(c.player.governorId),
         }))}
         isAdmin={isAdmin}
         actorName={actorName}
@@ -798,6 +801,7 @@ interface CandidateRow {
   extra: { label: string; value: string; tone: 'orange' | 'rose' | 'amber' | 'cyan' } | null;
   decision: MigrantDecision | undefined;
   inCycle: boolean;
+  onZeroList: boolean;
 }
 
 function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
@@ -907,8 +911,11 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
                 )}
                 <td className="px-3 py-2 text-[var(--text-secondary)]">{r.alliance || '—'}</td>
                 <td className="px-3 py-2">
-                  {r.decision ? <DecisionBadge d={r.decision.decision} raw={r.decision.decisionRaw} /> : <span className="text-[var(--text-muted)]">—</span>}
-                  {r.inCycle && <span className="ml-1 inline-block px-1.5 py-0.5 rounded text-[9px] bg-rose-500/15 text-rose-400 border border-rose-500/30">in cycle</span>}
+                  <div className="flex flex-wrap items-center gap-1">
+                    {r.decision ? <DecisionBadge d={r.decision.decision} raw={r.decision.decisionRaw} /> : <span className="text-[var(--text-muted)]">—</span>}
+                    {r.inCycle && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-rose-500/15 text-rose-400 border border-rose-500/30">in cycle</span>}
+                    {r.onZeroList && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-orange-500/15 text-orange-400 border border-orange-500/30" title="Already on the Zero List">on zero list</span>}
+                  </div>
                 </td>
                 <td className="px-3 py-2 font-mono text-[var(--text-secondary)]">{r.x != null && r.y != null ? `(${r.x}, ${r.y})` : '—'}</td>
               </tr>
