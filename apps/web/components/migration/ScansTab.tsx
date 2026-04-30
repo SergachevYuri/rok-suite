@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, Lock, RotateCcw, Search, Upload, UserPlus, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, Lock, RotateCcw, Search, Sparkles, Upload, UserPlus, Users } from 'lucide-react';
+import { CandidatesPanel } from '@/components/migration/CandidatesPanel';
 import {
   listAllScans,
   loadUnifiedScanPlayers,
@@ -24,7 +25,7 @@ interface Props {
   actorName: string | null;
 }
 
-type SubTab = 'browse' | 'compare' | 'migrants' | 'location';
+type SubTab = 'candidates' | 'browse' | 'compare' | 'migrants' | 'location';
 
 function fmtM(n: number | null | undefined): string {
   if (n == null || n === 0) return '—';
@@ -45,7 +46,7 @@ function findScanRef(scans: ScanRef[], key: string): ScanRef | undefined {
 }
 
 export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
-  const [subTab, setSubTab] = useState<SubTab>('browse');
+  const [subTab, setSubTab] = useState<SubTab>('candidates');
   const [scans, setScans] = useState<ScanRef[]>([]);
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
   const [loadingScans, setLoadingScans] = useState(true);
@@ -112,8 +113,17 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Sub-tabs</div>
               <ul className="text-xs space-y-2 list-disc pl-5">
                 <li>
-                  <strong>Browse Scan</strong> — pick a scan, see the top-N by power with live DKP scoring (band score, P/KP ratio).
-                  Officers can browse; admins can check rows and click <em>Add to Zero List</em>.
+                  <strong>Find Candidates</strong> (default) — four collapsible cards that surface the people you actually need to act on:
+                  <ul className="mt-1 space-y-0.5 list-circle pl-5">
+                    <li><strong>Power growers</strong> — Δ-power between two scans, cross-checked against the Zero List</li>
+                    <li><strong>Illegal arrivals</strong> — new since chosen baseline AND not approved on the migrant sheet</li>
+                    <li><strong>Didn&apos;t emigrate</strong> — past-deadline cycle leftovers who are still in the kingdom</li>
+                    <li><strong>Top players to evaluate</strong> — top-N by power, minus already-listed/approved/in-cycle</li>
+                  </ul>
+                  Each card has a count badge, a per-card config (date/threshold/N), and one-click multi-select-then-add.
+                </li>
+                <li>
+                  <strong>Browse Scan</strong> (advanced) — raw single-scan view with DKP scoring. Use when you want to manually scan the kingdom.
                 </li>
                 <li>
                   <strong>Compare</strong> — pick two scans (A → B), see four counts: power growers, power drops, new arrivals, departed.
@@ -154,10 +164,11 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
       {/* Sub-tabs */}
       <nav className="mb-4 flex gap-1 border-b border-[var(--border)]">
         {([
+          { id: 'candidates' as const, label: 'Find Candidates', icon: Sparkles, adminOnly: false },
+          { id: 'location' as const, label: 'Location Upload', icon: Upload, adminOnly: true },
           { id: 'browse' as const, label: 'Browse Scan', icon: Users, adminOnly: false },
           { id: 'compare' as const, label: 'Compare', icon: ArrowUp, adminOnly: false },
           { id: 'migrants' as const, label: 'Migrant CSV', icon: UserPlus, adminOnly: true },
-          { id: 'location' as const, label: 'Location Upload', icon: Upload, adminOnly: true },
         ]).map((t) => {
           if (t.adminOnly && !isAdmin) return null;
           const Icon = t.icon;
@@ -185,6 +196,7 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
         </div>
       ) : (
         <>
+          {subTab === 'candidates' && <CandidatesPanel isAdmin={isAdmin} actorName={actorName} />}
           {subTab === 'browse' && <BrowsePanel scans={scans} config={config} isAdmin={isAdmin} actorName={actorName} />}
           {subTab === 'compare' && <ComparePanel scans={scans} isAdmin={isAdmin} actorName={actorName} />}
           {subTab === 'migrants' && isAdmin && <MigrantsPanel scans={scans} actorName={actorName} />}
