@@ -4,8 +4,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { FileSpreadsheet, Loader2, ExternalLink, RefreshCw, Users, Swords, Crown, Target, AlertTriangle, Shield, ChevronDown, ChevronUp, Upload, ArrowRight } from 'lucide-react';
 import { fetchAooRegistrationSheet, parseAooRegistrationCSV } from '@/lib/aoo-strategy/parse';
+import { parseKingdomXLSX } from '@/lib/kingdom/parse';
 import type { AooRegistration } from '@/lib/aoo-strategy/types';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
+import { supabase } from '@/lib/supabase';
 
 const SHEET_URL_KEY = 'aoo-registration-sheet-url';
 const OFFICER_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17JLwfknLvybbxu2B-SjlLkL5RqBIkIZgF11tvUzFvjU/edit?gid=1559092066#gid=1559092066';
@@ -37,6 +39,19 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
   const [fetched, setFetched] = useState(false);
   const [showColumnHelp, setShowColumnHelp] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Inline kingdom-scan upload (in-game XLSX export). Parsed client-side and
+  // held in memory for this session. When signed in we also persist it to
+  // Supabase so the next session benefits too.
+  const scanInputRef = useRef<HTMLInputElement>(null);
+  const [inlineScan, setInlineScan] = useState<{
+    powerByGovId: Record<number, number>;
+    killsByGovId: Record<number, number>;
+    label: string;
+    playerCount: number;
+    persisted: boolean;
+  } | null>(null);
+  const [scanUploadStatus, setScanUploadStatus] = useState<'idle' | 'parsing' | 'saving' | 'error'>('idle');
+  const [scanUploadError, setScanUploadError] = useState<string | null>(null);
 
   // Restore last used URL
   useEffect(() => {
@@ -104,17 +119,106 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
     }
   };
 
+  // Parse the in-game XLSX export and use it to fill power/KP for the current
+  // session. If the user is signed in, also persist it as a kingdom_scans
+  // record so /roster/upload-style scan history stays consistent.
+  const handleScanUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScanUploadStatus('parsing');
+    setScanUploadError(null);
+    try {
+      const buffer = await file.arrayBuffer();
+      const rows = await parseKingdomXLSX(buffer);
+      if (rows.length === 0) throw new Error('No players found in XLSX');
+
+      const power: Record<number, number> = {};
+      const kills: Record<number, number> = {};
+      for (const r of rows) {
+        if (r.governorId) {
+          if (r.power) power[r.governorId] = r.power;
+          if (r.totalKillPoints) kills[r.governorId] = r.totalKillPoints;
+        }
+      }
+
+      const label = `AOO upload · ${file.name}`;
+      let persisted = false;
+
+      if (isSignedIn) {
+        setScanUploadStatus('saving');
+        try {
+          const { data: scan, error: scanErr } = await supabase
+            .from('kingdom_scans')
+            .insert({
+              label,
+              snapshot_count: 0,
+              kingdom_count: rows.length,
+              migrant_count: 0,
+              pre_migration_count: 0,
+            })
+            .select('id')
+            .single();
+
+          if (!scanErr && scan) {
+            const players = rows.map(r => ({
+              scan_id: scan.id,
+              governor_id: r.governorId,
+              name: r.name,
+              power: r.power,
+              highest_power: r.highestPower,
+              kill_points: r.totalKillPoints,
+              t4_kills: r.t4Kills,
+              t5_kills: r.t5Kills,
+              deaths: r.t1Deaths + r.t2Deaths + r.t3Deaths + r.t4Deaths + r.t5Deaths,
+              gathered: r.gathered,
+              alliance_helps: r.allianceHelps,
+              migration_status: 'ORIGINAL',
+              is_migrant: false,
+              migrant_accepted: false,
+              existed_pre_migration: false,
+            }));
+            for (let i = 0; i < players.length; i += 500) {
+              await supabase
+                .from('kingdom_scan_players')
+                .upsert(players.slice(i, i + 500), { onConflict: 'scan_id,governor_id' });
+            }
+            persisted = true;
+          }
+        } catch {
+          // Persist failed; in-memory merge still works for this session.
+        }
+      }
+
+      setInlineScan({ powerByGovId: power, killsByGovId: kills, label, playerCount: rows.length, persisted });
+      setScanUploadStatus('idle');
+    } catch (err) {
+      setScanUploadError(err instanceof Error ? err.message : 'Failed to parse XLSX');
+      setScanUploadStatus('error');
+    } finally {
+      if (scanInputRef.current) scanInputRef.current.value = '';
+    }
+  };
+
   // Merge in scan power/kills for any row whose Power column was blank, matched
-  // by Gov ID. This lets users skip the Power column on the sheet entirely as
-  // long as the latest kingdom scan covers their players. We also flag each
+  // by Gov ID. We layer two sources: the inline upload (freshest, takes
+  // priority) over the Supabase scan from useScanRoster. We also flag each
   // merged row so the UI can show "filled from scan" affordances.
+  const effectivePowerByGovId = useMemo(() => ({
+    ...(powerByGovId || {}),
+    ...(inlineScan?.powerByGovId || {}),
+  }), [powerByGovId, inlineScan]);
+  const effectiveKillsByGovId = useMemo(() => ({
+    ...(killsByGovId || {}),
+    ...(inlineScan?.killsByGovId || {}),
+  }), [killsByGovId, inlineScan]);
+
   const { registrations, filledFromScanCount, missingPowerCount } = useMemo(() => {
     let filled = 0;
     let missing = 0;
     const merged = rawRegistrations.map((r) => {
       const sheetPower = r.power || 0;
-      const scanPower = r.govId && powerByGovId ? powerByGovId[r.govId] : undefined;
-      const scanKills = r.govId && killsByGovId ? killsByGovId[r.govId] : undefined;
+      const scanPower = r.govId ? effectivePowerByGovId[r.govId] : undefined;
+      const scanKills = r.govId ? effectiveKillsByGovId[r.govId] : undefined;
       let power = sheetPower;
       let fromScan = false;
       if (sheetPower <= 0 && scanPower) {
@@ -126,7 +230,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
       return { ...r, power, kills: scanKills, fromScan } as AooRegistration & { fromScan?: boolean; kills?: number };
     });
     return { registrations: merged, filledFromScanCount: filled, missingPowerCount: missing };
-  }, [rawRegistrations, powerByGovId, killsByGovId]);
+  }, [rawRegistrations, effectivePowerByGovId, effectiveKillsByGovId]);
 
   // Derived stats
   const stats = useMemo(() => {
@@ -374,22 +478,54 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                   </span>
                 )}
 
-                {/* Upload CTA — link straight to the canonical scan uploader.
-                    Shown whenever there's missing power or no scan at all. */}
+                {/* Upload CTA — inline XLSX upload. Drops the in-game stats
+                    export, parses client-side, and merges power/KP for the
+                    current session. When signed in, also persists to
+                    kingdom_scans so future loads benefit too. */}
                 {(missingPowerCount > 0 || !scanLabel) && (
-                  <a
-                    href="/roster/upload"
-                    target="_blank"
-                    rel="noopener"
-                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 transition-colors"
-                    title={isSignedIn ? 'Open the kingdom-scan uploader' : 'Sign in first; then upload a scan'}
-                  >
-                    <Upload size={12} />
-                    Upload kingdom scan
-                    {!isSignedIn && <span className="text-[10px] opacity-70 ml-0.5">(sign in)</span>}
-                  </a>
+                  <div className="ml-auto flex flex-wrap items-center gap-2">
+                    <input
+                      ref={scanInputRef}
+                      type="file"
+                      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      onChange={handleScanUpload}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => scanInputRef.current?.click()}
+                      disabled={scanUploadStatus !== 'idle'}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 transition-colors disabled:opacity-50"
+                      title={isSignedIn ? 'Drop in your in-game XLSX export — power/KP fills in immediately and saves to the library' : 'Drop in your in-game XLSX export — fills power for this session only'}
+                    >
+                      {scanUploadStatus === 'parsing' ? <Loader2 size={12} className="animate-spin" /> : scanUploadStatus === 'saving' ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                      {scanUploadStatus === 'parsing' ? 'Parsing…'
+                        : scanUploadStatus === 'saving' ? 'Saving…'
+                        : 'Upload kingdom .xlsx'}
+                      {!isSignedIn && scanUploadStatus === 'idle' && <span className="text-[10px] opacity-70 ml-0.5">(session only)</span>}
+                    </button>
+                    <a
+                      href="/roster/upload"
+                      target="_blank"
+                      rel="noopener"
+                      className={`text-[10px] sm:text-xs ${theme.textMuted} hover:underline`}
+                      title="Open the full uploader (XLSX + CSV merge)"
+                    >
+                      full uploader →
+                    </a>
+                  </div>
                 )}
               </div>
+              {scanUploadError && (
+                <div className="mt-2 text-xs text-rose-400 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {scanUploadError}
+                </div>
+              )}
+              {inlineScan && (
+                <div className="mt-2 text-xs text-emerald-400">
+                  ✓ Loaded <strong>{inlineScan.playerCount}</strong> players from {inlineScan.label}
+                  {inlineScan.persisted ? ' · saved to library' : ' · session only'}
+                </div>
+              )}
             </section>
           )}
 
