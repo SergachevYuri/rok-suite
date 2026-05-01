@@ -1216,9 +1216,9 @@ function TeamBuilderTab({
     };
 
     return (
-        <div className="max-w-6xl mx-auto p-4 md:p-6">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
             {/* Alliance & Team Selection */}
-            <section className={`${theme.card} border rounded-xl mb-6 p-3 sm:p-5`}>
+            <section className={`${theme.card} border rounded-xl mb-4 sm:mb-6 p-3 sm:p-5`}>
                 <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-5">
                     <h2 className={`text-sm sm:text-base font-semibold uppercase tracking-wider ${theme.textMuted}`}>
                         {t('title')}
@@ -1292,13 +1292,13 @@ function TeamBuilderTab({
                                     onClick={() => toggleTeamLock(teamNum)}
                                     title={teamIsLocked ? `Unlock T${teamNum} — allow Distribute/edits` : `Lock T${teamNum} — freeze the lineup`}
                                     aria-label={teamIsLocked ? `Unlock team ${teamNum}` : `Lock team ${teamNum}`}
-                                    className={`px-2 flex items-center transition-colors border-l border-black/30 ${
+                                    className={`px-3 sm:px-2.5 flex items-center transition-colors border-l border-black/30 ${
                                         teamIsLocked
                                             ? 'bg-amber-500/30 text-amber-200 hover:bg-amber-500/50'
                                             : 'bg-white/5 text-white/60 hover:bg-white/15 hover:text-white'
                                     }`}
                                 >
-                                    {teamIsLocked ? <Lock size={12} /> : <Unlock size={12} />}
+                                    {teamIsLocked ? <Lock size={14} /> : <Unlock size={14} />}
                                 </button>
                             </div>
                         );
@@ -1309,7 +1309,7 @@ function TeamBuilderTab({
                 </div>
 
                 {/* Step indicator */}
-                <div className="flex items-center gap-1.5 sm:gap-3 mb-5 text-sm">
+                <div className="flex items-center gap-1 sm:gap-3 mb-5 text-sm flex-wrap">
                     <span className={`px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm ${builderStep === 'select' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
                         {t('step1')}
                     </span>
@@ -1700,7 +1700,7 @@ function TeamBuilderTab({
                                 <span className={`text-xs ${theme.textMuted}`}>+{subsCount} subs</span>
                                 {overMax && <span className="text-xs font-medium text-red-400">{t('max30')}</span>}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                 <label className="flex items-center gap-1.5 cursor-pointer">
                                     <input type="checkbox" checked={!useCustomSizes} onChange={(e) => setUseCustomSizes(!e.target.checked)} className="rounded" />
                                     <span className={`text-xs ${theme.textMuted}`}>{t('auto')}</span>
@@ -1708,7 +1708,7 @@ function TeamBuilderTab({
                                 {lastSnapshot && (
                                     <button
                                         onClick={undoLastChange}
-                                        className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                                        className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
                                         title={`Undo: ${lastSnapshot.label}`}
                                     >
                                         ↶ Undo
@@ -1718,7 +1718,7 @@ function TeamBuilderTab({
                                     onClick={() => handleDistribute()}
                                     disabled={isActiveLocked}
                                     title={isActiveLocked ? `Team ${activeTeam} is locked — unfreeze it to redistribute` : ''}
-                                    className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-white ${
+                                    className={`flex-1 sm:flex-none px-3 py-2 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium text-white ${
                                         isActiveLocked ? 'bg-[#4318ff]/40 cursor-not-allowed' : 'bg-[#4318ff] hover:bg-[#4318ff]/80'
                                     }`}
                                 >
@@ -2087,43 +2087,46 @@ function TeamBuilderTab({
                         })()}
                     </section>
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-                        <button
-                            onClick={handleReset}
-                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm ${theme.tag} hover:opacity-80`}
-                        >
-                            {t('back')}
-                        </button>
-                        <button
-                            onClick={copySummaryToClipboard}
-                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                                copiedSummary
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-[var(--background-secondary)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--background-hover)]'
-                            }`}
-                        >
-                            {copiedSummary ? t('copiedText') : `📋 ${t('copyText')}`}
-                        </button>
-                        {/* Mail copy buttons — one per team */}
-                        {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map(t => {
-                            const teamColors = { 1: 'text-blue-400 border-blue-500/30 hover:bg-blue-500/10', 2: 'text-orange-400 border-orange-500/30 hover:bg-orange-500/10', 3: 'text-purple-400 border-purple-500/30 hover:bg-purple-500/10' };
-                            return (
-                                <button
-                                    key={t}
-                                    onClick={() => copyMailToClipboard(t)}
-                                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
-                                        copiedMail ? 'bg-green-600 text-white border-green-600' : teamColors[t]
-                                    }`}
-                                >
-                                    {copiedMail ? '✓' : `✉ T${t}`}
-                                </button>
-                            );
-                        })}
-                        <CopyTeleportFirstButton
-                            names={[...(selectedTeleportFirstByTeam[activeTeam] || [])]}
-                            team={activeTeam}
-                        />
+                    {/* Action Buttons. Mobile: secondary actions wrap above, the
+                        primary "Confirm for everyone" stretches full-width below. */}
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-center gap-2 sm:gap-3">
+                        <div className="flex flex-wrap justify-center gap-1.5 sm:gap-3">
+                            <button
+                                onClick={handleReset}
+                                className={`px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm ${theme.tag} hover:opacity-80`}
+                            >
+                                {t('back')}
+                            </button>
+                            <button
+                                onClick={copySummaryToClipboard}
+                                className={`px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                                    copiedSummary
+                                        ? 'bg-green-600 text-white'
+                                        : 'bg-[var(--background-secondary)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--background-hover)]'
+                                }`}
+                            >
+                                {copiedSummary ? t('copiedText') : `📋 ${t('copyText')}`}
+                            </button>
+                            {/* Mail copy buttons — one per team */}
+                            {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map(t => {
+                                const teamColors = { 1: 'text-blue-400 border-blue-500/30 hover:bg-blue-500/10', 2: 'text-orange-400 border-orange-500/30 hover:bg-orange-500/10', 3: 'text-purple-400 border-purple-500/30 hover:bg-purple-500/10' };
+                                return (
+                                    <button
+                                        key={t}
+                                        onClick={() => copyMailToClipboard(t)}
+                                        className={`px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
+                                            copiedMail ? 'bg-green-600 text-white border-green-600' : teamColors[t]
+                                        }`}
+                                    >
+                                        {copiedMail ? '✓' : `✉ T${t}`}
+                                    </button>
+                                );
+                            })}
+                            <CopyTeleportFirstButton
+                                names={[...(selectedTeleportFirstByTeam[activeTeam] || [])]}
+                                team={activeTeam}
+                            />
+                        </div>
                         <ConfirmForEveryoneButton onConfirm={onConfirm} />
                     </div>
                 </>
@@ -2157,14 +2160,14 @@ function CopyTeleportFirstButton({
     return (
         <button
             onClick={handleCopy}
-            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+            className={`px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                 copied
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : 'bg-[var(--background-secondary,#1e1e2e)] border border-[var(--border,#333)] text-[var(--text-secondary,#aaa)] hover:text-[var(--foreground,#fff)]'
             }`}
             title="Copy teleport-first list for in-game chat"
         >
-            {copied ? '✓ Copied!' : `Copy Team ${team} TP First`}
+            {copied ? '✓ Copied!' : (<><span className="sm:hidden">TP T{team}</span><span className="hidden sm:inline">Copy Team {team} TP First</span></>)}
         </button>
     );
 }
@@ -2178,7 +2181,7 @@ function ConfirmForEveryoneButton({ onConfirm }: { onConfirm: () => void }) {
                 setConfirmed(true);
                 setTimeout(() => setConfirmed(false), 2500);
             }}
-            className={`px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+            className={`w-full sm:w-auto px-4 sm:px-6 py-3 sm:py-2 rounded-lg text-sm font-medium transition-colors ${
                 confirmed
                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                     : 'text-white bg-[#4318ff] hover:bg-[#4318ff]/80'
