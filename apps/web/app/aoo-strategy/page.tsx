@@ -163,6 +163,7 @@ interface TeamBuilderTabProps {
     zoneSizesByTeam: ZoneSizesByTeam;
     setZoneSizesByTeam: (z: ZoneSizesByTeam) => void;
     lockedLanesByTeam: LockedLanesByTeam;
+    setLockedLanesByTeam: (l: LockedLanesByTeam) => void;
     pendingAdditions: PendingMember[];
     setPendingAdditions: (p: PendingMember[]) => void;
     onApply: (allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; coordinators: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>) => void;
@@ -205,6 +206,7 @@ function TeamBuilderTab({
     zoneSizesByTeam,
     setZoneSizesByTeam,
     lockedLanesByTeam,
+    setLockedLanesByTeam,
     pendingAdditions,
     setPendingAdditions,
     onApply,
@@ -809,13 +811,18 @@ function TeamBuilderTab({
 
         // === Priority 1: spreadsheet lane locks ===
         // Pull players with a forced lane out of the auto-balance pool first.
+        // Lock value 0 means "explicit sub" — they go into zones[0] regardless
+        // of how many lane slots are open.
         const teamLocks = lockedLanesByTeam[team] || {};
         const lockedZones: Record<number, { name: string; power: number; kills: number }[]> = { 1: [], 2: [], 3: [] };
+        const lockedSubs: { name: string; power: number; kills: number }[] = [];
         const flexPool: { name: string; power: number; kills: number }[] = [];
         for (const p of allPlayers) {
             const lock = teamLocks[p.name];
             if (lock === 1 || lock === 2 || lock === 3) {
                 lockedZones[lock].push(p);
+            } else if (lock === 0) {
+                lockedSubs.push(p);
             } else {
                 flexPool.push(p);
             }
@@ -841,7 +848,7 @@ function TeamBuilderTab({
                     2: [...lockedZones[2], ...balancedFlex[2]],
                     3: [...lockedZones[3], ...balancedFlex[3]],
                 };
-                zones[0] = [];
+                zones[0] = [...lockedSubs];
                 zones[-1] = [];
             } else {
                 // Remaining slots after locks
@@ -860,8 +867,10 @@ function TeamBuilderTab({
                     2: [...lockedZones[2], ...filled[2]],
                     3: [...lockedZones[3], ...filled[3]],
                 };
-                zones[0] = remainder.slice(0, 10);   // Subs: up to 10, lowest power of the lane group
-                zones[-1] = remainder.slice(10);      // Bench: everyone beyond 40 (30 lanes + 10 subs)
+                // Locked subs always stay in zone 0; auto-overflow fills the rest up to 10
+                const subRoom = Math.max(0, 10 - lockedSubs.length);
+                zones[0] = [...lockedSubs, ...remainder.slice(0, subRoom)];
+                zones[-1] = remainder.slice(subRoom);
             }
         } else {
             // Auto-balance by power (equal distribution across 3 lanes, max 30 in lanes)
@@ -875,8 +884,9 @@ function TeamBuilderTab({
                 2: [...lockedZones[2], ...balancedFlex[2]],
                 3: [...lockedZones[3], ...balancedFlex[3]],
             };
-            zones[0] = remainder.slice(0, 10);
-            zones[-1] = remainder.slice(10);
+            const subRoom = Math.max(0, 10 - lockedSubs.length);
+            zones[0] = [...lockedSubs, ...remainder.slice(0, subRoom)];
+            zones[-1] = remainder.slice(subRoom);
         }
 
         // === Priority 2: respect existing UI-selected rally/garrison leads ===
@@ -992,6 +1002,19 @@ function TeamBuilderTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoDistributeToken, totalConfirmed]);
 
+    // Sync the spreadsheet lock map for a player after a manual move so that a
+    // subsequent Distribute call respects the user's manual choice. Bench (-1)
+    // means "off the team" → clear the lock entirely.
+    const setLockForPlayer = (name: string, zone: number) => {
+        const teamLocks = { ...(lockedLanesByTeam[activeTeam] || {}) };
+        if (zone === -1) {
+            delete teamLocks[name];
+        } else {
+            teamLocks[name] = zone;
+        }
+        setLockedLanesByTeam({ ...lockedLanesByTeam, [activeTeam]: teamLocks });
+    };
+
     // Move player between zones
     const movePlayerToZone = (playerName: string, fromZone: number, toZone: number) => {
         const newZones = { ...suggestedZones };
@@ -1000,6 +1023,7 @@ function TeamBuilderTab({
             newZones[fromZone] = newZones[fromZone].filter(p => p.name !== playerName);
             newZones[toZone] = [...newZones[toZone], player];
             setSuggestedZones(newZones);
+            setLockForPlayer(playerName, toZone);
         }
     };
 
@@ -1016,6 +1040,7 @@ function TeamBuilderTab({
         const teamConf = { ...confirmationsByTeam[activeTeam] };
         delete teamConf[playerName];
         setConfirmationsByTeam({ ...confirmationsByTeam, [activeTeam]: teamConf });
+        setLockForPlayer(playerName, -1);
     };
 
     // Add a player directly to a zone (distribute step)
@@ -1031,6 +1056,7 @@ function TeamBuilderTab({
         // Also add to confirmations
         const teamConf = { ...confirmationsByTeam[activeTeam], [name]: 'confirmed' as const };
         setConfirmationsByTeam({ ...confirmationsByTeam, [activeTeam]: teamConf });
+        setLockForPlayer(name, zone);
     };
 
     // Calculate zone power totals
@@ -3089,47 +3115,29 @@ export default function AooStrategyPage() {
                         const newRallyLeads: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newGarrisonLeads: GarrisonLeadsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newArkCarriers: ArkCarriersByTeam = { 1: '', 2: '', 3: '' };
+                        const newCoordinators: Record<TeamNumber, Set<string>> = { 1: new Set(), 2: new Set(), 3: new Set() };
                         const pendingToAdd: PendingMember[] = [];
                         const pendingNames = new Set<string>();
 
+                        // First pass: confirmations + collect pending additions.
+                        // Bucket registrations per-team so role assignments below can split
+                        // rally/garrison leaders across lanes 1 and 3 in sheet order.
+                        const teamRegs: Record<TeamNumber, typeof registrations> = { 1: [], 2: [], 3: [] };
                         for (const r of registrations) {
-                            // Use sheet name as-is — each row is a distinct registration
                             const name = r.name;
-
-                            // Look up roster data by gov ID (for power/kills only)
                             const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
 
                             if (r.team1) newConfirmations[1][name] = 'confirmed';
                             if (r.team2) newConfirmations[2][name] = 'confirmed';
                             if (!r.team1 && !r.team2) newConfirmations[1][name] = 'maybe';
 
-                            // === Spreadsheet locks: which team(s) does this player belong to? ===
                             const teamsForPlayer: TeamNumber[] = [];
                             if (r.team1) teamsForPlayer.push(1);
                             if (r.team2) teamsForPlayer.push(2);
-                            if (teamsForPlayer.length === 0) teamsForPlayer.push(1); // maybe defaults to team 1
-
+                            if (teamsForPlayer.length === 0) teamsForPlayer.push(1);
                             for (const teamNum of teamsForPlayer) {
-                                // Lock to a specific lane if Lane column is set
-                                if (r.lane === 1 || r.lane === 2 || r.lane === 3) {
-                                    newLockedLanes[teamNum][name] = r.lane;
-                                }
-                                // If marked as rally leader, infer their lane (top=1 or bottom=3) from
-                                // sheet lane if specified, else default to top so handleDistribute can place them.
-                                if (r.rallyLeader) {
-                                    const lane = r.lane === 1 || r.lane === 3 ? r.lane : 1;
-                                    newLockedLanes[teamNum][name] = lane;
-                                    newRallyLeads[teamNum][lane] = name;
-                                }
-                                if (r.garrisonLeader) {
-                                    const lane = r.lane === 1 || r.lane === 3 ? r.lane : 1;
-                                    newLockedLanes[teamNum][name] = lane;
-                                    newGarrisonLeads[teamNum][lane] = name;
-                                }
-                                if (r.mid) {
-                                    newLockedLanes[teamNum][name] = 2;
-                                    if (!newArkCarriers[teamNum]) newArkCarriers[teamNum] = name;
-                                }
+                                teamRegs[teamNum].push(r);
+                                if (r.coordinator) newCoordinators[teamNum].add(name);
                             }
 
                             // If this exact name isn't in the roster, add as pending
@@ -3145,11 +3153,67 @@ export default function AooStrategyPage() {
                             }
                         }
 
+                        // Second pass: per-team role lane assignment.
+                        // Priority within a row: Sub > Mid > Rally > Garrison.
+                        // Rally and Garrison leaders split across lanes 1 (top) and 3 (bottom)
+                        // in sheet order — first marked → top, second → bottom — unless the
+                        // row has an explicit Lane value, which always wins.
+                        for (const team of [1, 2, 3] as TeamNumber[]) {
+                            const regs = teamRegs[team];
+
+                            // Subs → lock to zone 0 (substitutes)
+                            for (const r of regs) {
+                                if (r.sub) newLockedLanes[team][r.name] = 0;
+                            }
+
+                            // Mid → lane 2; first by sheet order becomes ark carrier
+                            const midRegs = regs.filter(r => r.mid && !r.sub);
+                            for (const r of midRegs) {
+                                newLockedLanes[team][r.name] = 2;
+                            }
+                            if (midRegs.length > 0 && !newArkCarriers[team]) {
+                                newArkCarriers[team] = midRegs[0].name;
+                            }
+
+                            // Rally leaders → split across top/bottom in sheet order
+                            const rallyRegs = regs.filter(r => r.rallyLeader && !r.sub && !r.mid);
+                            const rallyLanes: number[] = [1, 3];
+                            let rallyIdx = 0;
+                            for (const r of rallyRegs) {
+                                const lane = r.lane === 1 || r.lane === 3
+                                    ? r.lane
+                                    : rallyLanes[rallyIdx++ % 2];
+                                newLockedLanes[team][r.name] = lane;
+                                if (!newRallyLeads[team][lane]) newRallyLeads[team][lane] = r.name;
+                            }
+
+                            // Garrison leaders → split across top/bottom in sheet order
+                            const garrisonRegs = regs.filter(r => r.garrisonLeader && !r.sub && !r.mid && !r.rallyLeader);
+                            const garrisonLanes: number[] = [1, 3];
+                            let garrisonIdx = 0;
+                            for (const r of garrisonRegs) {
+                                const lane = r.lane === 1 || r.lane === 3
+                                    ? r.lane
+                                    : garrisonLanes[garrisonIdx++ % 2];
+                                newLockedLanes[team][r.name] = lane;
+                                if (!newGarrisonLeads[team][lane]) newGarrisonLeads[team][lane] = r.name;
+                            }
+
+                            // Generic Lane column lock for anyone not already locked by a role
+                            for (const r of regs) {
+                                if (newLockedLanes[team][r.name] !== undefined) continue;
+                                if (r.lane === 1 || r.lane === 2 || r.lane === 3) {
+                                    newLockedLanes[team][r.name] = r.lane;
+                                }
+                            }
+                        }
+
                         setConfirmationsByTeam(newConfirmations);
                         setLockedLanesByTeam(newLockedLanes);
                         setSelectedRallyLeadsByTeam(newRallyLeads);
                         setSelectedGarrisonLeadsByTeam(newGarrisonLeads);
                         setSelectedArkCarriersByTeam(newArkCarriers);
+                        setCoordinatorsByTeam(newCoordinators);
 
                         // Auto-detect team count from registrations
                         const hasTeam2 = registrations.some(r => r.team2);
@@ -3219,6 +3283,7 @@ export default function AooStrategyPage() {
                     zoneSizesByTeam={zoneSizesByTeam}
                     setZoneSizesByTeam={setZoneSizesByTeam}
                     lockedLanesByTeam={lockedLanesByTeam}
+                    setLockedLanesByTeam={setLockedLanesByTeam}
                     pendingAdditions={pendingAdditions}
                     setPendingAdditions={setPendingAdditions}
                     onSavePendingAdditions={handleSavePendingAdditions}

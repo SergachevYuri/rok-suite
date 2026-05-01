@@ -63,6 +63,8 @@ export interface AooRegistration {
   rallyLeader: boolean;
   garrisonLeader: boolean;
   mid: boolean;
+  sub: boolean;
+  coordinator: boolean;
   // Lane lock: 1=Top, 2=Mid, 3=Bottom. null = not locked from sheet.
   lane: number | null;
 }

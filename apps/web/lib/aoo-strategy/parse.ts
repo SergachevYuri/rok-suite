@@ -70,6 +70,8 @@ export function parseAooRegistrationCSV(text: string): AooRegistration[] {
   const iRallyLeader = idx('rally leader', 'rally');
   const iGarrisonLeader = idx('garrison leader', 'garrison');
   const iMid = idx('mid', 'ark');
+  const iSub = idx('sub', 'substitute');
+  const iCoordinator = idx('coordinator', 'coord');
   const iLane = idx('lane', 'zone');
 
   if (iName === -1) throw new Error('Missing required "Name" column in CSV');
@@ -103,6 +105,8 @@ export function parseAooRegistrationCSV(text: string): AooRegistration[] {
         rallyLeader: isChecked(cols[iRallyLeader]) || laneCell.rally,
         garrisonLeader: isChecked(cols[iGarrisonLeader]) || laneCell.garrison,
         mid: isChecked(cols[iMid]) || laneCell.mid,
+        sub: isChecked(cols[iSub]),
+        coordinator: isChecked(cols[iCoordinator]),
         lane: laneCell.lane,
       };
     })
