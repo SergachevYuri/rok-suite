@@ -895,11 +895,14 @@ function TeamBuilderTab({
     //   2. Site-selected rally/garrison leads (already populated in state)
     //   3. Lane number suggestions (zoneSizesByTeam)
     //   4. Auto-balance the rest by power
-    const handleDistribute = (targetTeams?: TeamNumber[]) => {
-        // Skip locked teams. If the caller asked for the active team but it's
-        // locked, bail out instead of silently doing nothing weird.
+    const handleDistribute = (targetTeams?: TeamNumber[], bypassLocks = false) => {
+        // Skip locked teams unless bypassLocks is set. The bypass is used by the
+        // post-import auto-distribute path: a fresh sheet import is an explicit
+        // user action, so silently doing nothing because a previous user locked
+        // the team would just leave empty lanes (which has been the bug).
+        // Manual Re-balance keeps the lock check so it still prevents accidents.
         const requested = targetTeams ?? [activeTeam];
-        const teams = requested.filter(t => !isTeamLocked(t));
+        const teams = bypassLocks ? requested : requested.filter(t => !isTeamLocked(t));
         if (teams.length === 0) {
             if (requested.length === 1 && isTeamLocked(requested[0])) {
                 alert(`Team ${requested[0]} is locked. Click the lock icon to unfreeze it before redistributing.`);
@@ -1150,7 +1153,10 @@ function TeamBuilderTab({
                 return Object.values(conf).some(v => v === 'confirmed' || v === 'maybe');
             });
             if (teamsWithPlayers.length > 0) {
-                handleDistribute(teamsWithPlayers);
+                // Bypass locks here — importing a sheet is an explicit user
+                // action, and a stale lock from a previous session shouldn't
+                // silently swallow the new lineup.
+                handleDistribute(teamsWithPlayers, true);
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1787,6 +1793,37 @@ function TeamBuilderTab({
                         </div>
                     </section>
                         );
+                    })()}
+
+                    {/* Diagnostic: confirmations exist but the active team's lanes
+                        are empty. Most often this is because the team is locked or
+                        the previous distribute was blocked. Surface it loudly with
+                        a one-click bypass so users don't get stuck. */}
+                    {(() => {
+                        const activeConfTotal = confirmedPlayers.length + maybePlayers.length;
+                        const zonePlayerTotal = (suggestedZones[1]?.length || 0)
+                            + (suggestedZones[2]?.length || 0)
+                            + (suggestedZones[3]?.length || 0)
+                            + (suggestedZones[0]?.length || 0)
+                            + (suggestedZones[-1]?.length || 0);
+                        if (activeConfTotal > 0 && zonePlayerTotal === 0) {
+                            return (
+                                <section className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                    <span className="text-amber-400">
+                                        ⚠ T{activeTeam} has <strong>{activeConfTotal}</strong> confirmed players but no lanes were populated.
+                                        {isActiveLocked && <> The team is <strong>locked</strong>.</>}
+                                    </span>
+                                    <button
+                                        onClick={() => handleDistribute([activeTeam], true)}
+                                        className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 border border-amber-500/40"
+                                        title="Distribute T{activeTeam} ignoring the lock"
+                                    >
+                                        Force distribute T{activeTeam}
+                                    </button>
+                                </section>
+                            );
+                        }
+                        return null;
                     })()}
 
                     {/* Zone Distribution */}
