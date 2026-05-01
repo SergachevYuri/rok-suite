@@ -173,9 +173,37 @@ export function useScanRoster(): UseAllianceRosterReturn & { scanLabel: string |
 
       // Build unfiltered gov-id maps BEFORE the alliance filter so consumers
       // (e.g. AOO power lookup) can find players who'd be dropped from the
-      // alliance roster but still exist in the scan.
+      // alliance roster but still exist in the scan. We also fall back to
+      // alliance_roster — a player may exist there (current state, kept
+      // across uploads) but be missing from the latest scan record (e.g. they
+      // joined after the snapshot was uploaded).
       const rawPower: Record<number, number> = {};
       const rawKills: Record<number, number> = {};
+      // Pass 1: alliance_roster as a baseline (older but covers more players).
+      try {
+        let arFrom = 0;
+        while (true) {
+          const { data: arRows } = await supabase
+            .from('alliance_roster')
+            .select('governor_id, power, kills')
+            .not('governor_id', 'is', null)
+            .range(arFrom, arFrom + 999);
+          if (!arRows || arRows.length === 0) break;
+          for (const r of arRows) {
+            const gid = r.governor_id as number;
+            if (gid) {
+              if (r.power) rawPower[gid] = r.power as number;
+              if (r.kills) rawKills[gid] = r.kills as number;
+            }
+          }
+          if (arRows.length < 1000) break;
+          arFrom += 1000;
+        }
+      } catch {
+        // Roster fallback failed; not fatal — kingdom_scan_players still works.
+      }
+      // Pass 2: latest scan overrides alliance_roster where it has data, since
+      // it's the most recent snapshot.
       for (const p of allPlayers) {
         const gid = p.governor_id as number;
         if (gid) {
