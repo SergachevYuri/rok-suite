@@ -98,6 +98,8 @@ type GarrisonLeadsByTeam = Record<TeamNumber, Record<number, string>>;
 type ArkCarriersByTeam = Record<TeamNumber, string>; // One ark carrier per team (mid lane)
 type TeleportFirstByTeam = Record<TeamNumber, Set<string>>;
 type ZoneSizesByTeam = Record<TeamNumber, Record<number, string>>;
+// Spreadsheet lane locks: name -> forced zone (1|2|3). Survives Distribute.
+type LockedLanesByTeam = Record<TeamNumber, Record<string, number>>;
 
 // Power-balanced distribution algorithm (includes kills for tracking)
 function distributeByPowerWithKills(players: { name: string; power: number; kills: number }[]): Record<number, { name: string; power: number; kills: number }[]> {
@@ -160,6 +162,7 @@ interface TeamBuilderTabProps {
     setCoordinatorsByTeam: (c: Record<TeamNumber, Set<string>>) => void;
     zoneSizesByTeam: ZoneSizesByTeam;
     setZoneSizesByTeam: (z: ZoneSizesByTeam) => void;
+    lockedLanesByTeam: LockedLanesByTeam;
     pendingAdditions: PendingMember[];
     setPendingAdditions: (p: PendingMember[]) => void;
     onApply: (allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; coordinators: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>) => void;
@@ -201,6 +204,7 @@ function TeamBuilderTab({
     setCoordinatorsByTeam,
     zoneSizesByTeam,
     setZoneSizesByTeam,
+    lockedLanesByTeam,
     pendingAdditions,
     setPendingAdditions,
     onApply,
@@ -739,167 +743,228 @@ function TeamBuilderTab({
         return zones;
     };
 
-    // Handle distribute button - processes ALL teams at once
-    const handleDistribute = () => {
-        // Process each team from 1 to teamCount
-        const newZonesByTeam: ZonesByTeam = { 1: {}, 2: {}, 3: {} };
-        const newRallyLeadsByTeam: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
-        const newGarrisonLeadsByTeam: GarrisonLeadsByTeam = { 1: {}, 2: {}, 3: {} };
-        const newArkCarriersByTeam: ArkCarriersByTeam = { 1: '', 2: '', 3: '' };
-        const newTeleportFirstByTeam: TeleportFirstByTeam = { 1: new Set(), 2: new Set(), 3: new Set() };
+    // Handle distribute button — re-balances ONLY the listed teams (defaults to
+    // the active team) and preserves every other team's existing zones/leads.
+    // Priority order honored per team:
+    //   1. Spreadsheet locks (lockedLanesByTeam, rallyLeader/garrisonLeader from sheet)
+    //   2. Site-selected rally/garrison leads (already populated in state)
+    //   3. Lane number suggestions (zoneSizesByTeam)
+    //   4. Auto-balance the rest by power
+    const handleDistribute = (targetTeams?: TeamNumber[]) => {
+        const teams = targetTeams ?? [activeTeam];
 
-        let totalPlayers = 0;
+        // Per-team accumulators — committed in one batch at the end so distributing
+        // multiple teams in a single call doesn't suffer stale-state clobbering.
+        const zonesUpdates: Partial<Record<TeamNumber, Record<number, { name: string; power: number; kills: number }[]>>> = {};
+        const rallyUpdates: Partial<Record<TeamNumber, Record<number, string>>> = {};
+        const garrisonUpdates: Partial<Record<TeamNumber, Record<number, string>>> = {};
+        const arkUpdates: Partial<Record<TeamNumber, string>> = {};
+        const teleportUpdates: Partial<Record<TeamNumber, Set<string>>> = {};
+        const sizeUpdates: Partial<Record<TeamNumber, Record<number, string>>> = {};
 
-        for (const team of [1, 2, 3] as TeamNumber[]) {
-            if (team > teamCount) continue;
+        let processedAny = false;
 
-            const teamConf = confirmationsByTeam[team] || {};
-            const confirmedList = Object.entries(teamConf)
-                .filter(([, v]) => v === 'confirmed')
-                .map(([name]) => {
-                    const m = combinedByName.get(name);
-                    return { name, power: m?.power || 0, kills: m?.kills || killsByName[name] || 0 };
-                });
-            const maybeList = Object.entries(teamConf)
-                .filter(([, v]) => v === 'maybe')
-                .map(([name]) => {
-                    const m = combinedByName.get(name);
-                    return { name, power: m?.power || 0, kills: m?.kills || killsByName[name] || 0 };
-                });
+        for (const team of teams) {
 
-            totalPlayers += confirmedList.length + maybeList.length;
+        const teamConf = confirmationsByTeam[team] || {};
+        const confirmedList = Object.entries(teamConf)
+            .filter(([, v]) => v === 'confirmed')
+            .map(([name]) => {
+                const m = combinedByName.get(name);
+                return { name, power: m?.power || 0, kills: m?.kills || killsByName[name] || 0 };
+            });
+        const maybeList = Object.entries(teamConf)
+            .filter(([, v]) => v === 'maybe')
+            .map(([name]) => {
+                const m = combinedByName.get(name);
+                return { name, power: m?.power || 0, kills: m?.kills || killsByName[name] || 0 };
+            });
 
-            if (confirmedList.length + maybeList.length < 1) {
-                // No players for this team, skip
-                newZonesByTeam[team] = { [-1]: [], 0: [], 1: [], 2: [], 3: [] };
-                continue;
-            }
+        const totalPlayers = confirmedList.length + maybeList.length;
+        if (totalPlayers < 1) {
+            // Skip empty teams when batching; only error if the only requested team is empty.
+            continue;
+        }
+        processedAny = true;
 
-            let zones: Record<number, { name: string; power: number; kills: number }[]>;
-            let teamZoneSizes = zoneSizesByTeam[team] || { 0: '', 1: '', 2: '', 3: '' };
+        let teamZoneSizes = zoneSizesByTeam[team] || { 0: '', 1: '', 2: '', 3: '' };
 
-            // If zone sizes haven't been set yet, compute defaults inline
-            const parsedSizeTotal = (parseInt(teamZoneSizes[1]) || 0) + (parseInt(teamZoneSizes[2]) || 0) + (parseInt(teamZoneSizes[3]) || 0);
-            if (parsedSizeTotal === 0 && (confirmedList.length + maybeList.length) > 0) {
-                const count = confirmedList.length + maybeList.length;
-                const laneTotal = Math.min(count, 30);
-                const base = Math.floor(laneTotal / 3);
-                const rem = laneTotal % 3;
-                teamZoneSizes = {
-                    0: '',
-                    1: String(base + (rem >= 1 ? 1 : 0)),
-                    2: String(base + (rem >= 2 ? 1 : 0)),
-                    3: String(base),
-                };
-                // Persist so the UI shows correct values
-                setZoneSizesByTeam({ ...zoneSizesByTeam, [team]: teamZoneSizes });
-            }
-
-            {
-                // Combine all players, sorted by power descending
-                const allPlayers = [...confirmedList, ...maybeList].sort((a, b) => b.power - a.power);
-
-                if (useCustomSizes) {
-                    const sizes = {
-                        1: parseInt(teamZoneSizes[1]) || 0,
-                        2: parseInt(teamZoneSizes[2]) || 0,
-                        3: parseInt(teamZoneSizes[3]) || 0,
-                    };
-                    const laneSlots = sizes[1] + sizes[2] + sizes[3];
-
-                    if (laneSlots === 0) {
-                        // No sizes set — auto-balance all into 3 lanes
-                        zones = distributeByPowerWithKills(allPlayers);
-                        zones[0] = [];
-                    } else {
-                        // Fill lanes with top-power players, extras go to subs then bench
-                        const forLanes = allPlayers.slice(0, Math.min(allPlayers.length, laneSlots));
-                        const remainder = allPlayers.slice(Math.min(allPlayers.length, laneSlots));
-
-                        zones = distributeByZoneSizes(forLanes, sizes);
-                        zones[0] = remainder.slice(0, 10);   // Subs: up to 10, lowest power of the lane group
-                        zones[-1] = remainder.slice(10);      // Bench: everyone beyond 40 (30 lanes + 10 subs)
-                    }
-                } else {
-                    // Auto-balance by power (equal distribution across 3 lanes, max 30)
-                    const forLanes = allPlayers.slice(0, Math.min(allPlayers.length, 30));
-                    const remainder = allPlayers.slice(Math.min(allPlayers.length, 30));
-                    zones = distributeByPowerWithKills(forLanes);
-                    zones[0] = remainder.slice(0, 10);
-                    zones[-1] = remainder.slice(10);
-                }
-            }
-
-            newZonesByTeam[team] = zones;
-
-            // Pre-select best rally lead per zone (highest rally score)
-            // Zone 2 (Mid/Ark) doesn't need a rally lead — select ark carrier instead
-            const leads: Record<number, string> = {};
-            const garrisonLeads: Record<number, string> = {};
-            for (const [zone, players] of Object.entries(zones)) {
-                const zoneNum = parseInt(zone);
-                if (zoneNum > 0 && zoneNum !== 2 && players.length > 0) {
-                    // Top (1) and Bottom (3) lanes get rally + garrison leads
-                    const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
-                    leads[zoneNum] = sorted[0].name;
-                    // Garrison lead defaults to second-highest if available
-                    if (sorted.length > 1) {
-                        garrisonLeads[zoneNum] = sorted[1].name;
-                    }
-                }
-            }
-            newRallyLeadsByTeam[team] = leads;
-            newGarrisonLeadsByTeam[team] = garrisonLeads;
-
-            // Pre-select ark carrier for mid lane (zone 2) — highest rally score in that zone
-            const midPlayers = zones[2] || [];
-            if (midPlayers.length > 0) {
-                const sorted = [...midPlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
-                newArkCarriersByTeam[team] = sorted[0].name;
-            }
-
-            // Pre-select 8 teleport-first slots distributed evenly across lanes
-            // Priority: rally leads and garrison leads first, then by rally score
-            const teleport = new Set<string>();
-            const slotsPerLane: Record<number, number> = { 1: 3, 2: 2, 3: 3 };
-            for (const zoneNum of [1, 2, 3]) {
-                const lanePlayers = zones[zoneNum] || [];
-                if (lanePlayers.length === 0) continue;
-                const slots = slotsPerLane[zoneNum];
-                // Priority players: rally lead, garrison lead, ark carrier
-                const priority = new Set<string>();
-                if (leads[zoneNum]) priority.add(leads[zoneNum]);
-                if (garrisonLeads[zoneNum]) priority.add(garrisonLeads[zoneNum]);
-                if (zoneNum === 2 && newArkCarriersByTeam[team]) priority.add(newArkCarriersByTeam[team]);
-                // Add priority players first
-                for (const name of priority) {
-                    if (teleport.size < 8) teleport.add(name);
-                }
-                // Fill remaining lane slots by rally score
-                const sorted = [...lanePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
-                let added = [...priority].filter(n => sorted.some(p => p.name === n)).length;
-                for (const p of sorted) {
-                    if (added >= slots || teleport.size >= 8) break;
-                    if (!teleport.has(p.name)) {
-                        teleport.add(p.name);
-                        added++;
-                    }
-                }
-            }
-            newTeleportFirstByTeam[team] = teleport;
+        // If zone sizes haven't been set yet, compute defaults inline
+        const parsedSizeTotal = (parseInt(teamZoneSizes[1]) || 0) + (parseInt(teamZoneSizes[2]) || 0) + (parseInt(teamZoneSizes[3]) || 0);
+        if (parsedSizeTotal === 0) {
+            const laneTotal = Math.min(totalPlayers, 30);
+            const base = Math.floor(laneTotal / 3);
+            const rem = laneTotal % 3;
+            teamZoneSizes = {
+                0: '',
+                1: String(base + (rem >= 1 ? 1 : 0)),
+                2: String(base + (rem >= 2 ? 1 : 0)),
+                3: String(base),
+            };
+            sizeUpdates[team] = teamZoneSizes;
         }
 
-        if (totalPlayers < 1) {
+        // Combine all players, sorted by power descending
+        const allPlayers = [...confirmedList, ...maybeList].sort((a, b) => b.power - a.power);
+
+        // === Priority 1: spreadsheet lane locks ===
+        // Pull players with a forced lane out of the auto-balance pool first.
+        const teamLocks = lockedLanesByTeam[team] || {};
+        const lockedZones: Record<number, { name: string; power: number; kills: number }[]> = { 1: [], 2: [], 3: [] };
+        const flexPool: { name: string; power: number; kills: number }[] = [];
+        for (const p of allPlayers) {
+            const lock = teamLocks[p.name];
+            if (lock === 1 || lock === 2 || lock === 3) {
+                lockedZones[lock].push(p);
+            } else {
+                flexPool.push(p);
+            }
+        }
+
+        let zones: Record<number, { name: string; power: number; kills: number }[]>;
+
+        if (useCustomSizes) {
+            // === Priority 3: lane number suggestions ===
+            // Sizes set by the user. Fill remaining slots after locks.
+            const sizes = {
+                1: parseInt(teamZoneSizes[1]) || 0,
+                2: parseInt(teamZoneSizes[2]) || 0,
+                3: parseInt(teamZoneSizes[3]) || 0,
+            };
+            const laneSlots = sizes[1] + sizes[2] + sizes[3];
+
+            if (laneSlots === 0) {
+                // No sizes set — auto-balance everything (locks honored)
+                const balancedFlex = distributeByPowerWithKills(flexPool);
+                zones = {
+                    1: [...lockedZones[1], ...balancedFlex[1]],
+                    2: [...lockedZones[2], ...balancedFlex[2]],
+                    3: [...lockedZones[3], ...balancedFlex[3]],
+                };
+                zones[0] = [];
+                zones[-1] = [];
+            } else {
+                // Remaining slots after locks
+                const remainingSizes = {
+                    1: Math.max(0, sizes[1] - lockedZones[1].length),
+                    2: Math.max(0, sizes[2] - lockedZones[2].length),
+                    3: Math.max(0, sizes[3] - lockedZones[3].length),
+                };
+                const remainingSlots = remainingSizes[1] + remainingSizes[2] + remainingSizes[3];
+                const forLanes = flexPool.slice(0, remainingSlots);
+                const remainder = flexPool.slice(remainingSlots);
+
+                const filled = distributeByZoneSizes(forLanes, remainingSizes);
+                zones = {
+                    1: [...lockedZones[1], ...filled[1]],
+                    2: [...lockedZones[2], ...filled[2]],
+                    3: [...lockedZones[3], ...filled[3]],
+                };
+                zones[0] = remainder.slice(0, 10);   // Subs: up to 10, lowest power of the lane group
+                zones[-1] = remainder.slice(10);      // Bench: everyone beyond 40 (30 lanes + 10 subs)
+            }
+        } else {
+            // Auto-balance by power (equal distribution across 3 lanes, max 30 in lanes)
+            const lockedTotal = lockedZones[1].length + lockedZones[2].length + lockedZones[3].length;
+            const flexLaneSlots = Math.max(0, 30 - lockedTotal);
+            const forLanes = flexPool.slice(0, flexLaneSlots);
+            const remainder = flexPool.slice(flexLaneSlots);
+            const balancedFlex = distributeByPowerWithKills(forLanes);
+            zones = {
+                1: [...lockedZones[1], ...balancedFlex[1]],
+                2: [...lockedZones[2], ...balancedFlex[2]],
+                3: [...lockedZones[3], ...balancedFlex[3]],
+            };
+            zones[0] = remainder.slice(0, 10);
+            zones[-1] = remainder.slice(10);
+        }
+
+        // === Priority 2: respect existing UI-selected rally/garrison leads ===
+        // Start from existing selections; only fill empty slots automatically.
+        const existingRally = selectedRallyLeadsByTeam[team] || {};
+        const existingGarrison = selectedGarrisonLeadsByTeam[team] || {};
+        const existingArk = selectedArkCarriersByTeam[team] || '';
+
+        const leads: Record<number, string> = { ...existingRally };
+        const garrisonLeads: Record<number, string> = { ...existingGarrison };
+
+        for (const [zone, players] of Object.entries(zones)) {
+            const zoneNum = parseInt(zone);
+            if (zoneNum <= 0 || zoneNum === 2 || players.length === 0) continue;
+
+            const inZone = (name: string) => players.some(p => p.name === name);
+            // If existing rally/garrison lead isn't in this zone anymore, clear it for re-pick
+            if (leads[zoneNum] && !inZone(leads[zoneNum])) delete leads[zoneNum];
+            if (garrisonLeads[zoneNum] && !inZone(garrisonLeads[zoneNum])) delete garrisonLeads[zoneNum];
+
+            const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+            // Only auto-fill if no UI selection exists for this zone
+            if (!leads[zoneNum]) leads[zoneNum] = sorted[0].name;
+            if (!garrisonLeads[zoneNum]) {
+                const next = sorted.find(p => p.name !== leads[zoneNum]);
+                if (next) garrisonLeads[zoneNum] = next.name;
+            }
+        }
+
+        // Pre-select ark carrier for mid lane (zone 2) — keep existing if still in zone
+        let arkCarrier = existingArk;
+        const midPlayers = zones[2] || [];
+        if (arkCarrier && !midPlayers.some(p => p.name === arkCarrier)) arkCarrier = '';
+        if (!arkCarrier && midPlayers.length > 0) {
+            const sorted = [...midPlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+            arkCarrier = sorted[0].name;
+        }
+
+        // Pre-select 8 teleport-first slots distributed evenly across lanes
+        // Priority: rally leads and garrison leads first, then by rally score
+        const teleport = new Set<string>();
+        const slotsPerLane: Record<number, number> = { 1: 3, 2: 2, 3: 3 };
+        for (const zoneNum of [1, 2, 3]) {
+            const lanePlayers = zones[zoneNum] || [];
+            if (lanePlayers.length === 0) continue;
+            const slots = slotsPerLane[zoneNum];
+            const priority = new Set<string>();
+            if (leads[zoneNum]) priority.add(leads[zoneNum]);
+            if (garrisonLeads[zoneNum]) priority.add(garrisonLeads[zoneNum]);
+            if (zoneNum === 2 && arkCarrier) priority.add(arkCarrier);
+            for (const name of priority) {
+                if (teleport.size < 8) teleport.add(name);
+            }
+            const sorted = [...lanePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
+            let added = [...priority].filter(n => sorted.some(p => p.name === n)).length;
+            for (const p of sorted) {
+                if (added >= slots || teleport.size >= 8) break;
+                if (!teleport.has(p.name)) {
+                    teleport.add(p.name);
+                    added++;
+                }
+            }
+        }
+
+        // Stage updates for this team — the loop's batched commit below merges them
+        // with all other teams in one render, so multi-team calls don't stale-state clobber.
+        zonesUpdates[team] = zones;
+        rallyUpdates[team] = leads;
+        garrisonUpdates[team] = garrisonLeads;
+        arkUpdates[team] = arkCarrier;
+        teleportUpdates[team] = teleport;
+
+        } // end for team of teams
+
+        if (!processedAny) {
             alert(t('needPlayers'));
             return;
         }
 
-        // Update all teams at once
-        setSuggestedZonesByTeam(newZonesByTeam);
-        setSelectedRallyLeadsByTeam(newRallyLeadsByTeam);
-        setSelectedGarrisonLeadsByTeam(newGarrisonLeadsByTeam);
-        setSelectedArkCarriersByTeam(newArkCarriersByTeam);
-        setSelectedTeleportFirstByTeam(newTeleportFirstByTeam);
+        // Single batched commit — every team not in `teams` keeps its existing state.
+        if (Object.keys(sizeUpdates).length > 0) {
+            setZoneSizesByTeam({ ...zoneSizesByTeam, ...sizeUpdates });
+        }
+        setSuggestedZonesByTeam({ ...suggestedZonesByTeam, ...zonesUpdates });
+        setSelectedRallyLeadsByTeam({ ...selectedRallyLeadsByTeam, ...rallyUpdates });
+        setSelectedGarrisonLeadsByTeam({ ...selectedGarrisonLeadsByTeam, ...garrisonUpdates });
+        setSelectedArkCarriersByTeam({ ...selectedArkCarriersByTeam, ...arkUpdates });
+        setSelectedTeleportFirstByTeam({ ...selectedTeleportFirstByTeam, ...teleportUpdates });
 
         setBuilderStep('distribute');
     };
@@ -913,7 +978,16 @@ function TeamBuilderTab({
     useEffect(() => {
         if (autoDistributeToken && autoDistributeToken !== lastAutoDistributeRef.current && totalConfirmed > 0) {
             lastAutoDistributeRef.current = autoDistributeToken;
-            handleDistribute();
+            // After registration import, distribute every team that has confirmed/maybe
+            // players in one batched call (preserves the prior multi-team auto-distribute UX).
+            const teamsWithPlayers = ([1, 2, 3] as TeamNumber[]).filter(t => {
+                if (t > teamCount) return false;
+                const conf = confirmationsByTeam[t] || {};
+                return Object.values(conf).some(v => v === 'confirmed' || v === 'maybe');
+            });
+            if (teamsWithPlayers.length > 0) {
+                handleDistribute(teamsWithPlayers);
+            }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoDistributeToken, totalConfirmed]);
@@ -1397,7 +1471,7 @@ function TeamBuilderTab({
                     {confirmedPlayers.length + maybePlayers.length > 0 ? (
                         <div className="flex justify-center mb-6">
                             <button
-                                onClick={handleDistribute}
+                                onClick={() => handleDistribute()}
                                 className="w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-semibold text-white text-base sm:text-lg bg-[#4318ff] hover:bg-[#4318ff]/80"
                             >
                                 {t('distributeToLanes')}
@@ -1440,7 +1514,7 @@ function TeamBuilderTab({
                                     <input type="checkbox" checked={!useCustomSizes} onChange={(e) => setUseCustomSizes(!e.target.checked)} className="rounded" />
                                     <span className={`text-xs ${theme.textMuted}`}>{t('auto')}</span>
                                 </label>
-                                <button onClick={handleDistribute} className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80">
+                                <button onClick={() => handleDistribute()} className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80">
                                     {t('reBalance')}
                                 </button>
                             </div>
@@ -2010,6 +2084,9 @@ export default function AooStrategyPage() {
         2: { 0: '', 1: '', 2: '', 3: '' },
         3: { 0: '', 1: '', 2: '', 3: '' }
     });
+    // Spreadsheet lane locks per team: name -> forced lane (1|2|3).
+    // Populated from CSV "Lane" column on registration import; honored by handleDistribute.
+    const [lockedLanesByTeam, setLockedLanesByTeam] = useState<LockedLanesByTeam>({ 1: {}, 2: {}, 3: {} });
 
     // Save pending additions to Supabase for admin approval
     const handleSavePendingAdditions = async (additions: PendingMember[]) => {
@@ -2158,7 +2235,20 @@ export default function AooStrategyPage() {
                         3: new Set(strategyData.coordinatorsByTeam[3] || []),
                     });
                 }
+                if (strategyData?.lockedLanesByTeam) {
+                    setLockedLanesByTeam(strategyData.lockedLanesByTeam as LockedLanesByTeam);
+                }
                 setActiveTab('builder');
+                // Land shared-link viewers on the committed lane assignments view
+                // whenever the plan has any distributed zones — they shouldn't have
+                // to click through 'select'/'distribute' to see what was committed.
+                const zonesByTeam = strategyData?.suggestedZonesByTeam as ZonesByTeam | undefined;
+                const hasDistributed = !!zonesByTeam && [1, 2, 3].some(team => {
+                    const z = zonesByTeam[team as TeamNumber];
+                    if (!z) return false;
+                    return ((z[1]?.length || 0) + (z[2]?.length || 0) + (z[3]?.length || 0)) > 0;
+                });
+                if (hasDistributed) setBuilderStep('done');
             } else {
                 // Plan not found
                 console.log('Plan not found:', planShareId);
@@ -2206,6 +2296,7 @@ export default function AooStrategyPage() {
                 2: Array.from(coordinatorsByTeam[2] || []),
                 3: Array.from(coordinatorsByTeam[3] || []),
             },
+            lockedLanesByTeam: updatedData.lockedLanesByTeam ?? lockedLanesByTeam,
         };
 
         try {
@@ -2237,7 +2328,7 @@ export default function AooStrategyPage() {
         }
         saveData({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam]);
+    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, lockedLanesByTeam]);
 
     const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isEditor) return;
@@ -2994,6 +3085,10 @@ export default function AooStrategyPage() {
                         }
 
                         const newConfirmations: ConfirmationsByTeam = { 1: {}, 2: {}, 3: {} };
+                        const newLockedLanes: LockedLanesByTeam = { 1: {}, 2: {}, 3: {} };
+                        const newRallyLeads: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
+                        const newGarrisonLeads: GarrisonLeadsByTeam = { 1: {}, 2: {}, 3: {} };
+                        const newArkCarriers: ArkCarriersByTeam = { 1: '', 2: '', 3: '' };
                         const pendingToAdd: PendingMember[] = [];
                         const pendingNames = new Set<string>();
 
@@ -3007,6 +3102,35 @@ export default function AooStrategyPage() {
                             if (r.team1) newConfirmations[1][name] = 'confirmed';
                             if (r.team2) newConfirmations[2][name] = 'confirmed';
                             if (!r.team1 && !r.team2) newConfirmations[1][name] = 'maybe';
+
+                            // === Spreadsheet locks: which team(s) does this player belong to? ===
+                            const teamsForPlayer: TeamNumber[] = [];
+                            if (r.team1) teamsForPlayer.push(1);
+                            if (r.team2) teamsForPlayer.push(2);
+                            if (teamsForPlayer.length === 0) teamsForPlayer.push(1); // maybe defaults to team 1
+
+                            for (const teamNum of teamsForPlayer) {
+                                // Lock to a specific lane if Lane column is set
+                                if (r.lane === 1 || r.lane === 2 || r.lane === 3) {
+                                    newLockedLanes[teamNum][name] = r.lane;
+                                }
+                                // If marked as rally leader, infer their lane (top=1 or bottom=3) from
+                                // sheet lane if specified, else default to top so handleDistribute can place them.
+                                if (r.rallyLeader) {
+                                    const lane = r.lane === 1 || r.lane === 3 ? r.lane : 1;
+                                    newLockedLanes[teamNum][name] = lane;
+                                    newRallyLeads[teamNum][lane] = name;
+                                }
+                                if (r.garrisonLeader) {
+                                    const lane = r.lane === 1 || r.lane === 3 ? r.lane : 1;
+                                    newLockedLanes[teamNum][name] = lane;
+                                    newGarrisonLeads[teamNum][lane] = name;
+                                }
+                                if (r.mid) {
+                                    newLockedLanes[teamNum][name] = 2;
+                                    if (!newArkCarriers[teamNum]) newArkCarriers[teamNum] = name;
+                                }
+                            }
 
                             // If this exact name isn't in the roster, add as pending
                             if (!rosterNameSet.has(name) && !pendingNames.has(name)) {
@@ -3022,6 +3146,10 @@ export default function AooStrategyPage() {
                         }
 
                         setConfirmationsByTeam(newConfirmations);
+                        setLockedLanesByTeam(newLockedLanes);
+                        setSelectedRallyLeadsByTeam(newRallyLeads);
+                        setSelectedGarrisonLeadsByTeam(newGarrisonLeads);
+                        setSelectedArkCarriersByTeam(newArkCarriers);
 
                         // Auto-detect team count from registrations
                         const hasTeam2 = registrations.some(r => r.team2);
@@ -3090,6 +3218,7 @@ export default function AooStrategyPage() {
                     setCoordinatorsByTeam={setCoordinatorsByTeam}
                     zoneSizesByTeam={zoneSizesByTeam}
                     setZoneSizesByTeam={setZoneSizesByTeam}
+                    lockedLanesByTeam={lockedLanesByTeam}
                     pendingAdditions={pendingAdditions}
                     setPendingAdditions={setPendingAdditions}
                     onSavePendingAdditions={handleSavePendingAdditions}

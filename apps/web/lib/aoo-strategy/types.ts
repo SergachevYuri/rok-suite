@@ -50,6 +50,8 @@ export interface StrategyData {
   selectedTeleportFirstByTeam?: Record<number, string[]>; // Sets serialized as arrays
   coordinatorsByTeam?: Record<number, string[]>; // Sets serialized as arrays
   zoneSizesByTeam?: Record<number, Record<number, string>>;
+  // Per-team lane locks from spreadsheet: name -> 1|2|3 forces that player into that lane
+  lockedLanesByTeam?: Record<number, Record<string, number>>;
 }
 
 export interface AooRegistration {
@@ -61,4 +63,6 @@ export interface AooRegistration {
   rallyLeader: boolean;
   garrisonLeader: boolean;
   mid: boolean;
+  // Lane lock: 1=Top, 2=Mid, 3=Bottom. null = not locked from sheet.
+  lane: number | null;
 }
