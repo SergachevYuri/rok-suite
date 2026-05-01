@@ -146,8 +146,8 @@ interface TeamBuilderTabProps {
     // Per-team state
     confirmationsByTeam: ConfirmationsByTeam;
     setConfirmationsByTeam: (c: ConfirmationsByTeam) => void;
-    builderStep: 'select' | 'distribute' | 'leads' | 'done';
-    setBuilderStep: (s: 'select' | 'distribute' | 'leads' | 'done') => void;
+    builderStep: 'select' | 'distribute';
+    setBuilderStep: (s: 'select' | 'distribute') => void;
     suggestedZonesByTeam: ZonesByTeam;
     setSuggestedZonesByTeam: (z: ZonesByTeam) => void;
     selectedRallyLeadsByTeam: RallyLeadsByTeam;
@@ -1161,10 +1161,6 @@ function TeamBuilderTab({
                     <span className={`px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm ${builderStep === 'distribute' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
                         {t('step2')}
                     </span>
-                    <span className={`text-base sm:text-lg ${theme.textMuted}`}>→</span>
-                    <span className={`px-2.5 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm ${builderStep === 'done' ? 'bg-[#4318ff] text-white' : theme.tag}`}>
-                        {t('step3')}
-                    </span>
                 </div>
 
                 {/* Contextual hint — one line per step */}
@@ -2077,7 +2073,7 @@ export default function AooStrategyPage() {
     const [builderAlliance, setBuilderAlliance] = useState<string>('ANG');
     const [teamCount, setTeamCount] = useState<TeamNumber>(1); // Number of AoO teams to organize
     const [activeTeam, setActiveTeam] = useState<TeamNumber>(1); // Which team is being edited/distributed
-    const [builderStep, setBuilderStep] = useState<'select' | 'distribute' | 'leads' | 'done'>('select');
+    const [builderStep, setBuilderStep] = useState<'select' | 'distribute'>('select');
     const [pendingAdditions, setPendingAdditions] = useState<PendingMember[]>([]);
     const [autoDistributeToken, setAutoDistributeToken] = useState(0);
 
@@ -2224,7 +2220,13 @@ export default function AooStrategyPage() {
                 // Restore Team Builder state
                 if (strategyData?.builderAlliance) setBuilderAlliance(strategyData.builderAlliance);
                 if (strategyData?.teamCount) setTeamCount(strategyData.teamCount as TeamNumber);
-                if (strategyData?.builderStep) setBuilderStep(strategyData.builderStep);
+                if (strategyData?.builderStep) {
+                    // Legacy plans saved 'leads' or 'done' — both are gone now.
+                    // Map them onto 'distribute' so viewers see the lane assignments
+                    // instead of a blank page.
+                    const step = strategyData.builderStep;
+                    setBuilderStep(step === 'select' ? 'select' : 'distribute');
+                }
                 if (strategyData?.confirmationsByTeam) setConfirmationsByTeam(strategyData.confirmationsByTeam as ConfirmationsByTeam);
                 if (strategyData?.suggestedZonesByTeam) setSuggestedZonesByTeam(strategyData.suggestedZonesByTeam as ZonesByTeam);
                 if (strategyData?.selectedRallyLeadsByTeam) setSelectedRallyLeadsByTeam(strategyData.selectedRallyLeadsByTeam as RallyLeadsByTeam);
@@ -2259,7 +2261,7 @@ export default function AooStrategyPage() {
                     if (!z) return false;
                     return ((z[1]?.length || 0) + (z[2]?.length || 0) + (z[3]?.length || 0)) > 0;
                 });
-                if (hasDistributed) setBuilderStep('done');
+                if (hasDistributed) setBuilderStep('distribute');
             } else {
                 // Plan not found
                 console.log('Plan not found:', planShareId);
