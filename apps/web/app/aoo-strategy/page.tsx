@@ -786,25 +786,28 @@ function TeamBuilderTab({
         return { confirmed, maybe, total: confirmed + maybe };
     };
 
-    // Auto-calculate zone sizes when player count changes (for current team)
+    // Auto-calculate zone sizes ONLY when the active team has no sizes set yet.
+    // Once the user has entered any value (or a saved plan loads with values),
+    // never overwrite them — that's what was wiping 10/10/9 → 10/10/10 on refresh.
     useEffect(() => {
         const totalPlayers = confirmedPlayers.length + maybePlayers.length;
         if (totalPlayers === 0) return;
 
-        // Default: 10 per lane for 30-player teams, adjust for smaller groups
-        const laneTotal = Math.min(totalPlayers, 30); // max 30 in lanes (game limit)
+        // Skip if the user (or a saved plan) has already populated lane sizes.
+        const existingTotal = (parseInt(zoneSizes[1]) || 0) + (parseInt(zoneSizes[2]) || 0) + (parseInt(zoneSizes[3]) || 0);
+        if (existingTotal > 0) return;
+
+        // Default: split evenly across 3 lanes, capped at 30 (game limit).
+        const laneTotal = Math.min(totalPlayers, 30);
         const basePerZone = Math.floor(laneTotal / 3);
         const remainder = laneTotal % 3;
 
-        const newSizes = {
-            0: zoneSizes[0] || '0', // Subs auto-calculated, but keep manual override
+        setZoneSizes({
+            0: zoneSizes[0] || '0',
             1: String(basePerZone + (remainder >= 1 ? 1 : 0)),
             2: String(basePerZone + (remainder >= 2 ? 1 : 0)),
             3: String(basePerZone),
-        };
-
-        setZoneSizes(newSizes);
-    // Only recalculate when player counts change, not when zoneSizes changes
+        });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [confirmedPlayers.length, maybePlayers.length, activeTeam]);
 
@@ -1832,10 +1835,20 @@ function TeamBuilderTab({
                                         </div>
                                     </div>
 
-                                    {/* Player List */}
+                                    {/* Player List. Name gets first claim on row width;
+                                        power is shown as a small pill below the name so
+                                        long names don't get truncated to "B...". KP is
+                                        on the row's title attr (hover) plus visible in
+                                        the rally/garrison/ark dropdown options above. */}
                                     <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                                        {zonePlayers.map((player) => (
-                                            <div key={player.name} className="grid grid-cols-[20px_1fr_auto_auto] sm:grid-cols-[20px_1fr_auto_auto_auto_auto] gap-x-1.5 sm:gap-x-2 items-center px-1.5 sm:px-2 py-1.5 rounded bg-[var(--background-secondary)]">
+                                        {zonePlayers.map((player) => {
+                                            const kp = player.kills || killsByName[player.name] || 0;
+                                            return (
+                                            <div
+                                                key={player.name}
+                                                className="flex items-center gap-1.5 px-2 py-1.5 rounded bg-[var(--background-secondary)]"
+                                                title={`Power: ${formatPower(player.power)} · KP: ${formatPower(kp)}`}
+                                            >
                                                 {/* Teleport First (max 8 per team) */}
                                                 <button
                                                     onClick={() => {
@@ -1847,7 +1860,7 @@ function TeamBuilderTab({
                                                         }
                                                         setSelectedTeleportFirst(newSet);
                                                     }}
-                                                    className={`w-5 h-5 rounded flex items-center justify-center text-xs ${
+                                                    className={`flex-shrink-0 w-5 h-5 rounded flex items-center justify-center text-xs ${
                                                         selectedTeleportFirst.has(player.name) ? 'bg-[#4318ff] text-white'
                                                         : selectedTeleportFirst.size >= 8 ? 'bg-white/5 cursor-not-allowed'
                                                         : 'bg-white/20'
@@ -1857,28 +1870,25 @@ function TeamBuilderTab({
                                                 >
                                                     {selectedTeleportFirst.has(player.name) ? '⚡' : ''}
                                                 </button>
-                                                {/* Name */}
-                                                <button onClick={() => openPlayer(player.name)} title="View player details" className={`text-sm text-left truncate hover:underline cursor-pointer hover:text-[#4318ff] ${
-                                                    selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400'
-                                                    : selectedGarrisonLeads[zone] === player.name ? 'font-bold text-cyan-400'
-                                                    : (isMidLane && selectedArkCarrier === player.name) ? 'font-bold text-orange-400'
-                                                    : theme.text
-                                                }`}>
-                                                    {player.name}
-                                                    {selectedRallyLeads[zone] === player.name && ' ⭐'}
-                                                    {selectedGarrisonLeads[zone] === player.name && ' 🛡️'}
-                                                    {isMidLane && selectedArkCarrier === player.name && ' 📦'}
-                                                </button>
-                                                {/* Power */}
-                                                <span className={`text-xs tabular-nums text-right ${theme.textMuted}`} title="Power">
-                                                    {formatPower(player.power)}
-                                                </span>
-                                                {/* KP — hidden on mobile */}
-                                                <span className="hidden sm:inline text-xs tabular-nums text-right text-blue-400" title="Kill Points">
-                                                    {t('kp')}: {formatPower(player.kills || killsByName[player.name] || 0)}
-                                                </span>
+                                                {/* Name + power. Name gets flex-1 so it can use all remaining width. */}
+                                                <div className="flex-1 min-w-0">
+                                                    <button onClick={() => openPlayer(player.name)} title="View player details" className={`block w-full text-sm text-left truncate hover:underline cursor-pointer hover:text-[#4318ff] ${
+                                                        selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400'
+                                                        : selectedGarrisonLeads[zone] === player.name ? 'font-bold text-cyan-400'
+                                                        : (isMidLane && selectedArkCarrier === player.name) ? 'font-bold text-orange-400'
+                                                        : theme.text
+                                                    }`}>
+                                                        {player.name}
+                                                        {selectedRallyLeads[zone] === player.name && ' ⭐'}
+                                                        {selectedGarrisonLeads[zone] === player.name && ' 🛡️'}
+                                                        {isMidLane && selectedArkCarrier === player.name && ' 📦'}
+                                                    </button>
+                                                    <span className={`text-[11px] tabular-nums ${theme.textMuted}`}>
+                                                        {formatPower(player.power)}
+                                                    </span>
+                                                </div>
                                                 {/* Move zone + Remove */}
-                                                <div className="flex items-center gap-1">
+                                                <div className="flex items-center gap-1 flex-shrink-0">
                                                     <select
                                                         value={zone}
                                                         onChange={(e) => movePlayerToZone(player.name, zone, parseInt(e.target.value))}
@@ -1898,7 +1908,8 @@ function TeamBuilderTab({
                                                     >✕</button>
                                                 </div>
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </section>
                             );
