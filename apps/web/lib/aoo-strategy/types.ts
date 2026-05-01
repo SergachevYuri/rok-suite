@@ -52,6 +52,9 @@ export interface StrategyData {
   zoneSizesByTeam?: Record<number, Record<number, string>>;
   // Per-team lane locks from spreadsheet: name -> 1|2|3 forces that player into that lane
   lockedLanesByTeam?: Record<number, Record<string, number>>;
+  // Teams whose lineups are frozen — Distribute and per-player mutations are blocked
+  // until the user explicitly unlocks. Persisted as an array of team numbers.
+  lockedTeams?: number[];
 }
 
 export interface AooRegistration {

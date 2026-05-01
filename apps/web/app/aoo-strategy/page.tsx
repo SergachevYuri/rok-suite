@@ -164,6 +164,8 @@ interface TeamBuilderTabProps {
     setZoneSizesByTeam: (z: ZoneSizesByTeam) => void;
     lockedLanesByTeam: LockedLanesByTeam;
     setLockedLanesByTeam: (l: LockedLanesByTeam) => void;
+    lockedTeams: Set<TeamNumber>;
+    setLockedTeams: (s: Set<TeamNumber>) => void;
     pendingAdditions: PendingMember[];
     setPendingAdditions: (p: PendingMember[]) => void;
     onSavePendingAdditions: (additions: PendingMember[]) => Promise<void>;
@@ -207,6 +209,8 @@ function TeamBuilderTab({
     setZoneSizesByTeam,
     lockedLanesByTeam,
     setLockedLanesByTeam,
+    lockedTeams,
+    setLockedTeams,
     pendingAdditions,
     setPendingAdditions,
     onSavePendingAdditions,
@@ -241,6 +245,100 @@ function TeamBuilderTab({
     const coordinators = coordinatorsByTeam[activeTeam] || new Set<string>();
     const setCoordinators = (c: Set<string>) => setCoordinatorsByTeam({ ...coordinatorsByTeam, [activeTeam]: c });
     const { openPlayer } = usePlayerDrawer();
+
+    // === Per-team lock + one-step undo ===
+    const isTeamLocked = (t: TeamNumber) => lockedTeams.has(t);
+    const isActiveLocked = isTeamLocked(activeTeam);
+    const toggleTeamLock = (t: TeamNumber) => {
+        const next = new Set(lockedTeams);
+        if (next.has(t)) next.delete(t);
+        else next.add(t);
+        setLockedTeams(next);
+    };
+
+    // Snapshot used for the one-step Undo. Captures every map a Distribute or
+    // per-player mutation could touch. We deep-clone on capture (shallow per
+    // team key + new Set instances for the Set-valued maps) so future mutations
+    // don't mutate the snapshot in place.
+    type BuilderSnapshot = {
+        confirmationsByTeam: ConfirmationsByTeam;
+        suggestedZonesByTeam: ZonesByTeam;
+        selectedRallyLeadsByTeam: RallyLeadsByTeam;
+        selectedGarrisonLeadsByTeam: GarrisonLeadsByTeam;
+        selectedArkCarriersByTeam: ArkCarriersByTeam;
+        selectedTeleportFirstByTeam: TeleportFirstByTeam;
+        coordinatorsByTeam: Record<TeamNumber, Set<string>>;
+        zoneSizesByTeam: ZoneSizesByTeam;
+        lockedLanesByTeam: LockedLanesByTeam;
+        builderStep: 'select' | 'distribute';
+        // Label shown on the Undo button so the user knows what they'll revert.
+        label: string;
+    };
+    const [lastSnapshot, setLastSnapshot] = useState<BuilderSnapshot | null>(null);
+
+    const captureSnapshot = (label: string) => {
+        setLastSnapshot({
+            confirmationsByTeam: {
+                1: { ...(confirmationsByTeam[1] || {}) },
+                2: { ...(confirmationsByTeam[2] || {}) },
+                3: { ...(confirmationsByTeam[3] || {}) },
+            },
+            suggestedZonesByTeam: {
+                1: { ...(suggestedZonesByTeam[1] || {}) },
+                2: { ...(suggestedZonesByTeam[2] || {}) },
+                3: { ...(suggestedZonesByTeam[3] || {}) },
+            },
+            selectedRallyLeadsByTeam: {
+                1: { ...(selectedRallyLeadsByTeam[1] || {}) },
+                2: { ...(selectedRallyLeadsByTeam[2] || {}) },
+                3: { ...(selectedRallyLeadsByTeam[3] || {}) },
+            },
+            selectedGarrisonLeadsByTeam: {
+                1: { ...(selectedGarrisonLeadsByTeam[1] || {}) },
+                2: { ...(selectedGarrisonLeadsByTeam[2] || {}) },
+                3: { ...(selectedGarrisonLeadsByTeam[3] || {}) },
+            },
+            selectedArkCarriersByTeam: { ...selectedArkCarriersByTeam },
+            selectedTeleportFirstByTeam: {
+                1: new Set(selectedTeleportFirstByTeam[1] || []),
+                2: new Set(selectedTeleportFirstByTeam[2] || []),
+                3: new Set(selectedTeleportFirstByTeam[3] || []),
+            },
+            coordinatorsByTeam: {
+                1: new Set(coordinatorsByTeam[1] || []),
+                2: new Set(coordinatorsByTeam[2] || []),
+                3: new Set(coordinatorsByTeam[3] || []),
+            },
+            zoneSizesByTeam: {
+                1: { ...(zoneSizesByTeam[1] || { 0: '', 1: '', 2: '', 3: '' }) },
+                2: { ...(zoneSizesByTeam[2] || { 0: '', 1: '', 2: '', 3: '' }) },
+                3: { ...(zoneSizesByTeam[3] || { 0: '', 1: '', 2: '', 3: '' }) },
+            },
+            lockedLanesByTeam: {
+                1: { ...(lockedLanesByTeam[1] || {}) },
+                2: { ...(lockedLanesByTeam[2] || {}) },
+                3: { ...(lockedLanesByTeam[3] || {}) },
+            },
+            builderStep,
+            label,
+        });
+    };
+
+    const undoLastChange = () => {
+        const snap = lastSnapshot;
+        if (!snap) return;
+        setConfirmationsByTeam(snap.confirmationsByTeam);
+        setSuggestedZonesByTeam(snap.suggestedZonesByTeam);
+        setSelectedRallyLeadsByTeam(snap.selectedRallyLeadsByTeam);
+        setSelectedGarrisonLeadsByTeam(snap.selectedGarrisonLeadsByTeam);
+        setSelectedArkCarriersByTeam(snap.selectedArkCarriersByTeam);
+        setSelectedTeleportFirstByTeam(snap.selectedTeleportFirstByTeam);
+        setCoordinatorsByTeam(snap.coordinatorsByTeam);
+        setZoneSizesByTeam(snap.zoneSizesByTeam);
+        setLockedLanesByTeam(snap.lockedLanesByTeam);
+        setBuilderStep(snap.builderStep);
+        setLastSnapshot(null);
+    };
 
     // Generate exportable summary text for all teams (no emojis for in-game compatibility)
     const generateSummary = () => {
@@ -466,6 +564,19 @@ function TeamBuilderTab({
 
     // Set player's team assignment (clears from other teams)
     const setPlayerTeamAssignment = (name: string, team: TeamNumber, status: ConfirmationStatus) => {
+        // Refuse to mutate a locked team — neither the source (the team currently
+        // holding this player) nor the target may be locked.
+        if (lockedTeams.has(team)) {
+            alert(`Team ${team} is locked. Unfreeze it first.`);
+            return;
+        }
+        for (const t of [1, 2, 3] as TeamNumber[]) {
+            if (confirmationsByTeam[t]?.[name] && lockedTeams.has(t)) {
+                alert(`Team ${t} is locked (${name} can't be moved out).`);
+                return;
+            }
+        }
+        captureSnapshot(`Change ${name} on T${team}`);
         const newConfirmations = { ...confirmationsByTeam };
         // Clear from all teams first
         for (const t of [1, 2, 3] as TeamNumber[]) {
@@ -753,7 +864,18 @@ function TeamBuilderTab({
     //   3. Lane number suggestions (zoneSizesByTeam)
     //   4. Auto-balance the rest by power
     const handleDistribute = (targetTeams?: TeamNumber[]) => {
-        const teams = targetTeams ?? [activeTeam];
+        // Skip locked teams. If the caller asked for the active team but it's
+        // locked, bail out instead of silently doing nothing weird.
+        const requested = targetTeams ?? [activeTeam];
+        const teams = requested.filter(t => !isTeamLocked(t));
+        if (teams.length === 0) {
+            if (requested.length === 1 && isTeamLocked(requested[0])) {
+                alert(`Team ${requested[0]} is locked. Click the lock icon to unfreeze it before redistributing.`);
+            }
+            return;
+        }
+
+        captureSnapshot(teams.length === 1 ? `Distribute T${teams[0]}` : `Distribute T${teams.join(', T')}`);
 
         // Per-team accumulators — committed in one batch at the end so distributing
         // multiple teams in a single call doesn't suffer stale-state clobbering.
@@ -1017,9 +1139,14 @@ function TeamBuilderTab({
 
     // Move player between zones
     const movePlayerToZone = (playerName: string, fromZone: number, toZone: number) => {
+        if (isActiveLocked) {
+            alert(`Team ${activeTeam} is locked. Unfreeze it first.`);
+            return;
+        }
         const newZones = { ...suggestedZones };
         const player = newZones[fromZone].find(p => p.name === playerName);
         if (player) {
+            captureSnapshot(`Move ${playerName}`);
             newZones[fromZone] = newZones[fromZone].filter(p => p.name !== playerName);
             newZones[toZone] = [...newZones[toZone], player];
             setSuggestedZones(newZones);
@@ -1029,6 +1156,11 @@ function TeamBuilderTab({
 
     // Remove a player from all zones (distribute step)
     const removePlayerFromZones = (playerName: string) => {
+        if (isActiveLocked) {
+            alert(`Team ${activeTeam} is locked. Unfreeze it first.`);
+            return;
+        }
+        captureSnapshot(`Remove ${playerName}`);
         const newZones = { ...suggestedZones };
         for (const zone of [-1, 0, 1, 2, 3]) {
             if (newZones[zone]) {
@@ -1045,9 +1177,14 @@ function TeamBuilderTab({
 
     // Add a player directly to a zone (distribute step)
     const addPlayerToZone = (name: string, zone: number) => {
+        if (isActiveLocked) {
+            alert(`Team ${activeTeam} is locked. Unfreeze it first.`);
+            return;
+        }
         // Check not already in a zone
         const allZonePlayers = [...(suggestedZones[-1] || []), ...(suggestedZones[0] || []), ...(suggestedZones[1] || []), ...(suggestedZones[2] || []), ...(suggestedZones[3] || [])];
         if (allZonePlayers.some(p => p.name === name)) return;
+        captureSnapshot(`Add ${name}`);
         const power = powerByName[name] || 0;
         const kills = killsByName[name] || 0;
         const newZones = { ...suggestedZones };
@@ -1065,6 +1202,11 @@ function TeamBuilderTab({
 
     // Reset to selection step
     const handleReset = () => {
+        if (isActiveLocked) {
+            alert(`Team ${activeTeam} is locked. Unfreeze it first.`);
+            return;
+        }
+        captureSnapshot(`Reset T${activeTeam}`);
         setBuilderStep('select');
         setSuggestedZones({});
         setSelectedRallyLeads({});
@@ -1120,31 +1262,45 @@ function TeamBuilderTab({
                     </div>
                 </div>
 
-                {/* Team summary with colored badges */}
+                {/* Team summary with colored badges + per-team lock toggle */}
                 <div className="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
                     <span className={`text-sm font-medium ${theme.textMuted}`}>{t('teamSummary')}</span>
-                    {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map((t) => {
-                        const counts = getTeamCounts(t);
+                    {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map((teamNum) => {
+                        const counts = getTeamCounts(teamNum);
                         const colors = {
                             1: { bg: 'bg-blue-600', text: 'text-blue-400', border: 'border-blue-500' },
                             2: { bg: 'bg-orange-600', text: 'text-orange-400', border: 'border-orange-500' },
                             3: { bg: 'bg-purple-600', text: 'text-purple-400', border: 'border-purple-500' },
-                        }[t];
+                        }[teamNum];
+                        const teamIsLocked = isTeamLocked(teamNum);
                         return (
-                            <button
-                                key={t}
-                                onClick={() => setActiveTeam(t)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                                    activeTeam === t
-                                        ? `${colors.bg} text-white shadow-md`
-                                        : `${colors.bg}/20 ${colors.text} border ${colors.border}/50 hover:${colors.bg}/30`
-                                }`}
-                            >
-                                <span className="font-bold">T{t}</span>
-                                <span className="text-xs opacity-80">
-                                    {counts.confirmed}✓ {counts.maybe > 0 && `+ ${counts.maybe}?`}
-                                </span>
-                            </button>
+                            <div key={teamNum} className="inline-flex items-stretch rounded-lg overflow-hidden">
+                                <button
+                                    onClick={() => setActiveTeam(teamNum)}
+                                    className={`px-3 py-1.5 text-sm font-medium transition-all flex items-center gap-2 ${
+                                        activeTeam === teamNum
+                                            ? `${colors.bg} text-white shadow-md`
+                                            : `${colors.bg}/20 ${colors.text} border ${colors.border}/50 hover:${colors.bg}/30`
+                                    }`}
+                                >
+                                    <span className="font-bold">T{teamNum}</span>
+                                    <span className="text-xs opacity-80">
+                                        {counts.confirmed}✓ {counts.maybe > 0 && `+ ${counts.maybe}?`}
+                                    </span>
+                                </button>
+                                <button
+                                    onClick={() => toggleTeamLock(teamNum)}
+                                    title={teamIsLocked ? `Unlock T${teamNum} — allow Distribute/edits` : `Lock T${teamNum} — freeze the lineup`}
+                                    aria-label={teamIsLocked ? `Unlock team ${teamNum}` : `Lock team ${teamNum}`}
+                                    className={`px-2 flex items-center transition-colors border-l border-black/30 ${
+                                        teamIsLocked
+                                            ? 'bg-amber-500/30 text-amber-200 hover:bg-amber-500/50'
+                                            : 'bg-white/5 text-white/60 hover:bg-white/15 hover:text-white'
+                                    }`}
+                                >
+                                    {teamIsLocked ? <Lock size={12} /> : <Unlock size={12} />}
+                                </button>
+                            </div>
                         );
                     })}
                     {teamCount === 1 && (
@@ -1491,12 +1647,25 @@ function TeamBuilderTab({
 
                     {/* Distribute button */}
                     {confirmedPlayers.length + maybePlayers.length > 0 ? (
-                        <div className="flex justify-center mb-6">
+                        <div className="flex justify-center items-center gap-2 mb-6">
+                            {lastSnapshot && (
+                                <button
+                                    onClick={undoLastChange}
+                                    className="px-4 py-3 rounded-lg text-sm font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                                    title={`Undo: ${lastSnapshot.label}`}
+                                >
+                                    ↶ Undo
+                                </button>
+                            )}
                             <button
                                 onClick={() => handleDistribute()}
-                                className="w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-semibold text-white text-base sm:text-lg bg-[#4318ff] hover:bg-[#4318ff]/80"
+                                disabled={isActiveLocked}
+                                title={isActiveLocked ? `Team ${activeTeam} is locked — unfreeze it to distribute` : ''}
+                                className={`w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-semibold text-white text-base sm:text-lg ${
+                                    isActiveLocked ? 'bg-[#4318ff]/40 cursor-not-allowed' : 'bg-[#4318ff] hover:bg-[#4318ff]/80'
+                                }`}
                             >
-                                {t('distributeToLanes')}
+                                {isActiveLocked ? `🔒 T${activeTeam} Locked` : t('distributeToLanes')}
                             </button>
                         </div>
                     ) : (
@@ -1536,8 +1705,24 @@ function TeamBuilderTab({
                                     <input type="checkbox" checked={!useCustomSizes} onChange={(e) => setUseCustomSizes(!e.target.checked)} className="rounded" />
                                     <span className={`text-xs ${theme.textMuted}`}>{t('auto')}</span>
                                 </label>
-                                <button onClick={() => handleDistribute()} className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-white bg-[#4318ff] hover:bg-[#4318ff]/80">
-                                    {t('reBalance')}
+                                {lastSnapshot && (
+                                    <button
+                                        onClick={undoLastChange}
+                                        className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                                        title={`Undo: ${lastSnapshot.label}`}
+                                    >
+                                        ↶ Undo
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => handleDistribute()}
+                                    disabled={isActiveLocked}
+                                    title={isActiveLocked ? `Team ${activeTeam} is locked — unfreeze it to redistribute` : ''}
+                                    className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-white ${
+                                        isActiveLocked ? 'bg-[#4318ff]/40 cursor-not-allowed' : 'bg-[#4318ff] hover:bg-[#4318ff]/80'
+                                    }`}
+                                >
+                                    {isActiveLocked ? '🔒 Locked' : t('reBalance')}
                                 </button>
                             </div>
                         </div>
@@ -2094,6 +2279,9 @@ export default function AooStrategyPage() {
     // Spreadsheet lane locks per team: name -> forced lane (1|2|3).
     // Populated from CSV "Lane" column on registration import; honored by handleDistribute.
     const [lockedLanesByTeam, setLockedLanesByTeam] = useState<LockedLanesByTeam>({ 1: {}, 2: {}, 3: {} });
+    // Teams whose lineup is frozen — user-toggled. Distribute + per-player mutations
+    // refuse to touch a locked team until the user clicks the lock icon to unfreeze.
+    const [lockedTeams, setLockedTeams] = useState<Set<TeamNumber>>(new Set());
 
     // Save pending additions to Supabase for admin approval
     const handleSavePendingAdditions = async (additions: PendingMember[]) => {
@@ -2251,6 +2439,9 @@ export default function AooStrategyPage() {
                 if (strategyData?.lockedLanesByTeam) {
                     setLockedLanesByTeam(strategyData.lockedLanesByTeam as LockedLanesByTeam);
                 }
+                if (strategyData?.lockedTeams) {
+                    setLockedTeams(new Set(strategyData.lockedTeams as TeamNumber[]));
+                }
                 setActiveTab('builder');
                 // Land shared-link viewers on the committed lane assignments view
                 // whenever the plan has any distributed zones — they shouldn't have
@@ -2310,6 +2501,7 @@ export default function AooStrategyPage() {
                 3: Array.from(coordinatorsByTeam[3] || []),
             },
             lockedLanesByTeam: updatedData.lockedLanesByTeam ?? lockedLanesByTeam,
+            lockedTeams: updatedData.lockedTeams ?? Array.from(lockedTeams),
         };
 
         try {
@@ -2341,7 +2533,7 @@ export default function AooStrategyPage() {
         }
         saveData({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, lockedLanesByTeam]);
+    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, lockedLanesByTeam, lockedTeams]);
 
     const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isEditor) return;
@@ -3261,6 +3453,8 @@ export default function AooStrategyPage() {
                     setZoneSizesByTeam={setZoneSizesByTeam}
                     lockedLanesByTeam={lockedLanesByTeam}
                     setLockedLanesByTeam={setLockedLanesByTeam}
+                    lockedTeams={lockedTeams}
+                    setLockedTeams={setLockedTeams}
                     pendingAdditions={pendingAdditions}
                     setPendingAdditions={setPendingAdditions}
                     onSavePendingAdditions={handleSavePendingAdditions}
