@@ -3311,6 +3311,7 @@ export default function AooStrategyPage() {
                     powerByGovId={powerByGovId}
                     killsByGovId={killsByGovId}
                     scanLabel={scanLabel}
+                    isSignedIn={!!user}
                     onApplyToBuilder={(registrations) => {
                         // Use sheet names directly as confirmation keys (1 row = 1 entry).
                         // Gov ID is only used to look up power/kills from roster, NOT for name resolution,

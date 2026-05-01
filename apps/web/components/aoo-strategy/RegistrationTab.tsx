@@ -21,9 +21,13 @@ interface RegistrationTabProps {
   powerByGovId?: Record<number, number>;
   killsByGovId?: Record<number, number>;
   scanLabel?: string | null;
+  /** True when a Supabase auth user is logged in. Drives the upload-scan CTA:
+   *  signed-in users get a "Upload fresh scan" link; others see the same link
+   *  with a "(sign in first)" hint. */
+  isSignedIn?: boolean;
 }
 
-export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuilder, isOfficer, powerByGovId, killsByGovId, scanLabel }: RegistrationTabProps) {
+export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuilder, isOfficer, powerByGovId, killsByGovId, scanLabel, isSignedIn }: RegistrationTabProps) {
   const t = useTranslations('aoo.registration');
   const to = useTranslations('aoo.officer');
   const [sheetUrl, setSheetUrl] = useState('');
@@ -341,21 +345,51 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
         <>
           {/* Scan-merge banner: tells the user how many missing-power rows were
               auto-filled from the latest kingdom scan, and warns if any are still
-              missing power so they know to upload a fresh scan. */}
-          {(filledFromScanCount > 0 || missingPowerCount > 0) && (
-            <section className="mb-4 sm:mb-6 rounded-xl border border-[var(--border)] bg-[var(--background-card)] px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm flex flex-wrap items-center gap-x-3 gap-y-1">
-              {filledFromScanCount > 0 && (
-                <span className="text-emerald-400">
-                  ✓ Filled <strong>{filledFromScanCount}</strong> missing power{filledFromScanCount === 1 ? '' : 's'} from scan
-                  {scanLabel && <span className={`${theme.textMuted}`}> ({scanLabel})</span>}
-                </span>
-              )}
-              {missingPowerCount > 0 && (
-                <span className="text-amber-400 flex items-center gap-1">
-                  <AlertTriangle size={12} className="inline" />
-                  <strong>{missingPowerCount}</strong> still missing power — add Power to the sheet or upload a fresh kingdom scan
-                </span>
-              )}
+              missing power. When power is missing, we surface a CTA pointing at
+              the existing /roster/upload uploader so officers can refresh the
+              kingdom scan without leaving the AOO flow. */}
+          {(filledFromScanCount > 0 || missingPowerCount > 0 || !scanLabel) && (
+            <section className={`mb-4 sm:mb-6 rounded-xl border px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm ${
+              missingPowerCount > 0 || !scanLabel
+                ? 'border-amber-500/40 bg-amber-500/5'
+                : 'border-emerald-500/30 bg-emerald-500/5'
+            }`}>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                {filledFromScanCount > 0 && (
+                  <span className="text-emerald-400">
+                    ✓ Filled <strong>{filledFromScanCount}</strong> missing power{filledFromScanCount === 1 ? '' : 's'} from scan
+                    {scanLabel && <span className={theme.textMuted}> ({scanLabel})</span>}
+                  </span>
+                )}
+                {missingPowerCount > 0 && (
+                  <span className="text-amber-400 flex items-center gap-1">
+                    <AlertTriangle size={12} className="inline" />
+                    <strong>{missingPowerCount}</strong> still missing power — add Power to the sheet or upload a fresh scan
+                  </span>
+                )}
+                {!scanLabel && filledFromScanCount === 0 && (
+                  <span className="text-amber-400 flex items-center gap-1">
+                    <AlertTriangle size={12} className="inline" />
+                    No kingdom scan loaded — upload one to auto-fill power for everyone
+                  </span>
+                )}
+
+                {/* Upload CTA — link straight to the canonical scan uploader.
+                    Shown whenever there's missing power or no scan at all. */}
+                {(missingPowerCount > 0 || !scanLabel) && (
+                  <a
+                    href="/roster/upload"
+                    target="_blank"
+                    rel="noopener"
+                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 transition-colors"
+                    title={isSignedIn ? 'Open the kingdom-scan uploader' : 'Sign in first; then upload a scan'}
+                  >
+                    <Upload size={12} />
+                    Upload kingdom scan
+                    {!isSignedIn && <span className="text-[10px] opacity-70 ml-0.5">(sign in)</span>}
+                  </a>
+                )}
+              </div>
             </section>
           )}
 
