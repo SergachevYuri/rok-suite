@@ -384,23 +384,25 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
             {/* Mobile card list */}
             <div className="sm:hidden divide-y divide-[var(--border)]">
               {registrations.map((r, i) => (
-                <div key={r.govId || r.name} className="px-3 py-2.5">
+                <div key={r.govId || r.name} className="px-3 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`text-[10px] ${theme.textMuted} w-5 shrink-0`}>{i + 1}</span>
+                      <span className={`text-xs ${theme.textMuted} w-5 shrink-0 tabular-nums`}>{i + 1}</span>
                       <span className="font-medium text-sm truncate">{r.name}</span>
                     </div>
                     <span className={`text-xs tabular-nums ${theme.textMuted} shrink-0`}>
                       {r.power ? formatPower(r.power) : ''}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1 ml-7">
-                    {r.team1 && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400">T1</span>}
-                    {r.team2 && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/20 text-orange-400">T2</span>}
-                    {r.rallyLeader && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-500/20 text-yellow-400">Rally</span>}
-                    {r.garrisonLeader && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-500/20 text-cyan-400">Garr</span>}
-                    {r.mid && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-400">Mid</span>}
-                  </div>
+                  {(r.team1 || r.team2 || r.rallyLeader || r.garrisonLeader || r.mid) && (
+                    <div className="flex items-center flex-wrap gap-1.5 mt-1.5 ml-7">
+                      {r.team1 && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-500/20 text-blue-400">T1</span>}
+                      {r.team2 && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-orange-500/20 text-orange-400">T2</span>}
+                      {r.rallyLeader && <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-yellow-500/20 text-yellow-400">Rally</span>}
+                      {r.garrisonLeader && <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-cyan-500/20 text-cyan-400">Garr</span>}
+                      {r.mid && <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-purple-500/20 text-purple-400">Mid</span>}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -419,10 +421,10 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
 
 function StatCard({ label, value, icon, theme }: { label: string; value: string | number; icon: React.ReactNode; theme: Record<string, string> }) {
   return (
-    <div className="p-2.5 sm:p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
+    <div className="p-3 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)]">
       <div className="flex items-center gap-1.5 mb-0.5">
         {icon}
-        <span className={`text-[10px] sm:text-xs ${theme.textMuted} truncate`}>{label}</span>
+        <span className={`text-xs ${theme.textMuted} truncate`}>{label}</span>
       </div>
       <span className="text-base sm:text-lg font-semibold">{value}</span>
     </div>

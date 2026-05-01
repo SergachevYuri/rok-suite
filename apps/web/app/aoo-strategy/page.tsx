@@ -1770,7 +1770,7 @@ function TeamBuilderTab({
                                             <select
                                                 value={zoneSortModes[zone] || 'default'}
                                                 onChange={(e) => setZoneSortModes({ ...zoneSortModes, [zone]: e.target.value })}
-                                                className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
+                                                className={`text-xs px-2 py-1 rounded ${theme.input}`}
                                                 title={t('sortOrder')}
                                             >
                                                 <option value="default">{t('tpThenPower')}</option>
@@ -1871,11 +1871,11 @@ function TeamBuilderTab({
                                                     {t('kp')}: {formatPower(player.kills || killsByName[player.name] || 0)}
                                                 </span>
                                                 {/* Move zone + Remove */}
-                                                <div className="flex items-center gap-0.5">
+                                                <div className="flex items-center gap-1">
                                                     <select
                                                         value={zone}
                                                         onChange={(e) => movePlayerToZone(player.name, zone, parseInt(e.target.value))}
-                                                        className={`text-xs px-0.5 sm:px-1 py-0.5 rounded ${theme.input} w-12 sm:w-14`}
+                                                        className={`text-xs px-1.5 sm:px-2 py-1 rounded ${theme.input} w-14 sm:w-16`}
                                                     >
                                                         <option value={0}>{t('moveZone.sub')}</option>
                                                         <option value={1}>{t('moveZone.top')}</option>
@@ -1885,8 +1885,9 @@ function TeamBuilderTab({
                                                     </select>
                                                     <button
                                                         onClick={() => removePlayerFromZones(player.name)}
-                                                        className="text-red-500 hover:text-red-400 text-xs"
+                                                        className="text-red-500 hover:text-red-400 text-sm w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/10"
                                                         title={t('removeFromLanes')}
+                                                        aria-label={t('removeFromLanes')}
                                                     >✕</button>
                                                 </div>
                                             </div>
@@ -1919,7 +1920,7 @@ function TeamBuilderTab({
                                         <select
                                             value={0}
                                             onChange={(e) => movePlayerToZone(player.name, 0, parseInt(e.target.value))}
-                                            className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
+                                            className={`text-xs px-2 py-1 rounded ${theme.input}`}
                                         >
                                             <option value={0}>{t('moveZone.sub')}</option>
                                             <option value={1}>{t('moveZone.toTop')}</option>
@@ -1929,8 +1930,9 @@ function TeamBuilderTab({
                                         </select>
                                         <button
                                             onClick={() => removePlayerFromZones(player.name)}
-                                            className="text-red-500 hover:text-red-400 text-xs"
+                                            className="text-red-500 hover:text-red-400 text-sm w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/10"
                                             title={t('removeFromRoster')}
+                                            aria-label={t('removeFromRoster')}
                                         >✕</button>
                                     </div>
                                 ))}
@@ -1960,7 +1962,7 @@ function TeamBuilderTab({
                                         <select
                                             value={-1}
                                             onChange={(e) => movePlayerToZone(player.name, -1, parseInt(e.target.value))}
-                                            className={`text-xs px-1 py-0.5 rounded ${theme.input}`}
+                                            className={`text-xs px-2 py-1 rounded ${theme.input}`}
                                         >
                                             <option value={-1}>{t('bench')}</option>
                                             <option value={0}>{t('moveZone.toSub')}</option>
@@ -1970,8 +1972,9 @@ function TeamBuilderTab({
                                         </select>
                                         <button
                                             onClick={() => removePlayerFromZones(player.name)}
-                                            className="text-red-500 hover:text-red-400 text-xs"
+                                            className="text-red-500 hover:text-red-400 text-sm w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/10"
                                             title={t('removeCompletely')}
+                                            aria-label={t('removeCompletely')}
                                         >✕</button>
                                     </div>
                                 ))}
@@ -2088,8 +2091,10 @@ function TeamBuilderTab({
                     </section>
 
                     {/* Action Buttons. Mobile: secondary actions wrap above, the
-                        primary "Confirm for everyone" stretches full-width below. */}
-                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-center gap-2 sm:gap-3">
+                        primary "Confirm for everyone" stretches full-width below.
+                        Pinned to the bottom of the viewport on mobile so the save
+                        action stays reachable when scrolling through long zone lists. */}
+                    <div className="sticky bottom-0 z-20 -mx-3 px-3 py-3 bg-[var(--background)]/95 backdrop-blur-sm border-t border-[var(--border)] sm:static sm:mx-0 sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:z-auto flex flex-col sm:flex-row sm:flex-wrap sm:justify-center gap-2 sm:gap-3">
                         <div className="flex flex-wrap justify-center gap-1.5 sm:gap-3">
                             <button
                                 onClick={handleReset}
