@@ -535,7 +535,7 @@ function TeamBuilderTab({
 
         lines.push('');
         lines.push(DIVIDER);
-        lines.push(`<b><color=#800000>— Fluffy Queen</color></b>`);
+        lines.push(`<b><color=#800000>— Leadership</color></b>`);
 
         return lines.join('\n');
     };
