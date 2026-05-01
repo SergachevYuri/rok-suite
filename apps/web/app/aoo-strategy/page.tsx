@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -2307,22 +2307,16 @@ export default function AooStrategyPage() {
     const { user } = useAuth();
     const { openPlayer } = usePlayerDrawer();
 
-    // Fetch roster from Supabase
-    const { roster, rosterNames, powerByName, killsByName, allianceByName, alliances: dbAlliances, loading: rosterLoading, scanLabel } = useScanRoster();
-    // Build gov-id keyed maps so the RegistrationTab can fill in missing power/KP
-    // for sheet rows whose Power column is blank — match is by Gov ID, which is
-    // a stable identifier even when sheet names don't exactly match scan names.
-    const { powerByGovId, killsByGovId } = useMemo(() => {
-        const power: Record<number, number> = {};
-        const kills: Record<number, number> = {};
-        for (const m of roster) {
-            if (m.governor_id) {
-                if (m.power) power[m.governor_id] = m.power;
-                if (m.kills) kills[m.governor_id] = m.kills;
-            }
-        }
-        return { powerByGovId: power, killsByGovId: kills };
-    }, [roster]);
+    // Fetch roster from Supabase. We pull both the alliance-filtered roster
+    // (used for the team builder's alliance dropdown / by-name lookups) and
+    // the *unfiltered* scan maps below — the alliance filter drops players
+    // with no alliance / ILLEGAL status, which would silently cause AOO power
+    // lookups to miss valid kingdom members like tigergirl (210400163).
+    const { roster, rosterNames, powerByName, killsByName, allianceByName, alliances: dbAlliances, loading: rosterLoading, scanLabel, scanPowerByGovId, scanKillsByGovId } = useScanRoster();
+    // Use the unfiltered scan maps directly for the gov-id power lookup — every
+    // player in the latest scan is reachable, regardless of alliance status.
+    const powerByGovId = scanPowerByGovId;
+    const killsByGovId = scanKillsByGovId;
     const [activeTab, setActiveTab] = useState<'map' | 'builder' | 'registration'>('registration');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);

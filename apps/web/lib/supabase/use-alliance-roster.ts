@@ -119,11 +119,17 @@ export function useAllianceRoster(allianceFilter?: string): UseAllianceRosterRet
  * Returns the same shape as useAllianceRoster so it's a drop-in replacement.
  * Uses assigned_alliance (from AllianceSorter) first, falling back to current_alliance.
  */
-export function useScanRoster(): UseAllianceRosterReturn & { scanLabel: string | null } {
+export function useScanRoster(): UseAllianceRosterReturn & { scanLabel: string | null; scanPowerByGovId: Record<number, number>; scanKillsByGovId: Record<number, number> } {
   const [roster, setRoster] = useState<RosterMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scanLabel, setScanLabel] = useState<string | null>(null);
+  // Unfiltered scan power/KP keyed by governor id — includes players the
+  // alliance filter drops (no alliance assignment, ILLEGAL migration status,
+  // etc). Used for tools like the AOO planner where we want power for every
+  // sheet entry regardless of alliance status.
+  const [scanPowerByGovId, setScanPowerByGovId] = useState<Record<number, number>>({});
+  const [scanKillsByGovId, setScanKillsByGovId] = useState<Record<number, number>>({});
 
   const fetchScanRoster = useCallback(async () => {
     setLoading(true);
@@ -164,6 +170,21 @@ export function useScanRoster(): UseAllianceRosterReturn & { scanLabel: string |
         if (data.length < 1000) break;
         from += 1000;
       }
+
+      // Build unfiltered gov-id maps BEFORE the alliance filter so consumers
+      // (e.g. AOO power lookup) can find players who'd be dropped from the
+      // alliance roster but still exist in the scan.
+      const rawPower: Record<number, number> = {};
+      const rawKills: Record<number, number> = {};
+      for (const p of allPlayers) {
+        const gid = p.governor_id as number;
+        if (gid) {
+          if (p.power) rawPower[gid] = p.power as number;
+          if (p.kill_points) rawKills[gid] = p.kill_points as number;
+        }
+      }
+      setScanPowerByGovId(rawPower);
+      setScanKillsByGovId(rawKills);
 
       // Map scan players to RosterMember shape
       const mapped: RosterMember[] = allPlayers
@@ -237,6 +258,8 @@ export function useScanRoster(): UseAllianceRosterReturn & { scanLabel: string |
     error,
     refetch: fetchScanRoster,
     scanLabel,
+    scanPowerByGovId,
+    scanKillsByGovId,
   };
 }
 
