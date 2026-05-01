@@ -1563,8 +1563,9 @@ function TeamBuilderTab({
                             <span>{t('team')}</span>
                         </div>
 
-                        {/* Player list */}
-                        <div className="max-h-[400px] overflow-y-auto space-y-1.5 pt-1">
+                        {/* Player list. Tall viewport-based area on mobile so users
+                            see ~10 rows at once instead of 6; capped at 400px on sm+. */}
+                        <div className="max-h-[60vh] sm:max-h-[400px] overflow-y-auto space-y-1.5 pt-1">
                             {filteredRoster.map((member) => {
                                 const assignment = getPlayerTeamAssignment(member.name);
                                 const isPending = 'isPending' in member && member.isPending;
@@ -1591,7 +1592,7 @@ function TeamBuilderTab({
                                                 <button
                                                     key={team}
                                                     onClick={() => toggleTeamConfirmation(member.name, team)}
-                                                    className={`w-8 h-8 rounded-md text-sm font-bold transition-all ${
+                                                    className={`w-9 h-9 sm:w-8 sm:h-8 rounded-md text-sm font-bold transition-all ${
                                                         status === 'confirmed'
                                                             ? `${colors.bg} text-white shadow-md`
                                                             : status === 'maybe'
@@ -1626,7 +1627,12 @@ function TeamBuilderTab({
                                             {teamButtons}
                                             <div className="flex justify-center">
                                                 {isPending && (
-                                                    <button onClick={(e) => { e.stopPropagation(); setPendingAdditions(pendingAdditions.filter(p => p.name !== member.name)); }} className="text-red-400 hover:text-red-300 text-xs" title={t('remove')}>✕</button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setPendingAdditions(pendingAdditions.filter(p => p.name !== member.name)); }}
+                                                        className="text-red-400 hover:text-red-300 text-sm w-7 h-7 flex items-center justify-center rounded hover:bg-red-500/10"
+                                                        title={t('remove')}
+                                                        aria-label={t('remove')}
+                                                    >✕</button>
                                                 )}
                                             </div>
                                         </div>
@@ -1645,13 +1651,14 @@ function TeamBuilderTab({
                         </div>
                     </section>
 
-                    {/* Distribute button */}
+                    {/* Distribute button. Sticky-bottom on mobile so it's reachable
+                        while scrolling the player list. */}
                     {confirmedPlayers.length + maybePlayers.length > 0 ? (
-                        <div className="flex justify-center items-center gap-2 mb-6">
+                        <div className="sticky bottom-0 z-20 -mx-3 px-3 py-3 bg-[var(--background)]/95 backdrop-blur-sm border-t border-[var(--border)] sm:static sm:mx-0 sm:p-0 sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:z-auto flex justify-center items-center gap-2 mb-2 sm:mb-6">
                             {lastSnapshot && (
                                 <button
                                     onClick={undoLastChange}
-                                    className="px-4 py-3 rounded-lg text-sm font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                                    className="flex-shrink-0 px-3 sm:px-4 py-3 rounded-lg text-sm font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
                                     title={`Undo: ${lastSnapshot.label}`}
                                 >
                                     ↶ Undo
@@ -1661,7 +1668,7 @@ function TeamBuilderTab({
                                 onClick={() => handleDistribute()}
                                 disabled={isActiveLocked}
                                 title={isActiveLocked ? `Team ${activeTeam} is locked — unfreeze it to distribute` : ''}
-                                className={`w-full sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-semibold text-white text-base sm:text-lg ${
+                                className={`flex-1 sm:flex-none sm:w-auto px-6 sm:px-8 py-3 rounded-lg font-semibold text-white text-base sm:text-lg ${
                                     isActiveLocked ? 'bg-[#4318ff]/40 cursor-not-allowed' : 'bg-[#4318ff] hover:bg-[#4318ff]/80'
                                 }`}
                             >
