@@ -745,15 +745,18 @@ function Card({
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[var(--background-hover)] transition-colors"
+        className="w-full flex items-start gap-2 sm:gap-3 px-3 sm:px-4 py-3 text-left hover:bg-[var(--background-hover)] transition-colors"
       >
         <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--background-secondary)] flex-shrink-0 mt-0.5">{icon}</span>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
-          <div className="text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</div>
+          {/* Hide the verbose subtitle on small screens — the title + count badge
+              tell you what the card is. The expanded "how does this work?"
+              still has the full description. */}
+          <div className="hidden sm:block text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</div>
         </div>
-        <span className="text-2xl font-semibold text-[var(--foreground)] tabular-nums">{count}</span>
-        <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform mt-2 ${open ? 'rotate-180' : ''}`} />
+        <span className="text-2xl font-semibold text-[var(--foreground)] tabular-nums flex-shrink-0">{count}</span>
+        <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform mt-2 flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="border-t border-[var(--border)]">

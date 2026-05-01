@@ -279,7 +279,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name or governor ID…"
-          className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--foreground)]/30 w-64"
+          className="px-3 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--foreground)]/30 w-full sm:w-64"
         />
         <select
           value={filter}
@@ -472,7 +472,7 @@ function ZeroListRow({
         </div>
       </td>
       <td className="px-3 py-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1">
           {!isAdmin && (
             <span className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
               <Lock size={10} /> view only

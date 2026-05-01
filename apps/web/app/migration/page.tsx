@@ -445,15 +445,15 @@ function MigrationPageInner() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      <div className="max-w-[1400px] mx-auto px-3 sm:px-6 py-4 sm:py-10">
         {/* Header */}
-        <header className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
           <div>
-            <Link href="/dkp" className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-2">
+            <Link href="/dkp" className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-1 sm:mb-2">
               <ArrowLeft size={12} /> Back to DKP
             </Link>
-            <h1 className="text-xl font-semibold text-[var(--foreground)]">Emigration</h1>
-            <p className="text-xs text-[var(--text-muted)] mt-1">
+            <h1 className="text-lg sm:text-xl font-semibold text-[var(--foreground)]">Emigration</h1>
+            <p className="hidden sm:block text-xs text-[var(--text-muted)] mt-1">
               Track players flagged for emigration through claim → contact → outcome.
             </p>
           </div>
@@ -547,7 +547,7 @@ function MigrationPageInner() {
         </section>
 
         {/* Tab strip */}
-        <nav className="mb-4 flex gap-1 border-b border-[var(--border)]">
+        <nav className="mb-4 flex gap-1 border-b border-[var(--border)] overflow-x-auto -mx-1 px-1 scrollbar-hide">
           {([
             { id: 'cycle', label: 'Cycle' },
             { id: 'zero_list', label: 'Zero List' },
@@ -559,7 +559,7 @@ function MigrationPageInner() {
                 setTab(t.id);
                 try { window.localStorage.setItem('emigration-active-tab', t.id); } catch { /* ignore */ }
               }}
-              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex-shrink-0 whitespace-nowrap ${
                 tab === t.id
                   ? 'border-[#4318ff] text-[var(--foreground)]'
                   : 'border-transparent text-[var(--text-muted)] hover:text-[var(--foreground)]'
