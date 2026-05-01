@@ -15,13 +15,19 @@ interface RegistrationTabProps {
   onApplyToBuilder: (registrations: AooRegistration[]) => void;
   onSkipToBuilder: () => void;
   isOfficer?: boolean;
+  /** Latest kingdom-scan power keyed by governor id. When the sheet has a blank
+   *  Power column, we fill it in from this map so signups don't need to enter
+   *  power manually. */
+  powerByGovId?: Record<number, number>;
+  killsByGovId?: Record<number, number>;
+  scanLabel?: string | null;
 }
 
-export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuilder, isOfficer }: RegistrationTabProps) {
+export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuilder, isOfficer, powerByGovId, killsByGovId, scanLabel }: RegistrationTabProps) {
   const t = useTranslations('aoo.registration');
   const to = useTranslations('aoo.officer');
   const [sheetUrl, setSheetUrl] = useState('');
-  const [registrations, setRegistrations] = useState<AooRegistration[]>([]);
+  const [rawRegistrations, setRawRegistrations] = useState<AooRegistration[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
@@ -36,10 +42,10 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
 
   // Collapse instructions once data is loaded
   useEffect(() => {
-    if (fetched && registrations.length > 0) {
+    if (fetched && rawRegistrations.length > 0) {
       setShowColumnHelp(false);
     }
-  }, [fetched, registrations.length]);
+  }, [fetched, rawRegistrations.length]);
 
   const handleFetch = async () => {
     if (!sheetUrl.trim()) return;
@@ -47,12 +53,12 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
     setError(null);
     try {
       const data = await fetchAooRegistrationSheet(sheetUrl.trim());
-      setRegistrations(data);
+      setRawRegistrations(data);
       setFetched(true);
       localStorage.setItem(SHEET_URL_KEY, sheetUrl.trim());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch sheet');
-      setRegistrations([]);
+      setRawRegistrations([]);
     } finally {
       setLoading(false);
     }
@@ -65,11 +71,11 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
     setError(null);
     try {
       const data = await fetchAooRegistrationSheet(OFFICER_SHEET_URL);
-      setRegistrations(data);
+      setRawRegistrations(data);
       setFetched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch sheet');
-      setRegistrations([]);
+      setRawRegistrations([]);
     } finally {
       setLoading(false);
     }
@@ -83,16 +89,40 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
     try {
       const text = await file.text();
       const data = parseAooRegistrationCSV(text);
-      setRegistrations(data);
+      setRawRegistrations(data);
       setFetched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse CSV file');
-      setRegistrations([]);
+      setRawRegistrations([]);
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  // Merge in scan power/kills for any row whose Power column was blank, matched
+  // by Gov ID. This lets users skip the Power column on the sheet entirely as
+  // long as the latest kingdom scan covers their players. We also flag each
+  // merged row so the UI can show "filled from scan" affordances.
+  const { registrations, filledFromScanCount, missingPowerCount } = useMemo(() => {
+    let filled = 0;
+    let missing = 0;
+    const merged = rawRegistrations.map((r) => {
+      const sheetPower = r.power || 0;
+      const scanPower = r.govId && powerByGovId ? powerByGovId[r.govId] : undefined;
+      const scanKills = r.govId && killsByGovId ? killsByGovId[r.govId] : undefined;
+      let power = sheetPower;
+      let fromScan = false;
+      if (sheetPower <= 0 && scanPower) {
+        power = scanPower;
+        fromScan = true;
+        filled += 1;
+      }
+      if (power <= 0) missing += 1;
+      return { ...r, power, kills: scanKills, fromScan } as AooRegistration & { fromScan?: boolean; kills?: number };
+    });
+    return { registrations: merged, filledFromScanCount: filled, missingPowerCount: missing };
+  }, [rawRegistrations, powerByGovId, killsByGovId]);
 
   // Derived stats
   const stats = useMemo(() => {
@@ -309,6 +339,26 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
       {/* Results */}
       {fetched && registrations.length > 0 && (
         <>
+          {/* Scan-merge banner: tells the user how many missing-power rows were
+              auto-filled from the latest kingdom scan, and warns if any are still
+              missing power so they know to upload a fresh scan. */}
+          {(filledFromScanCount > 0 || missingPowerCount > 0) && (
+            <section className="mb-4 sm:mb-6 rounded-xl border border-[var(--border)] bg-[var(--background-card)] px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm flex flex-wrap items-center gap-x-3 gap-y-1">
+              {filledFromScanCount > 0 && (
+                <span className="text-emerald-400">
+                  ✓ Filled <strong>{filledFromScanCount}</strong> missing power{filledFromScanCount === 1 ? '' : 's'} from scan
+                  {scanLabel && <span className={`${theme.textMuted}`}> ({scanLabel})</span>}
+                </span>
+              )}
+              {missingPowerCount > 0 && (
+                <span className="text-amber-400 flex items-center gap-1">
+                  <AlertTriangle size={12} className="inline" />
+                  <strong>{missingPowerCount}</strong> still missing power — add Power to the sheet or upload a fresh kingdom scan
+                </span>
+              )}
+            </section>
+          )}
+
           {/* Stats Summary */}
           <section className={`${theme.card} border rounded-xl mb-4 sm:mb-6 p-3 sm:p-5`}>
             <div className="flex items-center justify-between gap-3 mb-3">
@@ -359,7 +409,10 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                       <td className={`px-4 py-2.5 ${theme.textMuted} text-xs`}>{i + 1}</td>
                       <td className="px-4 py-2.5 font-medium">{r.name}</td>
                       <td className={`px-4 py-2.5 text-right ${theme.textMuted} tabular-nums`}>{r.govId || '-'}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums">{r.power ? formatPower(r.power) : '-'}</td>
+                      <td className={`px-4 py-2.5 text-right tabular-nums ${(r as { fromScan?: boolean }).fromScan ? 'text-emerald-400' : !r.power ? 'text-amber-400' : ''}`} title={(r as { fromScan?: boolean }).fromScan ? `Filled from scan${scanLabel ? ` (${scanLabel})` : ''}` : !r.power ? 'Power not available — sheet column blank and gov id not in scan' : 'Power from sheet'}>
+                        {r.power ? formatPower(r.power) : '—'}
+                        {(r as { fromScan?: boolean }).fromScan && <span className="ml-1 text-[10px] opacity-70">·scan</span>}
+                      </td>
                       <td className="px-4 py-2.5 text-center">
                         {r.team1 && <span className="inline-block w-5 h-5 rounded bg-blue-500/20 text-blue-400 text-xs font-bold leading-5">x</span>}
                       </td>
@@ -390,8 +443,12 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                       <span className={`text-xs ${theme.textMuted} w-5 shrink-0 tabular-nums`}>{i + 1}</span>
                       <span className="font-medium text-sm truncate">{r.name}</span>
                     </div>
-                    <span className={`text-xs tabular-nums ${theme.textMuted} shrink-0`}>
-                      {r.power ? formatPower(r.power) : ''}
+                    <span
+                      className={`text-xs tabular-nums shrink-0 ${(r as { fromScan?: boolean }).fromScan ? 'text-emerald-400' : !r.power ? 'text-amber-400' : theme.textMuted}`}
+                      title={(r as { fromScan?: boolean }).fromScan ? `Filled from scan${scanLabel ? ` (${scanLabel})` : ''}` : !r.power ? 'Power not available' : 'Power from sheet'}
+                    >
+                      {r.power ? formatPower(r.power) : '—'}
+                      {(r as { fromScan?: boolean }).fromScan && <span className="ml-1 text-[10px] opacity-70">·scan</span>}
                     </span>
                   </div>
                   {(r.team1 || r.team2 || r.rallyLeader || r.garrisonLeader || r.mid) && (
