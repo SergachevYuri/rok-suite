@@ -166,7 +166,6 @@ interface TeamBuilderTabProps {
     setLockedLanesByTeam: (l: LockedLanesByTeam) => void;
     pendingAdditions: PendingMember[];
     setPendingAdditions: (p: PendingMember[]) => void;
-    onApply: (allTeamData: Record<TeamNumber, { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; coordinators: Set<string>; substitutes: { name: string; power: number; kills: number }[] }>) => void;
     onSavePendingAdditions: (additions: PendingMember[]) => Promise<void>;
     theme: Record<string, string>;
     formatPower: (p: number | null | undefined) => string;
@@ -209,7 +208,6 @@ function TeamBuilderTab({
     setLockedLanesByTeam,
     pendingAdditions,
     setPendingAdditions,
-    onApply,
     onSavePendingAdditions,
     theme,
     formatPower,
@@ -1939,23 +1937,6 @@ function TeamBuilderTab({
                                 </button>
                             );
                         })}
-                        <ConfirmForEveryoneButton onConfirm={() => onApply((() => {
-                                type TeamData = { zones: Record<number, { name: string; power: number; kills: number }[]>; rallyLeads: Record<number, string>; garrisonLeads: Record<number, string>; arkCarrier: string; teleportFirst: Set<string>; coordinators: Set<string>; substitutes: { name: string; power: number; kills: number }[] };
-                                const allTeamData: Record<TeamNumber, TeamData> = {} as Record<TeamNumber, TeamData>;
-                                for (const team of [1, 2, 3] as TeamNumber[]) {
-                                    if (team > teamCount) continue;
-                                    allTeamData[team] = {
-                                        zones: suggestedZonesByTeam[team] || {},
-                                        rallyLeads: selectedRallyLeadsByTeam[team] || {},
-                                        garrisonLeads: selectedGarrisonLeadsByTeam[team] || {},
-                                        arkCarrier: selectedArkCarriersByTeam[team] || '',
-                                        teleportFirst: selectedTeleportFirstByTeam[team] || new Set<string>(),
-                                        coordinators: coordinatorsByTeam[team] || new Set<string>(),
-                                        substitutes: (suggestedZonesByTeam[team] || {})[0] || [],
-                                    };
-                                }
-                                return allTeamData;
-                            })())} />
                         <CopyTeleportFirstButton
                             names={[...(selectedTeleportFirstByTeam[activeTeam] || [])]}
                             team={activeTeam}
@@ -2000,26 +1981,6 @@ function CopyTeleportFirstButton({
             title="Copy teleport-first list for in-game chat"
         >
             {copied ? '✓ Copied!' : `Copy Team ${team} TP First`}
-        </button>
-    );
-}
-
-function ConfirmForEveryoneButton({ onConfirm }: { onConfirm: () => void }) {
-    const [confirmed, setConfirmed] = useState(false);
-    return (
-        <button
-            onClick={() => {
-                onConfirm();
-                setConfirmed(true);
-                setTimeout(() => setConfirmed(false), 2500);
-            }}
-            className={`px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                confirmed
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'text-white bg-[#4318ff] hover:bg-[#4318ff]/80'
-            }`}
-        >
-            {confirmed ? '✓ Confirmed!' : 'Confirm for everyone'}
         </button>
     );
 }
@@ -2338,21 +2299,73 @@ export default function AooStrategyPage() {
         }
     };
 
-    // Auto-save Team Builder state when it changes
+    // Auto-save Team Builder state when it changes. Also derive the legacy
+    // `players` / `substitutes` arrays the Strategy (Roster) tab reads from,
+    // so they stay in sync without a manual "Apply" click.
     const builderSaveReady = useRef(false);
     useEffect(() => {
         if (isLoading || !shareIdRef.current) {
             builderSaveReady.current = false;
             return;
         }
+
+        // Derive players/substitutes from the current builder state.
+        const newPlayers: Player[] = [];
+        const newSubstitutes: Player[] = [];
+        let idCounter = Date.now();
+        for (const teamNum of [1, 2, 3] as TeamNumber[]) {
+            if (teamNum > teamCount) continue;
+            const zones = suggestedZonesByTeam[teamNum] || {};
+            const rallyLeads = selectedRallyLeadsByTeam[teamNum] || {};
+            const garrisonLeads = selectedGarrisonLeadsByTeam[teamNum] || {};
+            const arkCarrier = selectedArkCarriersByTeam[teamNum] || '';
+            const teleportFirst = selectedTeleportFirstByTeam[teamNum] || new Set<string>();
+            const teamCoords = coordinatorsByTeam[teamNum] || new Set<string>();
+
+            for (const [zoneNum, zonePeople] of Object.entries(zones)) {
+                const zone = parseInt(zoneNum);
+                if (zone === 0) {
+                    for (const p of zonePeople) {
+                        newSubstitutes.push({
+                            id: idCounter++,
+                            name: p.name,
+                            team: 0,
+                            tags: ['Maybe', `T${teamNum}`],
+                            power: p.power,
+                            assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
+                        });
+                    }
+                } else if (zone > 0) {
+                    for (const p of zonePeople) {
+                        const tags: string[] = ['Confirmed', `T${teamNum}`];
+                        if (rallyLeads[zone] === p.name) tags.push('Rally Leader');
+                        if (garrisonLeads[zone] === p.name) tags.push('Garrison');
+                        if (zone === 2 && arkCarrier === p.name) tags.push('Ark Carrier');
+                        if (teamCoords.has(p.name)) tags.push('Coordinator');
+                        if (teleportFirst.has(p.name)) tags.push('Teleport 1st');
+                        newPlayers.push({
+                            id: idCounter++,
+                            name: p.name,
+                            team: zone,
+                            tags,
+                            power: p.power,
+                            assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
+                        });
+                    }
+                }
+            }
+        }
+        setPlayers(newPlayers);
+        setSubstitutes(newSubstitutes);
+
         if (!builderSaveReady.current) {
             // First render after load — mark ready and do an initial save
             // to backfill builder state for plans saved before this feature
             builderSaveReady.current = true;
-            saveData({});
+            saveData({ players: newPlayers, substitutes: newSubstitutes });
             return;
         }
-        saveData({});
+        saveData({ players: newPlayers, substitutes: newSubstitutes });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, lockedLanesByTeam]);
 
@@ -3287,67 +3300,6 @@ export default function AooStrategyPage() {
                     pendingAdditions={pendingAdditions}
                     setPendingAdditions={setPendingAdditions}
                     onSavePendingAdditions={handleSavePendingAdditions}
-                    onApply={(allTeamData) => {
-                        // Apply distribution to strategy for all teams
-                        const newPlayers: Player[] = [];
-                        const newSubstitutes: Player[] = [];
-                        let idCounter = Date.now();
-
-                        // Process each team
-                        for (const teamNum of [1, 2, 3] as TeamNumber[]) {
-                            const teamData = allTeamData[teamNum];
-                            if (!teamData) continue;
-
-                            const { zones, rallyLeads, garrisonLeads, arkCarrier, teleportFirst, coordinators: teamCoords, substitutes } = teamData;
-
-                            for (const [zoneNum, zonePeople] of Object.entries(zones)) {
-                                const zone = parseInt(zoneNum);
-                                if (zone === 0) continue; // Skip substitutes here
-                                for (const p of zonePeople as { name: string; power: number; kills: number }[]) {
-                                    const tags: string[] = ['Confirmed', `T${teamNum}`];
-                                    if (rallyLeads[zone] === p.name) {
-                                        tags.push('Rally Leader');
-                                    }
-                                    if (garrisonLeads[zone] === p.name) {
-                                        tags.push('Garrison');
-                                    }
-                                    if (zone === 2 && arkCarrier === p.name) {
-                                        tags.push('Ark Carrier');
-                                    }
-                                    if (teamCoords.has(p.name)) {
-                                        tags.push('Coordinator');
-                                    }
-                                    if (teleportFirst.has(p.name)) {
-                                        tags.push('Teleport 1st');
-                                    }
-                                    newPlayers.push({
-                                        id: idCounter++,
-                                        name: p.name,
-                                        team: zone,
-                                        tags,
-                                        power: p.power,
-                                        assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
-                                    });
-                                }
-                            }
-
-                            // Create substitutes for this team
-                            for (const p of substitutes) {
-                                newSubstitutes.push({
-                                    id: idCounter++,
-                                    name: p.name,
-                                    team: 0,
-                                    tags: ['Maybe', `T${teamNum}`],
-                                    power: p.power,
-                                    assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
-                                });
-                            }
-                        }
-
-                        setPlayers(newPlayers);
-                        setSubstitutes(newSubstitutes);
-                        saveData({ players: newPlayers, substitutes: newSubstitutes });
-                    }}
                     theme={theme}
                     formatPower={formatPower}
                     user={user}
