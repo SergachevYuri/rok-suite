@@ -106,10 +106,17 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   // Power-tier members shouldn't see entries that an officer/admin has put on
   // hold — the delay window is meant to give the player a chance to leave
   // without an immediate attack. Officer/admin still see them with a badge.
+  // Excepted cases are also hidden from the power tier — they shouldn't be
+  // attacked. Officers/admins keep them visible so the prior decision is
+  // discoverable ("we already chose to spare this person").
   const visibleCases = useMemo(() => {
     if (isOfficer) return cases;
     const now = Date.now();
-    return cases.filter((c) => !c.delayed_until || new Date(c.delayed_until).getTime() <= now);
+    return cases.filter(
+      (c) =>
+        c.state !== 'excepted' &&
+        (!c.delayed_until || new Date(c.delayed_until).getTime() <= now),
+    );
   }, [cases, isOfficer]);
 
   type ZSortField = 'username' | 'power' | 'alliance' | 'state';
@@ -120,10 +127,19 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     state: 'asc',
   });
 
+  const isInActive = useCallback(
+    (c: MigrationCase) => !TERMINAL_STATES.includes(c.state) || (isOfficer && c.state === 'excepted'),
+    [isOfficer],
+  );
+
   const filtered = useMemo(() => {
     let list = visibleCases;
-    if (filter === 'active') list = list.filter((c) => !TERMINAL_STATES.includes(c.state));
-    else if (filter !== 'all') list = list.filter((c) => c.state === filter);
+    if (filter === 'active') {
+      // For officers/admins, treat 'excepted' as still visible in the Active
+      // view so they can see at a glance that someone was on the list and was
+      // explicitly excepted. (Power tier never sees excepted at all.)
+      list = list.filter(isInActive);
+    } else if (filter !== 'all') list = list.filter((c) => c.state === filter);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       const qDigits = q.replace(/\D/g, '');
@@ -156,11 +172,11 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const counts = useMemo(() => {
     const out: Record<string, number> = { active: 0, all: visibleCases.length };
     for (const c of visibleCases) {
-      if (!TERMINAL_STATES.includes(c.state)) out.active = (out.active ?? 0) + 1;
+      if (isInActive(c)) out.active = (out.active ?? 0) + 1;
       out[c.state] = (out[c.state] ?? 0) + 1;
     }
     return out;
-  }, [visibleCases]);
+  }, [visibleCases, isInActive]);
 
   const delayedCount = useMemo(() => {
     if (!isOfficer) return 0;
@@ -312,14 +328,15 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         </span>
       </section>
 
-      {/* Hint when Active filter hides finished cases */}
-      {filter === 'active' && ((counts.zeroed ?? 0) + (counts.migrated ?? 0) + (counts.excepted ?? 0) + (counts.afk ?? 0)) > 0 && (
+      {/* Hint when Active filter hides finished cases.
+       *  Officers see excepted in Active, so we don't list it as hidden for them. */}
+      {filter === 'active' && ((counts.zeroed ?? 0) + (counts.migrated ?? 0) + (isOfficer ? 0 : (counts.excepted ?? 0)) + (counts.afk ?? 0)) > 0 && (
         <section className="mb-3 rounded-lg bg-[var(--background-card)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-muted)] flex flex-wrap items-center gap-3">
           <span>
             Hidden by &quot;Active&quot; filter:
             {(counts.zeroed ?? 0) > 0 && <> <button onClick={() => setFilter('zeroed')} className="text-rose-400 hover:underline">{counts.zeroed} zeroed</button></>}
             {(counts.migrated ?? 0) > 0 && <> · <button onClick={() => setFilter('migrated')} className="text-green-400 hover:underline">{counts.migrated} emigrated</button></>}
-            {(counts.excepted ?? 0) > 0 && <> · <button onClick={() => setFilter('excepted')} className="text-amber-400 hover:underline">{counts.excepted} excepted</button></>}
+            {!isOfficer && (counts.excepted ?? 0) > 0 && <> · <button onClick={() => setFilter('excepted')} className="text-amber-400 hover:underline">{counts.excepted} excepted</button></>}
             {(counts.afk ?? 0) > 0 && <> · <button onClick={() => setFilter('afk')} className="text-slate-300 hover:underline">{counts.afk} afk</button></>}
           </span>
           <button onClick={() => setFilter('all')} className="ml-auto text-[var(--text-secondary)] hover:text-[var(--foreground)] underline-offset-2 hover:underline">
