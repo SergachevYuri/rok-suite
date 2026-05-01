@@ -55,6 +55,11 @@ export interface StrategyData {
   // Teams whose lineups are frozen — Distribute and per-player mutations are blocked
   // until the user explicitly unlocks. Persisted as an array of team numbers.
   lockedTeams?: number[];
+  // RoK-mail alliance header preset to render at the top of generated mails.
+  // 'ANG' | 'KNG' | '23KK' | 'EQ' | 'none' | 'custom'. Default 'ANG'.
+  mailHeader?: string;
+  // Custom mail header text — used when mailHeader === 'custom'. RoK markup OK.
+  mailHeaderCustom?: string;
 }
 
 export interface AooRegistration {
