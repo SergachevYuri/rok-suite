@@ -167,6 +167,7 @@ interface TeamBuilderTabProps {
     pendingAdditions: PendingMember[];
     setPendingAdditions: (p: PendingMember[]) => void;
     onSavePendingAdditions: (additions: PendingMember[]) => Promise<void>;
+    onConfirm: () => void;
     theme: Record<string, string>;
     formatPower: (p: number | null | undefined) => string;
     user: { id: string } | null;
@@ -209,6 +210,7 @@ function TeamBuilderTab({
     pendingAdditions,
     setPendingAdditions,
     onSavePendingAdditions,
+    onConfirm,
     theme,
     formatPower,
     user,
@@ -1941,6 +1943,7 @@ function TeamBuilderTab({
                             names={[...(selectedTeleportFirstByTeam[activeTeam] || [])]}
                             team={activeTeam}
                         />
+                        <ConfirmForEveryoneButton onConfirm={onConfirm} />
                     </div>
                 </>
             )}
@@ -1985,6 +1988,27 @@ function CopyTeleportFirstButton({
     );
 }
 
+function ConfirmForEveryoneButton({ onConfirm }: { onConfirm: () => void }) {
+    const [confirmed, setConfirmed] = useState(false);
+    return (
+        <button
+            onClick={() => {
+                onConfirm();
+                setConfirmed(true);
+                setTimeout(() => setConfirmed(false), 2500);
+            }}
+            className={`px-4 sm:px-6 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                confirmed
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'text-white bg-[#4318ff] hover:bg-[#4318ff]/80'
+            }`}
+            title="Save this lineup to the shared plan so anyone with the link sees the same thing"
+        >
+            {confirmed ? '✓ Saved!' : 'Confirm for everyone'}
+        </button>
+    );
+}
+
 export default function AooStrategyPage() {
     const t = useTranslations('aoo');
     const ts = useTranslations('aoo.strategy');
@@ -1999,7 +2023,7 @@ export default function AooStrategyPage() {
 
     // Fetch roster from Supabase
     const { roster, rosterNames, powerByName, killsByName, allianceByName, alliances: dbAlliances, loading: rosterLoading, scanLabel } = useScanRoster();
-    const [activeTab, setActiveTab] = useState<'map' | 'roster' | 'builder' | 'registration'>('registration');
+    const [activeTab, setActiveTab] = useState<'map' | 'builder' | 'registration'>('registration');
     const [players, setPlayers] = useState<Player[]>([]);
     const [substitutes, setSubstitutes] = useState<Player[]>([]);
     const [teams, setTeams] = useState<TeamInfo[]>(DEFAULT_TEAMS);
@@ -2299,73 +2323,21 @@ export default function AooStrategyPage() {
         }
     };
 
-    // Auto-save Team Builder state when it changes. Also derive the legacy
-    // `players` / `substitutes` arrays the Strategy (Roster) tab reads from,
-    // so they stay in sync without a manual "Apply" click.
+    // Auto-save Team Builder state when it changes
     const builderSaveReady = useRef(false);
     useEffect(() => {
         if (isLoading || !shareIdRef.current) {
             builderSaveReady.current = false;
             return;
         }
-
-        // Derive players/substitutes from the current builder state.
-        const newPlayers: Player[] = [];
-        const newSubstitutes: Player[] = [];
-        let idCounter = Date.now();
-        for (const teamNum of [1, 2, 3] as TeamNumber[]) {
-            if (teamNum > teamCount) continue;
-            const zones = suggestedZonesByTeam[teamNum] || {};
-            const rallyLeads = selectedRallyLeadsByTeam[teamNum] || {};
-            const garrisonLeads = selectedGarrisonLeadsByTeam[teamNum] || {};
-            const arkCarrier = selectedArkCarriersByTeam[teamNum] || '';
-            const teleportFirst = selectedTeleportFirstByTeam[teamNum] || new Set<string>();
-            const teamCoords = coordinatorsByTeam[teamNum] || new Set<string>();
-
-            for (const [zoneNum, zonePeople] of Object.entries(zones)) {
-                const zone = parseInt(zoneNum);
-                if (zone === 0) {
-                    for (const p of zonePeople) {
-                        newSubstitutes.push({
-                            id: idCounter++,
-                            name: p.name,
-                            team: 0,
-                            tags: ['Maybe', `T${teamNum}`],
-                            power: p.power,
-                            assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
-                        });
-                    }
-                } else if (zone > 0) {
-                    for (const p of zonePeople) {
-                        const tags: string[] = ['Confirmed', `T${teamNum}`];
-                        if (rallyLeads[zone] === p.name) tags.push('Rally Leader');
-                        if (garrisonLeads[zone] === p.name) tags.push('Garrison');
-                        if (zone === 2 && arkCarrier === p.name) tags.push('Ark Carrier');
-                        if (teamCoords.has(p.name)) tags.push('Coordinator');
-                        if (teleportFirst.has(p.name)) tags.push('Teleport 1st');
-                        newPlayers.push({
-                            id: idCounter++,
-                            name: p.name,
-                            team: zone,
-                            tags,
-                            power: p.power,
-                            assignments: { phase1: '', phase2: '', phase3: '', phase4: '' },
-                        });
-                    }
-                }
-            }
-        }
-        setPlayers(newPlayers);
-        setSubstitutes(newSubstitutes);
-
         if (!builderSaveReady.current) {
             // First render after load — mark ready and do an initial save
             // to backfill builder state for plans saved before this feature
             builderSaveReady.current = true;
-            saveData({ players: newPlayers, substitutes: newSubstitutes });
+            saveData({});
             return;
         }
-        saveData({ players: newPlayers, substitutes: newSubstitutes });
+        saveData({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, lockedLanesByTeam]);
 
@@ -3040,16 +3012,6 @@ export default function AooStrategyPage() {
                         >
                             🛠️ {t('tabs.teamBuilder')}
                         </button>
-                        <button
-                            onClick={() => setActiveTab('roster')}
-                            className={`px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 border-b-2 -mb-[1px] ${
-                                activeTab === 'roster'
-                                    ? 'text-[#4318ff] border-[#4318ff] bg-[#4318ff]/5'
-                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--foreground)] hover:bg-[var(--background-hover)]'
-                            }`}
-                        >
-                            👥 {t('tabs.strategy')}
-                        </button>
                     </div>
                 </div>
             </header>
@@ -3300,6 +3262,7 @@ export default function AooStrategyPage() {
                     pendingAdditions={pendingAdditions}
                     setPendingAdditions={setPendingAdditions}
                     onSavePendingAdditions={handleSavePendingAdditions}
+                    onConfirm={() => saveData({})}
                     theme={theme}
                     formatPower={formatPower}
                     user={user}
@@ -3308,10 +3271,11 @@ export default function AooStrategyPage() {
                 />
             )}
 
-            {activeTab === 'roster' && (
-                /* Roster Tab */
+            {/* Strategy/Roster tab removed — the team builder is the canonical view.
+             *  Kept the supporting state (`players`, `substitutes`, helpers) so loaded
+             *  plans don't break, but no UI references them anymore. */}
+            {false && (
                 <div className="max-w-7xl mx-auto p-4 md:p-6">
-                    {/* Strategy Overview */}
                     <section className={`${theme.card} border border-[#4318ff] rounded-xl mb-6 p-4`}>
                         <h2 className={`text-sm font-semibold uppercase tracking-wider mb-4 text-[#9f7aea]`}>📋 {ts('overview')}</h2>
 
