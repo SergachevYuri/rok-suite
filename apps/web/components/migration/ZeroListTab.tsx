@@ -205,12 +205,12 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             </div>
 
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — Admin, target gets zeroed</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Recipe — target gets zeroed</div>
               <ol className="space-y-1 text-xs list-decimal pl-5">
-                <li>When you commit power members to zero a target, click <strong>To Zero</strong> on their row. State turns orange — &quot;decision made, action pending&quot;.</li>
-                <li>After the attack lands and the player is at near-zero power, click <strong>Confirm Zeroed</strong>. State turns red — done.</li>
+                <li>When admin commits power members to attack a target, they click <strong>To Zero</strong> on the row. State turns orange — &quot;decision made, action pending&quot;.</li>
+                <li>After the attack lands and the player is at near-zero power, <strong>any officer or admin</strong> can click <strong>Confirm Zeroed</strong>. State turns red — done.</li>
                 <li>If they bailed and left the kingdom before you finished, click <strong>Emigrated</strong> instead.</li>
-                <li>If they messaged you and have a legit reason to stay, click <strong>Except</strong> with a reason.</li>
+                <li>Confirmed-zeroed (and emigrated/excepted/afk) cases are filtered out of the default <em>Active</em> view. Switch the dropdown to <em>Zeroed</em> or <em>All</em> to see them — or use the inline link that appears below the filter bar when there are hidden terminal cases.</li>
               </ol>
             </div>
 
@@ -269,7 +269,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       )}
       {isOfficer && !isAdmin && (
         <section className="mb-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-3 text-xs text-[var(--text-secondary)]">
-          You're signed in as <strong>Officer</strong> — you can mark people <em>Emigrated</em> if they leave, and put a row on <em>Delay</em> to give them a window before power members attack. Adding/removing entries and the other terminal-state actions are admin-only — admins curate this list from the Scans tab.
+          You're signed in as <strong>Officer</strong> — you can mark people <em>Emigrated</em>, <em>Confirm Zeroed</em>, and put rows on <em>Delay</em>. Adding/removing entries, AFK, Except are admin-only — admins curate this list from the Scans tab.
         </section>
       )}
 
@@ -311,6 +311,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
           )}
         </span>
       </section>
+
+      {/* Hint when Active filter hides finished cases */}
+      {filter === 'active' && ((counts.zeroed ?? 0) + (counts.migrated ?? 0) + (counts.excepted ?? 0) + (counts.afk ?? 0)) > 0 && (
+        <section className="mb-3 rounded-lg bg-[var(--background-card)] border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-muted)] flex flex-wrap items-center gap-3">
+          <span>
+            Hidden by &quot;Active&quot; filter:
+            {(counts.zeroed ?? 0) > 0 && <> <button onClick={() => setFilter('zeroed')} className="text-rose-400 hover:underline">{counts.zeroed} zeroed</button></>}
+            {(counts.migrated ?? 0) > 0 && <> · <button onClick={() => setFilter('migrated')} className="text-green-400 hover:underline">{counts.migrated} emigrated</button></>}
+            {(counts.excepted ?? 0) > 0 && <> · <button onClick={() => setFilter('excepted')} className="text-amber-400 hover:underline">{counts.excepted} excepted</button></>}
+            {(counts.afk ?? 0) > 0 && <> · <button onClick={() => setFilter('afk')} className="text-slate-300 hover:underline">{counts.afk} afk</button></>}
+          </span>
+          <button onClick={() => setFilter('all')} className="ml-auto text-[var(--text-secondary)] hover:text-[var(--foreground)] underline-offset-2 hover:underline">
+            Show all
+          </button>
+        </section>
+      )}
 
       {/* Table */}
       <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
@@ -471,7 +487,7 @@ function ZeroListRow({
               To Zero
             </button>
           )}
-          {isAdmin && c.state === 'marked_to_zero' && (
+          {isOfficer && c.state === 'marked_to_zero' && (
             <button
               disabled={busy}
               onClick={() => wrap(() => confirmZeroed(c.id, actor))}

@@ -534,7 +534,7 @@ function MigrationPageInner() {
                 <div className="text-xs font-semibold uppercase tracking-wider text-violet-300 mb-2">Who can do what</div>
                 <ul className="text-xs space-y-1 list-disc pl-5">
                   <li><strong>Power</strong> (no real privileges, but signed in) — read everything, copy coords. <em>Cannot edit anything.</em></li>
-                  <li><strong>Officer</strong> — can claim/contact/mark cases <em>on the Cycle tab</em>. On the Zero List tab they can mark <em>Emigrated</em> when a player leaves and toggle the <em>Delay</em> hold; everything else (adding/removing entries, To Zero, Confirm Zeroed, Except, AFK) stays admin-only.</li>
+                  <li><strong>Officer</strong> — can claim/contact/mark cases <em>on the Cycle tab</em>. On the Zero List tab they can mark <em>Emigrated</em>, <em>Confirm Zeroed</em> after an attack, and toggle the <em>Delay</em> hold. Adding/removing entries, To Zero, Except, and AFK stay admin-only.</li>
                   <li><strong>Admin</strong> — full access. Creates cycles, manages Zero List, approves exceptions, uploads scans, etc.</li>
                 </ul>
               </div>
