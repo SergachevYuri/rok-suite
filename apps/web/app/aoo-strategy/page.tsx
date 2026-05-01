@@ -84,21 +84,23 @@ const ZONE_COLORS: Record<number, { bg: string; border: string; text: string }> 
 // Available alliances for team builder
 const ALLIANCES = ['ANG', '23KK', 'KNG', 'EQ'] as const;
 
-// RoK-mail alliance header presets. Empty string = no header line.
-// `ANG` keeps the original red-gradient banner; the others use a simpler
-// bold-colored title so any alliance can pick one without us having to design
-// a full gradient for each. Pick `none` for a clean mail with no banner, or
-// `custom` to type your own (the custom text is stored on the plan).
+// RoK-mail alliance header presets. ANG / MNG / KNG are the kingdom's main
+// alliances and use the canonical gradient markup from
+// lib/rok-mail/alliance-descriptions.ts. Empty string = no header line.
 const MAIL_HEADER_PRESETS: Record<string, { label: string; markup: string }> = {
     ANG: {
         label: 'ANG — Angmar Nazgul Guards',
-        markup: `<size=30px><color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>`,
+        markup: `<size=30><color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>`,
     },
-    KNG: { label: 'KNG', markup: '<size=30px><color=#4318ff><b>KNG</b></color></size>' },
-    '23KK': { label: '23KK', markup: '<size=30px><color=#9333ea><b>23KK</b></color></size>' },
-    EQ: { label: 'EQ', markup: '<size=30px><color=#16a34a><b>EQ</b></color></size>' },
+    MNG: {
+        label: 'MNG — Mithril Noble Guard',
+        markup: `<size=30><color=#004d1a>M</color><color=#006622>I</color><color=#008030>T</color><color=#009939>H</color><color=#00b342>R</color><color=#00cc4d>I</color><color=#00e659>L</color> <color=#004d1a>N</color><color=#006622>O</color><color=#008030>B</color><color=#009939>L</color><color=#00b342>E</color> <color=#00cc4d>G</color><color=#00e659>U</color><color=#00ff66>A</color><color=#66ff99>R</color><color=#99ffbb>D</color></size>`,
+    },
+    KNG: {
+        label: 'KNG — Keepers of Noble Guards',
+        markup: `<size=30><color=#003366>K</color><color=#004080>E</color><color=#004d99>E</color><color=#0059b3>P</color><color=#0066cc>E</color><color=#0073e6>R</color><color=#0080ff>S</color> <color=#003366>O</color><color=#004d99>F</color> <color=#003366>N</color><color=#004080>O</color><color=#004d99>B</color><color=#0059b3>L</color><color=#0066cc>E</color> <color=#0073e6>G</color><color=#0080ff>U</color><color=#3399ff>A</color><color=#66b3ff>R</color><color=#99ccff>D</color><color=#cce6ff>S</color></size>`,
+    },
     none: { label: 'No header', markup: '' },
-    custom: { label: 'Custom…', markup: '' },
 };
 
 // Confirmation status for team builder
@@ -185,8 +187,6 @@ interface TeamBuilderTabProps {
     setLockedTeams: (s: Set<TeamNumber>) => void;
     mailHeader: string;
     setMailHeader: (h: string) => void;
-    mailHeaderCustom: string;
-    setMailHeaderCustom: (h: string) => void;
     pendingAdditions: PendingMember[];
     setPendingAdditions: (p: PendingMember[]) => void;
     onSavePendingAdditions: (additions: PendingMember[]) => Promise<void>;
@@ -234,8 +234,6 @@ function TeamBuilderTab({
     setLockedTeams,
     mailHeader,
     setMailHeader,
-    mailHeaderCustom,
-    setMailHeaderCustom,
     pendingAdditions,
     setPendingAdditions,
     onSavePendingAdditions,
@@ -447,11 +445,8 @@ function TeamBuilderTab({
 
     // Generate RoK mail format for a specific team
     const generateMail = (team: TeamNumber) => {
-        // Header preset — picked from the dropdown. Custom uses the typed text;
-        // 'none' (or empty) skips the header line entirely.
-        const headerMarkup = mailHeader === 'custom'
-            ? (mailHeaderCustom || '').trim()
-            : (MAIL_HEADER_PRESETS[mailHeader]?.markup ?? '');
+        // Header preset — picked from the dropdown. 'none' skips the line.
+        const headerMarkup = MAIL_HEADER_PRESETS[mailHeader]?.markup ?? '';
         const DIVIDER = '►═════════❂❂❂═════════◄';
         const SECTION = '━━━━━━━━━━━━━━━━━━━━';
 
@@ -2187,15 +2182,6 @@ function TeamBuilderTab({
                                 <option key={key} value={key}>{p.label}</option>
                             ))}
                         </select>
-                        {mailHeader === 'custom' && (
-                            <input
-                                type="text"
-                                value={mailHeaderCustom}
-                                onChange={(e) => setMailHeaderCustom(e.target.value)}
-                                placeholder="Custom header (RoK markup OK)"
-                                className={`flex-1 min-w-[180px] px-2 py-1.5 rounded-lg text-xs sm:text-sm font-mono ${theme.input} border`}
-                            />
-                        )}
                         {mailHeader === 'none' && (
                             <span className={`text-[11px] ${theme.textMuted}`}>(no banner at top of mail)</span>
                         )}
@@ -2419,7 +2405,6 @@ export default function AooStrategyPage() {
     // copy-mail buttons. Persisted per plan so different plans (different
     // alliances) can each render their own banner.
     const [mailHeader, setMailHeader] = useState<string>('ANG');
-    const [mailHeaderCustom, setMailHeaderCustom] = useState<string>('');
 
     // Save pending additions to Supabase for admin approval
     const handleSavePendingAdditions = async (additions: PendingMember[]) => {
@@ -2580,8 +2565,12 @@ export default function AooStrategyPage() {
                 if (strategyData?.lockedTeams) {
                     setLockedTeams(new Set(strategyData.lockedTeams as TeamNumber[]));
                 }
-                if (typeof strategyData?.mailHeader === 'string') setMailHeader(strategyData.mailHeader);
-                if (typeof strategyData?.mailHeaderCustom === 'string') setMailHeaderCustom(strategyData.mailHeaderCustom);
+                if (typeof strategyData?.mailHeader === 'string') {
+                    // Normalize legacy values (e.g. 'custom', '23KK', 'EQ') back
+                    // to a supported preset so the dropdown always has a match.
+                    const saved = strategyData.mailHeader;
+                    setMailHeader(MAIL_HEADER_PRESETS[saved] ? saved : 'ANG');
+                }
                 setActiveTab('builder');
                 // Land shared-link viewers on the committed lane assignments view
                 // whenever the plan has any distributed zones — they shouldn't have
@@ -2643,7 +2632,6 @@ export default function AooStrategyPage() {
             lockedLanesByTeam: updatedData.lockedLanesByTeam ?? lockedLanesByTeam,
             lockedTeams: updatedData.lockedTeams ?? Array.from(lockedTeams),
             mailHeader: updatedData.mailHeader ?? mailHeader,
-            mailHeaderCustom: updatedData.mailHeaderCustom ?? mailHeaderCustom,
         };
 
         try {
@@ -2675,7 +2663,7 @@ export default function AooStrategyPage() {
         }
         saveData({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, lockedLanesByTeam, lockedTeams, mailHeader, mailHeaderCustom]);
+    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, lockedLanesByTeam, lockedTeams, mailHeader]);
 
     const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isEditor) return;
@@ -3603,8 +3591,6 @@ export default function AooStrategyPage() {
                     setLockedTeams={setLockedTeams}
                     mailHeader={mailHeader}
                     setMailHeader={setMailHeader}
-                    mailHeaderCustom={mailHeaderCustom}
-                    setMailHeaderCustom={setMailHeaderCustom}
                     pendingAdditions={pendingAdditions}
                     setPendingAdditions={setPendingAdditions}
                     onSavePendingAdditions={handleSavePendingAdditions}
