@@ -87,13 +87,31 @@ const MAIL_HEADER_PRESETS: Record<string, { label: string; markup: string }> = {
   none: { label: 'No header', markup: '' },
 };
 
+type MailFieldKey = 'name' | 'alliance' | 'power' | 'coords';
+type MailFields = Record<MailFieldKey, boolean>;
+
+const MAIL_FIELD_LABELS: Record<MailFieldKey, string> = {
+  name: 'Name',
+  alliance: 'Alliance',
+  power: 'Power',
+  coords: 'Coords',
+};
+
+const DEFAULT_MAIL_FIELDS: MailFields = {
+  name: true,
+  alliance: false,
+  power: false,
+  coords: false,
+};
+
 function generateZeroListMail(args: {
   cases: MigrationCase[];
   locationLookup: Map<number, LocationPoint>;
   headerKey: string;
   signOff: string;
+  fields: MailFields;
 }): string {
-  const { cases, locationLookup, headerKey, signOff } = args;
+  const { cases, locationLookup, headerKey, signOff, fields } = args;
   const headerMarkup = MAIL_HEADER_PRESETS[headerKey]?.markup ?? '';
   const DIVIDER = '►═════════❂❂❂═════════◄';
 
@@ -108,8 +126,6 @@ function generateZeroListMail(args: {
   lines.push('');
   lines.push('<b>ZERO LIST</b>');
   lines.push('');
-  lines.push('Targets are open for attack — coords below.');
-  lines.push('');
 
   for (const c of sorted) {
     const fb = locationLookup.get(c.character_id);
@@ -117,9 +133,22 @@ function generateZeroListMail(args: {
     const x = c.x ?? fb?.x ?? null;
     const y = c.y ?? fb?.y ?? null;
     const alliance = c.last_seen_alliance ?? fb?.alliance ?? null;
-    const coords = x != null && y != null ? ` (${x}, ${y})` : '';
-    const allianceTag = alliance ? ` [${alliance}]` : '';
-    lines.push(`<b>${c.username}</b>${allianceTag} — ${fmtM(power)}${coords}`);
+
+    // Identity (name, alliance) on the left of the em-dash, data (power,
+    // coords) on the right — matches the table's reading order.
+    const idParts: string[] = [];
+    if (fields.name) idParts.push(`<b>${c.username}</b>`);
+    if (fields.alliance && alliance) idParts.push(`[${alliance}]`);
+
+    const dataParts: string[] = [];
+    if (fields.power) dataParts.push(fmtM(power));
+    if (fields.coords && x != null && y != null) dataParts.push(`(${x}, ${y})`);
+
+    const idStr = idParts.join(' ');
+    const dataStr = dataParts.join(' ');
+    const sep = idStr && dataStr ? ' — ' : '';
+    const line = `${idStr}${sep}${dataStr}`;
+    if (line) lines.push(line);
   }
 
   lines.push('');
@@ -148,7 +177,13 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
 
   // Toolbar state — header preset + sign-off match the AOO planner mail flow
-  // so leadership can pick the same banner per send.
+  // so leadership can pick the same banner per send. Fields control which
+  // columns each row of the mail body shows, so the same composer can produce
+  // a name-only chat list or a full power+coords briefing.
+  const [toolbarOpen, setToolbarOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('zero-list-toolbar-open') === '1';
+  });
   const [mailHeader, setMailHeader] = useState<string>(() => {
     if (typeof window === 'undefined') return 'kingdom';
     const saved = window.localStorage.getItem('zero-list-mail-header');
@@ -158,8 +193,26 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     if (typeof window === 'undefined') return 'Leadership';
     return window.localStorage.getItem('zero-list-mail-signoff') || 'Leadership';
   });
+  const [mailFields, setMailFields] = useState<MailFields>(() => {
+    if (typeof window === 'undefined') return DEFAULT_MAIL_FIELDS;
+    try {
+      const saved = window.localStorage.getItem('zero-list-mail-fields');
+      if (saved) {
+        const parsed = JSON.parse(saved) as Partial<MailFields>;
+        return { ...DEFAULT_MAIL_FIELDS, ...parsed };
+      }
+    } catch {}
+    return DEFAULT_MAIL_FIELDS;
+  });
   const [copiedNames, setCopiedNames] = useState(false);
   const [openedMail, setOpenedMail] = useState(false);
+
+  const toggleToolbar = () => setToolbarOpen((o) => {
+    const next = !o;
+    try { window.localStorage.setItem('zero-list-toolbar-open', next ? '1' : '0'); } catch {}
+    return next;
+  });
+  const toggleMailField = (key: MailFieldKey) => setMailFields((f) => ({ ...f, [key]: !f[key] }));
 
   useEffect(() => {
     try { window.localStorage.setItem('zero-list-mail-header', mailHeader); } catch {}
@@ -167,6 +220,9 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   useEffect(() => {
     try { window.localStorage.setItem('zero-list-mail-signoff', signOff); } catch {}
   }, [signOff]);
+  useEffect(() => {
+    try { window.localStorage.setItem('zero-list-mail-fields', JSON.stringify(mailFields)); } catch {}
+  }, [mailFields]);
 
   const refetch = useCallback(async () => {
     try {
@@ -296,12 +352,13 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
       locationLookup,
       headerKey: mailHeader,
       signOff,
+      fields: mailFields,
     });
     try { localStorage.setItem('rok-mail-draft', mail); } catch {}
     window.open('/rok-mail', '_blank');
     setOpenedMail(true);
     setTimeout(() => setOpenedMail(false), 2000);
-  }, [filtered, locationLookup, mailHeader, signOff]);
+  }, [filtered, locationLookup, mailHeader, signOff, mailFields]);
 
   if (loading) return <div className="text-sm text-[var(--text-muted)] py-8 text-center">Loading…</div>;
 
@@ -447,56 +504,111 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         </span>
       </section>
 
-      {/* Send / mail toolbar — operates on whatever's currently filtered, so
-       *  admins can compose per-state mails (e.g. only the To Zero set) by
-       *  switching the filter dropdown above. Mail composer is officer+ only;
-       *  copying names is fine for anyone since the list is already shared. */}
-      <section className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] px-3 py-2">
+      {/* Send / mail toolbar — collapsible. Operates on whatever is currently
+       *  filtered, so admins can compose per-state mails (e.g. only the To
+       *  Zero set) by switching the filter dropdown above. Mail composer is
+       *  officer+ only; copying names is fine for anyone since the list is
+       *  already shared. */}
+      <section className="mb-3 rounded-lg bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
         <button
-          onClick={() => void copyNamesToClipboard()}
-          disabled={filtered.length === 0}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
-            copiedNames
-              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-              : 'bg-[var(--background-secondary)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--background-hover)] disabled:opacity-50 disabled:cursor-not-allowed'
-          }`}
-          title="Copy the names of every row currently shown — paste into in-game chat"
+          onClick={toggleToolbar}
+          className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-[var(--background-hover)] transition-colors"
         >
-          {copiedNames ? <>✓ Copied!</> : <><Users size={14} /> Copy names ({filtered.length})</>}
+          <div className="flex items-center gap-2">
+            <Mail size={14} className="text-[var(--text-muted)]" />
+            <span className="text-sm font-semibold text-[var(--foreground)]">Copy / send mail</span>
+            <span className="text-[11px] text-[var(--text-muted)]">
+              {filtered.length} target{filtered.length === 1 ? '' : 's'} from current filter
+            </span>
+          </div>
+          <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${toolbarOpen ? 'rotate-180' : ''}`} />
         </button>
-        {isOfficer && (
-          <>
-            <span className="hidden sm:inline-block w-px h-5 bg-[var(--border)] mx-1" />
-            <span className="text-xs text-[var(--text-muted)]">Mail header:</span>
-            <select
-              value={mailHeader}
-              onChange={(e) => setMailHeader(e.target.value)}
-              className="px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs sm:text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
-            >
-              {Object.entries(MAIL_HEADER_PRESETS).map(([key, p]) => (
-                <option key={key} value={key}>{p.label}</option>
-              ))}
-            </select>
-            <input
-              value={signOff}
-              onChange={(e) => setSignOff(e.target.value)}
-              placeholder="Sign-off"
-              className="px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs sm:text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--foreground)]/30 w-28"
-              title="Footer line — defaults to Leadership"
-            />
-            <button
-              onClick={openMailDraft}
-              disabled={filtered.length === 0}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
-                openedMail
-                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                  : 'bg-[#4318ff]/15 text-[#a89dff] border-[#4318ff]/40 hover:bg-[#4318ff]/25 disabled:opacity-50 disabled:cursor-not-allowed'
-              }`}
-              title="Open the RoK Mail composer pre-filled with the current list"
-            >
-              {openedMail ? <>✓ Opened</> : <><Mail size={14} /> Compose mail</>}
-            </button>
-          </>
+        {toolbarOpen && (
+          <div className="px-3 pb-3 pt-2 border-t border-[var(--border)] space-y-3">
+            {/* Quick copy block — names only, comma-separated, for in-game chat. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] w-full sm:w-32">Quick copy</span>
+              <button
+                onClick={() => void copyNamesToClipboard()}
+                disabled={filtered.length === 0}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
+                  copiedNames
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                    : 'bg-[var(--background-secondary)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--background-hover)] disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+                title="Copy the names of every row currently shown, comma-separated — paste into in-game chat"
+              >
+                {copiedNames ? <>✓ Copied!</> : <><Users size={14} /> Copy {filtered.length} name{filtered.length === 1 ? '' : 's'}</>}
+              </button>
+              <span className="text-[11px] text-[var(--text-muted)]">comma-separated, for in-game chat</span>
+            </div>
+
+            {isOfficer && (
+              <div className="rounded-md border border-[var(--border)] bg-[var(--background-secondary)]/40 p-3 space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Compose mail</div>
+
+                {/* Header banner */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-xs text-[var(--text-secondary)] w-full sm:w-32">Header banner</label>
+                  <select
+                    value={mailHeader}
+                    onChange={(e) => setMailHeader(e.target.value)}
+                    className="flex-1 min-w-[200px] px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs sm:text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                  >
+                    {Object.entries(MAIL_HEADER_PRESETS).map(([key, p]) => (
+                      <option key={key} value={key}>{p.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Per-row field checkboxes */}
+                <div className="flex flex-wrap items-start gap-2">
+                  <label className="text-xs text-[var(--text-secondary)] w-full sm:w-32 pt-1">Include per row</label>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 flex-1">
+                    {(Object.keys(MAIL_FIELD_LABELS) as MailFieldKey[]).map((key) => (
+                      <label key={key} className="inline-flex items-center gap-1.5 text-xs sm:text-sm cursor-pointer select-none text-[var(--foreground)]">
+                        <input
+                          type="checkbox"
+                          checked={mailFields[key]}
+                          onChange={() => toggleMailField(key)}
+                          className="w-3.5 h-3.5 rounded border-[var(--border)] bg-[var(--background-secondary)] accent-[#4318ff]"
+                        />
+                        {MAIL_FIELD_LABELS[key]}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sign-off */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-xs text-[var(--text-secondary)] w-full sm:w-32">Sign-off</label>
+                  <input
+                    value={signOff}
+                    onChange={(e) => setSignOff(e.target.value)}
+                    placeholder="Leadership"
+                    className="flex-1 min-w-[200px] px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs sm:text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--foreground)]/30"
+                  />
+                </div>
+
+                {/* Action button */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    onClick={openMailDraft}
+                    disabled={filtered.length === 0}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
+                      openedMail
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        : 'bg-[#4318ff]/15 text-[#a89dff] border-[#4318ff]/40 hover:bg-[#4318ff]/25 disabled:opacity-50 disabled:cursor-not-allowed'
+                    }`}
+                    title="Open the RoK Mail composer pre-filled with the current list"
+                  >
+                    {openedMail ? <>✓ Opened</> : <><Mail size={14} /> Compose mail with {filtered.length} target{filtered.length === 1 ? '' : 's'}</>}
+                  </button>
+                  <span className="text-[11px] text-[var(--text-muted)]">opens RoK Mail in a new tab, pre-filled</span>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </section>
 
