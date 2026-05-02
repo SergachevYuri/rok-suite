@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Crown, Pencil, Trash2, Eye, EyeOff, ScrollText, Plus, Settings, FileText, Users, ClipboardList, Star, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Crown, Pencil, Trash2, Eye, EyeOff, ScrollText, Plus, Settings, FileText, Users, ClipboardList, Star, X, CheckSquare, Square } from 'lucide-react';
 import { MgeApplyTab } from './MgeApplyTab';
 import { MgeReviewTab } from './MgeReviewTab';
 import { MgeEventSetup } from './MgeEventSetup';
@@ -41,6 +41,11 @@ interface MgeEventCardProps {
   onRefetch: () => void;
   onGenerateMail: (evt: MgeEvent, type: 'applications' | 'rankings') => void;
   roster: RosterMember[];
+  /** When true, the header row acts as a select toggle and the card body
+   *  stays collapsed — used by the admin "Clean up past events" flow. */
+  bulkMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -63,6 +68,9 @@ export function MgeEventCard({
   onRefetch,
   onGenerateMail,
   roster,
+  bulkMode = false,
+  isSelected = false,
+  onToggleSelect,
 }: MgeEventCardProps) {
   const [activeTab, setActiveTab] = useState<EventTab>('overview');
   const [isEditing, setIsEditing] = useState(false);
@@ -198,15 +206,31 @@ export function MgeEventCard({
     { key: 'apply', label: 'Apply', icon: <ClipboardList size={14} />, show: canApply },
   ];
 
+  const headerClick = bulkMode && onToggleSelect ? onToggleSelect : onToggle;
+
   return (
-    <div className="rounded-lg border overflow-hidden" style={{ backgroundColor: 'var(--background-card)', borderColor: 'var(--border)' }}>
+    <div
+      className={`rounded-lg border overflow-hidden transition-fast ${
+        bulkMode && isSelected ? 'ring-2 ring-blue-500/60' : ''
+      }`}
+      style={{
+        backgroundColor: bulkMode && isSelected ? 'rgba(59,130,246,0.08)' : 'var(--background-card)',
+        borderColor: 'var(--border)',
+      }}
+    >
       {/* Event header */}
       <button
         type="button"
-        onClick={onToggle}
+        onClick={headerClick}
         className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 text-left hover:bg-[var(--background-secondary)] transition-fast flex-wrap"
       >
-        <Crown size={18} className="text-blue-500 shrink-0" />
+        {bulkMode ? (
+          isSelected
+            ? <CheckSquare size={18} className="text-blue-400 shrink-0" />
+            : <Square size={18} className="text-[var(--text-muted)] shrink-0" />
+        ) : (
+          <Crown size={18} className="text-blue-500 shrink-0" />
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             {commanders.map((cmd, i) => {
@@ -242,12 +266,13 @@ export function MgeEventCard({
         <span className="hidden sm:inline-flex text-sm px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 shrink-0">
           {event.mge_selections.length + pendingAssignments.length} selected
         </span>
-        {isExpanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} /> :
-          <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
+        {bulkMode ? null : isExpanded
+          ? <ChevronUp size={16} style={{ color: 'var(--text-muted)' }} />
+          : <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />}
       </button>
 
       {/* Expanded content */}
-      {isExpanded && (
+      {!bulkMode && isExpanded && (
         <div className="border-t" style={{ borderColor: 'var(--border)' }}>
           {/* Tab bar */}
           <div className="flex border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
@@ -331,8 +356,9 @@ export function MgeEventCard({
                   )}
                   {isAdmin && (
                     <button onClick={handleDeleteEvent}
-                      className="p-1.5 rounded-md text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-fast" title="Delete event">
-                      <Trash2 size={14} />
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-fast"
+                      title="Permanently delete this event">
+                      <Trash2 size={14} /> Delete event
                     </button>
                   )}
                 </div>
