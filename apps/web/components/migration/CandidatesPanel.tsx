@@ -469,94 +469,90 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
 // ─── Card 2: Illegal immigrants ──────────────────────────────────────────────
 
 function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void }) {
-  // "New arrival" = in latest scan AND has NEVER appeared in any scan source
-  // (kingdom_scans, seeds_kd, location_scans) older than `daysAgo`.
-  // Pulling from all three sources gives enough history to reliably tell who
-  // is actually new — auto-scrape alone usually only has a handful of days.
-  const [daysAgo, setDaysAgo] = useState<number>(7);
+  // "Illegal arrival" = in scan B (latest) AND NOT in scan A (the previous scan
+  // the user picked) AND NEVER in any historical scan source older than scan A.
+  // Scan B is fixed to the latest; scan A is user-selectable so admins can ask
+  // "who arrived between scan X and scan Y" (not just "since N days ago").
+  const sameKindScans = data.scans.filter((s) => s.kind === data.latest!.kind);
+  const defaultA = sameKindScans[1] ?? sameKindScans[0];
+  const [aKey, setAKey] = useState<string>(`${defaultA.kind}:${defaultA.id}`);
+  const [aPlayers, setAPlayers] = useState<UnifiedScanPlayer[]>([]);
   const [unionIds, setUnionIds] = useState<Set<number>>(new Set());
   const [historySources, setHistorySources] = useState<{ name: string; rows: number }[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const aRef = useMemo(() => data.scans.find((s) => `${s.kind}:${s.id}` === aKey) ?? null, [data.scans, aKey]);
+
   useEffect(() => {
-    setLoading(true);
-    void (async () => {
-      const cutoffIso = new Date(Date.now() - daysAgo * 86_400_000).toISOString();
-      const { ids, sources } = await loadHistoricalGovIds(cutoffIso);
-      setUnionIds(ids);
-      setHistorySources(sources);
-      setLoading(false);
+    let cancelled = false;
+    (async () => {
+      if (!aRef) return;
+      if (!cancelled) setLoading(true);
+      try {
+        const [players, hist] = await Promise.all([
+          loadUnifiedScanPlayers(aRef),
+          loadHistoricalGovIds(aRef.ts),
+        ]);
+        if (cancelled) return;
+        setAPlayers(players);
+        setUnionIds(hist.ids);
+        setHistorySources(hist.sources);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
-  }, [daysAgo]);
+    return () => { cancelled = true; };
+  }, [aRef]);
 
   const candidates = useMemo(() => {
-    if (unionIds.size === 0) return [];
+    if (aPlayers.length === 0) return [];
+    const aIds = new Set(aPlayers.map((p) => p.governorId));
     return data.latestPlayers
-      // 1) Has never appeared in any K23 scan source older than the cutoff
+      // 1) Not present in the chosen previous scan A
+      .filter((b) => !aIds.has(b.governorId))
+      // 2) Never appeared in any K23 scan source older than scan A's timestamp
       .filter((b) => !unionIds.has(b.governorId))
-      // 2) Not currently in a K23 alliance — players in any alliance were
-      //    accepted by alliance leadership, so they're not "illegal" even if
-      //    our scan history is limited. Treats empty / noally as suspect.
-      .filter((b) => {
-        const a = (b.alliance ?? '').trim().toLowerCase();
-        return !a || a === 'noally';
-      })
       .map((b) => ({ player: b, decision: data.decisionsByGov.get(b.governorId) }))
-      // 4) Not Yes-approved on the migrant sheet
+      // 3) Not Yes-approved on the migrant sheet
       .filter((c) => c.decision?.decision !== 'yes')
       .sort((a, b) => b.player.power - a.player.power);
-  }, [unionIds, data]);
+  }, [aPlayers, unionIds, data]);
 
   return (
     <Card
       icon={<UserPlus size={14} className="text-cyan-400" />}
       title="Illegal arrivals"
-      subtitle={`People in today's scan who joined K23 in the last ${daysAgo} day${daysAgo === 1 ? '' : 's'}, aren't in any K23 alliance, and aren't Yes-approved on the migrant sheet.`}
+      subtitle="People in today's latest scan who weren't in the previous scan you select, and have never appeared in our historical scans."
       count={loading ? 0 : candidates.length}
       explainer={
         <>
           <p>
-            A player is flagged if <strong>all four</strong> are true:
+            A player is flagged if <strong>all three</strong> are true:
           </p>
           <ol className="list-decimal pl-5 space-y-0.5 text-[var(--text-secondary)]">
             <li>In today&apos;s latest scan (so they&apos;re here right now).</li>
-            <li>Has never been seen in any historical scan source older than the cutoff. We pool gov_ids from kingdom_scans, seeds_kd, and location_scans for the union.
+            <li>Not present in scan A (the previous scan picked in the <strong>vs:</strong> dropdown above).</li>
+            <li>Never seen in any historical scan source older than scan A&apos;s timestamp. We pool gov_ids from kingdom_scans, seeds_kd, and location_scans for the union.
               {historySources.length > 0 && <> ({historySources.map((s) => `${s.name}: ${s.rows.toLocaleString()} rows`).join(' · ')}.)</>}
             </li>
-            <li>Not currently in a K23 alliance (alliance is <code className="text-[var(--text-secondary)]">noally</code> or empty). Anyone accepted into ANG/MNG/etc. is by definition not illegal — alliance leaders approved them.</li>
-            <li>Not Yes-approved on the migrant sheet.</li>
           </ol>
           <p className="text-[var(--text-muted)]">
-            <strong>Why all four?</strong> Without the alliance check, players whose alliance prefix appears in their name (like <em>ᵃⁿᵍMorven</em>) showed up as illegal whenever our scan history happened to miss them. The alliance signal is the strongest &quot;definitely belongs&quot; check we have.
+            Yes-approved players on the migrant sheet are excluded automatically.
           </p>
           <p className="text-[var(--text-muted)]">
-            Caveats: the auto-scrape covers only the top ~400 by power. Players who fluctuate around that boundary may briefly show up here if they also drop their alliance. False positives are uncommon but possible — verify by checking if you recognize the name from active alliance work.
+            Caveats: the auto-scrape (seeds_kd) covers only the top ~400 by power. A player whose power fluctuates around that boundary can drop out of one scan and reappear in the next — they&apos;ll look like a fresh arrival even though they&apos;re not. Cross-check against the manual XLSX scans (kingdom_scans) when in doubt.
           </p>
         </>
       }
       controls={
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider mr-1">arrived since:</span>
-          {[
-            { id: 1, label: 'Yesterday' },
-            { id: 3, label: '3 days' },
-            { id: 7, label: '1 week' },
-            { id: 14, label: '2 weeks' },
-            { id: 30, label: '1 month' },
-            { id: 60, label: '2 months' },
-          ].map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setDaysAgo(p.id)}
-              className={`px-2 py-1 text-[11px] rounded-md border transition-colors ${
-                daysAgo === p.id
-                  ? 'bg-[#4318ff] border-[#4318ff] text-white'
-                  : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <DatePresetPicker
+            scans={sameKindScans}
+            scanKey={aKey}
+            onChange={setAKey}
+            excludeKey={`${data.latest!.kind}:${data.latest!.id}`}
+            label="vs:"
+          />
         </div>
       }
     >
