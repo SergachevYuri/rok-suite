@@ -326,9 +326,18 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return cases.filter((c) => c.delayed_until && new Date(c.delayed_until).getTime() > now).length;
   }, [cases, isOfficer]);
 
+  // Excepted cases are spared by admin decision and must never be broadcast
+  // as attack targets — strip them out of every outbound action regardless of
+  // which filter the table is currently showing.
+  const mailableCases = useMemo(
+    () => filtered.filter((c) => c.state !== 'excepted'),
+    [filtered],
+  );
+  const exceptedHidden = filtered.length - mailableCases.length;
+
   const copyNamesToClipboard = useCallback(async () => {
-    if (filtered.length === 0) return;
-    const text = filtered.map((c) => c.username).join(', ');
+    if (mailableCases.length === 0) return;
+    const text = mailableCases.map((c) => c.username).join(', ');
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -341,14 +350,14 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     }
     setCopiedNames(true);
     setTimeout(() => setCopiedNames(false), 2000);
-  }, [filtered]);
+  }, [mailableCases]);
 
   // Stash the generated mail in localStorage and open RoK Mail in a new tab —
   // same hand-off the AOO planner uses (see app/aoo-strategy/page.tsx).
   const openMailDraft = useCallback(() => {
-    if (filtered.length === 0) return;
+    if (mailableCases.length === 0) return;
     const mail = generateZeroListMail({
-      cases: filtered,
+      cases: mailableCases,
       locationLookup,
       headerKey: mailHeader,
       signOff,
@@ -358,7 +367,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     window.open('/rok-mail', '_blank');
     setOpenedMail(true);
     setTimeout(() => setOpenedMail(false), 2000);
-  }, [filtered, locationLookup, mailHeader, signOff, mailFields]);
+  }, [mailableCases, locationLookup, mailHeader, signOff, mailFields]);
 
   if (loading) return <div className="text-sm text-[var(--text-muted)] py-8 text-center">Loading…</div>;
 
@@ -518,7 +527,10 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             <Mail size={14} className="text-[var(--text-muted)]" />
             <span className="text-sm font-semibold text-[var(--foreground)]">Copy / send mail</span>
             <span className="text-[11px] text-[var(--text-muted)]">
-              {filtered.length} target{filtered.length === 1 ? '' : 's'} from current filter
+              {mailableCases.length} target{mailableCases.length === 1 ? '' : 's'}
+              {exceptedHidden > 0 && (
+                <> · <span className="text-amber-400">{exceptedHidden} excepted excluded</span></>
+              )}
             </span>
           </div>
           <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${toolbarOpen ? 'rotate-180' : ''}`} />
@@ -530,17 +542,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] w-full sm:w-32">Quick copy</span>
               <button
                 onClick={() => void copyNamesToClipboard()}
-                disabled={filtered.length === 0}
+                disabled={mailableCases.length === 0}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
                   copiedNames
                     ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                     : 'bg-[var(--background-secondary)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--background-hover)] disabled:opacity-50 disabled:cursor-not-allowed'
                 }`}
-                title="Copy the names of every row currently shown, comma-separated — paste into in-game chat"
+                title="Copy comma-separated names — excepted players are excluded automatically"
               >
-                {copiedNames ? <>✓ Copied!</> : <><Users size={14} /> Copy {filtered.length} name{filtered.length === 1 ? '' : 's'}</>}
+                {copiedNames ? <>✓ Copied!</> : <><Users size={14} /> Copy {mailableCases.length} name{mailableCases.length === 1 ? '' : 's'}</>}
               </button>
-              <span className="text-[11px] text-[var(--text-muted)]">comma-separated, for in-game chat</span>
+              <span className="text-[11px] text-[var(--text-muted)]">
+                comma-separated, for in-game chat
+                {exceptedHidden > 0 && (
+                  <> · <span className="text-amber-400">excepted excluded</span></>
+                )}
+              </span>
             </div>
 
             {isOfficer && (
@@ -594,17 +611,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <button
                     onClick={openMailDraft}
-                    disabled={filtered.length === 0}
+                    disabled={mailableCases.length === 0}
                     className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
                       openedMail
                         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                         : 'bg-[#4318ff]/15 text-[#a89dff] border-[#4318ff]/40 hover:bg-[#4318ff]/25 disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
-                    title="Open the RoK Mail composer pre-filled with the current list"
+                    title="Open RoK Mail pre-filled — excepted players are excluded automatically"
                   >
-                    {openedMail ? <>✓ Opened</> : <><Mail size={14} /> Compose mail with {filtered.length} target{filtered.length === 1 ? '' : 's'}</>}
+                    {openedMail ? <>✓ Opened</> : <><Mail size={14} /> Compose mail with {mailableCases.length} target{mailableCases.length === 1 ? '' : 's'}</>}
                   </button>
-                  <span className="text-[11px] text-[var(--text-muted)]">opens RoK Mail in a new tab, pre-filled</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">
+                    opens RoK Mail in a new tab, pre-filled
+                    {exceptedHidden > 0 && (
+                      <> · <span className="text-amber-400">{exceptedHidden} excepted excluded</span></>
+                    )}
+                  </span>
                 </div>
               </div>
             )}
