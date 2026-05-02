@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Clock, Copy, Lock, RotateCcw, Trash2 } from 'lucide-react';
+import { ChevronDown, Clock, Copy, Lock, Mail, RotateCcw, Trash2, Users } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import {
   type MigrationCase,
@@ -64,6 +64,71 @@ function fmtDelayRemaining(iso: string): string {
   return `${Math.round(hours / 24)}d left`;
 }
 
+// Mail header presets — same gradient markup the AOO planner uses, plus a
+// kingdom-wide variant for cross-alliance announcements. Order matters: the
+// dropdown shows entries top-to-bottom.
+const MAIL_HEADER_PRESETS: Record<string, { label: string; markup: string }> = {
+  kingdom: {
+    label: 'Kingdom 3923',
+    markup: `<size=30px><color=#4d0000>KINGDOM 3923</color> <color=#cc0000>—</color> <color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>`,
+  },
+  ANG: {
+    label: 'ANG — Angmar Nazgul Guards',
+    markup: `<size=30><color=#4d0000>A</color><color=#660000>N</color><color=#800000>G</color><color=#990000>M</color><color=#b30000>A</color><color=#cc0000>R</color> <color=#4d0000>N</color><color=#660000>A</color><color=#800000>Z</color><color=#990000>G</color><color=#b30000>U</color><color=#cc0000>L</color> <color=#e60000>G</color><color=#ff0000>U</color><color=#ff0000>A</color><color=#cc0000>R</color><color=#990000>D</color><color=#800000>S</color></size>`,
+  },
+  MNG: {
+    label: 'MNG — Mithril Noble Guard',
+    markup: `<size=30><color=#004d1a>M</color><color=#006622>I</color><color=#008030>T</color><color=#009939>H</color><color=#00b342>R</color><color=#00cc4d>I</color><color=#00e659>L</color> <color=#004d1a>N</color><color=#006622>O</color><color=#008030>B</color><color=#009939>L</color><color=#00b342>E</color> <color=#00cc4d>G</color><color=#00e659>U</color><color=#00ff66>A</color><color=#66ff99>R</color><color=#99ffbb>D</color></size>`,
+  },
+  KNG: {
+    label: 'KNG — Keepers of Noble Guards',
+    markup: `<size=30><color=#003366>K</color><color=#004080>E</color><color=#004d99>E</color><color=#0059b3>P</color><color=#0066cc>E</color><color=#0073e6>R</color><color=#0080ff>S</color> <color=#003366>O</color><color=#004d99>F</color> <color=#003366>N</color><color=#004080>O</color><color=#004d99>B</color><color=#0059b3>L</color><color=#0066cc>E</color> <color=#0073e6>G</color><color=#0080ff>U</color><color=#3399ff>A</color><color=#66b3ff>R</color><color=#99ccff>D</color><color=#cce6ff>S</color></size>`,
+  },
+  none: { label: 'No header', markup: '' },
+};
+
+function generateZeroListMail(args: {
+  cases: MigrationCase[];
+  locationLookup: Map<number, LocationPoint>;
+  headerKey: string;
+  signOff: string;
+}): string {
+  const { cases, locationLookup, headerKey, signOff } = args;
+  const headerMarkup = MAIL_HEADER_PRESETS[headerKey]?.markup ?? '';
+  const DIVIDER = '►═════════❂❂❂═════════◄';
+
+  const sorted = [...cases].sort(
+    (a, b) =>
+      (b.last_seen_power ?? b.power_at_open) - (a.last_seen_power ?? a.power_at_open),
+  );
+
+  const lines: string[] = [];
+  if (headerMarkup) lines.push(headerMarkup);
+  lines.push(DIVIDER);
+  lines.push('');
+  lines.push('<b><color=#ff3333>ZERO LIST</color></b>');
+  lines.push('');
+  lines.push('Targets are open for attack — coords below.');
+  lines.push('');
+
+  for (const c of sorted) {
+    const fb = locationLookup.get(c.character_id);
+    const power = c.last_seen_power ?? fb?.power ?? c.power_at_open;
+    const x = c.x ?? fb?.x ?? null;
+    const y = c.y ?? fb?.y ?? null;
+    const alliance = c.last_seen_alliance ?? fb?.alliance ?? null;
+    const coords = x != null && y != null ? ` <color=#999999>(${x}, ${y})</color>` : '';
+    const allianceTag = alliance ? ` <color=#888888>[${alliance}]</color>` : '';
+    lines.push(`<b>${c.username}</b>${allianceTag} — ${fmtM(power)}${coords}`);
+  }
+
+  lines.push('');
+  lines.push(DIVIDER);
+  lines.push(`<b><color=#800000>— ${signOff || 'Leadership'}</color></b>`);
+
+  return lines.join('\n');
+}
+
 export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const [cases, setCases] = useState<MigrationCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +146,27 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
 
   const [locationLookup, setLocationLookup] = useState<Map<number, LocationPoint>>(new Map());
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
+
+  // Toolbar state — header preset + sign-off match the AOO planner mail flow
+  // so leadership can pick the same banner per send.
+  const [mailHeader, setMailHeader] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'kingdom';
+    const saved = window.localStorage.getItem('zero-list-mail-header');
+    return saved && MAIL_HEADER_PRESETS[saved] ? saved : 'kingdom';
+  });
+  const [signOff, setSignOff] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'Leadership';
+    return window.localStorage.getItem('zero-list-mail-signoff') || 'Leadership';
+  });
+  const [copiedNames, setCopiedNames] = useState(false);
+  const [openedMail, setOpenedMail] = useState(false);
+
+  useEffect(() => {
+    try { window.localStorage.setItem('zero-list-mail-header', mailHeader); } catch {}
+  }, [mailHeader]);
+  useEffect(() => {
+    try { window.localStorage.setItem('zero-list-mail-signoff', signOff); } catch {}
+  }, [signOff]);
 
   const refetch = useCallback(async () => {
     try {
@@ -183,6 +269,39 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     const now = Date.now();
     return cases.filter((c) => c.delayed_until && new Date(c.delayed_until).getTime() > now).length;
   }, [cases, isOfficer]);
+
+  const copyNamesToClipboard = useCallback(async () => {
+    if (filtered.length === 0) return;
+    const text = filtered.map((c) => c.username).join(', ');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopiedNames(true);
+    setTimeout(() => setCopiedNames(false), 2000);
+  }, [filtered]);
+
+  // Stash the generated mail in localStorage and open RoK Mail in a new tab —
+  // same hand-off the AOO planner uses (see app/aoo-strategy/page.tsx).
+  const openMailDraft = useCallback(() => {
+    if (filtered.length === 0) return;
+    const mail = generateZeroListMail({
+      cases: filtered,
+      locationLookup,
+      headerKey: mailHeader,
+      signOff,
+    });
+    try { localStorage.setItem('rok-mail-draft', mail); } catch {}
+    window.open('/rok-mail', '_blank');
+    setOpenedMail(true);
+    setTimeout(() => setOpenedMail(false), 2000);
+  }, [filtered, locationLookup, mailHeader, signOff]);
 
   if (loading) return <div className="text-sm text-[var(--text-muted)] py-8 text-center">Loading…</div>;
 
@@ -326,6 +445,59 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             <> · coords from <span className="text-[var(--text-secondary)]">{locationLabel}</span></>
           )}
         </span>
+      </section>
+
+      {/* Send / mail toolbar — operates on whatever's currently filtered, so
+       *  admins can compose per-state mails (e.g. only the To Zero set) by
+       *  switching the filter dropdown above. Mail composer is officer+ only;
+       *  copying names is fine for anyone since the list is already shared. */}
+      <section className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] px-3 py-2">
+        <button
+          onClick={() => void copyNamesToClipboard()}
+          disabled={filtered.length === 0}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
+            copiedNames
+              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+              : 'bg-[var(--background-secondary)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--background-hover)] disabled:opacity-50 disabled:cursor-not-allowed'
+          }`}
+          title="Copy the names of every row currently shown — paste into in-game chat"
+        >
+          {copiedNames ? <>✓ Copied!</> : <><Users size={14} /> Copy names ({filtered.length})</>}
+        </button>
+        {isOfficer && (
+          <>
+            <span className="hidden sm:inline-block w-px h-5 bg-[var(--border)] mx-1" />
+            <span className="text-xs text-[var(--text-muted)]">Mail header:</span>
+            <select
+              value={mailHeader}
+              onChange={(e) => setMailHeader(e.target.value)}
+              className="px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs sm:text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+            >
+              {Object.entries(MAIL_HEADER_PRESETS).map(([key, p]) => (
+                <option key={key} value={key}>{p.label}</option>
+              ))}
+            </select>
+            <input
+              value={signOff}
+              onChange={(e) => setSignOff(e.target.value)}
+              placeholder="Sign-off"
+              className="px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs sm:text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--foreground)]/30 w-28"
+              title="Footer line — defaults to Leadership"
+            />
+            <button
+              onClick={openMailDraft}
+              disabled={filtered.length === 0}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
+                openedMail
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                  : 'bg-[#4318ff]/15 text-[#a89dff] border-[#4318ff]/40 hover:bg-[#4318ff]/25 disabled:opacity-50 disabled:cursor-not-allowed'
+              }`}
+              title="Open the RoK Mail composer pre-filled with the current list"
+            >
+              {openedMail ? <>✓ Opened</> : <><Mail size={14} /> Compose mail</>}
+            </button>
+          </>
+        )}
       </section>
 
       {/* Hint when Active filter hides finished cases.
