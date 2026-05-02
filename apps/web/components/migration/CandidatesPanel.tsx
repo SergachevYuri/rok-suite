@@ -448,6 +448,7 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
             governorId: c.player.governorId,
             name: c.player.name,
             power: c.player.power,
+            kp: c.player.kp,
             alliance: c.player.alliance,
             x: c.player.x,
             y: c.player.y,
@@ -610,6 +611,7 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
             governorId: c.player.governorId,
             name: c.player.name,
             power: c.player.power,
+            kp: c.player.kp,
             alliance: c.player.alliance,
             x: c.player.x,
             y: c.player.y,
@@ -646,6 +648,7 @@ function CycleLeftoversCard({ data, isAdmin, actorName, onChange }: { data: Shar
           name: l.username,
           // Prefer fresh power from latest scan if we have it
           power: sp?.power ?? l.powerAtOpen,
+          kp: sp?.kp ?? 0,
           alliance: sp?.alliance ?? null,
           x: sp?.x ?? null,
           y: sp?.y ?? null,
@@ -679,6 +682,7 @@ function CycleLeftoversCard({ data, isAdmin, actorName, onChange }: { data: Shar
           governorId: c.governorId,
           name: c.name,
           power: c.power,
+          kp: c.kp,
           alliance: c.alliance,
           x: c.x,
           y: c.y,
@@ -743,6 +747,7 @@ function TopNCard({ data, isAdmin, actorName, onChange }: { data: SharedData; is
           governorId: c.player.governorId,
           name: c.player.name,
           power: c.player.power,
+          kp: c.player.kp,
           alliance: c.player.alliance,
           x: c.player.x,
           y: c.player.y,
@@ -841,6 +846,7 @@ interface CandidateRow {
   governorId: number;
   name: string;
   power: number;
+  kp: number;
   alliance: string | null;
   x: number | null;
   y: number | null;
@@ -860,10 +866,11 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
 
-  type CSortField = 'name' | 'power' | 'extra' | 'alliance' | 'decision';
+  type CSortField = 'name' | 'power' | 'kp' | 'extra' | 'alliance' | 'decision';
   const sort = useTableSort<CSortField>('power', {
     name: 'asc',
     power: 'desc',
+    kp: 'desc',
     extra: 'desc',
     alliance: 'asc',
     decision: 'asc',
@@ -879,6 +886,7 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
       let cmp = 0;
       if (sort.field === 'name') cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
       else if (sort.field === 'power') cmp = a.power - b.power;
+      else if (sort.field === 'kp') cmp = a.kp - b.kp;
       else if (sort.field === 'alliance') cmp = (a.alliance ?? '').toLowerCase().localeCompare((b.alliance ?? '').toLowerCase());
       else if (sort.field === 'decision') cmp = decisionRank(a.decision) - decisionRank(b.decision);
       else if (sort.field === 'extra') {
@@ -960,6 +968,7 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
               )}
               <SortableTh label="Player" field="name" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
               <SortableTh label="Power" field="power" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
+              <SortableTh label="KP" field="kp" align="right" active={sort.field} dir={sort.dir} onSort={sort.toggle} />
               {sortedRows.some((r) => r.extra !== null) && (
                 <SortableTh
                   label={sortedRows.find((r) => r.extra)?.extra?.label ?? ''}
@@ -995,6 +1004,7 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
                   <CopyablePlayerCell name={r.name} govId={r.governorId} />
                 </td>
                 <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtM(r.power)}</td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums text-rose-300/80">{fmtM(r.kp)}</td>
                 {sortedRows.some((row) => row.extra !== null) && (
                   <td className={`px-3 py-2 text-right font-mono tabular-nums ${r.extra ? toneClass(r.extra.tone) : ''}`}>
                     {r.extra?.value ?? '—'}
