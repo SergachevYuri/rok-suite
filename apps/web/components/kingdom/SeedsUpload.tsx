@@ -32,7 +32,7 @@ const PLAYER_COLS = ['KD', 'player_id', 'name', 'Power', 'KP', 'cityhall', 'Rank
 export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void }) {
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string>('');
-  const [scanDate, setScanDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [scanDate, setScanDate] = useState<string>(() => todayLocalIso());
   const [kdRows, setKdRows] = useState<ParsedKdRow[]>([]);
   const [playerRows, setPlayerRows] = useState<ParsedPlayerRow[]>([]);
   const [fileName, setFileName] = useState<string>('');
@@ -350,6 +350,17 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
 // ─────────────────────────────────────────────────────────────
 // Parsing helpers
 // ─────────────────────────────────────────────────────────────
+
+/** Today as YYYY-MM-DD using the user's local timezone (not UTC).
+ *  Avoids the bug where uploading early in the morning local time saves the
+ *  scan as "yesterday" because UTC hasn't rolled over yet. */
+function todayLocalIso(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 const MONTHS: Record<string, number> = {
   jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,

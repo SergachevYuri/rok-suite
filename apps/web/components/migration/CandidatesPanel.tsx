@@ -573,21 +573,32 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
         </>
       }
       controls={
-        <div className="flex flex-wrap items-center gap-4">
-          <DatePresetPicker
-            scans={allScans}
-            scanKey={aKey}
-            onChange={setAKey}
-            excludeKey={bKey}
-            label="A:"
-          />
-          <DatePresetPicker
-            scans={allScans}
-            scanKey={bKey}
-            onChange={setBKey}
-            excludeKey={aKey}
-            label="B:"
-          />
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] uppercase tracking-wider">
+            From
+            <select
+              value={aKey}
+              onChange={(e) => setAKey(e.target.value)}
+              className="px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] normal-case tracking-normal focus:outline-none focus:border-[#4318ff]"
+            >
+              {allScans.filter((s) => `${s.kind}:${s.id}` !== bKey).map((s) => (
+                <option key={`${s.kind}:${s.id}`} value={`${s.kind}:${s.id}`}>{s.label}</option>
+              ))}
+            </select>
+          </label>
+          <span className="text-xs text-[var(--text-muted)]">→</span>
+          <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] uppercase tracking-wider">
+            To
+            <select
+              value={bKey}
+              onChange={(e) => setBKey(e.target.value)}
+              className="px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] normal-case tracking-normal focus:outline-none focus:border-[#4318ff]"
+            >
+              {allScans.filter((s) => `${s.kind}:${s.id}` !== aKey).map((s) => (
+                <option key={`${s.kind}:${s.id}`} value={`${s.kind}:${s.id}`}>{s.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
       }
     >
