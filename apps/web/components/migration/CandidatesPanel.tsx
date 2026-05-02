@@ -74,127 +74,6 @@ function fmtDelta(n: number): string {
   return `${sign}${(n / 1_000_000).toFixed(2)}M`;
 }
 
-const DATE_PRESETS: { id: string; label: string; daysAgo: number }[] = [
-  { id: '1d', label: 'Yesterday', daysAgo: 1 },
-  { id: '3d', label: '3 days', daysAgo: 3 },
-  { id: '1w', label: '1 week', daysAgo: 7 },
-  { id: '2w', label: '2 weeks', daysAgo: 14 },
-  { id: '1m', label: '1 month', daysAgo: 30 },
-];
-
-/** Find the scan with the closest timestamp to (now - daysAgo days). */
-function findScanByDaysAgo(scans: ScanRef[], daysAgo: number): ScanRef | null {
-  if (scans.length === 0) return null;
-  const target = Date.now() - daysAgo * 86_400_000;
-  let best = scans[0];
-  let bestDiff = Math.abs(new Date(best.ts).getTime() - target);
-  for (const s of scans) {
-    const diff = Math.abs(new Date(s.ts).getTime() - target);
-    if (diff < bestDiff) {
-      best = s;
-      bestDiff = diff;
-    }
-  }
-  return best;
-}
-
-/** Best-effort match: which preset is closest to the chosen scan? */
-function presetForScan(scans: ScanRef[], scanKey: string): string {
-  const ref = scans.find((s) => `${s.kind}:${s.id}` === scanKey);
-  if (!ref) return 'custom';
-  const ageDays = (Date.now() - new Date(ref.ts).getTime()) / 86_400_000;
-  let closest = DATE_PRESETS[0];
-  let closestDiff = Math.abs(closest.daysAgo - ageDays);
-  for (const p of DATE_PRESETS) {
-    const d = Math.abs(p.daysAgo - ageDays);
-    if (d < closestDiff) {
-      closest = p;
-      closestDiff = d;
-    }
-  }
-  // Only snap to a preset if the chosen scan is within 1.5 days of it. Otherwise call it custom.
-  return closestDiff <= 1.5 ? closest.id : 'custom';
-}
-
-function DatePresetPicker({
-  scans,
-  scanKey,
-  onChange,
-  excludeKey,
-  label = 'vs:',
-}: {
-  scans: ScanRef[];
-  scanKey: string;
-  onChange: (scanKey: string) => void;
-  /** Don't allow selecting the same scan as the comparison target (i.e. the latest). */
-  excludeKey?: string;
-  label?: string;
-}) {
-  const usable = scans.filter((s) => `${s.kind}:${s.id}` !== excludeKey);
-  const activePreset = presetForScan(usable, scanKey);
-  const [showCustom, setShowCustom] = useState(activePreset === 'custom');
-
-  const pickPreset = (presetId: string) => {
-    if (presetId === 'custom') {
-      setShowCustom(true);
-      return;
-    }
-    setShowCustom(false);
-    const preset = DATE_PRESETS.find((p) => p.id === presetId);
-    if (!preset) return;
-    const ref = findScanByDaysAgo(usable, preset.daysAgo);
-    if (ref) onChange(`${ref.kind}:${ref.id}`);
-  };
-
-  const activeRef = usable.find((s) => `${s.kind}:${s.id}` === scanKey);
-  const activeAgeDays = activeRef ? Math.round((Date.now() - new Date(activeRef.ts).getTime()) / 86_400_000) : null;
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider mr-1">{label}</span>
-      {DATE_PRESETS.map((p) => (
-        <button
-          key={p.id}
-          onClick={() => pickPreset(p.id)}
-          className={`px-2 py-1 text-[11px] rounded-md border transition-colors ${
-            activePreset === p.id && !showCustom
-              ? 'bg-[#4318ff] border-[#4318ff] text-white'
-              : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
-          }`}
-        >
-          {p.label}
-        </button>
-      ))}
-      <button
-        onClick={() => pickPreset('custom')}
-        className={`px-2 py-1 text-[11px] rounded-md border transition-colors ${
-          activePreset === 'custom' || showCustom
-            ? 'bg-[#4318ff] border-[#4318ff] text-white'
-            : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
-        }`}
-      >
-        Custom
-      </button>
-      {(showCustom || activePreset === 'custom') && (
-        <select
-          value={scanKey}
-          onChange={(e) => onChange(e.target.value)}
-          className="ml-1 px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-[11px] focus:outline-none max-w-[280px]"
-        >
-          {usable.map((s) => (
-            <option key={`${s.kind}:${s.id}`} value={`${s.kind}:${s.id}`}>{s.label}</option>
-          ))}
-        </select>
-      )}
-      {activeAgeDays !== null && (
-        <span className="text-[10px] text-[var(--text-muted)] ml-1">
-          ({activeAgeDays === 0 ? 'today' : activeAgeDays === 1 ? '1 day ago' : `${activeAgeDays} days ago`})
-        </span>
-      )}
-    </div>
-  );
-}
-
 export function CandidatesPanel({ isAdmin, actorName }: Props) {
   const [data, setData] = useState<SharedData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -371,38 +250,68 @@ export function CandidatesPanel({ isAdmin, actorName }: Props) {
 // ─── Card 1: Power growers ───────────────────────────────────────────────────
 
 function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void }) {
-  // Scan B = newest, scan A = pick from same source if available
-  const sameKindScans = data.scans.filter((s) => s.kind === data.latest!.kind);
-  const defaultA = sameKindScans[1] ?? sameKindScans[0];
+  // From / To picker — same UX as IllegalArrivalsCard. Older becomes A, newer
+  // becomes B; Δ = power(B) − power(A).
+  const allScans = data.scans;
+  const defaultB = data.latest ?? allScans[0];
+  const sameKind = allScans.filter((s) => s.kind === defaultB.kind);
+  const defaultA = sameKind[1] ?? sameKind[0];
+  const [bKey, setBKey] = useState<string>(`${defaultB.kind}:${defaultB.id}`);
   const [aKey, setAKey] = useState<string>(`${defaultA.kind}:${defaultA.id}`);
-  const [thresholdM, setThresholdM] = useState<number>(0.5); // millions
-  const [aPlayers, setAPlayers] = useState<UnifiedScanPlayer[]>([]);
+  const [thresholdM, setThresholdM] = useState<number>(0.5);
+
+  const aRef = useMemo(() => allScans.find((s) => `${s.kind}:${s.id}` === aKey) ?? null, [allScans, aKey]);
+  const bRef = useMemo(() => allScans.find((s) => `${s.kind}:${s.id}` === bKey) ?? null, [allScans, bKey]);
+
+  const { olderRef, newerRef } = useMemo(() => {
+    if (!aRef || !bRef) return { olderRef: null, newerRef: null };
+    const aTs = new Date(aRef.ts).getTime();
+    const bTs = new Date(bRef.ts).getTime();
+    return aTs <= bTs
+      ? { olderRef: aRef, newerRef: bRef }
+      : { olderRef: bRef, newerRef: aRef };
+  }, [aRef, bRef]);
+
+  const [olderPlayers, setOlderPlayers] = useState<UnifiedScanPlayer[]>([]);
+  const [newerPlayers, setNewerPlayers] = useState<UnifiedScanPlayer[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const ref = data.scans.find((s) => `${s.kind}:${s.id}` === aKey);
-    if (!ref) return;
-    setLoading(true);
-    void loadUnifiedScanPlayers(ref).then(setAPlayers).finally(() => setLoading(false));
-  }, [aKey, data.scans]);
+    let cancelled = false;
+    (async () => {
+      if (!olderRef || !newerRef) return;
+      if (!cancelled) setLoading(true);
+      try {
+        const [olderP, newerP] = await Promise.all([
+          loadUnifiedScanPlayers(olderRef),
+          loadUnifiedScanPlayers(newerRef),
+        ]);
+        if (cancelled) return;
+        setOlderPlayers(olderP);
+        setNewerPlayers(newerP);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [olderRef, newerRef]);
 
   const candidates = useMemo(() => {
-    if (aPlayers.length === 0) return [];
-    const aById = new Map(aPlayers.map((p) => [p.governorId, p] as const));
+    if (olderPlayers.length === 0 || newerPlayers.length === 0) return [];
+    const olderById = new Map(olderPlayers.map((p) => [p.governorId, p] as const));
     const threshold = thresholdM * 1_000_000;
-    return data.latestPlayers
+    return newerPlayers
       .map((b) => {
-        const a = aById.get(b.governorId);
+        const a = olderById.get(b.governorId);
         if (!a) return null;
         const delta = b.power - a.power;
         if (delta < threshold) return null;
-        // No longer filter out zero-list members — keep them visible with a flag.
         const decision = data.decisionsByGov.get(b.governorId);
         return { player: b, deltaPower: delta, powerA: a.power, decision };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
       .sort((a, b) => b.deltaPower - a.deltaPower);
-  }, [aPlayers, data, thresholdM]);
+  }, [olderPlayers, newerPlayers, data.decisionsByGov, thresholdM]);
 
   return (
     <Card
@@ -412,19 +321,37 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
       count={candidates.length}
       explainer={
         <>
-          <p>The two scans being compared are: today&apos;s latest scan (newest available) vs. the older one you pick in the <strong>vs:</strong> dropdown. Δ is the difference. The threshold filters out small everyday gains — bump it up to see only big movers.</p>
+          <p>Pick any two scans (<strong>From</strong> = older, <strong>To</strong> = newer) — Δ is the power difference. The threshold filters out small everyday gains — bump it up to see only big movers.</p>
           <p>Already on the Zero List? They&apos;re excluded automatically. Already approved (<em>Yes</em> on the migrant sheet)? Filtered too — you don&apos;t want to zero approved migrants.</p>
         </>
       }
       controls={
         <div className="flex flex-wrap items-center gap-3">
-          <DatePresetPicker
-            scans={sameKindScans}
-            scanKey={aKey}
-            onChange={setAKey}
-            excludeKey={`${data.latest!.kind}:${data.latest!.id}`}
-            label="vs:"
-          />
+          <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] uppercase tracking-wider">
+            From
+            <select
+              value={aKey}
+              onChange={(e) => setAKey(e.target.value)}
+              className="px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] normal-case tracking-normal focus:outline-none focus:border-[#4318ff]"
+            >
+              {allScans.filter((s) => `${s.kind}:${s.id}` !== bKey).map((s) => (
+                <option key={`${s.kind}:${s.id}`} value={`${s.kind}:${s.id}`}>{s.label}</option>
+              ))}
+            </select>
+          </label>
+          <span className="text-xs text-[var(--text-muted)]">→</span>
+          <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] uppercase tracking-wider">
+            To
+            <select
+              value={bKey}
+              onChange={(e) => setBKey(e.target.value)}
+              className="px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] normal-case tracking-normal focus:outline-none focus:border-[#4318ff]"
+            >
+              {allScans.filter((s) => `${s.kind}:${s.id}` !== aKey).map((s) => (
+                <option key={`${s.kind}:${s.id}`} value={`${s.kind}:${s.id}`}>{s.label}</option>
+              ))}
+            </select>
+          </label>
           <div className="flex items-center gap-1.5 ml-auto">
             <label className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Δ ≥</label>
             <input
@@ -865,6 +792,7 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
 }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [search, setSearch] = useState('');
 
   type CSortField = 'name' | 'power' | 'kp' | 'extra' | 'alliance' | 'decision';
   const sort = useTableSort<CSortField>('power', {
@@ -876,13 +804,24 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
     decision: 'asc',
   });
 
+  // Search filter — name (case-insensitive substring), gov id, or alliance.
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      r.name.toLowerCase().includes(q) ||
+      String(r.governorId).includes(q) ||
+      (r.alliance ?? '').toLowerCase().includes(q)
+    );
+  }, [rows, search]);
+
   const sortedRows = useMemo(() => {
     const sign = sort.dir === 'asc' ? 1 : -1;
     const decisionRank = (d: CandidateRow['decision']) => {
       if (!d) return 99;
       return { yes: 0, no: 1, maybe: 2, unknown: 3 }[d.decision] ?? 99;
     };
-    const out = [...rows].sort((a, b) => {
+    const out = [...filteredRows].sort((a, b) => {
       let cmp = 0;
       if (sort.field === 'name') cmp = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
       else if (sort.field === 'power') cmp = a.power - b.power;
@@ -902,7 +841,7 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
       return cmp;
     });
     return out;
-  }, [rows, sort.field, sort.dir]);
+  }, [filteredRows, sort.field, sort.dir]);
 
   const toggleAll = () => {
     if (selected.size === sortedRows.length) setSelected(new Set());
@@ -957,6 +896,20 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
           </div>
         </div>
       )}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)]">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, gov id, or alliance…"
+          className="flex-1 px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#4318ff]"
+        />
+        {search && (
+          <span className="text-[11px] text-[var(--text-muted)] tabular-nums">
+            {sortedRows.length} / {rows.length}
+          </span>
+        )}
+      </div>
       <div className="overflow-auto max-h-[400px]">
         <table className="w-full text-xs">
           <thead className="sticky top-0 z-10 bg-[var(--background-secondary)] text-[var(--text-muted)] uppercase tracking-wider">
