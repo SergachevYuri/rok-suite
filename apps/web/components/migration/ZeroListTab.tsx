@@ -89,11 +89,10 @@ const MAIL_HEADER_PRESETS: Record<string, { label: string; markup: string }> = {
 
 function generateZeroListMail(args: {
   cases: MigrationCase[];
-  locationLookup: Map<number, LocationPoint>;
   headerKey: string;
   signOff: string;
 }): string {
-  const { cases, locationLookup, headerKey, signOff } = args;
+  const { cases, headerKey, signOff } = args;
   const headerMarkup = MAIL_HEADER_PRESETS[headerKey]?.markup ?? '';
   const DIVIDER = '►═════════❂❂❂═════════◄';
 
@@ -108,18 +107,9 @@ function generateZeroListMail(args: {
   lines.push('');
   lines.push('<b><color=#ff3333>ZERO LIST</color></b>');
   lines.push('');
-  lines.push('Targets are open for attack — coords below.');
-  lines.push('');
 
   for (const c of sorted) {
-    const fb = locationLookup.get(c.character_id);
-    const power = c.last_seen_power ?? fb?.power ?? c.power_at_open;
-    const x = c.x ?? fb?.x ?? null;
-    const y = c.y ?? fb?.y ?? null;
-    const alliance = c.last_seen_alliance ?? fb?.alliance ?? null;
-    const coords = x != null && y != null ? ` <color=#999999>(${x}, ${y})</color>` : '';
-    const allianceTag = alliance ? ` <color=#888888>[${alliance}]</color>` : '';
-    lines.push(`<b>${c.username}</b>${allianceTag} — ${fmtM(power)}${coords}`);
+    lines.push(c.username);
   }
 
   lines.push('');
@@ -293,7 +283,6 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     if (filtered.length === 0) return;
     const mail = generateZeroListMail({
       cases: filtered,
-      locationLookup,
       headerKey: mailHeader,
       signOff,
     });
@@ -301,7 +290,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     window.open('/rok-mail', '_blank');
     setOpenedMail(true);
     setTimeout(() => setOpenedMail(false), 2000);
-  }, [filtered, locationLookup, mailHeader, signOff]);
+  }, [filtered, mailHeader, signOff]);
 
   if (loading) return <div className="text-sm text-[var(--text-muted)] py-8 text-center">Loading…</div>;
 
