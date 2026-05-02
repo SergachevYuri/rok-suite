@@ -469,32 +469,52 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
 // ─── Card 2: Illegal immigrants ──────────────────────────────────────────────
 
 function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void }) {
-  // "Illegal arrival" = in scan B (latest) AND NOT in scan A (the previous scan
-  // the user picked) AND NEVER in any historical scan source older than scan A.
-  // Scan B is fixed to the latest; scan A is user-selectable so admins can ask
-  // "who arrived between scan X and scan Y" (not just "since N days ago").
-  const sameKindScans = data.scans.filter((s) => s.kind === data.latest!.kind);
-  const defaultA = sameKindScans[1] ?? sameKindScans[0];
+  // "Illegal arrival" between scan A (older) and scan B (newer):
+  //   - present in scan B
+  //   - NOT present in scan A
+  //   - NEVER in any historical scan source older than scan A
+  // Both A and B are user-selectable so admins can ask "who arrived between
+  // scan X and scan Y" without being locked to today's latest.
+  const allScans = data.scans;
+  const defaultB = data.latest ?? allScans[0];
+  const sameKind = allScans.filter((s) => s.kind === defaultB.kind);
+  const defaultA = sameKind[1] ?? sameKind[0];
+  const [bKey, setBKey] = useState<string>(`${defaultB.kind}:${defaultB.id}`);
   const [aKey, setAKey] = useState<string>(`${defaultA.kind}:${defaultA.id}`);
-  const [aPlayers, setAPlayers] = useState<UnifiedScanPlayer[]>([]);
+
+  const bRef = useMemo(() => allScans.find((s) => `${s.kind}:${s.id}` === bKey) ?? null, [allScans, bKey]);
+  const aRef = useMemo(() => allScans.find((s) => `${s.kind}:${s.id}` === aKey) ?? null, [allScans, aKey]);
+
+  // Older / newer derived from the two picks (so the user can pick in any order).
+  const { olderRef, newerRef } = useMemo(() => {
+    if (!aRef || !bRef) return { olderRef: null, newerRef: null };
+    const aTs = new Date(aRef.ts).getTime();
+    const bTs = new Date(bRef.ts).getTime();
+    return aTs <= bTs
+      ? { olderRef: aRef, newerRef: bRef }
+      : { olderRef: bRef, newerRef: aRef };
+  }, [aRef, bRef]);
+
+  const [olderPlayers, setOlderPlayers] = useState<UnifiedScanPlayer[]>([]);
+  const [newerPlayers, setNewerPlayers] = useState<UnifiedScanPlayer[]>([]);
   const [unionIds, setUnionIds] = useState<Set<number>>(new Set());
   const [historySources, setHistorySources] = useState<{ name: string; rows: number }[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const aRef = useMemo(() => data.scans.find((s) => `${s.kind}:${s.id}` === aKey) ?? null, [data.scans, aKey]);
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!aRef) return;
+      if (!olderRef || !newerRef) return;
       if (!cancelled) setLoading(true);
       try {
-        const [players, hist] = await Promise.all([
-          loadUnifiedScanPlayers(aRef),
-          loadHistoricalGovIds(aRef.ts),
+        const [olderP, newerP, hist] = await Promise.all([
+          loadUnifiedScanPlayers(olderRef),
+          loadUnifiedScanPlayers(newerRef),
+          loadHistoricalGovIds(olderRef.ts),
         ]);
         if (cancelled) return;
-        setAPlayers(players);
+        setOlderPlayers(olderP);
+        setNewerPlayers(newerP);
         setUnionIds(hist.ids);
         setHistorySources(hist.sources);
       } finally {
@@ -502,27 +522,35 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
       }
     })();
     return () => { cancelled = true; };
-  }, [aRef]);
+  }, [olderRef, newerRef]);
 
   const candidates = useMemo(() => {
-    if (aPlayers.length === 0) return [];
-    const aIds = new Set(aPlayers.map((p) => p.governorId));
-    return data.latestPlayers
-      // 1) Not present in the chosen previous scan A
-      .filter((b) => !aIds.has(b.governorId))
-      // 2) Never appeared in any K23 scan source older than scan A's timestamp
+    if (newerPlayers.length === 0 || olderPlayers.length === 0) return [];
+    const olderIds = new Set(olderPlayers.map((p) => p.governorId));
+    return newerPlayers
+      // 1) Not present in the older scan
+      .filter((b) => !olderIds.has(b.governorId))
+      // 2) Never appeared in any K23 scan source older than the older scan's timestamp
       .filter((b) => !unionIds.has(b.governorId))
       .map((b) => ({ player: b, decision: data.decisionsByGov.get(b.governorId) }))
       // 3) Not Yes-approved on the migrant sheet
       .filter((c) => c.decision?.decision !== 'yes')
       .sort((a, b) => b.player.power - a.player.power);
-  }, [aPlayers, unionIds, data]);
+  }, [olderPlayers, newerPlayers, unionIds, data.decisionsByGov]);
+
+  // Format for the subtitle
+  const fmtScanLabel = (ref: ScanRef | null): string => {
+    if (!ref) return '—';
+    return ref.ts.slice(0, 10);
+  };
 
   return (
     <Card
       icon={<UserPlus size={14} className="text-cyan-400" />}
       title="Illegal arrivals"
-      subtitle="People in today's latest scan who weren't in the previous scan you select, and have never appeared in our historical scans."
+      subtitle={olderRef && newerRef
+        ? `People in scan ${fmtScanLabel(newerRef)} who weren't in scan ${fmtScanLabel(olderRef)} and have never appeared before.`
+        : 'Pick two scans to compare.'}
       count={loading ? 0 : candidates.length}
       explainer={
         <>
@@ -530,9 +558,9 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
             A player is flagged if <strong>all three</strong> are true:
           </p>
           <ol className="list-decimal pl-5 space-y-0.5 text-[var(--text-secondary)]">
-            <li>In today&apos;s latest scan (so they&apos;re here right now).</li>
-            <li>Not present in scan A (the previous scan picked in the <strong>vs:</strong> dropdown above).</li>
-            <li>Never seen in any historical scan source older than scan A&apos;s timestamp. We pool gov_ids from kingdom_scans, seeds_kd, and location_scans for the union.
+            <li>In the <strong>newer</strong> scan you selected ({fmtScanLabel(newerRef)}).</li>
+            <li>Not present in the <strong>older</strong> scan ({fmtScanLabel(olderRef)}).</li>
+            <li>Never seen in any historical scan source older than the older scan&apos;s timestamp. We pool gov_ids from kingdom_scans, seeds_kd, and location_scans for the union.
               {historySources.length > 0 && <> ({historySources.map((s) => `${s.name}: ${s.rows.toLocaleString()} rows`).join(' · ')}.)</>}
             </li>
           </ol>
@@ -545,13 +573,20 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
         </>
       }
       controls={
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-4">
           <DatePresetPicker
-            scans={sameKindScans}
+            scans={allScans}
             scanKey={aKey}
             onChange={setAKey}
-            excludeKey={`${data.latest!.kind}:${data.latest!.id}`}
-            label="vs:"
+            excludeKey={bKey}
+            label="A:"
+          />
+          <DatePresetPicker
+            scans={allScans}
+            scanKey={bKey}
+            onChange={setBKey}
+            excludeKey={aKey}
+            label="B:"
           />
         </div>
       }
