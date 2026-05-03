@@ -19,6 +19,7 @@ import {
   undelayCase,
   updateExceptionReason,
   updateDelayReason,
+  updateCaseCoords,
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestLocationPoints, type LocationPoint } from '@/lib/zero-list/scan-data';
@@ -764,17 +765,50 @@ function ZeroListRow({
         {effAlliance || <span className="text-[var(--text-muted)]">—</span>}
       </td>
       <td className="px-3 py-2 font-mono text-xs">
-        {effX != null && effY != null ? (
-          <button
-            onClick={copyCoords}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] transition-colors"
-            title="Copy coordinates"
-          >
-            ({effX}, {effY}) {copied ? <span className="text-emerald-400">✓</span> : <Copy size={10} />}
-          </button>
-        ) : (
-          <span className="text-[var(--text-muted)]">—</span>
-        )}
+        <div className="inline-flex items-center gap-1">
+          {effX != null && effY != null ? (
+            <button
+              onClick={copyCoords}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] transition-colors"
+              title="Copy coordinates"
+            >
+              ({effX}, {effY}) {copied ? <span className="text-emerald-400">✓</span> : <Copy size={10} />}
+            </button>
+          ) : (
+            <span className="text-[var(--text-muted)]">—</span>
+          )}
+          {isAdmin && (
+            <button
+              disabled={busy}
+              onClick={() => {
+                const current = c.x != null && c.y != null ? `${c.x},${c.y}` : '';
+                const raw = window.prompt(
+                  'Enter coordinates as "x,y" (leave empty to clear and fall back to scan data):',
+                  current,
+                );
+                if (raw === null) return;
+                const trimmed = raw.trim();
+                if (trimmed === '') {
+                  void wrap(() => updateCaseCoords(c.id, null, null));
+                  return;
+                }
+                const m = trimmed.match(/^\(?\s*(-?\d+)\s*[, ]\s*(-?\d+)\s*\)?$/);
+                if (!m) {
+                  alert('Could not parse coordinates. Use the format "x,y" (e.g. 412,876).');
+                  return;
+                }
+                const x = Number(m[1]);
+                const y = Number(m[2]);
+                if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+                void wrap(() => updateCaseCoords(c.id, x, y));
+              }}
+              className="text-[10px] underline text-[var(--text-muted)] hover:text-[var(--foreground)] shrink-0"
+              title={effX != null && effY != null ? 'Edit coordinates' : 'Set coordinates'}
+            >
+              {effX != null && effY != null ? 'edit' : 'set'}
+            </button>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">

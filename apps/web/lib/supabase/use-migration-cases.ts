@@ -332,6 +332,12 @@ export async function updateDelayReason(id: string, reason: string | null) {
   return patchCase(id, { delayed_reason: reason });
 }
 
+/** Manually set / clear the stored coords on a Zero List row. Pass nulls to
+ *  clear and fall back to whatever the latest location scan provides. */
+export async function updateCaseCoords(id: string, x: number | null, y: number | null) {
+  return patchCase(id, { x, y });
+}
+
 export async function confirmZeroed(id: string, officerName: string) {
   return patchCase(id, {
     state: 'zeroed',
