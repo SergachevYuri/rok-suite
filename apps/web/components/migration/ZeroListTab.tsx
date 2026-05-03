@@ -20,6 +20,7 @@ import {
   updateExceptionReason,
   updateDelayReason,
   updateCaseCoords,
+  undoLastStateChange,
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestLocationPoints, type LocationPoint } from '@/lib/zero-list/scan-data';
@@ -931,14 +932,27 @@ function ZeroListRow({
               Except
             </button>
           )}
+          {isOfficer && (!isActive || c.state === 'marked_to_zero') && (
+            <button
+              disabled={busy}
+              onClick={() => wrap(async () => { await undoLastStateChange(c.id); })}
+              className="px-2 py-1 text-[11px] rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] inline-flex items-center gap-1"
+              title="Revert the most recent state change one step (e.g. undo Confirm Zeroed back to Mark to Zero)."
+            >
+              <RotateCcw size={10} /> Undo
+            </button>
+          )}
           {isAdmin && !isActive && (
             <button
               disabled={busy}
-              onClick={() => wrap(() => resetCaseToPending(c.id))}
+              onClick={() => {
+                if (!confirm(`Hard reset ${c.username} back to the start? Clears every state timestamp.`)) return;
+                void wrap(() => resetCaseToPending(c.id));
+              }}
               className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]"
-              title="Reset to Notified"
+              title="Hard reset — clears every state timestamp and returns to Notified."
             >
-              <RotateCcw size={10} />
+              Reset
             </button>
           )}
           {isOfficer && isActive && (() => {

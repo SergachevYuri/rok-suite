@@ -354,6 +354,72 @@ export async function markAfk(id: string, officerName: string) {
   });
 }
 
+/** Roll back the most recent state change one step. Looks at which earlier
+ *  per-state timestamps are still set on the row and returns the case to the
+ *  most-advanced earlier state, clearing the current state's timestamps. Use
+ *  when an officer/admin misclicks a state action. Returns null if there's
+ *  nothing to undo (already pending). */
+export async function undoLastStateChange(id: string): Promise<MigrationState | null> {
+  const { data, error } = await createClient()
+    .from('migration_cases')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  const c = data as MigrationCase;
+  if (c.state === 'pending') return null;
+
+  // Most-advanced earlier state along the main pending → claimed → contacted →
+  // marked_to_zero path, optionally excluding the state we're undoing.
+  const priorMain = (excluding: MigrationState | null = null): MigrationState => {
+    if (excluding !== 'marked_to_zero' && c.marked_to_zero_at) return 'marked_to_zero';
+    if (excluding !== 'contacted' && c.contacted_at) return 'contacted';
+    if (excluding !== 'claimed' && c.claimed_at) return 'claimed';
+    return 'pending';
+  };
+
+  const patch: Partial<MigrationCase> = {};
+  switch (c.state) {
+    case 'zeroed':
+      patch.state = priorMain();
+      patch.zeroed_at = null;
+      patch.zeroed_by = null;
+      break;
+    case 'migrated':
+      patch.state = priorMain();
+      patch.migrated_confirmed_at = null;
+      patch.migrated_confirmed_by = null;
+      break;
+    case 'excepted':
+      patch.state = priorMain();
+      patch.excepted_at = null;
+      patch.excepted_by = null;
+      patch.exception_reason = null;
+      break;
+    case 'afk':
+      patch.state = priorMain();
+      patch.afk_at = null;
+      patch.afk_by = null;
+      break;
+    case 'marked_to_zero':
+      patch.state = priorMain('marked_to_zero');
+      patch.marked_to_zero_at = null;
+      patch.marked_to_zero_by = null;
+      break;
+    case 'contacted':
+      patch.state = priorMain('contacted');
+      patch.contacted_at = null;
+      break;
+    case 'claimed':
+      patch.state = 'pending';
+      patch.claimed_at = null;
+      patch.claimed_by = null;
+      break;
+  }
+  await patchCase(id, patch);
+  return patch.state ?? null;
+}
+
 /** Reset a case back to pending (undo). Clears per-state timestamps but keeps suggestion markers + notes. */
 export async function resetCaseToPending(id: string) {
   return patchCase(id, {

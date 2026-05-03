@@ -51,6 +51,7 @@ import {
   updateExceptionReason,
   confirmZeroed,
   resetCaseToPending,
+  undoLastStateChange,
   updateCaseNotes,
   subscribeToCycles,
   subscribeToCases,
@@ -1394,8 +1395,28 @@ function CaseRow({
               <button disabled={busy} onClick={() => wrap(() => confirmMigrated(c.id, actorName))} className="px-2 py-1 text-[11px] rounded bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25" title="If they emigrated instead of being zeroed.">Emigrated</button>
             </>
           )}
-          {isOfficer && !isActive && (
-            <button disabled={busy} onClick={() => wrap(() => resetCaseToPending(c.id))} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">Reset</button>
+          {isOfficer && (!isActive || c.state === 'marked_to_zero') && (
+            <button
+              disabled={busy}
+              onClick={() => wrap(async () => { await undoLastStateChange(c.id); })}
+              className="px-2 py-1 text-[11px] rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] inline-flex items-center gap-1"
+              title="Revert the most recent state change one step (e.g. undo Confirm Zeroed back to Mark to Zero)."
+            >
+              <RotateCcw size={11} /> Undo
+            </button>
+          )}
+          {isOfficer && !isActive && isAdmin && (
+            <button
+              disabled={busy}
+              onClick={() => {
+                if (!confirm(`Reset ${c.username} all the way back to the start of the cycle? This clears every state timestamp.`)) return;
+                void wrap(() => resetCaseToPending(c.id));
+              }}
+              className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]"
+              title="Hard reset — clears every state timestamp and returns the case to Notified."
+            >
+              Reset
+            </button>
           )}
           <button onClick={() => setNotesOpen((o) => !o)} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">{isOfficer ? 'Notes' : 'View notes'}</button>
           {isAdmin && (
