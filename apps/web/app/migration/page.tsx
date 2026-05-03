@@ -48,6 +48,7 @@ import {
   dismissMigrationSuggestion,
   confirmMigrated,
   markException,
+  updateExceptionReason,
   confirmZeroed,
   resetCaseToPending,
   updateCaseNotes,
@@ -1270,6 +1271,7 @@ function CaseRow({
   pastDeadline: boolean;
 }) {
   const [showException, setShowException] = useState(false);
+  const [showEditException, setShowEditException] = useState(false);
   const [showRequestException, setShowRequestException] = useState(false);
   const [reason, setReason] = useState(c.exception_reason ?? '');
   const [notesOpen, setNotesOpen] = useState(false);
@@ -1431,8 +1433,23 @@ function CaseRow({
             )}
           </div>
         )}
-        {c.exception_reason && c.state === 'excepted' && (
-          <div className="mt-1 text-[11px] text-amber-400 italic">Exception: {c.exception_reason}</div>
+        {c.state === 'excepted' && (
+          <div className="mt-1 flex items-start gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-1.5 py-1 text-[11px] text-amber-400">
+            <span className="font-semibold">Exception:</span>
+            <span className="italic flex-1 whitespace-pre-wrap">
+              {c.exception_reason || <span className="opacity-60">(no reason given)</span>}
+            </span>
+            {isAdmin && (
+              <button
+                disabled={busy}
+                onClick={() => { setReason(c.exception_reason ?? ''); setShowEditException(true); }}
+                className="text-[10px] underline opacity-70 hover:opacity-100 shrink-0"
+                title="Edit exception reason"
+              >
+                edit
+              </button>
+            )}
+          </div>
         )}
         {c.notes && !notesOpen && (
           <div className="mt-1 text-[11px] text-[var(--text-muted)] italic">{c.notes}</div>
@@ -1448,6 +1465,21 @@ function CaseRow({
           }}
           initial={reason}
           setInitial={setReason}
+        />,
+        document.body,
+      )}
+      {showEditException && typeof document !== 'undefined' && createPortal(
+        <ExceptionDialog
+          onClose={() => setShowEditException(false)}
+          onConfirm={async (r) => {
+            await updateExceptionReason(c.id, r);
+            setShowEditException(false);
+            await onRefresh();
+          }}
+          initial={reason}
+          setInitial={setReason}
+          title="Edit exception reason"
+          confirmLabel="Save reason"
         />,
         document.body,
       )}
@@ -1533,13 +1565,13 @@ function RequestExceptionDialog({
   );
 }
 
-function ExceptionDialog({ onClose, onConfirm, initial, setInitial }: { onClose: () => void; onConfirm: (reason: string) => Promise<void>; initial: string; setInitial: (s: string) => void }) {
+function ExceptionDialog({ onClose, onConfirm, initial, setInitial, title = 'Grant exception', confirmLabel = 'Confirm exception' }: { onClose: () => void; onConfirm: (reason: string) => Promise<void>; initial: string; setInitial: (s: string) => void; title?: string; confirmLabel?: string }) {
   const [busy, setBusy] = useState(false);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="w-full max-w-md rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">Grant exception</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">{title}</h3>
           <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--foreground)]"><X size={16} /></button>
         </div>
         <label className="text-xs text-[var(--text-muted)]">Reason</label>
@@ -1550,7 +1582,7 @@ function ExceptionDialog({ onClose, onConfirm, initial, setInitial }: { onClose:
             onClick={async () => { setBusy(true); try { await onConfirm(initial.trim()); } finally { setBusy(false); } }}
             className="flex-1 px-3 py-2 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-sm font-medium hover:bg-amber-500/30 disabled:opacity-60 transition-colors"
           >
-            {busy ? 'Saving…' : 'Confirm exception'}
+            {busy ? 'Saving…' : confirmLabel}
           </button>
           <button onClick={onClose} className="px-3 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--foreground)]">Cancel</button>
         </div>

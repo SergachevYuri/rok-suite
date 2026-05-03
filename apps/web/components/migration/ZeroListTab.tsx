@@ -17,6 +17,8 @@ import {
   resetCaseToPending,
   delayCase,
   undelayCase,
+  updateExceptionReason,
+  updateDelayReason,
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestLocationPoints, type LocationPoint } from '@/lib/zero-list/scan-data';
@@ -787,12 +789,56 @@ function ZeroListRow({
           {c.delayed_until && new Date(c.delayed_until).getTime() > Date.now() && (
             <span
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30"
-              title={`Hidden from power tier until ${new Date(c.delayed_until).toLocaleString()}${c.delayed_reason ? ` · ${c.delayed_reason}` : ''}${c.delayed_by ? ` · by ${c.delayed_by}` : ''}`}
+              title={`Hidden from power tier until ${new Date(c.delayed_until).toLocaleString()}${c.delayed_by ? ` · by ${c.delayed_by}` : ''}`}
             >
               <Clock size={9} /> delayed · {fmtDelayRemaining(c.delayed_until)}
             </span>
           )}
         </div>
+        {c.state === 'excepted' && (
+          <div className="mt-1 flex items-start gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-1.5 py-1 text-[11px] text-amber-400">
+            <span className="font-semibold">Exception:</span>
+            <span className="italic flex-1 whitespace-pre-wrap break-words">
+              {c.exception_reason || <span className="opacity-60">(no reason given)</span>}
+            </span>
+            {isAdmin && (
+              <button
+                disabled={busy}
+                onClick={() => {
+                  const next = window.prompt('Edit exception reason:', c.exception_reason ?? '');
+                  if (next === null) return;
+                  void wrap(() => updateExceptionReason(c.id, next.trim() || null));
+                }}
+                className="text-[10px] underline opacity-70 hover:opacity-100 shrink-0"
+                title="Edit exception reason"
+              >
+                edit
+              </button>
+            )}
+          </div>
+        )}
+        {c.delayed_until && new Date(c.delayed_until).getTime() > Date.now() && (
+          <div className="mt-1 flex items-start gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-1.5 py-1 text-[11px] text-amber-400">
+            <span className="font-semibold">Delay:</span>
+            <span className="italic flex-1 whitespace-pre-wrap break-words">
+              {c.delayed_reason || <span className="opacity-60">(no reason given)</span>}
+            </span>
+            {isOfficer && (
+              <button
+                disabled={busy}
+                onClick={() => {
+                  const next = window.prompt('Edit delay reason:', c.delayed_reason ?? '');
+                  if (next === null) return;
+                  void wrap(() => updateDelayReason(c.id, next.trim() || null));
+                }}
+                className="text-[10px] underline opacity-70 hover:opacity-100 shrink-0"
+                title="Edit delay reason"
+              >
+                edit
+              </button>
+            )}
+          </div>
+        )}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">

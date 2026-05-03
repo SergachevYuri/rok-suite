@@ -322,6 +322,16 @@ export async function undelayCase(id: string) {
   });
 }
 
+/** Edit only the exception reason — leaves state, excepted_at, etc. untouched. */
+export async function updateExceptionReason(id: string, reason: string | null) {
+  return patchCase(id, { exception_reason: reason });
+}
+
+/** Edit only the delay reason — leaves the delay window itself untouched. */
+export async function updateDelayReason(id: string, reason: string | null) {
+  return patchCase(id, { delayed_reason: reason });
+}
+
 export async function confirmZeroed(id: string, officerName: string) {
   return patchCase(id, {
     state: 'zeroed',
