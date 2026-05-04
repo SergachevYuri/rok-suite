@@ -492,7 +492,7 @@ export default function KingdomStats() {
                       const fromRank = fromRanks.get(row.kingdom_id);
                       const isHighlighted = highlightedKingdom !== null && row.kingdom_id === highlightedKingdom;
                       // Red divider between the 16th (last B) and 17th (first C) row —
-                      // marks the boundary between top half (ABBB groups) and bottom half (CDDD).
+                      // marks the boundary between top half (A+B bands) and bottom half (C+D).
                       const isHalfBoundary = pos === 16;
                       return (
                         <tr
@@ -709,30 +709,31 @@ function TwoColTooltip(props: TooltipProps) {
 
 // ─────────────────────────────────────────────────────────────
 // Seed assignment for KvK matchmaking.
-// Pattern across the 32 ranked KDs: ABBB ABBB ABBB ABBB CDDD CDDD CDDD CDDD
-// (8 seed groups of 4: 4 "ABBB" groups in the top half, 4 "CDDD" in the bottom)
+// Across the 32 ranked KDs, label them in 4 contiguous bands of 8:
+//   pos  1..8  → A
+//   pos  9..16 → B
+//   pos 17..24 → C
+//   pos 25..32 → D
 // ─────────────────────────────────────────────────────────────
-type SeedAssignment = { seed: number; letter: 'A' | 'B' | 'C' | 'D' } | null;
+type SeedAssignment = 'A' | 'B' | 'C' | 'D' | null;
 
 function seedAssignment(position: number): SeedAssignment {
   if (position < 1 || position > 32) return null;
-  const seed = Math.ceil(position / 4); // 1..8
-  const slot = (position - 1) % 4;       // 0=primary, 1..3=fillers
-  const isTopHalf = position <= 16;
-  const letter: 'A' | 'B' | 'C' | 'D' =
-    slot === 0 ? (isTopHalf ? 'A' : 'C') : (isTopHalf ? 'B' : 'D');
-  return { seed, letter };
+  const idx = Math.floor((position - 1) / 8); // 0..3
+  return (['A', 'B', 'C', 'D'] as const)[idx];
 }
 
 function SeedBadge({ seed }: { seed: SeedAssignment }) {
   if (!seed) return <span className="text-[var(--text-muted)]">–</span>;
-  const isPrimary = seed.letter === 'A' || seed.letter === 'C';
-  const color = isPrimary
-    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-    : 'bg-[var(--background-secondary)] text-[var(--text-muted)] border-[var(--border)]';
+  const palette: Record<'A' | 'B' | 'C' | 'D', string> = {
+    A: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    B: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    C: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+    D: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+  };
   return (
-    <span className={`inline-flex items-center justify-center w-6 h-6 rounded border text-xs font-mono font-semibold ${color}`}>
-      {seed.letter}
+    <span className={`inline-flex items-center justify-center w-6 h-6 rounded border text-xs font-mono font-semibold ${palette[seed]}`}>
+      {seed}
     </span>
   );
 }

@@ -13,8 +13,10 @@ import {
   markAfk,
   markException,
   confirmZeroed,
+  markZeroedOnce,
   confirmMigrated,
   resetCaseToPending,
+  syncZeroListNamesFromLatestScans,
   delayCase,
   undelayCase,
   updateExceptionReason,
@@ -247,6 +249,23 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     void refetch();
     const unsub = subscribeToZeroList(() => void refetch());
     return () => unsub();
+  }, [refetch]);
+
+  // On mount, propagate any in-game name changes to the Zero List. Players
+  // sometimes rename — the gov_id stays the same, so we use that to refresh
+  // the username from the freshest scan we have. Runs once per mount; if
+  // anything was renamed, we trigger a refetch so the UI shows the new names.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { renamed } = await syncZeroListNamesFromLatestScans();
+        if (!cancelled && renamed > 0) void refetch();
+      } catch (e) {
+        console.warn('Zero list name sync failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [refetch]);
 
   // Power-tier members shouldn't see entries that an officer/admin has put on
@@ -821,6 +840,14 @@ function ZeroListRow({
               from cycle
             </span>
           )}
+          {c.zeroed_count > 0 && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-rose-500/15 text-rose-300 border-rose-500/30"
+              title={`Zeroed ${c.zeroed_count} ${c.zeroed_count === 1 ? 'time' : 'times'}${c.last_zeroed_at ? ` · last on ${new Date(c.last_zeroed_at).toLocaleString()}` : ''}${c.last_zeroed_by ? ` by ${c.last_zeroed_by}` : ''}`}
+            >
+              ×{c.zeroed_count} zeroed
+            </span>
+          )}
           {c.delayed_until && new Date(c.delayed_until).getTime() > Date.now() && (
             <span
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30"
@@ -896,8 +923,19 @@ function ZeroListRow({
               disabled={busy}
               onClick={() => wrap(() => confirmZeroed(c.id, actor))}
               className="px-2 py-1 text-[11px] rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25"
+              title="Closes the case — they're done. Use Zeroed Once instead if you expect they'll re-build and need zeroing again."
             >
               Confirm Zeroed
+            </button>
+          )}
+          {isOfficer && isActive && (
+            <button
+              disabled={busy}
+              onClick={() => wrap(() => markZeroedOnce(c.id, actor))}
+              className="px-2 py-1 text-[11px] rounded bg-rose-500/10 text-rose-300 border border-rose-500/25 hover:bg-rose-500/20"
+              title="Records that they were zeroed once. Keeps the row active so the queue stays visible — use this for repeat offenders."
+            >
+              Zeroed Once
             </button>
           )}
           {isOfficer && isActive && (

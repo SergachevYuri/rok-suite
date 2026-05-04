@@ -69,6 +69,11 @@ export interface MigrationCase {
   delayed_until: string | null;
   delayed_by: string | null;
   delayed_reason: string | null;
+  // Repeat-zero tracking. "Zeroed once" increments the counter without
+  // closing the case (vs. "Confirm Zeroed" which moves to terminal state).
+  zeroed_count: number;
+  last_zeroed_at: string | null;
+  last_zeroed_by: string | null;
 }
 
 // ——— Cycles ———
@@ -344,6 +349,139 @@ export async function confirmZeroed(id: string, officerName: string) {
     zeroed_at: new Date().toISOString(),
     zeroed_by: officerName,
   });
+}
+
+/** Refresh `migration_cases.username` from the freshest scan we have, so
+ *  in-game name changes (same gov_id, new name) propagate to the Zero List
+ *  without requiring an explicit "refresh from scan" click.
+ *
+ *  Looks at both seeds_kd_players (auto-scrape, most current) and
+ *  kingdom_scan_players (manual XLSX) and prefers the one with the latest
+ *  timestamp per gov_id. Cases not present in either are left unchanged. */
+export async function syncZeroListNamesFromLatestScans(): Promise<{ checked: number; renamed: number }> {
+  const sb = createClient();
+  const KINGDOM_ID = 3923;
+
+  // 1) Pull all migration_cases (zero_list + cycle — both surface in the Zero List view).
+  const { data: cases, error: e1 } = await sb
+    .from('migration_cases')
+    .select('id, character_id, username');
+  if (e1) throw e1;
+  if (!cases || cases.length === 0) return { checked: 0, renamed: 0 };
+
+  // 2) Build a name lookup from the freshest seeds scan for K23.
+  type NameEntry = { name: string; ts: string };
+  const latest = new Map<number, NameEntry>();
+
+  try {
+    const { data: latestDateRow } = await sb
+      .from('seeds_kd_players')
+      .select('scan_date')
+      .eq('kingdom_id', KINGDOM_ID)
+      .order('scan_date', { ascending: false })
+      .limit(1);
+    const date = latestDateRow?.[0]?.scan_date as string | undefined;
+    if (date) {
+      let from = 0;
+      while (true) {
+        const { data, error } = await sb
+          .from('seeds_kd_players')
+          .select('player_id, name')
+          .eq('kingdom_id', KINGDOM_ID)
+          .eq('scan_date', date)
+          .range(from, from + 999);
+        if (error || !data || data.length === 0) break;
+        for (const r of data) {
+          const n = ((r.name as string) ?? '').trim();
+          if (n) latest.set(r.player_id as number, { name: n, ts: `${date}T23:59:59Z` });
+        }
+        if (data.length < 1000) break;
+        from += 1000;
+      }
+    }
+  } catch (e) {
+    console.warn('Name sync: seeds lookup failed', e);
+  }
+
+  // 3) Layer on the latest manual XLSX scan — wins per gov_id only if newer.
+  try {
+    const { data: ks } = await sb
+      .from('kingdom_scans')
+      .select('id, created_at')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    const top = ks?.[0];
+    if (top) {
+      let from = 0;
+      while (true) {
+        const { data, error } = await sb
+          .from('kingdom_scan_players')
+          .select('governor_id, name')
+          .eq('scan_id', top.id as number)
+          .range(from, from + 999);
+        if (error || !data || data.length === 0) break;
+        for (const r of data) {
+          const n = ((r.name as string) ?? '').trim();
+          if (!n) continue;
+          const gov = r.governor_id as number;
+          const existing = latest.get(gov);
+          if (!existing || top.created_at > existing.ts) {
+            latest.set(gov, { name: n, ts: top.created_at as string });
+          }
+        }
+        if (data.length < 1000) break;
+        from += 1000;
+      }
+    }
+  } catch (e) {
+    console.warn('Name sync: kingdom_scans lookup failed', e);
+  }
+
+  if (latest.size === 0) return { checked: cases.length, renamed: 0 };
+
+  // 4) For each case, if the latest name differs, update.
+  let renamed = 0;
+  for (const c of cases) {
+    const charId = c.character_id as number;
+    const fresh = latest.get(charId);
+    if (!fresh) continue;
+    const current = ((c.username as string) ?? '').trim();
+    if (fresh.name === current) continue;
+    const { error } = await sb
+      .from('migration_cases')
+      .update({ username: fresh.name, updated_at: new Date().toISOString() })
+      .eq('id', c.id as string);
+    if (!error) renamed += 1;
+  }
+
+  return { checked: cases.length, renamed };
+}
+
+/** Record that a player was zeroed once *without* closing the case — they
+ *  stay on the active Zero List so the queue keeps showing them next time
+ *  they re-build. Increments zeroed_count and refreshes last_zeroed_*. */
+export async function markZeroedOnce(id: string, officerName: string): Promise<void> {
+  const sb = createClient();
+  // Read current count, increment, write back. Two officers clicking at the
+  // same instant could race; the count is approximate by design and the worst
+  // case is one missed increment, which is fine for what this tracks.
+  const { data: row, error: e1 } = await sb
+    .from('migration_cases')
+    .select('zeroed_count')
+    .eq('id', id)
+    .single();
+  if (e1) throw e1;
+  const next = ((row?.zeroed_count as number | null) ?? 0) + 1;
+  const { error: e2 } = await sb
+    .from('migration_cases')
+    .update({
+      zeroed_count: next,
+      last_zeroed_at: new Date().toISOString(),
+      last_zeroed_by: officerName,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (e2) throw e2;
 }
 
 export async function markAfk(id: string, officerName: string) {

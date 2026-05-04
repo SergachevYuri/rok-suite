@@ -13,7 +13,7 @@
 // and an inline review-and-bulk-add table.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowUp, ChevronDown, RotateCcw, UserPlus, Users, Trophy } from 'lucide-react';
+import { ArrowUp, ChevronDown, RotateCcw, Search, UserPlus, Users, Trophy } from 'lucide-react';
 import {
   listAllScans,
   loadUnifiedScanPlayers,
@@ -74,10 +74,23 @@ function fmtDelta(n: number): string {
   return `${sign}${(n / 1_000_000).toFixed(2)}M`;
 }
 
+/** Match a candidate against the global search query. Empty query → matches
+ *  everything. Query checks against name, gov id, and alliance. */
+function matchesGlobalQuery(q: string, name: string, govId: number, alliance: string | null): boolean {
+  const ql = q.trim().toLowerCase();
+  if (!ql) return true;
+  return name.toLowerCase().includes(ql)
+    || String(govId).includes(ql)
+    || (alliance ?? '').toLowerCase().includes(ql);
+}
+
 export function CandidatesPanel({ isAdmin, actorName }: Props) {
   const [data, setData] = useState<SharedData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Global search — applies across all 4 cards. Cards with at least one
+   *  matching row auto-expand; the others stay collapsed. */
+  const [globalSearch, setGlobalSearch] = useState('');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -239,17 +252,28 @@ export function CandidatesPanel({ isAdmin, actorName }: Props) {
         </button>
       </div>
 
-      <PowerGrowersCard data={data} isAdmin={isAdmin} actorName={actorName} onChange={refresh} />
-      <IllegalArrivalsCard data={data} isAdmin={isAdmin} actorName={actorName} onChange={refresh} />
-      <CycleLeftoversCard data={data} isAdmin={isAdmin} actorName={actorName} onChange={refresh} />
-      <TopNCard data={data} isAdmin={isAdmin} actorName={actorName} onChange={refresh} />
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+        <input
+          type="search"
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          placeholder="Search across all candidates (name, gov id, alliance) — auto-opens matching cards…"
+          className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#4318ff]"
+        />
+      </div>
+
+      <PowerGrowersCard      data={data} isAdmin={isAdmin} actorName={actorName} onChange={refresh} globalSearch={globalSearch} />
+      <IllegalArrivalsCard   data={data} isAdmin={isAdmin} actorName={actorName} onChange={refresh} globalSearch={globalSearch} />
+      <CycleLeftoversCard    data={data} isAdmin={isAdmin} actorName={actorName} onChange={refresh} globalSearch={globalSearch} />
+      <TopNCard              data={data} isAdmin={isAdmin} actorName={actorName} onChange={refresh} globalSearch={globalSearch} />
     </div>
   );
 }
 
 // ─── Card 1: Power growers ───────────────────────────────────────────────────
 
-function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void }) {
+function PowerGrowersCard({ data, isAdmin, actorName, onChange, globalSearch }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void; globalSearch: string }) {
   // From / To picker — same UX as IllegalArrivalsCard. Older becomes A, newer
   // becomes B; Δ = power(B) − power(A).
   const allScans = data.scans;
@@ -313,12 +337,19 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
       .sort((a, b) => b.deltaPower - a.deltaPower);
   }, [olderPlayers, newerPlayers, data.decisionsByGov, thresholdM]);
 
+  const matchCount = useMemo(() => {
+    if (!globalSearch.trim()) return null;
+    return candidates.filter((c) => matchesGlobalQuery(globalSearch, c.player.name, c.player.governorId, c.player.alliance)).length;
+  }, [candidates, globalSearch]);
+
   return (
     <Card
       icon={<ArrowUp size={14} className="text-orange-400" />}
       title="Power growers"
       subtitle="People whose power went UP between two scans. Means they're farming, being fed by allies, or building. If they shouldn't be in K23, growing power is a red flag — they're getting comfortable."
       count={candidates.length}
+      matchCount={matchCount}
+      forceOpen={(matchCount ?? 0) > 0}
       explainer={
         <>
           <p>Pick any two scans (<strong>From</strong> = older, <strong>To</strong> = newer) — Δ is the power difference. The threshold filters out small everyday gains — bump it up to see only big movers.</p>
@@ -388,6 +419,7 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
           actorName={actorName}
           reasonPrefix="Δ power growth"
           onChange={onChange}
+          searchOverride={globalSearch.trim() || undefined}
         />
       )}
     </Card>
@@ -396,7 +428,7 @@ function PowerGrowersCard({ data, isAdmin, actorName, onChange }: { data: Shared
 
 // ─── Card 2: Illegal immigrants ──────────────────────────────────────────────
 
-function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void }) {
+function IllegalArrivalsCard({ data, isAdmin, actorName, onChange, globalSearch }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void; globalSearch: string }) {
   // "Illegal arrival" between scan A (older) and scan B (newer):
   //   - present in scan B
   //   - NOT present in scan A
@@ -466,6 +498,11 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
       .sort((a, b) => b.player.power - a.player.power);
   }, [olderPlayers, newerPlayers, unionIds, data.decisionsByGov]);
 
+  const matchCount = useMemo(() => {
+    if (!globalSearch.trim()) return null;
+    return candidates.filter((c) => matchesGlobalQuery(globalSearch, c.player.name, c.player.governorId, c.player.alliance)).length;
+  }, [candidates, globalSearch]);
+
   // Format for the subtitle
   const fmtScanLabel = (ref: ScanRef | null): string => {
     if (!ref) return '—';
@@ -480,6 +517,8 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
         ? `People in scan ${fmtScanLabel(newerRef)} who weren't in scan ${fmtScanLabel(olderRef)} and have never appeared before.`
         : 'Pick two scans to compare.'}
       count={loading ? 0 : candidates.length}
+      matchCount={matchCount}
+      forceOpen={(matchCount ?? 0) > 0}
       explainer={
         <>
           <p>
@@ -551,6 +590,7 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
           actorName={actorName}
           reasonPrefix="illegal arrival"
           onChange={onChange}
+          searchOverride={globalSearch.trim() || undefined}
         />
       )}
     </Card>
@@ -559,7 +599,7 @@ function IllegalArrivalsCard({ data, isAdmin, actorName, onChange }: { data: Sha
 
 // ─── Card 3: Didn't emigrate (cycle leftovers) ───────────────────────────────
 
-function CycleLeftoversCard({ data, isAdmin, actorName, onChange }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void }) {
+function CycleLeftoversCard({ data, isAdmin, actorName, onChange, globalSearch }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void; globalSearch: string }) {
   const playerByGov = useMemo(() => {
     const m = new Map<number, UnifiedScanPlayer>();
     for (const p of data.latestPlayers) m.set(p.governorId, p);
@@ -591,12 +631,19 @@ function CycleLeftoversCard({ data, isAdmin, actorName, onChange }: { data: Shar
       .sort((a, b) => b.power - a.power);
   }, [data.cycleLeftovers, playerByGov, data.decisionsByGov]);
 
+  const matchCount = useMemo(() => {
+    if (!globalSearch.trim()) return null;
+    return candidates.filter((c) => matchesGlobalQuery(globalSearch, c.name, c.governorId, c.alliance)).length;
+  }, [candidates, globalSearch]);
+
   return (
     <Card
       icon={<Users size={14} className="text-rose-400" />}
       title="Didn't emigrate"
       subtitle="People we put on a Cycle (formal emigration round), the cycle deadline passed, but they never left. AND they're still in the kingdom right now. We told them to leave; they didn't. Time to zero."
       count={candidates.length}
+      matchCount={matchCount}
+      forceOpen={(matchCount ?? 0) > 0}
       explainer={
         <>
           <p>Pulled from past Cycles where: the deadline has passed, the case never reached a terminal state (still <em>Notified / Claimed / Contacted / To Zero</em>), and the player&apos;s Gov ID is still in the latest scan.</p>
@@ -622,6 +669,7 @@ function CycleLeftoversCard({ data, isAdmin, actorName, onChange }: { data: Shar
         actorName={actorName}
         reasonPrefix="missed cycle deadline"
         onChange={onChange}
+        searchOverride={globalSearch.trim() || undefined}
       />
     </Card>
   );
@@ -629,7 +677,7 @@ function CycleLeftoversCard({ data, isAdmin, actorName, onChange }: { data: Shar
 
 // ─── Card 4: Top N to evaluate ───────────────────────────────────────────────
 
-function TopNCard({ data, isAdmin, actorName, onChange }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void }) {
+function TopNCard({ data, isAdmin, actorName, onChange, globalSearch }: { data: SharedData; isAdmin: boolean; actorName: string | null; onChange: () => Promise<void> | void; globalSearch: string }) {
   const [topN, setTopN] = useState<number>(400);
 
   const candidates = useMemo(() => {
@@ -641,12 +689,19 @@ function TopNCard({ data, isAdmin, actorName, onChange }: { data: SharedData; is
       .filter((c) => c.decision?.decision !== 'yes');
   }, [data, topN]);
 
+  const matchCount = useMemo(() => {
+    if (!globalSearch.trim()) return null;
+    return candidates.filter((c) => matchesGlobalQuery(globalSearch, c.player.name, c.player.governorId, c.player.alliance)).length;
+  }, [candidates, globalSearch]);
+
   return (
     <Card
       icon={<Trophy size={14} className="text-amber-400" />}
       title="Suggested players to evaluate"
       subtitle="Top-N power players in K23 minus anyone Yes-approved on the migrant sheet. Players already on the Zero List or in an active cycle stay visible with a flag — so you can see the full picture."
       count={candidates.length}
+      matchCount={matchCount}
+      forceOpen={(matchCount ?? 0) > 0}
       explainer={
         <>
           <p>Walk through this list and decide for each person: should they stay or should they go? If they should go, check the box and add to Zero List.</p>
@@ -687,6 +742,7 @@ function TopNCard({ data, isAdmin, actorName, onChange }: { data: SharedData; is
         actorName={actorName}
         reasonPrefix={`top-${topN} review`}
         onChange={onChange}
+        searchOverride={globalSearch.trim() || undefined}
       />
     </Card>
   );
@@ -699,22 +755,31 @@ function Card({
   title,
   subtitle,
   count,
+  matchCount,
   controls,
   explainer,
+  forceOpen,
   children,
 }: {
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   count: number;
+  /** When the global search is active, this is how many of `count` matched.
+   *  Used to render `(N matches)` and to drive forceOpen at the parent. */
+  matchCount?: number | null;
   controls?: React.ReactNode;
   explainer?: React.ReactNode;
+  /** When true, force the card open regardless of local toggle state. Used
+   *  by the global search to auto-expand cards with matches. */
+  forceOpen?: boolean;
   children: React.ReactNode;
 }) {
   // Cards default closed — the count badge tells you the workload at a glance,
   // so click to expand only when you actually want to act on it.
   const [open, setOpen] = useState(false);
   const [explainOpen, setExplainOpen] = useState(false);
+  const effectiveOpen = open || !!forceOpen;
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] overflow-hidden">
       <button
@@ -729,10 +794,15 @@ function Card({
               still has the full description. */}
           <div className="hidden sm:block text-xs text-[var(--text-muted)] mt-0.5">{subtitle}</div>
         </div>
+        {matchCount != null && (
+          <span className="self-center text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex-shrink-0">
+            {matchCount} {matchCount === 1 ? 'match' : 'matches'}
+          </span>
+        )}
         <span className="text-2xl font-semibold text-[var(--foreground)] tabular-nums flex-shrink-0">{count}</span>
-        <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform mt-2 flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform mt-2 flex-shrink-0 ${effectiveOpen ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
+      {effectiveOpen && (
         <div className="border-t border-[var(--border)]">
           {controls && (
             <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--background-secondary)]/40">
@@ -783,16 +853,20 @@ interface CandidateRow {
   onZeroList: boolean;
 }
 
-function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
+function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange, searchOverride }: {
   rows: CandidateRow[];
   isAdmin: boolean;
   actorName: string | null;
   reasonPrefix: string;
   onChange: () => Promise<void> | void;
+  /** When set, replaces the local search input (which is hidden) — used by
+   *  the global search bar in CandidatesPanel. */
+  searchOverride?: string;
 }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
+  const effectiveSearch = searchOverride ?? search;
 
   type CSortField = 'name' | 'power' | 'kp' | 'extra' | 'alliance' | 'decision';
   const sort = useTableSort<CSortField>('power', {
@@ -806,14 +880,14 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
 
   // Search filter — name (case-insensitive substring), gov id, or alliance.
   const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = effectiveSearch.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) =>
       r.name.toLowerCase().includes(q) ||
       String(r.governorId).includes(q) ||
       (r.alliance ?? '').toLowerCase().includes(q)
     );
-  }, [rows, search]);
+  }, [rows, effectiveSearch]);
 
   const sortedRows = useMemo(() => {
     const sign = sort.dir === 'asc' ? 1 : -1;
@@ -896,20 +970,32 @@ function CandidateTable({ rows, isAdmin, actorName, reasonPrefix, onChange }: {
           </div>
         </div>
       )}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)]">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, gov id, or alliance…"
-          className="flex-1 px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#4318ff]"
-        />
-        {search && (
-          <span className="text-[11px] text-[var(--text-muted)] tabular-nums">
+      {searchOverride === undefined ? (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)]">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, gov id, or alliance…"
+            className="flex-1 px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#4318ff]"
+          />
+          {search && (
+            <span className="text-[11px] text-[var(--text-muted)] tabular-nums">
+              {sortedRows.length} / {rows.length}
+            </span>
+          )}
+        </div>
+      ) : (
+        // Global search active — show a compact pill so the table is still clearly filtered.
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] bg-cyan-500/5">
+          <Search size={12} className="text-cyan-300" />
+          <span className="text-[11px] text-cyan-200">Filtered by global search:</span>
+          <code className="text-[11px] text-[var(--foreground)] bg-[var(--background-secondary)] px-1.5 py-0.5 rounded">{searchOverride}</code>
+          <span className="ml-auto text-[11px] text-[var(--text-muted)] tabular-nums">
             {sortedRows.length} / {rows.length}
           </span>
-        )}
-      </div>
+        </div>
+      )}
       <div className="overflow-auto max-h-[400px]">
         <table className="w-full text-xs">
           <thead className="sticky top-0 z-10 bg-[var(--background-secondary)] text-[var(--text-muted)] uppercase tracking-wider">
