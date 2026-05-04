@@ -462,42 +462,50 @@ export async function removeFromZeroList(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Refresh coords + last-seen power/alliance for a set of zero-list cases from a fresh scan.
- *  Match is by character_id; cases not present in the scan are left alone. */
+/** Refresh coords + last-seen power/alliance/name for a set of zero-list cases from a fresh scan.
+ *  Match is by character_id; cases not present in the scan are left alone.
+ *  Username is rewritten when the scan reports a different name for the same gov_id —
+ *  players sometimes rename in-game and the Zero List should follow. */
 export async function refreshZeroListFromScan(
   /** Pass null for ad-hoc CSV uploads that aren't backed by a kingdom_scans row. */
   scanId: number | null,
-  scanRows: { governorId: number; x: number | null; y: number | null; power: number; alliance: string | null }[],
-): Promise<{ updated: number }> {
-  if (scanRows.length === 0) return { updated: 0 };
+  scanRows: { governorId: number; name: string; x: number | null; y: number | null; power: number; alliance: string | null }[],
+): Promise<{ updated: number; renamed: number }> {
+  if (scanRows.length === 0) return { updated: 0, renamed: 0 };
   const sb = createClient();
-  // Pull current zero-list character_ids — we only update existing rows, never insert.
+  // Pull current zero-list rows — we only update existing rows, never insert.
   const { data: zlist, error: e1 } = await sb
     .from('migration_cases')
-    .select('id, character_id')
+    .select('id, character_id, username')
     .eq('source_kind', 'zero_list');
   if (e1) throw e1;
-  const idByChar = new Map<number, string>();
-  for (const r of zlist ?? []) idByChar.set(r.character_id as number, r.id as string);
+  const rowByChar = new Map<number, { id: string; username: string }>();
+  for (const r of zlist ?? []) rowByChar.set(r.character_id as number, { id: r.id as string, username: (r.username as string) ?? '' });
   const byChar = new Map<number, typeof scanRows[number]>();
   for (const r of scanRows) byChar.set(r.governorId, r);
   let updated = 0;
+  let renamed = 0;
   for (const [charId, row] of byChar) {
-    const id = idByChar.get(charId);
-    if (!id) continue;
+    const existing = rowByChar.get(charId);
+    if (!existing) continue;
+    const newName = (row.name ?? '').trim();
+    const willRename = newName.length > 0 && newName !== existing.username;
+    const patch: Record<string, unknown> = {
+      x: row.x,
+      y: row.y,
+      last_seen_power: row.power,
+      last_seen_alliance: row.alliance,
+      last_seen_scan_id: scanId,
+      updated_at: new Date().toISOString(),
+    };
+    if (willRename) patch.username = newName;
     const { error } = await sb
       .from('migration_cases')
-      .update({
-        x: row.x,
-        y: row.y,
-        last_seen_power: row.power,
-        last_seen_alliance: row.alliance,
-        last_seen_scan_id: scanId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
+      .update(patch)
+      .eq('id', existing.id);
     if (error) throw error;
     updated += 1;
+    if (willRename) renamed += 1;
   }
-  return { updated };
+  return { updated, renamed };
 }

@@ -978,13 +978,15 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
       const players = await loadUnifiedScanPlayers(ref);
       const rows = players.map((p) => ({
         governorId: p.governorId,
+        name: p.name,
         x: p.x,
         y: p.y,
         power: p.power,
         alliance: p.alliance,
       }));
-      const { updated } = await refreshZeroListFromScan(Number(ref.id), rows);
-      setResult(`Updated ${updated} zero-list ${updated === 1 ? 'entry' : 'entries'} from ${ref.label}.`);
+      const { updated, renamed } = await refreshZeroListFromScan(Number(ref.id), rows);
+      const renameNote = renamed > 0 ? ` · ${renamed} renamed` : '';
+      setResult(`Updated ${updated} zero-list ${updated === 1 ? 'entry' : 'entries'} from ${ref.label}.${renameNote}`);
     } catch (e) {
       setResult(`Failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -1005,6 +1007,7 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
       }
       const rows = parsed.map((p) => ({
         governorId: p.playerId,
+        name: p.playerName,
         x: p.x,
         y: p.y,
         power: p.playerPower,
@@ -1034,9 +1037,10 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
         savedMsg = ` (Couldn't save the location scan: ${e instanceof Error ? e.message : String(e)} — coord refresh on Zero List still ran.)`;
       }
 
-      const { updated } = await refreshZeroListFromScan(null, rows);
+      const { updated, renamed } = await refreshZeroListFromScan(null, rows);
+      const renameNote = renamed > 0 ? ` ${renamed} ${renamed === 1 ? 'name was' : 'names were'} updated.` : '';
       setResult(
-        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} Zero List ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.${savedMsg}`,
+        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} Zero List ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.${renameNote}${savedMsg}`,
       );
     } catch (e) {
       setResult(`Failed: ${e instanceof Error ? e.message : String(e)}`);
