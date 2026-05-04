@@ -17,6 +17,10 @@ import {
   resetCaseToPending,
   delayCase,
   undelayCase,
+  updateExceptionReason,
+  updateDelayReason,
+  updateCaseCoords,
+  undoLastStateChange,
   subscribeToZeroList,
 } from '@/lib/supabase/use-migration-cases';
 import { loadLatestLocationPoints, type LocationPoint } from '@/lib/zero-list/scan-data';
@@ -326,9 +330,18 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     return cases.filter((c) => c.delayed_until && new Date(c.delayed_until).getTime() > now).length;
   }, [cases, isOfficer]);
 
+  // Excepted cases are spared by admin decision and must never be broadcast
+  // as attack targets — strip them out of every outbound action regardless of
+  // which filter the table is currently showing.
+  const mailableCases = useMemo(
+    () => filtered.filter((c) => c.state !== 'excepted'),
+    [filtered],
+  );
+  const exceptedHidden = filtered.length - mailableCases.length;
+
   const copyNamesToClipboard = useCallback(async () => {
-    if (filtered.length === 0) return;
-    const text = filtered.map((c) => c.username).join(', ');
+    if (mailableCases.length === 0) return;
+    const text = mailableCases.map((c) => c.username).join(', ');
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -341,14 +354,14 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     }
     setCopiedNames(true);
     setTimeout(() => setCopiedNames(false), 2000);
-  }, [filtered]);
+  }, [mailableCases]);
 
   // Stash the generated mail in localStorage and open RoK Mail in a new tab —
   // same hand-off the AOO planner uses (see app/aoo-strategy/page.tsx).
   const openMailDraft = useCallback(() => {
-    if (filtered.length === 0) return;
+    if (mailableCases.length === 0) return;
     const mail = generateZeroListMail({
-      cases: filtered,
+      cases: mailableCases,
       locationLookup,
       headerKey: mailHeader,
       signOff,
@@ -358,7 +371,7 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
     window.open('/rok-mail', '_blank');
     setOpenedMail(true);
     setTimeout(() => setOpenedMail(false), 2000);
-  }, [filtered, locationLookup, mailHeader, signOff, mailFields]);
+  }, [mailableCases, locationLookup, mailHeader, signOff, mailFields]);
 
   if (loading) return <div className="text-sm text-[var(--text-muted)] py-8 text-center">Loading…</div>;
 
@@ -518,7 +531,10 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
             <Mail size={14} className="text-[var(--text-muted)]" />
             <span className="text-sm font-semibold text-[var(--foreground)]">Copy / send mail</span>
             <span className="text-[11px] text-[var(--text-muted)]">
-              {filtered.length} target{filtered.length === 1 ? '' : 's'} from current filter
+              {mailableCases.length} target{mailableCases.length === 1 ? '' : 's'}
+              {exceptedHidden > 0 && (
+                <> · <span className="text-amber-400">{exceptedHidden} excepted excluded</span></>
+              )}
             </span>
           </div>
           <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${toolbarOpen ? 'rotate-180' : ''}`} />
@@ -530,17 +546,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
               <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] w-full sm:w-32">Quick copy</span>
               <button
                 onClick={() => void copyNamesToClipboard()}
-                disabled={filtered.length === 0}
+                disabled={mailableCases.length === 0}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
                   copiedNames
                     ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                     : 'bg-[var(--background-secondary)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--background-hover)] disabled:opacity-50 disabled:cursor-not-allowed'
                 }`}
-                title="Copy the names of every row currently shown, comma-separated — paste into in-game chat"
+                title="Copy comma-separated names — excepted players are excluded automatically"
               >
-                {copiedNames ? <>✓ Copied!</> : <><Users size={14} /> Copy {filtered.length} name{filtered.length === 1 ? '' : 's'}</>}
+                {copiedNames ? <>✓ Copied!</> : <><Users size={14} /> Copy {mailableCases.length} name{mailableCases.length === 1 ? '' : 's'}</>}
               </button>
-              <span className="text-[11px] text-[var(--text-muted)]">comma-separated, for in-game chat</span>
+              <span className="text-[11px] text-[var(--text-muted)]">
+                comma-separated, for in-game chat
+                {exceptedHidden > 0 && (
+                  <> · <span className="text-amber-400">excepted excluded</span></>
+                )}
+              </span>
             </div>
 
             {isOfficer && (
@@ -594,17 +615,22 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <button
                     onClick={openMailDraft}
-                    disabled={filtered.length === 0}
+                    disabled={mailableCases.length === 0}
                     className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors border ${
                       openedMail
                         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                         : 'bg-[#4318ff]/15 text-[#a89dff] border-[#4318ff]/40 hover:bg-[#4318ff]/25 disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
-                    title="Open the RoK Mail composer pre-filled with the current list"
+                    title="Open RoK Mail pre-filled — excepted players are excluded automatically"
                   >
-                    {openedMail ? <>✓ Opened</> : <><Mail size={14} /> Compose mail with {filtered.length} target{filtered.length === 1 ? '' : 's'}</>}
+                    {openedMail ? <>✓ Opened</> : <><Mail size={14} /> Compose mail with {mailableCases.length} target{mailableCases.length === 1 ? '' : 's'}</>}
                   </button>
-                  <span className="text-[11px] text-[var(--text-muted)]">opens RoK Mail in a new tab, pre-filled</span>
+                  <span className="text-[11px] text-[var(--text-muted)]">
+                    opens RoK Mail in a new tab, pre-filled
+                    {exceptedHidden > 0 && (
+                      <> · <span className="text-amber-400">{exceptedHidden} excepted excluded</span></>
+                    )}
+                  </span>
                 </div>
               </div>
             )}
@@ -740,17 +766,50 @@ function ZeroListRow({
         {effAlliance || <span className="text-[var(--text-muted)]">—</span>}
       </td>
       <td className="px-3 py-2 font-mono text-xs">
-        {effX != null && effY != null ? (
-          <button
-            onClick={copyCoords}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] transition-colors"
-            title="Copy coordinates"
-          >
-            ({effX}, {effY}) {copied ? <span className="text-emerald-400">✓</span> : <Copy size={10} />}
-          </button>
-        ) : (
-          <span className="text-[var(--text-muted)]">—</span>
-        )}
+        <div className="inline-flex items-center gap-1">
+          {effX != null && effY != null ? (
+            <button
+              onClick={copyCoords}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[var(--text-secondary)] hover:bg-[var(--background-hover)] hover:text-[var(--foreground)] transition-colors"
+              title="Copy coordinates"
+            >
+              ({effX}, {effY}) {copied ? <span className="text-emerald-400">✓</span> : <Copy size={10} />}
+            </button>
+          ) : (
+            <span className="text-[var(--text-muted)]">—</span>
+          )}
+          {isAdmin && (
+            <button
+              disabled={busy}
+              onClick={() => {
+                const current = c.x != null && c.y != null ? `${c.x},${c.y}` : '';
+                const raw = window.prompt(
+                  'Enter coordinates as "x,y" (leave empty to clear and fall back to scan data):',
+                  current,
+                );
+                if (raw === null) return;
+                const trimmed = raw.trim();
+                if (trimmed === '') {
+                  void wrap(() => updateCaseCoords(c.id, null, null));
+                  return;
+                }
+                const m = trimmed.match(/^\(?\s*(-?\d+)\s*[, ]\s*(-?\d+)\s*\)?$/);
+                if (!m) {
+                  alert('Could not parse coordinates. Use the format "x,y" (e.g. 412,876).');
+                  return;
+                }
+                const x = Number(m[1]);
+                const y = Number(m[2]);
+                if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+                void wrap(() => updateCaseCoords(c.id, x, y));
+              }}
+              className="text-[10px] underline text-[var(--text-muted)] hover:text-[var(--foreground)] shrink-0"
+              title={effX != null && effY != null ? 'Edit coordinates' : 'Set coordinates'}
+            >
+              {effX != null && effY != null ? 'edit' : 'set'}
+            </button>
+          )}
+        </div>
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
@@ -765,12 +824,56 @@ function ZeroListRow({
           {c.delayed_until && new Date(c.delayed_until).getTime() > Date.now() && (
             <span
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-500/15 text-amber-400 border-amber-500/30"
-              title={`Hidden from power tier until ${new Date(c.delayed_until).toLocaleString()}${c.delayed_reason ? ` · ${c.delayed_reason}` : ''}${c.delayed_by ? ` · by ${c.delayed_by}` : ''}`}
+              title={`Hidden from power tier until ${new Date(c.delayed_until).toLocaleString()}${c.delayed_by ? ` · by ${c.delayed_by}` : ''}`}
             >
               <Clock size={9} /> delayed · {fmtDelayRemaining(c.delayed_until)}
             </span>
           )}
         </div>
+        {c.state === 'excepted' && (
+          <div className="mt-1 flex items-start gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-1.5 py-1 text-[11px] text-amber-400">
+            <span className="font-semibold">Exception:</span>
+            <span className="italic flex-1 whitespace-pre-wrap break-words">
+              {c.exception_reason || <span className="opacity-60">(no reason given)</span>}
+            </span>
+            {isAdmin && (
+              <button
+                disabled={busy}
+                onClick={() => {
+                  const next = window.prompt('Edit exception reason:', c.exception_reason ?? '');
+                  if (next === null) return;
+                  void wrap(() => updateExceptionReason(c.id, next.trim() || null));
+                }}
+                className="text-[10px] underline opacity-70 hover:opacity-100 shrink-0"
+                title="Edit exception reason"
+              >
+                edit
+              </button>
+            )}
+          </div>
+        )}
+        {c.delayed_until && new Date(c.delayed_until).getTime() > Date.now() && (
+          <div className="mt-1 flex items-start gap-1.5 rounded border border-amber-500/30 bg-amber-500/5 px-1.5 py-1 text-[11px] text-amber-400">
+            <span className="font-semibold">Delay:</span>
+            <span className="italic flex-1 whitespace-pre-wrap break-words">
+              {c.delayed_reason || <span className="opacity-60">(no reason given)</span>}
+            </span>
+            {isOfficer && (
+              <button
+                disabled={busy}
+                onClick={() => {
+                  const next = window.prompt('Edit delay reason:', c.delayed_reason ?? '');
+                  if (next === null) return;
+                  void wrap(() => updateDelayReason(c.id, next.trim() || null));
+                }}
+                className="text-[10px] underline opacity-70 hover:opacity-100 shrink-0"
+                title="Edit delay reason"
+              >
+                edit
+              </button>
+            )}
+          </div>
+        )}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
@@ -829,14 +932,27 @@ function ZeroListRow({
               Except
             </button>
           )}
+          {isOfficer && (!isActive || c.state === 'marked_to_zero') && (
+            <button
+              disabled={busy}
+              onClick={() => wrap(async () => { await undoLastStateChange(c.id); })}
+              className="px-2 py-1 text-[11px] rounded bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] inline-flex items-center gap-1"
+              title="Revert the most recent state change one step (e.g. undo Confirm Zeroed back to Mark to Zero)."
+            >
+              <RotateCcw size={10} /> Undo
+            </button>
+          )}
           {isAdmin && !isActive && (
             <button
               disabled={busy}
-              onClick={() => wrap(() => resetCaseToPending(c.id))}
+              onClick={() => {
+                if (!confirm(`Hard reset ${c.username} back to the start? Clears every state timestamp.`)) return;
+                void wrap(() => resetCaseToPending(c.id));
+              }}
               className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]"
-              title="Reset to Notified"
+              title="Hard reset — clears every state timestamp and returns to Notified."
             >
-              <RotateCcw size={10} />
+              Reset
             </button>
           )}
           {isOfficer && isActive && (() => {
