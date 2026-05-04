@@ -13,6 +13,8 @@ import {
   type SeedKdStat,
 } from '@/lib/supabase/use-kingdom-seeds';
 import SeedsUpload from './SeedsUpload';
+import { SeedBadge } from './SeedBadge';
+import { seedAssignment } from '@/lib/kingdom/seed';
 
 type SortField = 'rank_in_kd' | 'name' | 'power' | 'kp' | 'cityhall';
 type SortDir = 'asc' | 'desc';
@@ -352,6 +354,14 @@ export default function KingdomStats() {
                 className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
               />
             </div>
+
+            <a
+              href="/kingdom/ready-to-migrate"
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 transition-colors"
+              title="Show players (gov_id ≥ 205000000) across all kingdoms with their seed band"
+            >
+              Ready to migrate →
+            </a>
           </div>
 
           {!isLoading && players.length > 0 && (
@@ -707,36 +717,6 @@ function TwoColTooltip(props: TooltipProps) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Seed assignment for KvK matchmaking.
-// Across the 32 ranked KDs, label them in 4 contiguous bands of 8:
-//   pos  1..8  → A
-//   pos  9..16 → B
-//   pos 17..24 → C
-//   pos 25..32 → D
-// ─────────────────────────────────────────────────────────────
-type SeedAssignment = 'A' | 'B' | 'C' | 'D' | null;
-
-function seedAssignment(position: number): SeedAssignment {
-  if (position < 1 || position > 32) return null;
-  const idx = Math.floor((position - 1) / 8); // 0..3
-  return (['A', 'B', 'C', 'D'] as const)[idx];
-}
-
-function SeedBadge({ seed }: { seed: SeedAssignment }) {
-  if (!seed) return <span className="text-[var(--text-muted)]">–</span>;
-  const palette: Record<'A' | 'B' | 'C' | 'D', string> = {
-    A: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    B: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-    C: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
-    D: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
-  };
-  return (
-    <span className={`inline-flex items-center justify-center w-6 h-6 rounded border text-xs font-mono font-semibold ${palette[seed]}`}>
-      {seed}
-    </span>
-  );
-}
 
 function DeltaCell({ from, to, hasFrom }: { from: number | undefined; to: number; hasFrom: boolean }) {
   if (!hasFrom) return <span className="text-[var(--text-muted)]">–</span>;
