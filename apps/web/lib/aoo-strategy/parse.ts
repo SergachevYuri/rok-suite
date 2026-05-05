@@ -55,8 +55,15 @@ export function toExportUrl(sheetUrl: string): string {
  * is considered confirmed (back-compat with old sheets).
  * Lane is an integer (1=Top, 2=Mid, 3=Bottom). Cells like "rally"/"garrison"/"ark"
  * that appear under the Lane column instead of in their own columns are also honored.
+ *
+ * The optional `league` flag tags every parsed row as a league sign-up — used
+ * when parsing the dedicated league tab on the AoO sheet, where "Team 1" means
+ * "in this week's league pool" rather than "Team 1 of a normal weekend".
  */
-export function parseAooRegistrationCSV(text: string): AooRegistration[] {
+export function parseAooRegistrationCSV(
+  text: string,
+  opts: { league?: boolean } = {},
+): AooRegistration[] {
   const { headers, rows } = parseCSV(text);
 
   // Use exact column-name matching (instead of `includes`) to avoid false hits
@@ -121,18 +128,58 @@ export function parseAooRegistrationCSV(text: string): AooRegistration[] {
         sub: isChecked(cols[iSub]),
         coordinator: isChecked(cols[iCoordinator]),
         lane: laneCell.lane,
+        league: !!opts.league,
       };
     })
     .filter(r => r.name);
 }
 
 /**
- * Fetch and parse an AoO registration Google Sheet as CSV.
+ * Fetch and parse an AoO registration Google Sheet as CSV. Pass
+ * `{ league: true }` when fetching the dedicated league tab so every row is
+ * tagged as a league sign-up.
  */
-export async function fetchAooRegistrationSheet(sheetUrl: string): Promise<AooRegistration[]> {
+export async function fetchAooRegistrationSheet(
+  sheetUrl: string,
+  opts: { league?: boolean } = {},
+): Promise<AooRegistration[]> {
   const exportUrl = toExportUrl(sheetUrl);
   const response = await fetch(exportUrl);
   if (!response.ok) throw new Error(`Failed to fetch sheet: ${response.status}`);
   const text = await response.text();
-  return parseAooRegistrationCSV(text);
+  return parseAooRegistrationCSV(text, opts);
+}
+
+/**
+ * Combine the main weekend tab with the league tab into a single registration
+ * list with mutual exclusion enforced: any player on the league tab is removed
+ * from the normal Team 1 / Team 2 pools (team1/team2 forced to false). League
+ * rows keep their `league` flag and their own team1 marker — on the league tab
+ * `team1: true` means "in this week's league pool". Match is by gov ID first,
+ * falling back to name when gov ID is missing.
+ */
+export function mergeAooRegistrations(
+  main: AooRegistration[],
+  league: AooRegistration[],
+): AooRegistration[] {
+  if (league.length === 0) return main;
+
+  const leagueGovIds = new Set<number>();
+  const leagueNames = new Set<string>();
+  for (const r of league) {
+    if (r.govId) leagueGovIds.add(r.govId);
+    if (r.name) leagueNames.add(r.name.toLowerCase());
+  }
+
+  const isLeaguePlayer = (r: AooRegistration) =>
+    (r.govId && leagueGovIds.has(r.govId)) ||
+    (r.name && leagueNames.has(r.name.toLowerCase()));
+
+  // Strip duplicates: a league player listed on the main tab gets dropped
+  // from the main list — the league tab is the source of truth for them.
+  const mainOnly = main
+    .filter(r => !isLeaguePlayer(r))
+    .map(r => ({ ...r, league: false }));
+
+  return [...mainOnly, ...league];
 }

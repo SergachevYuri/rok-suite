@@ -78,4 +78,8 @@ export interface AooRegistration {
   coordinator: boolean;
   // Lane lock: 1=Top, 2=Mid, 3=Bottom. null = not locked from sheet.
   lane: number | null;
+  /** True when this row came from the league sign-up tab. League players
+   *  are excluded from normal Team 1 / Team 2 rosters at merge time and form
+   *  a separate fixed-roster team that runs alongside the weekend teams. */
+  league: boolean;
 }
