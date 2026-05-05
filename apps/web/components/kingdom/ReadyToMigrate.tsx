@@ -9,6 +9,7 @@ import { seedAssignment, type SeedAssignment } from '@/lib/kingdom/seed';
 import { SeedBadge } from './SeedBadge';
 import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
 import { addOutreachEntry, listOutreachIds } from '@/lib/supabase/use-migration-outreach';
+import { fetchMigratedPlayerIds } from '@/lib/kingdom/migrations';
 
 /** Cutoff for "young account" — gov_ids ≥ this are considered candidates
  *  for migration outreach. Tune via UI control if you ever need to. */
@@ -78,6 +79,10 @@ export default function ReadyToMigrate() {
   // ─── Outreach state ───
   const [outreachIds, setOutreachIds] = useState<Set<number>>(new Set());
   const [fillingId, setFillingId] = useState<number | null>(null);
+
+  // Players already detected as migrated/joined in the Migrations tab — they
+  // can't migrate again from where they are now, so we hide them here.
+  const [migratedIds, setMigratedIds] = useState<Set<number>>(new Set());
   const [messageCopied, setMessageCopied] = useState(false);
 
   const copyMessage = async () => {
@@ -190,6 +195,23 @@ export default function ReadyToMigrate() {
     return () => { cancelled = true; };
   }, [isUnlocked]);
 
+  // Load the set of "already migrated" player_ids so we can hide them from
+  // the candidate list — somebody who migrated this KvK isn't a candidate
+  // for migrating again. Re-runs whenever the latestDate changes.
+  useEffect(() => {
+    if (!isUnlocked || !latestDate) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const ids = await fetchMigratedPlayerIds(latestDate);
+        if (!cancelled) setMigratedIds(ids);
+      } catch (e) {
+        console.warn('Failed to load migrated ids', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isUnlocked, latestDate]);
+
   const handleFill = async (p: PlayerRow) => {
     if (outreachIds.has(p.player_id)) return;
     setFillingId(p.player_id);
@@ -252,7 +274,13 @@ export default function ReadyToMigrate() {
   // Source rows depend on the dropdown:
   //   - All KDs  → only candidates (gov_id ≥ floor) across every kingdom
   //   - One KD   → every player in that kingdom (highlight applied for ≥ floor)
-  const sourceRows = selectedKd ? kdPlayers : candidatePlayers;
+  // In both cases we drop anyone the Migrations tab already lists — they've
+  // moved this KvK already, so they're not eligible to be a candidate.
+  const sourceRows = useMemo(() => {
+    const raw = selectedKd ? kdPlayers : candidatePlayers;
+    if (migratedIds.size === 0) return raw;
+    return raw.filter((p) => !migratedIds.has(p.player_id));
+  }, [selectedKd, kdPlayers, candidatePlayers, migratedIds]);
   const totalRowsCount = sourceRows.length;
 
   const filteredAndSorted = useMemo(() => {
@@ -284,10 +312,13 @@ export default function ReadyToMigrate() {
 
   // KD summary table (top of page) — one row per KD with seed band, power,
   // total KP, rank, and how many candidates that KD has at the current floor.
+  // Already-migrated players are excluded so the count matches what's actually
+  // shown in the player list below.
   const kdSummary = useMemo<KdSummary[]>(() => {
     const candidatesByKd = new Map<number, number>();
     for (const p of candidatePlayers) {
       if (p.kp < kpFloor) continue;
+      if (migratedIds.has(p.player_id)) continue;
       candidatesByKd.set(p.kingdom_id, (candidatesByKd.get(p.kingdom_id) ?? 0) + 1);
     }
     const rows: KdSummary[] = [];
@@ -303,7 +334,7 @@ export default function ReadyToMigrate() {
     }
     rows.sort((a, b) => a.rank - b.rank);
     return rows;
-  }, [statsByKd, seedByKd, rankByKd, candidatePlayers, kpFloor]);
+  }, [statsByKd, seedByKd, rankByKd, candidatePlayers, kpFloor, migratedIds]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -450,6 +481,11 @@ export default function ReadyToMigrate() {
           <span className="text-sm text-[var(--text-muted)]">
             {filteredAndSorted.length.toLocaleString()} player{filteredAndSorted.length !== 1 ? 's' : ''}
             {search.trim() && ` (${totalRowsCount.toLocaleString()} total)`}
+            {migratedIds.size > 0 && (
+              <span className="ml-2 text-cyan-300/80" title="Players already counted as migrated/joined in the Migrations tab — they can't migrate again, so they're hidden here.">
+                · {migratedIds.size.toLocaleString()} migrated hidden
+              </span>
+            )}
           </span>
 
           <Link

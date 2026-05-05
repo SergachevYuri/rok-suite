@@ -15,6 +15,7 @@ import {
 import SeedsUpload from './SeedsUpload';
 import { SeedBadge } from './SeedBadge';
 import { seedAssignment } from '@/lib/kingdom/seed';
+import { MIG_FROM_DATE, MIG_POWER_FLOOR_M_DEFAULT } from '@/lib/kingdom/migrations';
 import { createClient } from '@/lib/supabase/client';
 
 type SortField = 'rank_in_kd' | 'name' | 'power' | 'kp' | 'cityhall';
@@ -32,14 +33,6 @@ const DEFAULT_HIGHLIGHT_KD = 3923;
 
 type TabType = 'table' | 'charts' | 'comparison' | 'migrations' | 'upload';
 const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'migrations', 'upload'];
-
-/** Power floor (in millions) for the Migrations tab. Anything below this we
- *  ignore — small accounts hop between KDs constantly and aren't relevant. */
-const MIG_POWER_FLOOR_M_DEFAULT = 35;
-
-/** Migrations tab "From" scan is fixed to this date — the first day we have
- *  reliable cross-KD coverage for KvK3 tracking. */
-const MIG_FROM_DATE = '2026-04-29';
 
 /** One row of the Migrations tab — a player who appears in the To scan with
  *  a different (or unknown) kingdom_id compared to the From scan.

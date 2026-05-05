@@ -1,0 +1,65 @@
+import { createClient } from '@/lib/supabase/client';
+
+/** Power floor (in millions) for migration tracking. Anything below this we
+ *  ignore — small accounts hop between KDs constantly and aren't relevant. */
+export const MIG_POWER_FLOOR_M_DEFAULT = 35;
+
+/** Migrations "From" scan is fixed to this date — the first day we have
+ *  reliable cross-KD coverage for KvK3 tracking. */
+export const MIG_FROM_DATE = '2026-04-29';
+
+/**
+ * Returns the set of player_ids that already appear in the Migrations tab
+ * between MIG_FROM_DATE and `toDate`. A player counts as "migrated" if:
+ *   1. they appear in both scans with a different kingdom_id, OR
+ *   2. they appear in `toDate` but were not in the From scan (new joiner).
+ *
+ * `floorMillions` is applied to the To-scan power so the set matches what
+ * the Migrations tab actually shows. Returns an empty set if `toDate` is
+ * empty or equal to MIG_FROM_DATE.
+ */
+export async function fetchMigratedPlayerIds(
+  toDate: string | null,
+  floorMillions: number = MIG_POWER_FLOOR_M_DEFAULT,
+): Promise<Set<number>> {
+  if (!toDate || toDate === MIG_FROM_DATE) return new Set();
+  const sb = createClient();
+  const floor = floorMillions * 1_000_000;
+
+  const pull = async (date: string, applyFloor: boolean) => {
+    const all: { player_id: number; kingdom_id: number }[] = [];
+    let from = 0;
+    while (true) {
+      let q = sb
+        .from('seeds_kd_players')
+        .select('player_id, kingdom_id')
+        .eq('scan_date', date);
+      if (applyFloor) q = q.gte('power', floor);
+      const { data, error } = await q.range(from, from + 999);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      for (const r of data) all.push(r as typeof all[number]);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+    return all;
+  };
+
+  // The To-scan power floor matches what the Migrations tab shows, so the
+  // candidate-exclusion stays consistent. The From scan is queried unfiltered
+  // so we can detect "appeared in latest but was anywhere on 4/29" and not
+  // miss someone who was just below the floor before but isn't now.
+  const [fromRows, toRows] = await Promise.all([pull(MIG_FROM_DATE, false), pull(toDate, true)]);
+  const fromMap = new Map(fromRows.map((r) => [r.player_id, r.kingdom_id] as const));
+
+  const migrated = new Set<number>();
+  for (const t of toRows) {
+    const fKd = fromMap.get(t.player_id);
+    if (fKd === undefined) {
+      migrated.add(t.player_id); // new joiner
+    } else if (fKd !== t.kingdom_id) {
+      migrated.add(t.player_id); // changed KD
+    }
+  }
+  return migrated;
+}
