@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Search, ChevronUp, ChevronDown, UserPlus, Lock, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
-import { ADMIN_PASSWORD } from '@/lib/auth-passwords';
+import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
 import { seedAssignment, type SeedAssignment } from '@/lib/kingdom/seed';
 import { SeedBadge } from './SeedBadge';
 import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
@@ -49,7 +49,7 @@ export default function ReadyToMigrate() {
   const [pwError, setPwError] = useState('');
 
   const submitPassword = () => {
-    if (pwInput === ADMIN_PASSWORD) {
+    if (pwInput === ADMIN_PASSWORD || pwInput === OFFICER_PASSWORD) {
       setIsUnlocked(true);
       setPwInput('');
       setPwError('');
@@ -263,7 +263,7 @@ export default function ReadyToMigrate() {
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-[var(--foreground)]">Restricted</h3>
-                <p className="text-xs text-[var(--text-muted)]">Admin password required</p>
+                <p className="text-xs text-[var(--text-muted)]">Officer or Admin password required</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -307,6 +307,64 @@ export default function ReadyToMigrate() {
         <p className="text-sm text-[var(--text-muted)] mt-1">
           Latest scan: {latestDate ?? '—'}. Highlighted rows = candidates with gov_id ≥ {govIdFloor.toLocaleString()}.
         </p>
+      </div>
+
+      {/* ─── Filters (sticky so they stay visible while scrolling) ─── */}
+      <div className="sticky top-0 z-20 -mx-4 lg:-mx-8 px-4 lg:px-8 py-3 mb-4 bg-[var(--background)]/95 backdrop-blur border-b border-[var(--border)]">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            KD
+            <select
+              value={selectedKd ?? ''}
+              onChange={(e) => setSelectedKd(e.target.value ? Number(e.target.value) : null)}
+              className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+            >
+              <option value="">All KDs (candidates only)</option>
+              {kdSummary.map((s) => (
+                <option key={s.kingdom_id} value={s.kingdom_id}>KD {s.kingdom_id}{s.candidates > 0 ? ` · ${s.candidates} cand.` : ''}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            gov_id ≥
+            <input
+              type="number"
+              value={govIdFloor}
+              onChange={(e) => setGovIdFloor(Math.max(0, Number(e.target.value) || 0))}
+              className="w-32 px-2 py-1 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm font-mono focus:outline-none"
+            />
+          </label>
+
+          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+            KP ≥
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={kpFloorM}
+              onChange={(e) => setKpFloorM(Math.max(0, Number(e.target.value) || 0))}
+              className="w-20 px-2 py-1 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm font-mono focus:outline-none"
+            />
+            <span className="text-xs text-[var(--text-muted)]">M</span>
+          </label>
+
+          <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input
+              type="text"
+              placeholder="Search by name, gov id, or KD..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
+            />
+          </div>
+
+          <span className="text-sm text-[var(--text-muted)]">
+            {filteredAndSorted.length.toLocaleString()} player{filteredAndSorted.length !== 1 ? 's' : ''}
+            {search.trim() && ` (${totalRowsCount.toLocaleString()} total)`}
+          </span>
+        </div>
       </div>
 
       {/* ─── KD summary table ─── */}
@@ -370,62 +428,6 @@ export default function ReadyToMigrate() {
           </div>
         )}
       </details>
-
-      {/* ─── Filters ─── */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-          KD
-          <select
-            value={selectedKd ?? ''}
-            onChange={(e) => setSelectedKd(e.target.value ? Number(e.target.value) : null)}
-            className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
-          >
-            <option value="">All KDs (candidates only)</option>
-            {kdSummary.map((s) => (
-              <option key={s.kingdom_id} value={s.kingdom_id}>KD {s.kingdom_id}{s.candidates > 0 ? ` · ${s.candidates} cand.` : ''}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-          gov_id ≥
-          <input
-            type="number"
-            value={govIdFloor}
-            onChange={(e) => setGovIdFloor(Math.max(0, Number(e.target.value) || 0))}
-            className="w-32 px-2 py-1 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm font-mono focus:outline-none"
-          />
-        </label>
-
-        <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-          KP ≥
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={kpFloorM}
-            onChange={(e) => setKpFloorM(Math.max(0, Number(e.target.value) || 0))}
-            className="w-20 px-2 py-1 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm font-mono focus:outline-none"
-          />
-          <span className="text-xs text-[var(--text-muted)]">M</span>
-        </label>
-
-        <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-          <input
-            type="text"
-            placeholder="Search by name, gov id, or KD..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
-          />
-        </div>
-
-        <span className="text-sm text-[var(--text-muted)]">
-          {filteredAndSorted.length.toLocaleString()} player{filteredAndSorted.length !== 1 ? 's' : ''}
-          {search.trim() && ` (${totalRowsCount.toLocaleString()} total)`}
-        </span>
-      </div>
 
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 mb-4 text-sm text-red-300">
