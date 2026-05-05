@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, ChevronUp, ChevronDown, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon, ArrowUp, ArrowDown, Minus, Move } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   useAvailableSeedKingdoms,
@@ -15,6 +15,7 @@ import {
 import SeedsUpload from './SeedsUpload';
 import { SeedBadge } from './SeedBadge';
 import { seedAssignment } from '@/lib/kingdom/seed';
+import { createClient } from '@/lib/supabase/client';
 
 type SortField = 'rank_in_kd' | 'name' | 'power' | 'kp' | 'cityhall';
 type SortDir = 'asc' | 'desc';
@@ -29,8 +30,29 @@ const KD_COLORS = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#fb923c', '#a78b
 // Default kingdom to pre-select in the highlight dropdown.
 const DEFAULT_HIGHLIGHT_KD = 3923;
 
-type TabType = 'table' | 'charts' | 'comparison' | 'upload';
-const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'upload'];
+type TabType = 'table' | 'charts' | 'comparison' | 'migrations' | 'upload';
+const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'migrations', 'upload'];
+
+/** Power floor (in millions) for the Migrations tab. Anything below this we
+ *  ignore — small accounts hop between KDs constantly and aren't relevant. */
+const MIG_POWER_FLOOR_M_DEFAULT = 40;
+
+/** One row of the Migrations tab — a player who appears in the To scan with
+ *  a different (or unknown) kingdom_id compared to the From scan.
+ *  fromKd = null means the player wasn't in the From scan at all → "new joiner".
+ *  In that case fromPower / fromKp are 0 and deltaPower equals toPower. */
+interface MigrationRow {
+  player_id: number;
+  name: string;
+  fromKd: number | null;
+  toKd: number;
+  fromPower: number;
+  toPower: number;
+  fromKp: number;
+  toKp: number;
+  deltaPower: number;
+  isNewJoiner: boolean;
+}
 
 export default function KingdomStats() {
   const searchParams = useSearchParams();
@@ -66,6 +88,17 @@ export default function KingdomStats() {
   const [compSortField, setCompSortField] = useState<'power_400' | 'total_kp' | 'power_rank' | 'kp_rank' | 'kingdom_id'>('power_400');
   const [compSortDir, setCompSortDir] = useState<SortDir>('desc');
   const [highlightedKingdom, setHighlightedKingdom] = useState<number | null>(DEFAULT_HIGHLIGHT_KD);
+
+  // Migrations tab state
+  const [migFromDate, setMigFromDate] = useState<string>('');
+  const [migToDate, setMigToDate] = useState<string>('');
+  const [migPowerFloorM, setMigPowerFloorM] = useState<number>(MIG_POWER_FLOOR_M_DEFAULT);
+  const [migrations, setMigrations] = useState<MigrationRow[]>([]);
+  const [migLoading, setMigLoading] = useState(false);
+  const [migError, setMigError] = useState<string | null>(null);
+  const [migSearch, setMigSearch] = useState('');
+  const [migSortField, setMigSortField] = useState<'name' | 'fromKd' | 'toKd' | 'fromPower' | 'toPower' | 'deltaPower'>('deltaPower');
+  const [migSortDir, setMigSortDir] = useState<SortDir>('desc');
 
   // Refresh trigger to re-fetch after an upload
   const [refreshKey, setRefreshKey] = useState(0);
@@ -132,6 +165,98 @@ export default function KingdomStats() {
       if (allDates.length > 1 && !comparisonFromDate) setComparisonFromDate(allDates[1]);
     }
   }, [allDates, comparisonToDate, comparisonFromDate]);
+
+  // Migrations tab — same date defaulting (latest + second-latest)
+  React.useEffect(() => {
+    if (allDates.length > 0 && !migToDate) {
+      setMigToDate(allDates[0]);
+      if (allDates.length > 1 && !migFromDate) setMigFromDate(allDates[1]);
+    }
+  }, [allDates, migToDate, migFromDate]);
+
+  // Fetch migrations: players that appear in both scans (>= power floor) but
+  // with a different kingdom_id between them. Cross-KD scan means we have to
+  // pull every row for both dates with no kingdom filter.
+  React.useEffect(() => {
+    if (activeTab !== 'migrations') return;
+    if (!migFromDate || !migToDate || migFromDate === migToDate) {
+      setMigrations([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setMigLoading(true);
+      setMigError(null);
+      try {
+        const sb = createClient();
+        const floor = migPowerFloorM * 1_000_000;
+        // Pull both scans' players at-or-above the floor, paginating past 1000.
+        const pull = async (date: string) => {
+          const all: { player_id: number; kingdom_id: number; name: string; power: number; kp: number }[] = [];
+          let from = 0;
+          while (true) {
+            const { data, error } = await sb
+              .from('seeds_kd_players')
+              .select('player_id, kingdom_id, name, power, kp')
+              .eq('scan_date', date)
+              .gte('power', floor)
+              .range(from, from + 999);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            for (const r of data) all.push(r as typeof all[number]);
+            if (data.length < 1000) break;
+            from += 1000;
+          }
+          return all;
+        };
+        const [fromRows, toRows] = await Promise.all([pull(migFromDate), pull(migToDate)]);
+        const fromMap = new Map(fromRows.map((r) => [r.player_id, r] as const));
+
+        const out: MigrationRow[] = [];
+        for (const t of toRows) {
+          const f = fromMap.get(t.player_id);
+          if (f) {
+            // Same KD = no migration; skip.
+            if (f.kingdom_id === t.kingdom_id) continue;
+            out.push({
+              player_id: t.player_id,
+              name: t.name || f.name,
+              fromKd: f.kingdom_id,
+              toKd: t.kingdom_id,
+              fromPower: f.power,
+              toPower: t.power,
+              fromKp: f.kp,
+              toKp: t.kp,
+              deltaPower: t.power - f.power,
+              isNewJoiner: false,
+            });
+          } else {
+            // Not in From scan → starting KD unknown. Could be a brand-new
+            // top-400 entry, a return from below the cutoff, or a migrant
+            // from a kingdom we didn't scan. Surface them as "new joiners".
+            out.push({
+              player_id: t.player_id,
+              name: t.name,
+              fromKd: null,
+              toKd: t.kingdom_id,
+              fromPower: 0,
+              toPower: t.power,
+              fromKp: 0,
+              toKp: t.kp,
+              deltaPower: t.power,
+              isNewJoiner: true,
+            });
+          }
+        }
+        if (!cancelled) setMigrations(out);
+      } catch (e) {
+        if (!cancelled) setMigError(e instanceof Error ? e.message : 'Failed to load migrations');
+      } finally {
+        if (!cancelled) setMigLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeTab, migFromDate, migToDate, migPowerFloorM]);
 
   // Force re-fetch by remounting on refresh — easier than threading refetch through hooks
   // (used after a successful upload)
@@ -319,6 +444,7 @@ export default function KingdomStats() {
         <TabButton active={activeTab === 'table'}      onClick={() => setActiveTab('table')}      icon={<Table size={16} />}            label="Table" />
         <TabButton active={activeTab === 'charts'}     onClick={() => setActiveTab('charts')}     icon={<TrendingUp size={16} />}       label="Charts" />
         <TabButton active={activeTab === 'comparison'} onClick={() => setActiveTab('comparison')} icon={<GitCompareArrows size={16} />} label="Comparison" />
+        <TabButton active={activeTab === 'migrations'} onClick={() => setActiveTab('migrations')} icon={<Move size={16} />}             label="Migrations" />
         <TabButton active={activeTab === 'upload'}     onClick={() => setActiveTab('upload')}     icon={<UploadIcon size={16} />}       label="Upload" />
       </div>
 
@@ -681,6 +807,28 @@ export default function KingdomStats() {
         </div>
       )}
 
+      {/* ═══ MIGRATIONS ═══ */}
+      {activeTab === 'migrations' && (
+        <MigrationsView
+          allDates={allDates}
+          migFromDate={migFromDate}
+          setMigFromDate={setMigFromDate}
+          migToDate={migToDate}
+          setMigToDate={setMigToDate}
+          migPowerFloorM={migPowerFloorM}
+          setMigPowerFloorM={setMigPowerFloorM}
+          migrations={migrations}
+          loading={migLoading}
+          error={migError}
+          search={migSearch}
+          setSearch={setMigSearch}
+          sortField={migSortField}
+          setSortField={setMigSortField}
+          sortDir={migSortDir}
+          setSortDir={setMigSortDir}
+        />
+      )}
+
       {/* ═══ UPLOAD ═══ */}
       {activeTab === 'upload' && (
         <SeedsUpload onUploaded={handleUploaded} />
@@ -739,6 +887,249 @@ function DeltaCell({ from, to, hasFrom }: { from: number | undefined; to: number
     <span className="inline-flex items-center gap-0.5 text-red-400 tabular-nums text-xs">
       <ArrowDown size={12} />{Math.abs(delta)}
     </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Migrations tab — players that changed kingdom between two scans.
+// ─────────────────────────────────────────────────────────────
+type MigSortField = 'name' | 'fromKd' | 'toKd' | 'fromPower' | 'toPower' | 'deltaPower';
+
+function MigrationsView({
+  allDates,
+  migFromDate,
+  setMigFromDate,
+  migToDate,
+  setMigToDate,
+  migPowerFloorM,
+  setMigPowerFloorM,
+  migrations,
+  loading,
+  error,
+  search,
+  setSearch,
+  sortField,
+  setSortField,
+  sortDir,
+  setSortDir,
+}: {
+  allDates: string[];
+  migFromDate: string;
+  setMigFromDate: (v: string) => void;
+  migToDate: string;
+  setMigToDate: (v: string) => void;
+  migPowerFloorM: number;
+  setMigPowerFloorM: (n: number) => void;
+  migrations: MigrationRow[];
+  loading: boolean;
+  error: string | null;
+  search: string;
+  setSearch: (v: string) => void;
+  sortField: MigSortField;
+  setSortField: (f: MigSortField) => void;
+  sortDir: SortDir;
+  setSortDir: (d: SortDir) => void;
+}) {
+  const filteredAndSorted = useMemo(() => {
+    let data = [...migrations];
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      data = data.filter((m) =>
+        m.name.toLowerCase().includes(q) ||
+        String(m.player_id).includes(q) ||
+        String(m.fromKd).includes(q) ||
+        String(m.toKd).includes(q),
+      );
+    }
+    data.sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'name') cmp = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      else if (sortField === 'fromKd') cmp = (a.fromKd ?? Number.POSITIVE_INFINITY) - (b.fromKd ?? Number.POSITIVE_INFINITY);
+      else cmp = (a[sortField] || 0) - (b[sortField] || 0);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return data;
+  }, [migrations, search, sortField, sortDir]);
+
+  const handleSort = (f: MigSortField) => {
+    if (sortField === f) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    else {
+      setSortField(f);
+      setSortDir(f === 'name' || f === 'fromKd' || f === 'toKd' ? 'asc' : 'desc');
+    }
+  };
+
+  // Counts for K23-related migrations + new joiners (highlighting helps spot
+  // defections / arrivals at a glance).
+  const intoK23 = useMemo(() => filteredAndSorted.filter((m) => m.toKd === DEFAULT_HIGHLIGHT_KD).length, [filteredAndSorted]);
+  const outOfK23 = useMemo(() => filteredAndSorted.filter((m) => m.fromKd === DEFAULT_HIGHLIGHT_KD).length, [filteredAndSorted]);
+  const newJoiners = useMemo(() => filteredAndSorted.filter((m) => m.isNewJoiner).length, [filteredAndSorted]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] uppercase tracking-wider">
+          From
+          <select
+            value={migFromDate}
+            onChange={(e) => {
+              const v = e.target.value;
+              setMigFromDate(v);
+              if (v && migToDate && v > migToDate) setMigToDate(v);
+            }}
+            className="px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] normal-case tracking-normal focus:outline-none focus:border-[#4318ff]"
+          >
+            {allDates.filter((d) => !migToDate || d <= migToDate).map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </label>
+        <span className="text-xs text-[var(--text-muted)]">→</span>
+        <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] uppercase tracking-wider">
+          To
+          <select
+            value={migToDate}
+            onChange={(e) => {
+              const v = e.target.value;
+              setMigToDate(v);
+              if (v && migFromDate && v < migFromDate) setMigFromDate('');
+            }}
+            className="px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] normal-case tracking-normal focus:outline-none focus:border-[#4318ff]"
+          >
+            {allDates.length === 0 && <option>Loading...</option>}
+            {allDates.filter((d) => !migFromDate || d >= migFromDate).map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+          Power ≥
+          <input
+            type="text"
+            inputMode="decimal"
+            value={migPowerFloorM}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/[^0-9.]/g, '');
+              const n = raw === '' ? 0 : Number(raw);
+              if (!Number.isNaN(n)) setMigPowerFloorM(Math.max(0, n));
+            }}
+            className="w-20 px-2 py-1 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm font-mono focus:outline-none"
+          />
+          <span className="text-xs text-[var(--text-muted)]">M</span>
+        </label>
+
+        <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+          <input
+            type="text"
+            placeholder="Search by name, gov id, or KD..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)]"
+          />
+        </div>
+
+        <span className="text-sm text-[var(--text-muted)]">
+          {filteredAndSorted.length.toLocaleString()} entr{filteredAndSorted.length === 1 ? 'y' : 'ies'}
+          {newJoiners > 0 && <> · <span className="text-cyan-300">{newJoiners} new joiner{newJoiners !== 1 ? 's' : ''}</span></>}
+          {intoK23 > 0 && <> · <span className="text-emerald-400">+{intoK23} into KD {DEFAULT_HIGHLIGHT_KD}</span></>}
+          {outOfK23 > 0 && <> · <span className="text-red-400">−{outOfK23} out of KD {DEFAULT_HIGHLIGHT_KD}</span></>}
+        </span>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
+      )}
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center text-[var(--text-muted)]">Loading…</div>
+        ) : !migFromDate || !migToDate || migFromDate === migToDate ? (
+          <div className="p-12 text-center text-[var(--text-muted)]">Pick two different scan dates.</div>
+        ) : filteredAndSorted.length === 0 ? (
+          <div className="p-12 text-center text-[var(--text-muted)]">
+            No migrations detected between {migFromDate} and {migToDate} for power ≥ {migPowerFloorM}M.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Player ID</th>
+                  <MigHeader label="Name"        field="name"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                  <MigHeader label="From KD"     field="fromKd"     sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                  <MigHeader label="To KD"       field="toKd"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                  <MigHeader label="Power From"  field="fromPower"  sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                  <MigHeader label="Power To"    field="toPower"    sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                  <MigHeader label="Δ Power"     field="deltaPower" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAndSorted.map((m) => {
+                  const intoMine = m.toKd === DEFAULT_HIGHLIGHT_KD;
+                  const outOfMine = m.fromKd === DEFAULT_HIGHLIGHT_KD;
+                  const rowBg = intoMine
+                    ? 'bg-emerald-500/10 hover:bg-emerald-500/15'
+                    : outOfMine
+                      ? 'bg-red-500/10 hover:bg-red-500/15'
+                      : 'hover:bg-[var(--background-secondary)]';
+                  return (
+                    <tr key={m.player_id} className={`border-b border-[var(--border)] transition-colors ${rowBg}`}>
+                      <td className="px-3 py-2.5 text-[var(--text-muted)] text-xs tabular-nums">{m.player_id}</td>
+                      <td className="px-3 py-2.5 text-[var(--foreground)]">
+                        <span className="inline-flex items-center gap-2">
+                          {m.name}
+                          {m.isNewJoiner && (
+                            <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-cyan-500/15 text-cyan-300 border-cyan-500/30" title="Wasn't in the From scan — KD of origin unknown">
+                              NEW JOINER
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 font-medium tabular-nums">
+                        {m.fromKd != null ? `KD ${m.fromKd}` : <span className="text-[var(--text-muted)]">—</span>}
+                      </td>
+                      <td className="px-3 py-2.5 font-medium tabular-nums">KD {m.toKd}</td>
+                      <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">
+                        {m.isNewJoiner ? <span className="text-[var(--text-muted)]">—</span> : formatCompact(m.fromPower)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(m.toPower)}</td>
+                      <td className={`px-3 py-2.5 text-right tabular-nums ${m.isNewJoiner ? 'text-cyan-300' : m.deltaPower >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {m.isNewJoiner ? '—' : (m.deltaPower >= 0 ? '+' : '') + formatCompact(m.deltaPower)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MigHeader({ label, field, sortField, sortDir, onSort, align = 'left' }: {
+  label: string;
+  field: MigSortField;
+  sortField: MigSortField;
+  sortDir: SortDir;
+  onSort: (f: MigSortField) => void;
+  align?: 'left' | 'right';
+}) {
+  return (
+    <th
+      className={`px-3 py-3 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider cursor-pointer hover:text-[var(--foreground)] transition-colors select-none ${align === 'right' ? 'text-right' : 'text-left'}`}
+      onClick={() => onSort(field)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {sortField === field
+          ? (sortDir === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />)
+          : <ChevronDown size={14} className="opacity-20" />}
+      </span>
+    </th>
   );
 }
 
