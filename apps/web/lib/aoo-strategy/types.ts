@@ -49,6 +49,15 @@ export interface StrategyData {
   selectedArkCarriersByTeam?: Record<number, string>; // One ark carrier per team (mid lane)
   selectedTeleportFirstByTeam?: Record<number, string[]>; // Sets serialized as arrays
   coordinatorsByTeam?: Record<number, string[]>; // Sets serialized as arrays
+  /** Names of players slotted as subs for that team this weekend. Subs are
+   *  confirmed players in a different in-game role (not a synonym for "maybe")
+   *  — they get locked to zone 0 (bench) during lane distribution and can be
+   *  swapped into mains week-to-week. Mainly used for the league team. */
+  subsByTeam?: Record<number, string[]>;
+  /** Which team slot is the league team. League players come from a separate
+   *  sheet tab and are mutually exclusive with normal Team 1 / Team 2 sign-ups.
+   *  When unset the planner has no league team this weekend. */
+  leagueTeamNumber?: number;
   zoneSizesByTeam?: Record<number, Record<number, string>>;
   // Per-team lane locks from spreadsheet: name -> 1|2|3 forces that player into that lane
   lockedLanesByTeam?: Record<number, Record<string, number>>;
@@ -78,4 +87,8 @@ export interface AooRegistration {
   coordinator: boolean;
   // Lane lock: 1=Top, 2=Mid, 3=Bottom. null = not locked from sheet.
   lane: number | null;
+  /** True when this row came from the league sign-up tab. League players
+   *  are excluded from normal Team 1 / Team 2 rosters at merge time and form
+   *  a separate fixed-roster team that runs alongside the weekend teams. */
+  league: boolean;
 }

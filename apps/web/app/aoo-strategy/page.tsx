@@ -179,6 +179,9 @@ interface TeamBuilderTabProps {
     setSelectedTeleportFirstByTeam: (t: TeleportFirstByTeam) => void;
     coordinatorsByTeam: Record<TeamNumber, Set<string>>;
     setCoordinatorsByTeam: (c: Record<TeamNumber, Set<string>>) => void;
+    subsByTeam: Record<TeamNumber, Set<string>>;
+    setSubsByTeam: (s: Record<TeamNumber, Set<string>>) => void;
+    leagueTeamNumber: TeamNumber | null;
     zoneSizesByTeam: ZoneSizesByTeam;
     setZoneSizesByTeam: (z: ZoneSizesByTeam) => void;
     lockedLanesByTeam: LockedLanesByTeam;
@@ -226,6 +229,9 @@ function TeamBuilderTab({
     setSelectedTeleportFirstByTeam,
     coordinatorsByTeam,
     setCoordinatorsByTeam,
+    subsByTeam,
+    setSubsByTeam,
+    leagueTeamNumber,
     zoneSizesByTeam,
     setZoneSizesByTeam,
     lockedLanesByTeam,
@@ -1315,11 +1321,18 @@ function TeamBuilderTab({
                                             ? `${colors.bg} text-white shadow-md`
                                             : `${colors.bg}/20 ${colors.text} border ${colors.border}/50 hover:${colors.bg}/30`
                                     }`}
+                                    title={leagueTeamNumber === teamNum ? 'League team — fixed roster, weekly main/sub split' : undefined}
                                 >
-                                    <span className="font-bold">T{teamNum}</span>
-                                    <span className="text-xs opacity-80">
-                                        {counts.confirmed}✓ {counts.maybe > 0 && `+ ${counts.maybe}?`}
-                                    </span>
+                                    <span className="font-bold">{leagueTeamNumber === teamNum ? 'League' : `T${teamNum}`}</span>
+                                    {leagueTeamNumber === teamNum ? (
+                                        <span className="text-xs opacity-80">
+                                            {counts.confirmed - (subsByTeam[teamNum]?.size || 0)}M / {subsByTeam[teamNum]?.size || 0}S
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs opacity-80">
+                                            {counts.confirmed}✓ {counts.maybe > 0 && `+ ${counts.maybe}?`}
+                                        </span>
+                                    )}
                                 </button>
                                 <button
                                     onClick={() => toggleTeamLock(teamNum)}
@@ -1615,12 +1628,32 @@ function TeamBuilderTab({
                                     isPending ? 'bg-blue-600/20 border border-blue-500/30 border-dashed' :
                                     'bg-[var(--background-secondary)] border border-[var(--border)]';
 
+                                // Sub toggle for league players: a confirmed league player can be
+                                // toggled between Main and Sub for the weekend. Sub is a different
+                                // in-game role (not "maybe") — subs are locked to zone 0 at lane
+                                // distribution and can be swapped into mains week-to-week.
+                                const isLeagueConfirmedHere = leagueTeamNumber !== null
+                                    && (confirmationsByTeam[leagueTeamNumber]?.[member.name] === 'confirmed');
+                                const isSubHere = leagueTeamNumber !== null
+                                    && !!subsByTeam[leagueTeamNumber]?.has(member.name);
+                                const toggleSub = () => {
+                                    if (leagueTeamNumber === null) return;
+                                    const current = subsByTeam[leagueTeamNumber] || new Set<string>();
+                                    const next = new Set(current);
+                                    if (next.has(member.name)) next.delete(member.name);
+                                    else next.add(member.name);
+                                    setSubsByTeam({ ...subsByTeam, [leagueTeamNumber]: next });
+                                };
+
                                 const teamButtons = (
                                     <div className="flex items-center gap-1">
                                         {([1, 2, 3] as TeamNumber[]).slice(0, teamCount).map((team) => {
                                             const teamConf = confirmationsByTeam[team] || {};
                                             const status = teamConf[member.name] || 'none';
                                             const colors = teamColors[team];
+                                            const isLeagueSlot = leagueTeamNumber === team;
+                                            const teamLabel = isLeagueSlot ? 'L' : String(team);
+                                            const teamTitle = isLeagueSlot ? 'League' : `Team ${team}`;
                                             return (
                                                 <button
                                                     key={team}
@@ -1632,12 +1665,25 @@ function TeamBuilderTab({
                                                                 ? `${colors.bg}/40 ${colors.text} border-2 ${colors.border}`
                                                                 : `bg-white/10 text-white/40 border border-white/20 hover:border-white/40`
                                                     }`}
-                                                    title={`Team ${team}: ${status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : t('clickToAdd')}`}
+                                                    title={`${teamTitle}: ${status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : t('clickToAdd')}`}
                                                 >
-                                                    {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : team}
+                                                    {status === 'confirmed' ? '✓' : status === 'maybe' ? '?' : teamLabel}
                                                 </button>
                                             );
                                         })}
+                                        {isLeagueConfirmedHere && (
+                                            <button
+                                                onClick={toggleSub}
+                                                className={`px-2 h-9 sm:h-8 rounded-md text-xs font-bold transition-all ${
+                                                    isSubHere
+                                                        ? 'bg-purple-600 text-white shadow-md'
+                                                        : 'bg-purple-600/20 text-purple-300 border border-purple-500/40 hover:bg-purple-600/30'
+                                                }`}
+                                                title={isSubHere ? 'Slotted as sub this weekend — click to make main' : 'Slotted as main this weekend — click to make sub'}
+                                            >
+                                                {isSubHere ? 'Sub' : 'Main'}
+                                            </button>
+                                        )}
                                     </div>
                                 );
 
@@ -2384,6 +2430,13 @@ export default function AooStrategyPage() {
     const [selectedArkCarriersByTeam, setSelectedArkCarriersByTeam] = useState<ArkCarriersByTeam>({ 1: '', 2: '', 3: '' });
     const [selectedTeleportFirstByTeam, setSelectedTeleportFirstByTeam] = useState<TeleportFirstByTeam>({ 1: new Set(), 2: new Set(), 3: new Set() });
     const [coordinatorsByTeam, setCoordinatorsByTeam] = useState<Record<TeamNumber, Set<string>>>({ 1: new Set(), 2: new Set(), 3: new Set() });
+    // Subs are confirmed players slotted into the in-game sub role (not "maybe").
+    // Lane distribution locks them to zone 0 so they're benched until swapped in.
+    // Officers can toggle main/sub each weekend on the league team.
+    const [subsByTeam, setSubsByTeam] = useState<Record<TeamNumber, Set<string>>>({ 1: new Set(), 2: new Set(), 3: new Set() });
+    // Designates which team slot is the league team. League players come from
+    // the dedicated league sheet tab and are excluded from normal Team 1/Team 2.
+    const [leagueTeamNumber, setLeagueTeamNumber] = useState<TeamNumber | null>(null);
     const [zoneSizesByTeam, setZoneSizesByTeam] = useState<ZoneSizesByTeam>({
         1: { 0: '', 1: '', 2: '', 3: '' },
         2: { 0: '', 1: '', 2: '', 3: '' },
@@ -2553,6 +2606,16 @@ export default function AooStrategyPage() {
                         3: new Set(strategyData.coordinatorsByTeam[3] || []),
                     });
                 }
+                if (strategyData?.subsByTeam) {
+                    setSubsByTeam({
+                        1: new Set(strategyData.subsByTeam[1] || []),
+                        2: new Set(strategyData.subsByTeam[2] || []),
+                        3: new Set(strategyData.subsByTeam[3] || []),
+                    });
+                }
+                if (typeof strategyData?.leagueTeamNumber === 'number') {
+                    setLeagueTeamNumber(strategyData.leagueTeamNumber as TeamNumber);
+                }
                 if (strategyData?.lockedLanesByTeam) {
                     setLockedLanesByTeam(strategyData.lockedLanesByTeam as LockedLanesByTeam);
                 }
@@ -2623,6 +2686,12 @@ export default function AooStrategyPage() {
                 2: Array.from(coordinatorsByTeam[2] || []),
                 3: Array.from(coordinatorsByTeam[3] || []),
             },
+            subsByTeam: updatedData.subsByTeam ?? {
+                1: Array.from(subsByTeam[1] || []),
+                2: Array.from(subsByTeam[2] || []),
+                3: Array.from(subsByTeam[3] || []),
+            },
+            leagueTeamNumber: updatedData.leagueTeamNumber ?? leagueTeamNumber ?? undefined,
             lockedLanesByTeam: updatedData.lockedLanesByTeam ?? lockedLanesByTeam,
             lockedTeams: updatedData.lockedTeams ?? Array.from(lockedTeams),
             mailHeader: updatedData.mailHeader ?? mailHeader,
@@ -2657,7 +2726,7 @@ export default function AooStrategyPage() {
         }
         saveData({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, lockedLanesByTeam, lockedTeams, mailHeader]);
+    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, subsByTeam, leagueTeamNumber, lockedLanesByTeam, lockedTeams, mailHeader]);
 
     const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isEditor) return;
@@ -3407,12 +3476,24 @@ export default function AooStrategyPage() {
                             if (m.governor_id) rosterByGovId.set(m.governor_id, m);
                         }
 
+                        // Auto-detect: do we have league signups, and are there normal teams
+                        // signed up alongside? League always lives in the LAST slot so the
+                        // visible team count stays contiguous (no empty slots in between).
+                        const hasLeague = registrations.some(r => r.league && r.team1);
+                        const hasNormalTeam2 = registrations.some(r => !r.league && r.team2);
+                        const hasNormalTeam1 = registrations.some(r => !r.league && r.team1);
+                        const normalTeamCount = hasNormalTeam2 ? 2 : hasNormalTeam1 ? 1 : 0;
+                        const detectedLeagueSlot: TeamNumber | null = hasLeague
+                            ? (Math.max(1, normalTeamCount + 1) as TeamNumber)
+                            : null;
+
                         const newConfirmations: ConfirmationsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newLockedLanes: LockedLanesByTeam = { 1: {}, 2: {}, 3: {} };
                         const newRallyLeads: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newGarrisonLeads: GarrisonLeadsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newArkCarriers: ArkCarriersByTeam = { 1: '', 2: '', 3: '' };
                         const newCoordinators: Record<TeamNumber, Set<string>> = { 1: new Set(), 2: new Set(), 3: new Set() };
+                        const newSubs: Record<TeamNumber, Set<string>> = { 1: new Set(), 2: new Set(), 3: new Set() };
                         const pendingToAdd: PendingMember[] = [];
                         const pendingNames = new Set<string>();
 
@@ -3424,17 +3505,31 @@ export default function AooStrategyPage() {
                             const name = r.name;
                             const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
 
-                            if (r.team1) newConfirmations[1][name] = 'confirmed';
-                            if (r.team2) newConfirmations[2][name] = 'confirmed';
-                            if (!r.team1 && !r.team2) newConfirmations[1][name] = 'maybe';
+                            if (r.league) {
+                                // League players land in the designated league slot. They're
+                                // confirmed for the tournament — "Team 1" on the league tab
+                                // means "in this week's league pool", not Team 1 of a normal
+                                // weekend.
+                                if (detectedLeagueSlot && r.team1) {
+                                    newConfirmations[detectedLeagueSlot][name] = 'confirmed';
+                                    teamRegs[detectedLeagueSlot].push(r);
+                                    if (r.coordinator) newCoordinators[detectedLeagueSlot].add(name);
+                                    if (r.sub) newSubs[detectedLeagueSlot].add(name);
+                                }
+                            } else {
+                                if (r.team1) newConfirmations[1][name] = 'confirmed';
+                                if (r.team2) newConfirmations[2][name] = 'confirmed';
+                                if (!r.team1 && !r.team2) newConfirmations[1][name] = 'maybe';
 
-                            const teamsForPlayer: TeamNumber[] = [];
-                            if (r.team1) teamsForPlayer.push(1);
-                            if (r.team2) teamsForPlayer.push(2);
-                            if (teamsForPlayer.length === 0) teamsForPlayer.push(1);
-                            for (const teamNum of teamsForPlayer) {
-                                teamRegs[teamNum].push(r);
-                                if (r.coordinator) newCoordinators[teamNum].add(name);
+                                const teamsForPlayer: TeamNumber[] = [];
+                                if (r.team1) teamsForPlayer.push(1);
+                                if (r.team2) teamsForPlayer.push(2);
+                                if (teamsForPlayer.length === 0) teamsForPlayer.push(1);
+                                for (const teamNum of teamsForPlayer) {
+                                    teamRegs[teamNum].push(r);
+                                    if (r.coordinator) newCoordinators[teamNum].add(name);
+                                    if (r.sub) newSubs[teamNum].add(name);
+                                }
                             }
 
                             // If this exact name isn't in the roster, add as pending
@@ -3457,14 +3552,17 @@ export default function AooStrategyPage() {
                         // row has an explicit Lane value, which always wins.
                         for (const team of [1, 2, 3] as TeamNumber[]) {
                             const regs = teamRegs[team];
+                            const subSet = newSubs[team];
 
-                            // Subs → lock to zone 0 (substitutes)
+                            // Subs → lock to zone 0 (substitutes). Use the team-level sub set
+                            // (sourced from r.sub but mutable per weekend) so officer overrides
+                            // on the league team take effect at distribution time.
                             for (const r of regs) {
-                                if (r.sub) newLockedLanes[team][r.name] = 0;
+                                if (subSet.has(r.name)) newLockedLanes[team][r.name] = 0;
                             }
 
                             // Mid → lane 2; first by sheet order becomes ark carrier
-                            const midRegs = regs.filter(r => r.mid && !r.sub);
+                            const midRegs = regs.filter(r => r.mid && !subSet.has(r.name));
                             for (const r of midRegs) {
                                 newLockedLanes[team][r.name] = 2;
                             }
@@ -3473,7 +3571,7 @@ export default function AooStrategyPage() {
                             }
 
                             // Rally leaders → split across top/bottom in sheet order
-                            const rallyRegs = regs.filter(r => r.rallyLeader && !r.sub && !r.mid);
+                            const rallyRegs = regs.filter(r => r.rallyLeader && !subSet.has(r.name) && !r.mid);
                             const rallyLanes: number[] = [1, 3];
                             let rallyIdx = 0;
                             for (const r of rallyRegs) {
@@ -3485,7 +3583,7 @@ export default function AooStrategyPage() {
                             }
 
                             // Garrison leaders → split across top/bottom in sheet order
-                            const garrisonRegs = regs.filter(r => r.garrisonLeader && !r.sub && !r.mid && !r.rallyLeader);
+                            const garrisonRegs = regs.filter(r => r.garrisonLeader && !subSet.has(r.name) && !r.mid && !r.rallyLeader);
                             const garrisonLanes: number[] = [1, 3];
                             let garrisonIdx = 0;
                             for (const r of garrisonRegs) {
@@ -3511,10 +3609,19 @@ export default function AooStrategyPage() {
                         setSelectedGarrisonLeadsByTeam(newGarrisonLeads);
                         setSelectedArkCarriersByTeam(newArkCarriers);
                         setCoordinatorsByTeam(newCoordinators);
+                        setSubsByTeam(newSubs);
+                        setLeagueTeamNumber(detectedLeagueSlot);
 
-                        // Auto-detect team count from registrations
-                        const hasTeam2 = registrations.some(r => r.team2);
-                        if (hasTeam2) setTeamCount(2);
+                        // Auto-detect team count. League always sits in the slot after the
+                        // normal teams (or slot 1 if there are no normals), so the visible
+                        // team count is the highest slot in use. Only bump up — never shrink
+                        // a count the officer may have manually raised.
+                        const computedCount = Math.max(
+                            normalTeamCount,
+                            detectedLeagueSlot ?? 0,
+                            1,
+                        ) as TeamNumber;
+                        if (computedCount > teamCount) setTeamCount(computedCount);
 
                         // Add any registrants not in roster as pending additions
                         if (pendingToAdd.length > 0) {
@@ -3577,6 +3684,9 @@ export default function AooStrategyPage() {
                     setSelectedTeleportFirstByTeam={setSelectedTeleportFirstByTeam}
                     coordinatorsByTeam={coordinatorsByTeam}
                     setCoordinatorsByTeam={setCoordinatorsByTeam}
+                    subsByTeam={subsByTeam}
+                    setSubsByTeam={setSubsByTeam}
+                    leagueTeamNumber={leagueTeamNumber}
                     zoneSizesByTeam={zoneSizesByTeam}
                     setZoneSizesByTeam={setZoneSizesByTeam}
                     lockedLanesByTeam={lockedLanesByTeam}

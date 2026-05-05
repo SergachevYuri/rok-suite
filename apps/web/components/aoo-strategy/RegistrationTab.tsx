@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { FileSpreadsheet, Loader2, ExternalLink, RefreshCw, Users, Swords, Crown, Target, AlertTriangle, Shield, ChevronDown, ChevronUp, Upload, ArrowRight } from 'lucide-react';
-import { fetchAooRegistrationSheet, parseAooRegistrationCSV } from '@/lib/aoo-strategy/parse';
+import { FileSpreadsheet, Loader2, ExternalLink, RefreshCw, Users, Swords, Crown, Target, AlertTriangle, Shield, ChevronDown, ChevronUp, Upload, ArrowRight, Trophy } from 'lucide-react';
+import { fetchAooRegistrationSheet, parseAooRegistrationCSV, mergeAooRegistrations } from '@/lib/aoo-strategy/parse';
 import { parseKingdomXLSX } from '@/lib/kingdom/parse';
 import type { AooRegistration } from '@/lib/aoo-strategy/types';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { supabase } from '@/lib/supabase';
 
 const SHEET_URL_KEY = 'aoo-registration-sheet-url';
+const LEAGUE_SHEET_URL_KEY = 'aoo-league-sheet-url';
 const OFFICER_SHEET_URL = 'https://docs.google.com/spreadsheets/d/17JLwfknLvybbxu2B-SjlLkL5RqBIkIZgF11tvUzFvjU/edit?gid=1559092066#gid=1559092066';
 
 interface RegistrationTabProps {
@@ -33,9 +34,13 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
   const t = useTranslations('aoo.registration');
   const to = useTranslations('aoo.officer');
   const [sheetUrl, setSheetUrl] = useState('');
+  const [leagueSheetUrl, setLeagueSheetUrl] = useState('');
   const [rawRegistrations, setRawRegistrations] = useState<AooRegistration[]>([]);
+  const [rawLeagueRegistrations, setRawLeagueRegistrations] = useState<AooRegistration[]>([]);
   const [loading, setLoading] = useState(false);
+  const [leagueLoading, setLeagueLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leagueError, setLeagueError] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
   const [showColumnHelp, setShowColumnHelp] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,10 +58,12 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
   const [scanUploadStatus, setScanUploadStatus] = useState<'idle' | 'parsing' | 'saving' | 'error'>('idle');
   const [scanUploadError, setScanUploadError] = useState<string | null>(null);
 
-  // Restore last used URL
+  // Restore last used URLs
   useEffect(() => {
     const saved = localStorage.getItem(SHEET_URL_KEY);
     if (saved) setSheetUrl(saved);
+    const savedLeague = localStorage.getItem(LEAGUE_SHEET_URL_KEY);
+    if (savedLeague) setLeagueSheetUrl(savedLeague);
   }, []);
 
   // Collapse instructions once data is loaded
@@ -83,6 +90,30 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
     }
   };
 
+  // Fetch the league sign-up tab. League players are tagged so the merge step
+  // can strip them out of normal Team 1 / Team 2 pools — they only play on
+  // the dedicated league team.
+  const handleLeagueFetch = async () => {
+    if (!leagueSheetUrl.trim()) return;
+    setLeagueLoading(true);
+    setLeagueError(null);
+    try {
+      const data = await fetchAooRegistrationSheet(leagueSheetUrl.trim(), { league: true });
+      setRawLeagueRegistrations(data);
+      localStorage.setItem(LEAGUE_SHEET_URL_KEY, leagueSheetUrl.trim());
+    } catch (err) {
+      setLeagueError(err instanceof Error ? err.message : 'Failed to fetch league sheet');
+      setRawLeagueRegistrations([]);
+    } finally {
+      setLeagueLoading(false);
+    }
+  };
+
+  const clearLeague = () => {
+    setRawLeagueRegistrations([]);
+    setLeagueError(null);
+  };
+
   const handleOfficerFetch = async () => {
     setSheetUrl(OFFICER_SHEET_URL);
     localStorage.setItem(SHEET_URL_KEY, OFFICER_SHEET_URL);
@@ -97,6 +128,11 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
       setRawRegistrations([]);
     } finally {
       setLoading(false);
+    }
+    // Also refresh the league tab if the officer has it configured. League is
+    // optional, so a failure here doesn't block the main fetch.
+    if (leagueSheetUrl.trim()) {
+      void handleLeagueFetch();
     }
   };
 
@@ -213,9 +249,13 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
   }), [killsByGovId, inlineScan]);
 
   const { registrations, filledFromScanCount, missingPowerCount } = useMemo(() => {
+    // Combine main + league with mutual exclusion: league players are removed
+    // from the normal Team 1 / Team 2 pools and tagged with league=true so the
+    // team builder can route them to the league team.
+    const combined = mergeAooRegistrations(rawRegistrations, rawLeagueRegistrations);
     let filled = 0;
     let missing = 0;
-    const merged = rawRegistrations.map((r) => {
+    const merged = combined.map((r) => {
       const sheetPower = r.power || 0;
       const scanPower = r.govId ? effectivePowerByGovId[r.govId] : undefined;
       const scanKills = r.govId ? effectiveKillsByGovId[r.govId] : undefined;
@@ -230,19 +270,22 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
       return { ...r, power, kills: scanKills, fromScan } as AooRegistration & { fromScan?: boolean; kills?: number };
     });
     return { registrations: merged, filledFromScanCount: filled, missingPowerCount: missing };
-  }, [rawRegistrations, effectivePowerByGovId, effectiveKillsByGovId]);
+  }, [rawRegistrations, rawLeagueRegistrations, effectivePowerByGovId, effectiveKillsByGovId]);
 
-  // Derived stats
+  // Derived stats. Normal-team rosters exclude league players (they were
+  // already stripped out at merge time, so r.team1 / r.team2 are forced false
+  // for them — no extra filtering needed here).
   const stats = useMemo(() => {
     const team1 = registrations.filter(r => r.team1);
     const team2 = registrations.filter(r => r.team2);
     const both = registrations.filter(r => r.team1 && r.team2);
-    const neither = registrations.filter(r => !r.team1 && !r.team2);
+    const neither = registrations.filter(r => !r.team1 && !r.team2 && !r.league);
+    const league = registrations.filter(r => r.league && r.team1);
     const rallyLeaders = registrations.filter(r => r.rallyLeader);
     const garrisonLeaders = registrations.filter(r => r.garrisonLeader);
     const midPlayers = registrations.filter(r => r.mid);
     const totalPower = registrations.reduce((s, r) => s + r.power, 0);
-    return { team1, team2, both, neither, rallyLeaders, garrisonLeaders, midPlayers, totalPower };
+    return { team1, team2, both, neither, league, rallyLeaders, garrisonLeaders, midPlayers, totalPower };
   }, [registrations]);
 
   // Open the sheet in Google Sheets
@@ -325,6 +368,65 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
               )}
             </div>
           </div>
+        </div>
+
+        {/* League sign-up tab — separate URL because it's a different gid on the
+            same spreadsheet. League players are mutually exclusive with normal
+            Team 1 / Team 2 sign-ups, enforced at merge time. Optional. */}
+        <div className="mb-3 sm:mb-4">
+          <label className={`text-xs sm:text-sm font-medium ${theme.text} mb-1.5 flex items-center gap-1.5`}>
+            <Trophy size={12} className="text-purple-400" />
+            League sign-up tab
+            <span className={`font-normal ${theme.textMuted}`}>(optional)</span>
+          </label>
+          <div className="space-y-2 sm:space-y-0 sm:flex sm:gap-2">
+            <input
+              type="url"
+              value={leagueSheetUrl}
+              onChange={(e) => setLeagueSheetUrl(e.target.value)}
+              placeholder="Paste the URL of the league tab (different gid)"
+              className={`w-full min-w-0 px-3 py-2 rounded-lg text-sm ${theme.input} border`}
+              onKeyDown={(e) => e.key === 'Enter' && handleLeagueFetch()}
+            />
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={handleLeagueFetch}
+                disabled={leagueLoading || !leagueSheetUrl.trim()}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 ${theme.button} border border-[var(--border)] hover:bg-[var(--background-hover)] disabled:opacity-50`}
+              >
+                {leagueLoading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : rawLeagueRegistrations.length > 0 ? (
+                  <RefreshCw size={14} />
+                ) : (
+                  <Trophy size={14} />
+                )}
+                {leagueLoading ? to('fetching') : rawLeagueRegistrations.length > 0 ? t('refresh') : t('fetch')}
+              </button>
+              {rawLeagueRegistrations.length > 0 && (
+                <button
+                  onClick={clearLeague}
+                  className={`px-2.5 py-2 rounded-lg text-sm ${theme.button} flex items-center`}
+                  title="Clear loaded league roster"
+                >
+                  <span className="text-xs">×</span>
+                </button>
+              )}
+            </div>
+          </div>
+          {rawLeagueRegistrations.length > 0 && (
+            <p className="mt-1.5 text-xs text-purple-400 flex items-center gap-1.5">
+              <Trophy size={11} />
+              <strong>{stats.league.length}</strong>
+              <span>league player{stats.league.length === 1 ? '' : 's'} loaded · they&apos;re excluded from Team 1 / Team 2</span>
+            </p>
+          )}
+          {leagueError && (
+            <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1.5">
+              <AlertTriangle size={11} className="shrink-0" />
+              <span className="min-w-0 break-words">{leagueError}</span>
+            </p>
+          )}
         </div>
 
         {/* Divider */}
@@ -547,6 +649,9 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
               <StatCard label={t('registered')} value={registrations.length} icon={<Users size={14} />} theme={theme} />
               <StatCard label={t('team1')} value={stats.team1.length} icon={<span className="text-blue-400 font-bold text-xs">T1</span>} theme={theme} />
               <StatCard label={t('team2')} value={stats.team2.length} icon={<span className="text-orange-400 font-bold text-xs">T2</span>} theme={theme} />
+              {stats.league.length > 0 && (
+                <StatCard label="League" value={stats.league.length} icon={<Trophy size={14} className="text-purple-400" />} theme={theme} />
+              )}
               <StatCard label={t('rally')} value={stats.rallyLeaders.length} icon={<Crown size={14} className="text-yellow-400" />} theme={theme} />
               <StatCard label={t('garrisonLabel')} value={stats.garrisonLeaders.length} icon={<Shield size={14} className="text-cyan-400" />} theme={theme} />
               <StatCard label={t('midPref')} value={stats.midPlayers.length} icon={<Target size={14} className="text-purple-400" />} theme={theme} />
@@ -577,7 +682,14 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                   {registrations.map((r, i) => (
                     <tr key={r.govId || r.name} className="border-b border-[var(--border)] last:border-b-0 hover:bg-[var(--background-hover)]">
                       <td className={`px-4 py-2.5 ${theme.textMuted} text-xs`}>{i + 1}</td>
-                      <td className="px-4 py-2.5 font-medium">{r.name}</td>
+                      <td className="px-4 py-2.5 font-medium">
+                        {r.name}
+                        {r.league && (
+                          <span className="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30 align-middle">
+                            <Trophy size={9} /> League
+                          </span>
+                        )}
+                      </td>
                       <td className={`px-4 py-2.5 text-right ${theme.textMuted} tabular-nums`}>{r.govId || '-'}</td>
                       <td className={`px-4 py-2.5 text-right tabular-nums ${(r as { fromScan?: boolean }).fromScan ? 'text-emerald-400' : !r.power ? 'text-amber-400' : ''}`} title={(r as { fromScan?: boolean }).fromScan ? `Filled from scan${scanLabel ? ` (${scanLabel})` : ''}` : !r.power ? 'Power not available — sheet column blank and gov id not in scan' : 'Power from sheet'}>
                         {r.power ? formatPower(r.power) : '—'}
@@ -621,8 +733,13 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                       {(r as { fromScan?: boolean }).fromScan && <span className="ml-1 text-[10px] opacity-70">·scan</span>}
                     </span>
                   </div>
-                  {(r.team1 || r.team2 || r.rallyLeader || r.garrisonLeader || r.mid) && (
+                  {(r.team1 || r.team2 || r.league || r.rallyLeader || r.garrisonLeader || r.mid) && (
                     <div className="flex items-center flex-wrap gap-1.5 mt-1.5 ml-7">
+                      {r.league && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                          <Trophy size={10} /> League
+                        </span>
+                      )}
                       {r.team1 && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-500/20 text-blue-400">T1</span>}
                       {r.team2 && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-orange-500/20 text-orange-400">T2</span>}
                       {r.rallyLeader && <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-yellow-500/20 text-yellow-400">Rally</span>}
