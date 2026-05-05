@@ -360,7 +360,7 @@ export default function KingdomStats() {
               className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 transition-colors"
               title="Show players (gov_id ≥ 205000000) across all kingdoms with their seed band"
             >
-              Ready to migrate →
+              Possible candidates →
             </a>
           </div>
 
