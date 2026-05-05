@@ -66,6 +66,9 @@ export interface AooRegistration {
   name: string;
   govId: number;
   power: number;
+  /** Officer-confirmed for participation. team1/team2 are forced to false on
+   *  parse when this is false, so unconfirmed sign-ups don't get distributed. */
+  confirmed: boolean;
   team1: boolean;
   team2: boolean;
   rallyLeader: boolean;
