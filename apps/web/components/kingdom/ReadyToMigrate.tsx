@@ -27,6 +27,16 @@ interface PlayerRow {
 interface KdStat {
   kingdom_id: number;
   power_400: number;
+  total_kp: number;
+}
+
+interface KdSummary {
+  kingdom_id: number;
+  power_400: number;
+  total_kp: number;
+  seed: SeedAssignment;
+  candidates: number;
+  rank: number;
 }
 
 type SortField = 'kingdom_id' | 'player_id' | 'name' | 'power' | 'kp' | 'rank_in_kd' | 'seed';
@@ -51,13 +61,18 @@ export default function ReadyToMigrate() {
 
   // ─── Data ───
   const [latestDate, setLatestDate] = useState<string | null>(null);
-  const [players, setPlayers] = useState<PlayerRow[]>([]);
+  const [candidatePlayers, setCandidatePlayers] = useState<PlayerRow[]>([]);
+  const [kdPlayers, setKdPlayers] = useState<PlayerRow[]>([]);
   const [seedByKd, setSeedByKd] = useState<Map<number, SeedAssignment>>(new Map());
+  const [statsByKd, setStatsByKd] = useState<Map<number, KdStat>>(new Map());
+  const [rankByKd, setRankByKd] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(false);
+  const [loadingKd, setLoadingKd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [govIdFloor, setGovIdFloor] = useState<number>(DEFAULT_GOV_ID_FLOOR);
 
   // ─── UI state ───
+  const [selectedKd, setSelectedKd] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('power');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -82,24 +97,35 @@ export default function ReadyToMigrate() {
         if (!date) {
           if (!cancelled) {
             setLatestDate(null);
-            setPlayers([]);
+            setCandidatePlayers([]);
             setSeedByKd(new Map());
+            setStatsByKd(new Map());
+            setRankByKd(new Map());
           }
           return;
         }
 
-        // 2. Pull all KD stats for that date so we can derive seeds A/B/C/D.
+        // 2. Pull all KD stats for that date so we can derive seeds A/B/C/D
+        //    and feed the summary table.
         const { data: stats, error: e2 } = await sb
           .from('seeds_kd_stats')
-          .select('kingdom_id, power_400')
+          .select('kingdom_id, power_400, total_kp')
           .eq('scan_date', date)
           .order('power_400', { ascending: false });
         if (e2) throw e2;
         const kdStats = (stats ?? []) as KdStat[];
         const seedMap = new Map<number, SeedAssignment>();
-        kdStats.forEach((s, i) => seedMap.set(s.kingdom_id, seedAssignment(i + 1)));
+        const statsMap = new Map<number, KdStat>();
+        const rankMap = new Map<number, number>();
+        kdStats.forEach((s, i) => {
+          seedMap.set(s.kingdom_id, seedAssignment(i + 1));
+          statsMap.set(s.kingdom_id, s);
+          rankMap.set(s.kingdom_id, i + 1);
+        });
 
         // 3. Pull all players with player_id >= govIdFloor for that date.
+        //    Used both for the candidates count per KD (summary) and as the
+        //    main list when "All KDs" is selected.
         const rows = await fetchAllRows<PlayerRow>((range) =>
           sb
             .from('seeds_kd_players')
@@ -113,7 +139,9 @@ export default function ReadyToMigrate() {
         if (cancelled) return;
         setLatestDate(date);
         setSeedByKd(seedMap);
-        setPlayers(rows);
+        setStatsByKd(statsMap);
+        setRankByKd(rankMap);
+        setCandidatePlayers(rows);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load data');
       } finally {
@@ -123,8 +151,45 @@ export default function ReadyToMigrate() {
     return () => { cancelled = true; };
   }, [isUnlocked, govIdFloor]);
 
+  // When the user picks a specific KD, load every player of that KD for the
+  // latest scan (no floor filter) — the floor still drives the highlight.
+  useEffect(() => {
+    if (!isUnlocked || !latestDate || !selectedKd) {
+      setKdPlayers([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingKd(true);
+      try {
+        const sb = createClient();
+        const rows = await fetchAllRows<PlayerRow>((range) =>
+          sb
+            .from('seeds_kd_players')
+            .select('*')
+            .eq('scan_date', latestDate)
+            .eq('kingdom_id', selectedKd)
+            .order('rank_in_kd', { ascending: true })
+            .range(range.from, range.to)
+        );
+        if (!cancelled) setKdPlayers(rows);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load KD players');
+      } finally {
+        if (!cancelled) setLoadingKd(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isUnlocked, latestDate, selectedKd]);
+
+  // Source rows depend on the dropdown:
+  //   - All KDs  → only candidates (gov_id ≥ floor) across every kingdom
+  //   - One KD   → every player in that kingdom (highlight applied for ≥ floor)
+  const sourceRows = selectedKd ? kdPlayers : candidatePlayers;
+  const totalRowsCount = sourceRows.length;
+
   const filteredAndSorted = useMemo(() => {
-    let data = [...players];
+    let data = [...sourceRows];
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       data = data.filter(p =>
@@ -148,7 +213,29 @@ export default function ReadyToMigrate() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return data;
-  }, [players, search, sortField, sortDir, seedByKd]);
+  }, [sourceRows, search, sortField, sortDir, seedByKd]);
+
+  // KD summary table (top of page) — one row per KD with seed band, power,
+  // total KP, rank, and how many candidates that KD has at the current floor.
+  const kdSummary = useMemo<KdSummary[]>(() => {
+    const candidatesByKd = new Map<number, number>();
+    for (const p of candidatePlayers) {
+      candidatesByKd.set(p.kingdom_id, (candidatesByKd.get(p.kingdom_id) ?? 0) + 1);
+    }
+    const rows: KdSummary[] = [];
+    for (const [kingdom_id, stats] of statsByKd) {
+      rows.push({
+        kingdom_id,
+        power_400: stats.power_400,
+        total_kp: stats.total_kp,
+        seed: seedByKd.get(kingdom_id) ?? null,
+        rank: rankByKd.get(kingdom_id) ?? 0,
+        candidates: candidatesByKd.get(kingdom_id) ?? 0,
+      });
+    }
+    rows.sort((a, b) => a.rank - b.rank);
+    return rows;
+  }, [statsByKd, seedByKd, rankByKd, candidatePlayers]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -213,12 +300,88 @@ export default function ReadyToMigrate() {
           Ready to migrate
         </h1>
         <p className="text-sm text-[var(--text-muted)] mt-1">
-          Players with gov id ≥ {govIdFloor.toLocaleString()} across all kingdoms in the latest scan ({latestDate ?? '—'}).
-          Their KD&apos;s seed band is shown so you can prioritise outreach.
+          Latest scan: {latestDate ?? '—'}. Highlighted rows = candidates with gov_id ≥ {govIdFloor.toLocaleString()}.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-6">
+      {/* ─── KD summary table ─── */}
+      <details className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden" open>
+        <summary className="px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] cursor-pointer hover:bg-[var(--background-secondary)] transition-colors flex items-center justify-between">
+          <span>Kingdom summary <span className="text-[var(--text-muted)] font-normal">({kdSummary.length} KDs)</span></span>
+          <span className="text-xs text-[var(--text-muted)]">
+            {candidatePlayers.length.toLocaleString()} total candidates
+          </span>
+        </summary>
+        {kdSummary.length === 0 ? (
+          <div className="p-6 text-center text-xs text-[var(--text-muted)]">No KDs in latest scan.</div>
+        ) : (
+          <div className="overflow-x-auto border-t border-[var(--border)]">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-[var(--background-secondary)]">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">#</th>
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Seed</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Kingdom</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Power 400</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Total KP</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Candidates</th>
+                </tr>
+              </thead>
+              <tbody>
+                {kdSummary.map((row) => {
+                  const isSelected = selectedKd === row.kingdom_id;
+                  return (
+                    <tr
+                      key={row.kingdom_id}
+                      onClick={() => setSelectedKd(isSelected ? null : row.kingdom_id)}
+                      className={`border-t border-[var(--border)] cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'bg-amber-500/10 hover:bg-amber-500/15 ring-1 ring-inset ring-amber-500/30'
+                          : 'hover:bg-[var(--background-secondary)]'
+                      }`}
+                    >
+                      <td className="px-3 py-2 text-[var(--text-muted)] font-medium tabular-nums">{row.rank}</td>
+                      <td className="px-3 py-2 text-center"><SeedBadge seed={row.seed} /></td>
+                      <td className="px-3 py-2 font-semibold text-[var(--foreground)]">KD {row.kingdom_id}</td>
+                      <td className="px-3 py-2 text-right text-indigo-400 tabular-nums">{(row.power_400 || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-red-400 tabular-nums">{(row.total_kp || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {row.candidates > 0 ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            {row.candidates}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--text-muted)]">0</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-muted)]">
+              Click a row to filter the player list below to that KD.
+            </div>
+          </div>
+        )}
+      </details>
+
+      {/* ─── Filters ─── */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+          KD
+          <select
+            value={selectedKd ?? ''}
+            onChange={(e) => setSelectedKd(e.target.value ? Number(e.target.value) : null)}
+            className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+          >
+            <option value="">All KDs (candidates only)</option>
+            {kdSummary.map((s) => (
+              <option key={s.kingdom_id} value={s.kingdom_id}>KD {s.kingdom_id}{s.candidates > 0 ? ` · ${s.candidates} cand.` : ''}</option>
+            ))}
+          </select>
+        </label>
+
         <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
           gov_id ≥
           <input
@@ -242,7 +405,7 @@ export default function ReadyToMigrate() {
 
         <span className="text-sm text-[var(--text-muted)]">
           {filteredAndSorted.length.toLocaleString()} player{filteredAndSorted.length !== 1 ? 's' : ''}
-          {search.trim() && ` (${players.length.toLocaleString()} total)`}
+          {search.trim() && ` (${totalRowsCount.toLocaleString()} total)`}
         </span>
       </div>
 
@@ -253,7 +416,7 @@ export default function ReadyToMigrate() {
       )}
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
-        {loading ? (
+        {(loading || (selectedKd && loadingKd)) ? (
           <div className="p-12 text-center text-[var(--text-muted)]">Loading...</div>
         ) : !latestDate ? (
           <div className="p-12 text-center text-[var(--text-muted)]">No scans uploaded yet.</div>
@@ -274,17 +437,27 @@ export default function ReadyToMigrate() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAndSorted.map(p => (
-                  <tr key={`${p.kingdom_id}-${p.player_id}`} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
-                    <td className="px-3 py-2.5 font-medium text-[var(--foreground)] tabular-nums">KD {p.kingdom_id}</td>
-                    <td className="px-3 py-2.5"><SeedBadge seed={seedByKd.get(p.kingdom_id) ?? null} /></td>
-                    <td className="px-3 py-2.5 text-[var(--text-muted)] text-xs tabular-nums">{p.player_id}</td>
-                    <td className="px-3 py-2.5 text-[var(--foreground)]">{p.name}</td>
-                    <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(p.power)}</td>
-                    <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(p.kp)}</td>
-                    <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{p.rank_in_kd}</td>
-                  </tr>
-                ))}
+                {filteredAndSorted.map(p => {
+                  const isCandidate = p.player_id >= govIdFloor;
+                  return (
+                    <tr
+                      key={`${p.kingdom_id}-${p.player_id}`}
+                      className={`border-b border-[var(--border)] transition-colors ${
+                        isCandidate
+                          ? 'bg-amber-500/10 hover:bg-amber-500/15'
+                          : 'hover:bg-[var(--background-secondary)]'
+                      }`}
+                    >
+                      <td className="px-3 py-2.5 font-medium text-[var(--foreground)] tabular-nums">KD {p.kingdom_id}</td>
+                      <td className="px-3 py-2.5"><SeedBadge seed={seedByKd.get(p.kingdom_id) ?? null} /></td>
+                      <td className={`px-3 py-2.5 text-xs tabular-nums ${isCandidate ? 'text-amber-300 font-medium' : 'text-[var(--text-muted)]'}`}>{p.player_id}</td>
+                      <td className="px-3 py-2.5 text-[var(--foreground)]">{p.name}</td>
+                      <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(p.power)}</td>
+                      <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(p.kp)}</td>
+                      <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{p.rank_in_kd}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
