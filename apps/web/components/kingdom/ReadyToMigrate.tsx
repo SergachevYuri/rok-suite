@@ -62,12 +62,10 @@ function ReadyToMigrateInner() {
   // ─── Data ───
   const [latestDate, setLatestDate] = useState<string | null>(null);
   const [candidatePlayers, setCandidatePlayers] = useState<PlayerRow[]>([]);
-  const [kdPlayers, setKdPlayers] = useState<PlayerRow[]>([]);
   const [seedByKd, setSeedByKd] = useState<Map<number, SeedAssignment>>(new Map());
   const [statsByKd, setStatsByKd] = useState<Map<number, KdStat>>(new Map());
   const [rankByKd, setRankByKd] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(false);
-  const [loadingKd, setLoadingKd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [govIdFloor, setGovIdFloor] = useState<number>(DEFAULT_GOV_ID_FLOOR);
 
@@ -91,7 +89,10 @@ function ReadyToMigrateInner() {
   };
 
   // ─── UI state ───
-  const [selectedKd, setSelectedKd] = useState<number | null>(null);
+  /** Multi-select KD filter. `null` means "haven't initialised yet — treat
+   *  as all selected"; once we hydrate it from the latest scan it becomes a
+   *  Set the user toggles. Empty Set = nothing visible. */
+  const [selectedKds, setSelectedKds] = useState<Set<number> | null>(null);
   /** Minimum KP in millions — filters out deadweight accounts. */
   const [kpFloorM, setKpFloorM] = useState<number>(200);
   const [search, setSearch] = useState('');
@@ -164,6 +165,9 @@ function ReadyToMigrateInner() {
         setStatsByKd(statsMap);
         setRankByKd(rankMap);
         setCandidatePlayers(rows);
+        // First load: select every KD by default. We don't want to clobber
+        // the user's selection on subsequent refetches, so only set when null.
+        setSelectedKds((prev) => prev ?? new Set(kdStats.map((s) => s.kingdom_id)));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load data');
       } finally {
@@ -234,49 +238,16 @@ function ReadyToMigrateInner() {
     }
   }, [outreachIds]);
 
-  // When the user picks a specific KD, load every player of that KD for the
-  // latest scan (no floor filter) — the floor still drives the highlight.
-  useEffect(() => {
-    if (!latestDate || !selectedKd) {
-      setKdPlayers([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setLoadingKd(true);
-      try {
-        const sb = createClient();
-        const rows = await fetchAllRows<PlayerRow>((range) =>
-          sb
-            .from('seeds_kd_players')
-            .select('*')
-            .eq('scan_date', latestDate)
-            .eq('kingdom_id', selectedKd)
-            .order('rank_in_kd', { ascending: true })
-            .range(range.from, range.to)
-        );
-        if (!cancelled) setKdPlayers(rows);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load KD players');
-      } finally {
-        if (!cancelled) setLoadingKd(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [latestDate, selectedKd]);
-
-  // Source rows depend on the dropdown:
-  //   - All KDs  → only candidates (gov_id ≥ floor) across every kingdom
-  //   - One KD   → only players of that kingdom that ALSO meet the gov_id floor
-  // In both cases we drop anyone the Migrations tab already lists — they've
-  // moved this KvK already, so they're not eligible to be a candidate.
+  // Source rows: candidates across every selected KD, minus anyone already
+  // listed on the Migrations tab (they've moved this KvK already).
   const sourceRows = useMemo(() => {
-    const raw = selectedKd
-      ? kdPlayers.filter((p) => p.player_id >= govIdFloor)
-      : candidatePlayers;
-    if (migratedIds.size === 0) return raw;
-    return raw.filter((p) => !migratedIds.has(p.player_id));
-  }, [selectedKd, kdPlayers, candidatePlayers, migratedIds, govIdFloor]);
+    let raw = candidatePlayers;
+    if (selectedKds && selectedKds.size < (statsByKd.size || Infinity)) {
+      raw = raw.filter((p) => selectedKds.has(p.kingdom_id));
+    }
+    if (migratedIds.size > 0) raw = raw.filter((p) => !migratedIds.has(p.player_id));
+    return raw;
+  }, [selectedKds, candidatePlayers, migratedIds, statsByKd]);
   const totalRowsCount = sourceRows.length;
 
   const filteredAndSorted = useMemo(() => {
@@ -392,23 +363,66 @@ function ReadyToMigrateInner() {
         </div>
       </details>
 
+      {/* ─── KD multi-select toggles ─── */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs uppercase tracking-wider text-[var(--text-muted)]">Kingdoms</div>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setSelectedKds(new Set(kdSummary.map((s) => s.kingdom_id)))}
+              className="px-2 py-0.5 text-[10px] rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--text-secondary)] transition-colors"
+            >
+              All
+            </button>
+            <button
+              onClick={() => setSelectedKds(new Set(kdSummary.filter((s) => s.candidates > 0).map((s) => s.kingdom_id)))}
+              className="px-2 py-0.5 text-[10px] rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--text-secondary)] transition-colors"
+            >
+              With candidates
+            </button>
+            <button
+              onClick={() => setSelectedKds(new Set())}
+              className="px-2 py-0.5 text-[10px] rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--text-secondary)] transition-colors"
+            >
+              None
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {kdSummary.map((s) => {
+            const checked = selectedKds?.has(s.kingdom_id) ?? false;
+            return (
+              <button
+                key={s.kingdom_id}
+                onClick={() => {
+                  setSelectedKds((prev) => {
+                    const base = prev ?? new Set(kdSummary.map((x) => x.kingdom_id));
+                    const next = new Set(base);
+                    if (next.has(s.kingdom_id)) next.delete(s.kingdom_id); else next.add(s.kingdom_id);
+                    return next;
+                  });
+                }}
+                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs font-medium transition-colors ${
+                  checked
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-200'
+                    : 'bg-[var(--background-card)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                }`}
+                title={`KD ${s.kingdom_id} · ${s.candidates} candidate${s.candidates === 1 ? '' : 's'}`}
+              >
+                <span className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded border text-[9px] ${checked ? 'bg-amber-300 border-amber-300 text-amber-900' : 'border-[var(--border)]'}`}>
+                  {checked && <Check size={10} strokeWidth={3} />}
+                </span>
+                KD {s.kingdom_id}
+                {s.candidates > 0 && <span className="text-[10px] opacity-80">· {s.candidates}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ─── Filters (sticky so they stay visible while scrolling) ─── */}
       <div className="sticky top-0 z-20 -mx-4 lg:-mx-8 px-4 lg:px-8 py-3 mb-4 bg-[var(--background)]/95 backdrop-blur border-b border-[var(--border)]">
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-            KD
-            <select
-              value={selectedKd ?? ''}
-              onChange={(e) => setSelectedKd(e.target.value ? Number(e.target.value) : null)}
-              className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
-            >
-              <option value="">All KDs (candidates only)</option>
-              {kdSummary.map((s) => (
-                <option key={s.kingdom_id} value={s.kingdom_id}>KD {s.kingdom_id}{s.candidates > 0 ? ` · ${s.candidates} cand.` : ''}</option>
-              ))}
-            </select>
-          </label>
-
           <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
             gov_id ≥
             <input
@@ -495,11 +509,17 @@ function ReadyToMigrateInner() {
               </thead>
               <tbody>
                 {kdSummary.map((row) => {
-                  const isSelected = selectedKd === row.kingdom_id;
+                  const isSelected = selectedKds?.has(row.kingdom_id) ?? false;
                   return (
                     <tr
                       key={row.kingdom_id}
-                      onClick={() => setSelectedKd(isSelected ? null : row.kingdom_id)}
+                      onClick={() => setSelectedKds((prev) => {
+                        const base = prev ?? new Set(kdSummary.map((x) => x.kingdom_id));
+                        const next = new Set(base);
+                        if (next.has(row.kingdom_id)) next.delete(row.kingdom_id);
+                        else next.add(row.kingdom_id);
+                        return next;
+                      })}
                       className={`border-t border-[var(--border)] cursor-pointer transition-colors ${
                         isSelected
                           ? 'bg-amber-500/10 hover:bg-amber-500/15 ring-1 ring-inset ring-amber-500/30'
@@ -526,7 +546,7 @@ function ReadyToMigrateInner() {
               </tbody>
             </table>
             <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-muted)]">
-              Click a row to filter the player list below to that KD.
+              Click a row (or use the toggles below) to include / exclude that KD.
             </div>
           </div>
         )}
@@ -539,7 +559,7 @@ function ReadyToMigrateInner() {
       )}
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
-        {(loading || (selectedKd && loadingKd)) ? (
+        {loading ? (
           <div className="p-12 text-center text-[var(--text-muted)]">Loading...</div>
         ) : !latestDate ? (
           <div className="p-12 text-center text-[var(--text-muted)]">No scans uploaded yet.</div>
