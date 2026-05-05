@@ -1,17 +1,21 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Search, ChevronUp, ChevronDown, UserPlus, Lock, ArrowLeft } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, UserPlus, Lock, ArrowLeft, Check, Plus, MessageSquare, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
 import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
 import { seedAssignment, type SeedAssignment } from '@/lib/kingdom/seed';
 import { SeedBadge } from './SeedBadge';
 import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
+import { addOutreachEntry, listOutreachIds } from '@/lib/supabase/use-migration-outreach';
 
 /** Cutoff for "young account" — gov_ids ≥ this are considered candidates
  *  for migration outreach. Tune via UI control if you ever need to. */
 const DEFAULT_GOV_ID_FLOOR = 205_000_000;
+
+/** Outreach mail template — ready to copy & paste in-game. */
+const SAMPLE_MESSAGE = `Hello how are u? i wish all good. Im from KD 3923 and im looking for a couple of good whales to join us and fight with my marches together for kvk3, would u be interested? We won (with some luck) both kvk1 and kvk2^^ We want top seed C`;
 
 interface PlayerRow {
   scan_date: string;
@@ -70,6 +74,21 @@ export default function ReadyToMigrate() {
   const [loadingKd, setLoadingKd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [govIdFloor, setGovIdFloor] = useState<number>(DEFAULT_GOV_ID_FLOOR);
+
+  // ─── Outreach state ───
+  const [outreachIds, setOutreachIds] = useState<Set<number>>(new Set());
+  const [fillingId, setFillingId] = useState<number | null>(null);
+  const [messageCopied, setMessageCopied] = useState(false);
+
+  const copyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(SAMPLE_MESSAGE);
+      setMessageCopied(true);
+      window.setTimeout(() => setMessageCopied(false), 1500);
+    } catch {
+      /* clipboard not available — silently ignore */
+    }
+  };
 
   // ─── UI state ───
   const [selectedKd, setSelectedKd] = useState<number | null>(null);
@@ -154,6 +173,50 @@ export default function ReadyToMigrate() {
     })();
     return () => { cancelled = true; };
   }, [isUnlocked, govIdFloor]);
+
+  // Load the set of player_ids already in the outreach table so the Fill
+  // button can render as "Added" instead of "Fill" without a duplicate insert.
+  useEffect(() => {
+    if (!isUnlocked) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const ids = await listOutreachIds();
+        if (!cancelled) setOutreachIds(ids);
+      } catch (e) {
+        console.warn('Failed to load outreach ids', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isUnlocked]);
+
+  const handleFill = async (p: PlayerRow) => {
+    if (outreachIds.has(p.player_id)) return;
+    setFillingId(p.player_id);
+    try {
+      const { added } = await addOutreachEntry({
+        player_id: p.player_id,
+        kingdom_id: p.kingdom_id,
+        name: p.name,
+        power: p.power,
+        kp: p.kp,
+        cityhall: p.cityhall,
+        rank_in_kd: p.rank_in_kd,
+        source_scan_date: p.scan_date,
+      });
+      if (added) {
+        setOutreachIds((s) => {
+          const next = new Set(s);
+          next.add(p.player_id);
+          return next;
+        });
+      }
+    } catch (e) {
+      alert(`Failed to add: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setFillingId(null);
+    }
+  };
 
   // When the user picks a specific KD, load every player of that KD for the
   // latest scan (no floor filter) — the floor still drives the highlight.
@@ -293,21 +356,50 @@ export default function ReadyToMigrate() {
 
   return (
     <div className="min-h-screen p-4 lg:p-8">
-      <div className="mb-6">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <Link
+            href="/kingdom/kingdom-stats"
+            className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-2"
+          >
+            <ArrowLeft size={12} /> Back to Kingdom Stats
+          </Link>
+          <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
+            <UserPlus size={26} className="text-amber-400" />
+            Possible candidates
+          </h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            Latest scan: {latestDate ?? '—'}. Highlighted rows = candidates with gov_id ≥ {govIdFloor.toLocaleString()}.
+          </p>
+        </div>
         <Link
-          href="/kingdom/kingdom-stats"
-          className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-2"
+          href="/kingdom/migration-outreach"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 transition-colors flex-shrink-0"
+          title="Track contact attempts and responses for filled players"
         >
-          <ArrowLeft size={12} /> Back to Kingdom Stats
+          Outreach list ({outreachIds.size}) →
         </Link>
-        <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
-          <UserPlus size={26} className="text-amber-400" />
-          Ready to migrate
-        </h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
-          Latest scan: {latestDate ?? '—'}. Highlighted rows = candidates with gov_id ≥ {govIdFloor.toLocaleString()}.
-        </p>
       </div>
+
+      {/* ─── Sample outreach message ─── */}
+      <details className="mb-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 overflow-hidden">
+        <summary className="px-4 py-2.5 text-sm font-medium text-cyan-200 cursor-pointer hover:bg-cyan-500/10 transition-colors flex items-center gap-2">
+          <MessageSquare size={14} className="text-cyan-300" />
+          Sample outreach message
+          <span className="text-xs text-[var(--text-muted)] font-normal">(click to expand)</span>
+        </summary>
+        <div className="px-4 py-3 border-t border-cyan-500/20 space-y-2">
+          <pre className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap font-sans leading-relaxed">{SAMPLE_MESSAGE}</pre>
+          <div className="flex justify-end">
+            <button
+              onClick={copyMessage}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-xs font-medium hover:bg-cyan-500/25 transition-colors"
+            >
+              {messageCopied ? (<><Check size={12} /> Copied!</>) : (<><Copy size={12} /> Copy to clipboard</>)}
+            </button>
+          </div>
+        </div>
+      </details>
 
       {/* ─── Filters (sticky so they stay visible while scrolling) ─── */}
       <div className="sticky top-0 z-20 -mx-4 lg:-mx-8 px-4 lg:px-8 py-3 mb-4 bg-[var(--background)]/95 backdrop-blur border-b border-[var(--border)]">
@@ -339,11 +431,15 @@ export default function ReadyToMigrate() {
           <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
             KP ≥
             <input
-              type="number"
-              min={0}
-              step={1}
+              type="text"
+              inputMode="decimal"
               value={kpFloorM}
-              onChange={(e) => setKpFloorM(Math.max(0, Number(e.target.value) || 0))}
+              onChange={(e) => {
+                // Allow only numeric input (digits + optional dot for decimals).
+                const raw = e.target.value.replace(/[^0-9.]/g, '');
+                const n = raw === '' ? 0 : Number(raw);
+                if (!Number.isNaN(n)) setKpFloorM(Math.max(0, n));
+              }}
               className="w-20 px-2 py-1 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm font-mono focus:outline-none"
             />
             <span className="text-xs text-[var(--text-muted)]">M</span>
@@ -454,11 +550,14 @@ export default function ReadyToMigrate() {
                   <HeaderCell label="Power"     field="power"      sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                   <HeaderCell label="KP"        field="kp"         sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                   <HeaderCell label="Rank in KD" field="rank_in_kd" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                  <th className="px-3 py-3 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAndSorted.map(p => {
                   const isCandidate = p.player_id >= govIdFloor;
+                  const inOutreach = outreachIds.has(p.player_id);
+                  const isFilling = fillingId === p.player_id;
                   return (
                     <tr
                       key={`${p.kingdom_id}-${p.player_id}`}
@@ -475,6 +574,22 @@ export default function ReadyToMigrate() {
                       <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(p.power)}</td>
                       <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(p.kp)}</td>
                       <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{p.rank_in_kd}</td>
+                      <td className="px-3 py-2.5 text-right">
+                        {inOutreach ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium">
+                            <Check size={12} /> Added
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleFill(p)}
+                            disabled={isFilling}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors text-[11px] font-medium disabled:opacity-50"
+                            title="Add this player to the migration outreach list"
+                          >
+                            {isFilling ? '…' : (<><Plus size={12} /> Fill</>)}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
