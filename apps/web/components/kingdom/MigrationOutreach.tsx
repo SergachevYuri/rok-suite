@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Lock, MailOpen, Search, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
-import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
+import { ArrowLeft, MailOpen, Search, Trash2, ChevronUp, ChevronDown, MessageSquare, Copy, Check } from 'lucide-react';
+import { AuthGate } from '@/components/AuthGate';
 import {
   listOutreach,
   updateOutreach,
@@ -11,27 +11,20 @@ import {
   type OutreachEntry,
 } from '@/lib/supabase/use-migration-outreach';
 import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
+import { OUTREACH_SAMPLE_MESSAGE } from '@/lib/kingdom/outreach-template';
 
 type SortField = 'kingdom_id' | 'name' | 'power' | 'kp' | 'added_at' | 'contacted';
 type SortDir = 'asc' | 'desc';
 
 export default function MigrationOutreach() {
-  // ─── Auth gate ───
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [pwInput, setPwInput] = useState('');
-  const [pwError, setPwError] = useState('');
+  return (
+    <AuthGate require={['admin', 'officer']}>
+      <MigrationOutreachInner />
+    </AuthGate>
+  );
+}
 
-  const submitPassword = () => {
-    if (pwInput === ADMIN_PASSWORD || pwInput === OFFICER_PASSWORD) {
-      setIsUnlocked(true);
-      setPwInput('');
-      setPwError('');
-    } else {
-      setPwError('Incorrect password');
-      setPwInput('');
-    }
-  };
-
+function MigrationOutreachInner() {
   // ─── Data ───
   const [entries, setEntries] = useState<OutreachEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +38,17 @@ export default function MigrationOutreach() {
 
   // Per-row local state for inline editing — flushed to DB on blur / debounced
   const [draft, setDraft] = useState<Map<number, Partial<OutreachEntry>>>(new Map());
+
+  const [messageCopied, setMessageCopied] = useState(false);
+  const copyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(OUTREACH_SAMPLE_MESSAGE);
+      setMessageCopied(true);
+      window.setTimeout(() => setMessageCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
 
   const refresh = async () => {
     setLoading(true);
@@ -60,9 +64,8 @@ export default function MigrationOutreach() {
   };
 
   useEffect(() => {
-    if (!isUnlocked) return;
     void refresh();
-  }, [isUnlocked]);
+  }, []);
 
   const setDraftField = <K extends keyof OutreachEntry>(playerId: number, field: K, value: OutreachEntry[K]) => {
     setDraft((m) => {
@@ -149,46 +152,6 @@ export default function MigrationOutreach() {
     return { total, contacted, pending: total - contacted };
   }, [entries]);
 
-  // ─── Auth gate UI ───
-  if (!isUnlocked) {
-    return (
-      <div className="min-h-screen p-4 lg:p-8">
-        <div className="max-w-md">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-amber-500/10">
-                <Lock className="w-5 h-5 text-amber-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-[var(--foreground)]">Restricted</h3>
-                <p className="text-xs text-[var(--text-muted)]">Officer or Admin password required</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <input
-                type="password"
-                value={pwInput}
-                onChange={(e) => { setPwInput(e.target.value); setPwError(''); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') submitPassword(); }}
-                placeholder="Enter password"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]"
-                autoFocus
-              />
-              {pwError && <div className="text-xs text-red-400">{pwError}</div>}
-              <button
-                onClick={submitPassword}
-                disabled={!pwInput}
-                className="w-full px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-sm font-medium disabled:opacity-50"
-              >
-                Unlock
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen p-4 lg:p-8">
       <div className="mb-6">
@@ -206,6 +169,26 @@ export default function MigrationOutreach() {
           Track outreach to migration candidates. Mark when contacted, who contacted them, and the response.
         </p>
       </div>
+
+      {/* ─── Sample outreach message ─── */}
+      <details className="mb-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 overflow-hidden">
+        <summary className="px-4 py-2.5 text-sm font-medium text-cyan-200 cursor-pointer hover:bg-cyan-500/10 transition-colors flex items-center gap-2">
+          <MessageSquare size={14} className="text-cyan-300" />
+          Sample outreach message
+          <span className="text-xs text-[var(--text-muted)] font-normal">(click to expand)</span>
+        </summary>
+        <div className="px-4 py-3 border-t border-cyan-500/20 space-y-2">
+          <pre className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap font-sans leading-relaxed">{OUTREACH_SAMPLE_MESSAGE}</pre>
+          <div className="flex justify-end">
+            <button
+              onClick={copyMessage}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-xs font-medium hover:bg-cyan-500/25 transition-colors"
+            >
+              {messageCopied ? (<><Check size={12} /> Copied!</>) : (<><Copy size={12} /> Copy to clipboard</>)}
+            </button>
+          </div>
+        </div>
+      </details>
 
       {/* Filter bar (sticky) */}
       <div className="sticky top-0 z-20 -mx-4 lg:-mx-8 px-4 lg:px-8 py-3 mb-4 bg-[var(--background)]/95 backdrop-blur border-b border-[var(--border)]">

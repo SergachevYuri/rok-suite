@@ -4,7 +4,7 @@ import { useState, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Calendar, Trash2, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { ADMIN_PASSWORD } from '@/lib/auth-passwords';
+import { meetsRole, useAuthRole } from '@/lib/auth-role';
 
 type Status = 'idle' | 'parsing' | 'preview' | 'uploading' | 'done' | 'error';
 
@@ -40,20 +40,22 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
   const [progress, setProgress] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Auth gate ───
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  // ─── Auth gate (admin only, but the role is shared across pages via
+  // sessionStorage so we don't keep re-prompting). ───
+  const { role, unlockWith } = useAuthRole();
+  const isUnlocked = meetsRole(role, 'admin');
   const [password, setPassword] = useState('');
   const [pwError, setPwError] = useState('');
 
   const handlePasswordSubmit = () => {
-    if (password === ADMIN_PASSWORD) {
-      setIsUnlocked(true);
+    const r = unlockWith(password);
+    if (!r || !meetsRole(r, 'admin')) {
+      setPwError(r ? 'Admin password required' : 'Incorrect password');
       setPassword('');
-      setPwError('');
-    } else {
-      setPwError('Incorrect password');
-      setPassword('');
+      return;
     }
+    setPassword('');
+    setPwError('');
   };
 
   const reset = () => {

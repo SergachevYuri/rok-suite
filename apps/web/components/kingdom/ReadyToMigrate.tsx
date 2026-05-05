@@ -2,22 +2,24 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Search, ChevronUp, ChevronDown, UserPlus, Lock, ArrowLeft, Check, Plus, MessageSquare, Copy } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, UserPlus, ArrowLeft, Check, Plus, MessageSquare, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
-import { ADMIN_PASSWORD, OFFICER_PASSWORD } from '@/lib/auth-passwords';
+import { AuthGate } from '@/components/AuthGate';
 import { seedAssignment, type SeedAssignment } from '@/lib/kingdom/seed';
 import { SeedBadge } from './SeedBadge';
 import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
 import { addOutreachEntry, listOutreachIds } from '@/lib/supabase/use-migration-outreach';
 import { fetchMigratedPlayerIds } from '@/lib/kingdom/migrations';
+import { OUTREACH_SAMPLE_MESSAGE } from '@/lib/kingdom/outreach-template';
 
 /** Cutoff for "young account" — gov_ids ≥ this are considered candidates
  *  for migration outreach. Tune via UI control if you ever need to. */
 const DEFAULT_GOV_ID_FLOOR = 205_000_000;
 
-/** Outreach mail template — ready to copy & paste in-game. */
-const SAMPLE_MESSAGE = `Hello how are u? i wish all good. Im from KD 3923 and im looking for a couple of good whales to join us and fight with my marches together for kvk3, would u be interested? We won (with some luck) both kvk1 and kvk2^^ We want top seed C`;
+// Outreach mail template lives in lib/kingdom/outreach-template.ts so the
+// outreach tracking page can show the same text.
+const SAMPLE_MESSAGE = OUTREACH_SAMPLE_MESSAGE;
 
 interface PlayerRow {
   scan_date: string;
@@ -49,22 +51,14 @@ type SortField = 'kingdom_id' | 'player_id' | 'name' | 'power' | 'kp' | 'rank_in
 type SortDir = 'asc' | 'desc';
 
 export default function ReadyToMigrate() {
-  // ─── Auth gate ───
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [pwInput, setPwInput] = useState('');
-  const [pwError, setPwError] = useState('');
+  return (
+    <AuthGate require={['admin', 'officer']}>
+      <ReadyToMigrateInner />
+    </AuthGate>
+  );
+}
 
-  const submitPassword = () => {
-    if (pwInput === ADMIN_PASSWORD || pwInput === OFFICER_PASSWORD) {
-      setIsUnlocked(true);
-      setPwInput('');
-      setPwError('');
-    } else {
-      setPwError('Incorrect password');
-      setPwInput('');
-    }
-  };
-
+function ReadyToMigrateInner() {
   // ─── Data ───
   const [latestDate, setLatestDate] = useState<string | null>(null);
   const [candidatePlayers, setCandidatePlayers] = useState<PlayerRow[]>([]);
@@ -99,7 +93,7 @@ export default function ReadyToMigrate() {
   // ─── UI state ───
   const [selectedKd, setSelectedKd] = useState<number | null>(null);
   /** Minimum KP in millions — filters out deadweight accounts. */
-  const [kpFloorM, setKpFloorM] = useState<number>(0);
+  const [kpFloorM, setKpFloorM] = useState<number>(200);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('power');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -107,7 +101,6 @@ export default function ReadyToMigrate() {
   const kpFloor = kpFloorM * 1_000_000;
 
   useEffect(() => {
-    if (!isUnlocked) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -178,12 +171,11 @@ export default function ReadyToMigrate() {
       }
     })();
     return () => { cancelled = true; };
-  }, [isUnlocked, govIdFloor]);
+  }, [govIdFloor]);
 
   // Load the set of player_ids already in the outreach table so the Fill
   // button can render as "Added" instead of "Fill" without a duplicate insert.
   useEffect(() => {
-    if (!isUnlocked) return;
     let cancelled = false;
     (async () => {
       try {
@@ -194,13 +186,13 @@ export default function ReadyToMigrate() {
       }
     })();
     return () => { cancelled = true; };
-  }, [isUnlocked]);
+  }, []);
 
   // Load the set of "already migrated" player_ids so we can hide them from
   // the candidate list — somebody who migrated this KvK isn't a candidate
   // for migrating again. Re-runs whenever the latestDate changes.
   useEffect(() => {
-    if (!isUnlocked || !latestDate) return;
+    if (!latestDate) return;
     let cancelled = false;
     (async () => {
       try {
@@ -211,7 +203,7 @@ export default function ReadyToMigrate() {
       }
     })();
     return () => { cancelled = true; };
-  }, [isUnlocked, latestDate]);
+  }, [latestDate]);
 
   // Stable identity so memoized PlayerRow doesn't see a new function each render.
   const handleFill = useCallback(async (p: PlayerRow) => {
@@ -245,7 +237,7 @@ export default function ReadyToMigrate() {
   // When the user picks a specific KD, load every player of that KD for the
   // latest scan (no floor filter) — the floor still drives the highlight.
   useEffect(() => {
-    if (!isUnlocked || !latestDate || !selectedKd) {
+    if (!latestDate || !selectedKd) {
       setKdPlayers([]);
       return;
     }
@@ -271,18 +263,20 @@ export default function ReadyToMigrate() {
       }
     })();
     return () => { cancelled = true; };
-  }, [isUnlocked, latestDate, selectedKd]);
+  }, [latestDate, selectedKd]);
 
   // Source rows depend on the dropdown:
   //   - All KDs  → only candidates (gov_id ≥ floor) across every kingdom
-  //   - One KD   → every player in that kingdom (highlight applied for ≥ floor)
+  //   - One KD   → only players of that kingdom that ALSO meet the gov_id floor
   // In both cases we drop anyone the Migrations tab already lists — they've
   // moved this KvK already, so they're not eligible to be a candidate.
   const sourceRows = useMemo(() => {
-    const raw = selectedKd ? kdPlayers : candidatePlayers;
+    const raw = selectedKd
+      ? kdPlayers.filter((p) => p.player_id >= govIdFloor)
+      : candidatePlayers;
     if (migratedIds.size === 0) return raw;
     return raw.filter((p) => !migratedIds.has(p.player_id));
-  }, [selectedKd, kdPlayers, candidatePlayers, migratedIds]);
+  }, [selectedKd, kdPlayers, candidatePlayers, migratedIds, govIdFloor]);
   const totalRowsCount = sourceRows.length;
 
   const filteredAndSorted = useMemo(() => {
@@ -359,46 +353,6 @@ export default function ReadyToMigrate() {
       setSortDir(field === 'name' || field === 'rank_in_kd' || field === 'seed' || field === 'kingdom_id' ? 'asc' : 'desc');
     }
   };
-
-  // ─── Auth gate UI ───
-  if (!isUnlocked) {
-    return (
-      <div className="min-h-screen p-4 lg:p-8">
-        <div className="max-w-md">
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-amber-500/10">
-                <Lock className="w-5 h-5 text-amber-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-[var(--foreground)]">Restricted</h3>
-                <p className="text-xs text-[var(--text-muted)]">Officer or Admin password required</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <input
-                type="password"
-                value={pwInput}
-                onChange={(e) => { setPwInput(e.target.value); setPwError(''); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') submitPassword(); }}
-                placeholder="Enter password"
-                className="w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]"
-                autoFocus
-              />
-              {pwError && <div className="text-xs text-red-400">{pwError}</div>}
-              <button
-                onClick={submitPassword}
-                disabled={!pwInput}
-                className="w-full px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-sm font-medium disabled:opacity-50"
-              >
-                Unlock
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen p-4 lg:p-8">
