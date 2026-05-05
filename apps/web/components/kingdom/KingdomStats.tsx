@@ -35,7 +35,11 @@ const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'migrations', 'u
 
 /** Power floor (in millions) for the Migrations tab. Anything below this we
  *  ignore — small accounts hop between KDs constantly and aren't relevant. */
-const MIG_POWER_FLOOR_M_DEFAULT = 40;
+const MIG_POWER_FLOOR_M_DEFAULT = 35;
+
+/** Migrations tab "From" scan is fixed to this date — the first day we have
+ *  reliable cross-KD coverage for KvK3 tracking. */
+const MIG_FROM_DATE = '2026-04-29';
 
 /** One row of the Migrations tab — a player who appears in the To scan with
  *  a different (or unknown) kingdom_id compared to the From scan.
@@ -97,7 +101,7 @@ export default function KingdomStats() {
   const [migLoading, setMigLoading] = useState(false);
   const [migError, setMigError] = useState<string | null>(null);
   const [migSearch, setMigSearch] = useState('');
-  const [migSortField, setMigSortField] = useState<'name' | 'fromKd' | 'toKd' | 'fromPower' | 'toPower' | 'deltaPower'>('deltaPower');
+  const [migSortField, setMigSortField] = useState<'name' | 'fromKd' | 'toKd' | 'toPower' | 'toKp'>('toPower');
   const [migSortDir, setMigSortDir] = useState<SortDir>('desc');
 
   // Refresh trigger to re-fetch after an upload
@@ -166,13 +170,12 @@ export default function KingdomStats() {
     }
   }, [allDates, comparisonToDate, comparisonFromDate]);
 
-  // Migrations tab — same date defaulting (latest + second-latest)
+  // Migrations tab — From is fixed to MIG_FROM_DATE; To always tracks the
+  // most recent scan available so the user is comparing "since seed day to today".
   React.useEffect(() => {
-    if (allDates.length > 0 && !migToDate) {
-      setMigToDate(allDates[0]);
-      if (allDates.length > 1 && !migFromDate) setMigFromDate(allDates[1]);
-    }
-  }, [allDates, migToDate, migFromDate]);
+    if (migFromDate !== MIG_FROM_DATE) setMigFromDate(MIG_FROM_DATE);
+    if (allDates.length > 0 && migToDate !== allDates[0]) setMigToDate(allDates[0]);
+  }, [allDates, migFromDate, migToDate]);
 
   // Fetch migrations: players that appear in both scans (>= power floor) but
   // with a different kingdom_id between them. Cross-KD scan means we have to
@@ -893,14 +896,11 @@ function DeltaCell({ from, to, hasFrom }: { from: number | undefined; to: number
 // ─────────────────────────────────────────────────────────────
 // Migrations tab — players that changed kingdom between two scans.
 // ─────────────────────────────────────────────────────────────
-type MigSortField = 'name' | 'fromKd' | 'toKd' | 'fromPower' | 'toPower' | 'deltaPower';
+type MigSortField = 'name' | 'fromKd' | 'toKd' | 'toPower' | 'toKp';
 
 function MigrationsView({
-  allDates,
   migFromDate,
-  setMigFromDate,
   migToDate,
-  setMigToDate,
   migPowerFloorM,
   setMigPowerFloorM,
   migrations,
@@ -945,6 +945,8 @@ function MigrationsView({
       let cmp = 0;
       if (sortField === 'name') cmp = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
       else if (sortField === 'fromKd') cmp = (a.fromKd ?? Number.POSITIVE_INFINITY) - (b.fromKd ?? Number.POSITIVE_INFINITY);
+      else if (sortField === 'toPower') cmp = (a.toPower || 0) - (b.toPower || 0);
+      else if (sortField === 'toKp')   cmp = (a.toKp   || 0) - (b.toKp   || 0);
       else cmp = (a[sortField] || 0) - (b[sortField] || 0);
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -968,40 +970,11 @@ function MigrationsView({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] uppercase tracking-wider">
-          From
-          <select
-            value={migFromDate}
-            onChange={(e) => {
-              const v = e.target.value;
-              setMigFromDate(v);
-              if (v && migToDate && v > migToDate) setMigToDate(v);
-            }}
-            className="px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] normal-case tracking-normal focus:outline-none focus:border-[#4318ff]"
-          >
-            {allDates.filter((d) => !migToDate || d <= migToDate).map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </label>
-        <span className="text-xs text-[var(--text-muted)]">→</span>
-        <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] uppercase tracking-wider">
-          To
-          <select
-            value={migToDate}
-            onChange={(e) => {
-              const v = e.target.value;
-              setMigToDate(v);
-              if (v && migFromDate && v < migFromDate) setMigFromDate('');
-            }}
-            className="px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] normal-case tracking-normal focus:outline-none focus:border-[#4318ff]"
-          >
-            {allDates.length === 0 && <option>Loading...</option>}
-            {allDates.filter((d) => !migFromDate || d >= migFromDate).map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </label>
+        <span className="text-xs text-[var(--text-muted)]">
+          Comparing <span className="text-[var(--foreground)] font-mono">{migFromDate}</span>
+          {' → '}
+          <span className="text-[var(--foreground)] font-mono">{migToDate || '—'}</span>
+        </span>
 
         <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
           Power ≥
@@ -1060,9 +1033,8 @@ function MigrationsView({
                   <MigHeader label="Name"        field="name"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   <MigHeader label="From KD"     field="fromKd"     sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   <MigHeader label="To KD"       field="toKd"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
-                  <MigHeader label="Power From"  field="fromPower"  sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                  <MigHeader label="Power To"    field="toPower"    sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                  <MigHeader label="Δ Power"     field="deltaPower" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                  <MigHeader label="Power"       field="toPower"    sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                  <MigHeader label="KP"          field="toKp"       sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                 </tr>
               </thead>
               <tbody>
@@ -1091,13 +1063,8 @@ function MigrationsView({
                         {m.fromKd != null ? `KD ${m.fromKd}` : <span className="text-[var(--text-muted)]">—</span>}
                       </td>
                       <td className="px-3 py-2.5 font-medium tabular-nums">KD {m.toKd}</td>
-                      <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">
-                        {m.isNewJoiner ? <span className="text-[var(--text-muted)]">—</span> : formatCompact(m.fromPower)}
-                      </td>
                       <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(m.toPower)}</td>
-                      <td className={`px-3 py-2.5 text-right tabular-nums ${m.isNewJoiner ? 'text-cyan-300' : m.deltaPower >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {m.isNewJoiner ? '—' : (m.deltaPower >= 0 ? '+' : '') + formatCompact(m.deltaPower)}
-                      </td>
+                      <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(m.toKp)}</td>
                     </tr>
                   );
                 })}
