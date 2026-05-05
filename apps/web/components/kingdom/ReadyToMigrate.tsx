@@ -73,9 +73,13 @@ export default function ReadyToMigrate() {
 
   // ─── UI state ───
   const [selectedKd, setSelectedKd] = useState<number | null>(null);
+  /** Minimum KP in millions — filters out deadweight accounts. */
+  const [kpFloorM, setKpFloorM] = useState<number>(0);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('power');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const kpFloor = kpFloorM * 1_000_000;
 
   useEffect(() => {
     if (!isUnlocked) return;
@@ -189,7 +193,7 @@ export default function ReadyToMigrate() {
   const totalRowsCount = sourceRows.length;
 
   const filteredAndSorted = useMemo(() => {
-    let data = [...sourceRows];
+    let data = sourceRows.filter((p) => p.kp >= kpFloor);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       data = data.filter(p =>
@@ -213,13 +217,14 @@ export default function ReadyToMigrate() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return data;
-  }, [sourceRows, search, sortField, sortDir, seedByKd]);
+  }, [sourceRows, search, sortField, sortDir, seedByKd, kpFloor]);
 
   // KD summary table (top of page) — one row per KD with seed band, power,
   // total KP, rank, and how many candidates that KD has at the current floor.
   const kdSummary = useMemo<KdSummary[]>(() => {
     const candidatesByKd = new Map<number, number>();
     for (const p of candidatePlayers) {
+      if (p.kp < kpFloor) continue;
       candidatesByKd.set(p.kingdom_id, (candidatesByKd.get(p.kingdom_id) ?? 0) + 1);
     }
     const rows: KdSummary[] = [];
@@ -235,7 +240,7 @@ export default function ReadyToMigrate() {
     }
     rows.sort((a, b) => a.rank - b.rank);
     return rows;
-  }, [statsByKd, seedByKd, rankByKd, candidatePlayers]);
+  }, [statsByKd, seedByKd, rankByKd, candidatePlayers, kpFloor]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -390,6 +395,19 @@ export default function ReadyToMigrate() {
             onChange={(e) => setGovIdFloor(Math.max(0, Number(e.target.value) || 0))}
             className="w-32 px-2 py-1 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm font-mono focus:outline-none"
           />
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+          KP ≥
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={kpFloorM}
+            onChange={(e) => setKpFloorM(Math.max(0, Number(e.target.value) || 0))}
+            className="w-20 px-2 py-1 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm font-mono focus:outline-none"
+          />
+          <span className="text-xs text-[var(--text-muted)]">M</span>
         </label>
 
         <div className="relative flex-1 min-w-[200px] max-w-[300px]">
