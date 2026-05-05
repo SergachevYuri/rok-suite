@@ -356,29 +356,20 @@ export default function ReadyToMigrate() {
 
   return (
     <div className="min-h-screen p-4 lg:p-8">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <Link
-            href="/kingdom/kingdom-stats"
-            className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-2"
-          >
-            <ArrowLeft size={12} /> Back to Kingdom Stats
-          </Link>
-          <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
-            <UserPlus size={26} className="text-amber-400" />
-            Possible candidates
-          </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            Latest scan: {latestDate ?? '—'}. Highlighted rows = candidates with gov_id ≥ {govIdFloor.toLocaleString()}.
-          </p>
-        </div>
+      <div className="mb-6">
         <Link
-          href="/kingdom/migration-outreach"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 transition-colors flex-shrink-0"
-          title="Track contact attempts and responses for filled players"
+          href="/kingdom/kingdom-stats"
+          className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-2"
         >
-          Outreach list ({outreachIds.size}) →
+          <ArrowLeft size={12} /> Back to Kingdom Stats
         </Link>
+        <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
+          <UserPlus size={26} className="text-amber-400" />
+          Possible candidates
+        </h1>
+        <p className="text-sm text-[var(--text-muted)] mt-1">
+          Latest scan: {latestDate ?? '—'}. Highlighted rows = candidates with gov_id ≥ {govIdFloor.toLocaleString()}.
+        </p>
       </div>
 
       {/* ─── Sample outreach message ─── */}
@@ -460,13 +451,24 @@ export default function ReadyToMigrate() {
             {filteredAndSorted.length.toLocaleString()} player{filteredAndSorted.length !== 1 ? 's' : ''}
             {search.trim() && ` (${totalRowsCount.toLocaleString()} total)`}
           </span>
+
+          <Link
+            href="/kingdom/migration-outreach"
+            className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 transition-colors flex-shrink-0"
+            title="Track contact attempts and responses for filled players"
+          >
+            Outreach list ({outreachIds.size}) →
+          </Link>
         </div>
       </div>
 
-      {/* ─── KD summary table ─── */}
-      <details className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden" open>
-        <summary className="px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] cursor-pointer hover:bg-[var(--background-secondary)] transition-colors flex items-center justify-between">
-          <span>Kingdom summary <span className="text-[var(--text-muted)] font-normal">({kdSummary.length} KDs)</span></span>
+      {/* ─── KD summary table (collapsed by default) ─── */}
+      <details className="group mb-6 rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
+        <summary className="px-4 py-2.5 text-sm font-semibold text-[var(--foreground)] cursor-pointer hover:bg-[var(--background-secondary)] transition-colors flex items-center justify-between list-none">
+          <span className="flex items-center gap-2">
+            <ChevronDown size={14} className="text-[var(--text-muted)] transition-transform group-open:rotate-180" />
+            Kingdom summary <span className="text-[var(--text-muted)] font-normal">({kdSummary.length} KDs)</span>
+          </span>
           <span className="text-xs text-[var(--text-muted)]">
             {candidatePlayers.length.toLocaleString()} total candidates
           </span>
@@ -586,7 +588,7 @@ export default function ReadyToMigrate() {
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors text-[11px] font-medium disabled:opacity-50"
                             title="Add this player to the migration outreach list"
                           >
-                            {isFilling ? '…' : (<><Plus size={12} /> Fill</>)}
+                            {isFilling ? '…' : (<><Plus size={12} /> Candidate</>)}
                           </button>
                         )}
                       </td>
