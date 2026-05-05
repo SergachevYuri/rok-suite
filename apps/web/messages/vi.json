@@ -277,7 +277,8 @@
       "step1": "<strong>Tạo kế hoạch</strong> - Nhấn nút ở trên để bắt đầu một kế hoạch đội mới",
       "step2": "<strong>Xây dựng đội</strong> - Chọn người chơi, phân bổ vào khu vực, chỉ định người dẫn rally",
       "step3": "<strong>Chia sẻ liên kết</strong> - Sao chép URL và chia sẻ với các đội trưởng",
-      "step4": "<strong>Cộng tác</strong> - Bất kỳ ai có liên kết đều có thể xem và chỉnh sửa kế hoạch"
+      "step4": "<strong>Cộng tác</strong> - Bất kỳ ai có liên kết đều có thể xem và chỉnh sửa kế hoạch",
+      "step5": "<strong>Bạn đang tổ chức một liên đoàn?</strong> - Thêm tab đăng ký liên đoàn khi nhập. 45 người chơi của tab này tạo thành một đội riêng có danh sách cố định và bị loại khỏi danh sách đăng ký Team 1 / Team 2 cuối tuần. Khóa danh sách cho giải đấu để các chỉnh sửa bảng tính giữa mùa không thể thay đổi nó."
     },
     "header": {
       "title": "AoO Planner",
@@ -365,6 +366,7 @@
       "league": {
         "label": "Tab đăng ký Liên đoàn",
         "optional": "(tùy chọn)",
+        "helper": "Người chơi đăng ký ở đây chỉ chơi cho đội liên đoàn — họ tự động bị loại khỏi danh sách đăng ký Team 1 / Team 2 ở tab chính.",
         "placeholder": "Dán URL của tab Liên đoàn (gid khác)",
         "clearTitle": "Xóa danh sách Liên đoàn đã tải",
         "loaded": "{count, plural, =0 {Chưa tải người chơi Liên đoàn nào} other {Đã tải # người chơi Liên đoàn · loại khỏi Đội 1 / Đội 2}}",
@@ -382,14 +384,16 @@
         "lockButton": "Khóa danh sách {count} người chơi cho một giải đấu",
         "locking": "Đang bắt đầu…",
         "lockTitle": "Chụp nhanh người chơi Liên đoàn hiện tại. Khi giải đấu đang diễn ra, các chỉnh sửa bảng tính giữa giải đấu sẽ bị bỏ qua.",
-        "namePrompt": "Tên giải đấu (khóa người chơi Liên đoàn hiện tại trong suốt thời gian):",
+        "namePrompt": "Đặt tên cho giải đấu này (ví dụ \"Giải Liên đoàn Xuân 2026\"). Các người chơi liên đoàn hiện tại sẽ bị đóng băng cho đến khi bạn kết thúc giải đấu — kể cả khi bảng tính được chỉnh sửa sau này.",
         "endConfirm": "Kết thúc \"{name}\"? Đội Liên đoàn sẽ quay lại đọc từ tab bảng tính trực tiếp.",
         "drift": {
           "title": "Bảng tính Liên đoàn khác với danh sách đã khóa",
           "explanation": "Những thay đổi này bị bỏ qua — bộ lập kế hoạch sử dụng danh sách đã khóa.",
           "added": "đã thêm",
           "removed": "đã xóa"
-        }
+        },
+        "showRoster": "Hiện danh sách đã khóa",
+        "hideRoster": "Ẩn danh sách đã khóa"
       },
       "summary": "Tóm tắt",
       "distribute": "Phân bổ",
@@ -420,8 +424,11 @@
         "tabTitle": "Đội Liên đoàn — danh sách cố định, phân chia chính thức/dự bị hàng tuần",
         "main": "Chính thức",
         "sub": "Dự bị",
-        "mainTitle": "Xếp làm chính thức cuối tuần này — nhấp để chuyển thành dự bị",
-        "subTitle": "Xếp làm dự bị cuối tuần này — nhấp để chuyển thành chính thức"
+        "mainShort": "Chính",
+        "subShort": "Dự bị",
+        "countTitle": "Chính thức thi đấu cuối tuần này / Dự bị trên ghế",
+        "mainTitle": "Hiện đang là chính thức cuối tuần này — nhấp để chuyển xuống băng ghế (đánh dấu là dự bị). Cầu thủ dự bị bị khóa ở băng ghế khi phân chia.",
+        "subTitle": "Hiện đang ở băng ghế làm dự bị cuối tuần này — nhấp để đưa trở lại đội hình. Cầu thủ dự bị bị khóa ở băng ghế khi phân chia."
       },
       "title": "Xây dựng đội",
       "alliance": "Liên minh:",

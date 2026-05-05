@@ -277,7 +277,8 @@
       "step1": "<strong>Crea un piano</strong> - Clicca il pulsante sopra per iniziare un nuovo piano squadra",
       "step2": "<strong>Costruisci le squadre</strong> - Seleziona i giocatori, distribuisci nelle zone, assegna i leader rally",
       "step3": "<strong>Condividi il link</strong> - Copia l'URL e condividilo con i tuoi capitani",
-      "step4": "<strong>Collabora</strong> - Chiunque abbia il link può visualizzare e modificare il piano"
+      "step4": "<strong>Collabora</strong> - Chiunque abbia il link può visualizzare e modificare il piano",
+      "step5": "<strong>Hai una lega?</strong> - Aggiungi la scheda di iscrizione della lega durante l'import. I suoi 45 giocatori formano una squadra separata a rosa fissa ed esclusa dalle iscrizioni Squadra 1 / Squadra 2 del weekend. Blocca la rosa per il torneo affinché le modifiche al foglio in corso di stagione non possano cambiarla."
     },
     "header": {
       "title": "AoO Planner",
@@ -365,6 +366,7 @@
       "league": {
         "label": "Scheda iscrizione Lega",
         "optional": "(opzionale)",
+        "helper": "I giocatori iscritti qui giocano solo nella squadra della lega — sono automaticamente esclusi dalle iscrizioni Squadra 1 / Squadra 2 nella scheda principale.",
         "placeholder": "Incolla l'URL della scheda Lega (gid diverso)",
         "clearTitle": "Cancella il roster Lega caricato",
         "loaded": "{count, plural, =0 {Nessun giocatore Lega caricato} one {# giocatore Lega caricato · escluso da Squadra 1 / Squadra 2} other {# giocatori Lega caricati · esclusi da Squadra 1 / Squadra 2}}",
@@ -382,14 +384,16 @@
         "lockButton": "Blocca il roster da {count} giocatori per un torneo",
         "locking": "Avvio…",
         "lockTitle": "Cattura un'istantanea dei giocatori Lega attuali. Mentre il torneo è attivo, le modifiche al foglio durante il torneo vengono ignorate.",
-        "namePrompt": "Nome del torneo (blocca i giocatori Lega attuali per la durata):",
+        "namePrompt": "Dai un nome a questo torneo (es. \"Lega Primavera 2026\"). I giocatori attuali della lega resteranno bloccati fino a quando non terminerai il torneo — anche se il foglio verrà modificato in seguito.",
         "endConfirm": "Terminare \"{name}\"? La squadra Lega tornerà a leggere dalla scheda live.",
         "drift": {
           "title": "Il foglio Lega differisce dal roster bloccato",
           "explanation": "Queste modifiche vengono ignorate — il planner usa il roster bloccato.",
           "added": "aggiunti",
           "removed": "rimossi"
-        }
+        },
+        "showRoster": "Mostra elenco bloccato",
+        "hideRoster": "Nascondi elenco bloccato"
       },
       "summary": "Riepilogo",
       "distribute": "Distribuisci",
@@ -420,8 +424,11 @@
         "tabTitle": "Squadra Lega — roster fisso, divisione settimanale titolare/riserva",
         "main": "Titolare",
         "sub": "Riserva",
-        "mainTitle": "Inserito come titolare questo weekend — clicca per renderlo riserva",
-        "subTitle": "Inserito come riserva questo weekend — clicca per renderlo titolare"
+        "mainShort": "Tit.",
+        "subShort": "Ris.",
+        "countTitle": "Titolari che giocano questo weekend / Riserve in panchina",
+        "mainTitle": "Attualmente titolare questo weekend — clic per mettere in panchina (riserva). Le riserve sono bloccate in panchina alla distribuzione.",
+        "subTitle": "Attualmente in panchina come riserva questo weekend — clic per rimettere in formazione. Le riserve sono bloccate in panchina alla distribuzione."
       },
       "title": "Costruttore squadre",
       "alliance": "Alleanza:",

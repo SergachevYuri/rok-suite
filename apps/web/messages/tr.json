@@ -277,7 +277,8 @@
       "step1": "<strong>Plan oluştur</strong> - Yeni bir takım planı başlatmak için yukarıdaki düğmeye tıklayın",
       "step2": "<strong>Takımlarını kur</strong> - Oyuncuları seç, bölgelere dağıt, ralli liderlerini ata",
       "step3": "<strong>Bağlantıyı paylaş</strong> - URL'yi kopyala ve takım liderlerinle paylaş",
-      "step4": "<strong>İş birliği yap</strong> - Bağlantıya sahip herkes planı görüntüleyip düzenleyebilir"
+      "step4": "<strong>İş birliği yap</strong> - Bağlantıya sahip herkes planı görüntüleyip düzenleyebilir",
+      "step5": "<strong>Lig mi düzenliyorsun?</strong> - İçe aktarırken lig kayıt sekmesini ekle. 45 oyuncusu sabit kadrolu ayrı bir takım oluşturur ve hafta sonu Takım 1 / Takım 2 kayıtlarından çıkarılır. Sezon ortasında sayfa düzenlemelerinin onu değiştirememesi için kadroyu turnuva süresince kilitle."
     },
     "header": {
       "title": "AoO Planner",
@@ -365,6 +366,7 @@
       "league": {
         "label": "Lig kayıt sekmesi",
         "optional": "(isteğe bağlı)",
+        "helper": "Buraya kaydolan oyuncular yalnızca lig takımında oynar — ana sekmedeki Takım 1 / Takım 2 kayıtlarından otomatik olarak çıkarılırlar.",
         "placeholder": "Lig sekmesinin URL'sini yapıştırın (farklı gid)",
         "clearTitle": "Yüklü Lig kadrosunu temizle",
         "loaded": "{count, plural, =0 {Lig oyuncusu yüklenmedi} one {# Lig oyuncusu yüklendi · Takım 1 / Takım 2 dışında} other {# Lig oyuncusu yüklendi · Takım 1 / Takım 2 dışında}}",
@@ -382,14 +384,16 @@
         "lockButton": "Bir turnuva için {count} kişilik kadroyu kilitle",
         "locking": "Başlatılıyor…",
         "lockTitle": "Mevcut Lig oyuncularının anlık görüntüsünü al. Turnuva aktifken, turnuva sırasındaki tablo düzenlemeleri yok sayılır.",
-        "namePrompt": "Turnuva adı (mevcut Lig oyuncularını süre boyunca kilitler):",
+        "namePrompt": "Bu turnuvayı adlandırın (örn. \"Bahar 2026 Ligi\"). Mevcut lig oyuncuları, sayfa daha sonra düzenlense bile turnuvayı sonlandırana kadar dondurulur.",
         "endConfirm": "\"{name}\" bitirilsin mi? Lig takımı tekrar canlı tablo sekmesinden okumaya geçecek.",
         "drift": {
           "title": "Lig tablosu kilitli kadrodan farklı",
           "explanation": "Bu değişiklikler yok sayılır — planlayıcı kilitli kadroyu kullanır.",
           "added": "eklenenler",
           "removed": "kaldırılanlar"
-        }
+        },
+        "showRoster": "Kilitli kadroyu göster",
+        "hideRoster": "Kilitli kadroyu gizle"
       },
       "summary": "Özet",
       "distribute": "Dağıt",
@@ -420,8 +424,11 @@
         "tabTitle": "Lig takımı — sabit kadro, haftalık asıl/yedek bölünmesi",
         "main": "Asıl",
         "sub": "Yedek",
-        "mainTitle": "Bu hafta sonu asıl olarak konumlandırıldı — yedeğe almak için tıkla",
-        "subTitle": "Bu hafta sonu yedek olarak konumlandırıldı — asıla almak için tıkla"
+        "mainShort": "Asıl",
+        "subShort": "Yedek",
+        "countTitle": "Bu hafta sonu oynayan asıl / Yedekteki yedekler",
+        "mainTitle": "Bu hafta sonu şu an asıl — yedeğe almak için tıklayın (yedek olarak işaretle). Yedekler dağıtım sırasında yedek kulübesine kilitlenir.",
+        "subTitle": "Bu hafta sonu şu an yedek kulübesinde yedek — kadroya geri almak için tıklayın. Yedekler dağıtım sırasında yedek kulübesine kilitlenir."
       },
       "title": "Takım Oluşturucu",
       "alliance": "İttifak:",

@@ -1326,11 +1326,14 @@ function TeamBuilderTab({
                                 >
                                     <span className="font-bold">{leagueTeamNumber === teamNum ? tlb('tabLabel') : `T${teamNum}`}</span>
                                     {leagueTeamNumber === teamNum ? (
-                                        <span className="text-xs opacity-80">
-                                            {counts.confirmed - (subsByTeam[teamNum]?.size || 0)}M / {subsByTeam[teamNum]?.size || 0}S
+                                        <span
+                                            className="text-[11px] sm:text-xs opacity-80 whitespace-nowrap"
+                                            title={tlb('countTitle')}
+                                        >
+                                            {counts.confirmed - (subsByTeam[teamNum]?.size || 0)} {tlb('mainShort')} / {subsByTeam[teamNum]?.size || 0} {tlb('subShort')}
                                         </span>
                                     ) : (
-                                        <span className="text-xs opacity-80">
+                                        <span className="text-xs opacity-80 whitespace-nowrap">
                                             {counts.confirmed}✓ {counts.maybe > 0 && `+ ${counts.maybe}?`}
                                         </span>
                                     )}
@@ -3311,6 +3314,12 @@ export default function AooStrategyPage() {
                                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center font-semibold text-xs">4</span>
                                     <div>
                                         {t.rich('landing.step4', { strong: (chunks) => <strong>{chunks}</strong> })}
+                                    </div>
+                                </div>
+                                <div className="flex gap-3">
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 flex items-center justify-center font-semibold text-xs">5</span>
+                                    <div>
+                                        {t.rich('landing.step5', { strong: (chunks) => <strong>{chunks}</strong> })}
                                     </div>
                                 </div>
                             </div>

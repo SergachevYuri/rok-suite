@@ -277,7 +277,8 @@
       "step1": "<strong>Créer un plan</strong> - Cliquez sur le bouton ci-dessus pour démarrer un nouveau plan d'équipe",
       "step2": "<strong>Construire vos équipes</strong> - Sélectionnez les joueurs, répartissez dans les zones, assignez les chefs de rallye",
       "step3": "<strong>Partager le lien</strong> - Copiez l'URL et partagez-la avec vos chefs d'équipe",
-      "step4": "<strong>Collaborer</strong> - Toute personne disposant du lien peut voir et modifier le plan"
+      "step4": "<strong>Collaborer</strong> - Toute personne disposant du lien peut voir et modifier le plan",
+      "step5": "<strong>Vous gérez une ligue ?</strong> - Ajoutez l'onglet d'inscription de la ligue lors de l'import. Ses 45 joueurs forment une équipe séparée à effectif fixe et sont exclus des inscriptions Équipe 1 / Équipe 2 du week-end. Verrouillez l'effectif pour le tournoi afin que les modifications de la feuille en cours de saison ne puissent pas le changer."
     },
     "header": {
       "title": "Planificateur AoO",
@@ -365,6 +366,7 @@
       "league": {
         "label": "Onglet d'inscription Ligue",
         "optional": "(optionnel)",
+        "helper": "Les joueurs inscrits ici jouent uniquement dans l'équipe de ligue — ils sont automatiquement exclus des inscriptions Équipe 1 / Équipe 2 de l'onglet principal.",
         "placeholder": "Coller l'URL de l'onglet Ligue (gid différent)",
         "clearTitle": "Effacer le roster Ligue chargé",
         "loaded": "{count, plural, =0 {Aucun joueur Ligue chargé} one {# joueur Ligue chargé · exclu de l'Équipe 1 / Équipe 2} other {# joueurs Ligue chargés · exclus de l'Équipe 1 / Équipe 2}}",
@@ -382,14 +384,16 @@
         "lockButton": "Verrouiller le roster de {count} joueurs pour un tournoi",
         "locking": "Démarrage…",
         "lockTitle": "Capturer un instantané des joueurs Ligue actuels. Pendant que le tournoi est actif, les modifications de la feuille en cours de tournoi sont ignorées.",
-        "namePrompt": "Nom du tournoi (verrouille les joueurs Ligue actuels pour la durée) :",
+        "namePrompt": "Nommez ce tournoi (p. ex. \"Ligue Printemps 2026\"). Les joueurs actuels de la ligue seront figés jusqu'à ce que vous terminiez le tournoi — même si la feuille est modifiée par la suite.",
         "endConfirm": "Terminer \"{name}\" ? L'équipe Ligue reprendra la lecture depuis l'onglet en direct.",
         "drift": {
           "title": "La feuille Ligue diffère du roster verrouillé",
           "explanation": "Ces modifications sont ignorées — le planificateur utilise le roster verrouillé.",
           "added": "ajoutés",
           "removed": "retirés"
-        }
+        },
+        "showRoster": "Afficher la liste verrouillée",
+        "hideRoster": "Masquer la liste verrouillée"
       },
       "summary": "Résumé",
       "distribute": "Distribuer",
@@ -420,8 +424,11 @@
         "tabTitle": "Équipe Ligue — roster fixe, répartition titulaire/remplaçant hebdomadaire",
         "main": "Titulaire",
         "sub": "Remplaçant",
-        "mainTitle": "Affecté comme titulaire ce week-end — cliquer pour mettre remplaçant",
-        "subTitle": "Affecté comme remplaçant ce week-end — cliquer pour mettre titulaire"
+        "mainShort": "Tit.",
+        "subShort": "Rem.",
+        "countTitle": "Titulaires en jeu ce week-end / Remplaçants sur le banc",
+        "mainTitle": "Actuellement titulaire ce week-end — cliquez pour mettre sur le banc (marquer comme remplaçant). Les remplaçants sont placés sur le banc à la distribution.",
+        "subTitle": "Actuellement sur le banc comme remplaçant ce week-end — cliquez pour remettre dans la composition. Les remplaçants sont placés sur le banc à la distribution."
       },
       "title": "Créateur d'équipe",
       "alliance": "Alliance :",
