@@ -427,12 +427,21 @@ export default function KingdomStats() {
   return (
     <div key={refreshKey} className="min-h-screen p-4 lg:p-8">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
-          <BarChart3 size={28} className="text-green-500" />
-          Kingdom Stats
-        </h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">Seeds scan stats — uploaded from Excel</p>
+      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
+            <BarChart3 size={28} className="text-green-500" />
+            Kingdom Stats
+          </h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Seeds scan stats — uploaded from Excel</p>
+        </div>
+        <a
+          href="/kingdom/ready-to-migrate"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 transition-colors flex-shrink-0"
+          title="Show players (gov_id ≥ 205000000) across all kingdoms with their seed band"
+        >
+          Possible candidates →
+        </a>
       </div>
 
       {/* Tab toggle */}
@@ -477,13 +486,6 @@ export default function KingdomStats() {
               />
             </div>
 
-            <a
-              href="/kingdom/ready-to-migrate"
-              className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 transition-colors"
-              title="Show players (gov_id ≥ 205000000) across all kingdoms with their seed band"
-            >
-              Possible candidates →
-            </a>
           </div>
 
           {!isLoading && players.length > 0 && (
