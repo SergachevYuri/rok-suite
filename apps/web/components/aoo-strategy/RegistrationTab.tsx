@@ -8,6 +8,12 @@ import { parseKingdomXLSX } from '@/lib/kingdom/parse';
 import type { AooRegistration } from '@/lib/aoo-strategy/types';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
 import { supabase } from '@/lib/supabase';
+import {
+  type AooLeagueTournament,
+  getActiveLeagueTournament,
+  startLeagueTournament,
+  endLeagueTournament,
+} from '@/lib/supabase/use-aoo-league-tournament';
 
 const SHEET_URL_KEY = 'aoo-registration-sheet-url';
 const LEAGUE_SHEET_URL_KEY = 'aoo-league-sheet-url';
@@ -57,6 +63,26 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
   } | null>(null);
   const [scanUploadStatus, setScanUploadStatus] = useState<'idle' | 'parsing' | 'saving' | 'error'>('idle');
   const [scanUploadError, setScanUploadError] = useState<string | null>(null);
+
+  // Active tournament — when set, its `roster` is the source of truth for the
+  // league team and overrides whatever the live league sheet currently has.
+  // Mid-tournament edits to the league tab can't change who's committed.
+  const [activeTournament, setActiveTournament] = useState<AooLeagueTournament | null>(null);
+  const [tournamentLoading, setTournamentLoading] = useState(false);
+  const [tournamentError, setTournamentError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const t = await getActiveLeagueTournament();
+        if (!cancelled) setActiveTournament(t);
+      } catch (err) {
+        if (!cancelled) setTournamentError(err instanceof Error ? err.message : 'Failed to load tournament');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Restore last used URLs
   useEffect(() => {
@@ -112,6 +138,50 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
   const clearLeague = () => {
     setRawLeagueRegistrations([]);
     setLeagueError(null);
+  };
+
+  const handleStartTournament = async () => {
+    if (rawLeagueRegistrations.length === 0) return;
+    const defaultName = `League ${new Date().toISOString().slice(0, 10)}`;
+    const name = window.prompt(
+      'Tournament name (locks the current 45 league players for the duration):',
+      defaultName,
+    );
+    if (name === null) return;
+    const trimmed = name.trim() || defaultName;
+    setTournamentLoading(true);
+    setTournamentError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const tournament = await startLeagueTournament(
+        trimmed,
+        rawLeagueRegistrations,
+        user?.email ?? user?.id ?? null,
+      );
+      setActiveTournament(tournament);
+    } catch (err) {
+      setTournamentError(err instanceof Error ? err.message : 'Failed to start tournament');
+    } finally {
+      setTournamentLoading(false);
+    }
+  };
+
+  const handleEndTournament = async () => {
+    if (!activeTournament) return;
+    if (!window.confirm(
+      `End "${activeTournament.name}"? The league team will go back to reading from the live sheet tab.`,
+    )) return;
+    setTournamentLoading(true);
+    setTournamentError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await endLeagueTournament(activeTournament.id, user?.email ?? user?.id ?? null);
+      setActiveTournament(null);
+    } catch (err) {
+      setTournamentError(err instanceof Error ? err.message : 'Failed to end tournament');
+    } finally {
+      setTournamentLoading(false);
+    }
   };
 
   const handleOfficerFetch = async () => {
@@ -248,11 +318,20 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
     ...(inlineScan?.killsByGovId || {}),
   }), [killsByGovId, inlineScan]);
 
+  // While a tournament is active, the snapshot is the source of truth for the
+  // league roster — even if the live sheet now shows a different set of names.
+  // Outside a tournament, fall back to whatever the league sheet returned on
+  // the most recent fetch.
+  const effectiveLeagueRegistrations = useMemo<AooRegistration[]>(() => {
+    if (activeTournament) return activeTournament.roster;
+    return rawLeagueRegistrations;
+  }, [activeTournament, rawLeagueRegistrations]);
+
   const { registrations, filledFromScanCount, missingPowerCount } = useMemo(() => {
     // Combine main + league with mutual exclusion: league players are removed
     // from the normal Team 1 / Team 2 pools and tagged with league=true so the
     // team builder can route them to the league team.
-    const combined = mergeAooRegistrations(rawRegistrations, rawLeagueRegistrations);
+    const combined = mergeAooRegistrations(rawRegistrations, effectiveLeagueRegistrations);
     let filled = 0;
     let missing = 0;
     const merged = combined.map((r) => {
@@ -270,7 +349,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
       return { ...r, power, kills: scanKills, fromScan } as AooRegistration & { fromScan?: boolean; kills?: number };
     });
     return { registrations: merged, filledFromScanCount: filled, missingPowerCount: missing };
-  }, [rawRegistrations, rawLeagueRegistrations, effectivePowerByGovId, effectiveKillsByGovId]);
+  }, [rawRegistrations, effectiveLeagueRegistrations, effectivePowerByGovId, effectiveKillsByGovId]);
 
   // Derived stats. Normal-team rosters exclude league players (they were
   // already stripped out at merge time, so r.team1 / r.team2 are forced false
@@ -414,7 +493,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
               )}
             </div>
           </div>
-          {rawLeagueRegistrations.length > 0 && (
+          {rawLeagueRegistrations.length > 0 && !activeTournament && (
             <p className="mt-1.5 text-xs text-purple-400 flex items-center gap-1.5">
               <Trophy size={11} />
               <strong>{stats.league.length}</strong>
@@ -425,6 +504,57 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
             <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1.5">
               <AlertTriangle size={11} className="shrink-0" />
               <span className="min-w-0 break-words">{leagueError}</span>
+            </p>
+          )}
+
+          {/* Tournament lock — when active, the saved roster snapshot is the
+              source of truth for the league team; sheet edits are ignored
+              until the tournament ends. */}
+          {activeTournament ? (
+            <div className="mt-2 rounded-lg border border-purple-500/40 bg-purple-500/10 px-3 py-2.5">
+              <div className="flex items-start justify-between gap-2 flex-wrap">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Trophy size={12} /> Tournament locked
+                  </div>
+                  <div className="text-sm text-purple-200 mt-0.5 truncate">
+                    <strong>{activeTournament.name}</strong>
+                    <span className="text-purple-300/80"> · {activeTournament.roster.length} player{activeTournament.roster.length === 1 ? '' : 's'} frozen</span>
+                  </div>
+                  <div className="text-[11px] text-purple-300/70 mt-0.5">
+                    Started {new Date(activeTournament.started_at).toLocaleDateString()}
+                    {activeTournament.started_by ? ` · by ${activeTournament.started_by}` : ''}
+                    {' · '}sheet edits are ignored until ended
+                  </div>
+                </div>
+                {isOfficer && (
+                  <button
+                    onClick={handleEndTournament}
+                    disabled={tournamentLoading}
+                    className="px-3 py-1.5 rounded-md text-xs font-medium bg-purple-600/20 text-purple-200 border border-purple-500/40 hover:bg-purple-600/30 disabled:opacity-50 shrink-0"
+                  >
+                    {tournamentLoading ? 'Ending…' : 'End tournament'}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            isOfficer && rawLeagueRegistrations.length > 0 && (
+              <button
+                onClick={handleStartTournament}
+                disabled={tournamentLoading}
+                className="mt-2 w-full sm:w-auto px-3 py-2 rounded-md text-xs font-medium bg-purple-600/15 text-purple-300 border border-purple-500/40 hover:bg-purple-600/25 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                title="Snapshot the current 45 league players. While the tournament is active, mid-tournament sheet edits are ignored."
+              >
+                <Trophy size={12} />
+                {tournamentLoading ? 'Starting…' : `Lock the ${rawLeagueRegistrations.length}-player roster for a tournament`}
+              </button>
+            )
+          )}
+          {tournamentError && (
+            <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1.5">
+              <AlertTriangle size={11} className="shrink-0" />
+              <span className="min-w-0 break-words">{tournamentError}</span>
             </p>
           )}
         </div>
