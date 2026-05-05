@@ -337,12 +337,15 @@
         "power": "Poder",
         "powerDesc": "Poder do jogador",
         "powerDescFull": "Poder do jogador (ex. 85000000)",
+        "confirmed": "Confirmado",
+        "confirmedDesc": "x = pronto para jogar",
+        "confirmedDescFull": "Confirmado pelo oficial para participar. Jogadores sem x não são considerados para nenhuma equipe.",
         "team1": "Equipe 1",
         "team1Desc": "x = disponível",
-        "team1DescFull": "Disponível para Equipe 1",
+        "team1DescFull": "Disponível para Equipe 1 (apenas se Confirmado)",
         "team2": "Equipe 2",
         "team2Desc": "x = disponível",
-        "team2DescFull": "Disponível para Equipe 2",
+        "team2DescFull": "Disponível para Equipe 2 (apenas se Confirmado)",
         "rallyLeader": "Líder de rali",
         "rallyLeaderDesc": "x = pode liderar rali",
         "rallyLeaderDescFull": "Pode liderar ralis",
@@ -351,7 +354,42 @@
         "garrisonLeaderDescFull": "Pode liderar guarnições",
         "mid": "Mid",
         "midDesc": "x = prefere mid",
-        "midDescFull": "Prefere rota do meio / portador da arca"
+        "midDescFull": "Prefere rota do meio / portador da arca",
+        "sub": "Reserva",
+        "subDesc": "x = papel de reserva",
+        "subDescFull": "Escalado como reserva — papel diferente no jogo do titular, não é sinônimo de 'talvez'. Bloqueado no banco na distribuição e pode entrar como substituto.",
+        "league": "Aba Liga",
+        "leagueDesc": "aba separada da planilha",
+        "leagueDescFull": "Jogadores inscritos na aba Liga. Excluídos da Equipe 1 / Equipe 2; jogam na equipe Liga dedicada."
+      },
+      "league": {
+        "label": "Aba de inscrição da Liga",
+        "optional": "(opcional)",
+        "placeholder": "Cole a URL da aba Liga (gid diferente)",
+        "clearTitle": "Limpar roster da Liga carregado",
+        "loaded": "{count, plural, =0 {Nenhum jogador da Liga carregado} one {# jogador da Liga carregado · excluído da Equipe 1 / Equipe 2} other {# jogadores da Liga carregados · excluídos da Equipe 1 / Equipe 2}}",
+        "statLabel": "Liga",
+        "badge": "Liga"
+      },
+      "tournament": {
+        "locked": "Torneio bloqueado",
+        "frozenSummary": "{count, plural, one {# jogador congelado} other {# jogadores congelados}}",
+        "startedOn": "Iniciado em {date}",
+        "startedBy": "por {name}",
+        "ignoredUntilEnded": "edições da planilha são ignoradas até o término",
+        "endButton": "Encerrar torneio",
+        "ending": "Encerrando…",
+        "lockButton": "Bloquear o roster de {count} jogadores para um torneio",
+        "locking": "Iniciando…",
+        "lockTitle": "Capturar instantâneo dos jogadores da Liga atuais. Enquanto o torneio estiver ativo, edições na planilha durante o torneio são ignoradas.",
+        "namePrompt": "Nome do torneio (bloqueia os jogadores da Liga atuais pela duração):",
+        "endConfirm": "Encerrar \"{name}\"? A equipe da Liga voltará a ler da aba ao vivo.",
+        "drift": {
+          "title": "A planilha da Liga difere do roster bloqueado",
+          "explanation": "Estas alterações são ignoradas — o planejador usa o roster bloqueado.",
+          "added": "adicionados",
+          "removed": "removidos"
+        }
       },
       "summary": "Resumo",
       "distribute": "Distribuir",
@@ -377,6 +415,14 @@
       }
     },
     "builder": {
+      "league": {
+        "tabLabel": "Liga",
+        "tabTitle": "Equipe Liga — roster fixo, divisão semanal titular/reserva",
+        "main": "Titular",
+        "sub": "Reserva",
+        "mainTitle": "Escalado como titular neste fim de semana — clique para tornar reserva",
+        "subTitle": "Escalado como reserva neste fim de semana — clique para tornar titular"
+      },
       "title": "Construtor de equipe",
       "alliance": "Aliança:",
       "all": "Todos",

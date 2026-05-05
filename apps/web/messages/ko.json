@@ -337,12 +337,15 @@
         "power": "전투력",
         "powerDesc": "플레이어 전투력",
         "powerDescFull": "플레이어 전투력 (예: 85000000)",
+        "confirmed": "확정",
+        "confirmedDesc": "x = 출전 준비 완료",
+        "confirmedDescFull": "오피서가 참가를 확정. x가 없는 플레이어는 어느 팀에도 고려되지 않습니다.",
         "team1": "팀 1",
         "team1Desc": "x = 참가 가능",
-        "team1DescFull": "팀 1 참가 가능",
+        "team1DescFull": "팀 1 참가 가능 (확정된 경우에만)",
         "team2": "팀 2",
         "team2Desc": "x = 참가 가능",
-        "team2DescFull": "팀 2 참가 가능",
+        "team2DescFull": "팀 2 참가 가능 (확정된 경우에만)",
         "rallyLeader": "랠리 리더",
         "rallyLeaderDesc": "x = 랠리 가능",
         "rallyLeaderDescFull": "랠리를 이끌 수 있음",
@@ -351,7 +354,42 @@
         "garrisonLeaderDescFull": "수비대를 이끌 수 있음",
         "mid": "Mid",
         "midDesc": "x = 중앙 선호",
-        "midDescFull": "중앙 라인 / 방주 운반 선호"
+        "midDescFull": "중앙 라인 / 방주 운반 선호",
+        "sub": "서브",
+        "subDesc": "x = 서브 역할",
+        "subDescFull": "서브로 배정됨 — 메인과 다른 게임 내 역할이며 '미정'의 동의어가 아닙니다. 배분 시 벤치에 고정되며 교체 투입될 수 있습니다.",
+        "league": "리그 탭",
+        "leagueDesc": "별도 시트 탭",
+        "leagueDescFull": "리그 탭에 등록된 플레이어. 팀 1 / 팀 2에서 제외되며 전용 리그 팀에서 플레이합니다."
+      },
+      "league": {
+        "label": "리그 등록 탭",
+        "optional": "(선택사항)",
+        "placeholder": "리그 탭 URL 붙여넣기 (다른 gid)",
+        "clearTitle": "로드된 리그 로스터 지우기",
+        "loaded": "{count, plural, =0 {로드된 리그 플레이어 없음} one {# 명의 리그 플레이어 로드됨 · 팀 1 / 팀 2에서 제외} other {# 명의 리그 플레이어 로드됨 · 팀 1 / 팀 2에서 제외}}",
+        "statLabel": "리그",
+        "badge": "리그"
+      },
+      "tournament": {
+        "locked": "토너먼트 잠김",
+        "frozenSummary": "{count, plural, one {# 명의 플레이어 고정} other {# 명의 플레이어 고정}}",
+        "startedOn": "{date} 시작",
+        "startedBy": "{name} 시작",
+        "ignoredUntilEnded": "종료될 때까지 시트 편집은 무시됩니다",
+        "endButton": "토너먼트 종료",
+        "ending": "종료 중…",
+        "lockButton": "{count}명 로스터를 토너먼트용으로 잠그기",
+        "locking": "시작 중…",
+        "lockTitle": "현재 리그 플레이어의 스냅샷을 만듭니다. 토너먼트 진행 중에는 도중의 시트 편집이 무시됩니다.",
+        "namePrompt": "토너먼트 이름 (진행 기간 동안 현재 리그 플레이어를 잠급니다):",
+        "endConfirm": "\"{name}\"을(를) 종료하시겠습니까? 리그 팀은 다시 활성 시트 탭에서 읽기를 시작합니다.",
+        "drift": {
+          "title": "리그 시트가 잠긴 로스터와 다릅니다",
+          "explanation": "이 변경 사항은 무시됩니다 — 플래너는 잠긴 로스터를 사용합니다.",
+          "added": "추가됨",
+          "removed": "제거됨"
+        }
       },
       "summary": "요약",
       "distribute": "배분",
@@ -377,6 +415,14 @@
       }
     },
     "builder": {
+      "league": {
+        "tabLabel": "리그",
+        "tabTitle": "리그 팀 — 고정 로스터, 주간 메인/서브 분할",
+        "main": "메인",
+        "sub": "서브",
+        "mainTitle": "이번 주말 메인으로 배정 — 클릭하여 서브로 변경",
+        "subTitle": "이번 주말 서브로 배정 — 클릭하여 메인으로 변경"
+      },
       "title": "팀 빌더",
       "alliance": "동맹:",
       "all": "전체",

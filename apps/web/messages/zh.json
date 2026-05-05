@@ -337,12 +337,15 @@
         "power": "战力",
         "powerDesc": "玩家战力",
         "powerDescFull": "玩家战力（例如 85000000）",
+        "confirmed": "已确认",
+        "confirmedDesc": "x = 准备出战",
+        "confirmedDescFull": "由军官确认参加。未标记 x 的玩家不会被任何队伍考虑。",
         "team1": "队伍 1",
         "team1Desc": "x = 可参加",
-        "team1DescFull": "可参加队伍 1",
+        "team1DescFull": "可参加队伍 1（仅限已确认）",
         "team2": "队伍 2",
         "team2Desc": "x = 可参加",
-        "team2DescFull": "可参加队伍 2",
+        "team2DescFull": "可参加队伍 2（仅限已确认）",
         "rallyLeader": "集结队长",
         "rallyLeaderDesc": "x = 可集结",
         "rallyLeaderDescFull": "可领导集结",
@@ -351,7 +354,42 @@
         "garrisonLeaderDescFull": "可领导驻防",
         "mid": "中路",
         "midDesc": "x = 偏好中路",
-        "midDescFull": "偏好中路 / 方舟搬运"
+        "midDescFull": "偏好中路 / 方舟搬运",
+        "sub": "替补",
+        "subDesc": "x = 替补角色",
+        "subDescFull": "安排为替补 — 与正选不同的游戏内角色，并非 '待定' 的同义词。在分配时锁定在替补席，可被换入。",
+        "league": "联赛标签页",
+        "leagueDesc": "独立的表格标签页",
+        "leagueDescFull": "在联赛标签页报名的玩家。从队伍 1 / 队伍 2 中排除；在专属的联赛队伍中出战。"
+      },
+      "league": {
+        "label": "联赛报名标签页",
+        "optional": "（可选）",
+        "placeholder": "粘贴联赛标签页的 URL（不同的 gid）",
+        "clearTitle": "清空已加载的联赛名单",
+        "loaded": "{count, plural, =0 {未加载联赛玩家} one {已加载 # 名联赛玩家 · 已从队伍 1 / 队伍 2 中排除} other {已加载 # 名联赛玩家 · 已从队伍 1 / 队伍 2 中排除}}",
+        "statLabel": "联赛",
+        "badge": "联赛"
+      },
+      "tournament": {
+        "locked": "锦标赛已锁定",
+        "frozenSummary": "{count, plural, one {已冻结 # 名玩家} other {已冻结 # 名玩家}}",
+        "startedOn": "{date} 开始",
+        "startedBy": "由 {name} 开始",
+        "ignoredUntilEnded": "在结束前忽略表格编辑",
+        "endButton": "结束锦标赛",
+        "ending": "结束中…",
+        "lockButton": "为锦标赛锁定 {count} 名玩家的名单",
+        "locking": "启动中…",
+        "lockTitle": "为当前的联赛玩家创建快照。锦标赛进行期间，途中的表格编辑将被忽略。",
+        "namePrompt": "锦标赛名称（在持续期间锁定当前联赛玩家）：",
+        "endConfirm": "结束 \"{name}\"？联赛队伍将恢复从实时表格标签页读取。",
+        "drift": {
+          "title": "联赛表格与已锁定名单不同",
+          "explanation": "这些更改将被忽略 — 规划工具使用已锁定的名单。",
+          "added": "已添加",
+          "removed": "已移除"
+        }
       },
       "summary": "概览",
       "distribute": "分配",
@@ -377,6 +415,14 @@
       }
     },
     "builder": {
+      "league": {
+        "tabLabel": "联赛",
+        "tabTitle": "联赛队伍 — 固定名单，每周正选/替补轮换",
+        "main": "正选",
+        "sub": "替补",
+        "mainTitle": "本周末安排为正选 — 点击改为替补",
+        "subTitle": "本周末安排为替补 — 点击改为正选"
+      },
       "title": "组队工具",
       "alliance": "联盟：",
       "all": "全部",

@@ -39,6 +39,8 @@ interface RegistrationTabProps {
 export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuilder, isOfficer, powerByGovId, killsByGovId, scanLabel, isSignedIn }: RegistrationTabProps) {
   const t = useTranslations('aoo.registration');
   const to = useTranslations('aoo.officer');
+  const tl = useTranslations('aoo.registration.league');
+  const tt = useTranslations('aoo.registration.tournament');
   const [sheetUrl, setSheetUrl] = useState('');
   const [leagueSheetUrl, setLeagueSheetUrl] = useState('');
   const [rawRegistrations, setRawRegistrations] = useState<AooRegistration[]>([]);
@@ -143,10 +145,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
   const handleStartTournament = async () => {
     if (rawLeagueRegistrations.length === 0) return;
     const defaultName = `League ${new Date().toISOString().slice(0, 10)}`;
-    const name = window.prompt(
-      'Tournament name (locks the current 45 league players for the duration):',
-      defaultName,
-    );
+    const name = window.prompt(tt('namePrompt'), defaultName);
     if (name === null) return;
     const trimmed = name.trim() || defaultName;
     setTournamentLoading(true);
@@ -168,9 +167,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
 
   const handleEndTournament = async () => {
     if (!activeTournament) return;
-    if (!window.confirm(
-      `End "${activeTournament.name}"? The league team will go back to reading from the live sheet tab.`,
-    )) return;
+    if (!window.confirm(tt('endConfirm', { name: activeTournament.name }))) return;
     setTournamentLoading(true);
     setTournamentError(null);
     try {
@@ -327,6 +324,29 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
     return rawLeagueRegistrations;
   }, [activeTournament, rawLeagueRegistrations]);
 
+  // Drift detection: while a tournament is locked, compare the live league
+  // sheet (if loaded) against the snapshot's gov-ID set. Adds = new gov IDs
+  // appearing on the sheet that aren't in the snapshot (won't be played
+  // because they're not committed). Removes = gov IDs in the snapshot that
+  // were taken off the sheet (still played because the snapshot wins). Match
+  // is by gov ID; rows without gov IDs are ignored to keep this conservative.
+  const tournamentDrift = useMemo<{
+    added: AooRegistration[];
+    removed: AooRegistration[];
+  } | null>(() => {
+    if (!activeTournament || rawLeagueRegistrations.length === 0) return null;
+    const snapshotIds = new Set<number>(
+      activeTournament.roster.filter(r => r.govId).map(r => r.govId),
+    );
+    const liveIds = new Set<number>(
+      rawLeagueRegistrations.filter(r => r.govId).map(r => r.govId),
+    );
+    const added = rawLeagueRegistrations.filter(r => r.govId && !snapshotIds.has(r.govId));
+    const removed = activeTournament.roster.filter(r => r.govId && !liveIds.has(r.govId));
+    if (added.length === 0 && removed.length === 0) return null;
+    return { added, removed };
+  }, [activeTournament, rawLeagueRegistrations]);
+
   const { registrations, filledFromScanCount, missingPowerCount } = useMemo(() => {
     // Combine main + league with mutual exclusion: league players are removed
     // from the normal Team 1 / Team 2 pools and tagged with league=true so the
@@ -455,15 +475,15 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
         <div className="mb-3 sm:mb-4">
           <label className={`text-xs sm:text-sm font-medium ${theme.text} mb-1.5 flex items-center gap-1.5`}>
             <Trophy size={12} className="text-purple-400" />
-            League sign-up tab
-            <span className={`font-normal ${theme.textMuted}`}>(optional)</span>
+            {tl('label')}
+            <span className={`font-normal ${theme.textMuted}`}>{tl('optional')}</span>
           </label>
           <div className="space-y-2 sm:space-y-0 sm:flex sm:gap-2">
             <input
               type="url"
               value={leagueSheetUrl}
               onChange={(e) => setLeagueSheetUrl(e.target.value)}
-              placeholder="Paste the URL of the league tab (different gid)"
+              placeholder={tl('placeholder')}
               className={`w-full min-w-0 px-3 py-2 rounded-lg text-sm ${theme.input} border`}
               onKeyDown={(e) => e.key === 'Enter' && handleLeagueFetch()}
             />
@@ -486,7 +506,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                 <button
                   onClick={clearLeague}
                   className={`px-2.5 py-2 rounded-lg text-sm ${theme.button} flex items-center`}
-                  title="Clear loaded league roster"
+                  title={tl('clearTitle')}
                 >
                   <span className="text-xs">×</span>
                 </button>
@@ -496,8 +516,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
           {rawLeagueRegistrations.length > 0 && !activeTournament && (
             <p className="mt-1.5 text-xs text-purple-400 flex items-center gap-1.5">
               <Trophy size={11} />
-              <strong>{stats.league.length}</strong>
-              <span>league player{stats.league.length === 1 ? '' : 's'} loaded · they&apos;re excluded from Team 1 / Team 2</span>
+              <span>{tl('loaded', { count: stats.league.length })}</span>
             </p>
           )}
           {leagueError && (
@@ -511,43 +530,71 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
               source of truth for the league team; sheet edits are ignored
               until the tournament ends. */}
           {activeTournament ? (
-            <div className="mt-2 rounded-lg border border-purple-500/40 bg-purple-500/10 px-3 py-2.5">
-              <div className="flex items-start justify-between gap-2 flex-wrap">
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Trophy size={12} /> Tournament locked
+            <>
+              <div className="mt-2 rounded-lg border border-purple-500/40 bg-purple-500/10 px-3 py-2.5">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Trophy size={12} /> {tt('locked')}
+                    </div>
+                    <div className="text-sm text-purple-200 mt-0.5 truncate">
+                      <strong>{activeTournament.name}</strong>
+                      <span className="text-purple-300/80"> · {tt('frozenSummary', { count: activeTournament.roster.length })}</span>
+                    </div>
+                    <div className="text-[11px] text-purple-300/70 mt-0.5">
+                      {tt('startedOn', { date: new Date(activeTournament.started_at).toLocaleDateString() })}
+                      {activeTournament.started_by ? ` · ${tt('startedBy', { name: activeTournament.started_by })}` : ''}
+                      {' · '}{tt('ignoredUntilEnded')}
+                    </div>
                   </div>
-                  <div className="text-sm text-purple-200 mt-0.5 truncate">
-                    <strong>{activeTournament.name}</strong>
-                    <span className="text-purple-300/80"> · {activeTournament.roster.length} player{activeTournament.roster.length === 1 ? '' : 's'} frozen</span>
-                  </div>
-                  <div className="text-[11px] text-purple-300/70 mt-0.5">
-                    Started {new Date(activeTournament.started_at).toLocaleDateString()}
-                    {activeTournament.started_by ? ` · by ${activeTournament.started_by}` : ''}
-                    {' · '}sheet edits are ignored until ended
-                  </div>
+                  {isOfficer && (
+                    <button
+                      onClick={handleEndTournament}
+                      disabled={tournamentLoading}
+                      className="px-3 py-1.5 rounded-md text-xs font-medium bg-purple-600/20 text-purple-200 border border-purple-500/40 hover:bg-purple-600/30 disabled:opacity-50 shrink-0"
+                    >
+                      {tournamentLoading ? tt('ending') : tt('endButton')}
+                    </button>
+                  )}
                 </div>
-                {isOfficer && (
-                  <button
-                    onClick={handleEndTournament}
-                    disabled={tournamentLoading}
-                    className="px-3 py-1.5 rounded-md text-xs font-medium bg-purple-600/20 text-purple-200 border border-purple-500/40 hover:bg-purple-600/30 disabled:opacity-50 shrink-0"
-                  >
-                    {tournamentLoading ? 'Ending…' : 'End tournament'}
-                  </button>
-                )}
               </div>
-            </div>
+              {tournamentDrift && (
+                <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs">
+                  <div className="font-semibold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle size={12} /> {tt('drift.title')}
+                  </div>
+                  <p className="text-amber-200/90 mt-1">{tt('drift.explanation')}</p>
+                  {tournamentDrift.added.length > 0 && (
+                    <p className="mt-1.5 text-amber-200">
+                      <span className="font-semibold">+{tournamentDrift.added.length} {tt('drift.added')}:</span>{' '}
+                      <span className="text-amber-200/80">
+                        {tournamentDrift.added.slice(0, 5).map(r => r.name).join(', ')}
+                        {tournamentDrift.added.length > 5 ? ` +${tournamentDrift.added.length - 5}` : ''}
+                      </span>
+                    </p>
+                  )}
+                  {tournamentDrift.removed.length > 0 && (
+                    <p className="mt-1 text-amber-200">
+                      <span className="font-semibold">−{tournamentDrift.removed.length} {tt('drift.removed')}:</span>{' '}
+                      <span className="text-amber-200/80">
+                        {tournamentDrift.removed.slice(0, 5).map(r => r.name).join(', ')}
+                        {tournamentDrift.removed.length > 5 ? ` +${tournamentDrift.removed.length - 5}` : ''}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             isOfficer && rawLeagueRegistrations.length > 0 && (
               <button
                 onClick={handleStartTournament}
                 disabled={tournamentLoading}
                 className="mt-2 w-full sm:w-auto px-3 py-2 rounded-md text-xs font-medium bg-purple-600/15 text-purple-300 border border-purple-500/40 hover:bg-purple-600/25 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
-                title="Snapshot the current 45 league players. While the tournament is active, mid-tournament sheet edits are ignored."
+                title={tt('lockTitle')}
               >
                 <Trophy size={12} />
-                {tournamentLoading ? 'Starting…' : `Lock the ${rawLeagueRegistrations.length}-player roster for a tournament`}
+                {tournamentLoading ? tt('locking') : tt('lockButton', { count: rawLeagueRegistrations.length })}
               </button>
             )
           )}
@@ -637,11 +684,14 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                 { col: t('columns.name'), desc: t('columns.nameDesc') },
                 { col: t('columns.govId'), desc: t('columns.govIdDesc') },
                 { col: t('columns.power'), desc: t('columns.powerDesc') },
+                { col: t('columns.confirmed'), desc: t('columns.confirmedDesc') },
                 { col: t('columns.team1'), desc: t('columns.team1Desc') },
                 { col: t('columns.team2'), desc: t('columns.team2Desc') },
                 { col: t('columns.rallyLeader'), desc: t('columns.rallyLeaderDesc') },
                 { col: t('columns.garrisonLeader'), desc: t('columns.garrisonLeaderDesc') },
                 { col: t('columns.mid'), desc: t('columns.midDesc') },
+                { col: t('columns.sub'), desc: t('columns.subDesc') },
+                { col: t('columns.league'), desc: t('columns.leagueDesc') },
               ].map(({ col, desc }) => (
                 <div key={col} className="flex gap-2">
                   <span className="font-medium text-[var(--foreground)] shrink-0 w-24">{col}</span>
@@ -661,11 +711,14 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.name')}</td><td className="py-1.5 pr-3">Text</td><td className="py-1.5">{t('columns.nameDescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.govId')}</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">{t('columns.govIdDesc')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.power')}</td><td className="py-1.5 pr-3">Number</td><td className="py-1.5">{t('columns.powerDescFull')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.confirmed')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.confirmedDescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.team1')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.team1DescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.team2')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.team2DescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.rallyLeader')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.rallyLeaderDescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.garrisonLeader')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.garrisonLeaderDescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.mid')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.midDescFull')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.sub')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.subDescFull')}</td></tr>
+                <tr className="bg-purple-500/5"><td className="py-1.5 pr-3 font-medium text-purple-300">{t('columns.league')}</td><td className="py-1.5 pr-3 text-purple-300/80">separate tab</td><td className="py-1.5 text-purple-200/90">{t('columns.leagueDescFull')}</td></tr>
               </tbody>
             </table>
             <p className="hidden sm:block">
@@ -780,7 +833,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
               <StatCard label={t('team1')} value={stats.team1.length} icon={<span className="text-blue-400 font-bold text-xs">T1</span>} theme={theme} />
               <StatCard label={t('team2')} value={stats.team2.length} icon={<span className="text-orange-400 font-bold text-xs">T2</span>} theme={theme} />
               {stats.league.length > 0 && (
-                <StatCard label="League" value={stats.league.length} icon={<Trophy size={14} className="text-purple-400" />} theme={theme} />
+                <StatCard label={tl('statLabel')} value={stats.league.length} icon={<Trophy size={14} className="text-purple-400" />} theme={theme} />
               )}
               <StatCard label={t('rally')} value={stats.rallyLeaders.length} icon={<Crown size={14} className="text-yellow-400" />} theme={theme} />
               <StatCard label={t('garrisonLabel')} value={stats.garrisonLeaders.length} icon={<Shield size={14} className="text-cyan-400" />} theme={theme} />
@@ -816,7 +869,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                         {r.name}
                         {r.league && (
                           <span className="ml-1.5 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30 align-middle">
-                            <Trophy size={9} /> League
+                            <Trophy size={9} /> {tl('badge')}
                           </span>
                         )}
                       </td>
@@ -867,7 +920,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                     <div className="flex items-center flex-wrap gap-1.5 mt-1.5 ml-7">
                       {r.league && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                          <Trophy size={10} /> League
+                          <Trophy size={10} /> {tl('badge')}
                         </span>
                       )}
                       {r.team1 && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-500/20 text-blue-400">T1</span>}

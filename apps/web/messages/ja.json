@@ -337,12 +337,15 @@
         "power": "戦力",
         "powerDesc": "プレイヤーの戦力",
         "powerDescFull": "プレイヤーの戦力（例: 85000000）",
+        "confirmed": "確定",
+        "confirmedDesc": "x = 出場準備完了",
+        "confirmedDescFull": "オフィサーが参加を確定済み。xが付いていないプレイヤーはどのチームの候補にもなりません。",
         "team1": "チーム1",
         "team1Desc": "x = 参加可能",
-        "team1DescFull": "チーム1に参加可能",
+        "team1DescFull": "チーム1に参加可能（確定済みの場合のみ）",
         "team2": "チーム2",
         "team2Desc": "x = 参加可能",
-        "team2DescFull": "チーム2に参加可能",
+        "team2DescFull": "チーム2に参加可能（確定済みの場合のみ）",
         "rallyLeader": "ラリーリーダー",
         "rallyLeaderDesc": "x = ラリー可能",
         "rallyLeaderDescFull": "ラリーを指揮可能",
@@ -351,7 +354,42 @@
         "garrisonLeaderDescFull": "駐屯を指揮可能",
         "mid": "ミッド",
         "midDesc": "x = ミッド希望",
-        "midDescFull": "ミッドレーン / 箱運び希望"
+        "midDescFull": "ミッドレーン / 箱運び希望",
+        "sub": "サブ",
+        "subDesc": "x = サブ役割",
+        "subDescFull": "サブとして配置 — メインとは異なるゲーム内の役割であり、「未定」の意味ではありません。分配時にベンチに固定され、交代要員として投入できます。",
+        "league": "リーグタブ",
+        "leagueDesc": "別のシートタブ",
+        "leagueDescFull": "リーグタブに登録されたプレイヤー。チーム1 / チーム2からは除外され、専用のリーグチームでプレイします。"
+      },
+      "league": {
+        "label": "リーグ登録タブ",
+        "optional": "（任意）",
+        "placeholder": "リーグタブのURLを貼り付け（異なるgid）",
+        "clearTitle": "読み込み済みリーグロスターをクリア",
+        "loaded": "{count, plural, =0 {リーグプレイヤーは未読込} one {# 名のリーグプレイヤーを読込済み · チーム1 / チーム2から除外} other {# 名のリーグプレイヤーを読込済み · チーム1 / チーム2から除外}}",
+        "statLabel": "リーグ",
+        "badge": "リーグ"
+      },
+      "tournament": {
+        "locked": "トーナメント・ロック中",
+        "frozenSummary": "{count, plural, one {# 名のプレイヤーを固定} other {# 名のプレイヤーを固定}}",
+        "startedOn": "{date} 開始",
+        "startedBy": "{name} による",
+        "ignoredUntilEnded": "終了までシート編集は無視されます",
+        "endButton": "トーナメント終了",
+        "ending": "終了中…",
+        "lockButton": "{count} 名のロスターをトーナメント用にロック",
+        "locking": "開始中…",
+        "lockTitle": "現在のリーグプレイヤーをスナップショットします。トーナメント中は途中のシート編集は無視されます。",
+        "namePrompt": "トーナメント名（期間中、現在のリーグプレイヤーをロックします）:",
+        "endConfirm": "「{name}」を終了しますか？ リーグチームは再びライブのシートタブから読み込みます。",
+        "drift": {
+          "title": "リーグシートがロックされたロスターと異なります",
+          "explanation": "これらの変更は無視されます — プランナーはロックされたロスターを使用します。",
+          "added": "追加",
+          "removed": "削除"
+        }
       },
       "summary": "概要",
       "distribute": "分配",
@@ -377,6 +415,14 @@
       }
     },
     "builder": {
+      "league": {
+        "tabLabel": "リーグ",
+        "tabTitle": "リーグチーム — 固定ロスター、週単位のメイン/サブ振り分け",
+        "main": "メイン",
+        "sub": "サブ",
+        "mainTitle": "今週末はメインとして配置 — クリックでサブに変更",
+        "subTitle": "今週末はサブとして配置 — クリックでメインに変更"
+      },
       "title": "チームビルダー",
       "alliance": "アライアンス:",
       "all": "すべて",

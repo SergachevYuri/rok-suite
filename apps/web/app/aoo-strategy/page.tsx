@@ -252,6 +252,7 @@ function TeamBuilderTab({
 }: TeamBuilderTabProps) {
     const t = useTranslations('aoo.builder');
     const tz = useTranslations('aoo.zones');
+    const tlb = useTranslations('aoo.builder.league');
     const ZONE_NAMES_T: Record<number, string> = {
         1: tz('topLane'),
         2: tz('midLaneArk'),
@@ -1321,9 +1322,9 @@ function TeamBuilderTab({
                                             ? `${colors.bg} text-white shadow-md`
                                             : `${colors.bg}/20 ${colors.text} border ${colors.border}/50 hover:${colors.bg}/30`
                                     }`}
-                                    title={leagueTeamNumber === teamNum ? 'League team — fixed roster, weekly main/sub split' : undefined}
+                                    title={leagueTeamNumber === teamNum ? tlb('tabTitle') : undefined}
                                 >
-                                    <span className="font-bold">{leagueTeamNumber === teamNum ? 'League' : `T${teamNum}`}</span>
+                                    <span className="font-bold">{leagueTeamNumber === teamNum ? tlb('tabLabel') : `T${teamNum}`}</span>
                                     {leagueTeamNumber === teamNum ? (
                                         <span className="text-xs opacity-80">
                                             {counts.confirmed - (subsByTeam[teamNum]?.size || 0)}M / {subsByTeam[teamNum]?.size || 0}S
@@ -1653,7 +1654,7 @@ function TeamBuilderTab({
                                             const colors = teamColors[team];
                                             const isLeagueSlot = leagueTeamNumber === team;
                                             const teamLabel = isLeagueSlot ? 'L' : String(team);
-                                            const teamTitle = isLeagueSlot ? 'League' : `Team ${team}`;
+                                            const teamTitle = isLeagueSlot ? tlb('tabLabel') : `Team ${team}`;
                                             return (
                                                 <button
                                                     key={team}
@@ -1679,9 +1680,9 @@ function TeamBuilderTab({
                                                         ? 'bg-purple-600 text-white shadow-md'
                                                         : 'bg-purple-600/20 text-purple-300 border border-purple-500/40 hover:bg-purple-600/30'
                                                 }`}
-                                                title={isSubHere ? 'Slotted as sub this weekend — click to make main' : 'Slotted as main this weekend — click to make sub'}
+                                                title={isSubHere ? tlb('subTitle') : tlb('mainTitle')}
                                             >
-                                                {isSubHere ? 'Sub' : 'Main'}
+                                                {isSubHere ? tlb('sub') : tlb('main')}
                                             </button>
                                         )}
                                     </div>

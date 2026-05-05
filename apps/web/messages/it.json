@@ -337,12 +337,15 @@
         "power": "Potenza",
         "powerDesc": "Potenza giocatore",
         "powerDescFull": "Potenza giocatore (es. 85000000)",
+        "confirmed": "Confermato",
+        "confirmedDesc": "x = pronto a giocare",
+        "confirmedDescFull": "Confermato dall'ufficiale per la partecipazione. I giocatori senza x non sono considerati per nessuna squadra.",
         "team1": "Squadra 1",
         "team1Desc": "x = disponibile",
-        "team1DescFull": "Disponibile per Squadra 1",
+        "team1DescFull": "Disponibile per Squadra 1 (solo se Confermato)",
         "team2": "Squadra 2",
         "team2Desc": "x = disponibile",
-        "team2DescFull": "Disponibile per Squadra 2",
+        "team2DescFull": "Disponibile per Squadra 2 (solo se Confermato)",
         "rallyLeader": "Leader Rally",
         "rallyLeaderDesc": "x = può fare rally",
         "rallyLeaderDescFull": "Può guidare rally",
@@ -351,7 +354,42 @@
         "garrisonLeaderDescFull": "Può guidare guarnigioni",
         "mid": "Mid",
         "midDesc": "x = preferisce mid",
-        "midDescFull": "Preferisce corsia centrale / portatore dell'arca"
+        "midDescFull": "Preferisce corsia centrale / portatore dell'arca",
+        "sub": "Riserva",
+        "subDesc": "x = ruolo riserva",
+        "subDescFull": "Inserito come riserva — ruolo in gioco diverso da titolare, non sinonimo di 'forse'. Bloccato in panchina alla distribuzione e può essere fatto entrare.",
+        "league": "Scheda Lega",
+        "leagueDesc": "foglio separato",
+        "leagueDescFull": "Giocatori iscritti nella scheda Lega. Esclusi da Squadra 1 / Squadra 2; giocano nella squadra Lega dedicata."
+      },
+      "league": {
+        "label": "Scheda iscrizione Lega",
+        "optional": "(opzionale)",
+        "placeholder": "Incolla l'URL della scheda Lega (gid diverso)",
+        "clearTitle": "Cancella il roster Lega caricato",
+        "loaded": "{count, plural, =0 {Nessun giocatore Lega caricato} one {# giocatore Lega caricato · escluso da Squadra 1 / Squadra 2} other {# giocatori Lega caricati · esclusi da Squadra 1 / Squadra 2}}",
+        "statLabel": "Lega",
+        "badge": "Lega"
+      },
+      "tournament": {
+        "locked": "Torneo bloccato",
+        "frozenSummary": "{count, plural, one {# giocatore congelato} other {# giocatori congelati}}",
+        "startedOn": "Iniziato il {date}",
+        "startedBy": "da {name}",
+        "ignoredUntilEnded": "le modifiche al foglio vengono ignorate fino alla fine",
+        "endButton": "Termina torneo",
+        "ending": "Terminando…",
+        "lockButton": "Blocca il roster da {count} giocatori per un torneo",
+        "locking": "Avvio…",
+        "lockTitle": "Cattura un'istantanea dei giocatori Lega attuali. Mentre il torneo è attivo, le modifiche al foglio durante il torneo vengono ignorate.",
+        "namePrompt": "Nome del torneo (blocca i giocatori Lega attuali per la durata):",
+        "endConfirm": "Terminare \"{name}\"? La squadra Lega tornerà a leggere dalla scheda live.",
+        "drift": {
+          "title": "Il foglio Lega differisce dal roster bloccato",
+          "explanation": "Queste modifiche vengono ignorate — il planner usa il roster bloccato.",
+          "added": "aggiunti",
+          "removed": "rimossi"
+        }
       },
       "summary": "Riepilogo",
       "distribute": "Distribuisci",
@@ -377,6 +415,14 @@
       }
     },
     "builder": {
+      "league": {
+        "tabLabel": "Lega",
+        "tabTitle": "Squadra Lega — roster fisso, divisione settimanale titolare/riserva",
+        "main": "Titolare",
+        "sub": "Riserva",
+        "mainTitle": "Inserito come titolare questo weekend — clicca per renderlo riserva",
+        "subTitle": "Inserito come riserva questo weekend — clicca per renderlo titolare"
+      },
       "title": "Costruttore squadre",
       "alliance": "Alleanza:",
       "all": "Tutti",

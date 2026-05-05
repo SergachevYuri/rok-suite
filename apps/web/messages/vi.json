@@ -337,12 +337,15 @@
         "power": "Sức mạnh",
         "powerDesc": "Sức mạnh người chơi",
         "powerDescFull": "Sức mạnh người chơi (vd: 85000000)",
+        "confirmed": "Đã xác nhận",
+        "confirmedDesc": "x = sẵn sàng thi đấu",
+        "confirmedDescFull": "Đã được sĩ quan xác nhận tham gia. Người chơi không có x sẽ không được xét cho bất kỳ đội nào.",
         "team1": "Đội 1",
         "team1Desc": "x = có thể tham gia",
-        "team1DescFull": "Có thể tham gia Đội 1",
+        "team1DescFull": "Có thể tham gia Đội 1 (chỉ khi đã Xác nhận)",
         "team2": "Đội 2",
         "team2Desc": "x = có thể tham gia",
-        "team2DescFull": "Có thể tham gia Đội 2",
+        "team2DescFull": "Có thể tham gia Đội 2 (chỉ khi đã Xác nhận)",
         "rallyLeader": "Người dẫn Rally",
         "rallyLeaderDesc": "x = có thể rally",
         "rallyLeaderDescFull": "Có thể dẫn rally",
@@ -351,7 +354,42 @@
         "garrisonLeaderDescFull": "Có thể dẫn đồn trú",
         "mid": "Mid",
         "midDesc": "x = thích mid",
-        "midDescFull": "Thích đường mid / mang ark"
+        "midDescFull": "Thích đường mid / mang ark",
+        "sub": "Dự bị",
+        "subDesc": "x = vai trò dự bị",
+        "subDescFull": "Xếp làm dự bị — vai trò trong game khác với chính thức, không phải nghĩa 'có thể'. Bị khóa ở ghế dự bị khi phân bổ và có thể vào sân thay người.",
+        "league": "Tab Liên đoàn",
+        "leagueDesc": "tab bảng tính riêng",
+        "leagueDescFull": "Người chơi đăng ký trong tab Liên đoàn. Bị loại khỏi Đội 1 / Đội 2; thi đấu trong đội Liên đoàn riêng."
+      },
+      "league": {
+        "label": "Tab đăng ký Liên đoàn",
+        "optional": "(tùy chọn)",
+        "placeholder": "Dán URL của tab Liên đoàn (gid khác)",
+        "clearTitle": "Xóa danh sách Liên đoàn đã tải",
+        "loaded": "{count, plural, =0 {Chưa tải người chơi Liên đoàn nào} other {Đã tải # người chơi Liên đoàn · loại khỏi Đội 1 / Đội 2}}",
+        "statLabel": "Liên đoàn",
+        "badge": "Liên đoàn"
+      },
+      "tournament": {
+        "locked": "Giải đấu đã khóa",
+        "frozenSummary": "{count, plural, other {Đã đóng băng # người chơi}}",
+        "startedOn": "Bắt đầu vào {date}",
+        "startedBy": "bởi {name}",
+        "ignoredUntilEnded": "các chỉnh sửa bảng tính bị bỏ qua cho đến khi kết thúc",
+        "endButton": "Kết thúc giải đấu",
+        "ending": "Đang kết thúc…",
+        "lockButton": "Khóa danh sách {count} người chơi cho một giải đấu",
+        "locking": "Đang bắt đầu…",
+        "lockTitle": "Chụp nhanh người chơi Liên đoàn hiện tại. Khi giải đấu đang diễn ra, các chỉnh sửa bảng tính giữa giải đấu sẽ bị bỏ qua.",
+        "namePrompt": "Tên giải đấu (khóa người chơi Liên đoàn hiện tại trong suốt thời gian):",
+        "endConfirm": "Kết thúc \"{name}\"? Đội Liên đoàn sẽ quay lại đọc từ tab bảng tính trực tiếp.",
+        "drift": {
+          "title": "Bảng tính Liên đoàn khác với danh sách đã khóa",
+          "explanation": "Những thay đổi này bị bỏ qua — bộ lập kế hoạch sử dụng danh sách đã khóa.",
+          "added": "đã thêm",
+          "removed": "đã xóa"
+        }
       },
       "summary": "Tóm tắt",
       "distribute": "Phân bổ",
@@ -377,6 +415,14 @@
       }
     },
     "builder": {
+      "league": {
+        "tabLabel": "Liên đoàn",
+        "tabTitle": "Đội Liên đoàn — danh sách cố định, phân chia chính thức/dự bị hàng tuần",
+        "main": "Chính thức",
+        "sub": "Dự bị",
+        "mainTitle": "Xếp làm chính thức cuối tuần này — nhấp để chuyển thành dự bị",
+        "subTitle": "Xếp làm dự bị cuối tuần này — nhấp để chuyển thành chính thức"
+      },
       "title": "Xây dựng đội",
       "alliance": "Liên minh:",
       "all": "Tất cả",
