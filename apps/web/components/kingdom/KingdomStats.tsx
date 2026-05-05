@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, ChevronUp, ChevronDown, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon, ArrowUp, ArrowDown, Minus, Move } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon, ArrowUp, ArrowDown, Minus, Move, UserSearch } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   useAvailableSeedKingdoms,
@@ -31,8 +31,8 @@ const KD_COLORS = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#fb923c', '#a78b
 // Default kingdom to pre-select in the highlight dropdown.
 const DEFAULT_HIGHLIGHT_KD = 3923;
 
-type TabType = 'table' | 'charts' | 'comparison' | 'migrations' | 'upload';
-const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'migrations', 'upload'];
+type TabType = 'table' | 'charts' | 'comparison' | 'migrations' | 'search' | 'upload';
+const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'migrations', 'search', 'upload'];
 
 /** One row of the Migrations tab — a player who appears in the To scan with
  *  a different (or unknown) kingdom_id compared to the From scan.
@@ -450,6 +450,7 @@ export default function KingdomStats() {
         <TabButton active={activeTab === 'charts'}     onClick={() => setActiveTab('charts')}     icon={<TrendingUp size={16} />}       label="Charts" />
         <TabButton active={activeTab === 'comparison'} onClick={() => setActiveTab('comparison')} icon={<GitCompareArrows size={16} />} label="Comparison" />
         <TabButton active={activeTab === 'migrations'} onClick={() => setActiveTab('migrations')} icon={<Move size={16} />}             label="Migrations" />
+        <TabButton active={activeTab === 'search'}     onClick={() => setActiveTab('search')}     icon={<UserSearch size={16} />}       label="Search all kingdoms" />
         <TabButton active={activeTab === 'upload'}     onClick={() => setActiveTab('upload')}     icon={<UploadIcon size={16} />}       label="Upload" />
       </div>
 
@@ -827,6 +828,9 @@ export default function KingdomStats() {
         />
       )}
 
+      {/* ═══ SEARCH ALL KINGDOMS ═══ */}
+      {activeTab === 'search' && <SearchAllKingdomsView />}
+
       {/* ═══ UPLOAD ═══ */}
       {activeTab === 'upload' && (
         <SeedsUpload onUploaded={handleUploaded} />
@@ -1092,6 +1096,187 @@ function MigHeader({ label, field, sortField, sortDir, onSort, align = 'left' }:
           : <ChevronDown size={14} className="opacity-20" />}
       </span>
     </th>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Search all kingdoms — cross-KD player timeline.
+// Type a name (substring) or gov_id and we find the player anywhere they
+// appear in seeds_kd_players, grouped by player_id with one row per scan.
+// ─────────────────────────────────────────────────────────────
+interface SearchHit {
+  scan_date: string;
+  kingdom_id: number;
+  player_id: number;
+  name: string;
+  power: number;
+  kp: number;
+  cityhall: number;
+  rank_in_kd: number;
+}
+
+function SearchAllKingdomsView() {
+  const [query, setQuery] = useState('');
+  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
+
+  const runSearch = useCallback(async () => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setError('Type at least 2 characters');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setSearched(true);
+    try {
+      const sb = createClient();
+      const isNumeric = /^\d+$/.test(q);
+      let req = sb
+        .from('seeds_kd_players')
+        .select('scan_date, kingdom_id, player_id, name, power, kp, cityhall, rank_in_kd')
+        .order('player_id', { ascending: true })
+        .order('scan_date', { ascending: false })
+        .limit(2000);
+      if (isNumeric) {
+        // Match exact gov_id OR name containing the digits
+        req = req.or(`player_id.eq.${q},name.ilike.%${q}%`);
+      } else {
+        req = req.ilike('name', `%${q}%`);
+      }
+      const { data, error: e } = await req;
+      if (e) throw e;
+      setHits((data ?? []) as SearchHit[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Search failed');
+      setHits([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [query]);
+
+  // Group hits by player_id; latest scan first per player.
+  const grouped = useMemo(() => {
+    const map = new Map<number, SearchHit[]>();
+    for (const h of hits) {
+      const arr = map.get(h.player_id) ?? [];
+      arr.push(h);
+      map.set(h.player_id, arr);
+    }
+    // Already sorted scan_date desc by the query, but be defensive.
+    for (const arr of map.values()) {
+      arr.sort((a, b) => b.scan_date.localeCompare(a.scan_date));
+    }
+    // Most recent overall first across players (latest scan_date of group).
+    return Array.from(map.entries())
+      .map(([player_id, scans]) => ({ player_id, scans }))
+      .sort((a, b) => b.scans[0].scan_date.localeCompare(a.scans[0].scan_date));
+  }, [hits]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[300px] max-w-[480px]">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void runSearch(); }}
+            placeholder="Player name or gov_id…"
+            className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#4318ff]"
+          />
+        </div>
+        <button
+          onClick={() => void runSearch()}
+          disabled={loading || query.trim().length < 2}
+          className="px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-sm font-medium disabled:opacity-50"
+        >
+          {loading ? 'Searching…' : 'Search'}
+        </button>
+        {searched && !loading && (
+          <span className="text-sm text-[var(--text-muted)]">
+            {grouped.length.toLocaleString()} player{grouped.length !== 1 ? 's' : ''} · {hits.length.toLocaleString()} total scan{hits.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>
+      )}
+
+      {searched && !loading && grouped.length === 0 && !error && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-12 text-center text-[var(--text-muted)]">
+          No players match &quot;{query}&quot;. Try a shorter substring or the full gov_id.
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {grouped.map(({ player_id, scans }) => {
+          const current = scans[0]; // most recent
+          const movedKds = new Set(scans.map((s) => s.kingdom_id));
+          const moved = movedKds.size > 1;
+          return (
+            <div key={player_id} className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[var(--background-secondary)] border-b border-[var(--border)]">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-base font-semibold text-[var(--foreground)] truncate">{current.name}</span>
+                  <span className="text-xs text-[var(--text-muted)] tabular-nums shrink-0">id {player_id}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs text-[var(--text-muted)]">Now in</span>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    KD {current.kingdom_id}
+                  </span>
+                  {moved && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30" title={`Seen in ${movedKds.size} different kingdoms`}>
+                      moved {movedKds.size - 1}×
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border)] text-xs uppercase tracking-wider text-[var(--text-muted)]">
+                      <th className="px-3 py-2 text-left">Scan date</th>
+                      <th className="px-3 py-2 text-left">KD</th>
+                      <th className="px-3 py-2 text-left">Name</th>
+                      <th className="px-3 py-2 text-right">Power</th>
+                      <th className="px-3 py-2 text-right">KP</th>
+                      <th className="px-3 py-2 text-right">CH</th>
+                      <th className="px-3 py-2 text-right">Rank</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scans.map((s, i) => {
+                      const prev = scans[i + 1]; // older scan (since order is desc)
+                      const changedKd = prev && prev.kingdom_id !== s.kingdom_id;
+                      return (
+                        <tr key={`${s.scan_date}-${s.kingdom_id}`} className={`border-b border-[var(--border)] ${changedKd ? 'bg-amber-500/5' : ''}`}>
+                          <td className="px-3 py-2 text-[var(--text-muted)] text-xs whitespace-nowrap">{s.scan_date}</td>
+                          <td className={`px-3 py-2 font-medium tabular-nums ${changedKd ? 'text-amber-300' : 'text-[var(--foreground)]'}`}>
+                            KD {s.kingdom_id}
+                            {changedKd && prev && <span className="text-[10px] text-[var(--text-muted)] ml-1">(was KD {prev.kingdom_id})</span>}
+                          </td>
+                          <td className="px-3 py-2 text-[var(--foreground)] truncate max-w-[260px]">{s.name}</td>
+                          <td className="px-3 py-2 text-right text-indigo-400 tabular-nums">{formatCompact(s.power)}</td>
+                          <td className="px-3 py-2 text-right text-red-400 tabular-nums">{formatCompact(s.kp)}</td>
+                          <td className="px-3 py-2 text-right text-amber-400 tabular-nums">{s.cityhall}</td>
+                          <td className="px-3 py-2 text-right text-[var(--text-secondary)] tabular-nums">{s.rank_in_kd}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

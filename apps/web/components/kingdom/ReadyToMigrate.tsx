@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Search, ChevronUp, ChevronDown, UserPlus, Lock, ArrowLeft, Check, Plus, MessageSquare, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
@@ -212,7 +213,8 @@ export default function ReadyToMigrate() {
     return () => { cancelled = true; };
   }, [isUnlocked, latestDate]);
 
-  const handleFill = async (p: PlayerRow) => {
+  // Stable identity so memoized PlayerRow doesn't see a new function each render.
+  const handleFill = useCallback(async (p: PlayerRow) => {
     if (outreachIds.has(p.player_id)) return;
     setFillingId(p.player_id);
     try {
@@ -238,7 +240,7 @@ export default function ReadyToMigrate() {
     } finally {
       setFillingId(null);
     }
-  };
+  }, [outreachIds]);
 
   // When the user picks a specific KD, load every player of that KD for the
   // latest scan (no floor filter) — the floor still drives the highlight.
@@ -335,6 +337,19 @@ export default function ReadyToMigrate() {
     rows.sort((a, b) => a.rank - b.rank);
     return rows;
   }, [statsByKd, seedByKd, rankByKd, candidatePlayers, kpFloor, migratedIds]);
+
+  // ─── Virtualizer for the player table ───
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredAndSorted.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 41, // approximate row height in px (table cell padding 0.625rem + line-height)
+    overscan: 12,
+  });
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const totalSize = rowVirtualizer.getTotalSize();
+  const padTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const padBottom = virtualItems.length > 0 ? totalSize - virtualItems[virtualItems.length - 1].end : 0;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -577,10 +592,10 @@ export default function ReadyToMigrate() {
         ) : filteredAndSorted.length === 0 ? (
           <div className="p-12 text-center text-[var(--text-muted)]">No players match the current filters.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div ref={scrollRef} className="overflow-auto max-h-[70vh]">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
+              <thead className="sticky top-0 z-10 bg-[var(--background-secondary)]">
+                <tr className="border-b border-[var(--border)]">
                   <HeaderCell label="KD"        field="kingdom_id" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   <HeaderCell label="Seed"      field="seed"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   <HeaderCell label="Player ID" field="player_id"  sortField={sortField} sortDir={sortDir} onSort={handleSort} />
@@ -592,45 +607,26 @@ export default function ReadyToMigrate() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAndSorted.map(p => {
-                  const isCandidate = p.player_id >= govIdFloor;
-                  const inOutreach = outreachIds.has(p.player_id);
-                  const isFilling = fillingId === p.player_id;
+                {padTop > 0 && (
+                  <tr aria-hidden="true"><td colSpan={8} style={{ height: padTop, padding: 0, border: 0 }} /></tr>
+                )}
+                {virtualItems.map((vrow) => {
+                  const p = filteredAndSorted[vrow.index];
                   return (
-                    <tr
+                    <PlayerRowMemo
                       key={`${p.kingdom_id}-${p.player_id}`}
-                      className={`border-b border-[var(--border)] transition-colors ${
-                        isCandidate
-                          ? 'bg-amber-500/10 hover:bg-amber-500/15'
-                          : 'hover:bg-[var(--background-secondary)]'
-                      }`}
-                    >
-                      <td className="px-3 py-2.5 font-medium text-[var(--foreground)] tabular-nums">KD {p.kingdom_id}</td>
-                      <td className="px-3 py-2.5"><SeedBadge seed={seedByKd.get(p.kingdom_id) ?? null} /></td>
-                      <td className={`px-3 py-2.5 text-xs tabular-nums ${isCandidate ? 'text-amber-300 font-medium' : 'text-[var(--text-muted)]'}`}>{p.player_id}</td>
-                      <td className="px-3 py-2.5 text-[var(--foreground)]">{p.name}</td>
-                      <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(p.power)}</td>
-                      <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(p.kp)}</td>
-                      <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{p.rank_in_kd}</td>
-                      <td className="px-3 py-2.5 text-right">
-                        {inOutreach ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium">
-                            <Check size={12} /> Added
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => handleFill(p)}
-                            disabled={isFilling}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors text-[11px] font-medium disabled:opacity-50"
-                            title="Add this player to the migration outreach list"
-                          >
-                            {isFilling ? '…' : (<><Plus size={12} /> Candidate</>)}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+                      player={p}
+                      seed={seedByKd.get(p.kingdom_id) ?? null}
+                      isCandidate={p.player_id >= govIdFloor}
+                      inOutreach={outreachIds.has(p.player_id)}
+                      isFilling={fillingId === p.player_id}
+                      onFill={handleFill}
+                    />
                   );
                 })}
+                {padBottom > 0 && (
+                  <tr aria-hidden="true"><td colSpan={8} style={{ height: padBottom, padding: 0, border: 0 }} /></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -639,6 +635,55 @@ export default function ReadyToMigrate() {
     </div>
   );
 }
+
+// Memoized row — keeps unaffected rows out of React's reconciler when
+// sorting / scrolling / filtering. Callbacks must be stable (see useCallback).
+type PlayerRowComponentProps = {
+  player: PlayerRow;
+  seed: SeedAssignment;
+  isCandidate: boolean;
+  inOutreach: boolean;
+  isFilling: boolean;
+  onFill: (p: PlayerRow) => void;
+  style?: React.CSSProperties;
+};
+
+const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate, inOutreach, isFilling, onFill, style }: PlayerRowComponentProps) {
+  return (
+    <tr
+      style={style}
+      className={`border-b border-[var(--border)] transition-colors ${
+        isCandidate
+          ? 'bg-amber-500/10 hover:bg-amber-500/15'
+          : 'hover:bg-[var(--background-secondary)]'
+      }`}
+    >
+      <td className="px-3 py-2.5 font-medium text-[var(--foreground)] tabular-nums">KD {p.kingdom_id}</td>
+      <td className="px-3 py-2.5"><SeedBadge seed={seed} /></td>
+      <td className={`px-3 py-2.5 text-xs tabular-nums ${isCandidate ? 'text-amber-300 font-medium' : 'text-[var(--text-muted)]'}`}>{p.player_id}</td>
+      <td className="px-3 py-2.5 text-[var(--foreground)]">{p.name}</td>
+      <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(p.power)}</td>
+      <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(p.kp)}</td>
+      <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{p.rank_in_kd}</td>
+      <td className="px-3 py-2.5 text-right">
+        {inOutreach ? (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium">
+            <Check size={12} /> Added
+          </span>
+        ) : (
+          <button
+            onClick={() => onFill(p)}
+            disabled={isFilling}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors text-[11px] font-medium disabled:opacity-50"
+            title="Add this player to the migration outreach list"
+          >
+            {isFilling ? '…' : (<><Plus size={12} /> Candidate</>)}
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+});
 
 function HeaderCell({ label, field, sortField, sortDir, onSort, align = 'left' }: {
   label: string;
