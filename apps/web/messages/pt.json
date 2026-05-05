@@ -277,7 +277,8 @@
       "step1": "<strong>Criar um plano</strong> - Clique no botão acima para iniciar um novo plano de equipe",
       "step2": "<strong>Monte suas equipes</strong> - Selecione jogadores, distribua nas zonas, atribua líderes de rali",
       "step3": "<strong>Compartilhe o link</strong> - Copie a URL e compartilhe com seus líderes de equipe",
-      "step4": "<strong>Colabore</strong> - Qualquer pessoa com o link pode ver e editar o plano"
+      "step4": "<strong>Colabore</strong> - Qualquer pessoa com o link pode ver e editar o plano",
+      "step5": "<strong>Tens uma liga?</strong> - Adiciona a aba de inscrição da liga ao importar. Os seus 45 jogadores formam uma equipa separada com plantel fixo e são excluídos das inscrições de Equipa 1 / Equipa 2 do fim de semana. Bloqueia o plantel para o torneio para que edições à folha a meio da temporada não o possam alterar."
     },
     "header": {
       "title": "Planejador AoO",
@@ -365,6 +366,7 @@
       "league": {
         "label": "Aba de inscrição da Liga",
         "optional": "(opcional)",
+        "helper": "Jogadores inscritos aqui só jogam na equipa da liga — são automaticamente excluídos das inscrições de Equipa 1 / Equipa 2 na aba principal.",
         "placeholder": "Cole a URL da aba Liga (gid diferente)",
         "clearTitle": "Limpar roster da Liga carregado",
         "loaded": "{count, plural, =0 {Nenhum jogador da Liga carregado} one {# jogador da Liga carregado · excluído da Equipe 1 / Equipe 2} other {# jogadores da Liga carregados · excluídos da Equipe 1 / Equipe 2}}",
@@ -382,14 +384,16 @@
         "lockButton": "Bloquear o roster de {count} jogadores para um torneio",
         "locking": "Iniciando…",
         "lockTitle": "Capturar instantâneo dos jogadores da Liga atuais. Enquanto o torneio estiver ativo, edições na planilha durante o torneio são ignoradas.",
-        "namePrompt": "Nome do torneio (bloqueia os jogadores da Liga atuais pela duração):",
+        "namePrompt": "Dê um nome a este torneio (ex.: \"Liga Primavera 2026\"). Os jogadores atuais da liga ficarão congelados até encerrares o torneio — mesmo que a folha seja editada depois.",
         "endConfirm": "Encerrar \"{name}\"? A equipe da Liga voltará a ler da aba ao vivo.",
         "drift": {
           "title": "A planilha da Liga difere do roster bloqueado",
           "explanation": "Estas alterações são ignoradas — o planejador usa o roster bloqueado.",
           "added": "adicionados",
           "removed": "removidos"
-        }
+        },
+        "showRoster": "Mostrar lista bloqueada",
+        "hideRoster": "Ocultar lista bloqueada"
       },
       "summary": "Resumo",
       "distribute": "Distribuir",
@@ -420,8 +424,11 @@
         "tabTitle": "Equipe Liga — roster fixo, divisão semanal titular/reserva",
         "main": "Titular",
         "sub": "Reserva",
-        "mainTitle": "Escalado como titular neste fim de semana — clique para tornar reserva",
-        "subTitle": "Escalado como reserva neste fim de semana — clique para tornar titular"
+        "mainShort": "Tit.",
+        "subShort": "Sup.",
+        "countTitle": "Titulares a jogar este fim de semana / Suplentes no banco",
+        "mainTitle": "Atualmente titular este fim de semana — clique para mandar ao banco (marcar como suplente). Suplentes ficam bloqueados no banco na distribuição.",
+        "subTitle": "Atualmente no banco como suplente este fim de semana — clique para voltar à formação. Suplentes ficam bloqueados no banco na distribuição."
       },
       "title": "Construtor de equipe",
       "alliance": "Aliança:",

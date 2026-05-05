@@ -282,7 +282,8 @@
       "step1": "<strong>Create a plan</strong> - Click the button above to start a new team plan",
       "step2": "<strong>Build your teams</strong> - Select players, distribute to zones, assign rally leads",
       "step3": "<strong>Share the link</strong> - Copy the URL and share with your team leaders",
-      "step4": "<strong>Collaborate</strong> - Anyone with the link can view and edit the plan"
+      "step4": "<strong>Collaborate</strong> - Anyone with the link can view and edit the plan",
+      "step5": "<strong>Running a league?</strong> - Add the league sign-up tab on import. Its 45 players form a separate fixed-roster team and are excluded from weekend Team 1 / Team 2 sign-ups; lock the roster for the tournament so mid-season sheet edits can't change it."
     },
     "header": {
       "title": "AoO Planner",
@@ -370,6 +371,7 @@
       "league": {
         "label": "League sign-up tab",
         "optional": "(optional)",
+        "helper": "Players signed up here only play on the league team — they're automatically excluded from Team 1 / Team 2 sign-ups on the main tab.",
         "placeholder": "Paste the URL of the league tab (different gid)",
         "clearTitle": "Clear loaded league roster",
         "loaded": "{count, plural, =0 {No league players loaded} one {# league player loaded · excluded from Team 1 / Team 2} other {# league players loaded · excluded from Team 1 / Team 2}}",
@@ -379,6 +381,8 @@
       "tournament": {
         "locked": "Tournament locked",
         "frozenSummary": "{count, plural, one {# player frozen} other {# players frozen}}",
+        "showRoster": "Show locked roster",
+        "hideRoster": "Hide locked roster",
         "startedOn": "Started {date}",
         "startedBy": "by {name}",
         "ignoredUntilEnded": "sheet edits are ignored until ended",
@@ -387,7 +391,7 @@
         "lockButton": "Lock the {count}-player roster for a tournament",
         "locking": "Starting…",
         "lockTitle": "Snapshot the current league players. While the tournament is active, mid-tournament sheet edits are ignored.",
-        "namePrompt": "Tournament name (locks the current league players for the duration):",
+        "namePrompt": "Name this tournament (e.g. \"Spring 2026 League\"). The current league players will be frozen until you end the tournament — even if the sheet is edited later.",
         "endConfirm": "End \"{name}\"? The league team will go back to reading from the live sheet tab.",
         "drift": {
           "title": "League sheet differs from locked roster",
@@ -425,8 +429,11 @@
         "tabTitle": "League team — fixed roster, weekly main/sub split",
         "main": "Main",
         "sub": "Sub",
-        "mainTitle": "Slotted as main this weekend — click to make sub",
-        "subTitle": "Slotted as sub this weekend — click to make main"
+        "mainShort": "Main",
+        "subShort": "Sub",
+        "countTitle": "Mains playing this weekend / Subs on the bench",
+        "mainTitle": "Currently a main this weekend — click to bench (mark as sub). Subs are locked to the bench at distribution.",
+        "subTitle": "Currently benched as sub this weekend — click to put back in the lineup. Subs are locked to the bench at distribution."
       },
       "title": "Team Builder",
       "alliance": "Alliance:",
