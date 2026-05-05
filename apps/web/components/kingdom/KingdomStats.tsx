@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, ChevronUp, ChevronDown, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon, ArrowUp, ArrowDown, Minus, Move, UserSearch } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -1100,9 +1100,11 @@ function MigHeader({ label, field, sortField, sortDir, onSort, align = 'left' }:
 }
 
 // ─────────────────────────────────────────────────────────────
-// Search all kingdoms — cross-KD player timeline.
-// Type a name (substring) or gov_id and we find the player anywhere they
-// appear in seeds_kd_players, grouped by player_id with one row per scan.
+// Search all kingdoms — narrow cross-KD lookup.
+// Type a name (substring) or gov_id and we surface, per matching player_id,
+// only two snapshots: the seed-day baseline (MIG_FROM_DATE) and the latest
+// scan available. If those two scans put the player in different kingdoms
+// it counts as a migration; otherwise we just show where they are now.
 // ─────────────────────────────────────────────────────────────
 interface SearchHit {
   scan_date: string;
@@ -1117,15 +1119,41 @@ interface SearchHit {
 
 function SearchAllKingdomsView() {
   const [query, setQuery] = useState('');
+  const [latestDate, setLatestDate] = useState<string | null>(null);
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
+  // Resolve the latest scan_date once on mount so the search can target
+  // exactly two dates (seed day + most recent).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const sb = createClient();
+        const { data, error: e } = await sb
+          .from('seeds_kd_stats')
+          .select('scan_date')
+          .order('scan_date', { ascending: false })
+          .limit(1);
+        if (e) throw e;
+        if (!cancelled) setLatestDate(data?.[0]?.scan_date as string ?? null);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to resolve latest scan date');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const runSearch = useCallback(async () => {
     const q = query.trim();
     if (q.length < 2) {
       setError('Type at least 2 characters');
+      return;
+    }
+    if (!latestDate) {
+      setError('Latest scan not loaded yet, try again in a second.');
       return;
     }
     setLoading(true);
@@ -1134,14 +1162,15 @@ function SearchAllKingdomsView() {
     try {
       const sb = createClient();
       const isNumeric = /^\d+$/.test(q);
+      // Restrict to the two scans we care about — seed day + most recent.
+      const dates = Array.from(new Set([MIG_FROM_DATE, latestDate]));
       let req = sb
         .from('seeds_kd_players')
         .select('scan_date, kingdom_id, player_id, name, power, kp, cityhall, rank_in_kd')
+        .in('scan_date', dates)
         .order('player_id', { ascending: true })
-        .order('scan_date', { ascending: false })
         .limit(2000);
       if (isNumeric) {
-        // Match exact gov_id OR name containing the digits
         req = req.or(`player_id.eq.${q},name.ilike.%${q}%`);
       } else {
         req = req.ilike('name', `%${q}%`);
@@ -1155,25 +1184,32 @@ function SearchAllKingdomsView() {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, latestDate]);
 
-  // Group hits by player_id; latest scan first per player.
+  // Group hits by player_id and pick the seed-day + latest snapshots.
   const grouped = useMemo(() => {
-    const map = new Map<number, SearchHit[]>();
+    const byPlayer = new Map<number, { fromHit: SearchHit | null; toHit: SearchHit | null }>();
     for (const h of hits) {
-      const arr = map.get(h.player_id) ?? [];
-      arr.push(h);
-      map.set(h.player_id, arr);
+      const cur = byPlayer.get(h.player_id) ?? { fromHit: null, toHit: null };
+      if (h.scan_date === MIG_FROM_DATE) cur.fromHit = h;
+      else if (h.scan_date === latestDate) cur.toHit = h;
+      byPlayer.set(h.player_id, cur);
     }
-    // Already sorted scan_date desc by the query, but be defensive.
-    for (const arr of map.values()) {
-      arr.sort((a, b) => b.scan_date.localeCompare(a.scan_date));
-    }
-    // Most recent overall first across players (latest scan_date of group).
-    return Array.from(map.entries())
-      .map(([player_id, scans]) => ({ player_id, scans }))
-      .sort((a, b) => b.scans[0].scan_date.localeCompare(a.scans[0].scan_date));
-  }, [hits]);
+    return Array.from(byPlayer.entries())
+      .map(([player_id, v]) => ({ player_id, fromHit: v.fromHit, toHit: v.toHit }))
+      // Most actionable first: migrations, then current top-400 players, then the rest.
+      .sort((a, b) => {
+        const score = (x: typeof a) => {
+          if (x.fromHit && x.toHit && x.fromHit.kingdom_id !== x.toHit.kingdom_id) return 0; // migrated
+          if (x.toHit) return 1; // currently in top 400
+          if (x.fromHit) return 2; // was at seed day, gone now
+          return 3;
+        };
+        const sa = score(a); const sb_ = score(b);
+        if (sa !== sb_) return sa - sb_;
+        return (b.toHit?.power ?? b.fromHit?.power ?? 0) - (a.toHit?.power ?? a.fromHit?.power ?? 0);
+      });
+  }, [hits, latestDate]);
 
   return (
     <div className="space-y-4">
@@ -1198,9 +1234,12 @@ function SearchAllKingdomsView() {
         </button>
         {searched && !loading && (
           <span className="text-sm text-[var(--text-muted)]">
-            {grouped.length.toLocaleString()} player{grouped.length !== 1 ? 's' : ''} · {hits.length.toLocaleString()} total scan{hits.length !== 1 ? 's' : ''}
+            {grouped.length.toLocaleString()} player{grouped.length !== 1 ? 's' : ''}
           </span>
         )}
+        <span className="text-xs text-[var(--text-muted)] ml-auto">
+          Comparing <span className="font-mono text-[var(--text-secondary)]">{MIG_FROM_DATE}</span> → <span className="font-mono text-[var(--text-secondary)]">{latestDate ?? '…'}</span>
+        </span>
       </div>
 
       {error && (
@@ -1209,30 +1248,46 @@ function SearchAllKingdomsView() {
 
       {searched && !loading && grouped.length === 0 && !error && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-12 text-center text-[var(--text-muted)]">
-          No players match &quot;{query}&quot;. Try a shorter substring or the full gov_id.
+          No players match &quot;{query}&quot;.
         </div>
       )}
 
       <div className="space-y-3">
-        {grouped.map(({ player_id, scans }) => {
-          const current = scans[0]; // most recent
-          const movedKds = new Set(scans.map((s) => s.kingdom_id));
-          const moved = movedKds.size > 1;
+        {grouped.map(({ player_id, fromHit, toHit }) => {
+          const migrated = !!(fromHit && toHit && fromHit.kingdom_id !== toHit.kingdom_id);
+          const stayed = !!(fromHit && toHit && fromHit.kingdom_id === toHit.kingdom_id);
+          const onlyTo = !fromHit && !!toHit;     // appeared after seed day (or was below top 400 then)
+          const onlyFrom = !!fromHit && !toHit;   // was on seed day, now off the radar (left top 400)
+
+          // Pick a stable display name (prefer latest, fall back to seed day).
+          const displayName = toHit?.name ?? fromHit?.name ?? '—';
+
           return (
             <div key={player_id} className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
-              <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[var(--background-secondary)] border-b border-[var(--border)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-[var(--background-secondary)] border-b border-[var(--border)]">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-base font-semibold text-[var(--foreground)] truncate">{current.name}</span>
+                  <span className="text-base font-semibold text-[var(--foreground)] truncate">{displayName}</span>
                   <span className="text-xs text-[var(--text-muted)] tabular-nums shrink-0">id {player_id}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-[var(--text-muted)]">Now in</span>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                    KD {current.kingdom_id}
-                  </span>
-                  {moved && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30" title={`Seen in ${movedKds.size} different kingdoms`}>
-                      moved {movedKds.size - 1}×
+                  {migrated && fromHit && toHit && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      Migrated KD {fromHit.kingdom_id} → KD {toHit.kingdom_id}
+                    </span>
+                  )}
+                  {stayed && toHit && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                      Still in KD {toHit.kingdom_id}
+                    </span>
+                  )}
+                  {onlyTo && toHit && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30" title="Wasn't in the seed-day top 400">
+                      New on radar in KD {toHit.kingdom_id}
+                    </span>
+                  )}
+                  {onlyFrom && fromHit && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-500/15 text-slate-300 border border-slate-500/30" title="Below the top-400 cutoff in the latest scan">
+                      Off latest top 400 (was KD {fromHit.kingdom_id})
                     </span>
                   )}
                 </div>
@@ -1241,6 +1296,7 @@ function SearchAllKingdomsView() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--border)] text-xs uppercase tracking-wider text-[var(--text-muted)]">
+                      <th className="px-3 py-2 text-left">When</th>
                       <th className="px-3 py-2 text-left">Scan date</th>
                       <th className="px-3 py-2 text-left">KD</th>
                       <th className="px-3 py-2 text-left">Name</th>
@@ -1251,24 +1307,8 @@ function SearchAllKingdomsView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {scans.map((s, i) => {
-                      const prev = scans[i + 1]; // older scan (since order is desc)
-                      const changedKd = prev && prev.kingdom_id !== s.kingdom_id;
-                      return (
-                        <tr key={`${s.scan_date}-${s.kingdom_id}`} className={`border-b border-[var(--border)] ${changedKd ? 'bg-amber-500/5' : ''}`}>
-                          <td className="px-3 py-2 text-[var(--text-muted)] text-xs whitespace-nowrap">{s.scan_date}</td>
-                          <td className={`px-3 py-2 font-medium tabular-nums ${changedKd ? 'text-amber-300' : 'text-[var(--foreground)]'}`}>
-                            KD {s.kingdom_id}
-                            {changedKd && prev && <span className="text-[10px] text-[var(--text-muted)] ml-1">(was KD {prev.kingdom_id})</span>}
-                          </td>
-                          <td className="px-3 py-2 text-[var(--foreground)] truncate max-w-[260px]">{s.name}</td>
-                          <td className="px-3 py-2 text-right text-indigo-400 tabular-nums">{formatCompact(s.power)}</td>
-                          <td className="px-3 py-2 text-right text-red-400 tabular-nums">{formatCompact(s.kp)}</td>
-                          <td className="px-3 py-2 text-right text-amber-400 tabular-nums">{s.cityhall}</td>
-                          <td className="px-3 py-2 text-right text-[var(--text-secondary)] tabular-nums">{s.rank_in_kd}</td>
-                        </tr>
-                      );
-                    })}
+                    <SnapshotRow label="Seed day"   hit={fromHit} dateLabel={MIG_FROM_DATE} />
+                    <SnapshotRow label="Now"        hit={toHit}   dateLabel={latestDate ?? '—'} highlight={migrated} />
                   </tbody>
                 </table>
               </div>
@@ -1277,6 +1317,30 @@ function SearchAllKingdomsView() {
         })}
       </div>
     </div>
+  );
+}
+
+function SnapshotRow({ label, hit, dateLabel, highlight }: { label: string; hit: SearchHit | null; dateLabel: string; highlight?: boolean }) {
+  if (!hit) {
+    return (
+      <tr className="border-b border-[var(--border)]">
+        <td className="px-3 py-2 text-[var(--text-muted)] uppercase tracking-wider text-[10px]">{label}</td>
+        <td className="px-3 py-2 text-[var(--text-muted)] text-xs whitespace-nowrap">{dateLabel}</td>
+        <td className="px-3 py-2 text-[var(--text-muted)] italic" colSpan={6}>not in top 400</td>
+      </tr>
+    );
+  }
+  return (
+    <tr className={`border-b border-[var(--border)] ${highlight ? 'bg-amber-500/5' : ''}`}>
+      <td className="px-3 py-2 text-[var(--text-muted)] uppercase tracking-wider text-[10px]">{label}</td>
+      <td className="px-3 py-2 text-[var(--text-muted)] text-xs whitespace-nowrap">{hit.scan_date}</td>
+      <td className={`px-3 py-2 font-medium tabular-nums ${highlight ? 'text-amber-300' : 'text-[var(--foreground)]'}`}>KD {hit.kingdom_id}</td>
+      <td className="px-3 py-2 text-[var(--foreground)] truncate max-w-[260px]">{hit.name}</td>
+      <td className="px-3 py-2 text-right text-indigo-400 tabular-nums">{formatCompact(hit.power)}</td>
+      <td className="px-3 py-2 text-right text-red-400 tabular-nums">{formatCompact(hit.kp)}</td>
+      <td className="px-3 py-2 text-right text-amber-400 tabular-nums">{hit.cityhall}</td>
+      <td className="px-3 py-2 text-right text-[var(--text-secondary)] tabular-nums">{hit.rank_in_kd}</td>
+    </tr>
   );
 }
 
