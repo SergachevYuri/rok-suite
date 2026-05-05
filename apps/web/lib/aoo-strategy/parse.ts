@@ -47,8 +47,12 @@ export function toExportUrl(sheetUrl: string): string {
 
 /**
  * Parse CSV text into AoO registrations.
- * Columns: Name, Gov ID, Power, Team 1, Team 2, Rally Leader, Garrison Leader, Mid, Lane
+ * Columns: Name, Gov ID, Power, Confirmed, Team 1, Team 2, Rally Leader, Garrison Leader, Mid, Sub, Coordinator, Lane
  * Boolean columns use "x" (case-insensitive) to indicate true.
+ * Players without a "Confirmed" mark are treated as not signed up for either
+ * team (team1/team2 forced to false), so unconfirmed sign-ups don't pollute
+ * the team builder. The Confirmed column is optional — when absent every row
+ * is considered confirmed (back-compat with old sheets).
  * Lane is an integer (1=Top, 2=Mid, 3=Bottom). Cells like "rally"/"garrison"/"ark"
  * that appear under the Lane column instead of in their own columns are also honored.
  */
@@ -65,6 +69,7 @@ export function parseAooRegistrationCSV(text: string): AooRegistration[] {
   const iName = idx('name');
   const iGovId = idx('gov id', 'governor id', 'govid');
   const iPower = idx('power');
+  const iConfirmed = idx('confirmed', 'confirm');
   const iTeam1 = idx('team 1', 'team1', 't1');
   const iTeam2 = idx('team 2', 'team2', 't2');
   const iRallyLeader = idx('rally leader', 'rally');
@@ -93,15 +98,23 @@ export function parseAooRegistrationCSV(text: string): AooRegistration[] {
     return { lane: null, rally: false, garrison: false, mid: false };
   };
 
+  // Back-compat: if the sheet has no Confirmed column, treat every row as
+  // confirmed so old sheets don't suddenly empty out their team rosters.
+  const confirmedColumnPresent = iConfirmed !== -1;
+
   return rows
     .map(cols => {
       const laneCell = parseLane(cols[iLane]);
+      const confirmed = confirmedColumnPresent ? isChecked(cols[iConfirmed]) : true;
       return {
         name: (cols[iName] || '').trim(),
         govId: parseInt(cols[iGovId]) || 0,
         power: parseInt(cols[iPower]) || 0,
-        team1: isChecked(cols[iTeam1]),
-        team2: isChecked(cols[iTeam2]),
+        confirmed,
+        // Officer-confirmation gates team participation: if a player ticked
+        // Team 1 / Team 2 but isn't confirmed yet, treat as not signed up.
+        team1: confirmed && isChecked(cols[iTeam1]),
+        team2: confirmed && isChecked(cols[iTeam2]),
         rallyLeader: isChecked(cols[iRallyLeader]) || laneCell.rally,
         garrisonLeader: isChecked(cols[iGarrisonLeader]) || laneCell.garrison,
         mid: isChecked(cols[iMid]) || laneCell.mid,
