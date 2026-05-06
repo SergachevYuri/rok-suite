@@ -41,6 +41,14 @@ interface Props {
 type SortField = 'name' | 'power' | 'kp' | 'alliance' | 'decision' | 'deltaPower';
 type SortDir = 'asc' | 'desc';
 
+type ReasonPreset = 'illegal' | 'power_grower' | 'violated_rule' | 'other';
+const REASON_LABELS: Record<ReasonPreset, string> = {
+  illegal: 'Illegal arrival',
+  power_grower: 'Power grower',
+  violated_rule: 'Violated rule',
+  other: 'Other',
+};
+
 function fmtM(n: number | null | undefined): string {
   if (n == null || n === 0) return '—';
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n.toLocaleString();
@@ -316,6 +324,15 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
 
+  // Reason modal — shown when the user clicks "Add to Zero List". Lets the
+  // officer pick a category and add a free-form note, instead of letting
+  // the system auto-build the reason from the row flags. Auto flags
+  // (illegal / grower / Δ power) are appended as metadata so we keep the
+  // signal that drove the original detection.
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkReason, setBulkReason] = useState<ReasonPreset>('illegal');
+  const [bulkNote, setBulkNote] = useState('');
+
   const toggleAll = () => {
     if (selected.size === filteredAndSorted.length) setSelected(new Set());
     else setSelected(new Set(filteredAndSorted.map((r) => r.governorId)));
@@ -328,19 +345,30 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
     });
   }, []);
 
-  const addSelected = async () => {
+  const openBulkModal = () => {
     if (selected.size === 0) return;
+    // Pre-select the most relevant preset based on the active filters.
+    if (illegalOn && !growerOn) setBulkReason('illegal');
+    else if (growerOn && !illegalOn) setBulkReason('power_grower');
+    setBulkOpen(true);
+  };
+
+  const confirmBulk = async () => {
     const chosen = filteredAndSorted.filter((r) => selected.has(r.governorId));
-    if (!confirm(`Add ${chosen.length} player${chosen.length === 1 ? '' : 's'} to the Zero List?`)) return;
+    if (chosen.length === 0) return;
     setBusy(true);
     try {
+      const baseLabel = REASON_LABELS[bulkReason];
+      const note = bulkNote.trim();
+      const userPart = note ? `${baseLabel} — ${note}` : baseLabel;
+      // Per-row metadata trail: which auto-flags fired, so the Zero List can
+      // tell at a glance "officer chose 'violated rule' but row was also illegal".
       const reasonFor = (r: Row) => {
-        const tags: string[] = [];
-        if (r.isIllegal) tags.push('illegal arrival');
-        if (r.isGrower) tags.push(`Δ power growth ${fmtDelta(r.deltaPower)}`);
-        if (tags.length === 0) tags.push('manual review');
-        if (r.decision) tags.push(`decision: ${r.decision.decisionRaw || r.decision.decision}`);
-        return tags.join(' · ');
+        const auto: string[] = [];
+        if (r.isIllegal) auto.push('illegal arrival');
+        if (r.isGrower) auto.push(`Δ power growth ${fmtDelta(r.deltaPower)}`);
+        if (r.decision) auto.push(`decision: ${r.decision.decisionRaw || r.decision.decision}`);
+        return auto.length === 0 ? userPart : `${userPart} (auto: ${auto.join(' · ')})`;
       };
       const { added, skipped } = await bulkAddToZeroList(
         chosen.map((r) => ({
@@ -356,6 +384,8 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
         })),
       );
       setSelected(new Set());
+      setBulkOpen(false);
+      setBulkNote('');
       await refresh();
       if (skipped > 0) alert(`Added ${added}. ${skipped} ${skipped === 1 ? 'was' : 'were'} already on the Zero List.`);
     } catch (e) {
@@ -484,9 +514,76 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
           <span className="text-xs text-orange-300">{selected.size} selected</span>
           <div className="flex gap-2">
             <button onClick={() => setSelected(new Set())} className="px-2 py-1 text-[11px] rounded text-[var(--text-muted)] hover:text-[var(--foreground)]">Clear</button>
-            <button disabled={busy} onClick={addSelected} className="px-2 py-1 text-[11px] rounded bg-orange-500/20 border border-orange-500/40 text-orange-200 hover:bg-orange-500/30 disabled:opacity-60">
-              {busy ? 'Adding…' : 'Add to Zero List'}
+            <button disabled={busy} onClick={openBulkModal} className="px-2 py-1 text-[11px] rounded bg-orange-500/20 border border-orange-500/40 text-orange-200 hover:bg-orange-500/30 disabled:opacity-60">
+              Add to Zero List…
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reason picker modal */}
+      {bulkOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm"
+          onClick={() => !busy && setBulkOpen(false)}
+        >
+          <div
+            className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-5 max-w-md w-full space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">
+              Add {selected.size} player{selected.size === 1 ? '' : 's'} to the Zero List
+            </h3>
+
+            <div className="space-y-1.5">
+              <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]">Reason</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(Object.keys(REASON_LABELS) as ReasonPreset[]).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => setBulkReason(k)}
+                    className={`px-3 py-2 rounded-md border text-xs font-medium transition-colors ${
+                      bulkReason === k
+                        ? 'bg-amber-500/20 border-amber-500/40 text-amber-200'
+                        : 'bg-[var(--background-secondary)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)]'
+                    }`}
+                  >
+                    {REASON_LABELS[k]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]">Note (optional)</label>
+              <textarea
+                value={bulkNote}
+                onChange={(e) => setBulkNote(e.target.value)}
+                placeholder="e.g. attacking MNG members during peace, refused to leave, etc."
+                rows={3}
+                className="w-full px-2 py-1.5 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[#4318ff] resize-y"
+              />
+              <div className="text-[10px] text-[var(--text-muted)]">
+                Any auto-flags (illegal / grower / migrant decision) are appended as metadata.
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setBulkOpen(false)}
+                disabled={busy}
+                className="px-3 py-1.5 text-xs rounded-md text-[var(--text-muted)] hover:text-[var(--foreground)] disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBulk}
+                disabled={busy}
+                className="px-3 py-1.5 text-xs rounded-md bg-orange-500/20 border border-orange-500/40 text-orange-200 hover:bg-orange-500/30 disabled:opacity-60"
+              >
+                {busy ? 'Adding…' : `Add ${selected.size} to Zero List`}
+              </button>
+            </div>
           </div>
         </div>
       )}
