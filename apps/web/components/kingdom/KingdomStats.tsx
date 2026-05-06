@@ -49,6 +49,9 @@ interface MigrationRow {
   toKp: number;
   deltaPower: number;
   isNewJoiner: boolean;
+  /** First scan_date the player was seen in `toKd` (or first scan ever for
+   *  new joiners). Used to render a "moved on YYYY-MM-DD" badge. */
+  migratedAt: string | null;
 }
 
 export default function KingdomStats() {
@@ -225,6 +228,7 @@ export default function KingdomStats() {
               toKp: t.kp,
               deltaPower: t.power - f.power,
               isNewJoiner: false,
+              migratedAt: null,
             });
           } else {
             // Not in From scan → starting KD unknown. Could be a brand-new
@@ -241,9 +245,52 @@ export default function KingdomStats() {
               toKp: t.kp,
               deltaPower: t.power,
               isNewJoiner: true,
+              migratedAt: null,
             });
           }
         }
+
+        // Pull the timeline (player_id, scan_date, kingdom_id) for everyone
+        // we've flagged so we can stamp each row with the first scan it
+        // shows up in the destination KD (or first appearance for new joiners).
+        if (out.length > 0) {
+          const playerIds = out.map((r) => r.player_id);
+          const BATCH = 500;
+          const timeline: { player_id: number; kingdom_id: number; scan_date: string }[] = [];
+          for (let i = 0; i < playerIds.length; i += BATCH) {
+            const slice = playerIds.slice(i, i + BATCH);
+            const { data: tl, error: tlErr } = await sb
+              .from('seeds_kd_players')
+              .select('player_id, kingdom_id, scan_date')
+              .in('player_id', slice)
+              .gte('scan_date', migFromDate)
+              .lte('scan_date', migToDate);
+            if (tlErr) throw tlErr;
+            for (const r of tl ?? []) timeline.push(r as typeof timeline[number]);
+          }
+          // Group by player_id, find first scan in destination KD (or first
+          // appearance overall for new joiners).
+          const tlByPlayer = new Map<number, { kingdom_id: number; scan_date: string }[]>();
+          for (const r of timeline) {
+            const arr = tlByPlayer.get(r.player_id) ?? [];
+            arr.push({ kingdom_id: r.kingdom_id, scan_date: r.scan_date });
+            tlByPlayer.set(r.player_id, arr);
+          }
+          for (const row of out) {
+            const arr = tlByPlayer.get(row.player_id);
+            if (!arr || arr.length === 0) continue;
+            arr.sort((a, b) => a.scan_date.localeCompare(b.scan_date));
+            if (row.isNewJoiner) {
+              row.migratedAt = arr[0].scan_date;
+            } else {
+              // First scan_date where they're already in `toKd`. Equivalent to
+              // "moved here at this scan, hadn't been here before that".
+              const firstInDest = arr.find((x) => x.kingdom_id === row.toKd);
+              row.migratedAt = firstInDest?.scan_date ?? null;
+            }
+          }
+        }
+
         if (!cancelled) setMigrations(out);
       } catch (e) {
         if (!cancelled) setMigError(e instanceof Error ? e.message : 'Failed to load migrations');
@@ -1049,11 +1096,19 @@ function MigrationsView({
                     <tr key={m.player_id} className={`border-b border-[var(--border)] transition-colors ${rowBg}`}>
                       <td className="px-3 py-2.5 text-[var(--text-muted)] text-xs tabular-nums">{m.player_id}</td>
                       <td className="px-3 py-2.5 text-[var(--foreground)]">
-                        <span className="inline-flex items-center gap-2">
+                        <span className="inline-flex items-center gap-2 flex-wrap">
                           {m.name}
                           {m.isNewJoiner && (
                             <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-cyan-500/15 text-cyan-300 border-cyan-500/30" title="Wasn't in the From scan — KD of origin unknown">
                               NEW JOINER
+                            </span>
+                          )}
+                          {m.migratedAt && (
+                            <span
+                              className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-500/15 text-amber-300 border-amber-500/30 tabular-nums"
+                              title={m.isNewJoiner ? `First seen on ${m.migratedAt}` : `First scan in KD ${m.toKd}: ${m.migratedAt}`}
+                            >
+                              {m.migratedAt}
                             </span>
                           )}
                         </span>
