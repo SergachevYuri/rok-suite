@@ -420,7 +420,8 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
   }
 
   const sameKindScans = scans.filter((s) => s.kind === scans[0]?.kind);
-  const colCount = isAdmin ? 7 : 6;
+  // Header columns: [checkbox?] Name, GovId, Power, KP, ΔPower, Alliance, Decision
+  const colCount = isAdmin ? 8 : 7;
 
   return (
     <div className="space-y-4">
@@ -606,6 +607,7 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
                   <th className="px-3 py-2 text-left">Gov ID</th>
                   <SortTh label="Power" field="power" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                   <SortTh label="KP" field="kp" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                  <SortTh label="Δ Power" field="deltaPower" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                   <SortTh label="Alliance" field="alliance" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   <SortTh label="Decision" field="decision" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                 </tr>
@@ -713,7 +715,6 @@ const PlayerRowMemo = memo(function PlayerRowMemo({ row: r, isAdmin, checked, on
         <div className="flex items-center gap-1.5 flex-wrap">
           <CopyablePlayerCell name={r.name} govId={r.governorId} />
           {r.isIllegal && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">illegal</span>}
-          {r.isGrower && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold bg-orange-500/15 text-orange-300 border border-orange-500/30" title={`Δ ${fmtDelta(r.deltaPower)} (was ${fmtM(r.powerA)})`}>+{fmtDelta(r.deltaPower)}</span>}
           {r.inCycle && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-rose-500/15 text-rose-400 border border-rose-500/30">in cycle</span>}
           {r.onZeroList && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-orange-500/15 text-orange-400 border border-orange-500/30">on zero list</span>}
         </div>
@@ -721,6 +722,10 @@ const PlayerRowMemo = memo(function PlayerRowMemo({ row: r, isAdmin, checked, on
       <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{r.governorId}</td>
       <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtM(r.power)}</td>
       <td className="px-3 py-2 text-right font-mono tabular-nums">{fmtM(r.kp)}</td>
+      <td className={`px-3 py-2 text-right font-mono tabular-nums ${r.isGrower ? 'text-orange-300 font-semibold' : r.deltaPower > 0 ? 'text-orange-300/70' : r.deltaPower < 0 ? 'text-rose-400/70' : 'text-[var(--text-muted)]'}`}
+          title={r.deltaPower !== 0 ? `Was ${fmtM(r.powerA)} on the previous scan` : undefined}>
+        {r.deltaPower !== 0 ? fmtDelta(r.deltaPower) : '—'}
+      </td>
       <td className="px-3 py-2 text-[var(--text-secondary)]">{r.alliance || '—'}</td>
       <td className="px-3 py-2">
         {r.decision ? <DecisionBadge d={r.decision.decision} raw={r.decision.decisionRaw} /> : <span className="text-[var(--text-muted)]">—</span>}
