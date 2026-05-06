@@ -97,7 +97,7 @@ export default function KingdomStats() {
   const [migLoading, setMigLoading] = useState(false);
   const [migError, setMigError] = useState<string | null>(null);
   const [migSearch, setMigSearch] = useState('');
-  const [migSortField, setMigSortField] = useState<'name' | 'fromKd' | 'toKd' | 'toPower' | 'toKp'>('toPower');
+  const [migSortField, setMigSortField] = useState<'name' | 'fromKd' | 'toKd' | 'toPower' | 'toKp' | 'migratedAt'>('migratedAt');
   const [migSortDir, setMigSortDir] = useState<SortDir>('desc');
 
   // Refresh trigger to re-fetch after an upload
@@ -942,7 +942,7 @@ function DeltaCell({ from, to, hasFrom }: { from: number | undefined; to: number
 // ─────────────────────────────────────────────────────────────
 // Migrations tab — players that changed kingdom between two scans.
 // ─────────────────────────────────────────────────────────────
-type MigSortField = 'name' | 'fromKd' | 'toKd' | 'toPower' | 'toKp';
+type MigSortField = 'name' | 'fromKd' | 'toKd' | 'toPower' | 'toKp' | 'migratedAt';
 
 function MigrationsView({
   migFromDate,
@@ -993,6 +993,15 @@ function MigrationsView({
       else if (sortField === 'fromKd') cmp = (a.fromKd ?? Number.POSITIVE_INFINITY) - (b.fromKd ?? Number.POSITIVE_INFINITY);
       else if (sortField === 'toPower') cmp = (a.toPower || 0) - (b.toPower || 0);
       else if (sortField === 'toKp')   cmp = (a.toKp   || 0) - (b.toKp   || 0);
+      else if (sortField === 'migratedAt') {
+        // ISO YYYY-MM-DD sorts lexicographically. Null (no timeline data) goes last.
+        const av = a.migratedAt ?? '';
+        const bv = b.migratedAt ?? '';
+        if (av === bv) cmp = 0;
+        else if (!av) cmp = 1;
+        else if (!bv) cmp = -1;
+        else cmp = av.localeCompare(bv);
+      }
       else cmp = (a[sortField] || 0) - (b[sortField] || 0);
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -1081,6 +1090,7 @@ function MigrationsView({
                   <MigHeader label="To KD"       field="toKd"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   <MigHeader label="Power"       field="toPower"    sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                   <MigHeader label="KP"          field="toKp"       sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                  <MigHeader label="Migrated"    field="migratedAt" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                 </tr>
               </thead>
               <tbody>
@@ -1103,14 +1113,6 @@ function MigrationsView({
                               NEW JOINER
                             </span>
                           )}
-                          {m.migratedAt && (
-                            <span
-                              className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-500/15 text-amber-300 border-amber-500/30 tabular-nums"
-                              title={m.isNewJoiner ? `First seen on ${m.migratedAt}` : `First scan in KD ${m.toKd}: ${m.migratedAt}`}
-                            >
-                              {m.migratedAt}
-                            </span>
-                          )}
                         </span>
                       </td>
                       <td className="px-3 py-2.5 font-medium tabular-nums">
@@ -1119,6 +1121,18 @@ function MigrationsView({
                       <td className="px-3 py-2.5 font-medium tabular-nums">KD {m.toKd}</td>
                       <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(m.toPower)}</td>
                       <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(m.toKp)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {m.migratedAt ? (
+                          <span
+                            className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold border bg-amber-500/15 text-amber-300 border-amber-500/30"
+                            title={m.isNewJoiner ? `First seen on ${m.migratedAt}` : `First scan in KD ${m.toKd}: ${m.migratedAt}`}
+                          >
+                            {m.migratedAt}
+                          </span>
+                        ) : (
+                          <span className="text-[var(--text-muted)]">—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

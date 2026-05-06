@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronDown, Lock, RotateCcw, Search, Sparkles, Upload, UserPlus, Users } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, Globe, Lock, RotateCcw, Search, Sparkles, Upload, UserPlus, Users } from 'lucide-react';
 import { CandidatesPanel } from '@/components/migration/CandidatesPanel';
+import { GlobalCandidatesPanel } from '@/components/migration/GlobalCandidatesPanel';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { SortableTh, useTableSort } from '@/components/migration/SortableTh';
 import {
@@ -27,7 +28,7 @@ interface Props {
   actorName: string | null;
 }
 
-type SubTab = 'candidates' | 'browse' | 'compare' | 'migrants' | 'location';
+type SubTab = 'global' | 'candidates' | 'browse' | 'compare' | 'migrants' | 'location';
 
 function fmtM(n: number | null | undefined): string {
   if (n == null || n === 0) return '—';
@@ -48,7 +49,7 @@ function findScanRef(scans: ScanRef[], key: string): ScanRef | undefined {
 }
 
 export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
-  const [subTab, setSubTab] = useState<SubTab>('candidates');
+  const [subTab, setSubTab] = useState<SubTab>('global');
   const [scans, setScans] = useState<ScanRef[]>([]);
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
   const [loadingScans, setLoadingScans] = useState(true);
@@ -167,6 +168,7 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
       {/* Sub-tabs */}
       <nav className="mb-4 flex gap-1 border-b border-[var(--border)] overflow-x-auto -mx-1 px-1 scrollbar-hide">
         {([
+          { id: 'global' as const, label: 'Global', icon: Globe, adminOnly: false },
           { id: 'candidates' as const, label: 'Find Candidates', icon: Sparkles, adminOnly: false },
           { id: 'location' as const, label: 'Location Upload', icon: Upload, adminOnly: true },
           { id: 'browse' as const, label: 'Browse Scan', icon: Users, adminOnly: false },
@@ -199,6 +201,7 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
         </div>
       ) : (
         <>
+          {subTab === 'global' && <GlobalCandidatesPanel isAdmin={isAdmin} actorName={actorName} />}
           {subTab === 'candidates' && <CandidatesPanel isAdmin={isAdmin} actorName={actorName} />}
           {subTab === 'browse' && <BrowsePanel scans={scans} config={config} isAdmin={isAdmin} actorName={actorName} />}
           {subTab === 'compare' && <ComparePanel scans={scans} isAdmin={isAdmin} actorName={actorName} />}
