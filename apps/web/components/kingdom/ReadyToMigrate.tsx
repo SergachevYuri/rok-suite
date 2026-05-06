@@ -389,7 +389,7 @@ function ReadyToMigrateInner() {
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {kdSummary.map((s) => {
+          {[...kdSummary].sort((a, b) => a.kingdom_id - b.kingdom_id).map((s) => {
             const checked = selectedKds?.has(s.kingdom_id) ?? false;
             return (
               <button
