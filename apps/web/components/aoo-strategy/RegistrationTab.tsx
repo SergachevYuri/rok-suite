@@ -130,7 +130,9 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
 
   // Fetch the league sign-up tab. League players are tagged so the merge step
   // can strip them out of normal Team 1 / Team 2 pools — they only play on
-  // the dedicated league team.
+  // the dedicated league team. Flips `fetched` so the stats summary +
+  // Distribute button appear even when only the league tab is loaded (no
+  // main sheet); without this, the page looked frozen after a league fetch.
   const handleLeagueFetch = async () => {
     if (!leagueSheetUrl.trim()) return;
     setLeagueLoading(true);
@@ -138,6 +140,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
     try {
       const data = await fetchAooRegistrationSheet(leagueSheetUrl.trim(), { league: true });
       setRawLeagueRegistrations(data);
+      if (data.length > 0) setFetched(true);
       localStorage.setItem(LEAGUE_SHEET_URL_KEY, leagueSheetUrl.trim());
     } catch (err) {
       setLeagueError(err instanceof Error ? err.message : 'Failed to fetch league sheet');
@@ -524,12 +527,29 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
               )}
             </div>
           </div>
-          {rawLeagueRegistrations.length > 0 && !activeTournament && (
-            <p className="mt-1.5 text-xs text-purple-400 flex items-center gap-1.5">
-              <Trophy size={11} />
-              <span>{tl('loaded', { count: stats.league.length })}</span>
-            </p>
-          )}
+          {rawLeagueRegistrations.length > 0 && !activeTournament && (() => {
+            // If a row was returned but no Team 1 mark made it through the
+            // confirmed-gating step, the player is on the tab but won't be
+            // routed into the league team. Flag it loudly so officers know
+            // they need to fix the sheet (mark Confirmed + Team 1).
+            const totalRows = rawLeagueRegistrations.length;
+            const inLineup = stats.league.length;
+            const pending = Math.max(0, totalRows - inLineup);
+            return (
+              <div className="mt-1.5 space-y-0.5">
+                <p className="text-xs text-purple-400 flex items-center gap-1.5">
+                  <Trophy size={11} />
+                  <span>{tl('loaded', { count: inLineup })}</span>
+                </p>
+                {pending > 0 && (
+                  <p className="text-[11px] text-amber-400 flex items-start gap-1.5">
+                    <AlertTriangle size={11} className="shrink-0 mt-0.5" />
+                    <span>{tl('pendingConfirmed', { count: pending })}</span>
+                  </p>
+                )}
+              </div>
+            );
+          })()}
           {leagueError && (
             <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1.5">
               <AlertTriangle size={11} className="shrink-0" />

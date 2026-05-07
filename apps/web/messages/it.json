@@ -370,6 +370,7 @@
         "placeholder": "Incolla l'URL della scheda Lega (gid diverso)",
         "clearTitle": "Cancella il roster Lega caricato",
         "loaded": "{count, plural, =0 {Nessun giocatore Lega caricato} one {# giocatore Lega caricato · escluso da Squadra 1 / Squadra 2} other {# giocatori Lega caricati · esclusi da Squadra 1 / Squadra 2}}",
+        "pendingConfirmed": "{count, plural, one {# riga della scheda non ha la marcatura Confirmed o Team 1 — non sarà inserita nella squadra della lega finché entrambe non saranno spuntate} other {# righe della scheda non hanno la marcatura Confirmed o Team 1 — non saranno inserite nella squadra della lega finché entrambe non saranno spuntate}}",
         "statLabel": "Lega",
         "badge": "Lega"
       },

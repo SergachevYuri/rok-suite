@@ -370,6 +370,7 @@
         "placeholder": "粘贴联赛标签页的 URL（不同的 gid）",
         "clearTitle": "清空已加载的联赛名单",
         "loaded": "{count, plural, =0 {未加载联赛玩家} one {已加载 # 名联赛玩家 · 已从队伍 1 / 队伍 2 中排除} other {已加载 # 名联赛玩家 · 已从队伍 1 / 队伍 2 中排除}}",
+        "pendingConfirmed": "{count, plural, other {标签页上 # 行缺少 Confirmed 或 Team 1 标记 — 两者都勾选之前不会被纳入联赛队伍}}",
         "statLabel": "联赛",
         "badge": "联赛"
       },

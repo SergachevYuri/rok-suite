@@ -370,6 +370,7 @@
         "placeholder": "Dán URL của tab Liên đoàn (gid khác)",
         "clearTitle": "Xóa danh sách Liên đoàn đã tải",
         "loaded": "{count, plural, =0 {Chưa tải người chơi Liên đoàn nào} other {Đã tải # người chơi Liên đoàn · loại khỏi Đội 1 / Đội 2}}",
+        "pendingConfirmed": "{count, plural, other {# hàng trên tab thiếu dấu Confirmed hoặc Team 1 — họ sẽ không được đưa vào đội liên đoàn cho đến khi cả hai đều được chọn}}",
         "statLabel": "Liên đoàn",
         "badge": "Liên đoàn"
       },

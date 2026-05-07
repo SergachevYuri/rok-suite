@@ -370,6 +370,7 @@
         "placeholder": "Cole a URL da aba Liga (gid diferente)",
         "clearTitle": "Limpar roster da Liga carregado",
         "loaded": "{count, plural, =0 {Nenhum jogador da Liga carregado} one {# jogador da Liga carregado · excluído da Equipe 1 / Equipe 2} other {# jogadores da Liga carregados · excluídos da Equipe 1 / Equipe 2}}",
+        "pendingConfirmed": "{count, plural, one {# linha da aba não tem marcação de Confirmed ou Team 1 — não será incluída na equipa da liga até ambas estarem marcadas} other {# linhas da aba não têm marcação de Confirmed ou Team 1 — não serão incluídas na equipa da liga até ambas estarem marcadas}}",
         "statLabel": "Liga",
         "badge": "Liga"
       },

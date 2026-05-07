@@ -370,6 +370,7 @@
         "placeholder": "Coller l'URL de l'onglet Ligue (gid différent)",
         "clearTitle": "Effacer le roster Ligue chargé",
         "loaded": "{count, plural, =0 {Aucun joueur Ligue chargé} one {# joueur Ligue chargé · exclu de l'Équipe 1 / Équipe 2} other {# joueurs Ligue chargés · exclus de l'Équipe 1 / Équipe 2}}",
+        "pendingConfirmed": "{count, plural, one {# ligne de l'onglet n'a pas de marque Confirmed ou Team 1 — elle ne sera pas intégrée à l'équipe de la ligue tant que les deux ne sont pas cochées} other {# lignes de l'onglet n'ont pas de marque Confirmed ou Team 1 — elles ne seront pas intégrées à l'équipe de la ligue tant que les deux ne sont pas cochées}}",
         "statLabel": "Ligue",
         "badge": "Ligue"
       },

@@ -370,6 +370,7 @@
         "placeholder": "Pega la URL de la pestaña de Liga (gid diferente)",
         "clearTitle": "Borrar el roster de Liga cargado",
         "loaded": "{count, plural, =0 {Ningún jugador de Liga cargado} one {# jugador de Liga cargado · excluido del Equipo 1 / Equipo 2} other {# jugadores de Liga cargados · excluidos del Equipo 1 / Equipo 2}}",
+        "pendingConfirmed": "{count, plural, one {# fila de la pestaña no tiene marca de Confirmed o Team 1 — no se incluirá en el equipo de la liga hasta que ambas estén marcadas} other {# filas de la pestaña no tienen marca de Confirmed o Team 1 — no se incluirán en el equipo de la liga hasta que ambas estén marcadas}}",
         "statLabel": "Liga",
         "badge": "Liga"
       },

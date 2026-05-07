@@ -370,6 +370,7 @@
         "placeholder": "リーグタブのURLを貼り付け（異なるgid）",
         "clearTitle": "読み込み済みリーグロスターをクリア",
         "loaded": "{count, plural, =0 {リーグプレイヤーは未読込} one {# 名のリーグプレイヤーを読込済み · チーム1 / チーム2から除外} other {# 名のリーグプレイヤーを読込済み · チーム1 / チーム2から除外}}",
+        "pendingConfirmed": "{count, plural, other {タブ上の# 行に Confirmed または Team 1 のマークが付いていません — 両方にチェックが入るまでリーグチームには含まれません}}",
         "statLabel": "リーグ",
         "badge": "リーグ"
       },

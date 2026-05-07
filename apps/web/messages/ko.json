@@ -370,6 +370,7 @@
         "placeholder": "리그 탭 URL 붙여넣기 (다른 gid)",
         "clearTitle": "로드된 리그 로스터 지우기",
         "loaded": "{count, plural, =0 {로드된 리그 플레이어 없음} one {# 명의 리그 플레이어 로드됨 · 팀 1 / 팀 2에서 제외} other {# 명의 리그 플레이어 로드됨 · 팀 1 / 팀 2에서 제외}}",
+        "pendingConfirmed": "{count, plural, other {탭의 # 행에 Confirmed 또는 Team 1 표시가 없습니다 — 두 항목 모두 체크될 때까지 리그 팀에 포함되지 않습니다}}",
         "statLabel": "리그",
         "badge": "리그"
       },

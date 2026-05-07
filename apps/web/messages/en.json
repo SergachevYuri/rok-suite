@@ -375,6 +375,7 @@
         "placeholder": "Paste the URL of the league tab (different gid)",
         "clearTitle": "Clear loaded league roster",
         "loaded": "{count, plural, =0 {No league players loaded} one {# league player loaded · excluded from Team 1 / Team 2} other {# league players loaded · excluded from Team 1 / Team 2}}",
+        "pendingConfirmed": "{count, plural, one {# row on the tab is missing a Confirmed or Team 1 mark — they won't be routed into the league team until both are checked} other {# rows on the tab are missing a Confirmed or Team 1 mark — they won't be routed into the league team until both are checked}}",
         "statLabel": "League",
         "badge": "League"
       },
