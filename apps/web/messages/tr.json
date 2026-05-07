@@ -514,6 +514,7 @@
       "substitutesHint": "\"Belki\" olarak işaretlenen oyuncular - onaylarlarsa bir koridora taşıyın",
       "bench": "Banka",
       "benchHint": "Kayıtlı ama aktif kadroda değil (30 koridor + 10 yedek). Yer açılırsa bir koridora veya yedek slotuna taşıyın.",
+      "benchHintLeague": "Kayıtlı ama aktif lig kadrosunda değil (30 koridor + 15 yedek). Yer açılırsa bir koridora veya yedek slotuna taşıyın.",
       "removeFromRoster": "Kadrodan kaldır",
       "removeCompletely": "Tamamen kaldır",
       "coordinators": "Koordinatörler",

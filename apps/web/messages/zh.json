@@ -514,6 +514,7 @@
       "substitutesHint": "标记为「待定」的玩家——确认后可移至路线",
       "bench": "候补席",
       "benchHint": "已报名但不在活跃名单中（30 路线 + 10 替补）。如有空位可移至路线或替补位。",
+      "benchHintLeague": "已报名但不在联赛活跃名单中（30 路线 + 15 替补）。如有空位可移至路线或替补位。",
       "removeFromRoster": "从名册中移除",
       "removeCompletely": "完全移除",
       "coordinators": "协调员",

@@ -514,6 +514,7 @@
       "substitutesHint": "\"미정\"으로 표시된 플레이어 - 확정 시 라인으로 이동",
       "bench": "벤치",
       "benchHint": "등록되었지만 활성 명단(30 라인 + 10 교체)에 포함되지 않음. 자리가 생기면 라인 또는 교체 슬롯으로 이동하세요.",
+      "benchHintLeague": "등록되었지만 활성 리그 명단(30 라인 + 15 교체)에 포함되지 않음. 자리가 생기면 라인 또는 교체 슬롯으로 이동하세요.",
       "removeFromRoster": "명단에서 제거",
       "removeCompletely": "완전히 제거",
       "coordinators": "조정자",

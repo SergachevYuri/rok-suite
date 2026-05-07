@@ -514,6 +514,7 @@
       "substitutesHint": "Giocatori segnati come \"Forse\" - sposta in una corsia se confermano",
       "bench": "Panchina",
       "benchHint": "Registrati ma non nel roster attivo (30 corsie + 10 riserve). Sposta in una corsia o slot riserva se si libera un posto.",
+      "benchHintLeague": "Registrati ma non nel roster attivo della lega (30 corsie + 15 riserve). Sposta in una corsia o slot riserva se si libera un posto.",
       "removeFromRoster": "Rimuovi dal roster",
       "removeCompletely": "Rimuovi completamente",
       "coordinators": "Coordinatori",

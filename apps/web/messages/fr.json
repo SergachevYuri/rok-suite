@@ -514,6 +514,7 @@
       "substitutesHint": "Joueurs marqués comme \"Peut-être\" - déplacez vers une voie s'ils confirment",
       "bench": "Banc",
       "benchHint": "Inscrits mais pas dans le roster actif (30 voies + 10 remplaçants). Déplacez vers une voie ou un slot de remplaçant si une place se libère.",
+      "benchHintLeague": "Inscrits mais pas dans le roster actif de la ligue (30 voies + 15 remplaçants). Déplacez vers une voie ou un slot de remplaçant si une place se libère.",
       "removeFromRoster": "Retirer du roster",
       "removeCompletely": "Retirer complètement",
       "coordinators": "Coordinateurs",

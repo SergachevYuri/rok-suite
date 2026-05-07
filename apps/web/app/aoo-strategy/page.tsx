@@ -2069,7 +2069,8 @@ function TeamBuilderTab({
                         </section>
                     )}
 
-                    {/* Bench — registered but didn't make the 30+10 roster */}
+                    {/* Bench — registered but didn't make the active roster
+                        (30 + 10 for normal teams; 30 + 15 for the league team). */}
                     {(suggestedZones[-1]?.length || 0) > 0 && (
                         <section className={`${theme.card} border-l-4 border-amber-500 rounded-xl p-4 mb-6`}>
                             <div className="flex items-center justify-between mb-3">
@@ -2081,7 +2082,7 @@ function TeamBuilderTab({
                                 </span>
                             </div>
                             <p className={`text-xs ${theme.textMuted} mb-3`}>
-                                {t('benchHint')}
+                                {t(activeTeam === leagueTeamNumber ? 'benchHintLeague' : 'benchHint')}
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 {(suggestedZones[-1] || []).map((player) => (

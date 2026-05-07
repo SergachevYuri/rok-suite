@@ -514,6 +514,7 @@
       "substitutesHint": "Jugadores marcados como \"Quizás\" - muévelos a un carril si confirman",
       "bench": "Banca",
       "benchHint": "Registrados pero no en el roster activo (30 carriles + 10 suplentes). Muévelos a un carril o puesto de suplente si se abre un lugar.",
+      "benchHintLeague": "Registrados pero no en el roster activo de la liga (30 carriles + 15 suplentes). Muévelos a un carril o puesto de suplente si se abre un lugar.",
       "removeFromRoster": "Quitar del roster",
       "removeCompletely": "Eliminar completamente",
       "coordinators": "Coordinadores",

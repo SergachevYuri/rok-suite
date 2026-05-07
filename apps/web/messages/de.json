@@ -514,6 +514,7 @@
       "substitutesHint": "Als \"Vielleicht\" markierte Spieler - in eine Bahn verschieben, wenn sie bestätigen",
       "bench": "Bank",
       "benchHint": "Angemeldet, aber nicht im aktiven Kader (30 Bahnen + 10 Ersatz). In eine Bahn oder einen Ersatzplatz verschieben, wenn ein Platz frei wird.",
+      "benchHintLeague": "Angemeldet, aber nicht im aktiven Liga-Kader (30 Bahnen + 15 Ersatz). In eine Bahn oder einen Ersatzplatz verschieben, wenn ein Platz frei wird.",
       "removeFromRoster": "Aus dem Kader entfernen",
       "removeCompletely": "Vollständig entfernen",
       "coordinators": "Koordinatoren",

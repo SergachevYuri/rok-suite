@@ -514,6 +514,7 @@
       "substitutesHint": "Jogadores marcados como \"Talvez\" - mova para uma rota se confirmarem",
       "bench": "Banco",
       "benchHint": "Inscritos, mas fora do elenco ativo (30 rotas + 10 reservas). Mova para uma rota ou vaga de reserva se abrir espaço.",
+      "benchHintLeague": "Inscritos, mas fora do elenco ativo da liga (30 rotas + 15 reservas). Mova para uma rota ou vaga de reserva se abrir espaço.",
       "removeFromRoster": "Remover do elenco",
       "removeCompletely": "Remover completamente",
       "coordinators": "Coordenadores",

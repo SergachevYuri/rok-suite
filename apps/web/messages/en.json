@@ -519,6 +519,7 @@
       "substitutesHint": "Players marked as \"Maybe\" - move to a lane if they confirm",
       "bench": "Bench",
       "benchHint": "Registered but not in the active roster (30 lanes + 10 subs). Move to a lane or sub slot if a spot opens.",
+      "benchHintLeague": "Registered but not in the active league roster (30 lanes + 15 subs). Move to a lane or sub slot if a spot opens.",
       "removeFromRoster": "Remove from roster",
       "removeCompletely": "Remove completely",
       "coordinators": "Coordinators",
