@@ -482,13 +482,22 @@ export default function KingdomStats() {
           </h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">Seeds scan stats — uploaded from Excel</p>
         </div>
-        <a
-          href="/kingdom/ready-to-migrate"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 transition-colors flex-shrink-0"
-          title="Show players (gov_id ≥ 205000000) across all kingdoms with their seed band"
-        >
-          Possible candidates →
-        </a>
+        <div className="flex flex-wrap gap-2 flex-shrink-0">
+          <a
+            href="/kingdom/ready-to-migrate"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 transition-colors"
+            title="Show players (gov_id ≥ 205000000) across all kingdoms with their seed band"
+          >
+            Possible candidates →
+          </a>
+          <a
+            href="/kingdom/cross-season"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-300 text-sm font-medium hover:bg-violet-500/25 transition-colors"
+            title="Cross-season scan uploads + cross-season player browser"
+          >
+            Cross-season →
+          </a>
+        </div>
       </div>
 
       {/* Tab toggle */}

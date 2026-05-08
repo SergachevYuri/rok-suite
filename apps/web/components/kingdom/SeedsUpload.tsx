@@ -29,7 +29,30 @@ interface ParsedPlayerRow {
 const KD_COLS = ['KD', '400_power', 'total_KP', 'Power Rank', 'KP Rank'];
 const PLAYER_COLS = ['KD', 'player_id', 'name', 'Power', 'KP', 'cityhall', 'Rank_in_KD'];
 
-export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void }) {
+/** Target table set — lets the same uploader feed either the regular seeds
+ *  scan tables or the parallel cross-season ones without duplicating the
+ *  parsing/upsert logic. */
+export interface UploadTargetTables {
+  stats: string;   // e.g. 'seeds_kd_stats' or 'cross_season_kd_stats'
+  players: string; // e.g. 'seeds_kd_players' or 'cross_season_kd_players'
+}
+
+const DEFAULT_TARGET: UploadTargetTables = {
+  stats: 'seeds_kd_stats',
+  players: 'seeds_kd_players',
+};
+
+export default function SeedsUpload({
+  onUploaded,
+  target = DEFAULT_TARGET,
+  title,
+}: {
+  onUploaded?: () => void;
+  /** Which Supabase tables to write to. Defaults to the regular seeds tables. */
+  target?: UploadTargetTables;
+  /** Optional override for the heading shown above the drop zone. */
+  title?: string;
+}) {
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string>('');
   const [scanDate, setScanDate] = useState<string>(() => todayLocalIso());
@@ -105,14 +128,14 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
         const kdsInFile = Array.from(new Set([...kdRows.map(r => r.kingdom_id), ...playerRows.map(r => r.kingdom_id)]));
         setProgress(`Clearing existing rows for ${date}...`);
         const { error: delPlayersErr } = await supabase
-          .from('seeds_kd_players')
+          .from(target.players)
           .delete()
           .eq('scan_date', date)
           .in('kingdom_id', kdsInFile);
         if (delPlayersErr) throw new Error(`Delete players failed: ${delPlayersErr.message}`);
 
         const { error: delStatsErr } = await supabase
-          .from('seeds_kd_stats')
+          .from(target.stats)
           .delete()
           .eq('scan_date', date)
           .in('kingdom_id', kdsInFile);
@@ -122,7 +145,7 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
       const statsBatch = kdRows.map(r => ({ scan_date: date, ...r }));
       setProgress(`Uploading ${statsBatch.length} KD rows...`);
       const { error: statsErr } = await supabase
-        .from('seeds_kd_stats')
+        .from(target.stats)
         .upsert(statsBatch, { onConflict: 'scan_date,kingdom_id' });
       if (statsErr) throw new Error(`KD stats upsert failed: ${statsErr.message}`);
 
@@ -132,7 +155,7 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
       for (let i = 0; i < playerRows.length; i += BATCH) {
         const batch = playerRows.slice(i, i + BATCH).map(r => ({ scan_date: date, ...r }));
         const { error: err } = await supabase
-          .from('seeds_kd_players')
+          .from(target.players)
           .upsert(batch, { onConflict: 'scan_date,kingdom_id,player_id' });
         if (err) throw new Error(`Players upsert failed at row ${i}: ${err.message}`);
         done += batch.length;
@@ -194,6 +217,9 @@ export default function SeedsUpload({ onUploaded }: { onUploaded?: () => void })
 
   return (
     <div className="space-y-6 max-w-4xl">
+      {title && (
+        <div className="text-sm font-semibold text-[var(--foreground)]">{title}</div>
+      )}
       {/* Drop zone */}
       <div
         className={`rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
