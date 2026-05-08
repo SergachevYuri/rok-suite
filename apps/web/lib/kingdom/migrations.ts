@@ -10,19 +10,26 @@ export const MIG_FROM_DATE = '2026-04-29';
 
 /**
  * Returns the set of player_ids that already appear in the Migrations tab
- * between MIG_FROM_DATE and `toDate`. A player counts as "migrated" if:
+ * between `fromDate` and `toDate`. A player counts as "migrated" if:
  *   1. they appear in both scans with a different kingdom_id, OR
  *   2. they appear in `toDate` but were not in the From scan (new joiner).
  *
  * `floorMillions` is applied to the To-scan power so the set matches what
- * the Migrations tab actually shows. Returns an empty set if `toDate` is
- * empty or equal to MIG_FROM_DATE.
+ * the Migrations tab actually shows. Returns an empty set if either date is
+ * missing or both are the same.
+ *
+ * `tablePlayers` defaults to seeds_kd_players for the regular KvK flow; pass
+ * 'cross_season_kd_players' to compute cross-season migrations instead.
+ * `fromDate` defaults to MIG_FROM_DATE so existing call sites stay green.
  */
 export async function fetchMigratedPlayerIds(
   toDate: string | null,
   floorMillions: number = MIG_POWER_FLOOR_M_DEFAULT,
+  opts: { tablePlayers?: string; fromDate?: string | null } = {},
 ): Promise<Set<number>> {
-  if (!toDate || toDate === MIG_FROM_DATE) return new Set();
+  const tablePlayers = opts.tablePlayers ?? 'seeds_kd_players';
+  const fromDate = opts.fromDate ?? MIG_FROM_DATE;
+  if (!toDate || !fromDate || toDate === fromDate) return new Set();
   const sb = createClient();
   const floor = floorMillions * 1_000_000;
 
@@ -31,7 +38,7 @@ export async function fetchMigratedPlayerIds(
     let from = 0;
     while (true) {
       let q = sb
-        .from('seeds_kd_players')
+        .from(tablePlayers)
         .select('player_id, kingdom_id')
         .eq('scan_date', date);
       if (applyFloor) q = q.gte('power', floor);
@@ -45,11 +52,7 @@ export async function fetchMigratedPlayerIds(
     return all;
   };
 
-  // The To-scan power floor matches what the Migrations tab shows, so the
-  // candidate-exclusion stays consistent. The From scan is queried unfiltered
-  // so we can detect "appeared in latest but was anywhere on 4/29" and not
-  // miss someone who was just below the floor before but isn't now.
-  const [fromRows, toRows] = await Promise.all([pull(MIG_FROM_DATE, false), pull(toDate, true)]);
+  const [fromRows, toRows] = await Promise.all([pull(fromDate, false), pull(toDate, true)]);
   const fromMap = new Map(fromRows.map((r) => [r.player_id, r.kingdom_id] as const));
 
   const migrated = new Set<number>();

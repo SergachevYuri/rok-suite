@@ -1,8 +1,11 @@
 // Helpers for the Migration Outreach feature — players that an officer/admin
 // has flagged as "let's try to recruit this person from another KD".
-// Backed by the migration_outreach table.
+// Backed by migration_outreach (regular KvK) or cross_season_outreach (cross-
+// season). All call sites that omit `table` keep the original behavior.
 
 import { createClient } from './client';
+
+const DEFAULT_TABLE = 'migration_outreach';
 
 export interface OutreachEntry {
   player_id: number;
@@ -38,17 +41,17 @@ export interface OutreachInput {
 /** Insert one player into the outreach table. Idempotent — if the player
  *  is already there, returns `{ added: false }` without overwriting any
  *  contact tracking the leadership has already filled in. */
-export async function addOutreachEntry(input: OutreachInput): Promise<{ added: boolean }> {
+export async function addOutreachEntry(input: OutreachInput, table: string = DEFAULT_TABLE): Promise<{ added: boolean }> {
   const sb = createClient();
   const { data: existing, error: e1 } = await sb
-    .from('migration_outreach')
+    .from(table)
     .select('player_id')
     .eq('player_id', input.player_id)
     .maybeSingle();
   if (e1) throw e1;
   if (existing) return { added: false };
 
-  const { error: e2 } = await sb.from('migration_outreach').insert({
+  const { error: e2 } = await sb.from(table).insert({
     player_id: input.player_id,
     kingdom_id: input.kingdom_id,
     name: input.name,
@@ -63,23 +66,23 @@ export async function addOutreachEntry(input: OutreachInput): Promise<{ added: b
   return { added: true };
 }
 
-export async function listOutreach(): Promise<OutreachEntry[]> {
+export async function listOutreach(table: string = DEFAULT_TABLE): Promise<OutreachEntry[]> {
   const sb = createClient();
   const { data, error } = await sb
-    .from('migration_outreach')
+    .from(table)
     .select('*')
     .order('added_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as OutreachEntry[];
 }
 
-export async function listOutreachIds(): Promise<Set<number>> {
+export async function listOutreachIds(table: string = DEFAULT_TABLE): Promise<Set<number>> {
   const sb = createClient();
   const ids = new Set<number>();
   let from = 0;
   while (true) {
     const { data, error } = await sb
-      .from('migration_outreach')
+      .from(table)
       .select('player_id')
       .range(from, from + 999);
     if (error) throw error;
@@ -94,6 +97,7 @@ export async function listOutreachIds(): Promise<Set<number>> {
 export async function updateOutreach(
   playerId: number,
   patch: Partial<Pick<OutreachEntry, 'contacted' | 'contacted_by' | 'response' | 'notes'>>,
+  table: string = DEFAULT_TABLE,
 ): Promise<void> {
   const sb = createClient();
   const update: Record<string, unknown> = { ...patch, updated_at: new Date().toISOString() };
@@ -102,14 +106,14 @@ export async function updateOutreach(
     update.contacted_at = patch.contacted ? new Date().toISOString() : null;
   }
   const { error } = await sb
-    .from('migration_outreach')
+    .from(table)
     .update(update)
     .eq('player_id', playerId);
   if (error) throw error;
 }
 
-export async function removeOutreach(playerId: number): Promise<void> {
+export async function removeOutreach(playerId: number, table: string = DEFAULT_TABLE): Promise<void> {
   const sb = createClient();
-  const { error } = await sb.from('migration_outreach').delete().eq('player_id', playerId);
+  const { error } = await sb.from(table).delete().eq('player_id', playerId);
   if (error) throw error;
 }

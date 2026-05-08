@@ -12,6 +12,7 @@ import {
 } from '@/lib/supabase/use-migration-outreach';
 import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
 import { OUTREACH_SAMPLE_MESSAGE } from '@/lib/kingdom/outreach-template';
+import { SEASONS, useSeason, type Season } from '@/lib/kingdom/season-config';
 
 type SortField = 'kingdom_id' | 'name' | 'power' | 'kp' | 'added_at' | 'contacted';
 type SortDir = 'asc' | 'desc';
@@ -25,6 +26,10 @@ export default function MigrationOutreach() {
 }
 
 function MigrationOutreachInner() {
+  // ─── Season switch ───
+  const { season, config, setSeason } = useSeason();
+  const outreachTable = config.tables.outreach;
+
   // ─── Data ───
   const [entries, setEntries] = useState<OutreachEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,7 +59,7 @@ function MigrationOutreachInner() {
     setLoading(true);
     setError(null);
     try {
-      const data = await listOutreach();
+      const data = await listOutreach(outreachTable);
       setEntries(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
@@ -65,7 +70,8 @@ function MigrationOutreachInner() {
 
   useEffect(() => {
     void refresh();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outreachTable]);
 
   const setDraftField = <K extends keyof OutreachEntry>(playerId: number, field: K, value: OutreachEntry[K]) => {
     setDraft((m) => {
@@ -88,7 +94,7 @@ function MigrationOutreachInner() {
     value: boolean | string | null,
   ) => {
     try {
-      await updateOutreach(playerId, { [field]: value } as Record<string, unknown>);
+      await updateOutreach(playerId, { [field]: value } as Record<string, unknown>, outreachTable);
       // Mirror the saved value back into entries (so reload shows it without refetch).
       setEntries((rows) => rows.map((r) => (r.player_id === playerId ? { ...r, [field]: value, updated_at: new Date().toISOString() } : r)));
     } catch (e) {
@@ -104,7 +110,7 @@ function MigrationOutreachInner() {
   const handleRemove = async (playerId: number) => {
     if (!confirm('Remove this player from the outreach list? Their tracking data will be deleted.')) return;
     try {
-      await removeOutreach(playerId);
+      await removeOutreach(playerId, outreachTable);
       setEntries((rows) => rows.filter((r) => r.player_id !== playerId));
     } catch (e) {
       alert(`Failed to remove: ${e instanceof Error ? e.message : String(e)}`);
@@ -154,20 +160,38 @@ function MigrationOutreachInner() {
 
   return (
     <div className="min-h-screen p-4 lg:p-8">
-      <div className="mb-6">
-        <Link
-          href="/kingdom/ready-to-migrate"
-          className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-2"
-        >
-          <ArrowLeft size={12} /> Back to Possible candidates
-        </Link>
-        <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
-          <MailOpen size={26} className="text-emerald-400" />
-          Migration outreach
-        </h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
-          Track outreach to migration candidates. Mark when contacted, who contacted them, and the response.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Link
+            href="/kingdom/ready-to-migrate"
+            className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] mb-2"
+          >
+            <ArrowLeft size={12} /> Back to Possible candidates
+          </Link>
+          <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
+            <MailOpen size={26} className="text-emerald-400" />
+            Migration outreach
+          </h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            Track outreach to migration candidates. Mark when contacted, who contacted them, and the response.
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-[var(--text-muted)] uppercase tracking-wider">
+          Season
+          <select
+            value={season}
+            onChange={(e) => setSeason(e.target.value as Season)}
+            className={`px-3 py-2 rounded-lg border text-sm normal-case tracking-normal focus:outline-none ${
+              season === 'cross'
+                ? 'bg-violet-500/15 border-violet-500/40 text-violet-200'
+                : 'bg-[var(--background-card)] border-[var(--border)] text-[var(--foreground)]'
+            }`}
+          >
+            {Object.values(SEASONS).map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {/* ─── Sample outreach message ─── */}

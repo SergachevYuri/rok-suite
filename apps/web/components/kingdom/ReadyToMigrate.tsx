@@ -12,6 +12,7 @@ import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
 import { addOutreachEntry, listOutreachIds } from '@/lib/supabase/use-migration-outreach';
 import { fetchMigratedPlayerIds } from '@/lib/kingdom/migrations';
 import { OUTREACH_SAMPLE_MESSAGE } from '@/lib/kingdom/outreach-template';
+import { SEASONS, useSeason, type Season } from '@/lib/kingdom/season-config';
 
 /** Cutoff for "young account" — gov_ids ≥ this are considered candidates
  *  for migration outreach. Tune via UI control if you ever need to. */
@@ -59,6 +60,13 @@ export default function ReadyToMigrate() {
 }
 
 function ReadyToMigrateInner() {
+  // ─── Season switch ───
+  const { season, config, setSeason } = useSeason();
+  // The cross-season "from" baseline is unknown until the data loads (it's
+  // the earliest cross-season scan_date). For KvK it's the static MIG_FROM_DATE.
+  const [crossSeasonFromDate, setCrossSeasonFromDate] = useState<string | null>(null);
+  const fromDate = config.fromDate ?? crossSeasonFromDate;
+
   // ─── Data ───
   const [latestDate, setLatestDate] = useState<string | null>(null);
   const [candidatePlayers, setCandidatePlayers] = useState<PlayerRow[]>([]);
@@ -109,9 +117,9 @@ function ReadyToMigrateInner() {
       try {
         const sb = createClient();
 
-        // 1. Find the latest scan_date in seeds_kd_stats.
+        // 1. Find the latest scan_date in the active season's stats table.
         const { data: latestRow, error: e1 } = await sb
-          .from('seeds_kd_stats')
+          .from(config.tables.stats)
           .select('scan_date')
           .order('scan_date', { ascending: false })
           .limit(1);
@@ -124,14 +132,28 @@ function ReadyToMigrateInner() {
             setSeedByKd(new Map());
             setStatsByKd(new Map());
             setRankByKd(new Map());
+            setSelectedKds(new Set());
           }
           return;
+        }
+
+        // 1b. For cross-season we don't have a static MIG_FROM_DATE, so we
+        //     resolve the earliest scan_date in this season's stats table
+        //     and use it as the baseline for migrated-id detection.
+        if (season === 'cross') {
+          const { data: firstRow } = await sb
+            .from(config.tables.stats)
+            .select('scan_date')
+            .order('scan_date', { ascending: true })
+            .limit(1);
+          const first = firstRow?.[0]?.scan_date as string | undefined;
+          if (!cancelled) setCrossSeasonFromDate(first ?? null);
         }
 
         // 2. Pull all KD stats for that date so we can derive seeds A/B/C/D
         //    and feed the summary table.
         const { data: stats, error: e2 } = await sb
-          .from('seeds_kd_stats')
+          .from(config.tables.stats)
           .select('kingdom_id, power_400, total_kp')
           .eq('scan_date', date)
           .order('power_400', { ascending: false });
@@ -151,7 +173,7 @@ function ReadyToMigrateInner() {
         //    main list when "All KDs" is selected.
         const rows = await fetchAllRows<PlayerRow>((range) =>
           sb
-            .from('seeds_kd_players')
+            .from(config.tables.players)
             .select('*')
             .eq('scan_date', date)
             .gte('player_id', govIdFloor)
@@ -165,8 +187,8 @@ function ReadyToMigrateInner() {
         setStatsByKd(statsMap);
         setRankByKd(rankMap);
         setCandidatePlayers(rows);
-        // First load: select every KD by default. We don't want to clobber
-        // the user's selection on subsequent refetches, so only set when null.
+        // First load (or after a season switch reset): select every KD by
+        // default. Otherwise preserve the user's selection on refetches.
         setSelectedKds((prev) => prev ?? new Set(kdStats.map((s) => s.kingdom_id)));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load data');
@@ -175,7 +197,17 @@ function ReadyToMigrateInner() {
       }
     })();
     return () => { cancelled = true; };
-  }, [govIdFloor]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [govIdFloor, season]);
+
+  // Reset the KD multi-select when the user switches season — KvK and cross-
+  // season have different KD pools, so an old selection would silently filter
+  // the new list. Setting to null lets the main fetch effect default it to
+  // "all visible" once the new KD list lands.
+  useEffect(() => {
+    setSelectedKds(null);
+    setCrossSeasonFromDate(null);
+  }, [season]);
 
   // Load the set of player_ids already in the outreach table so the Fill
   // button can render as "Added" instead of "Fill" without a duplicate insert.
@@ -183,31 +215,34 @@ function ReadyToMigrateInner() {
     let cancelled = false;
     (async () => {
       try {
-        const ids = await listOutreachIds();
+        const ids = await listOutreachIds(config.tables.outreach);
         if (!cancelled) setOutreachIds(ids);
       } catch (e) {
         console.warn('Failed to load outreach ids', e);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [config.tables.outreach]);
 
   // Load the set of "already migrated" player_ids so we can hide them from
   // the candidate list — somebody who migrated this KvK isn't a candidate
-  // for migrating again. Re-runs whenever the latestDate changes.
+  // for migrating again. Re-runs whenever the latestDate or season changes.
   useEffect(() => {
-    if (!latestDate) return;
+    if (!latestDate || !fromDate) return;
     let cancelled = false;
     (async () => {
       try {
-        const ids = await fetchMigratedPlayerIds(latestDate);
+        const ids = await fetchMigratedPlayerIds(latestDate, undefined, {
+          tablePlayers: config.tables.players,
+          fromDate,
+        });
         if (!cancelled) setMigratedIds(ids);
       } catch (e) {
         console.warn('Failed to load migrated ids', e);
       }
     })();
     return () => { cancelled = true; };
-  }, [latestDate]);
+  }, [latestDate, fromDate, config.tables.players]);
 
   // Stable identity so memoized PlayerRow doesn't see a new function each render.
   const handleFill = useCallback(async (p: PlayerRow) => {
@@ -223,7 +258,7 @@ function ReadyToMigrateInner() {
         cityhall: p.cityhall,
         rank_in_kd: p.rank_in_kd,
         source_scan_date: p.scan_date,
-      });
+      }, config.tables.outreach);
       if (added) {
         setOutreachIds((s) => {
           const next = new Set(s);
@@ -236,7 +271,7 @@ function ReadyToMigrateInner() {
     } finally {
       setFillingId(null);
     }
-  }, [outreachIds]);
+  }, [outreachIds, config.tables.outreach]);
 
   // Source rows: candidates across every selected KD, minus anyone already
   // listed on the Migrations tab (they've moved this KvK already).
@@ -334,13 +369,18 @@ function ReadyToMigrateInner() {
         >
           <ArrowLeft size={12} /> Back to Kingdom Stats
         </Link>
-        <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
-          <UserPlus size={26} className="text-amber-400" />
-          Possible candidates
-        </h1>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
-          Latest scan: {latestDate ?? '—'}. Highlighted rows = candidates with gov_id ≥ {govIdFloor.toLocaleString()}.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
+              <UserPlus size={26} className="text-amber-400" />
+              Possible candidates
+            </h1>
+            <p className="text-sm text-[var(--text-muted)] mt-1">
+              Latest scan: {latestDate ?? '—'} · baseline: {fromDate ?? '—'}. Highlighted rows = candidates with gov_id ≥ {govIdFloor.toLocaleString()}.
+            </p>
+          </div>
+          <SeasonPicker season={season} onChange={setSeason} />
+        </div>
       </div>
 
       {/* ─── Sample outreach message ─── */}
@@ -658,6 +698,27 @@ const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate
     </tr>
   );
 });
+
+function SeasonPicker({ season, onChange }: { season: Season; onChange: (s: Season) => void }) {
+  return (
+    <label className="flex items-center gap-2 text-xs text-[var(--text-muted)] uppercase tracking-wider">
+      Season
+      <select
+        value={season}
+        onChange={(e) => onChange(e.target.value as Season)}
+        className={`px-3 py-2 rounded-lg border text-sm normal-case tracking-normal focus:outline-none ${
+          season === 'cross'
+            ? 'bg-violet-500/15 border-violet-500/40 text-violet-200'
+            : 'bg-[var(--background-card)] border-[var(--border)] text-[var(--foreground)]'
+        }`}
+      >
+        {(Object.values(SEASONS)).map((s) => (
+          <option key={s.key} value={s.key}>{s.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 function HeaderCell({ label, field, sortField, sortDir, onSort, align = 'left' }: {
   label: string;
