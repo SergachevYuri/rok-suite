@@ -15,10 +15,9 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowUp, Check, ChevronDown, ChevronUp, Plus, Search, Shield, UserPlus } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, fetchAllRows } from '@/lib/supabase/client';
 import {
   listAllScans,
-  loadHistoricalGovIds,
   loadLatestLocationPoints,
   loadUnifiedScanPlayers,
   type LocationPoint,
@@ -26,6 +25,8 @@ import {
   type UnifiedScanPlayer,
 } from '@/lib/zero-list/scan-data';
 import { listZeroListCases, bulkAddToZeroList } from '@/lib/supabase/use-migration-cases';
+import { listClearanceIds, addClearance } from '@/lib/supabase/use-migration-clearances';
+import { MIG_FROM_DATE } from '@/lib/kingdom/migrations';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 
 interface MigrantDecision {
@@ -68,6 +69,13 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
   // ─── Shared base data (loaded once at mount) ───
   const [scans, setScans] = useState<ScanRef[]>([]);
   const [latestPlayers, setLatestPlayers] = useState<UnifiedScanPlayer[]>([]);
+  /** Gov_ids that were already in the seed-day scan (MIG_FROM_DATE). Anyone in
+   *  the latest scan but not in this set counts as a "new arrival" for the
+   *  Illegal filter — admin then confirms / dismisses manually. */
+  const [firstScanGovIds, setFirstScanGovIds] = useState<Set<number>>(new Set());
+  /** Player_ids the admin has manually cleared as "not illegal". Hidden from
+   *  the new-arrivals filter; persisted in migration_clearances. */
+  const [clearanceIds, setClearanceIds] = useState<Set<number>>(new Set());
   const [zeroListIds, setZeroListIds] = useState<Set<number>>(new Set());
   const [cycleActiveIds, setCycleActiveIds] = useState<Set<number>>(new Set());
   const [decisionsByGov, setDecisionsByGov] = useState<Map<number, MigrantDecision>>(new Map());
@@ -102,6 +110,31 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
 
       setLatestPlayers(players);
       setZeroListIds(new Set(zlist.map((c) => c.character_id)));
+
+      // First-scan baseline (cross-KD): everyone present at MIG_FROM_DATE.
+      // Used to flag "new arrivals" — if they weren't here on seed day,
+      // they showed up sometime after.
+      try {
+        const sb = createClient();
+        const baseline = await fetchAllRows<{ player_id: number }>((range) =>
+          sb
+            .from('seeds_kd_players')
+            .select('player_id')
+            .eq('scan_date', MIG_FROM_DATE)
+            .range(range.from, range.to),
+        );
+        setFirstScanGovIds(new Set(baseline.map((r) => r.player_id)));
+      } catch (e) {
+        console.warn('First-scan baseline load failed', e);
+      }
+
+      // Manual clearances (admin "this one is fine" overrides).
+      try {
+        const cleared = await listClearanceIds();
+        setClearanceIds(cleared);
+      } catch (e) {
+        console.warn('Clearance load failed', e);
+      }
 
       const sb = createClient();
       const { data: cycleActive } = await sb
@@ -139,77 +172,56 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
   const [sortField, setSortField] = useState<SortField>('power');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
-  // Illegal filter
+  // Illegal filter — boolean only. "Illegal" here = "in the latest scan but
+  // not in the seed-day scan" (i.e. someone who showed up after the start of
+  // the KvK). The admin then confirms / dismisses manually via the checkboxes
+  // and the Add-to-Zero-List flow.
   const [illegalOn, setIllegalOn] = useState(false);
-  const [illegalScanKey, setIllegalScanKey] = useState<string>('');
 
   // Power grower filter
   const [growerOn, setGrowerOn] = useState(false);
   const [growerScanKey, setGrowerScanKey] = useState<string>('');
   const [growerThresholdM, setGrowerThresholdM] = useState<number>(0.5);
 
-  // ─── On-demand loads driven by filters ───
+  // ─── On-demand load for the grower scan A ───
   const [scanAPlayers, setScanAPlayers] = useState<Map<string, UnifiedScanPlayer[]>>(new Map());
-  const [historicalIds, setHistoricalIds] = useState<Map<string, Set<number>>>(new Map());
   const [filterLoading, setFilterLoading] = useState(false);
 
-  // Default scan A keys to the second-most-recent same-kind scan
+  // Default grower scan A to the second-most-recent same-kind scan
   useEffect(() => {
     if (scans.length === 0) return;
     const latest = scans[0];
     const sameKind = scans.filter((s) => s.kind === latest.kind);
     const fallback = sameKind[1] ?? sameKind[0];
     const key = `${fallback.kind}:${fallback.id}`;
-    setIllegalScanKey((k) => k || key);
     setGrowerScanKey((k) => k || key);
   }, [scans]);
 
-  // Lazy-load scan-A players + historical ids when the corresponding filter
-  // is on. Cached by scan key so re-toggling is instant.
+  // Lazy-load scan-A players when the grower filter is on. Cached by key.
   useEffect(() => {
-    if (!illegalOn && !growerOn) return;
+    if (!growerOn || !growerScanKey) return;
+    if (scanAPlayers.has(growerScanKey)) return;
     let cancelled = false;
     (async () => {
       setFilterLoading(true);
       try {
-        const keysWanted = new Set<string>();
-        if (illegalOn && illegalScanKey) keysWanted.add(illegalScanKey);
-        if (growerOn && growerScanKey) keysWanted.add(growerScanKey);
-
-        for (const k of keysWanted) {
-          if (!scanAPlayers.has(k)) {
-            const ref = scans.find((s) => `${s.kind}:${s.id}` === k);
-            if (!ref) continue;
-            const data = await loadUnifiedScanPlayers(ref);
-            if (cancelled) return;
-            setScanAPlayers((m) => {
-              const next = new Map(m);
-              next.set(k, data);
-              return next;
-            });
-          }
-        }
-
-        if (illegalOn && illegalScanKey && !historicalIds.has(illegalScanKey)) {
-          const ref = scans.find((s) => `${s.kind}:${s.id}` === illegalScanKey);
-          if (ref) {
-            const { ids } = await loadHistoricalGovIds(ref.ts);
-            if (cancelled) return;
-            setHistoricalIds((m) => {
-              const next = new Map(m);
-              next.set(illegalScanKey, ids);
-              return next;
-            });
-          }
-        }
+        const ref = scans.find((s) => `${s.kind}:${s.id}` === growerScanKey);
+        if (!ref) return;
+        const data = await loadUnifiedScanPlayers(ref);
+        if (cancelled) return;
+        setScanAPlayers((m) => {
+          const next = new Map(m);
+          next.set(growerScanKey, data);
+          return next;
+        });
       } catch (e) {
-        console.warn('Filter load failed', e);
+        console.warn('Grower scan load failed', e);
       } finally {
         if (!cancelled) setFilterLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [illegalOn, growerOn, illegalScanKey, growerScanKey, scans, scanAPlayers, historicalIds]);
+  }, [growerOn, growerScanKey, scans, scanAPlayers]);
 
   // ─── Derived row list ───
   // For each visible row pre-compute the per-row classifications so the
@@ -233,22 +245,18 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
   };
 
   const rows = useMemo<Row[]>(() => {
-    const illegalAByGov = illegalOn ? new Map((scanAPlayers.get(illegalScanKey) ?? []).map((p) => [p.governorId, p] as const)) : null;
     const growerAByGov  = growerOn  ? new Map((scanAPlayers.get(growerScanKey)  ?? []).map((p) => [p.governorId, p] as const)) : null;
-    const histIds = illegalOn ? historicalIds.get(illegalScanKey) : null;
     const growerThreshold = growerThresholdM * 1_000_000;
 
     const out: Row[] = [];
     for (const p of latestPlayers) {
       const decision = decisionsByGov.get(p.governorId);
 
-      // Illegal arrivals: in latest, NOT in scan A, never in any historical scan.
-      let isIllegal = false;
-      if (illegalOn && illegalAByGov && histIds) {
-        if (!illegalAByGov.has(p.governorId) && !histIds.has(p.governorId)) {
-          isIllegal = decision?.decision !== 'yes';
-        }
-      }
+      // "New arrival" candidate for illegal review: in latest, not in the
+      // first scan (MIG_FROM_DATE), and not manually cleared by an admin.
+      const isIllegal = illegalOn
+        ? !firstScanGovIds.has(p.governorId) && !clearanceIds.has(p.governorId)
+        : false;
 
       // Power grower: appears in both, delta ≥ threshold.
       let isGrower = false;
@@ -281,7 +289,7 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
       });
     }
     return out;
-  }, [latestPlayers, decisionsByGov, cycleActiveIds, zeroListIds, illegalOn, growerOn, illegalScanKey, growerScanKey, scanAPlayers, historicalIds, growerThresholdM]);
+  }, [latestPlayers, decisionsByGov, cycleActiveIds, zeroListIds, illegalOn, growerOn, growerScanKey, scanAPlayers, growerThresholdM, firstScanGovIds, clearanceIds]);
 
   const filteredAndSorted = useMemo(() => {
     let data = rows;
@@ -344,6 +352,28 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
       return next;
     });
   }, []);
+
+  // Admin clicks "Legit" on a new-arrival row → adds to clearance and removes
+  // from view. Optimistic update so the player disappears immediately.
+  const markLegit = useCallback(async (playerId: number) => {
+    setClearanceIds((prev) => {
+      const next = new Set(prev);
+      next.add(playerId);
+      return next;
+    });
+    try {
+      await addClearance(playerId, actorName ?? 'admin');
+    } catch (e) {
+      // Rollback on failure
+      setClearanceIds((prev) => {
+        const next = new Set(prev);
+        next.delete(playerId);
+        return next;
+      });
+      alert(`Mark legit failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, [actorName]);
+
 
   const openBulkModal = () => {
     if (selected.size === 0) return;
@@ -430,24 +460,18 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
         <div className="flex flex-wrap items-center gap-3">
           <FilterToggle
             on={illegalOn}
-            label="Illegal only"
+            label="New arrivals only"
             icon={<UserPlus size={13} />}
             tone="cyan"
             onToggle={() => setIllegalOn((v) => !v)}
           />
           {illegalOn && (
-            <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] uppercase tracking-wider">
-              vs
-              <select
-                value={illegalScanKey}
-                onChange={(e) => setIllegalScanKey(e.target.value)}
-                className="px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)] normal-case tracking-normal focus:outline-none focus:border-[#4318ff]"
-              >
-                {sameKindScans.filter((s) => `${s.kind}:${s.id}` !== `${scans[0]?.kind}:${scans[0]?.id}`).map((s) => (
-                  <option key={`${s.kind}:${s.id}`} value={`${s.kind}:${s.id}`}>{s.label}</option>
-                ))}
-              </select>
-            </label>
+            <span
+              className="text-[11px] text-[var(--text-muted)]"
+              title={`Players who are in the latest scan but were not in the seed-day baseline (${MIG_FROM_DATE}). Confirm manually which ones are illegal.`}
+            >
+              vs <span className="font-mono text-[var(--text-secondary)]">{MIG_FROM_DATE}</span>
+            </span>
           )}
 
           <span className="w-px h-5 bg-[var(--border)] mx-1" />
@@ -502,9 +526,17 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
             />
           </div>
 
-          <span className="text-xs text-[var(--text-muted)] tabular-nums ml-auto">
-            {filterLoading && <span className="text-cyan-300/80 mr-2">loading filter…</span>}
-            {filteredAndSorted.length.toLocaleString()} / {rows.length.toLocaleString()}
+          <span className="text-xs text-[var(--text-muted)] tabular-nums ml-auto inline-flex items-center gap-2">
+            {filterLoading && <span className="text-cyan-300/80">loading filter…</span>}
+            {illegalOn && clearanceIds.size > 0 && (
+              <span
+                className="text-emerald-400/80"
+                title={`${clearanceIds.size} player${clearanceIds.size === 1 ? '' : 's'} marked legit and hidden from this view.`}
+              >
+                {clearanceIds.size} cleared
+              </span>
+            )}
+            <span>{filteredAndSorted.length.toLocaleString()} / {rows.length.toLocaleString()}</span>
           </span>
         </div>
       </div>
@@ -623,6 +655,7 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
                       isAdmin={isAdmin}
                       checked={selected.has(r.governorId)}
                       onToggle={toggleOne}
+                      onMarkLegit={illegalOn && isAdmin ? markLegit : undefined}
                     />
                   );
                 })}
@@ -696,11 +729,14 @@ type RowType = {
   powerA: number;
 };
 
-const PlayerRowMemo = memo(function PlayerRowMemo({ row: r, isAdmin, checked, onToggle }: {
+const PlayerRowMemo = memo(function PlayerRowMemo({ row: r, isAdmin, checked, onToggle, onMarkLegit }: {
   row: RowType;
   isAdmin: boolean;
   checked: boolean;
   onToggle: (id: number) => void;
+  /** When provided, renders a "Legit" button on the row that the admin can
+   *  click to clear this new-arrival from the illegal-review list. */
+  onMarkLegit?: (id: number) => void;
 }) {
   return (
     <tr className={`border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${
@@ -714,9 +750,18 @@ const PlayerRowMemo = memo(function PlayerRowMemo({ row: r, isAdmin, checked, on
       <td className="px-3 py-2">
         <div className="flex items-center gap-1.5 flex-wrap">
           <CopyablePlayerCell name={r.name} govId={r.governorId} />
-          {r.isIllegal && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">illegal</span>}
+          {r.isIllegal && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30" title="Wasn't in the seed-day scan — pending review">illegal?</span>}
           {r.inCycle && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-rose-500/15 text-rose-400 border border-rose-500/30">in cycle</span>}
           {r.onZeroList && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-orange-500/15 text-orange-400 border border-orange-500/30">on zero list</span>}
+          {onMarkLegit && r.isIllegal && (
+            <button
+              onClick={() => onMarkLegit(r.governorId)}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
+              title="Mark this player as legit — they'll be hidden from the new-arrivals view going forward."
+            >
+              ✓ Legit
+            </button>
+          )}
         </div>
       </td>
       <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{r.governorId}</td>
