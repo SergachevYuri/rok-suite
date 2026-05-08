@@ -370,6 +370,7 @@
         "placeholder": "URL des Liga-Tabs einfügen (andere gid)",
         "clearTitle": "Geladenen Liga-Kader löschen",
         "loaded": "{count, plural, =0 {Keine Liga-Spieler geladen} one {# Liga-Spieler geladen · ausgeschlossen von Team 1 / Team 2} other {# Liga-Spieler geladen · ausgeschlossen von Team 1 / Team 2}}",
+        "pendingConfirmed": "{count, plural, one {# Zeile im Tab hat keinen Confirmed- oder Team-1-Eintrag — sie wird erst dann ins Liga-Team aufgenommen, wenn beide gesetzt sind} other {# Zeilen im Tab haben keinen Confirmed- oder Team-1-Eintrag — sie werden erst dann ins Liga-Team aufgenommen, wenn beide gesetzt sind}}",
         "statLabel": "Liga",
         "badge": "Liga"
       },
@@ -514,6 +515,7 @@
       "substitutesHint": "Als \"Vielleicht\" markierte Spieler - in eine Bahn verschieben, wenn sie bestätigen",
       "bench": "Bank",
       "benchHint": "Angemeldet, aber nicht im aktiven Kader (30 Bahnen + 10 Ersatz). In eine Bahn oder einen Ersatzplatz verschieben, wenn ein Platz frei wird.",
+      "benchHintLeague": "Angemeldet, aber nicht im aktiven Liga-Kader (30 Bahnen + 15 Ersatz). In eine Bahn oder einen Ersatzplatz verschieben, wenn ein Platz frei wird.",
       "removeFromRoster": "Aus dem Kader entfernen",
       "removeCompletely": "Vollständig entfernen",
       "coordinators": "Koordinatoren",

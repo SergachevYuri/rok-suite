@@ -370,6 +370,7 @@
         "placeholder": "Dán URL của tab Liên đoàn (gid khác)",
         "clearTitle": "Xóa danh sách Liên đoàn đã tải",
         "loaded": "{count, plural, =0 {Chưa tải người chơi Liên đoàn nào} other {Đã tải # người chơi Liên đoàn · loại khỏi Đội 1 / Đội 2}}",
+        "pendingConfirmed": "{count, plural, other {# hàng trên tab thiếu dấu Confirmed hoặc Team 1 — họ sẽ không được đưa vào đội liên đoàn cho đến khi cả hai đều được chọn}}",
         "statLabel": "Liên đoàn",
         "badge": "Liên đoàn"
       },
@@ -514,6 +515,7 @@
       "substitutesHint": "Người chơi đánh dấu \"Có thể\" - chuyển vào đường nếu họ xác nhận",
       "bench": "Ghế dự bị",
       "benchHint": "Đã đăng ký nhưng không trong đội hình chính (30 đường + 10 dự bị). Chuyển vào đường hoặc vị trí dự bị nếu có chỗ trống.",
+      "benchHintLeague": "Đã đăng ký nhưng không trong đội hình chính của liên đoàn (30 đường + 15 dự bị). Chuyển vào đường hoặc vị trí dự bị nếu có chỗ trống.",
       "removeFromRoster": "Xóa khỏi danh sách",
       "removeCompletely": "Xóa hoàn toàn",
       "coordinators": "Điều phối viên",

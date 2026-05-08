@@ -370,6 +370,7 @@
         "placeholder": "Lig sekmesinin URL'sini yapıştırın (farklı gid)",
         "clearTitle": "Yüklü Lig kadrosunu temizle",
         "loaded": "{count, plural, =0 {Lig oyuncusu yüklenmedi} one {# Lig oyuncusu yüklendi · Takım 1 / Takım 2 dışında} other {# Lig oyuncusu yüklendi · Takım 1 / Takım 2 dışında}}",
+        "pendingConfirmed": "{count, plural, one {Sekmede # satırda Confirmed veya Team 1 işareti yok — her ikisi de işaretlenene kadar lig takımına dahil edilmeyecek} other {Sekmede # satırda Confirmed veya Team 1 işareti yok — her ikisi de işaretlenene kadar lig takımına dahil edilmeyecek}}",
         "statLabel": "Lig",
         "badge": "Lig"
       },
@@ -514,6 +515,7 @@
       "substitutesHint": "\"Belki\" olarak işaretlenen oyuncular - onaylarlarsa bir koridora taşıyın",
       "bench": "Banka",
       "benchHint": "Kayıtlı ama aktif kadroda değil (30 koridor + 10 yedek). Yer açılırsa bir koridora veya yedek slotuna taşıyın.",
+      "benchHintLeague": "Kayıtlı ama aktif lig kadrosunda değil (30 koridor + 15 yedek). Yer açılırsa bir koridora veya yedek slotuna taşıyın.",
       "removeFromRoster": "Kadrodan kaldır",
       "removeCompletely": "Tamamen kaldır",
       "coordinators": "Koordinatörler",

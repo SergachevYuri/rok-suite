@@ -927,6 +927,12 @@ function TeamBuilderTab({
 
         for (const team of teams) {
 
+        // The bench (zone 0) holds 10 subs for normal weekend teams and 15
+        // for the league team. lockedSubs (players with an explicit sheet
+        // sub flag) always stay in zone 0; this cap controls how many extra
+        // overflow players auto-spill into zone 0 before going to zone -1.
+        const subCap = team === leagueTeamNumber ? 15 : 10;
+
         const teamConf = confirmationsByTeam[team] || {};
         const confirmedList = Object.entries(teamConf)
             .filter(([, v]) => v === 'confirmed')
@@ -1026,8 +1032,9 @@ function TeamBuilderTab({
                     2: [...lockedZones[2], ...filled[2]],
                     3: [...lockedZones[3], ...filled[3]],
                 };
-                // Locked subs always stay in zone 0; auto-overflow fills the rest up to 10
-                const subRoom = Math.max(0, 10 - lockedSubs.length);
+                // Locked subs always stay in zone 0; auto-overflow fills the
+                // rest up to subCap (10 normal teams / 15 league team).
+                const subRoom = Math.max(0, subCap - lockedSubs.length);
                 zones[0] = [...lockedSubs, ...remainder.slice(0, subRoom)];
                 zones[-1] = remainder.slice(subRoom);
             }
@@ -1043,7 +1050,7 @@ function TeamBuilderTab({
                 2: [...lockedZones[2], ...balancedFlex[2]],
                 3: [...lockedZones[3], ...balancedFlex[3]],
             };
-            const subRoom = Math.max(0, 10 - lockedSubs.length);
+            const subRoom = Math.max(0, subCap - lockedSubs.length);
             zones[0] = [...lockedSubs, ...remainder.slice(0, subRoom)];
             zones[-1] = remainder.slice(subRoom);
         }
@@ -2069,7 +2076,8 @@ function TeamBuilderTab({
                         </section>
                     )}
 
-                    {/* Bench — registered but didn't make the 30+10 roster */}
+                    {/* Bench — registered but didn't make the active roster
+                        (30 + 10 for normal teams; 30 + 15 for the league team). */}
                     {(suggestedZones[-1]?.length || 0) > 0 && (
                         <section className={`${theme.card} border-l-4 border-amber-500 rounded-xl p-4 mb-6`}>
                             <div className="flex items-center justify-between mb-3">
@@ -2081,7 +2089,7 @@ function TeamBuilderTab({
                                 </span>
                             </div>
                             <p className={`text-xs ${theme.textMuted} mb-3`}>
-                                {t('benchHint')}
+                                {t(activeTeam === leagueTeamNumber ? 'benchHintLeague' : 'benchHint')}
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 {(suggestedZones[-1] || []).map((player) => (
