@@ -9,7 +9,7 @@ import { AuthGate } from '@/components/AuthGate';
 import { seedAssignment, type SeedAssignment } from '@/lib/kingdom/seed';
 import { SeedBadge } from './SeedBadge';
 import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
-import { addOutreachEntry, listOutreachIds } from '@/lib/supabase/use-migration-outreach';
+import { addOutreachEntry, listOutreachIds, removeFromAllOutreach } from '@/lib/supabase/use-migration-outreach';
 import { fetchMigratedPlayerIds } from '@/lib/kingdom/migrations';
 import { OUTREACH_SAMPLE_MESSAGE } from '@/lib/kingdom/outreach-template';
 import { SEASONS, useSeason, type Season } from '@/lib/kingdom/season-config';
@@ -227,25 +227,57 @@ function ReadyToMigrateInner() {
     return () => { cancelled = true; };
   }, [config.tables.outreach]);
 
+  // Toast banner shown once when the cross-season cleanup actually drops
+  // someone from an outreach list. Cleared automatically after a few seconds.
+  const [cleanupNotice, setCleanupNotice] = useState<string | null>(null);
+
   // Load the set of "already migrated" player_ids so we can hide them from
   // the candidate list — somebody who migrated this KvK isn't a candidate
   // for migrating again. Re-runs whenever the latestDate or season changes.
+  //
+  // Cross-season uses a 0 floor: any KD change (or new joiner) between the
+  // penultimate and latest scan disqualifies the player, regardless of power,
+  // because they've already moved this season.
   useEffect(() => {
     if (!latestDate || !fromDate) return;
     let cancelled = false;
     (async () => {
       try {
-        const ids = await fetchMigratedPlayerIds(latestDate, undefined, {
+        const floor = season === 'cross' ? 0 : undefined;
+        const ids = await fetchMigratedPlayerIds(latestDate, floor, {
           tablePlayers: config.tables.players,
           fromDate,
         });
-        if (!cancelled) setMigratedIds(ids);
+        if (cancelled) return;
+        setMigratedIds(ids);
+        // Auto-remove migrated players from BOTH outreach lists — once they've
+        // moved, the original outreach can't reach them anymore. Idempotent:
+        // only deletes rows that actually exist, so re-running is harmless.
+        if (ids.size > 0) {
+          try {
+            const removed = await removeFromAllOutreach([...ids]);
+            const total = Object.values(removed).reduce((a, b) => a + b, 0);
+            if (!cancelled && total > 0) {
+              const detail = Object.entries(removed)
+                .filter(([, n]) => n > 0)
+                .map(([t, n]) => `${n} from ${t}`)
+                .join(', ');
+              setCleanupNotice(`Auto-removed ${total} migrated player(s) from outreach (${detail}).`);
+              window.setTimeout(() => setCleanupNotice(null), 6000);
+              // Refresh the cached outreach id set so the Fill buttons reset.
+              const fresh = await listOutreachIds(config.tables.outreach);
+              if (!cancelled) setOutreachIds(fresh);
+            }
+          } catch (e) {
+            console.warn('Outreach auto-cleanup failed', e);
+          }
+        }
       } catch (e) {
         console.warn('Failed to load migrated ids', e);
       }
     })();
     return () => { cancelled = true; };
-  }, [latestDate, fromDate, config.tables.players]);
+  }, [latestDate, fromDate, config.tables.players, config.tables.outreach, season]);
 
   // Stable identity so memoized PlayerRow doesn't see a new function each render.
   const handleFill = useCallback(async (p: PlayerRow) => {
@@ -385,6 +417,12 @@ function ReadyToMigrateInner() {
           <SeasonPicker season={season} onChange={setSeason} />
         </div>
       </div>
+
+      {cleanupNotice && (
+        <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200">
+          {cleanupNotice}
+        </div>
+      )}
 
       {/* ─── Sample outreach message ─── */}
       <details className="mb-4 rounded-xl border border-cyan-500/30 bg-cyan-500/5 overflow-hidden">

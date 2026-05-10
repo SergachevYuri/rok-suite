@@ -117,3 +117,55 @@ export async function removeOutreach(playerId: number, table: string = DEFAULT_T
   const { error } = await sb.from(table).delete().eq('player_id', playerId);
   if (error) throw error;
 }
+
+/** All outreach tables in the app — used by the auto-cleanup when a player is
+ *  detected as migrated. Order doesn't matter; both are cleared. */
+const ALL_OUTREACH_TABLES = ['migration_outreach', 'cross_season_outreach'] as const;
+
+/** Bulk-remove the given player_ids from every outreach table. Used after the
+ *  candidate page detects a player has migrated/changed KD between scans —
+ *  they're no longer reachable for the original outreach so we drop them.
+ *
+ *  Reason ("migrated elsewhere") is intentionally not persisted: the outreach
+ *  tables are working lists, not an audit log. The deletion is logged to the
+ *  console for traceability instead. Returns counts per table. */
+export async function removeFromAllOutreach(
+  playerIds: number[],
+): Promise<Record<string, number>> {
+  if (playerIds.length === 0) return {};
+  const sb = createClient();
+  const result: Record<string, number> = {};
+  for (const table of ALL_OUTREACH_TABLES) {
+    // Find which of the requested ids actually exist in this table so the
+    // returned count reflects real removals (not just "was asked to delete").
+    const present = new Set<number>();
+    const CHUNK = 500;
+    for (let i = 0; i < playerIds.length; i += CHUNK) {
+      const slice = playerIds.slice(i, i + CHUNK);
+      const { data, error } = await sb
+        .from(table)
+        .select('player_id')
+        .in('player_id', slice);
+      if (error) throw error;
+      for (const r of data ?? []) present.add(r.player_id as number);
+    }
+    if (present.size === 0) {
+      result[table] = 0;
+      continue;
+    }
+    const ids = [...present];
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      const { error } = await sb.from(table).delete().in('player_id', slice);
+      if (error) throw error;
+    }
+    result[table] = present.size;
+    if (present.size > 0) {
+      console.info(
+        `[outreach] auto-removed ${present.size} player(s) from ${table} — reason: migrated elsewhere`,
+        ids,
+      );
+    }
+  }
+  return result;
+}
