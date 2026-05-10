@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   BookOpen,
@@ -134,6 +135,9 @@ function MigrationPageInner() {
   const isOfficer = isAtLeast('officer');
   const isAdmin = isAtLeast('admin');
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [cycles, setCycles] = useState<MigrationCycle[]>([]);
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
   const [cases, setCases] = useState<MigrationCase[]>([]);
@@ -169,12 +173,36 @@ function MigrationPageInner() {
   };
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<'cycle' | 'zero_list' | 'scans'>(() => {
+  // Tab state — initial value priority:
+  //   1. ?tab= query string (so a shared link wins)
+  //   2. localStorage (returning user's last tab)
+  //   3. zero_list (sensible default)
+  // The URL `?tab` value is normalized to dashes (zero-list) and converted
+  // back to underscores internally so links read naturally.
+  const tabFromQuery = ((): 'cycle' | 'zero_list' | 'scans' | null => {
+    const raw = searchParams.get('tab');
+    const norm = raw?.replace(/-/g, '_');
+    if (norm === 'cycle' || norm === 'zero_list' || norm === 'scans') return norm;
+    return null;
+  })();
+  const [tab, setTabState] = useState<'cycle' | 'zero_list' | 'scans'>(() => {
+    if (tabFromQuery) return tabFromQuery;
     if (typeof window === 'undefined') return 'zero_list';
     const saved = window.localStorage.getItem('emigration-active-tab');
     if (saved === 'cycle' || saved === 'zero_list' || saved === 'scans') return saved;
     return 'zero_list';
   });
+  const setTab = useCallback((next: 'cycle' | 'zero_list' | 'scans') => {
+    setTabState(next);
+    try { window.localStorage.setItem('emigration-active-tab', next); } catch { /* ignore */ }
+    const params = new URLSearchParams(searchParams.toString());
+    // Default tab (zero_list) → omit from URL to keep `/migration` clean.
+    // Dashes in the URL (zero-list) read more naturally than underscores.
+    if (next === 'zero_list') params.delete('tab');
+    else params.set('tab', next.replace(/_/g, '-'));
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : '/migration', { scroll: false });
+  }, [router, searchParams]);
   const [stateFilter, setStateFilter] = useState<MigrationState | 'all' | 'active' | 'suggested' | 'exception_requested'>('active');
   const [sortField, setSortField] = useState<SortField>('power_at_open');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -557,10 +585,7 @@ function MigrationPageInner() {
           ] as const).map((t) => (
             <button
               key={t.id}
-              onClick={() => {
-                setTab(t.id);
-                try { window.localStorage.setItem('emigration-active-tab', t.id); } catch { /* ignore */ }
-              }}
+              onClick={() => setTab(t.id)}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex-shrink-0 whitespace-nowrap ${
                 tab === t.id
                   ? 'border-[#4318ff] text-[var(--foreground)]'
