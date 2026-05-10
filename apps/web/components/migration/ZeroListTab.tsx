@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronDown, Clock, Copy, Lock, Mail, RotateCcw, Trash2, Users } from 'lucide-react';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import {
@@ -164,11 +165,49 @@ function generateZeroListMail(args: {
   return lines.join('\n');
 }
 
+// Valid values for the `zlf` query-string filter, kept in sync with the
+// MigrationState enum + the two synthetic buckets ('active', 'all').
+const VALID_FILTERS: ReadonlyArray<'active' | 'all' | MigrationState> = [
+  'active', 'all', 'pending', 'claimed', 'contacted', 'excepted', 'migrated', 'marked_to_zero', 'zeroed', 'afk',
+];
+
 export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [cases, setCases] = useState<MigrationCase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'active' | 'all' | MigrationState>('active');
-  const [search, setSearch] = useState('');
+
+  // Initialize filter + search from the URL so direct links (e.g. shared by
+  // an admin) restore state. We only persist non-default values to keep URLs
+  // tidy when nothing is set.
+  const [filter, setFilterState] = useState<'active' | 'all' | MigrationState>(() => {
+    const raw = searchParams.get('zlf');
+    return (raw && VALID_FILTERS.includes(raw as 'active' | 'all' | MigrationState))
+      ? (raw as 'active' | 'all' | MigrationState)
+      : 'active';
+  });
+  const [search, setSearchState] = useState(() => searchParams.get('zls') ?? '');
+
+  // Wrappers that also push the change to the URL. Defaults ('active', '')
+  // are omitted from the query string so the URL stays clean by default.
+  const updateUrl = useCallback((nextFilter: typeof filter, nextSearch: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextFilter === 'active') params.delete('zlf'); else params.set('zlf', nextFilter);
+    if (!nextSearch) params.delete('zls'); else params.set('zls', nextSearch);
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : '?', { scroll: false });
+  }, [router, searchParams]);
+
+  const setFilter = useCallback((next: 'active' | 'all' | MigrationState) => {
+    setFilterState(next);
+    updateUrl(next, search);
+  }, [updateUrl, search]);
+
+  const setSearch = useCallback((next: string) => {
+    setSearchState(next);
+    updateUrl(filter, next);
+  }, [updateUrl, filter]);
   const [guideOpen, setGuideOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem('zero-list-guide-collapsed') === '0';
