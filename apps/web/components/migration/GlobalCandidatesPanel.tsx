@@ -181,6 +181,10 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
   // the KvK). The admin then confirms / dismisses manually via the checkboxes
   // and the Add-to-Zero-List flow.
   const [illegalOn, setIllegalOn] = useState(false);
+  /** First K23 scan_date a player_id appears in, after MIG_FROM_DATE. Loaded
+   *  lazily when the illegal filter is on so each illegal row can show
+   *  exactly when the player first showed up in K23. */
+  const [arrivedAtByGov, setArrivedAtByGov] = useState<Map<number, string>>(new Map());
 
   // Power grower filter
   const [growerOn, setGrowerOn] = useState(false);
@@ -227,6 +231,50 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
     return () => { cancelled = true; };
   }, [growerOn, growerScanKey, scans, scanAPlayers]);
 
+  // Load the first-seen scan_date for each illegal candidate. Runs once
+  // per (illegalOn, latestPlayers, firstScanGovIds) change. We pull the
+  // scan_dates only for the gov_ids that are actually flagged illegal so
+  // the bulk query stays small.
+  useEffect(() => {
+    if (!illegalOn) return;
+    if (latestPlayers.length === 0 || firstScanGovIds.size === 0) return;
+    const candidates = latestPlayers
+      .filter((p) => !firstScanGovIds.has(p.governorId))
+      .map((p) => p.governorId);
+    if (candidates.length === 0) {
+      setArrivedAtByGov(new Map());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const sb = createClient();
+        const minByGov = new Map<number, string>();
+        const BATCH = 500;
+        for (let i = 0; i < candidates.length; i += BATCH) {
+          const slice = candidates.slice(i, i + BATCH);
+          const { data, error } = await sb
+            .from('seeds_kd_players')
+            .select('player_id, scan_date')
+            .eq('kingdom_id', KINGDOM_ID)
+            .gt('scan_date', MIG_FROM_DATE)
+            .in('player_id', slice);
+          if (error) throw error;
+          for (const r of data ?? []) {
+            const id = r.player_id as number;
+            const d = r.scan_date as string;
+            const prev = minByGov.get(id);
+            if (!prev || d < prev) minByGov.set(id, d);
+          }
+        }
+        if (!cancelled) setArrivedAtByGov(minByGov);
+      } catch (e) {
+        console.warn('arrived-at load failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [illegalOn, latestPlayers, firstScanGovIds]);
+
   // ─── Derived row list ───
   // For each visible row pre-compute the per-row classifications so the
   // sort / filter passes can stay O(N) and the memoized PlayerRow gets
@@ -246,6 +294,9 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
     isGrower: boolean;
     deltaPower: number; // 0 if grower filter off
     powerA: number;      // 0 if grower filter off
+    /** First K23 scan_date this player appeared in (after MIG_FROM_DATE).
+     *  Only populated for illegal rows once the lookup has loaded. */
+    arrivedAt: string | null;
   };
 
   const rows = useMemo<Row[]>(() => {
@@ -290,10 +341,11 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
         isGrower,
         deltaPower,
         powerA,
+        arrivedAt: isIllegal ? (arrivedAtByGov.get(p.governorId) ?? null) : null,
       });
     }
     return out;
-  }, [latestPlayers, decisionsByGov, cycleActiveIds, zeroListIds, illegalOn, growerOn, growerScanKey, scanAPlayers, growerThresholdM, firstScanGovIds, clearanceIds]);
+  }, [latestPlayers, decisionsByGov, cycleActiveIds, zeroListIds, illegalOn, growerOn, growerScanKey, scanAPlayers, growerThresholdM, firstScanGovIds, clearanceIds, arrivedAtByGov]);
 
   const filteredAndSorted = useMemo(() => {
     let data = rows;
@@ -731,6 +783,7 @@ type RowType = {
   isGrower: boolean;
   deltaPower: number;
   powerA: number;
+  arrivedAt: string | null;
 };
 
 const PlayerRowMemo = memo(function PlayerRowMemo({ row: r, isAdmin, checked, onToggle, onMarkLegit }: {
@@ -755,6 +808,14 @@ const PlayerRowMemo = memo(function PlayerRowMemo({ row: r, isAdmin, checked, on
         <div className="flex items-center gap-1.5 flex-wrap">
           <CopyablePlayerCell name={r.name} govId={r.governorId} />
           {r.isIllegal && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30" title="Wasn't in the seed-day scan — pending review">illegal?</span>}
+          {r.isIllegal && r.arrivedAt && (
+            <span
+              className="inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 tabular-nums"
+              title={`First seen in K23 on ${r.arrivedAt}`}
+            >
+              {r.arrivedAt}
+            </span>
+          )}
           {r.inCycle && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-rose-500/15 text-rose-400 border border-rose-500/30">in cycle</span>}
           {r.onZeroList && <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-orange-500/15 text-orange-400 border border-orange-500/30">on zero list</span>}
           {onMarkLegit && r.isIllegal && (
