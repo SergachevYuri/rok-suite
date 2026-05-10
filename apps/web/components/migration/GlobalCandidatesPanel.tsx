@@ -17,6 +17,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowUp, Check, ChevronDown, ChevronUp, Plus, Search, Shield, UserPlus } from 'lucide-react';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
 import {
+  KINGDOM_ID,
   listAllScans,
   loadLatestLocationPoints,
   loadUnifiedScanPlayers,
@@ -121,6 +122,9 @@ export function GlobalCandidatesPanel({ isAdmin, actorName }: Props) {
             .from('seeds_kd_players')
             .select('player_id')
             .eq('scan_date', MIG_FROM_DATE)
+            .eq('kingdom_id', KINGDOM_ID) // K23-only: a player who was in
+            // another kingdom on seed day and is in K23 now is exactly the
+            // illegal-arrival case we want to surface.
             .range(range.from, range.to),
         );
         setFirstScanGovIds(new Set(baseline.map((r) => r.player_id)));

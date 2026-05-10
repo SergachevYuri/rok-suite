@@ -137,17 +137,20 @@ function ReadyToMigrateInner() {
           return;
         }
 
-        // 1b. For cross-season we don't have a static MIG_FROM_DATE, so we
-        //     resolve the earliest scan_date in this season's stats table
-        //     and use it as the baseline for migrated-id detection.
+        // 1b. For cross-season we use the *second-latest* scan as the baseline.
+        //     If anyone disappeared (was in penultimate, not in latest) or
+        //     appeared (in latest but not in penultimate, or changed KD),
+        //     they're flagged as migrated and removed from the candidate list.
+        //     KvK uses the static MIG_FROM_DATE since the seed-day baseline
+        //     is the relevant comparison there.
         if (season === 'cross') {
-          const { data: firstRow } = await sb
+          const { data: penultRow } = await sb
             .from(config.tables.stats)
             .select('scan_date')
-            .order('scan_date', { ascending: true })
-            .limit(1);
-          const first = firstRow?.[0]?.scan_date as string | undefined;
-          if (!cancelled) setCrossSeasonFromDate(first ?? null);
+            .order('scan_date', { ascending: false })
+            .range(1, 1);
+          const penult = penultRow?.[0]?.scan_date as string | undefined;
+          if (!cancelled) setCrossSeasonFromDate(penult ?? null);
         }
 
         // 2. Pull all KD stats for that date so we can derive seeds A/B/C/D
