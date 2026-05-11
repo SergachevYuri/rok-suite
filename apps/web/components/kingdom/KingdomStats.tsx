@@ -31,6 +31,12 @@ const KD_COLORS = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#fb923c', '#a78b
 // Default kingdom to pre-select in the highlight dropdown.
 const DEFAULT_HIGHLIGHT_KD = 3923;
 
+// KD range the KvK3 recap covers. 3897..3928 is the seeded pool.
+const RECAP_KD_MIN = 3897;
+const RECAP_KD_MAX = 3928;
+// "T5" floor — players ≥45M power are treated as T5-capable for the recap.
+const T5_POWER_FLOOR = 45_000_000;
+
 type TabType = 'table' | 'charts' | 'comparison' | 'migrations' | 'search' | 'upload';
 const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'migrations', 'search', 'upload'];
 
@@ -1031,6 +1037,39 @@ function MigrationsView({
   const outOfK23 = useMemo(() => filteredAndSorted.filter((m) => m.fromKd === DEFAULT_HIGHLIGHT_KD).length, [filteredAndSorted]);
   const newJoiners = useMemo(() => filteredAndSorted.filter((m) => m.isNewJoiner).length, [filteredAndSorted]);
 
+  // ─── T5 (≥45M) net flow per KD across the seeded pool ───
+  // For each KD in [RECAP_KD_MIN, RECAP_KD_MAX] count incoming T5 (arrivals
+  // including new joiners) minus outgoing T5 (departures). Ignores the user's
+  // sort/search filters — uses the underlying `migrations` array directly so
+  // the ranking reflects the full picture for the selected date range.
+  // The page-level power floor still bounds the upstream fetch, so the recap
+  // notes when that bound would hide some T5 traffic.
+  const recap = useMemo(() => {
+    const rows = new Map<number, { kd: number; inT5: number; outT5: number }>();
+    for (let kd = RECAP_KD_MIN; kd <= RECAP_KD_MAX; kd++) {
+      rows.set(kd, { kd, inT5: 0, outT5: 0 });
+    }
+    for (const m of migrations) {
+      // Player is T5 if their latest-scan power is ≥45M. The same player row
+      // contributes one arrival to toKd and one departure from fromKd (if any).
+      if (m.toPower < T5_POWER_FLOOR) continue;
+      const inRow = rows.get(m.toKd);
+      if (inRow) inRow.inT5 += 1;
+      if (m.fromKd != null) {
+        const outRow = rows.get(m.fromKd);
+        if (outRow) outRow.outT5 += 1;
+      }
+    }
+    const list = [...rows.values()].map((r) => ({ ...r, net: r.inT5 - r.outT5 }));
+    list.sort((a, b) => (b.net - a.net) || (b.inT5 - a.inT5) || (a.kd - b.kd));
+    return list;
+  }, [migrations]);
+
+  // True when the fetch floor would have dropped some T5 traffic (a player
+  // who was <floor at From but ≥45M at To would still surface as a "new joiner",
+  // but a player who was ≥45M at From and <floor at To would be missing).
+  const recapTruncated = migPowerFloorM > 45;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -1077,6 +1116,11 @@ function MigrationsView({
 
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
+      )}
+
+      {/* ─── T5 net flow recap (KD 3897-3928) ─── */}
+      {migFromDate && migToDate && migFromDate !== migToDate && migrations.length > 0 && (
+        <T5RecapCard recap={recap} truncated={recapTruncated} />
       )}
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
@@ -1149,6 +1193,75 @@ function MigrationsView({
             </table>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Compact ranking card: shows every KD in the seeded pool with its T5 net
+// flow (arrivals incl. new joiners − departures). KDs with zero traffic are
+// dimmed so the eye lands on the movers first.
+function T5RecapCard({
+  recap,
+  truncated,
+}: {
+  recap: { kd: number; inT5: number; outT5: number; net: number }[];
+  truncated: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <div className="text-sm font-semibold text-[var(--foreground)]">
+            T5 migration ranking — KD {RECAP_KD_MIN}–{RECAP_KD_MAX}
+          </div>
+          <div className="text-xs text-[var(--text-muted)] mt-0.5">
+            T5 = power ≥ {(T5_POWER_FLOOR / 1_000_000).toLocaleString()}M. Net = arrivals (incl. new joiners) − departures.
+          </div>
+        </div>
+        {truncated && (
+          <span
+            className="text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-amber-300"
+            title="Page-level power filter is above 45M, so some T5 movements may be missing from this recap."
+          >
+            Partial — page floor &gt; 45M
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 p-3">
+        {recap.map((r, idx) => {
+          const isMine = r.kd === DEFAULT_HIGHLIGHT_KD;
+          const positive = r.net > 0;
+          const negative = r.net < 0;
+          const dimmed = r.inT5 === 0 && r.outT5 === 0;
+          const tone = positive
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+            : negative
+              ? 'border-red-500/30 bg-red-500/10 text-red-200'
+              : 'border-[var(--border)] bg-[var(--background-secondary)] text-[var(--text-secondary)]';
+          return (
+            <div
+              key={r.kd}
+              className={`rounded-lg border px-2 py-1.5 text-xs ${tone} ${dimmed ? 'opacity-50' : ''} ${isMine ? 'ring-1 ring-amber-400/60' : ''}`}
+              title={`KD ${r.kd} — +${r.inT5} arrivals, −${r.outT5} departures (rank ${idx + 1})`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono font-semibold">KD {r.kd}</span>
+                <span className="font-mono font-bold tabular-nums">
+                  {r.net > 0 ? `+${r.net}` : r.net}
+                </span>
+              </div>
+              <div className="mt-0.5 text-[10px] text-[var(--text-muted)] tabular-nums flex items-center justify-between">
+                <span>#{idx + 1}</span>
+                <span>
+                  <span className="text-emerald-400">+{r.inT5}</span>
+                  {' / '}
+                  <span className="text-red-400">−{r.outT5}</span>
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
