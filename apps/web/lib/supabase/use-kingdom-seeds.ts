@@ -22,7 +22,12 @@ export interface SeedPlayer {
   rank_in_kd: number;
 }
 
-export function useAvailableSeedKingdoms() {
+/**
+ * Pulls every distinct kingdom_id present in the seeds_kd_stats table.
+ * Optional `filter` keeps only the KDs that match (e.g. a pool range — see
+ * lib/kingdom/kd-pools.ts). Pass a stable function reference (or omit it).
+ */
+export function useAvailableSeedKingdoms(filter?: (kd: number) => boolean) {
   const [kingdoms, setKingdoms] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,9 +47,12 @@ export function useAvailableSeedKingdoms() {
         if (data.length < 1000) break;
         offset += 1000;
       }
-      setKingdoms([...ids].sort((a, b) => a - b));
+      const list = [...ids].sort((a, b) => a - b);
+      setKingdoms(filter ? list.filter(filter) : list);
       setLoading(false);
     })();
+  // Filter is identity-stable when callers use the helpers in kd-pools.ts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { kingdoms, loading };

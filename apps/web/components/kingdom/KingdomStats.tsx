@@ -17,6 +17,7 @@ import { SeedBadge } from './SeedBadge';
 import { seedAssignment } from '@/lib/kingdom/seed';
 import { MIG_FROM_DATE, MIG_POWER_FLOOR_M_DEFAULT } from '@/lib/kingdom/migrations';
 import { createClient } from '@/lib/supabase/client';
+import { KD_POOLS, poolFilter, type KdPoolKey } from '@/lib/kingdom/kd-pools';
 
 type SortField = 'rank_in_kd' | 'name' | 'power' | 'kp' | 'cityhall';
 type SortDir = 'asc' | 'desc';
@@ -31,9 +32,6 @@ const KD_COLORS = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#fb923c', '#a78b
 // Default kingdom to pre-select in the highlight dropdown.
 const DEFAULT_HIGHLIGHT_KD = 3923;
 
-// KD range the KvK3 recap covers. 3897..3928 is the seeded pool.
-const RECAP_KD_MIN = 3897;
-const RECAP_KD_MAX = 3928;
 // "T5" floor — players ≥45M power are treated as T5-capable for the recap.
 const T5_POWER_FLOOR = 45_000_000;
 
@@ -60,19 +58,38 @@ interface MigrationRow {
   migratedAt: string | null;
 }
 
-export default function KingdomStats() {
+export default function KingdomStats({
+  pool: poolKey = 'current',
+  basePath = '/kingdom/kingdom-stats',
+}: {
+  /** Which KD pool this page operates on. Filters the dropdown lists and the
+   *  cross-KD queries so the preview pool (3929–3944) doesn't bleed into the
+   *  current pool views and vice versa. */
+  pool?: KdPoolKey;
+  /** Used for the tab → URL mapping. Preview pool lives on a different route. */
+  basePath?: string;
+}) {
+  const pool = KD_POOLS[poolKey];
+  const kdFilter = useMemo(() => poolFilter(pool), [pool]);
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
   const rawTab = searchParams.get('tab');
-  const activeTab: TabType = VALID_TABS.includes(rawTab as TabType) ? (rawTab as TabType) : 'table';
+  // Preview pool only exposes Table + Comparison; fall back to Table if the
+  // URL points at a tab that's hidden for this pool.
+  const activeTab: TabType = (() => {
+    const candidate = (VALID_TABS.includes(rawTab as TabType) ? rawTab : 'table') as TabType;
+    if (pool.allowedTabs && !pool.allowedTabs.has(candidate)) return 'table';
+    return candidate;
+  })();
   const setActiveTab = useCallback((tab: TabType) => {
     const params = new URLSearchParams(searchParams.toString());
     if (tab === 'table') params.delete('tab');
     else params.set('tab', tab);
     const qs = params.toString();
-    router.push(qs ? `?${qs}` : '/kingdom/kingdom-stats', { scroll: false });
-  }, [searchParams, router]);
+    router.push(qs ? `?${qs}` : basePath, { scroll: false });
+  }, [searchParams, router, basePath]);
 
   // Table state
   const [selectedKingdom, setSelectedKingdom] = useState<number | null>(null);
@@ -110,7 +127,7 @@ export default function KingdomStats() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Data
-  const { kingdoms, loading: loadingKingdoms } = useAvailableSeedKingdoms();
+  const { kingdoms, loading: loadingKingdoms } = useAvailableSeedKingdoms(kdFilter);
   const { dates, loading: loadingDates } = useSeedDates(selectedKingdom);
   const { dates: allDates } = useSeedDates(null);
   const { players, loading: loadingPlayers } = useSeedPlayers(selectedKingdom, selectedDate);
@@ -196,6 +213,9 @@ export default function KingdomStats() {
         const sb = createClient();
         const floor = migPowerFloorM * 1_000_000;
         // Pull both scans' players at-or-above the floor, paginating past 1000.
+        // Restrict to the active pool's KD range so the preview pool (3929+)
+        // doesn't pollute the current-pool migrations with spurious "new
+        // joiner" rows (and vice versa).
         const pull = async (date: string) => {
           const all: { player_id: number; kingdom_id: number; name: string; power: number; kp: number }[] = [];
           let from = 0;
@@ -205,6 +225,8 @@ export default function KingdomStats() {
               .select('player_id, kingdom_id, name, power, kp')
               .eq('scan_date', date)
               .gte('power', floor)
+              .gte('kingdom_id', pool.min)
+              .lte('kingdom_id', pool.max)
               .range(from, from + 999);
             if (error) throw error;
             if (!data || data.length === 0) break;
@@ -305,7 +327,7 @@ export default function KingdomStats() {
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTab, migFromDate, migToDate, migPowerFloorM]);
+  }, [activeTab, migFromDate, migToDate, migPowerFloorM, pool.min, pool.max]);
 
   // Force re-fetch by remounting on refresh — easier than threading refetch through hooks
   // (used after a successful upload)
@@ -485,10 +507,34 @@ export default function KingdomStats() {
           <h1 className="text-2xl font-bold text-[var(--foreground)] flex items-center gap-2">
             <BarChart3 size={28} className="text-green-500" />
             Kingdom Stats
+            {poolKey === 'preview' && (
+              <span className="text-xs uppercase tracking-wider px-2 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                Preview pool
+              </span>
+            )}
           </h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">Seeds scan stats — uploaded from Excel</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            {pool.label} · KD {pool.min}–{pool.max} · Seeds scan stats
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 flex-shrink-0">
+          {poolKey === 'current' ? (
+            <a
+              href="/kingdom/preview-pool"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 transition-colors"
+              title={`Preview pool view — KD ${KD_POOLS.preview.min}–${KD_POOLS.preview.max}`}
+            >
+              Preview pool →
+            </a>
+          ) : (
+            <a
+              href="/kingdom/kingdom-stats"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 transition-colors"
+              title={`Current pool view — KD ${KD_POOLS.current.min}–${KD_POOLS.current.max}`}
+            >
+              ← Current pool
+            </a>
+          )}
           <a
             href="/kingdom/ready-to-migrate"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 transition-colors"
@@ -506,14 +552,22 @@ export default function KingdomStats() {
         </div>
       </div>
 
-      {/* Tab toggle */}
+      {/* Tab toggle — preview pool only shows Table + Comparison. */}
       <div className="flex rounded-lg border border-[var(--border)] overflow-hidden mb-6 w-fit">
         <TabButton active={activeTab === 'table'}      onClick={() => setActiveTab('table')}      icon={<Table size={16} />}            label="Table" />
-        <TabButton active={activeTab === 'charts'}     onClick={() => setActiveTab('charts')}     icon={<TrendingUp size={16} />}       label="Charts" />
+        {(!pool.allowedTabs || pool.allowedTabs.has('charts')) && (
+          <TabButton active={activeTab === 'charts'}     onClick={() => setActiveTab('charts')}     icon={<TrendingUp size={16} />}       label="Charts" />
+        )}
         <TabButton active={activeTab === 'comparison'} onClick={() => setActiveTab('comparison')} icon={<GitCompareArrows size={16} />} label="Comparison" />
-        <TabButton active={activeTab === 'migrations'} onClick={() => setActiveTab('migrations')} icon={<Move size={16} />}             label="Migrations" />
-        <TabButton active={activeTab === 'search'}     onClick={() => setActiveTab('search')}     icon={<UserSearch size={16} />}       label="Search all kingdoms" />
-        <TabButton active={activeTab === 'upload'}     onClick={() => setActiveTab('upload')}     icon={<UploadIcon size={16} />}       label="Upload" />
+        {(!pool.allowedTabs || pool.allowedTabs.has('migrations')) && (
+          <TabButton active={activeTab === 'migrations'} onClick={() => setActiveTab('migrations')} icon={<Move size={16} />}             label="Migrations" />
+        )}
+        {(!pool.allowedTabs || pool.allowedTabs.has('search')) && (
+          <TabButton active={activeTab === 'search'}     onClick={() => setActiveTab('search')}     icon={<UserSearch size={16} />}       label="Search all kingdoms" />
+        )}
+        {(!pool.allowedTabs || pool.allowedTabs.has('upload')) && (
+          <TabButton active={activeTab === 'upload'}     onClick={() => setActiveTab('upload')}     icon={<UploadIcon size={16} />}       label="Upload" />
+        )}
       </div>
 
       {/* ═══ TABLE ═══ */}
@@ -887,6 +941,8 @@ export default function KingdomStats() {
           setSortField={setMigSortField}
           sortDir={migSortDir}
           setSortDir={setMigSortDir}
+          recapMin={pool.min}
+          recapMax={pool.max}
         />
       )}
 
@@ -973,6 +1029,8 @@ function MigrationsView({
   setSortField,
   sortDir,
   setSortDir,
+  recapMin,
+  recapMax,
 }: {
   allDates: string[];
   migFromDate: string;
@@ -990,6 +1048,9 @@ function MigrationsView({
   setSortField: (f: MigSortField) => void;
   sortDir: SortDir;
   setSortDir: (d: SortDir) => void;
+  /** KD range covered by the recap card. Comes from the active pool config. */
+  recapMin: number;
+  recapMax: number;
 }) {
   const filteredAndSorted = useMemo(() => {
     let data = [...migrations];
@@ -1038,15 +1099,15 @@ function MigrationsView({
   const newJoiners = useMemo(() => filteredAndSorted.filter((m) => m.isNewJoiner).length, [filteredAndSorted]);
 
   // ─── T5 (≥45M) net flow per KD across the seeded pool ───
-  // For each KD in [RECAP_KD_MIN, RECAP_KD_MAX] count incoming T5 (arrivals
-  // including new joiners) minus outgoing T5 (departures). Ignores the user's
-  // sort/search filters — uses the underlying `migrations` array directly so
-  // the ranking reflects the full picture for the selected date range.
-  // The page-level power floor still bounds the upstream fetch, so the recap
-  // notes when that bound would hide some T5 traffic.
+  // For each KD in [recapMin, recapMax] count incoming T5 (arrivals including
+  // new joiners) minus outgoing T5 (departures). Ignores the user's sort/search
+  // filters — uses the underlying `migrations` array directly so the ranking
+  // reflects the full picture for the selected date range. The page-level
+  // power floor still bounds the upstream fetch, so the recap notes when that
+  // bound would hide some T5 traffic.
   const recap = useMemo(() => {
     const rows = new Map<number, { kd: number; inT5: number; outT5: number }>();
-    for (let kd = RECAP_KD_MIN; kd <= RECAP_KD_MAX; kd++) {
+    for (let kd = recapMin; kd <= recapMax; kd++) {
       rows.set(kd, { kd, inT5: 0, outT5: 0 });
     }
     for (const m of migrations) {
@@ -1063,7 +1124,7 @@ function MigrationsView({
     const list = [...rows.values()].map((r) => ({ ...r, net: r.inT5 - r.outT5 }));
     list.sort((a, b) => (b.net - a.net) || (b.inT5 - a.inT5) || (a.kd - b.kd));
     return list;
-  }, [migrations]);
+  }, [migrations, recapMin, recapMax]);
 
   // True when the fetch floor would have dropped some T5 traffic (a player
   // who was <floor at From but ≥45M at To would still surface as a "new joiner",
@@ -1120,7 +1181,7 @@ function MigrationsView({
 
       {/* ─── T5 net flow recap (KD 3897-3928) ─── */}
       {migFromDate && migToDate && migFromDate !== migToDate && migrations.length > 0 && (
-        <T5RecapCard recap={recap} truncated={recapTruncated} />
+        <T5RecapCard recap={recap} truncated={recapTruncated} kdMin={recapMin} kdMax={recapMax} />
       )}
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
@@ -1204,16 +1265,20 @@ function MigrationsView({
 function T5RecapCard({
   recap,
   truncated,
+  kdMin,
+  kdMax,
 }: {
   recap: { kd: number; inT5: number; outT5: number; net: number }[];
   truncated: boolean;
+  kdMin: number;
+  kdMax: number;
 }) {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
       <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="text-sm font-semibold text-[var(--foreground)]">
-            T5 migration ranking — KD {RECAP_KD_MIN}–{RECAP_KD_MAX}
+            T5 migration ranking — KD {kdMin}–{kdMax}
           </div>
           <div className="text-xs text-[var(--text-muted)] mt-0.5">
             T5 = power ≥ {(T5_POWER_FLOOR / 1_000_000).toLocaleString()}M. Net = arrivals (incl. new joiners) − departures.
