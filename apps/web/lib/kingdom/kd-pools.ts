@@ -50,3 +50,42 @@ export function isInPool(kingdomId: number, pool: KdPool): boolean {
 export function poolFilter(pool: KdPool): (kd: number) => boolean {
   return (kd) => isInPool(kd, pool);
 }
+
+// ─── KvK history (preview pool — 3929-3944) ─────────────────────────────
+// Each KD's outcome in its last KvK. Used to highlight rows in the preview
+// pool's Comparison tab so it's immediately obvious which brackets are
+// "experienced winners" vs "expected to scramble".
+
+export type KvkBracket = 'A' | 'B';
+export type KvkResult = 'won' | 'lost';
+export interface KvkOutcome {
+  bracket: KvkBracket;
+  result: KvkResult;
+}
+
+export const KVK_HISTORY: Record<number, KvkOutcome> = {
+  // KvK A winners
+  3929: { bracket: 'A', result: 'won' },
+  3933: { bracket: 'A', result: 'won' },
+  3936: { bracket: 'A', result: 'won' },
+  3931: { bracket: 'A', result: 'won' },
+  // KvK A losers
+  3937: { bracket: 'A', result: 'lost' },
+  3935: { bracket: 'A', result: 'lost' },
+  3944: { bracket: 'A', result: 'lost' },
+  3942: { bracket: 'A', result: 'lost' },
+  // KvK B winners
+  3930: { bracket: 'B', result: 'won' },
+  3939: { bracket: 'B', result: 'won' },
+  3938: { bracket: 'B', result: 'won' },
+  3943: { bracket: 'B', result: 'won' },
+  // KvK B losers
+  3932: { bracket: 'B', result: 'lost' },
+  3941: { bracket: 'B', result: 'lost' },
+  3940: { bracket: 'B', result: 'lost' },
+  3934: { bracket: 'B', result: 'lost' },
+};
+
+export function kvkOutcomeFor(kingdomId: number): KvkOutcome | null {
+  return KVK_HISTORY[kingdomId] ?? null;
+}

@@ -17,7 +17,7 @@ import { SeedBadge } from './SeedBadge';
 import { seedAssignment } from '@/lib/kingdom/seed';
 import { MIG_FROM_DATE, MIG_POWER_FLOOR_M_DEFAULT } from '@/lib/kingdom/migrations';
 import { createClient } from '@/lib/supabase/client';
-import { KD_POOLS, poolFilter, type KdPoolKey } from '@/lib/kingdom/kd-pools';
+import { KD_POOLS, poolFilter, kvkOutcomeFor, type KdPoolKey } from '@/lib/kingdom/kd-pools';
 
 type SortField = 'rank_in_kd' | 'name' | 'power' | 'kp' | 'cityhall';
 type SortDir = 'asc' | 'desc';
@@ -716,6 +716,17 @@ export default function KingdomStats({
             </span>
           </div>
 
+          {poolKey === 'preview' && (
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--background-card)] px-4 py-2.5 text-xs text-[var(--text-muted)] flex flex-wrap items-center gap-3">
+              <span className="uppercase tracking-wider">Last KvK</span>
+              <KvkOutcomeBadge outcome={{ bracket: 'A', result: 'won' }} />
+              <KvkOutcomeBadge outcome={{ bracket: 'A', result: 'lost' }} />
+              <KvkOutcomeBadge outcome={{ bracket: 'B', result: 'won' }} />
+              <KvkOutcomeBadge outcome={{ bracket: 'B', result: 'lost' }} />
+              <span className="text-[var(--text-muted)] italic">row tint = result, badge = bracket</span>
+            </div>
+          )}
+
           <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
             {loadingComparison ? (
               <div className="p-12 text-center text-[var(--text-muted)]">Loading...</div>
@@ -745,6 +756,13 @@ export default function KingdomStats({
                       // Red divider between the 16th (last B) and 17th (first C) row —
                       // marks the boundary between top half (A+B bands) and bottom half (C+D).
                       const isHalfBoundary = pos === 16;
+                      // Previous-KvK outcome (preview pool only — null for current pool KDs).
+                      // Drives a subtle row tint plus the inline bracket badge.
+                      const outcome = kvkOutcomeFor(row.kingdom_id);
+                      const outcomeTint =
+                        outcome?.result === 'won'  ? 'bg-emerald-500/5 hover:bg-emerald-500/10' :
+                        outcome?.result === 'lost' ? 'bg-rose-500/5 hover:bg-rose-500/10' :
+                        '';
                       return (
                         <tr
                           key={row.kingdom_id}
@@ -755,18 +773,21 @@ export default function KingdomStats({
                           } ${
                             isHighlighted
                               ? 'bg-amber-500/10 hover:bg-amber-500/15 ring-1 ring-inset ring-amber-500/30'
-                              : 'hover:bg-[var(--background-secondary)]'
+                              : outcomeTint || 'hover:bg-[var(--background-secondary)]'
                           }`}
                         >
                           <td className="px-4 py-3 text-[var(--text-muted)] font-medium">{pos}</td>
                           <td className="px-3 py-3 text-center"><DeltaCell from={fromRank} to={pos} hasFrom={fromRanks.size > 0} /></td>
                           <td className="px-3 py-3 text-center"><SeedBadge seed={seed} /></td>
                           <td className="px-4 py-3 font-semibold text-[var(--foreground)]">
-                            <span
-                              className="inline-block w-3 h-3 rounded-full mr-2"
-                              style={{ backgroundColor: KD_COLORS[kingdoms.indexOf(row.kingdom_id) % KD_COLORS.length] }}
-                            />
-                            KD {row.kingdom_id}
+                            <span className="inline-flex items-center gap-2 flex-wrap">
+                              <span
+                                className="inline-block w-3 h-3 rounded-full"
+                                style={{ backgroundColor: KD_COLORS[kingdoms.indexOf(row.kingdom_id) % KD_COLORS.length] }}
+                              />
+                              <span>KD {row.kingdom_id}</span>
+                              {outcome && <KvkOutcomeBadge outcome={outcome} />}
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{(row.power_400 || 0).toLocaleString()}</td>
                           <td className="px-4 py-3 text-right text-red-400 tabular-nums">{(row.total_kp || 0).toLocaleString()}</td>
@@ -985,6 +1006,26 @@ function TwoColTooltip(props: TooltipProps) {
   );
 }
 
+
+// Compact chip showing a KD's previous-KvK bracket and outcome. Used in the
+// preview-pool comparison view: emerald = won, rose = lost, and the bracket
+// letter (A / B) lives inside the chip.
+function KvkOutcomeBadge({ outcome }: { outcome: { bracket: 'A' | 'B'; result: 'won' | 'lost' } }) {
+  const tone =
+    outcome.result === 'won'
+      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+      : 'bg-rose-500/15 text-rose-300 border-rose-500/30';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider border ${tone} tabular-nums`}
+      title={`Last KvK: bracket ${outcome.bracket}, ${outcome.result}`}
+    >
+      <span>{outcome.bracket}</span>
+      <span aria-hidden="true">·</span>
+      <span>{outcome.result === 'won' ? 'Won' : 'Lost'}</span>
+    </span>
+  );
+}
 
 function DeltaCell({ from, to, hasFrom }: { from: number | undefined; to: number; hasFrom: boolean }) {
   if (!hasFrom) return <span className="text-[var(--text-muted)]">–</span>;
