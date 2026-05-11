@@ -11,8 +11,15 @@ export const MIG_FROM_DATE = '2026-04-29';
 /**
  * Returns the set of player_ids that already appear in the Migrations tab
  * between `fromDate` and `toDate`. A player counts as "migrated" if:
- *   1. they appear in both scans with a different kingdom_id, OR
- *   2. they appear in `toDate` but were not in the From scan (new joiner).
+ *   1. they appear in both scans with a different kingdom_id (real migration), OR
+ *   2. they appear in `toDate` but were not in the From scan AND their current
+ *      kingdom_id was already being scanned at `fromDate` (new joiner — they
+ *      moved in from outside, or grew across the power floor).
+ *
+ * The KD-coverage check on rule (2) avoids false positives when the scan
+ * coverage widens between the two dates: a player residing in a KD that
+ * wasn't scanned at `fromDate` would otherwise look like a "new joiner" even
+ * though they were probably there the whole time.
  *
  * `floorMillions` is applied to the To-scan power so the set matches what
  * the Migrations tab actually shows. Returns an empty set if either date is
@@ -54,14 +61,23 @@ export async function fetchMigratedPlayerIds(
 
   const [fromRows, toRows] = await Promise.all([pull(fromDate, false), pull(toDate, true)]);
   const fromMap = new Map(fromRows.map((r) => [r.player_id, r.kingdom_id] as const));
+  // Set of KDs that were already part of the scan coverage at fromDate.
+  // A player in a KD outside this set can't be reliably classified as a "new
+  // joiner" — we simply weren't watching their kingdom before.
+  const fromDateKds = new Set(fromRows.map((r) => r.kingdom_id));
 
   const migrated = new Set<number>();
   for (const t of toRows) {
     const fKd = fromMap.get(t.player_id);
     if (fKd === undefined) {
-      migrated.add(t.player_id); // new joiner
+      // Only flag as new joiner when their current KD was covered at fromDate.
+      // Otherwise we have no evidence they moved — they may have been there
+      // all along, just outside our scan window.
+      if (fromDateKds.has(t.kingdom_id)) {
+        migrated.add(t.player_id);
+      }
     } else if (fKd !== t.kingdom_id) {
-      migrated.add(t.player_id); // changed KD
+      migrated.add(t.player_id); // changed KD — confirmed migration
     }
   }
   return migrated;
