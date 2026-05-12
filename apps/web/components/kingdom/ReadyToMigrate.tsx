@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Search, ChevronUp, ChevronDown, UserPlus, ArrowLeft, Check, Plus, MessageSquare, Copy } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, UserPlus, ArrowLeft, Check, Plus, MessageSquare, Copy, X, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
 import { AuthGate } from '@/components/AuthGate';
@@ -13,6 +13,7 @@ import { addOutreachEntry, listOutreachIds, removeFromAllOutreach } from '@/lib/
 import { fetchMigratedPlayerIds } from '@/lib/kingdom/migrations';
 import { OUTREACH_SAMPLE_MESSAGE } from '@/lib/kingdom/outreach-template';
 import { SEASONS, useSeason, type Season } from '@/lib/kingdom/season-config';
+import { addExclusion, listExclusions, listExclusionIds, removeExclusion, type CandidateExclusion } from '@/lib/supabase/use-candidate-exclusions';
 
 /** Cutoff for "young account" — gov_ids ≥ this are considered candidates
  *  for migration outreach. Tune via UI control if you ever need to. */
@@ -84,6 +85,16 @@ function ReadyToMigrateInner() {
   // Players already detected as migrated/joined in the Migrations tab — they
   // can't migrate again from where they are now, so we hide them here.
   const [migratedIds, setMigratedIds] = useState<Set<number>>(new Set());
+
+  // Manual "do not contact" list — separate per season (KvK vs cross). When an
+  // officer clicks Exclude on a row we drop the player_id into both the local
+  // set (instant feedback) and candidate_exclusions in Supabase (persistent).
+  const [excludedIds, setExcludedIds] = useState<Set<number>>(new Set());
+  const [excludingId, setExcludingId] = useState<number | null>(null);
+  const [showExcludedPanel, setShowExcludedPanel] = useState(false);
+  const [excludedList, setExcludedList] = useState<CandidateExclusion[]>([]);
+  const [excludedListLoading, setExcludedListLoading] = useState(false);
+
   const [messageCopied, setMessageCopied] = useState(false);
 
   const copyMessage = async () => {
@@ -308,16 +319,92 @@ function ReadyToMigrateInner() {
     }
   }, [outreachIds, config.tables.outreach]);
 
+  // Load the per-season exclusion set on mount / season switch so the filter
+  // pipeline can drop those rows. The full list (with reason/timestamp) is
+  // loaded lazily when the user opens the Excluded panel.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const ids = await listExclusionIds(season);
+        if (!cancelled) setExcludedIds(ids);
+      } catch (e) {
+        console.warn('Failed to load excluded ids', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [season]);
+
+  const refreshExcludedList = useCallback(async () => {
+    setExcludedListLoading(true);
+    try {
+      const rows = await listExclusions(season);
+      setExcludedList(rows);
+    } catch (e) {
+      console.warn('Failed to load excluded list', e);
+    } finally {
+      setExcludedListLoading(false);
+    }
+  }, [season]);
+
+  // Exclude flow: drop the player from the candidate list and store the
+  // exclusion in Supabase. A simple confirm() guards accidental clicks since
+  // the impact is "I never want to see this person in the candidates again".
+  const handleExclude = useCallback(async (p: PlayerRow) => {
+    if (excludedIds.has(p.player_id)) return;
+    const label = `${p.name || 'Unknown'} (id ${p.player_id})`;
+    if (!window.confirm(`Exclude ${label} from the ${SEASONS[season].label} candidates?\n\nThey'll be hidden from the list so you can't add them to outreach by mistake. You can restore them later from "Excluded".`)) {
+      return;
+    }
+    setExcludingId(p.player_id);
+    try {
+      await addExclusion({ player_id: p.player_id, source: season });
+      setExcludedIds((s) => {
+        const next = new Set(s);
+        next.add(p.player_id);
+        return next;
+      });
+      // If the excluded panel is already open, keep its rows in sync.
+      if (showExcludedPanel) await refreshExcludedList();
+    } catch (e) {
+      alert(`Failed to exclude: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setExcludingId(null);
+    }
+  }, [excludedIds, season, showExcludedPanel, refreshExcludedList]);
+
+  const handleRestore = useCallback(async (playerId: number) => {
+    try {
+      await removeExclusion(playerId, season);
+      setExcludedIds((s) => {
+        const next = new Set(s);
+        next.delete(playerId);
+        return next;
+      });
+      setExcludedList((rows) => rows.filter((r) => r.player_id !== playerId));
+    } catch (e) {
+      alert(`Failed to restore: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, [season]);
+
+  const toggleExcludedPanel = useCallback(async () => {
+    const next = !showExcludedPanel;
+    setShowExcludedPanel(next);
+    if (next && excludedList.length === 0) await refreshExcludedList();
+  }, [showExcludedPanel, excludedList.length, refreshExcludedList]);
+
   // Source rows: candidates across every selected KD, minus anyone already
-  // listed on the Migrations tab (they've moved this KvK already).
+  // listed on the Migrations tab (they've moved this KvK already), minus the
+  // manual exclusions ("do not contact" list).
   const sourceRows = useMemo(() => {
     let raw = candidatePlayers;
     if (selectedKds && selectedKds.size < (statsByKd.size || Infinity)) {
       raw = raw.filter((p) => selectedKds.has(p.kingdom_id));
     }
     if (migratedIds.size > 0) raw = raw.filter((p) => !migratedIds.has(p.player_id));
+    if (excludedIds.size > 0) raw = raw.filter((p) => !excludedIds.has(p.player_id));
     return raw;
-  }, [selectedKds, candidatePlayers, migratedIds, statsByKd]);
+  }, [selectedKds, candidatePlayers, migratedIds, excludedIds, statsByKd]);
   const totalRowsCount = sourceRows.length;
 
   const filteredAndSorted = useMemo(() => {
@@ -349,13 +436,14 @@ function ReadyToMigrateInner() {
 
   // KD summary table (top of page) — one row per KD with seed band, power,
   // total KP, rank, and how many candidates that KD has at the current floor.
-  // Already-migrated players are excluded so the count matches what's actually
-  // shown in the player list below.
+  // Already-migrated and manually-excluded players are dropped so the count
+  // matches what's actually shown in the player list below.
   const kdSummary = useMemo<KdSummary[]>(() => {
     const candidatesByKd = new Map<number, number>();
     for (const p of candidatePlayers) {
       if (p.kp < kpFloor) continue;
       if (migratedIds.has(p.player_id)) continue;
+      if (excludedIds.has(p.player_id)) continue;
       candidatesByKd.set(p.kingdom_id, (candidatesByKd.get(p.kingdom_id) ?? 0) + 1);
     }
     const rows: KdSummary[] = [];
@@ -371,7 +459,7 @@ function ReadyToMigrateInner() {
     }
     rows.sort((a, b) => a.rank - b.rank);
     return rows;
-  }, [statsByKd, seedByKd, rankByKd, candidatePlayers, kpFloor, migratedIds]);
+  }, [statsByKd, seedByKd, rankByKd, candidatePlayers, kpFloor, migratedIds, excludedIds]);
 
   // ─── Virtualizer for the player table ───
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -550,7 +638,21 @@ function ReadyToMigrateInner() {
                 · {migratedIds.size.toLocaleString()} migrated hidden
               </span>
             )}
+            {excludedIds.size > 0 && (
+              <span className="ml-2 text-rose-300/80" title="Players manually excluded from this season's candidates.">
+                · {excludedIds.size.toLocaleString()} excluded
+              </span>
+            )}
           </span>
+
+          <button
+            onClick={toggleExcludedPanel}
+            disabled={excludedIds.size === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-medium hover:bg-rose-500/20 transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="View and restore manually excluded players"
+          >
+            <X size={14} /> Excluded ({excludedIds.size})
+          </button>
 
           <Link
             href="/kingdom/migration-outreach"
@@ -561,6 +663,50 @@ function ReadyToMigrateInner() {
           </Link>
         </div>
       </div>
+
+      {/* ─── Excluded players panel (opens via toggle) ─── */}
+      {showExcludedPanel && (
+        <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/5 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-rose-500/20 flex items-center justify-between gap-2 flex-wrap">
+            <div className="text-sm font-semibold text-rose-200">
+              Excluded from {SEASONS[season].label} candidates
+              <span className="text-rose-300/60 font-normal ml-2">({excludedIds.size})</span>
+            </div>
+            <button
+              onClick={() => setShowExcludedPanel(false)}
+              className="text-xs text-rose-300/70 hover:text-rose-200 transition-colors inline-flex items-center gap-1"
+            >
+              <ChevronUp size={12} /> Hide
+            </button>
+          </div>
+          {excludedListLoading ? (
+            <div className="p-4 text-sm text-[var(--text-muted)] text-center">Loading…</div>
+          ) : excludedList.length === 0 ? (
+            <div className="p-4 text-sm text-[var(--text-muted)] text-center">No exclusions for this season yet.</div>
+          ) : (
+            <ul className="divide-y divide-rose-500/10 max-h-80 overflow-auto">
+              {excludedList.map((row) => (
+                <li key={row.player_id} className="px-4 py-2 flex items-center justify-between gap-3 text-sm">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-mono text-xs text-rose-300/70 tabular-nums">{row.player_id}</div>
+                    <div className="text-[var(--text-muted)] text-xs">
+                      Excluded {new Date(row.excluded_at).toLocaleString()}
+                      {row.excluded_by && ` · by ${row.excluded_by}`}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRestore(row.player_id)}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-colors text-[11px] font-medium"
+                    title="Restore this player to the candidates list"
+                  >
+                    <RotateCcw size={12} /> Restore
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* ─── KD summary table (collapsed by default) ─── */}
       <details className="group mb-6 rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
@@ -675,7 +821,9 @@ function ReadyToMigrateInner() {
                       isCandidate={p.player_id >= govIdFloor}
                       inOutreach={outreachIds.has(p.player_id)}
                       isFilling={fillingId === p.player_id}
+                      isExcluding={excludingId === p.player_id}
                       onFill={handleFill}
+                      onExclude={handleExclude}
                     />
                   );
                 })}
@@ -699,11 +847,13 @@ type PlayerRowComponentProps = {
   isCandidate: boolean;
   inOutreach: boolean;
   isFilling: boolean;
+  isExcluding: boolean;
   onFill: (p: PlayerRow) => void;
+  onExclude: (p: PlayerRow) => void;
   style?: React.CSSProperties;
 };
 
-const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate, inOutreach, isFilling, onFill, style }: PlayerRowComponentProps) {
+const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate, inOutreach, isFilling, isExcluding, onFill, onExclude, style }: PlayerRowComponentProps) {
   return (
     <tr
       style={style}
@@ -721,20 +871,30 @@ const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate
       <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(p.kp)}</td>
       <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{p.rank_in_kd}</td>
       <td className="px-3 py-2.5 text-right">
-        {inOutreach ? (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium">
-            <Check size={12} /> Added
-          </span>
-        ) : (
+        <div className="inline-flex items-center gap-1.5 justify-end flex-wrap">
+          {inOutreach ? (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium">
+              <Check size={12} /> Added
+            </span>
+          ) : (
+            <button
+              onClick={() => onFill(p)}
+              disabled={isFilling || isExcluding}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors text-[11px] font-medium disabled:opacity-50"
+              title="Add this player to the migration outreach list"
+            >
+              {isFilling ? '…' : (<><Plus size={12} /> Candidate</>)}
+            </button>
+          )}
           <button
-            onClick={() => onFill(p)}
-            disabled={isFilling}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors text-[11px] font-medium disabled:opacity-50"
-            title="Add this player to the migration outreach list"
+            onClick={() => onExclude(p)}
+            disabled={isExcluding || isFilling}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20 transition-colors text-[11px] font-medium disabled:opacity-50"
+            title="Hide this player from the candidates list so you can't add them to outreach by mistake"
           >
-            {isFilling ? '…' : (<><Plus size={12} /> Candidate</>)}
+            {isExcluding ? '…' : (<><X size={12} /> Exclude</>)}
           </button>
-        )}
+        </div>
       </td>
     </tr>
   );
