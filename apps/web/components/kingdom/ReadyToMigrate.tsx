@@ -5,7 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { Search, ChevronUp, ChevronDown, UserPlus, ArrowLeft, Check, Plus, MessageSquare, Copy, X, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { createClient, fetchAllRows } from '@/lib/supabase/client';
-import { AuthGate } from '@/components/AuthGate';
+import { meetsRole, useAuthRole } from '@/lib/auth-role';
 import { seedAssignment, type SeedAssignment } from '@/lib/kingdom/seed';
 import { SeedBadge } from './SeedBadge';
 import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
@@ -53,14 +53,15 @@ type SortField = 'kingdom_id' | 'player_id' | 'name' | 'power' | 'kp' | 'rank_in
 type SortDir = 'asc' | 'desc';
 
 export default function ReadyToMigrate() {
-  return (
-    <AuthGate require={['admin', 'officer']}>
-      <ReadyToMigrateInner />
-    </AuthGate>
-  );
+  return <ReadyToMigrateInner />;
 }
 
 function ReadyToMigrateInner() {
+  // Possible candidates is a public read view — anyone can browse, but the
+  // Fill / Exclude / Restore actions are gated to admin or officer below.
+  const { role } = useAuthRole();
+  const canEdit = meetsRole(role, ['admin', 'officer']);
+
   // ─── Season switch ───
   const { season, config, setSeason } = useSeason();
   // The cross-season "from" baseline is unknown until the data loads (it's
@@ -292,6 +293,7 @@ function ReadyToMigrateInner() {
 
   // Stable identity so memoized PlayerRow doesn't see a new function each render.
   const handleFill = useCallback(async (p: PlayerRow) => {
+    if (!canEdit) return;
     if (outreachIds.has(p.player_id)) return;
     setFillingId(p.player_id);
     try {
@@ -317,7 +319,7 @@ function ReadyToMigrateInner() {
     } finally {
       setFillingId(null);
     }
-  }, [outreachIds, config.tables.outreach]);
+  }, [outreachIds, config.tables.outreach, canEdit]);
 
   // Load the per-season exclusion set on mount / season switch so the filter
   // pipeline can drop those rows. The full list (with reason/timestamp) is
@@ -351,6 +353,7 @@ function ReadyToMigrateInner() {
   // exclusion in Supabase. A simple confirm() guards accidental clicks since
   // the impact is "I never want to see this person in the candidates again".
   const handleExclude = useCallback(async (p: PlayerRow) => {
+    if (!canEdit) return;
     if (excludedIds.has(p.player_id)) return;
     const label = `${p.name || 'Unknown'} (id ${p.player_id})`;
     if (!window.confirm(`Exclude ${label} from the ${SEASONS[season].label} candidates?\n\nThey'll be hidden from the list so you can't add them to outreach by mistake. You can restore them later from "Excluded".`)) {
@@ -371,9 +374,10 @@ function ReadyToMigrateInner() {
     } finally {
       setExcludingId(null);
     }
-  }, [excludedIds, season, showExcludedPanel, refreshExcludedList]);
+  }, [excludedIds, season, showExcludedPanel, refreshExcludedList, canEdit]);
 
   const handleRestore = useCallback(async (playerId: number) => {
+    if (!canEdit) return;
     try {
       await removeExclusion(playerId, season);
       setExcludedIds((s) => {
@@ -385,7 +389,7 @@ function ReadyToMigrateInner() {
     } catch (e) {
       alert(`Failed to restore: ${e instanceof Error ? e.message : String(e)}`);
     }
-  }, [season]);
+  }, [season, canEdit]);
 
   const toggleExcludedPanel = useCallback(async () => {
     const next = !showExcludedPanel;
@@ -505,6 +509,12 @@ function ReadyToMigrateInner() {
           <SeasonPicker season={season} onChange={setSeason} />
         </div>
       </div>
+
+      {!canEdit && (
+        <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--background-secondary)] px-4 py-2.5 text-xs text-[var(--text-muted)]">
+          Read-only view — sign in as officer or admin to add players to outreach or exclude them from the list.
+        </div>
+      )}
 
       {cleanupNotice && (
         <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200">
@@ -645,14 +655,16 @@ function ReadyToMigrateInner() {
             )}
           </span>
 
-          <button
-            onClick={toggleExcludedPanel}
-            disabled={excludedIds.size === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-medium hover:bg-rose-500/20 transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="View and restore manually excluded players"
-          >
-            <X size={14} /> Excluded ({excludedIds.size})
-          </button>
+          {canEdit && (
+            <button
+              onClick={toggleExcludedPanel}
+              disabled={excludedIds.size === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm font-medium hover:bg-rose-500/20 transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="View and restore manually excluded players"
+            >
+              <X size={14} /> Excluded ({excludedIds.size})
+            </button>
+          )}
 
           <Link
             href="/kingdom/migration-outreach"
@@ -822,6 +834,7 @@ function ReadyToMigrateInner() {
                       inOutreach={outreachIds.has(p.player_id)}
                       isFilling={fillingId === p.player_id}
                       isExcluding={excludingId === p.player_id}
+                      canEdit={canEdit}
                       onFill={handleFill}
                       onExclude={handleExclude}
                     />
@@ -848,12 +861,15 @@ type PlayerRowComponentProps = {
   inOutreach: boolean;
   isFilling: boolean;
   isExcluding: boolean;
+  /** When false, the row is read-only — the action buttons render as a
+   *  muted "Sign in to act" hint instead of the Fill/Exclude buttons. */
+  canEdit: boolean;
   onFill: (p: PlayerRow) => void;
   onExclude: (p: PlayerRow) => void;
   style?: React.CSSProperties;
 };
 
-const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate, inOutreach, isFilling, isExcluding, onFill, onExclude, style }: PlayerRowComponentProps) {
+const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate, inOutreach, isFilling, isExcluding, canEdit, onFill, onExclude, style }: PlayerRowComponentProps) {
   return (
     <tr
       style={style}
@@ -871,30 +887,42 @@ const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate
       <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(p.kp)}</td>
       <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums">{p.rank_in_kd}</td>
       <td className="px-3 py-2.5 text-right">
-        <div className="inline-flex items-center gap-1.5 justify-end flex-wrap">
-          {inOutreach ? (
+        {canEdit ? (
+          <div className="inline-flex items-center gap-1.5 justify-end flex-wrap">
+            {inOutreach ? (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium">
+                <Check size={12} /> Added
+              </span>
+            ) : (
+              <button
+                onClick={() => onFill(p)}
+                disabled={isFilling || isExcluding}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors text-[11px] font-medium disabled:opacity-50"
+                title="Add this player to the migration outreach list"
+              >
+                {isFilling ? '…' : (<><Plus size={12} /> Candidate</>)}
+              </button>
+            )}
+            <button
+              onClick={() => onExclude(p)}
+              disabled={isExcluding || isFilling}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20 transition-colors text-[11px] font-medium disabled:opacity-50"
+              title="Hide this player from the candidates list so you can't add them to outreach by mistake"
+            >
+              {isExcluding ? '…' : (<><X size={12} /> Exclude</>)}
+            </button>
+          </div>
+        ) : (
+          inOutreach ? (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-medium">
               <Check size={12} /> Added
             </span>
           ) : (
-            <button
-              onClick={() => onFill(p)}
-              disabled={isFilling || isExcluding}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors text-[11px] font-medium disabled:opacity-50"
-              title="Add this player to the migration outreach list"
-            >
-              {isFilling ? '…' : (<><Plus size={12} /> Candidate</>)}
-            </button>
-          )}
-          <button
-            onClick={() => onExclude(p)}
-            disabled={isExcluding || isFilling}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20 transition-colors text-[11px] font-medium disabled:opacity-50"
-            title="Hide this player from the candidates list so you can't add them to outreach by mistake"
-          >
-            {isExcluding ? '…' : (<><X size={12} /> Exclude</>)}
-          </button>
-        </div>
+            <span className="text-[10px] text-[var(--text-muted)] italic" title="Sign in as officer or admin to add/exclude candidates">
+              read-only
+            </span>
+          )
+        )}
       </td>
     </tr>
   );
