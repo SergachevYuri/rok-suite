@@ -13,13 +13,23 @@
 
 export type KdPoolKey = 'current' | 'preview';
 
-export interface KdPool {
-  key: KdPoolKey;
-  label: string;
+export interface KdRange {
   /** Inclusive lower bound on kingdom_id. */
   min: number;
   /** Inclusive upper bound on kingdom_id. */
   max: number;
+}
+
+export interface KdPool {
+  key: KdPoolKey;
+  label: string;
+  /** All KDs in the pool — drives the kingdoms dropdown, Table tab, etc.
+   *  Supports disjoint ranges so a pool can stitch together separate brackets. */
+  ranges: readonly KdRange[];
+  /** Optional subset used for the Comparison tab. When omitted, comparison
+   *  uses the full `ranges`. Lets us show a wider list of KDs in the Table
+   *  view than what we care to rank together. */
+  comparisonRanges?: readonly KdRange[];
   /** Tabs to expose for this pool. `null` = all tabs allowed. */
   allowedTabs: ReadonlySet<string> | null;
 }
@@ -28,27 +38,75 @@ export const KD_POOLS: Record<KdPoolKey, KdPool> = {
   current: {
     key: 'current',
     label: 'KvK3 current pool',
-    min: 3897,
-    max: 3928,
+    ranges: [{ min: 3897, max: 3928 }],
     allowedTabs: null,
   },
   preview: {
     key: 'preview',
-    label: 'Preview pool (next KvK)',
-    min: 3929,
-    max: 3944,
+    // 3865-3896 are older brackets we want to inspect in the Table view but
+    // don't rank against the next-matchmaking candidates (3929-3944). The
+    // comparison subset stays focused on the latter.
+    label: 'Preview pool',
+    ranges: [
+      { min: 3865, max: 3896 },
+      { min: 3929, max: 3944 },
+    ],
+    comparisonRanges: [{ min: 3929, max: 3944 }],
     allowedTabs: new Set(['table', 'comparison']),
   },
 };
 
-/** True when `kingdomId` falls inside the pool's KD range. */
+function ranged(kd: number, ranges: readonly KdRange[]): boolean {
+  for (const r of ranges) if (kd >= r.min && kd <= r.max) return true;
+  return false;
+}
+
+/** True when `kingdomId` falls inside any of the pool's ranges. */
 export function isInPool(kingdomId: number, pool: KdPool): boolean {
-  return kingdomId >= pool.min && kingdomId <= pool.max;
+  return ranged(kingdomId, pool.ranges);
+}
+
+/** True when `kingdomId` is part of the pool's comparison subset (or the full
+ *  pool, if no narrower subset is defined). */
+export function isInComparison(kingdomId: number, pool: KdPool): boolean {
+  return ranged(kingdomId, pool.comparisonRanges ?? pool.ranges);
 }
 
 /** Builder for an array filter — keeps just the KDs that fit the pool. */
 export function poolFilter(pool: KdPool): (kd: number) => boolean {
   return (kd) => isInPool(kd, pool);
+}
+
+/** Builder for an array filter — keeps just the KDs that fit the comparison
+ *  subset (or full pool if no subset is defined). */
+export function comparisonFilter(pool: KdPool): (kd: number) => boolean {
+  return (kd) => isInComparison(kd, pool);
+}
+
+/** Enumerate every kingdom_id in the pool. Used for Postgres `.in()` clauses. */
+export function poolKingdomIds(pool: KdPool): number[] {
+  const ids: number[] = [];
+  for (const r of pool.ranges) {
+    for (let k = r.min; k <= r.max; k++) ids.push(k);
+  }
+  return ids;
+}
+
+/** Span of the comparison subset (or the whole pool when no subset is set). */
+export function poolComparisonSpan(pool: KdPool): { min: number; max: number } {
+  const ranges = pool.comparisonRanges ?? pool.ranges;
+  let min = Infinity, max = -Infinity;
+  for (const r of ranges) {
+    if (r.min < min) min = r.min;
+    if (r.max > max) max = r.max;
+  }
+  return { min, max };
+}
+
+/** Human-readable range string for headers — e.g. "3897–3928" for the current
+ *  pool, "3865–3896, 3929–3944" for the preview pool. */
+export function formatPoolRanges(pool: KdPool): string {
+  return pool.ranges.map((r) => r.min === r.max ? `${r.min}` : `${r.min}–${r.max}`).join(', ');
 }
 
 // ─── KvK history (preview pool — 3929-3944) ─────────────────────────────

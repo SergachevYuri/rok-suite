@@ -17,7 +17,16 @@ import { SeedBadge } from './SeedBadge';
 import { seedAssignment } from '@/lib/kingdom/seed';
 import { MIG_FROM_DATE, MIG_POWER_FLOOR_M_DEFAULT } from '@/lib/kingdom/migrations';
 import { createClient } from '@/lib/supabase/client';
-import { KD_POOLS, poolFilter, kvkOutcomeFor, type KdPoolKey } from '@/lib/kingdom/kd-pools';
+import {
+  KD_POOLS,
+  poolFilter,
+  comparisonFilter,
+  poolKingdomIds,
+  poolComparisonSpan,
+  formatPoolRanges,
+  kvkOutcomeFor,
+  type KdPoolKey,
+} from '@/lib/kingdom/kd-pools';
 
 type SortField = 'rank_in_kd' | 'name' | 'power' | 'kp' | 'cityhall';
 type SortDir = 'asc' | 'desc';
@@ -71,6 +80,10 @@ export default function KingdomStats({
 }) {
   const pool = KD_POOLS[poolKey];
   const kdFilter = useMemo(() => poolFilter(pool), [pool]);
+  const compFilter = useMemo(() => comparisonFilter(pool), [pool]);
+  const poolKds = useMemo(() => poolKingdomIds(pool), [pool]);
+  const compSpan = useMemo(() => poolComparisonSpan(pool), [pool]);
+  const poolDisplay = useMemo(() => formatPoolRanges(pool), [pool]);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -213,9 +226,9 @@ export default function KingdomStats({
         const sb = createClient();
         const floor = migPowerFloorM * 1_000_000;
         // Pull both scans' players at-or-above the floor, paginating past 1000.
-        // Restrict to the active pool's KD range so the preview pool (3929+)
-        // doesn't pollute the current-pool migrations with spurious "new
-        // joiner" rows (and vice versa).
+        // Restrict to the active pool's KD set (may be disjoint, so we use
+        // `.in()` instead of `.gte/.lte`) so the preview pool doesn't pollute
+        // the current-pool migrations with spurious "new joiner" rows.
         const pull = async (date: string) => {
           const all: { player_id: number; kingdom_id: number; name: string; power: number; kp: number }[] = [];
           let from = 0;
@@ -225,8 +238,7 @@ export default function KingdomStats({
               .select('player_id, kingdom_id, name, power, kp')
               .eq('scan_date', date)
               .gte('power', floor)
-              .gte('kingdom_id', pool.min)
-              .lte('kingdom_id', pool.max)
+              .in('kingdom_id', poolKds)
               .range(from, from + 999);
             if (error) throw error;
             if (!data || data.length === 0) break;
@@ -327,7 +339,7 @@ export default function KingdomStats({
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTab, migFromDate, migToDate, migPowerFloorM, pool.min, pool.max]);
+  }, [activeTab, migFromDate, migToDate, migPowerFloorM, poolKds]);
 
   // Force re-fetch by remounting on refresh — easier than threading refetch through hooks
   // (used after a successful upload)
@@ -443,27 +455,29 @@ export default function KingdomStats({
     return 0;
   }, [compSortField, compSortDir]);
 
-  // Ranking @ To date — one row per KD, sorted by the chosen field/direction
+  // Ranking @ To date — one row per KD, sorted by the chosen field/direction.
+  // Filtered to the pool's comparison subset so the preview pool doesn't mix
+  // the wider Table-view KDs (3865-3896) into the matchmaking ranking.
   const comparisonRows = useMemo(() => {
     if (compStats.length === 0 || !comparisonToDate) return [];
-    const forDate = compStats.filter(s => s.scan_date === comparisonToDate);
+    const forDate = compStats.filter(s => s.scan_date === comparisonToDate && compFilter(s.kingdom_id));
     const byKd = new Map<number, SeedKdStat>();
     for (const s of forDate) if (!byKd.has(s.kingdom_id)) byKd.set(s.kingdom_id, s);
     return Array.from(byKd.values()).sort(compSorter);
-  }, [compStats, comparisonToDate, compSorter]);
+  }, [compStats, comparisonToDate, compSorter, compFilter]);
 
   // Rank lookup @ From date (1-indexed). Empty if no From date selected.
   const fromRanks = useMemo(() => {
     const m = new Map<number, number>();
     if (!comparisonFromDate || compStats.length === 0) return m;
-    const forDate = compStats.filter(s => s.scan_date === comparisonFromDate);
+    const forDate = compStats.filter(s => s.scan_date === comparisonFromDate && compFilter(s.kingdom_id));
     const byKd = new Map<number, SeedKdStat>();
     for (const s of forDate) if (!byKd.has(s.kingdom_id)) byKd.set(s.kingdom_id, s);
     Array.from(byKd.values())
       .sort(compSorter)
       .forEach((r, i) => m.set(r.kingdom_id, i + 1));
     return m;
-  }, [compStats, comparisonFromDate, compSorter]);
+  }, [compStats, comparisonFromDate, compSorter, compFilter]);
 
   // Summary card for the highlighted kingdom — its rank+value at From and at To.
   const highlightedInfo = useMemo(() => {
@@ -514,7 +528,7 @@ export default function KingdomStats({
             )}
           </h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
-            {pool.label} · KD {pool.min}–{pool.max} · Seeds scan stats
+            {pool.label} · KD {poolDisplay} · Seeds scan stats
           </p>
         </div>
         <div className="flex flex-wrap gap-2 flex-shrink-0">
@@ -522,7 +536,7 @@ export default function KingdomStats({
             <a
               href="/kingdom/preview-pool"
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-500/25 transition-colors"
-              title={`Preview pool view — KD ${KD_POOLS.preview.min}–${KD_POOLS.preview.max}`}
+              title={`Preview pool view — KD ${formatPoolRanges(KD_POOLS.preview)}`}
             >
               Preview pool →
             </a>
@@ -530,7 +544,7 @@ export default function KingdomStats({
             <a
               href="/kingdom/kingdom-stats"
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 transition-colors"
-              title={`Current pool view — KD ${KD_POOLS.current.min}–${KD_POOLS.current.max}`}
+              title={`Current pool view — KD ${formatPoolRanges(KD_POOLS.current)}`}
             >
               ← Current pool
             </a>
@@ -696,7 +710,7 @@ export default function KingdomStats({
               className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
             >
               <option value="">— none —</option>
-              {kingdoms.map(k => <option key={k} value={k}>KD {k}</option>)}
+              {kingdoms.filter(compFilter).map(k => <option key={k} value={k}>KD {k}</option>)}
             </select>
             {highlightedInfo && (
               <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex items-center gap-2">
@@ -962,8 +976,8 @@ export default function KingdomStats({
           setSortField={setMigSortField}
           sortDir={migSortDir}
           setSortDir={setMigSortDir}
-          recapMin={pool.min}
-          recapMax={pool.max}
+          recapMin={compSpan.min}
+          recapMax={compSpan.max}
         />
       )}
 
