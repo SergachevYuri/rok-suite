@@ -53,6 +53,32 @@ export async function removeExclusion(playerId: number, source: Season): Promise
   if (error) throw error;
 }
 
+/** Bulk insert exclusions in one round-trip. Duplicates on (player_id, source)
+ *  are ignored — re-running with the same ids is a no-op. Returns the count of
+ *  rows the caller asked us to add (not necessarily newly-inserted, but caller
+ *  rarely cares for UI purposes). */
+export async function addExclusionsBulk(
+  playerIds: number[],
+  source: Season,
+  excludedBy?: string | null,
+): Promise<number> {
+  if (playerIds.length === 0) return 0;
+  const sb = createClient();
+  const uniqueIds = Array.from(new Set(playerIds));
+  const rows = uniqueIds.map((id) => ({
+    player_id: id,
+    source,
+    excluded_by: excludedBy ?? null,
+  }));
+  // upsert with ignoreDuplicates so re-adding an already-excluded player is
+  // a no-op rather than a PK violation.
+  const { error } = await sb
+    .from('candidate_exclusions')
+    .upsert(rows, { onConflict: 'player_id,source', ignoreDuplicates: true });
+  if (error) throw error;
+  return uniqueIds.length;
+}
+
 /** All exclusion rows for a season — used to render the "view excluded" panel. */
 export async function listExclusions(source: Season): Promise<CandidateExclusion[]> {
   const sb = createClient();

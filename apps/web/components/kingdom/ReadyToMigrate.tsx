@@ -13,11 +13,30 @@ import { addOutreachEntry, listOutreachIds, removeFromAllOutreach } from '@/lib/
 import { fetchMigratedPlayerIds } from '@/lib/kingdom/migrations';
 import { OUTREACH_SAMPLE_MESSAGE } from '@/lib/kingdom/outreach-template';
 import { SEASONS, useSeason, type Season } from '@/lib/kingdom/season-config';
-import { addExclusion, listExclusions, listExclusionIds, removeExclusion, type CandidateExclusion } from '@/lib/supabase/use-candidate-exclusions';
+import { addExclusion, addExclusionsBulk, listExclusions, listExclusionIds, removeExclusion, type CandidateExclusion } from '@/lib/supabase/use-candidate-exclusions';
 
 /** Cutoff for "young account" — gov_ids ≥ this are considered candidates
  *  for migration outreach. Tune via UI control if you ever need to. */
 const DEFAULT_GOV_ID_FLOOR = 205_000_000;
+
+/** Best-effort human-readable string for whatever Supabase / fetch threw.
+ *  PostgrestError comes back as a plain object so `String(e)` would print
+ *  "[object Object]" — we surface its message/code/details instead. */
+function explainError(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'string') return e;
+  if (e && typeof e === 'object') {
+    const obj = e as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
+    const parts: string[] = [];
+    if (typeof obj.message === 'string' && obj.message) parts.push(obj.message);
+    if (typeof obj.code === 'string' && obj.code) parts.push(`(code ${obj.code})`);
+    if (typeof obj.details === 'string' && obj.details) parts.push(obj.details);
+    if (typeof obj.hint === 'string' && obj.hint) parts.push(`Hint: ${obj.hint}`);
+    if (parts.length > 0) return parts.join(' — ');
+    try { return JSON.stringify(e); } catch { /* fall through */ }
+  }
+  return String(e);
+}
 
 // Outreach mail template lives in lib/kingdom/outreach-template.ts so the
 // outreach tracking page can show the same text.
@@ -95,6 +114,12 @@ function ReadyToMigrateInner() {
   const [showExcludedPanel, setShowExcludedPanel] = useState(false);
   const [excludedList, setExcludedList] = useState<CandidateExclusion[]>([]);
   const [excludedListLoading, setExcludedListLoading] = useState(false);
+
+  // ─── Bulk selection ───
+  /** player_ids the user has checked for a bulk action (exclude). Cleared
+   *  after a successful bulk operation or a season switch. */
+  const [bulkSelection, setBulkSelection] = useState<Set<number>>(new Set());
+  const [bulkExcluding, setBulkExcluding] = useState(false);
 
   const [messageCopied, setMessageCopied] = useState(false);
 
@@ -315,7 +340,8 @@ function ReadyToMigrateInner() {
         });
       }
     } catch (e) {
-      alert(`Failed to add: ${e instanceof Error ? e.message : String(e)}`);
+      console.error('Failed to add to outreach', e);
+      alert(`Failed to add: ${explainError(e)}`);
     } finally {
       setFillingId(null);
     }
@@ -370,11 +396,56 @@ function ReadyToMigrateInner() {
       // If the excluded panel is already open, keep its rows in sync.
       if (showExcludedPanel) await refreshExcludedList();
     } catch (e) {
-      alert(`Failed to exclude: ${e instanceof Error ? e.message : String(e)}`);
+      console.error('Failed to exclude', e);
+      alert(`Failed to exclude: ${explainError(e)}`);
     } finally {
       setExcludingId(null);
     }
   }, [excludedIds, season, showExcludedPanel, refreshExcludedList, canEdit]);
+
+  // Clear bulk selection whenever the user switches season — the ids belong
+  // to the previous season's candidate pool and probably aren't visible now.
+  useEffect(() => {
+    setBulkSelection(new Set());
+  }, [season]);
+
+  const toggleBulkSelect = useCallback((playerId: number) => {
+    setBulkSelection((s) => {
+      const next = new Set(s);
+      if (next.has(playerId)) next.delete(playerId);
+      else next.add(playerId);
+      return next;
+    });
+  }, []);
+
+  const clearBulkSelection = useCallback(() => setBulkSelection(new Set()), []);
+
+  // Bulk exclude flow — one confirm + one round-trip to Supabase via the
+  // upsert helper. Skipping the per-row confirm dialog is the whole point.
+  const handleBulkExclude = useCallback(async () => {
+    if (!canEdit) return;
+    if (bulkSelection.size === 0) return;
+    const ids = [...bulkSelection];
+    if (!window.confirm(`Exclude ${ids.length} player${ids.length === 1 ? '' : 's'} from the ${SEASONS[season].label} candidates?\n\nThey'll be hidden from the list. You can restore them later from "Excluded".`)) {
+      return;
+    }
+    setBulkExcluding(true);
+    try {
+      await addExclusionsBulk(ids, season);
+      setExcludedIds((s) => {
+        const next = new Set(s);
+        for (const id of ids) next.add(id);
+        return next;
+      });
+      setBulkSelection(new Set());
+      if (showExcludedPanel) await refreshExcludedList();
+    } catch (e) {
+      console.error('Failed to bulk-exclude', e);
+      alert(`Failed to bulk-exclude: ${explainError(e)}`);
+    } finally {
+      setBulkExcluding(false);
+    }
+  }, [bulkSelection, canEdit, season, showExcludedPanel, refreshExcludedList]);
 
   const handleRestore = useCallback(async (playerId: number) => {
     if (!canEdit) return;
@@ -387,7 +458,8 @@ function ReadyToMigrateInner() {
       });
       setExcludedList((rows) => rows.filter((r) => r.player_id !== playerId));
     } catch (e) {
-      alert(`Failed to restore: ${e instanceof Error ? e.message : String(e)}`);
+      console.error('Failed to restore', e);
+      alert(`Failed to restore: ${explainError(e)}`);
     }
   }, [season, canEdit]);
 
@@ -797,6 +869,46 @@ function ReadyToMigrateInner() {
         </div>
       )}
 
+      {/* ─── Bulk-action bar (only shown when at least one row is checked) ─── */}
+      {canEdit && bulkSelection.size > 0 && (
+        <div className="sticky top-2 z-20 mb-3 rounded-lg border border-rose-500/40 bg-[var(--background-card)] shadow-lg px-4 py-2.5 flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-medium text-[var(--foreground)]">
+            {bulkSelection.size} selected
+          </span>
+          <button
+            onClick={() => {
+              // Select every visible (post-filter) candidate. Skips rows
+              // already in outreach since those have nothing to exclude.
+              setBulkSelection((s) => {
+                const next = new Set(s);
+                for (const p of filteredAndSorted) {
+                  if (!outreachIds.has(p.player_id)) next.add(p.player_id);
+                }
+                return next;
+              });
+            }}
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] underline-offset-2 hover:underline transition-colors"
+          >
+            Select all visible ({filteredAndSorted.length})
+          </button>
+          <button
+            onClick={clearBulkSelection}
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] underline-offset-2 hover:underline transition-colors"
+          >
+            Clear
+          </button>
+          <span className="ml-auto" />
+          <button
+            onClick={handleBulkExclude}
+            disabled={bulkExcluding}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-rose-500/20 text-rose-200 border border-rose-500/40 hover:bg-rose-500/30 transition-colors text-sm font-medium disabled:opacity-50"
+            title="Exclude all selected players from the candidates list"
+          >
+            {bulkExcluding ? '…' : <><X size={14} /> Exclude {bulkSelection.size}</>}
+          </button>
+        </div>
+      )}
+
       <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-[var(--text-muted)]">Loading...</div>
@@ -809,6 +921,40 @@ function ReadyToMigrateInner() {
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-[var(--background-secondary)]">
                 <tr className="border-b border-[var(--border)]">
+                  {canEdit && (
+                    <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all visible candidates"
+                        // Indeterminate is only meaningful when some-but-not-all
+                        // visible rows are selected. We set it imperatively via
+                        // ref since React doesn't expose it as a JSX attribute.
+                        ref={(el) => {
+                          if (!el) return;
+                          const visibleSelectable = filteredAndSorted.filter((p) => !outreachIds.has(p.player_id));
+                          const visibleSelected = visibleSelectable.filter((p) => bulkSelection.has(p.player_id)).length;
+                          el.indeterminate = visibleSelected > 0 && visibleSelected < visibleSelectable.length;
+                          el.checked = visibleSelectable.length > 0 && visibleSelected === visibleSelectable.length;
+                        }}
+                        onChange={(e) => {
+                          const visibleSelectable = filteredAndSorted.filter((p) => !outreachIds.has(p.player_id));
+                          if (e.target.checked) {
+                            setBulkSelection((s) => {
+                              const next = new Set(s);
+                              for (const p of visibleSelectable) next.add(p.player_id);
+                              return next;
+                            });
+                          } else {
+                            setBulkSelection((s) => {
+                              const next = new Set(s);
+                              for (const p of visibleSelectable) next.delete(p.player_id);
+                              return next;
+                            });
+                          }
+                        }}
+                      />
+                    </th>
+                  )}
                   <HeaderCell label="KD"        field="kingdom_id" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   <HeaderCell label="Seed"      field="seed"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   <HeaderCell label="Player ID" field="player_id"  sortField={sortField} sortDir={sortDir} onSort={handleSort} />
@@ -821,7 +967,7 @@ function ReadyToMigrateInner() {
               </thead>
               <tbody>
                 {padTop > 0 && (
-                  <tr aria-hidden="true"><td colSpan={8} style={{ height: padTop, padding: 0, border: 0 }} /></tr>
+                  <tr aria-hidden="true"><td colSpan={canEdit ? 9 : 8} style={{ height: padTop, padding: 0, border: 0 }} /></tr>
                 )}
                 {virtualItems.map((vrow) => {
                   const p = filteredAndSorted[vrow.index];
@@ -835,13 +981,15 @@ function ReadyToMigrateInner() {
                       isFilling={fillingId === p.player_id}
                       isExcluding={excludingId === p.player_id}
                       canEdit={canEdit}
+                      isSelected={bulkSelection.has(p.player_id)}
+                      onToggleSelect={toggleBulkSelect}
                       onFill={handleFill}
                       onExclude={handleExclude}
                     />
                   );
                 })}
                 {padBottom > 0 && (
-                  <tr aria-hidden="true"><td colSpan={8} style={{ height: padBottom, padding: 0, border: 0 }} /></tr>
+                  <tr aria-hidden="true"><td colSpan={canEdit ? 9 : 8} style={{ height: padBottom, padding: 0, border: 0 }} /></tr>
                 )}
               </tbody>
             </table>
@@ -864,21 +1012,37 @@ type PlayerRowComponentProps = {
   /** When false, the row is read-only — the action buttons render as a
    *  muted "Sign in to act" hint instead of the Fill/Exclude buttons. */
   canEdit: boolean;
+  isSelected: boolean;
+  onToggleSelect: (playerId: number) => void;
   onFill: (p: PlayerRow) => void;
   onExclude: (p: PlayerRow) => void;
   style?: React.CSSProperties;
 };
 
-const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate, inOutreach, isFilling, isExcluding, canEdit, onFill, onExclude, style }: PlayerRowComponentProps) {
+const PlayerRowMemo = memo(function PlayerRowMemo({ player: p, seed, isCandidate, inOutreach, isFilling, isExcluding, canEdit, isSelected, onToggleSelect, onFill, onExclude, style }: PlayerRowComponentProps) {
   return (
     <tr
       style={style}
       className={`border-b border-[var(--border)] transition-colors ${
-        isCandidate
-          ? 'bg-amber-500/10 hover:bg-amber-500/15'
-          : 'hover:bg-[var(--background-secondary)]'
+        isSelected
+          ? 'bg-rose-500/15 hover:bg-rose-500/20'
+          : isCandidate
+            ? 'bg-amber-500/10 hover:bg-amber-500/15'
+            : 'hover:bg-[var(--background-secondary)]'
       }`}
     >
+      {canEdit && (
+        <td className="px-3 py-2.5 text-center">
+          <input
+            type="checkbox"
+            aria-label={`Select ${p.name || p.player_id}`}
+            checked={isSelected}
+            disabled={inOutreach}
+            onChange={() => onToggleSelect(p.player_id)}
+            title={inOutreach ? 'Already in outreach' : 'Select for bulk exclude'}
+          />
+        </td>
+      )}
       <td className="px-3 py-2.5 font-medium text-[var(--foreground)] tabular-nums">KD {p.kingdom_id}</td>
       <td className="px-3 py-2.5"><SeedBadge seed={seed} /></td>
       <td className={`px-3 py-2.5 text-xs tabular-nums ${isCandidate ? 'text-amber-300 font-medium' : 'text-[var(--text-muted)]'}`}>{p.player_id}</td>
