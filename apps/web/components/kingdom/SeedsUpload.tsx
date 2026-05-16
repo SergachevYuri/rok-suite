@@ -5,6 +5,9 @@ import * as XLSX from 'xlsx';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Calendar, Trash2, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
+import { cleanupDepartedKingdomPlayers } from '@/lib/kingdom/scan-cleanup';
+import { insertKdSnapshots } from '@/lib/kingdom/kd-snapshots';
+import { KINGDOM_ID } from '@/lib/zero-list/scan-data';
 
 type Status = 'idle' | 'parsing' | 'preview' | 'uploading' | 'done' | 'error';
 
@@ -162,8 +165,44 @@ export default function SeedsUpload({
         setProgress(`Uploading players... ${done}/${total}`);
       }
 
+      // Append a per-KD snapshot for the Comparison tab's "since last upload"
+      // delta. Only for the regular seeds upload — cross-season has its own
+      // tables and doesn't share the Comparison view.
+      const isSeedsTarget = target.stats === 'seeds_kd_stats';
+      if (isSeedsTarget && kdRows.length > 0) {
+        try {
+          setProgress(`Recording snapshot for ${date}...`);
+          await insertKdSnapshots(date, kdRows);
+        } catch (e) {
+          console.warn('Snapshot insert failed', e);
+        }
+      }
+
+      let cleanupSummary = '';
+      // Auto-cleanup of departed K23 players — only meaningful for the regular
+      // KvK upload (seeds_kd_*) AND when this scan actually contains K23 data.
+      // Cross-season uploads skip this; they go to their own tables and don't
+      // share the migration_cases / outreach lifecycle.
+      const fileHasK23 = playerRows.some((r) => r.kingdom_id === KINGDOM_ID);
+      if (isSeedsTarget && fileHasK23) {
+        try {
+          setProgress(`Checking for K${KINGDOM_ID} departures...`);
+          const res = await cleanupDepartedKingdomPlayers(date);
+          if (res.previousScanDate && res.departedCount > 0) {
+            const bits: string[] = [`${res.departedCount} departed since ${res.previousScanDate}`];
+            if (res.casesMigrated > 0) bits.push(`${res.casesMigrated} case(s) → migrated`);
+            if (res.outreachRemoved > 0) bits.push(`${res.outreachRemoved} outreach removed`);
+            if (res.crossOutreachRemoved > 0) bits.push(`${res.crossOutreachRemoved} cross-outreach removed`);
+            cleanupSummary = ` · Cleanup: ${bits.join(' · ')}`;
+          }
+        } catch (e) {
+          console.warn('Auto-cleanup failed', e);
+          cleanupSummary = ' · Cleanup skipped (see console)';
+        }
+      }
+
       setStatus('done');
-      setProgress(`${kdRows.length} KDs · ${playerRows.length} players uploaded for ${date}`);
+      setProgress(`${kdRows.length} KDs · ${playerRows.length} players uploaded for ${date}${cleanupSummary}`);
       onUploaded?.();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Upload failed');

@@ -17,6 +17,7 @@ import { SeedBadge } from './SeedBadge';
 import { seedAssignment } from '@/lib/kingdom/seed';
 import { MIG_FROM_DATE, MIG_POWER_FLOOR_M_DEFAULT } from '@/lib/kingdom/migrations';
 import { createClient } from '@/lib/supabase/client';
+import { fetchLatestSnapshotsDelta, timeAgo, type KdSnapshotDelta } from '@/lib/kingdom/kd-snapshots';
 import {
   KD_POOLS,
   poolFilter,
@@ -138,6 +139,24 @@ export default function KingdomStats({
 
   // Refresh trigger to re-fetch after an upload
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Per-KD "since last upload" delta, loaded once for the Comparison tab.
+  // Re-fetched on every refresh (new upload appends a snapshot, which changes
+  // the latest pair). Skipped on the preview pool — snapshots are KvK-only.
+  const [snapshotDeltas, setSnapshotDeltas] = useState<Map<number, KdSnapshotDelta>>(new Map());
+  useEffect(() => {
+    if (poolKey !== 'current') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const map = await fetchLatestSnapshotsDelta();
+        if (!cancelled) setSnapshotDeltas(map);
+      } catch (e) {
+        console.warn('Failed to load KD snapshot deltas', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [refreshKey, poolKey]);
 
   // Data
   const { kingdoms, loading: loadingKingdoms } = useAvailableSeedKingdoms(kdFilter);
@@ -794,14 +813,17 @@ export default function KingdomStats({
                           <td className="px-3 py-3 text-center"><DeltaCell from={fromRank} to={pos} hasFrom={fromRanks.size > 0} /></td>
                           <td className="px-3 py-3 text-center"><SeedBadge seed={seed} /></td>
                           <td className="px-4 py-3 font-semibold text-[var(--foreground)]">
-                            <span className="inline-flex items-center gap-2 flex-wrap">
-                              <span
-                                className="inline-block w-3 h-3 rounded-full"
-                                style={{ backgroundColor: KD_COLORS[kingdoms.indexOf(row.kingdom_id) % KD_COLORS.length] }}
-                              />
-                              <span>KD {row.kingdom_id}</span>
-                              {outcome && <KvkOutcomeBadge outcome={outcome} />}
-                            </span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="inline-flex items-center gap-2 flex-wrap">
+                                <span
+                                  className="inline-block w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: KD_COLORS[kingdoms.indexOf(row.kingdom_id) % KD_COLORS.length] }}
+                                />
+                                <span>KD {row.kingdom_id}</span>
+                                {outcome && <KvkOutcomeBadge outcome={outcome} />}
+                              </span>
+                              <SnapshotDeltaLine delta={snapshotDeltas.get(row.kingdom_id)} />
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{(row.power_400 || 0).toLocaleString()}</td>
                           <td className="px-4 py-3 text-right text-red-400 tabular-nums">{(row.total_kp || 0).toLocaleString()}</td>
@@ -1020,6 +1042,37 @@ function TwoColTooltip(props: TooltipProps) {
   );
 }
 
+
+// Tiny "↑ +10.10M (4h ago)" line shown under each KD name in the Comparison
+// view. The delta is power_400 between the two most-recent snapshots for the
+// kingdom; the timestamp is the latest snapshot's uploaded_at.
+function SnapshotDeltaLine({ delta }: { delta: KdSnapshotDelta | undefined }) {
+  if (!delta) return null;
+  if (!delta.previous || delta.deltaPower == null) {
+    // Only one snapshot so far — show the upload time so the user can tell
+    // when the first snapshot landed, even without a comparison value.
+    return (
+      <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
+        first scan · {timeAgo(delta.latest.uploaded_at)}
+      </span>
+    );
+  }
+  const up = delta.deltaPower > 0;
+  const down = delta.deltaPower < 0;
+  const tone = up ? 'text-emerald-400' : down ? 'text-rose-400' : 'text-[var(--text-muted)]';
+  const arrow = up ? '↑' : down ? '↓' : '·';
+  const magnitude = Math.abs(delta.deltaPower);
+  return (
+    <span
+      className={`text-[10px] tabular-nums ${tone}`}
+      title={`Power Δ since previous snapshot at ${new Date(delta.previous.uploaded_at).toLocaleString()}`}
+    >
+      {arrow} {(up || down) ? `${up ? '+' : '-'}${formatCompact(magnitude)}` : '—'}
+      {' '}
+      <span className="text-[var(--text-muted)]">({timeAgo(delta.latest.uploaded_at)})</span>
+    </span>
+  );
+}
 
 // Compact chip showing a KD's previous-KvK bracket and outcome. Used in the
 // preview-pool comparison view: emerald = won, rose = lost, and the bracket
