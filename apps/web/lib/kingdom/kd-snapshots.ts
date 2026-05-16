@@ -47,51 +47,53 @@ export async function insertKdSnapshots(
   if (error) throw error;
 }
 
-export interface KdSnapshotDelta {
+/** First, previous, and latest snapshots per KD. `first` is the oldest row
+ *  on record for the kingdom — used by the top "season summary" chip to show
+ *  power/rank progression since we started tracking. `previous` and `latest`
+ *  drive the per-row "since last upload" delta when no compare dates are set. */
+export interface KdSnapshotSummary {
   kingdom_id: number;
+  first: KdSnapshotRow;
   latest: KdSnapshotRow;
+  /** Second-most-recent snapshot. Null when only one snapshot exists. */
   previous: KdSnapshotRow | null;
-  /** latest.power_400 - previous.power_400; null when no previous snapshot. */
-  deltaPower: number | null;
-  /** latest.total_kp - previous.total_kp; null when no previous snapshot. */
-  deltaKp: number | null;
 }
 
-/** Returns the two most-recent snapshots per kingdom_id and the implied
- *  deltas. One round-trip to Supabase: pulls a generous window of recent rows
- *  and groups in memory by kingdom_id since PostgREST has no per-group LIMIT. */
-export async function fetchLatestSnapshotsDelta(): Promise<Map<number, KdSnapshotDelta>> {
+/** Pulls every snapshot, groups by kingdom_id, returns first/previous/latest
+ *  per KD. One paginated round-trip; the dataset stays small (one row per
+ *  upload × KD). */
+export async function fetchKdSnapshotSummary(): Promise<Map<number, KdSnapshotSummary>> {
   const sb = createClient();
-  // 1000 rows is plenty for "last 2 per KD across ~64 KDs" (= up to 128 rows
-  // ideal). We pull more so the most recent N uploads are guaranteed covered.
-  const { data, error } = await sb
-    .from('seeds_kd_snapshots')
-    .select('*')
-    .order('uploaded_at', { ascending: false })
-    .limit(2000);
-  if (error) throw error;
+  const all: KdSnapshotRow[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await sb
+      .from('seeds_kd_snapshots')
+      .select('*')
+      .order('uploaded_at', { ascending: true })
+      .range(from, from + 999);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...(data as KdSnapshotRow[]));
+    if (data.length < 1000) break;
+    from += 1000;
+  }
 
   const byKd = new Map<number, KdSnapshotRow[]>();
-  for (const row of (data ?? []) as KdSnapshotRow[]) {
+  for (const row of all) {
     const list = byKd.get(row.kingdom_id) ?? [];
-    if (list.length < 2) list.push(row); // already sorted DESC, take first two
+    list.push(row);
     byKd.set(row.kingdom_id, list);
   }
 
-  const result = new Map<number, KdSnapshotDelta>();
+  const result = new Map<number, KdSnapshotSummary>();
   for (const [kd, rows] of byKd) {
-    const latest = rows[0];
-    const previous = rows[1] ?? null;
+    if (rows.length === 0) continue;
     result.set(kd, {
       kingdom_id: kd,
-      latest,
-      previous,
-      deltaPower: previous && latest.power_400 != null && previous.power_400 != null
-        ? latest.power_400 - previous.power_400
-        : null,
-      deltaKp: previous && latest.total_kp != null && previous.total_kp != null
-        ? latest.total_kp - previous.total_kp
-        : null,
+      first: rows[0],
+      latest: rows[rows.length - 1],
+      previous: rows.length >= 2 ? rows[rows.length - 2] : null,
     });
   }
   return result;

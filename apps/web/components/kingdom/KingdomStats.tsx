@@ -17,7 +17,7 @@ import { SeedBadge } from './SeedBadge';
 import { seedAssignment } from '@/lib/kingdom/seed';
 import { MIG_FROM_DATE, MIG_POWER_FLOOR_M_DEFAULT } from '@/lib/kingdom/migrations';
 import { createClient } from '@/lib/supabase/client';
-import { fetchLatestSnapshotsDelta, timeAgo, type KdSnapshotDelta } from '@/lib/kingdom/kd-snapshots';
+import { fetchKdSnapshotSummary, timeAgo, type KdSnapshotSummary } from '@/lib/kingdom/kd-snapshots';
 import {
   KD_POOLS,
   poolFilter,
@@ -140,19 +140,19 @@ export default function KingdomStats({
   // Refresh trigger to re-fetch after an upload
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Per-KD "since last upload" delta, loaded once for the Comparison tab.
-  // Re-fetched on every refresh (new upload appends a snapshot, which changes
-  // the latest pair). Skipped on the preview pool — snapshots are KvK-only.
-  const [snapshotDeltas, setSnapshotDeltas] = useState<Map<number, KdSnapshotDelta>>(new Map());
+  // First/previous/latest snapshot per KD. Drives the "since last upload"
+  // chip under each row and the season-summary chip at the top. Refetched on
+  // refresh; only meaningful for the current pool.
+  const [snapshotSummaries, setSnapshotSummaries] = useState<Map<number, KdSnapshotSummary>>(new Map());
   useEffect(() => {
     if (poolKey !== 'current') return;
     let cancelled = false;
     (async () => {
       try {
-        const map = await fetchLatestSnapshotsDelta();
-        if (!cancelled) setSnapshotDeltas(map);
+        const map = await fetchKdSnapshotSummary();
+        if (!cancelled) setSnapshotSummaries(map);
       } catch (e) {
-        console.warn('Failed to load KD snapshot deltas', e);
+        console.warn('Failed to load KD snapshot summaries', e);
       }
     })();
     return () => { cancelled = true; };
@@ -498,28 +498,25 @@ export default function KingdomStats({
     return m;
   }, [compStats, comparisonFromDate, compSorter, compFilter]);
 
-  // Summary card for the highlighted kingdom — its rank+value at From and at To.
+  // Summary card for the highlighted kingdom — anchored to the FIRST and
+  // LATEST snapshots in seeds_kd_snapshots so it acts as a season-wide
+  // progression indicator. Intentionally ignores the From/To pickers below:
+  // the pickers drive the table view, this chip is "since we started tracking".
   const highlightedInfo = useMemo(() => {
     if (!highlightedKingdom) return null;
-    const toIdx = comparisonRows.findIndex(r => r.kingdom_id === highlightedKingdom);
-    if (toIdx === -1) return null;
-    const toRow = comparisonRows[toIdx];
-    const toValue = (toRow[compSortField] as number) || 0;
-
-    const fromRow = comparisonFromDate
-      ? compStats.find(s => s.scan_date === comparisonFromDate && s.kingdom_id === highlightedKingdom)
-      : undefined;
-    const fromRank = fromRanks.get(highlightedKingdom) ?? null;
-    const fromValue = fromRow ? ((fromRow[compSortField] as number) || 0) : null;
-
+    const summary = snapshotSummaries.get(highlightedKingdom);
+    if (!summary) return null;
+    const isKpField = compSortField === 'total_kp' || compSortField === 'kp_rank';
+    const pickValue = (r: typeof summary.first) => (isKpField ? r.total_kp : r.power_400) ?? 0;
+    const pickRank  = (r: typeof summary.first) => (isKpField ? r.kp_rank   : r.power_rank) ?? null;
     return {
       kd: highlightedKingdom,
-      toRank: toIdx + 1,
-      toValue,
-      fromRank,
-      fromValue,
+      fromRank: pickRank(summary.first),
+      fromValue: pickValue(summary.first),
+      toRank: pickRank(summary.latest),
+      toValue: pickValue(summary.latest),
     };
-  }, [highlightedKingdom, comparisonRows, fromRanks, compStats, comparisonFromDate, compSortField]);
+  }, [highlightedKingdom, snapshotSummaries, compSortField]);
 
   const handleCompSort = (field: typeof compSortField) => {
     if (compSortField === field) setCompSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -822,7 +819,24 @@ export default function KingdomStats({
                                 <span>KD {row.kingdom_id}</span>
                                 {outcome && <KvkOutcomeBadge outcome={outcome} />}
                               </span>
-                              <SnapshotDeltaLine delta={snapshotDeltas.get(row.kingdom_id)} />
+                              {(() => {
+                                // When the user picked both From and To dates, fetch the From-side
+                                // power for this KD from compStats so the chip reflects that window.
+                                // Otherwise pass null and SnapshotDeltaLine falls back to the
+                                // last-two-snapshots delta.
+                                const fromRow = comparisonFromDate
+                                  ? compStats.find((s) => s.scan_date === comparisonFromDate && s.kingdom_id === row.kingdom_id)
+                                  : null;
+                                const fromPower = fromRow?.power_400 ?? null;
+                                return (
+                                  <SnapshotDeltaLine
+                                    summary={snapshotSummaries.get(row.kingdom_id)}
+                                    compareFromValue={fromPower}
+                                    compareFromDate={comparisonFromDate || null}
+                                    currentValue={row.power_400 ?? 0}
+                                  />
+                                );
+                              })()}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{(row.power_400 || 0).toLocaleString()}</td>
@@ -1043,33 +1057,68 @@ function TwoColTooltip(props: TooltipProps) {
 }
 
 
-// Tiny "↑ +10.10M (4h ago)" line shown under each KD name in the Comparison
-// view. The delta is power_400 between the two most-recent snapshots for the
-// kingdom; the timestamp is the latest snapshot's uploaded_at.
-function SnapshotDeltaLine({ delta }: { delta: KdSnapshotDelta | undefined }) {
-  if (!delta) return null;
-  if (!delta.previous || delta.deltaPower == null) {
-    // Only one snapshot so far — show the upload time so the user can tell
-    // when the first snapshot landed, even without a comparison value.
+// Tiny "↑ +10.10M (12h ago)" line shown under each KD name in the Comparison
+// view. Two modes:
+//   - Compare mode (both From/To dates picked): delta = currentValue - compareFromValue,
+//     "ago" anchored to comparisonFromDate.
+//   - Default (no picker dates): delta = latest snapshot - previous snapshot,
+//     "ago" anchored to the previous snapshot's uploaded_at.
+function SnapshotDeltaLine({
+  summary,
+  compareFromValue,
+  compareFromDate,
+  currentValue,
+}: {
+  summary: KdSnapshotSummary | undefined;
+  compareFromValue: number | null;
+  compareFromDate: string | null;
+  currentValue: number;
+}) {
+  // Compare mode wins when both picker values are present. The delta covers
+  // the user-selected window, so the "ago" badge references the From date.
+  if (compareFromValue != null && compareFromDate) {
+    const delta = currentValue - compareFromValue;
+    const up = delta > 0;
+    const down = delta < 0;
+    const tone = up ? 'text-emerald-400' : down ? 'text-rose-400' : 'text-[var(--text-muted)]';
+    const arrow = up ? '↑' : down ? '↓' : '·';
+    const fromIso = `${compareFromDate}T00:00:00Z`;
     return (
-      <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
-        first scan · {timeAgo(delta.latest.uploaded_at)}
+      <span
+        className={`text-[10px] tabular-nums ${tone}`}
+        title={`Power Δ since ${compareFromDate}`}
+      >
+        {arrow} {(up || down) ? `${up ? '+' : '-'}${formatCompact(Math.abs(delta))}` : '—'}
+        {' '}
+        <span className="text-[var(--text-muted)]">({timeAgo(fromIso)})</span>
       </span>
     );
   }
-  const up = delta.deltaPower > 0;
-  const down = delta.deltaPower < 0;
+
+  // Default (no picker dates) — fall back to snapshot-pair delta.
+  if (!summary) return null;
+  const latestPower = summary.latest.power_400;
+  const prevPower = summary.previous?.power_400 ?? null;
+  if (!summary.previous || latestPower == null || prevPower == null) {
+    return (
+      <span className="text-[10px] text-[var(--text-muted)] tabular-nums">
+        first scan · {timeAgo(summary.latest.uploaded_at)}
+      </span>
+    );
+  }
+  const delta = latestPower - prevPower;
+  const up = delta > 0;
+  const down = delta < 0;
   const tone = up ? 'text-emerald-400' : down ? 'text-rose-400' : 'text-[var(--text-muted)]';
   const arrow = up ? '↑' : down ? '↓' : '·';
-  const magnitude = Math.abs(delta.deltaPower);
   return (
     <span
       className={`text-[10px] tabular-nums ${tone}`}
-      title={`Power Δ since previous snapshot at ${new Date(delta.previous.uploaded_at).toLocaleString()}`}
+      title={`Power Δ since previous snapshot at ${new Date(summary.previous.uploaded_at).toLocaleString()}`}
     >
-      {arrow} {(up || down) ? `${up ? '+' : '-'}${formatCompact(magnitude)}` : '—'}
+      {arrow} {(up || down) ? `${up ? '+' : '-'}${formatCompact(Math.abs(delta))}` : '—'}
       {' '}
-      <span className="text-[var(--text-muted)]">({timeAgo(delta.latest.uploaded_at)})</span>
+      <span className="text-[var(--text-muted)]">({timeAgo(summary.previous.uploaded_at)})</span>
     </span>
   );
 }
