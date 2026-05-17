@@ -1474,7 +1474,9 @@ function HeroscrollPanel({
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const filtered = useMemo(() => {
-    const list = (rows ?? []).filter((r) => filter(r.kingdom_id));
+    // Upstream sometimes returns null entries as padding — guard before any
+    // field access so a bad row doesn't crash the whole table render.
+    const list = (rows ?? []).filter((r): r is HeroscrollKingdom => r != null && filter(r.kingdom_id));
     const sign = sortDir === 'asc' ? 1 : -1;
     list.sort((a, b) => sign * (((a[sortField] as number) ?? 0) - ((b[sortField] as number) ?? 0)));
     return list;
@@ -1486,15 +1488,19 @@ function HeroscrollPanel({
   // derive a local index based on the filtered set sorted by KD ascending —
   // close enough for visual consistency.
   const colorIndexByKd = useMemo(() => {
-    const sortedKds = [...(rows ?? [])].filter((r) => filter(r.kingdom_id)).map((r) => r.kingdom_id).sort((a, b) => a - b);
+    const sortedKds = [...(rows ?? [])]
+      .filter((r): r is HeroscrollKingdom => r != null && filter(r.kingdom_id))
+      .map((r) => r.kingdom_id)
+      .sort((a, b) => a - b);
     const map = new Map<number, number>();
     sortedKds.forEach((kd, i) => map.set(kd, i));
     return map;
   }, [rows, filter]);
 
   const latestTs = useMemo(() => {
-    if (!rows || rows.length === 0) return null;
-    return new Date(rows[0].last_updated).toLocaleString();
+    const firstNonNull = (rows ?? []).find((r) => r != null);
+    if (!firstNonNull) return null;
+    return new Date(firstNonNull.last_updated).toLocaleString();
   }, [rows]);
 
   const handleSort = (f: HeroscrollSortField) => {
