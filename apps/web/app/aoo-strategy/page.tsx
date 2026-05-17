@@ -171,6 +171,8 @@ interface TeamBuilderTabProps {
     setSuggestedZonesByTeam: (z: ZonesByTeam) => void;
     selectedRallyLeadsByTeam: RallyLeadsByTeam;
     setSelectedRallyLeadsByTeam: (r: RallyLeadsByTeam) => void;
+    selectedRallyLeadsSecondaryByTeam: RallyLeadsByTeam;
+    setSelectedRallyLeadsSecondaryByTeam: (r: RallyLeadsByTeam) => void;
     selectedGarrisonLeadsByTeam: GarrisonLeadsByTeam;
     setSelectedGarrisonLeadsByTeam: (g: GarrisonLeadsByTeam) => void;
     selectedArkCarriersByTeam: ArkCarriersByTeam;
@@ -221,6 +223,8 @@ function TeamBuilderTab({
     setSuggestedZonesByTeam,
     selectedRallyLeadsByTeam,
     setSelectedRallyLeadsByTeam,
+    selectedRallyLeadsSecondaryByTeam,
+    setSelectedRallyLeadsSecondaryByTeam,
     selectedGarrisonLeadsByTeam,
     setSelectedGarrisonLeadsByTeam,
     selectedArkCarriersByTeam,
@@ -627,6 +631,9 @@ function TeamBuilderTab({
     const currentTeamConfirmations = confirmationsByTeam[activeTeam] || {};
     const suggestedZones = suggestedZonesByTeam[activeTeam] || {};
     const selectedRallyLeads = selectedRallyLeadsByTeam[activeTeam] || {};
+    const selectedRallyLeadsSecondary = selectedRallyLeadsSecondaryByTeam[activeTeam] || {};
+    const setSelectedRallyLeadsSecondary = (r: Record<number, string>) =>
+        setSelectedRallyLeadsSecondaryByTeam({ ...selectedRallyLeadsSecondaryByTeam, [activeTeam]: r });
     const selectedTeleportFirst = selectedTeleportFirstByTeam[activeTeam] || new Set<string>();
     const zoneSizes = zoneSizesByTeam[activeTeam] || { 0: '', 1: '', 2: '', 3: '' };
 
@@ -918,6 +925,7 @@ function TeamBuilderTab({
         // multiple teams in a single call doesn't suffer stale-state clobbering.
         const zonesUpdates: Partial<Record<TeamNumber, Record<number, { name: string; power: number; kills: number }[]>>> = {};
         const rallyUpdates: Partial<Record<TeamNumber, Record<number, string>>> = {};
+        const rallySecondaryUpdates: Partial<Record<TeamNumber, Record<number, string>>> = {};
         const garrisonUpdates: Partial<Record<TeamNumber, Record<number, string>>> = {};
         const arkUpdates: Partial<Record<TeamNumber, string>> = {};
         const teleportUpdates: Partial<Record<TeamNumber, Set<string>>> = {};
@@ -977,8 +985,12 @@ function TeamBuilderTab({
         // === Priority 1: spreadsheet lane locks ===
         // Pull players with a forced lane out of the auto-balance pool first.
         // Lock value 0 means "explicit sub" — they go into zones[0] regardless
-        // of how many lane slots are open.
+        // of how many lane slots are open. The Main/Sub toggle on the league
+        // team updates subsByTeam (not lockedLanesByTeam), so we union both:
+        // a name is a locked sub if either source flags it. Without this, a
+        // weekly sub swap on league would be silently re-shuffled to a lane.
         const teamLocks = lockedLanesByTeam[team] || {};
+        const teamSubSet = subsByTeam[team] || new Set<string>();
         const lockedZones: Record<number, { name: string; power: number; kills: number }[]> = { 1: [], 2: [], 3: [] };
         const lockedSubs: { name: string; power: number; kills: number }[] = [];
         const flexPool: { name: string; power: number; kills: number }[] = [];
@@ -986,7 +998,7 @@ function TeamBuilderTab({
             const lock = teamLocks[p.name];
             if (lock === 1 || lock === 2 || lock === 3) {
                 lockedZones[lock].push(p);
-            } else if (lock === 0) {
+            } else if (lock === 0 || teamSubSet.has(p.name)) {
                 lockedSubs.push(p);
             } else {
                 flexPool.push(p);
@@ -1058,11 +1070,14 @@ function TeamBuilderTab({
         // === Priority 2: respect existing UI-selected rally/garrison leads ===
         // Start from existing selections; only fill empty slots automatically.
         const existingRally = selectedRallyLeadsByTeam[team] || {};
+        const existingRally2 = selectedRallyLeadsSecondaryByTeam[team] || {};
         const existingGarrison = selectedGarrisonLeadsByTeam[team] || {};
         const existingArk = selectedArkCarriersByTeam[team] || '';
 
         const leads: Record<number, string> = { ...existingRally };
+        const leads2: Record<number, string> = { ...existingRally2 };
         const garrisonLeads: Record<number, string> = { ...existingGarrison };
+        const isLeague = team === leagueTeamNumber;
 
         for (const [zone, players] of Object.entries(zones)) {
             const zoneNum = parseInt(zone);
@@ -1071,13 +1086,21 @@ function TeamBuilderTab({
             const inZone = (name: string) => players.some(p => p.name === name);
             // If existing rally/garrison lead isn't in this zone anymore, clear it for re-pick
             if (leads[zoneNum] && !inZone(leads[zoneNum])) delete leads[zoneNum];
+            if (leads2[zoneNum] && !inZone(leads2[zoneNum])) delete leads2[zoneNum];
             if (garrisonLeads[zoneNum] && !inZone(garrisonLeads[zoneNum])) delete garrisonLeads[zoneNum];
 
             const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
             // Only auto-fill if no UI selection exists for this zone
             if (!leads[zoneNum]) leads[zoneNum] = sorted[0].name;
-            if (!garrisonLeads[zoneNum]) {
+            // League team: auto-pick a secondary rally lead (next-best score),
+            // skipping whoever already has the primary slot for this zone.
+            if (isLeague && !leads2[zoneNum]) {
                 const next = sorted.find(p => p.name !== leads[zoneNum]);
+                if (next) leads2[zoneNum] = next.name;
+            }
+            if (!garrisonLeads[zoneNum]) {
+                const taken = new Set([leads[zoneNum], leads2[zoneNum]].filter(Boolean));
+                const next = sorted.find(p => !taken.has(p.name));
                 if (next) garrisonLeads[zoneNum] = next.name;
             }
         }
@@ -1121,6 +1144,7 @@ function TeamBuilderTab({
         // with all other teams in one render, so multi-team calls don't stale-state clobber.
         zonesUpdates[team] = zones;
         rallyUpdates[team] = leads;
+        rallySecondaryUpdates[team] = leads2;
         garrisonUpdates[team] = garrisonLeads;
         arkUpdates[team] = arkCarrier;
         teleportUpdates[team] = teleport;
@@ -1138,6 +1162,7 @@ function TeamBuilderTab({
         }
         setSuggestedZonesByTeam({ ...suggestedZonesByTeam, ...zonesUpdates });
         setSelectedRallyLeadsByTeam({ ...selectedRallyLeadsByTeam, ...rallyUpdates });
+        setSelectedRallyLeadsSecondaryByTeam({ ...selectedRallyLeadsSecondaryByTeam, ...rallySecondaryUpdates });
         setSelectedGarrisonLeadsByTeam({ ...selectedGarrisonLeadsByTeam, ...garrisonUpdates });
         setSelectedArkCarriersByTeam({ ...selectedArkCarriersByTeam, ...arkUpdates });
         setSelectedTeleportFirstByTeam({ ...selectedTeleportFirstByTeam, ...teleportUpdates });
@@ -1913,10 +1938,13 @@ function TeamBuilderTab({
                                         </div>
                                     </div>
 
-                                    {/* Lead selectors — always 2 rows for consistent height */}
+                                    {/* Lead selectors — always 2 rows for consistent height.
+                                        The league team also gets an optional 2nd rally lead
+                                        per non-mid lane (it has 30 mains across 3 lanes —
+                                        two rally leaders per lane is the league norm). */}
                                     <div className="mb-3 space-y-2">
                                         <div className="p-2 rounded bg-[var(--background-secondary)]">
-                                            <span className={`text-xs ${theme.textMuted}`}>{isMidLane ? t('arkCarrier') : t('rallyLead')}</span>
+                                            <span className={`text-xs ${theme.textMuted}`}>{isMidLane ? t('arkCarrier') : (activeTeam === leagueTeamNumber && !isMidLane ? tlb('rallyLead1') : t('rallyLead'))}</span>
                                             <select
                                                 value={isMidLane ? (selectedArkCarrier || '') : (selectedRallyLeads[zone] || '')}
                                                 onChange={(e) => isMidLane ? setSelectedArkCarrier(e.target.value) : setSelectedRallyLeads({ ...selectedRallyLeads, [zone]: e.target.value })}
@@ -1930,6 +1958,27 @@ function TeamBuilderTab({
                                                 ))}
                                             </select>
                                         </div>
+                                        {/* Optional 2nd rally lead — league team only, non-mid lanes. */}
+                                        {activeTeam === leagueTeamNumber && !isMidLane && (
+                                            <div className="p-2 rounded bg-[var(--background-secondary)]">
+                                                <span className={`text-xs ${theme.textMuted}`}>{tlb('rallyLead2')}</span>
+                                                <select
+                                                    value={selectedRallyLeadsSecondary[zone] || ''}
+                                                    onChange={(e) => setSelectedRallyLeadsSecondary({ ...selectedRallyLeadsSecondary, [zone]: e.target.value })}
+                                                    className={`w-full mt-1 px-2 py-1 rounded text-sm ${theme.input}`}
+                                                >
+                                                    <option value="">{tlb('selectRallyLead2')}</option>
+                                                    {[...zonePlayers]
+                                                        .filter(p => p.name !== selectedRallyLeads[zone])
+                                                        .sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name))
+                                                        .map(p => (
+                                                            <option key={p.name} value={p.name}>
+                                                                {p.name} | {formatPower(p.power)} | {t('kp')}: {formatPower(p.kills || killsByName[p.name] || 0)}
+                                                            </option>
+                                                        ))}
+                                                </select>
+                                            </div>
+                                        )}
                                         <div className="p-2 rounded bg-[var(--background-secondary)]">
                                             {isMidLane ? (
                                                 <span className={`text-xs ${theme.textMuted} block py-[11px]`}>&nbsp;</span>
@@ -1992,12 +2041,14 @@ function TeamBuilderTab({
                                                 <div className="flex-1 min-w-0">
                                                     <button onClick={() => openPlayer(player.name)} title="View player details" className={`block w-full text-sm text-left truncate hover:underline cursor-pointer hover:text-[#4318ff] ${
                                                         selectedRallyLeads[zone] === player.name ? 'font-bold text-yellow-400'
+                                                        : selectedRallyLeadsSecondary[zone] === player.name ? 'font-bold text-yellow-400'
                                                         : selectedGarrisonLeads[zone] === player.name ? 'font-bold text-cyan-400'
                                                         : (isMidLane && selectedArkCarrier === player.name) ? 'font-bold text-orange-400'
                                                         : theme.text
                                                     }`}>
                                                         {player.name}
                                                         {selectedRallyLeads[zone] === player.name && ' ⭐'}
+                                                        {selectedRallyLeadsSecondary[zone] === player.name && ' ⭐'}
                                                         {selectedGarrisonLeads[zone] === player.name && ' 🛡️'}
                                                         {isMidLane && selectedArkCarrier === player.name && ' 📦'}
                                                     </button>
@@ -2133,7 +2184,7 @@ function TeamBuilderTab({
                         <div className="flex flex-wrap gap-1.5">
                             {[...(suggestedZones[1] || []), ...(suggestedZones[2] || []), ...(suggestedZones[3] || [])].map(p => {
                                 const isCoord = coordinators.has(p.name);
-                                const isLead = Object.values(selectedRallyLeads).includes(p.name) || Object.values(selectedGarrisonLeads).includes(p.name);
+                                const isLead = Object.values(selectedRallyLeads).includes(p.name) || Object.values(selectedRallyLeadsSecondary).includes(p.name) || Object.values(selectedGarrisonLeads).includes(p.name);
                                 return (
                                     <button
                                         key={p.name}
@@ -2438,6 +2489,9 @@ export default function AooStrategyPage() {
     const [confirmationsByTeam, setConfirmationsByTeam] = useState<ConfirmationsByTeam>({ 1: {}, 2: {}, 3: {} });
     const [suggestedZonesByTeam, setSuggestedZonesByTeam] = useState<ZonesByTeam>({ 1: {}, 2: {}, 3: {} });
     const [selectedRallyLeadsByTeam, setSelectedRallyLeadsByTeam] = useState<RallyLeadsByTeam>({ 1: {}, 2: {}, 3: {} });
+    // Optional secondary rally lead per zone — used only on the league team.
+    // For normal weekend teams these stay empty.
+    const [selectedRallyLeadsSecondaryByTeam, setSelectedRallyLeadsSecondaryByTeam] = useState<RallyLeadsByTeam>({ 1: {}, 2: {}, 3: {} });
     const [selectedGarrisonLeadsByTeam, setSelectedGarrisonLeadsByTeam] = useState<GarrisonLeadsByTeam>({ 1: {}, 2: {}, 3: {} });
     const [selectedArkCarriersByTeam, setSelectedArkCarriersByTeam] = useState<ArkCarriersByTeam>({ 1: '', 2: '', 3: '' });
     const [selectedTeleportFirstByTeam, setSelectedTeleportFirstByTeam] = useState<TeleportFirstByTeam>({ 1: new Set(), 2: new Set(), 3: new Set() });
@@ -2600,6 +2654,7 @@ export default function AooStrategyPage() {
                 if (strategyData?.confirmationsByTeam) setConfirmationsByTeam(strategyData.confirmationsByTeam as ConfirmationsByTeam);
                 if (strategyData?.suggestedZonesByTeam) setSuggestedZonesByTeam(strategyData.suggestedZonesByTeam as ZonesByTeam);
                 if (strategyData?.selectedRallyLeadsByTeam) setSelectedRallyLeadsByTeam(strategyData.selectedRallyLeadsByTeam as RallyLeadsByTeam);
+                if (strategyData?.selectedRallyLeadsSecondaryByTeam) setSelectedRallyLeadsSecondaryByTeam(strategyData.selectedRallyLeadsSecondaryByTeam as RallyLeadsByTeam);
                 if (strategyData?.selectedTeleportFirstByTeam) {
                     const restored: TeleportFirstByTeam = {
                         1: new Set(strategyData.selectedTeleportFirstByTeam[1] || []),
@@ -2685,6 +2740,7 @@ export default function AooStrategyPage() {
             confirmationsByTeam: updatedData.confirmationsByTeam ?? confirmationsByTeam,
             suggestedZonesByTeam: updatedData.suggestedZonesByTeam ?? suggestedZonesByTeam,
             selectedRallyLeadsByTeam: updatedData.selectedRallyLeadsByTeam ?? selectedRallyLeadsByTeam,
+            selectedRallyLeadsSecondaryByTeam: updatedData.selectedRallyLeadsSecondaryByTeam ?? selectedRallyLeadsSecondaryByTeam,
             selectedTeleportFirstByTeam: updatedData.selectedTeleportFirstByTeam ?? {
                 1: Array.from(selectedTeleportFirstByTeam[1] || []),
                 2: Array.from(selectedTeleportFirstByTeam[2] || []),
@@ -2738,7 +2794,7 @@ export default function AooStrategyPage() {
         }
         saveData({});
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, subsByTeam, leagueTeamNumber, lockedLanesByTeam, lockedTeams, mailHeader]);
+    }, [isLoading, builderAlliance, teamCount, builderStep, confirmationsByTeam, suggestedZonesByTeam, selectedRallyLeadsByTeam, selectedRallyLeadsSecondaryByTeam, selectedTeleportFirstByTeam, zoneSizesByTeam, selectedGarrisonLeadsByTeam, selectedArkCarriersByTeam, coordinatorsByTeam, subsByTeam, leagueTeamNumber, lockedLanesByTeam, lockedTeams, mailHeader]);
 
     const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isEditor) return;
@@ -3694,6 +3750,8 @@ export default function AooStrategyPage() {
                     setSuggestedZonesByTeam={setSuggestedZonesByTeam}
                     selectedRallyLeadsByTeam={selectedRallyLeadsByTeam}
                     setSelectedRallyLeadsByTeam={setSelectedRallyLeadsByTeam}
+                    selectedRallyLeadsSecondaryByTeam={selectedRallyLeadsSecondaryByTeam}
+                    setSelectedRallyLeadsSecondaryByTeam={setSelectedRallyLeadsSecondaryByTeam}
                     selectedGarrisonLeadsByTeam={selectedGarrisonLeadsByTeam}
                     setSelectedGarrisonLeadsByTeam={setSelectedGarrisonLeadsByTeam}
                     selectedArkCarriersByTeam={selectedArkCarriersByTeam}

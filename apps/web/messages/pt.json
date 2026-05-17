@@ -429,7 +429,10 @@
         "subShort": "Sup.",
         "countTitle": "Titulares a jogar este fim de semana / Suplentes no banco",
         "mainTitle": "Atualmente titular este fim de semana — clique para mandar ao banco (marcar como suplente). Suplentes ficam bloqueados no banco na distribuição.",
-        "subTitle": "Atualmente no banco como suplente este fim de semana — clique para voltar à formação. Suplentes ficam bloqueados no banco na distribuição."
+        "subTitle": "Atualmente no banco como suplente este fim de semana — clique para voltar à formação. Suplentes ficam bloqueados no banco na distribuição.",
+        "rallyLead1": "Líder de rally 1",
+        "rallyLead2": "Líder de rally 2 (opcional)",
+        "selectRallyLead2": "Selecionar 2.º líder de rally..."
       },
       "title": "Construtor de equipe",
       "alliance": "Aliança:",

@@ -429,7 +429,10 @@
         "subShort": "Rem.",
         "countTitle": "Titulaires en jeu ce week-end / Remplaçants sur le banc",
         "mainTitle": "Actuellement titulaire ce week-end — cliquez pour mettre sur le banc (marquer comme remplaçant). Les remplaçants sont placés sur le banc à la distribution.",
-        "subTitle": "Actuellement sur le banc comme remplaçant ce week-end — cliquez pour remettre dans la composition. Les remplaçants sont placés sur le banc à la distribution."
+        "subTitle": "Actuellement sur le banc comme remplaçant ce week-end — cliquez pour remettre dans la composition. Les remplaçants sont placés sur le banc à la distribution.",
+        "rallyLead1": "Chef de rally 1",
+        "rallyLead2": "Chef de rally 2 (optionnel)",
+        "selectRallyLead2": "Choisir le 2e chef de rally..."
       },
       "title": "Créateur d'équipe",
       "alliance": "Alliance :",

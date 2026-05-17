@@ -429,7 +429,10 @@
         "subShort": "Sup.",
         "countTitle": "Titulares jugando este fin de semana / Suplentes en el banco",
         "mainTitle": "Actualmente titular este fin de semana — clic para enviar al banquillo (marcar como suplente). Los suplentes quedan en el banquillo en la distribución.",
-        "subTitle": "Actualmente en el banquillo como suplente este fin de semana — clic para volver a la alineación. Los suplentes quedan en el banquillo en la distribución."
+        "subTitle": "Actualmente en el banquillo como suplente este fin de semana — clic para volver a la alineación. Los suplentes quedan en el banquillo en la distribución.",
+        "rallyLead1": "Líder de rally 1",
+        "rallyLead2": "Líder de rally 2 (opcional)",
+        "selectRallyLead2": "Selecciona el 2.º líder de rally..."
       },
       "title": "Constructor de equipos",
       "alliance": "Alianza:",
