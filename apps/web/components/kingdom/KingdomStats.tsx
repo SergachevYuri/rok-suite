@@ -1525,6 +1525,8 @@ function HeroscrollPanel({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">#</th>
+                <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Seed</th>
                 <HsHeader label="Kingdom" field="kingdom_id"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                 <HsHeader label="Power"   field="total_power"      sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
                 <HsHeader label="KP"      field="total_killpoints" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
@@ -1532,15 +1534,24 @@ function HeroscrollPanel({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => {
+              {filtered.map((r, i) => {
+                const pos = i + 1;
+                const seed = seedAssignment(pos);
                 const isMine = r.kingdom_id === DEFAULT_HIGHLIGHT_KD;
+                // Heavier divider after position 16 to mark the A+B vs C+D split,
+                // mirroring the main Comparison table convention.
+                const isHalfBoundary = pos === 16;
                 return (
                   <tr
                     key={r.kingdom_id}
-                    className={`border-b border-[var(--border)] transition-colors ${
+                    className={`transition-colors ${
+                      isHalfBoundary ? 'border-b-2 border-red-500/60' : 'border-b border-[var(--border)]'
+                    } ${
                       isMine ? 'bg-amber-500/10 hover:bg-amber-500/15 ring-1 ring-inset ring-amber-500/30' : 'hover:bg-[var(--background-secondary)]'
                     }`}
                   >
+                    <td className="px-4 py-3 text-[var(--text-muted)] font-medium">{pos}</td>
+                    <td className="px-3 py-3 text-center"><SeedBadge seed={seed} /></td>
                     <td className="px-4 py-3 font-semibold text-[var(--foreground)]">KD {r.kingdom_id}</td>
                     <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{(r.total_power || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right text-red-400 tabular-nums">{(r.total_killpoints || 0).toLocaleString()}</td>
