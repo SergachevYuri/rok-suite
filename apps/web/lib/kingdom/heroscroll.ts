@@ -40,9 +40,34 @@ export async function fetchHeroscrollKingdoms(rollupType: 'top400' = 'top400'): 
     throw new Error(`Heroscroll proxy failed: ${res.status} ${txt}`);
   }
   const data = await res.json();
-  // Upstream sometimes wraps the array in { data: [...] } — handle both.
-  if (Array.isArray(data)) return data as HeroscrollKingdom[];
-  if (Array.isArray(data?.data)) return data.data as HeroscrollKingdom[];
-  if (Array.isArray(data?.kingdoms)) return data.kingdoms as HeroscrollKingdom[];
-  return [];
+  const rows = extractKingdomArray(data);
+  if (rows.length === 0) {
+    // Log the actual shape so we can adjust the extractor if needed.
+    console.warn('[heroscroll] no kingdoms in response — raw shape:', data);
+  }
+  return rows;
+}
+
+/** Recursively scan the JSON until we find an array whose first non-null
+ *  element has a `kingdom_id` field. Handles whatever wrapper Heroscroll
+ *  decides to return without us guessing the key name. */
+function extractKingdomArray(data: unknown): HeroscrollKingdom[] {
+  const looksLikeRow = (x: unknown): x is HeroscrollKingdom =>
+    typeof x === 'object' && x !== null && 'kingdom_id' in (x as Record<string, unknown>);
+
+  const visit = (node: unknown): HeroscrollKingdom[] | null => {
+    if (Array.isArray(node)) {
+      const sample = node.find((it) => it != null);
+      if (looksLikeRow(sample)) return node.filter((it): it is HeroscrollKingdom => looksLikeRow(it));
+    }
+    if (node && typeof node === 'object') {
+      for (const v of Object.values(node as Record<string, unknown>)) {
+        const found = visit(v);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  return visit(data) ?? [];
 }

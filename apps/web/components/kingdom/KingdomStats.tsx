@@ -1453,12 +1453,10 @@ function MigrationsView({
 }
 
 // Heroscroll top-400 board, fetched via /api/heroscroll/kingdoms. Renders
-// underneath the Comparison table on the current pool only — same KD scope
-// (3897-3928) and the same visual layout (# / seed band / color dot /
-// locale-formatted numbers). Rank delta is intentionally omitted: we only
-// have one Heroscroll snapshot in memory, so there's nothing to compare
-// against until we start persisting Heroscroll snapshots over time.
-type HeroscrollSortField = 'total_power' | 'total_killpoints' | 'total_deads' | 'player_count' | 'inactive_player_count' | 'kingdom_id' | 'rank';
+// underneath the Comparison table on the current pool only. The upstream
+// returns the global ranking sorted by power; we filter to the user's
+// requested KD range and show just Power / KP / Deads.
+type HeroscrollSortField = 'total_power' | 'total_killpoints' | 'total_deads' | 'kingdom_id';
 function HeroscrollPanel({
   rows,
   loading,
@@ -1482,21 +1480,6 @@ function HeroscrollPanel({
     return list;
   }, [rows, filter, sortField, sortDir]);
 
-  // Stable index-by-kingdom so the colour dot matches the one assigned in the
-  // main Comparison table (same `kingdoms.indexOf(kd) % KD_COLORS.length`
-  // mapping). We don't have access to the parent's `kingdoms` list here so
-  // derive a local index based on the filtered set sorted by KD ascending —
-  // close enough for visual consistency.
-  const colorIndexByKd = useMemo(() => {
-    const sortedKds = [...(rows ?? [])]
-      .filter((r): r is HeroscrollKingdom => r != null && filter(r.kingdom_id))
-      .map((r) => r.kingdom_id)
-      .sort((a, b) => a - b);
-    const map = new Map<number, number>();
-    sortedKds.forEach((kd, i) => map.set(kd, i));
-    return map;
-  }, [rows, filter]);
-
   const latestTs = useMemo(() => {
     const firstNonNull = (rows ?? []).find((r) => r != null);
     if (!firstNonNull) return null;
@@ -1508,8 +1491,7 @@ function HeroscrollPanel({
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(f);
-      // ranks/ids ascending; numeric values descending
-      setSortDir(f === 'rank' || f === 'kingdom_id' || f === 'inactive_player_count' ? 'asc' : 'desc');
+      setSortDir(f === 'kingdom_id' ? 'asc' : 'desc');
     }
   };
 
@@ -1543,53 +1525,26 @@ function HeroscrollPanel({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">#</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10" title="No rank delta available — Heroscroll history isn't stored yet">Δ</th>
-                <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Seed</th>
-                <HsHeader label="Kingdom"   field="kingdom_id"            sortField={sortField} sortDir={sortDir} onSort={handleSort} />
-                <HsHeader label="Power"     field="total_power"           sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                <HsHeader label="KP"        field="total_killpoints"      sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                <HsHeader label="Deads"     field="total_deads"           sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                <HsHeader label="Players"   field="player_count"          sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                <HsHeader label="Inactive"  field="inactive_player_count" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
-                <HsHeader label="Global rk" field="rank"                  sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                <HsHeader label="Kingdom" field="kingdom_id"       sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                <HsHeader label="Power"   field="total_power"      sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                <HsHeader label="KP"      field="total_killpoints" sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
+                <HsHeader label="Deads"   field="total_deads"      sortField={sortField} sortDir={sortDir} onSort={handleSort} align="right" />
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r, i) => {
-                const pos = i + 1;
-                const seed = seedAssignment(pos);
+              {filtered.map((r) => {
                 const isMine = r.kingdom_id === DEFAULT_HIGHLIGHT_KD;
-                // Red divider after position 16 to mark the A+B vs C+D split,
-                // mirroring the main Comparison table convention.
-                const isHalfBoundary = pos === 16;
                 return (
                   <tr
                     key={r.kingdom_id}
-                    className={`transition-colors ${
-                      isHalfBoundary ? 'border-b-2 border-red-500/60' : 'border-b border-[var(--border)]'
-                    } ${
+                    className={`border-b border-[var(--border)] transition-colors ${
                       isMine ? 'bg-amber-500/10 hover:bg-amber-500/15 ring-1 ring-inset ring-amber-500/30' : 'hover:bg-[var(--background-secondary)]'
                     }`}
                   >
-                    <td className="px-4 py-3 text-[var(--text-muted)] font-medium">{pos}</td>
-                    <td className="px-3 py-3 text-center"><span className="text-[var(--text-muted)] text-xs">–</span></td>
-                    <td className="px-3 py-3 text-center"><SeedBadge seed={seed} /></td>
-                    <td className="px-4 py-3 font-semibold text-[var(--foreground)]">
-                      <span className="inline-flex items-center gap-2">
-                        <span
-                          className="inline-block w-3 h-3 rounded-full"
-                          style={{ backgroundColor: KD_COLORS[(colorIndexByKd.get(r.kingdom_id) ?? 0) % KD_COLORS.length] }}
-                        />
-                        KD {r.kingdom_id}
-                      </span>
-                    </td>
+                    <td className="px-4 py-3 font-semibold text-[var(--foreground)]">KD {r.kingdom_id}</td>
                     <td className="px-4 py-3 text-right text-indigo-400 font-semibold tabular-nums">{(r.total_power || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right text-red-400 tabular-nums">{(r.total_killpoints || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-right text-rose-300/80 tabular-nums">{(r.total_deads || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{r.player_count}</td>
-                    <td className="px-4 py-3 text-right text-[var(--text-muted)] tabular-nums">{r.inactive_player_count}</td>
-                    <td className="px-4 py-3 text-right text-[var(--text-secondary)] tabular-nums">{r.rank}</td>
                   </tr>
                 );
               })}

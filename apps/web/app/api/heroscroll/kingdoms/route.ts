@@ -25,13 +25,23 @@ export async function POST(request: NextRequest) {
   try {
     const upstream = await fetch('https://www.heroscroll.com/api/kingdoms/get-kingdoms', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // Some upstreams reject fetches without a UA; pose as a normal browser
+        // since this endpoint is meant to be hit from heroscroll.com itself.
+        'User-Agent': 'Mozilla/5.0 (compatible; rok-suite/1.0)',
+        'Accept': 'application/json, text/plain, */*',
+        'Origin': 'https://www.heroscroll.com',
+        'Referer': 'https://www.heroscroll.com/',
+      },
       body: JSON.stringify({ rollupType }),
       next: { revalidate: 60 },
     });
     if (!upstream.ok) {
+      const body = await upstream.text().catch(() => '');
+      console.warn('Heroscroll non-2xx response', upstream.status, body.slice(0, 500));
       return NextResponse.json(
-        { error: `Heroscroll returned ${upstream.status}` },
+        { error: `Heroscroll returned ${upstream.status}`, body: body.slice(0, 500) },
         { status: 502 },
       );
     }
