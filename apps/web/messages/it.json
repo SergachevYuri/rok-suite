@@ -429,7 +429,10 @@
         "subShort": "Ris.",
         "countTitle": "Titolari che giocano questo weekend / Riserve in panchina",
         "mainTitle": "Attualmente titolare questo weekend — clic per mettere in panchina (riserva). Le riserve sono bloccate in panchina alla distribuzione.",
-        "subTitle": "Attualmente in panchina come riserva questo weekend — clic per rimettere in formazione. Le riserve sono bloccate in panchina alla distribuzione."
+        "subTitle": "Attualmente in panchina come riserva questo weekend — clic per rimettere in formazione. Le riserve sono bloccate in panchina alla distribuzione.",
+        "rallyLead1": "Capo rally 1",
+        "rallyLead2": "Capo rally 2 (opzionale)",
+        "selectRallyLead2": "Seleziona il 2° capo rally..."
       },
       "title": "Costruttore squadre",
       "alliance": "Alleanza:",

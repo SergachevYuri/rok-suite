@@ -434,7 +434,10 @@
         "subShort": "Sub",
         "countTitle": "Mains playing this weekend / Subs on the bench",
         "mainTitle": "Currently a main this weekend — click to bench (mark as sub). Subs are locked to the bench at distribution.",
-        "subTitle": "Currently benched as sub this weekend — click to put back in the lineup. Subs are locked to the bench at distribution."
+        "subTitle": "Currently benched as sub this weekend — click to put back in the lineup. Subs are locked to the bench at distribution.",
+        "rallyLead1": "Rally Lead 1",
+        "rallyLead2": "Rally Lead 2 (optional)",
+        "selectRallyLead2": "Select 2nd rally lead..."
       },
       "title": "Team Builder",
       "alliance": "Alliance:",

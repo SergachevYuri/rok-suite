@@ -429,7 +429,10 @@
         "subShort": "Ersatz",
         "countTitle": "Stammspieler dieses Wochenende / Ersatzspieler auf der Bank",
         "mainTitle": "Aktuell Stammspieler an diesem Wochenende — klicken zum Auf-die-Bank-Setzen (als Ersatz). Ersatzspieler sind bei der Verteilung an die Bank gebunden.",
-        "subTitle": "Aktuell als Ersatz auf der Bank an diesem Wochenende — klicken zum Zurück-in-die-Aufstellung. Ersatzspieler sind bei der Verteilung an die Bank gebunden."
+        "subTitle": "Aktuell als Ersatz auf der Bank an diesem Wochenende — klicken zum Zurück-in-die-Aufstellung. Ersatzspieler sind bei der Verteilung an die Bank gebunden.",
+        "rallyLead1": "Rally-Leader 1",
+        "rallyLead2": "Rally-Leader 2 (optional)",
+        "selectRallyLead2": "2. Rally-Leader auswählen..."
       },
       "title": "Team-Builder",
       "alliance": "Allianz:",

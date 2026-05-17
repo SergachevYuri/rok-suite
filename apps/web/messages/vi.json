@@ -429,7 +429,10 @@
         "subShort": "Dự bị",
         "countTitle": "Chính thức thi đấu cuối tuần này / Dự bị trên ghế",
         "mainTitle": "Hiện đang là chính thức cuối tuần này — nhấp để chuyển xuống băng ghế (đánh dấu là dự bị). Cầu thủ dự bị bị khóa ở băng ghế khi phân chia.",
-        "subTitle": "Hiện đang ở băng ghế làm dự bị cuối tuần này — nhấp để đưa trở lại đội hình. Cầu thủ dự bị bị khóa ở băng ghế khi phân chia."
+        "subTitle": "Hiện đang ở băng ghế làm dự bị cuối tuần này — nhấp để đưa trở lại đội hình. Cầu thủ dự bị bị khóa ở băng ghế khi phân chia.",
+        "rallyLead1": "Trưởng rally 1",
+        "rallyLead2": "Trưởng rally 2 (tùy chọn)",
+        "selectRallyLead2": "Chọn trưởng rally thứ 2..."
       },
       "title": "Xây dựng đội",
       "alliance": "Liên minh:",

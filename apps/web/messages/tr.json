@@ -429,7 +429,10 @@
         "subShort": "Yedek",
         "countTitle": "Bu hafta sonu oynayan asıl / Yedekteki yedekler",
         "mainTitle": "Bu hafta sonu şu an asıl — yedeğe almak için tıklayın (yedek olarak işaretle). Yedekler dağıtım sırasında yedek kulübesine kilitlenir.",
-        "subTitle": "Bu hafta sonu şu an yedek kulübesinde yedek — kadroya geri almak için tıklayın. Yedekler dağıtım sırasında yedek kulübesine kilitlenir."
+        "subTitle": "Bu hafta sonu şu an yedek kulübesinde yedek — kadroya geri almak için tıklayın. Yedekler dağıtım sırasında yedek kulübesine kilitlenir.",
+        "rallyLead1": "Rally Lideri 1",
+        "rallyLead2": "Rally Lideri 2 (isteğe bağlı)",
+        "selectRallyLead2": "2. rally liderini seç..."
       },
       "title": "Takım Oluşturucu",
       "alliance": "İttifak:",
