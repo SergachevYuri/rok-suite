@@ -99,27 +99,37 @@ export async function fetchKdSnapshotSummary(): Promise<Map<number, KdSnapshotSu
   return result;
 }
 
-/** Compact "X time ago" string for an ISO timestamp. Mirrors what the user
- *  asked for in the spec ("4 hours ago"). Falls back to short date for things
- *  older than a week. */
+/** "X time ago" rounded to the nearest 30 minutes, composed as `Xd Yh Zm ago`.
+ *  Switches to a short date once the rounded delta hits 7+ days. Examples:
+ *    1m elapsed       → "just now"
+ *    20m elapsed      → "30m ago"
+ *    47m elapsed      → "1h ago"      (rounds to 60m)
+ *    1h 25m elapsed   → "1h 30m ago"  (rounds to 90m)
+ *    5h 17m elapsed   → "5h 30m ago"
+ *    1d 5h 12m        → "1d 5h ago"
+ *    2d 17h 50m       → "2d 18h ago"
+ *    8d               → "May 8" (locale short date) */
 export function timeAgo(iso: string, now: Date = new Date()): string {
   const then = new Date(iso);
-  const diff = Math.max(0, now.getTime() - then.getTime());
+  const diffMs = Math.max(0, now.getTime() - then.getTime());
   const minute = 60_000;
+  const halfHour = 30 * minute;
   const hour = 60 * minute;
   const day = 24 * hour;
-  if (diff < minute) return 'just now';
-  if (diff < hour) {
-    const m = Math.floor(diff / minute);
-    return `${m}m ago`;
+
+  const rounded = Math.round(diffMs / halfHour) * halfHour;
+  if (rounded < halfHour) return 'just now';
+  if (rounded >= 7 * day) {
+    return then.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
-  if (diff < day) {
-    const h = Math.floor(diff / hour);
-    return `${h}h ago`;
-  }
-  if (diff < 7 * day) {
-    const d = Math.floor(diff / day);
-    return `${d}d ago`;
-  }
-  return then.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+  const days = Math.floor(rounded / day);
+  const hoursLeft = Math.floor((rounded % day) / hour);
+  const minutesLeft = Math.floor((rounded % hour) / minute);
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hoursLeft > 0) parts.push(`${hoursLeft}h`);
+  if (minutesLeft > 0) parts.push(`${minutesLeft}m`);
+  return `${parts.join(' ')} ago`;
 }
