@@ -14,7 +14,7 @@ import {
 } from '@/lib/supabase/use-kingdom-seeds';
 import SeedsUpload from './SeedsUpload';
 import { SeedBadge } from './SeedBadge';
-import { seedAssignment } from '@/lib/kingdom/seed';
+import { seedAssignment, type SeedAssignment } from '@/lib/kingdom/seed';
 import { MIG_FROM_DATE, MIG_POWER_FLOOR_M_DEFAULT } from '@/lib/kingdom/migrations';
 import { createClient } from '@/lib/supabase/client';
 import { fetchKdSnapshotSummary, timeAgo, type KdSnapshotSummary } from '@/lib/kingdom/kd-snapshots';
@@ -166,6 +166,13 @@ export default function KingdomStats({
   const [heroscrollRows, setHeroscrollRows] = useState<HeroscrollKingdom[] | null>(null);
   const [heroscrollLoading, setHeroscrollLoading] = useState(false);
   const [heroscrollError, setHeroscrollError] = useState<string | null>(null);
+
+  // Combat checker — pulls every player_id in the pool at the latest scan so
+  // we can count "how many players ≥ threshold power/KP" per KD, grouped by
+  // seed band. Lazy: only fetched once the user toggles the section open.
+  const [combatPlayers, setCombatPlayers] = useState<{ kingdom_id: number; power: number; kp: number }[] | null>(null);
+  const [combatLoading, setCombatLoading] = useState(false);
+  const [combatError, setCombatError] = useState<string | null>(null);
   useEffect(() => {
     if (poolKey !== 'current') return;
     if (activeTab !== 'comparison') return;
@@ -185,6 +192,44 @@ export default function KingdomStats({
     })();
     return () => { cancelled = true; };
   }, [activeTab, poolKey, heroscrollRows]);
+
+  // Combat checker fetch — loads once when user opens Comparison on the
+  // current pool, scoped to the pool's KDs and the comparison "To" date
+  // (defaults to the latest scan). Stays in sync if the To picker changes.
+  useEffect(() => {
+    if (poolKey !== 'current') return;
+    if (activeTab !== 'comparison') return;
+    if (!comparisonToDate) return;
+    let cancelled = false;
+    setCombatLoading(true);
+    setCombatError(null);
+    (async () => {
+      try {
+        const sb = createClient();
+        const all: { kingdom_id: number; power: number; kp: number }[] = [];
+        let from = 0;
+        while (true) {
+          const { data, error } = await sb
+            .from('seeds_kd_players')
+            .select('kingdom_id, power, kp')
+            .eq('scan_date', comparisonToDate)
+            .in('kingdom_id', poolKds)
+            .range(from, from + 999);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          for (const r of data) all.push(r as typeof all[number]);
+          if (data.length < 1000) break;
+          from += 1000;
+        }
+        if (!cancelled) setCombatPlayers(all);
+      } catch (e) {
+        if (!cancelled) setCombatError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setCombatLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeTab, poolKey, comparisonToDate, poolKds]);
 
   // Data
   const { kingdoms, loading: loadingKingdoms } = useAvailableSeedKingdoms(kdFilter);
@@ -894,6 +939,22 @@ export default function KingdomStats({
               }}
             />
           )}
+
+          {poolKey === 'current' && (
+            <CombatCheckerPanel
+              players={combatPlayers}
+              loading={combatLoading}
+              error={combatError}
+              seedByKd={(() => {
+                // Build a KD → seed map from the current comparison ranking
+                // (positions 1..N drive A/B/C/D bands per seedAssignment).
+                const m = new Map<number, SeedAssignment>();
+                comparisonRows.forEach((r, i) => m.set(r.kingdom_id, seedAssignment(i + 1)));
+                return m;
+              })()}
+              toDate={comparisonToDate || null}
+            />
+          )}
         </div>
       )}
 
@@ -1464,6 +1525,199 @@ function MigrationsView({
 // returns the global ranking sorted by power; we filter to the user's
 // requested KD range and show just Power / KP / Deads.
 type HeroscrollSortField = 'total_power' | 'total_killpoints' | 'total_deads' | 'kingdom_id';
+// Combat checker: per-seed view of how many players each KD has above a
+// power-or-KP threshold. Useful for sizing up matchmaking pools — "Seed B
+// has X KDs with Y+ T5-capable players" at a glance.
+function CombatCheckerPanel({
+  players,
+  loading,
+  error,
+  seedByKd,
+  toDate,
+}: {
+  players: { kingdom_id: number; power: number; kp: number }[] | null;
+  loading: boolean;
+  error: string | null;
+  seedByKd: Map<number, SeedAssignment>;
+  toDate: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedSeeds, setSelectedSeeds] = useState<Set<'A' | 'B' | 'C' | 'D'>>(
+    new Set(['A', 'B', 'C', 'D']),
+  );
+  const [metric, setMetric] = useState<'power' | 'kp'>('power');
+  const [thresholdM, setThresholdM] = useState<number>(45);
+
+  const threshold = thresholdM * 1_000_000;
+
+  const toggleSeed = (s: 'A' | 'B' | 'C' | 'D') => {
+    setSelectedSeeds((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s); else next.add(s);
+      return next;
+    });
+  };
+
+  // Per-KD count of players matching the threshold, restricted to KDs whose
+  // seed band is in the user's selection.
+  const rows = useMemo(() => {
+    if (!players) return [];
+    const counts = new Map<number, number>();
+    for (const p of players) {
+      const seed = seedByKd.get(p.kingdom_id);
+      if (!seed || !selectedSeeds.has(seed)) continue;
+      const value = metric === 'power' ? p.power : p.kp;
+      if (value < threshold) continue;
+      counts.set(p.kingdom_id, (counts.get(p.kingdom_id) ?? 0) + 1);
+    }
+    // Build rows for every KD in the seed selection (even with 0 count) so
+    // the user can see who has zero combatants too.
+    const out: { kingdom_id: number; seed: SeedAssignment; count: number }[] = [];
+    for (const [kd, seed] of seedByKd) {
+      if (!seed || !selectedSeeds.has(seed)) continue;
+      out.push({ kingdom_id: kd, seed, count: counts.get(kd) ?? 0 });
+    }
+    // Group by seed (A→D), then by count desc, then by kd id asc.
+    const seedOrder = { A: 0, B: 1, C: 2, D: 3 } as const;
+    out.sort((a, b) => {
+      const sa = a.seed ? seedOrder[a.seed] : 99;
+      const sb = b.seed ? seedOrder[b.seed] : 99;
+      if (sa !== sb) return sa - sb;
+      if (b.count !== a.count) return b.count - a.count;
+      return a.kingdom_id - b.kingdom_id;
+    });
+    return out;
+  }, [players, seedByKd, selectedSeeds, metric, threshold]);
+
+  const totalPlayers = useMemo(() => rows.reduce((acc, r) => acc + r.count, 0), [rows]);
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-[var(--background-secondary)] transition-colors"
+      >
+        <div>
+          <div className="text-sm font-semibold text-[var(--foreground)]">
+            Combat checker
+            {open && (
+              <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">
+                ({totalPlayers.toLocaleString()} player{totalPlayers !== 1 ? 's' : ''} ≥ {thresholdM}M {metric})
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-[var(--text-muted)] mt-0.5">
+            How many players each KD has above a power/KP threshold, grouped by seed band.
+            {toDate && ` Snapshot: ${toDate}.`}
+          </div>
+        </div>
+        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+      </button>
+
+      {open && (
+        <div className="border-t border-[var(--border)]">
+          <div className="px-4 py-3 flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-xs uppercase tracking-wider text-[var(--text-muted)] mr-1">Seeds</span>
+              {(['A', 'B', 'C', 'D'] as const).map((s) => {
+                const checked = selectedSeeds.has(s);
+                return (
+                  <button
+                    key={s}
+                    onClick={() => toggleSeed(s)}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-xs font-semibold transition-colors ${
+                      checked
+                        ? 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30'
+                        : 'bg-[var(--background-secondary)] text-[var(--text-muted)] border-[var(--border)]'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-1">
+              <span className="text-xs uppercase tracking-wider text-[var(--text-muted)] mr-1">Metric</span>
+              {(['power', 'kp'] as const).map((m) => {
+                const active = metric === m;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setMetric(m)}
+                    className={`px-2 py-1 rounded border text-xs font-medium transition-colors ${
+                      active
+                        ? 'bg-indigo-500/15 text-indigo-200 border-indigo-500/30'
+                        : 'bg-[var(--background-secondary)] text-[var(--text-muted)] border-[var(--border)]'
+                    }`}
+                  >
+                    {m === 'power' ? 'Power' : 'KP'}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+              <span className="uppercase tracking-wider text-[var(--text-muted)]">Threshold</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={thresholdM}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9.]/g, '');
+                  const n = raw === '' ? 0 : Number(raw);
+                  if (!Number.isNaN(n)) setThresholdM(Math.max(0, n));
+                }}
+                className="w-20 px-2 py-1 rounded bg-[var(--background-secondary)] border border-[var(--border)] text-sm font-mono focus:outline-none"
+              />
+              <span className="text-[var(--text-muted)]">M</span>
+            </label>
+          </div>
+
+          {loading ? (
+            <div className="p-12 text-center text-[var(--text-muted)] border-t border-[var(--border)]">Loading players…</div>
+          ) : error ? (
+            <div className="p-6 text-sm text-red-300 bg-red-500/10 border-t border-red-500/30">Failed to load: {error}</div>
+          ) : rows.length === 0 ? (
+            <div className="p-12 text-center text-[var(--text-muted)] border-t border-[var(--border)]">No KDs match the current seed selection.</div>
+          ) : (
+            <div className="overflow-x-auto border-t border-[var(--border)]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
+                    <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Seed</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Kingdom</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                      Players ≥ {thresholdM}M {metric}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const isMine = r.kingdom_id === DEFAULT_HIGHLIGHT_KD;
+                    return (
+                      <tr
+                        key={r.kingdom_id}
+                        className={`border-b border-[var(--border)] transition-colors ${
+                          isMine ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'hover:bg-[var(--background-secondary)]'
+                        }`}
+                      >
+                        <td className="px-3 py-2.5 text-center"><SeedBadge seed={r.seed} /></td>
+                        <td className="px-4 py-2.5 font-semibold text-[var(--foreground)]">KD {r.kingdom_id}</td>
+                        <td className="px-4 py-2.5 text-right text-emerald-300 font-mono tabular-nums">{r.count}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HeroscrollPanel({
   rows,
   loading,
