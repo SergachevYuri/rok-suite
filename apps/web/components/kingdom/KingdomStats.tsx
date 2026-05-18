@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, ChevronUp, ChevronDown, BarChart3, Table, TrendingUp, GitCompareArrows, Upload as UploadIcon, ArrowUp, ArrowDown, Minus, Move, UserSearch } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import {
   useAvailableSeedKingdoms,
   useSeedDates,
@@ -1525,6 +1525,17 @@ function MigrationsView({
 // returns the global ranking sorted by power; we filter to the user's
 // requested KD range and show just Power / KP / Deads.
 type HeroscrollSortField = 'total_power' | 'total_killpoints' | 'total_deads' | 'kingdom_id';
+/** Fixed tier definitions used by the 2x2 chart grid below the combat
+ *  checker table. Each chart counts players per KD that fit the tier's
+ *  power range AND KP minimum. Ranges are half-open [min, max) so a player
+ *  sits in exactly one tier — except T5 which is open-ended at the top. */
+const COMBAT_TIERS = [
+  { key: 't4-young',  label: 'T4 Young',  subtitle: '20–30M power · ≥150M KP', powerMin: 20_000_000, powerMax: 31_000_000, kpMin: 150_000_000, color: '#34d399' },
+  { key: 't4-strong', label: 'T4 Strong', subtitle: '31–35M power · ≥250M KP', powerMin: 31_000_000, powerMax: 36_000_000, kpMin: 250_000_000, color: '#60a5fa' },
+  { key: 't4-top',    label: 'T4 Top',    subtitle: '36–42M power · ≥300M KP', powerMin: 36_000_000, powerMax: 43_000_000, kpMin: 300_000_000, color: '#fbbf24' },
+  { key: 't5',        label: 'T5',        subtitle: '≥43M power',              powerMin: 43_000_000, powerMax: Number.POSITIVE_INFINITY, kpMin: 0, color: '#f87171' },
+] as const;
+
 // Combat checker: per-seed view of how many players each KD has above a
 // power-or-KP threshold. The seed band shown is the ORIGINAL power-based
 // seed (inherited from the comparison ranking) — the threshold filter only
@@ -1583,6 +1594,32 @@ function CombatCheckerPanel({
   }, [players, seedByKd, selectedSeeds, metric, threshold]);
 
   const totalPlayers = useMemo(() => rows.reduce((acc, r) => acc + r.count, 0), [rows]);
+
+  // One dataset per tier — same X-axis ordering across all 4 charts so the
+  // user can visually scan "this KD has lots of T4 strong but no T5" by
+  // looking at the same column position in each chart.
+  const tierData = useMemo(() => {
+    const sortedKds = [...seedByKd.entries()]
+      .filter(([, s]) => s && selectedSeeds.has(s))
+      .map(([kd]) => kd)
+      .sort((a, b) => a - b);
+    return COMBAT_TIERS.map((tier) => {
+      const counts = new Map<number, number>();
+      for (const kd of sortedKds) counts.set(kd, 0);
+      if (players) {
+        for (const p of players) {
+          const seed = seedByKd.get(p.kingdom_id);
+          if (!seed || !selectedSeeds.has(seed)) continue;
+          if (p.power < tier.powerMin || p.power >= tier.powerMax) continue;
+          if (p.kp < tier.kpMin) continue;
+          counts.set(p.kingdom_id, (counts.get(p.kingdom_id) ?? 0) + 1);
+        }
+      }
+      const data = sortedKds.map((kd) => ({ kd, count: counts.get(kd) ?? 0 }));
+      const total = data.reduce((acc, r) => acc + r.count, 0);
+      return { ...tier, data, total };
+    });
+  }, [players, seedByKd, selectedSeeds]);
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
@@ -1703,6 +1740,52 @@ function CombatCheckerPanel({
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* 2×2 tier charts. Same KD order across all four so columns line
+              up visually for cross-tier comparison. */}
+          {players && tierData[0].data.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-4 border-t border-[var(--border)]">
+              {tierData.map((tier) => (
+                <div
+                  key={tier.key}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--background-secondary)]/40 p-3"
+                >
+                  <div className="flex items-baseline justify-between mb-2">
+                    <div>
+                      <div className="text-sm font-semibold text-[var(--foreground)]">{tier.label}</div>
+                      <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">{tier.subtitle}</div>
+                    </div>
+                    <div className="text-xs font-mono tabular-nums" style={{ color: tier.color }}>
+                      {tier.total.toLocaleString()} total
+                    </div>
+                  </div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={tier.data} margin={{ top: 8, right: 8, left: -16, bottom: 32 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis
+                        dataKey="kd"
+                        tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
+                        angle={-45}
+                        textAnchor="end"
+                        interval={0}
+                      />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                        contentStyle={{ background: 'var(--background-card)', border: '1px solid var(--border)', fontSize: 12 }}
+                        labelFormatter={(kd) => `KD ${kd}`}
+                        formatter={(v) => {
+                          const n = typeof v === 'number' ? v : 0;
+                          return [`${n} player${n === 1 ? '' : 's'}`, tier.label];
+                        }}
+                      />
+                      <Bar dataKey="count" fill={tier.color} radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ))}
             </div>
           )}
         </div>
