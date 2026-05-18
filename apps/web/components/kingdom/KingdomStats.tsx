@@ -1526,10 +1526,9 @@ function MigrationsView({
 // requested KD range and show just Power / KP / Deads.
 type HeroscrollSortField = 'total_power' | 'total_killpoints' | 'total_deads' | 'kingdom_id';
 // Combat checker: per-seed view of how many players each KD has above a
-// power-or-KP threshold. Seed bands are RE-COMPUTED here from the combat
-// count (not inherited from the power_400 ranking) — so a KD that's seed C
-// by power but has the most T5-capable players ends up in combat-seed A,
-// answering "if matchmaking used combat count, who'd land where?".
+// power-or-KP threshold. The seed band shown is the ORIGINAL power-based
+// seed (inherited from the comparison ranking) — the threshold filter only
+// re-sorts the table by combat count, it doesn't reshuffle seed bands.
 function CombatCheckerPanel({
   players,
   loading,
@@ -1540,9 +1539,6 @@ function CombatCheckerPanel({
   players: { kingdom_id: number; power: number; kp: number }[] | null;
   loading: boolean;
   error: string | null;
-  /** Original seed assignment derived from the comparison ranking. Used to
-   *  show a "was X" hint next to KDs whose combat-seed differs from their
-   *  power-seed. */
   seedByKd: Map<number, SeedAssignment>;
   toDate: string | null;
 }) {
@@ -1563,38 +1559,27 @@ function CombatCheckerPanel({
     });
   };
 
-  // Pipeline: compute counts → sort by count DESC across ALL pool KDs →
-  // assign seed by new position → filter by user's seed selection. The seed
-  // shown in the table is the "combat seed", not the original power seed.
+  // Counts per KD with original seed preserved. Filter by selected seeds,
+  // then sort by count DESC so the most "combat-ready" KDs land on top
+  // regardless of their power_400 rank.
   const rows = useMemo(() => {
     if (!players) return [];
     const counts = new Map<number, number>();
     for (const p of players) {
+      const seed = seedByKd.get(p.kingdom_id);
+      if (!seed || !selectedSeeds.has(seed)) continue;
       const value = metric === 'power' ? p.power : p.kp;
       if (value < threshold) continue;
       counts.set(p.kingdom_id, (counts.get(p.kingdom_id) ?? 0) + 1);
     }
-    // Build a row for every pool KD (zero count included).
-    const ranked: { kingdom_id: number; count: number }[] = [];
-    for (const kd of seedByKd.keys()) {
-      ranked.push({ kingdom_id: kd, count: counts.get(kd) ?? 0 });
+    const out: { kingdom_id: number; seed: SeedAssignment; count: number }[] = [];
+    for (const [kd, seed] of seedByKd) {
+      if (!seed || !selectedSeeds.has(seed)) continue;
+      out.push({ kingdom_id: kd, seed, count: counts.get(kd) ?? 0 });
     }
-    // Sort by count DESC, ties broken by KD ascending for deterministic seeds.
-    ranked.sort((a, b) => (b.count - a.count) || (a.kingdom_id - b.kingdom_id));
-
-    // Assign the COMBAT seed from the new ranking. Keep the ORIGINAL seed
-    // alongside so the UI can flag mismatches (e.g. "was C, now A").
-    const withSeeds = ranked.map((r, i) => ({
-      kingdom_id: r.kingdom_id,
-      count: r.count,
-      combatSeed: seedAssignment(i + 1),
-      originalSeed: seedByKd.get(r.kingdom_id) ?? null,
-      position: i + 1,
-    }));
-
-    // Filter by user-selected seeds AFTER reassignment so the chip toggles
-    // reflect the combat-band selection.
-    return withSeeds.filter((r) => r.combatSeed && selectedSeeds.has(r.combatSeed));
+    // Count DESC; ties broken by KD asc for determinism.
+    out.sort((a, b) => (b.count - a.count) || (a.kingdom_id - b.kingdom_id));
+    return out;
   }, [players, seedByKd, selectedSeeds, metric, threshold]);
 
   const totalPlayers = useMemo(() => rows.reduce((acc, r) => acc + r.count, 0), [rows]);
@@ -1693,10 +1678,7 @@ function CombatCheckerPanel({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)] bg-[var(--background-secondary)]">
-                    <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider w-10">#</th>
-                    <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider" title="Seed band recomputed from the combat count (not the power_400 ranking).">
-                      Combat seed
-                    </th>
+                    <th className="px-3 py-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Seed</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Kingdom</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                       Players ≥ {thresholdM}M {metric}
@@ -1706,7 +1688,6 @@ function CombatCheckerPanel({
                 <tbody>
                   {rows.map((r) => {
                     const isMine = r.kingdom_id === DEFAULT_HIGHLIGHT_KD;
-                    const shifted = r.originalSeed && r.combatSeed && r.originalSeed !== r.combatSeed;
                     return (
                       <tr
                         key={r.kingdom_id}
@@ -1714,20 +1695,7 @@ function CombatCheckerPanel({
                           isMine ? 'bg-amber-500/10 hover:bg-amber-500/15' : 'hover:bg-[var(--background-secondary)]'
                         }`}
                       >
-                        <td className="px-3 py-2.5 text-center text-[var(--text-muted)] tabular-nums">{r.position}</td>
-                        <td className="px-3 py-2.5 text-center">
-                          <span className="inline-flex items-center gap-1.5">
-                            <SeedBadge seed={r.combatSeed} />
-                            {shifted && (
-                              <span
-                                className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]"
-                                title={`Power-based seed was ${r.originalSeed}`}
-                              >
-                                was {r.originalSeed}
-                              </span>
-                            )}
-                          </span>
-                        </td>
+                        <td className="px-3 py-2.5 text-center"><SeedBadge seed={r.seed} /></td>
                         <td className="px-4 py-2.5 font-semibold text-[var(--foreground)]">KD {r.kingdom_id}</td>
                         <td className="px-4 py-2.5 text-right text-emerald-300 font-mono tabular-nums">{r.count}</td>
                       </tr>
