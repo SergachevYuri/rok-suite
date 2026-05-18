@@ -18,7 +18,8 @@ import { seedAssignment } from '@/lib/kingdom/seed';
 import { MIG_FROM_DATE, MIG_POWER_FLOOR_M_DEFAULT } from '@/lib/kingdom/migrations';
 import { createClient } from '@/lib/supabase/client';
 import { fetchKdSnapshotSummary, timeAgo, type KdSnapshotSummary } from '@/lib/kingdom/kd-snapshots';
-import { fetchHeroscrollKingdoms, type HeroscrollKingdom } from '@/lib/kingdom/heroscroll';
+import { fetchHeroscrollKingdoms, saveHeroscrollSnapshot, fetchLatestHeroscrollSnapshotMeta, type HeroscrollKingdom } from '@/lib/kingdom/heroscroll';
+import { meetsRole, useAuthRole } from '@/lib/auth-role';
 import {
   KD_POOLS,
   poolFilter,
@@ -691,9 +692,11 @@ export default function KingdomStats({
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map(p => (
+                      {filtered.map((p, i) => (
                         <tr key={p.player_id} className="border-b border-[var(--border)] hover:bg-[var(--background-secondary)] transition-colors">
-                          <td className="px-3 py-2.5 text-[var(--text-muted)] tabular-nums">{p.rank_in_kd}</td>
+                          {/* Position in the current sort order — when the user sorts by
+                              KP the # column reflects KP rank, not the original Excel rank. */}
+                          <td className="px-3 py-2.5 text-[var(--text-muted)] tabular-nums">{i + 1}</td>
                           <td className="px-3 py-2.5 text-[var(--text-muted)] text-xs tabular-nums">{p.player_id}</td>
                           <td className="px-3 py-2.5 font-medium text-[var(--foreground)]">{p.name}</td>
                           <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(p.power)}</td>
@@ -885,6 +888,10 @@ export default function KingdomStats({
               loading={heroscrollLoading}
               error={heroscrollError}
               filter={(kd) => kd >= 3897 && kd <= 3928}
+              onRefetch={() => {
+                setHeroscrollRows(null);
+                setHeroscrollError(null);
+              }}
             />
           )}
         </div>
@@ -1462,12 +1469,58 @@ function HeroscrollPanel({
   loading,
   error,
   filter,
+  onRefetch,
 }: {
   rows: HeroscrollKingdom[] | null;
   loading: boolean;
   error: string | null;
   filter: (kd: number) => boolean;
+  /** Lets the parent reset its cached rows so a fresh fetch fires after the
+   *  user clicks "Snapshot now" — keeps the table in sync with what we just
+   *  persisted. */
+  onRefetch?: () => void;
 }) {
+  const { role } = useAuthRole();
+  const canSnapshot = meetsRole(role, ['admin', 'officer']);
+  const [snapshotting, setSnapshotting] = useState(false);
+  const [snapshotNotice, setSnapshotNotice] = useState<string | null>(null);
+  const [lastSnapshotMeta, setLastSnapshotMeta] = useState<{ captured_at: string; scan_date: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const m = await fetchLatestHeroscrollSnapshotMeta();
+        if (!cancelled) setLastSnapshotMeta(m);
+      } catch (e) {
+        console.warn('Failed to load latest heroscroll snapshot meta', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleSnapshotNow = async () => {
+    if (!rows || rows.length === 0) {
+      setSnapshotNotice('No rows to save — wait for the live fetch to finish.');
+      return;
+    }
+    setSnapshotting(true);
+    setSnapshotNotice(null);
+    try {
+      const res = await saveHeroscrollSnapshot(rows, filter);
+      setSnapshotNotice(`Saved ${res.saved} rows for ${res.scanDate}.`);
+      window.setTimeout(() => setSnapshotNotice(null), 5000);
+      // Refresh the "last snapshot" meta so the timestamp catches up.
+      try {
+        const m = await fetchLatestHeroscrollSnapshotMeta();
+        setLastSnapshotMeta(m);
+      } catch { /* ignore — meta is informational */ }
+    } catch (e) {
+      setSnapshotNotice(`Failed to save: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSnapshotting(false);
+    }
+  };
+
   const [sortField, setSortField] = useState<HeroscrollSortField>('total_power');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -1507,10 +1560,52 @@ function HeroscrollPanel({
           </div>
           <div className="text-xs text-[var(--text-muted)] mt-0.5">
             Data from heroscroll.com — kingdoms 3897-3928 only.
-            {latestTs && ` Last updated: ${latestTs}.`}
+            {latestTs && (
+              <>
+                {' '}
+                Heroscroll last refresh: <span title="Time the external Heroscroll scraper last updated its own data. Independent from your scan uploads.">{latestTs}</span>.
+              </>
+            )}
+            {lastSnapshotMeta && (
+              <>
+                {' '}
+                Last saved snapshot: <span title={`Captured at ${new Date(lastSnapshotMeta.captured_at).toLocaleString()}`}>{lastSnapshotMeta.scan_date}</span>.
+              </>
+            )}
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          {onRefetch && (
+            <button
+              onClick={onRefetch}
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] underline-offset-2 hover:underline transition-colors"
+              title="Re-fetch live data from Heroscroll (clears the cached rows)"
+            >
+              Refresh live
+            </button>
+          )}
+          {canSnapshot ? (
+            <button
+              onClick={handleSnapshotNow}
+              disabled={snapshotting || !rows || rows.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-xs font-medium hover:bg-cyan-500/25 transition-colors disabled:opacity-50"
+              title="Persist the current Heroscroll snapshot to the database for today's scan_date"
+            >
+              {snapshotting ? '…' : 'Snapshot now'}
+            </button>
+          ) : (
+            <span className="text-[10px] text-[var(--text-muted)] italic" title="Sign in as officer or admin to save daily Heroscroll snapshots">
+              sign in to save
+            </span>
+          )}
+        </div>
       </div>
+
+      {snapshotNotice && (
+        <div className="px-4 py-2 border-b border-[var(--border)] bg-cyan-500/5 text-xs text-cyan-200">
+          {snapshotNotice}
+        </div>
+      )}
 
       {loading ? (
         <div className="p-12 text-center text-[var(--text-muted)]">Loading Heroscroll data…</div>

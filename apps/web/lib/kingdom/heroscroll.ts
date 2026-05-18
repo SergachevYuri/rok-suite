@@ -48,6 +48,58 @@ export async function fetchHeroscrollKingdoms(rollupType: 'top400' = 'top400'): 
   return rows;
 }
 
+/** Persist a Heroscroll fetch to `heroscroll_snapshots`, one row per KD in
+ *  the supplied filter. Idempotent per (scan_date, kingdom_id) via upsert —
+ *  re-running the same day replaces today's row.
+ *
+ *  Returns the count of rows actually written so the UI can show a toast. */
+export async function saveHeroscrollSnapshot(
+  rows: HeroscrollKingdom[],
+  kdFilter: (kd: number) => boolean,
+): Promise<{ saved: number; scanDate: string }> {
+  const { createClient } = await import('@/lib/supabase/client');
+  const sb = createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const payload = rows
+    .filter((r): r is HeroscrollKingdom => r != null && kdFilter(r.kingdom_id))
+    .map((r) => ({
+      scan_date: today,
+      kingdom_id: r.kingdom_id,
+      total_power: r.total_power,
+      total_killpoints: r.total_killpoints,
+      total_deads: r.total_deads,
+      total_troop_power: r.total_troop_power,
+      player_count: r.player_count,
+      ch25_count: r.ch25_count,
+      inactive_player_count: r.inactive_player_count,
+      total_rss_given: r.total_rss_given,
+      total_rss_gathered: r.total_rss_gathered,
+      total_acclaim: r.total_acclaim,
+      rank: r.rank,
+      heroscroll_last_updated: r.last_updated ? new Date(r.last_updated).toISOString() : null,
+    }));
+  if (payload.length === 0) return { saved: 0, scanDate: today };
+  const { error } = await sb
+    .from('heroscroll_snapshots')
+    .upsert(payload, { onConflict: 'scan_date,kingdom_id' });
+  if (error) throw error;
+  return { saved: payload.length, scanDate: today };
+}
+
+/** Most-recent capture timestamp across the heroscroll_snapshots table. Used
+ *  to render the "Last snapshot saved: X ago" hint in the panel. */
+export async function fetchLatestHeroscrollSnapshotMeta(): Promise<{ captured_at: string; scan_date: string } | null> {
+  const { createClient } = await import('@/lib/supabase/client');
+  const sb = createClient();
+  const { data, error } = await sb
+    .from('heroscroll_snapshots')
+    .select('captured_at, scan_date')
+    .order('captured_at', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  return (data?.[0] as { captured_at: string; scan_date: string } | undefined) ?? null;
+}
+
 /** Recursively scan the JSON until we find an array whose first non-null
  *  element has a `kingdom_id` field. Handles whatever wrapper Heroscroll
  *  decides to return without us guessing the key name. */
