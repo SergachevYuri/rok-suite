@@ -1256,6 +1256,12 @@
     },
     "commander": {
       "placeholder": "Kommandant wählen…"
+    },
+    "autofill": {
+      "kingdomNotFound": "Keine Scan-Daten für dieses Königreich — manuell eingeben.",
+      "pickKingdomFirst": "Wähle ein Königreich, um Spielervorschläge zu sehen.",
+      "noPlayers": "Keine passenden Spieler aus dem letzten Scan — Name manuell eingeben.",
+      "scanLabel": "Vorschläge aus Scan {date}"
     }
   }
 }

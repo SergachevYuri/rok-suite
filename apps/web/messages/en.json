@@ -1268,6 +1268,12 @@
     },
     "commander": {
       "placeholder": "Pick a commander…"
+    },
+    "autofill": {
+      "kingdomNotFound": "We don't have scan data for that kingdom — type it manually.",
+      "pickKingdomFirst": "Pick a kingdom to see player suggestions.",
+      "noPlayers": "No players from the latest scan match — type your name manually.",
+      "scanLabel": "Suggestions from scan {date}"
     }
   }
 }

@@ -1256,6 +1256,12 @@
     },
     "commander": {
       "placeholder": "Elige un comandante…"
+    },
+    "autofill": {
+      "kingdomNotFound": "No tenemos datos de ese reino — escríbelo manualmente.",
+      "pickKingdomFirst": "Elige un reino para ver sugerencias de jugadores.",
+      "noPlayers": "Ningún jugador del último escaneo coincide — escribe tu nombre manualmente.",
+      "scanLabel": "Sugerencias del escaneo {date}"
     }
   }
 }

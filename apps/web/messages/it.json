@@ -1256,6 +1256,12 @@
     },
     "commander": {
       "placeholder": "Scegli un comandante…"
+    },
+    "autofill": {
+      "kingdomNotFound": "Non abbiamo dati di scansione per quel regno — digitalo manualmente.",
+      "pickKingdomFirst": "Scegli un regno per vedere i suggerimenti dei giocatori.",
+      "noPlayers": "Nessun giocatore dell'ultima scansione corrisponde — digita il nome manualmente.",
+      "scanLabel": "Suggerimenti dalla scansione {date}"
     }
   }
 }

@@ -1256,6 +1256,12 @@
     },
     "commander": {
       "placeholder": "Bir komutan seç…"
+    },
+    "autofill": {
+      "kingdomNotFound": "Bu krallık için tarama verimiz yok — manuel yaz.",
+      "pickKingdomFirst": "Oyuncu önerileri için bir krallık seç.",
+      "noPlayers": "Son taramadan eşleşen oyuncu yok — adını manuel yaz.",
+      "scanLabel": "{date} taramasından öneriler"
     }
   }
 }

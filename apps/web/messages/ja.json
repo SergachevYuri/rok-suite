@@ -1256,6 +1256,12 @@
     },
     "commander": {
       "placeholder": "司令官を選択…"
+    },
+    "autofill": {
+      "kingdomNotFound": "その王国のスキャンデータはありません — 手動で入力してください。",
+      "pickKingdomFirst": "王国を選択するとプレイヤーの候補が表示されます。",
+      "noPlayers": "最新のスキャンに一致するプレイヤーがありません — 名前を手動で入力してください。",
+      "scanLabel": "{date} のスキャンからの候補"
     }
   }
 }

@@ -1256,6 +1256,12 @@
     },
     "commander": {
       "placeholder": "Chọn tướng…"
+    },
+    "autofill": {
+      "kingdomNotFound": "Không có dữ liệu quét cho vương quốc đó — nhập thủ công.",
+      "pickKingdomFirst": "Chọn vương quốc để xem gợi ý người chơi.",
+      "noPlayers": "Không có người chơi nào khớp từ lần quét mới nhất — nhập tên thủ công.",
+      "scanLabel": "Gợi ý từ lần quét {date}"
     }
   }
 }

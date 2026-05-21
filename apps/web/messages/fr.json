@@ -1256,6 +1256,12 @@
     },
     "commander": {
       "placeholder": "Choisis un commandant…"
+    },
+    "autofill": {
+      "kingdomNotFound": "Pas de données de scan pour ce royaume — saisis-le manuellement.",
+      "pickKingdomFirst": "Choisis un royaume pour voir les suggestions de joueurs.",
+      "noPlayers": "Aucun joueur du dernier scan ne correspond — saisis ton nom manuellement.",
+      "scanLabel": "Suggestions du scan {date}"
     }
   }
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Camera, X, Plus, Trash2, Send, CheckCircle2, AlertCircle, Swords, Shield } from 'lucide-react';
 import {
@@ -9,7 +9,19 @@ import {
   type UnitType,
   type RoleType,
 } from '@/lib/supabase/use-leader-applications';
+import {
+  useAvailableSeedKingdoms,
+  useSeedDates,
+  useSeedPlayers,
+} from '@/lib/supabase/use-kingdom-seeds';
 import { CommanderPicker } from './CommanderPicker';
+import { Combobox, type ComboboxSuggestion } from './Combobox';
+
+function formatPower(power: number): string {
+  if (power >= 1_000_000) return `${(power / 1_000_000).toFixed(1)}M`;
+  if (power >= 1_000) return `${(power / 1_000).toFixed(0)}K`;
+  return power.toString();
+}
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -46,6 +58,29 @@ export function LeaderApplicationForm() {
   const [discord, setDiscord] = useState('');
   const [notes, setNotes] = useState('');
   const [roles, setRoles] = useState<RoleEntry[]>([newRole()]);
+
+  // Autofill data sources
+  const { kingdoms: availableKingdoms } = useAvailableSeedKingdoms();
+  const kingdomNum = /^\d+$/.test(kingdom.trim()) ? Number(kingdom.trim()) : null;
+  const kingdomKnown = kingdomNum !== null && availableKingdoms.includes(kingdomNum);
+  const { dates: scanDates } = useSeedDates(kingdomKnown ? kingdomNum : null);
+  const latestScanDate = scanDates[0] ?? null;
+  const { players } = useSeedPlayers(kingdomKnown ? kingdomNum : null, latestScanDate);
+
+  const kingdomSuggestions = useMemo<ComboboxSuggestion[]>(
+    () => availableKingdoms.map((k) => ({ key: String(k), label: String(k), secondary: `KD ${k}` })),
+    [availableKingdoms],
+  );
+
+  const playerSuggestions = useMemo<ComboboxSuggestion[]>(
+    () =>
+      players.map((p) => ({
+        key: String(p.player_id),
+        label: p.name,
+        secondary: `ID ${p.player_id} · ${formatPower(p.power)}`,
+      })),
+    [players],
+  );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -200,15 +235,14 @@ export function LeaderApplicationForm() {
           <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
             {t('fields.kingdom')} <span className="text-red-400">*</span>
           </label>
-          <input
-            type="text"
-            inputMode="numeric"
+          <Combobox
             value={kingdom}
-            onChange={(e) => setKingdom(e.target.value)}
+            onChange={setKingdom}
+            suggestions={kingdomSuggestions}
             placeholder={t('placeholders.kingdom')}
-            className={`${inputBase} ${errors.kingdom ? errorBorder : ''}`}
-            style={inputStyle}
-            autoComplete="off"
+            invalid={!!errors.kingdom}
+            inputMode="numeric"
+            emptyHint={t('autofill.kingdomNotFound')}
           />
           {errors.kingdom && <p className="text-xs text-red-400 mt-1">{errors.kingdom}</p>}
         </div>
@@ -217,15 +251,27 @@ export function LeaderApplicationForm() {
           <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
             {t('fields.name')} <span className="text-red-400">*</span>
           </label>
-          <input
-            type="text"
+          <Combobox
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={setName}
+            onPick={(s) => {
+              setName(s.label);
+              setGovId(s.key);
+            }}
+            suggestions={kingdomKnown ? playerSuggestions : []}
             placeholder={t('placeholders.name')}
-            className={`${inputBase} ${errors.name ? errorBorder : ''}`}
-            style={inputStyle}
-            autoComplete="off"
+            invalid={!!errors.name}
+            emptyHint={
+              kingdomKnown
+                ? t('autofill.noPlayers')
+                : t('autofill.pickKingdomFirst')
+            }
           />
+          {kingdomKnown && latestScanDate && (
+            <p className="text-[11px] text-[var(--text-muted)] mt-1">
+              {t('autofill.scanLabel', { date: latestScanDate })}
+            </p>
+          )}
           {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
         </div>
 

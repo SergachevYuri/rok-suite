@@ -1256,6 +1256,12 @@
     },
     "commander": {
       "placeholder": "选择将军…"
+    },
+    "autofill": {
+      "kingdomNotFound": "我们没有该王国的扫描数据 — 请手动输入。",
+      "pickKingdomFirst": "选择一个王国以查看玩家建议。",
+      "noPlayers": "最近一次扫描没有匹配的玩家 — 请手动输入名字。",
+      "scanLabel": "来自 {date} 扫描的建议"
     }
   }
 }
