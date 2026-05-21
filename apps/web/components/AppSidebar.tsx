@@ -24,6 +24,7 @@ import {
 import { KvkCountdownBanner } from './KvkCountdownBanner';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { SignInButton } from './SignInButton';
 import { useTranslations } from 'next-intl';
 
 interface NavItem {
@@ -165,6 +166,12 @@ export function AppSidebar({ children }: AppSidebarProps) {
       <div className={`px-3 py-4 border-t border-[var(--border)] space-y-2 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed && (
+            <span className="text-xs text-[var(--text-muted)]">Account</span>
+          )}
+          <SignInButton collapsed={isCollapsed} />
+        </div>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          {!isCollapsed && (
             <span className="text-xs text-[var(--text-muted)]">{t2('language')}</span>
           )}
           <LanguageSwitcher collapsed={isCollapsed} />
@@ -215,6 +222,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           </Link>
         </div>
         <div className="flex items-center gap-1">
+          <SignInButton collapsed />
           <LanguageSwitcher collapsed dropdownDown />
           <ThemeToggle />
         </div>
