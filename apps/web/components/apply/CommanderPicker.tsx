@@ -133,22 +133,10 @@ export function CommanderPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full min-h-[52px] flex items-center gap-2.5 px-2.5 py-2 rounded-lg border bg-[var(--background-secondary)] text-left transition-colors ${borderClass}`}
+        className={`w-full min-h-[44px] flex items-center gap-2 px-3 py-2 rounded-lg border bg-[var(--background-secondary)] text-left transition-colors ${borderClass}`}
       >
         {selected ? (
           <>
-            {selected.imageUrl ? (
-              <img
-                src={selected.imageUrl}
-                alt=""
-                className="w-9 h-9 rounded-md object-cover bg-[var(--background)] flex-shrink-0"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-                }}
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-md bg-[var(--background)] flex-shrink-0" />
-            )}
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-[var(--foreground)] truncate">
                 {selected.name}
@@ -168,9 +156,8 @@ export function CommanderPicker({
           </>
         ) : (
           <>
-            <div className="w-9 h-9 rounded-md bg-[var(--background)] flex-shrink-0" />
             <span className="flex-1 text-sm text-[var(--text-muted)]">{triggerPlaceholder}</span>
-            <ChevronDown className="w-4 h-4 text-[var(--text-muted)] mr-1.5" />
+            <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
           </>
         )}
       </button>
@@ -251,22 +238,10 @@ export function CommanderPicker({
                       type="button"
                       key={c.id}
                       onClick={() => handlePick(c)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-[var(--background-secondary)] transition-colors ${
+                      className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-[var(--background-secondary)] transition-colors ${
                         isSelected ? 'bg-[#4318ff]/10' : ''
                       }`}
                     >
-                      {c.imageUrl ? (
-                        <img
-                          src={c.imageUrl}
-                          alt=""
-                          className="w-8 h-8 rounded-md object-cover bg-[var(--background-secondary)] flex-shrink-0"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-md bg-[var(--background-secondary)] flex-shrink-0" />
-                      )}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-[var(--foreground)] truncate">{c.name}</p>
                         <p className={`text-[10px] uppercase tracking-wider truncate ${RARITY_STYLES[c.rarity]}`}>
