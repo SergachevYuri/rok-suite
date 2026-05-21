@@ -50,7 +50,8 @@
     "kingdomStats": "Thống kê Vương quốc",
     "allianceCalculator": "Máy tính liên minh",
     "dkp": "Điểm DKP",
-    "recognition": "Sự công nhận"
+    "recognition": "Sự công nhận",
+    "applyLeader": "Đăng ký làm trưởng"
   },
   "home": {
     "tagline": "Vương quốc 23 • Vương quốc trỗi dậy",
@@ -123,6 +124,10 @@
       "mge": {
         "title": "MGE",
         "description": "Lập kế hoạch và theo dõi thứ hạng và nhiệm vụ của Sự kiện Thống đốc hùng mạnh nhất"
+      },
+      "applyLeader": {
+        "title": "Đăng ký làm trưởng",
+        "description": "Đăng ký trưởng rally và garrison cho tân binh của vương quốc"
       }
     },
     "guide": {
@@ -1181,6 +1186,63 @@
       "stone": "Cục đá",
       "gold": "Vàng",
       "crystals": "Tinh thể"
+    }
+  },
+  "apply": {
+    "title": "Đăng ký Trưởng Rally & Garrison",
+    "subtitle": "Đăng ký dẫn dắt rally và garrison trong vương quốc. Điền thông tin và tải lên ảnh chụp tướng của bạn.",
+    "back": "Quay lại",
+    "footer": "Đơn đăng ký sẽ được sĩ quan vương quốc xem xét.",
+    "submit": "Gửi đăng ký",
+    "addRole": "Thêm rally hoặc garrison",
+    "removeRole": "Xoá vai trò",
+    "roleNumber": "Vai trò {n}",
+    "sections": {
+      "identity": "Thông tin của bạn",
+      "roles": "Vai trò Rally & Garrison",
+      "rolesHint": "Thêm một mục cho mỗi vai trò bạn có thể dẫn. Mỗi vai trò cần ảnh tướng chính và phụ thể hiện kỹ năng, trang bị và vũ khí.",
+      "optional": "Tuỳ chọn"
+    },
+    "fields": {
+      "kingdom": "Vương quốc",
+      "name": "Tên trong game",
+      "govId": "ID Thống đốc",
+      "unit": "Loại lính",
+      "role": "Rally hoặc garrison",
+      "primaryCommander": "Tướng chính",
+      "secondaryCommander": "Tướng phụ",
+      "discord": "Tên Discord",
+      "notes": "Thông tin khác"
+    },
+    "placeholders": {
+      "kingdom": "vd: 23",
+      "name": "Tên thống đốc của bạn",
+      "govId": "ID số trong hồ sơ",
+      "discord": "tên người dùng",
+      "notes": "Kinh nghiệm, múi giờ, thời gian rảnh…"
+    },
+    "units": {
+      "infantry": "Bộ binh",
+      "archer": "Cung thủ",
+      "cavalry": "Kỵ binh"
+    },
+    "roleTypes": {
+      "rally": "Trưởng Rally",
+      "garrison": "Trưởng Garrison"
+    },
+    "upload": {
+      "tap": "Nhấn để tải ảnh lên"
+    },
+    "errors": {
+      "required": "Bắt buộc",
+      "govIdNumeric": "ID Thống đốc phải là số",
+      "uploadRequired": "Cần ảnh chụp",
+      "imageTooLarge": "Ảnh phải nhỏ hơn 5MB",
+      "atLeastOneRole": "Thêm ít nhất một vai trò"
+    },
+    "success": {
+      "title": "Đã gửi đăng ký",
+      "message": "Cảm ơn bạn đã đăng ký! Sĩ quan vương quốc sẽ xem xét ảnh và liên hệ sớm."
     }
   }
 }

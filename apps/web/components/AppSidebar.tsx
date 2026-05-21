@@ -18,6 +18,7 @@ import {
   ScrollText,
   Trophy,
   ClipboardList,
+  UserPlus,
 } from 'lucide-react';
 import { KvkCountdownBanner } from './KvkCountdownBanner';
 import { ThemeToggle } from './ThemeToggle';
@@ -67,6 +68,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         { labelKey: 'mge', href: '/mge', icon: <Shield size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-amber-500 to-yellow-500' },
         { labelKey: 'kingdomStats', href: '/kingdom/kingdom-stats', icon: <BarChart3 size={20} />, hoverColor: 'group-hover:text-green-500', hoverBg: 'hover:bg-green-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-green-500 to-emerald-500' },
         { labelKey: 'kvkMap', href: '/kvk-map', icon: <Map size={20} />, hoverColor: 'group-hover:text-orange-500', hoverBg: 'hover:bg-orange-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-orange-500 to-red-500' },
+        { labelKey: 'applyLeader', href: '/apply', icon: <UserPlus size={20} />, hoverColor: 'group-hover:text-violet-400', hoverBg: 'hover:bg-violet-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-violet-500 to-purple-500' },
       ],
     },
   ];

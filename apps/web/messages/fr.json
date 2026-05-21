@@ -50,7 +50,8 @@
     "kingdomStats": "Statistiques du Royaume",
     "allianceCalculator": "Calculateur d'alliances",
     "dkp": "Score DKP",
-    "recognition": "Reconnaissance"
+    "recognition": "Reconnaissance",
+    "applyLeader": "Devenir chef"
   },
   "home": {
     "tagline": "Royaume 23 • L'avènement des royaumes",
@@ -123,6 +124,10 @@
       "mge": {
         "title": "MGE",
         "description": "Planifiez et suivez les classements et les affectations de l'événement Mightiest Governor"
+      },
+      "applyLeader": {
+        "title": "Devenir Chef",
+        "description": "Candidatures de chefs de rally et garnison pour les recrues du royaume"
       }
     },
     "guide": {
@@ -1181,6 +1186,63 @@
       "stone": "Pierre",
       "gold": "Or",
       "crystals": "Cristaux"
+    }
+  },
+  "apply": {
+    "title": "Candidature Chef de Rally & Garnison",
+    "subtitle": "Postulez pour diriger les rallys et les garnisons de notre royaume. Remplissez vos informations et téléchargez les captures de vos commandants.",
+    "back": "Retour",
+    "footer": "Votre candidature sera examinée par les officiers du royaume.",
+    "submit": "Envoyer la candidature",
+    "addRole": "Ajouter un autre rally ou garnison",
+    "removeRole": "Supprimer le rôle",
+    "roleNumber": "Rôle {n}",
+    "sections": {
+      "identity": "Vos informations",
+      "roles": "Rôles Rally & Garnison",
+      "rolesHint": "Ajoutez une entrée par rôle que vous pouvez diriger. Chacun nécessite les captures du commandant principal et secondaire montrant compétences, équipement et armement.",
+      "optional": "Facultatif"
+    },
+    "fields": {
+      "kingdom": "Royaume",
+      "name": "Nom en jeu",
+      "govId": "ID de Gouverneur",
+      "unit": "Type d'unité",
+      "role": "Rally ou garnison",
+      "primaryCommander": "Commandant principal",
+      "secondaryCommander": "Commandant secondaire",
+      "discord": "Pseudo Discord",
+      "notes": "Autre information"
+    },
+    "placeholders": {
+      "kingdom": "ex. 23",
+      "name": "Votre nom de gouverneur",
+      "govId": "ID numérique de votre profil",
+      "discord": "pseudo",
+      "notes": "Expérience, fuseau horaire, disponibilité…"
+    },
+    "units": {
+      "infantry": "Infanterie",
+      "archer": "Archer",
+      "cavalry": "Cavalerie"
+    },
+    "roleTypes": {
+      "rally": "Chef de Rally",
+      "garrison": "Chef de Garnison"
+    },
+    "upload": {
+      "tap": "Toucher pour téléverser une capture"
+    },
+    "errors": {
+      "required": "Obligatoire",
+      "govIdNumeric": "L'ID de Gouverneur doit être numérique",
+      "uploadRequired": "Capture requise",
+      "imageTooLarge": "L'image doit faire moins de 5 Mo",
+      "atLeastOneRole": "Ajoutez au moins un rôle"
+    },
+    "success": {
+      "title": "Candidature envoyée",
+      "message": "Merci pour votre candidature ! Un officier du royaume examinera vos captures et vous contactera bientôt."
     }
   }
 }

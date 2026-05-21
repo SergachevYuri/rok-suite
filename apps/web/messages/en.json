@@ -51,7 +51,8 @@
     "kingdomStats": "Kingdom Stats",
     "allianceCalculator": "Alliance Calculator",
     "dkp": "DKP Score",
-    "migration": "Emigration"
+    "migration": "Emigration",
+    "applyLeader": "Apply to lead"
   },
   "home": {
     "tagline": "Kingdom 23 • Rise of Kingdoms",
@@ -128,6 +129,10 @@
       "migration": {
         "title": "Emigration",
         "description": "Track players flagged on DKP through claim, contact, emigration, and zeroing outcomes"
+      },
+      "applyLeader": {
+        "title": "Apply as Leader",
+        "description": "Rally and garrison leader applications for kingdom recruits"
       }
     },
     "guide": {
@@ -1193,6 +1198,63 @@
       "stone": "Stone",
       "gold": "Gold",
       "crystals": "Crystals"
+    }
+  },
+  "apply": {
+    "title": "Rally & Garrison Leader Application",
+    "subtitle": "Apply to lead rallies and garrisons in our kingdom. Fill in your details and upload your commander screenshots.",
+    "back": "Back",
+    "footer": "Your submission is reviewed by kingdom officers.",
+    "submit": "Submit application",
+    "addRole": "Add another rally or garrison",
+    "removeRole": "Remove role",
+    "roleNumber": "Role {n}",
+    "sections": {
+      "identity": "Your details",
+      "roles": "Rally & Garrison roles",
+      "rolesHint": "Add one entry per role you can lead. Each needs primary and secondary commander screenshots showing skills, gear and armaments.",
+      "optional": "Optional"
+    },
+    "fields": {
+      "kingdom": "Kingdom",
+      "name": "In-game name",
+      "govId": "Governor ID",
+      "unit": "Unit type",
+      "role": "Rally or garrison",
+      "primaryCommander": "Primary commander",
+      "secondaryCommander": "Secondary commander",
+      "discord": "Discord username",
+      "notes": "Anything else we should know"
+    },
+    "placeholders": {
+      "kingdom": "e.g. 23",
+      "name": "Your governor name",
+      "govId": "Numeric ID from your profile",
+      "discord": "username",
+      "notes": "Experience, time zone, availability…"
+    },
+    "units": {
+      "infantry": "Infantry",
+      "archer": "Archer",
+      "cavalry": "Cavalry"
+    },
+    "roleTypes": {
+      "rally": "Rally leader",
+      "garrison": "Garrison leader"
+    },
+    "upload": {
+      "tap": "Tap to upload screenshot"
+    },
+    "errors": {
+      "required": "Required",
+      "govIdNumeric": "Governor ID must be numeric",
+      "uploadRequired": "Screenshot required",
+      "imageTooLarge": "Image must be under 5MB",
+      "atLeastOneRole": "Add at least one role"
+    },
+    "success": {
+      "title": "Application sent",
+      "message": "Thanks for applying! A kingdom officer will review your screenshots and reach out soon."
     }
   }
 }

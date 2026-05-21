@@ -50,7 +50,8 @@
     "kingdomStats": "Königreichsstatistiken",
     "allianceCalculator": "Allianzrechner",
     "dkp": "DKP-Score",
-    "recognition": "Erkennung"
+    "recognition": "Erkennung",
+    "applyLeader": "Als Leiter bewerben"
   },
   "home": {
     "tagline": "Königreich 23 • Aufstieg der Königreiche",
@@ -123,6 +124,10 @@
       "mge": {
         "title": "MGE",
         "description": "Planen und verfolgen Sie die Ranglisten und Aufgaben des Mightiest Governor-Events"
+      },
+      "applyLeader": {
+        "title": "Als Leiter bewerben",
+        "description": "Bewerbungen als Rally- und Garnisons-Leiter für Königreichs-Rekruten"
       }
     },
     "guide": {
@@ -1181,6 +1186,63 @@
       "stone": "Stein",
       "gold": "Gold",
       "crystals": "Kristalle"
+    }
+  },
+  "apply": {
+    "title": "Rally- & Garnisons-Leiter Bewerbung",
+    "subtitle": "Bewirb dich, um Rallys und Garnisonen in unserem Königreich zu leiten. Fülle deine Daten aus und lade Screenshots deiner Kommandanten hoch.",
+    "back": "Zurück",
+    "footer": "Deine Bewerbung wird von Königreichsoffizieren geprüft.",
+    "submit": "Bewerbung senden",
+    "addRole": "Weiteren Rally oder Garnison hinzufügen",
+    "removeRole": "Rolle entfernen",
+    "roleNumber": "Rolle {n}",
+    "sections": {
+      "identity": "Deine Daten",
+      "roles": "Rally- & Garnisons-Rollen",
+      "rolesHint": "Füge einen Eintrag pro Rolle hinzu, die du leiten kannst. Jede benötigt Primär- und Sekundärkommandanten-Screenshots mit Fähigkeiten, Ausrüstung und Bewaffnung.",
+      "optional": "Optional"
+    },
+    "fields": {
+      "kingdom": "Königreich",
+      "name": "Spielname",
+      "govId": "Gouverneurs-ID",
+      "unit": "Einheitentyp",
+      "role": "Rally oder Garnison",
+      "primaryCommander": "Primärer Kommandant",
+      "secondaryCommander": "Sekundärer Kommandant",
+      "discord": "Discord-Name",
+      "notes": "Sonstiges"
+    },
+    "placeholders": {
+      "kingdom": "z.B. 23",
+      "name": "Dein Gouverneursname",
+      "govId": "Numerische ID aus deinem Profil",
+      "discord": "Benutzername",
+      "notes": "Erfahrung, Zeitzone, Verfügbarkeit…"
+    },
+    "units": {
+      "infantry": "Infanterie",
+      "archer": "Bogenschütze",
+      "cavalry": "Kavallerie"
+    },
+    "roleTypes": {
+      "rally": "Rally-Leiter",
+      "garrison": "Garnisons-Leiter"
+    },
+    "upload": {
+      "tap": "Tippen zum Hochladen"
+    },
+    "errors": {
+      "required": "Erforderlich",
+      "govIdNumeric": "Gouverneurs-ID muss numerisch sein",
+      "uploadRequired": "Screenshot erforderlich",
+      "imageTooLarge": "Bild muss kleiner als 5 MB sein",
+      "atLeastOneRole": "Mindestens eine Rolle hinzufügen"
+    },
+    "success": {
+      "title": "Bewerbung gesendet",
+      "message": "Danke für deine Bewerbung! Ein Königreichsoffizier wird deine Screenshots prüfen und sich bald melden."
     }
   }
 }

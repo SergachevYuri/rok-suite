@@ -5,6 +5,7 @@ import { AuthProvider } from "@/lib/supabase/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { PlayerDrawerProvider } from "@/lib/roster/player-drawer-context";
 import { PlayerDetailDrawer } from "@/components/roster/PlayerDetailDrawer";
+import { LocaleAutoDetect } from "@/components/LocaleAutoDetect";
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { rtlLocales, type Locale } from '@/lib/i18n/config';
@@ -58,6 +59,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <NextIntlClientProvider messages={messages}>
+          <LocaleAutoDetect />
           <ThemeProvider>
             <AuthProvider>
               <PlayerDrawerProvider>

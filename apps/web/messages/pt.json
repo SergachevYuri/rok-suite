@@ -50,7 +50,8 @@
     "kingdomStats": "Estatísticas do Reino",
     "allianceCalculator": "Calculadora de Aliança",
     "dkp": "Pontuação DKP",
-    "recognition": "Reconhecimento"
+    "recognition": "Reconhecimento",
+    "applyLeader": "Candidatar-se a líder"
   },
   "home": {
     "tagline": "Reino 23 • Ascensão dos Reinos",
@@ -123,6 +124,10 @@
       "mge": {
         "title": "MGE",
         "description": "Planeje e acompanhe as classificações e atribuições do Evento do Governador Mais Poderoso"
+      },
+      "applyLeader": {
+        "title": "Candidatar-se a Líder",
+        "description": "Candidaturas de líderes de rally e guarnição para recrutas do reino"
       }
     },
     "guide": {
@@ -1181,6 +1186,63 @@
       "stone": "Pedra",
       "gold": "Ouro",
       "crystals": "Cristais"
+    }
+  },
+  "apply": {
+    "title": "Inscrição de Líder de Rally e Guarnição",
+    "subtitle": "Candidate-se para liderar rallies e guarnições no nosso reino. Preencha os seus dados e envie capturas dos seus comandantes.",
+    "back": "Voltar",
+    "footer": "A sua candidatura será analisada pelos oficiais do reino.",
+    "submit": "Enviar candidatura",
+    "addRole": "Adicionar outro rally ou guarnição",
+    "removeRole": "Remover função",
+    "roleNumber": "Função {n}",
+    "sections": {
+      "identity": "Os seus dados",
+      "roles": "Funções de Rally e Guarnição",
+      "rolesHint": "Adicione uma entrada por função que possa liderar. Cada uma precisa de capturas do comandante primário e secundário com habilidades, equipamento e armamento.",
+      "optional": "Opcional"
+    },
+    "fields": {
+      "kingdom": "Reino",
+      "name": "Nome no jogo",
+      "govId": "ID de Governador",
+      "unit": "Tipo de unidade",
+      "role": "Rally ou guarnição",
+      "primaryCommander": "Comandante principal",
+      "secondaryCommander": "Comandante secundário",
+      "discord": "Utilizador Discord",
+      "notes": "Outras informações"
+    },
+    "placeholders": {
+      "kingdom": "ex.: 23",
+      "name": "Seu nome de governador",
+      "govId": "ID numérico do seu perfil",
+      "discord": "utilizador",
+      "notes": "Experiência, fuso horário, disponibilidade…"
+    },
+    "units": {
+      "infantry": "Infantaria",
+      "archer": "Arqueiro",
+      "cavalry": "Cavalaria"
+    },
+    "roleTypes": {
+      "rally": "Líder de Rally",
+      "garrison": "Líder de Guarnição"
+    },
+    "upload": {
+      "tap": "Toque para enviar captura"
+    },
+    "errors": {
+      "required": "Obrigatório",
+      "govIdNumeric": "O ID de Governador tem de ser numérico",
+      "uploadRequired": "Captura necessária",
+      "imageTooLarge": "A imagem deve ter menos de 5MB",
+      "atLeastOneRole": "Adicione pelo menos uma função"
+    },
+    "success": {
+      "title": "Candidatura enviada",
+      "message": "Obrigado pela candidatura! Um oficial do reino irá analisar as suas capturas e entrar em contacto em breve."
     }
   }
 }

@@ -50,7 +50,8 @@
     "kingdomStats": "王国统计",
     "allianceCalculator": "联盟计算器",
     "dkp": "DKP分数",
-    "recognition": "认出"
+    "recognition": "认出",
+    "applyLeader": "申请指挥官"
   },
   "home": {
     "tagline": "王国 23 • 万国崛起",
@@ -123,6 +124,10 @@
       "mge": {
         "title": "麦格力",
         "description": "计划和跟踪最强大的州长活动排名和任务"
+      },
+      "applyLeader": {
+        "title": "申请成为指挥官",
+        "description": "王国新成员的集结与驻军指挥官申请"
       }
     },
     "guide": {
@@ -1181,6 +1186,63 @@
       "stone": "石头",
       "gold": "金子",
       "crystals": "水晶"
+    }
+  },
+  "apply": {
+    "title": "集结与驻军指挥官申请",
+    "subtitle": "申请在我们的王国中领导集结与驻军。请填写信息并上传你的将军截图。",
+    "back": "返回",
+    "footer": "你的申请将由王国官员审核。",
+    "submit": "提交申请",
+    "addRole": "添加另一个集结或驻军",
+    "removeRole": "移除角色",
+    "roleNumber": "角色 {n}",
+    "sections": {
+      "identity": "你的资料",
+      "roles": "集结与驻军角色",
+      "rolesHint": "你能担任的每个角色添加一项。每项需要主、副将的截图，显示技能、装备与武器。",
+      "optional": "可选"
+    },
+    "fields": {
+      "kingdom": "王国",
+      "name": "游戏内名称",
+      "govId": "总督ID",
+      "unit": "兵种",
+      "role": "集结或驻军",
+      "primaryCommander": "主将",
+      "secondaryCommander": "副将",
+      "discord": "Discord 用户名",
+      "notes": "其他信息"
+    },
+    "placeholders": {
+      "kingdom": "例如：23",
+      "name": "你的总督名称",
+      "govId": "个人资料中的数字 ID",
+      "discord": "用户名",
+      "notes": "经验、时区、可用时间…"
+    },
+    "units": {
+      "infantry": "步兵",
+      "archer": "弓兵",
+      "cavalry": "骑兵"
+    },
+    "roleTypes": {
+      "rally": "集结指挥官",
+      "garrison": "驻军指挥官"
+    },
+    "upload": {
+      "tap": "点击上传截图"
+    },
+    "errors": {
+      "required": "必填",
+      "govIdNumeric": "总督ID必须为数字",
+      "uploadRequired": "需要截图",
+      "imageTooLarge": "图片必须小于5MB",
+      "atLeastOneRole": "请添加至少一个角色"
+    },
+    "success": {
+      "title": "已提交申请",
+      "message": "感谢申请！王国官员将查看你的截图并尽快联系你。"
     }
   }
 }

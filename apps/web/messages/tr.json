@@ -50,7 +50,8 @@
     "kingdomStats": "Krallık İstatistikleri",
     "allianceCalculator": "İttifak Hesaplayıcı",
     "dkp": "DKP Puanı",
-    "recognition": "Tanıma"
+    "recognition": "Tanıma",
+    "applyLeader": "Lider olmak için başvur"
   },
   "home": {
     "tagline": "Krallık 23 • Krallıkların Yükselişi",
@@ -123,6 +124,10 @@
       "mge": {
         "title": "MGE",
         "description": "En Güçlü Vali Etkinliği sıralamalarını ve atamalarını planlayın ve takip edin"
+      },
+      "applyLeader": {
+        "title": "Lider Olarak Başvur",
+        "description": "Krallık yeni üyeleri için rally ve garnizon lider başvuruları"
       }
     },
     "guide": {
@@ -1181,6 +1186,63 @@
       "stone": "Taş",
       "gold": "Altın",
       "crystals": "Kristaller"
+    }
+  },
+  "apply": {
+    "title": "Rally ve Garnizon Lideri Başvurusu",
+    "subtitle": "Krallığımızda rally ve garnizon yönetmek için başvurun. Bilgilerinizi doldurun ve komutan ekran görüntülerinizi yükleyin.",
+    "back": "Geri",
+    "footer": "Başvurunuz krallık subayları tarafından incelenecek.",
+    "submit": "Başvuruyu gönder",
+    "addRole": "Başka bir rally veya garnizon ekle",
+    "removeRole": "Rolü kaldır",
+    "roleNumber": "Rol {n}",
+    "sections": {
+      "identity": "Bilgileriniz",
+      "roles": "Rally ve Garnizon Rolleri",
+      "rolesHint": "Yönetebileceğiniz her rol için bir kayıt ekleyin. Her biri için yetenekler, teçhizat ve silahları gösteren birincil ve ikincil komutan ekran görüntüleri gerekir.",
+      "optional": "İsteğe bağlı"
+    },
+    "fields": {
+      "kingdom": "Krallık",
+      "name": "Oyun içi adı",
+      "govId": "Vali ID",
+      "unit": "Birlik türü",
+      "role": "Rally veya garnizon",
+      "primaryCommander": "Birincil komutan",
+      "secondaryCommander": "İkincil komutan",
+      "discord": "Discord kullanıcı adı",
+      "notes": "Diğer bilgiler"
+    },
+    "placeholders": {
+      "kingdom": "ör. 23",
+      "name": "Vali adınız",
+      "govId": "Profilinizdeki sayısal ID",
+      "discord": "kullanıcı adı",
+      "notes": "Deneyim, saat dilimi, uygunluk…"
+    },
+    "units": {
+      "infantry": "Piyade",
+      "archer": "Okçu",
+      "cavalry": "Süvari"
+    },
+    "roleTypes": {
+      "rally": "Rally Lideri",
+      "garrison": "Garnizon Lideri"
+    },
+    "upload": {
+      "tap": "Ekran görüntüsü yüklemek için dokunun"
+    },
+    "errors": {
+      "required": "Zorunlu",
+      "govIdNumeric": "Vali ID sayısal olmalıdır",
+      "uploadRequired": "Ekran görüntüsü gerekli",
+      "imageTooLarge": "Görsel 5MB'den küçük olmalı",
+      "atLeastOneRole": "En az bir rol ekleyin"
+    },
+    "success": {
+      "title": "Başvuru gönderildi",
+      "message": "Başvurduğunuz için teşekkürler! Bir krallık subayı görüntülerinizi inceleyecek ve kısa süre içinde size ulaşacak."
     }
   }
 }

@@ -50,7 +50,8 @@
     "kingdomStats": "왕국 통계",
     "allianceCalculator": "동맹 계산기",
     "dkp": "DKP 점수",
-    "recognition": "인식"
+    "recognition": "인식",
+    "applyLeader": "리더 지원"
   },
   "home": {
     "tagline": "킹덤 23 • 라이즈 오브 킹덤즈",
@@ -123,6 +124,10 @@
       "dkp": {
         "title": "DKP 점수",
         "description": "왕국 기여 점수: 정규화된 DKP, 사망, RSS, 도움, 명예"
+      },
+      "applyLeader": {
+        "title": "리더 지원",
+        "description": "왕국 신규 모집을 위한 랠리·가리슨 리더 지원"
       }
     },
     "guide": {
@@ -1181,6 +1186,63 @@
       "stone": "결석",
       "gold": "금",
       "crystals": "크리스탈"
+    }
+  },
+  "apply": {
+    "title": "랠리 & 가리슨 리더 지원",
+    "subtitle": "왕국에서 랠리와 가리슨을 이끌 리더로 지원하세요. 정보를 작성하고 사령관 스크린샷을 업로드하세요.",
+    "back": "뒤로",
+    "footer": "지원서는 왕국 임원이 검토합니다.",
+    "submit": "지원서 제출",
+    "addRole": "랠리 또는 가리슨 추가",
+    "removeRole": "역할 제거",
+    "roleNumber": "역할 {n}",
+    "sections": {
+      "identity": "지원자 정보",
+      "roles": "랠리 & 가리슨 역할",
+      "rolesHint": "이끌 수 있는 역할마다 하나씩 추가하세요. 각 역할마다 스킬, 장비, 무장을 보여주는 1·2 사령관 스크린샷이 필요합니다.",
+      "optional": "선택 사항"
+    },
+    "fields": {
+      "kingdom": "왕국",
+      "name": "게임 닉네임",
+      "govId": "총독 ID",
+      "unit": "병종",
+      "role": "랠리 또는 가리슨",
+      "primaryCommander": "주 사령관",
+      "secondaryCommander": "부 사령관",
+      "discord": "디스코드 사용자명",
+      "notes": "추가 정보"
+    },
+    "placeholders": {
+      "kingdom": "예: 23",
+      "name": "총독 닉네임",
+      "govId": "프로필의 숫자 ID",
+      "discord": "사용자명",
+      "notes": "경험, 시간대, 활동 가능 시간…"
+    },
+    "units": {
+      "infantry": "보병",
+      "archer": "궁수",
+      "cavalry": "기병"
+    },
+    "roleTypes": {
+      "rally": "랠리 리더",
+      "garrison": "가리슨 리더"
+    },
+    "upload": {
+      "tap": "탭하여 스크린샷 업로드"
+    },
+    "errors": {
+      "required": "필수 항목",
+      "govIdNumeric": "총독 ID는 숫자여야 합니다",
+      "uploadRequired": "스크린샷 필요",
+      "imageTooLarge": "이미지는 5MB 미만이어야 합니다",
+      "atLeastOneRole": "역할을 하나 이상 추가하세요"
+    },
+    "success": {
+      "title": "지원서가 제출되었습니다",
+      "message": "지원해 주셔서 감사합니다! 왕국 임원이 스크린샷을 검토한 후 곧 연락드립니다."
     }
   }
 }

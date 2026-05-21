@@ -50,7 +50,8 @@
     "kingdomStats": "王国の統計",
     "allianceCalculator": "同盟計算機",
     "dkp": "DKPスコア",
-    "recognition": "認識"
+    "recognition": "認識",
+    "applyLeader": "リーダー応募"
   },
   "home": {
     "tagline": "キングダム 23 • ライズ オブ キングダム",
@@ -123,6 +124,10 @@
       "mge": {
         "title": "MGE",
         "description": "最強の総督イベントのランキングと割り当てを計画および追跡する"
+      },
+      "applyLeader": {
+        "title": "リーダーに応募",
+        "description": "王国の新規募集向けラリー・ギャリソンリーダー応募"
       }
     },
     "guide": {
@@ -1181,6 +1186,63 @@
       "stone": "石",
       "gold": "金",
       "crystals": "クリスタル"
+    }
+  },
+  "apply": {
+    "title": "ラリー&ギャリソン リーダー応募",
+    "subtitle": "王国でラリーとギャリソンを率いるリーダーに応募してください。情報を入力し、司令官のスクリーンショットをアップロードしてください。",
+    "back": "戻る",
+    "footer": "応募は王国の役員が確認します。",
+    "submit": "応募を送信",
+    "addRole": "ラリーまたはギャリソンを追加",
+    "removeRole": "役割を削除",
+    "roleNumber": "役割 {n}",
+    "sections": {
+      "identity": "あなたの情報",
+      "roles": "ラリー&ギャリソンの役割",
+      "rolesHint": "リードできる役割ごとに1つずつ追加してください。各役割には、スキル・装備・武装が写った第1・第2司令官のスクリーンショットが必要です。",
+      "optional": "任意"
+    },
+    "fields": {
+      "kingdom": "王国",
+      "name": "ゲーム内ネーム",
+      "govId": "総督ID",
+      "unit": "兵種",
+      "role": "ラリーまたはギャリソン",
+      "primaryCommander": "主司令官",
+      "secondaryCommander": "副司令官",
+      "discord": "Discord ユーザー名",
+      "notes": "その他"
+    },
+    "placeholders": {
+      "kingdom": "例: 23",
+      "name": "総督名",
+      "govId": "プロフィールの数値ID",
+      "discord": "ユーザー名",
+      "notes": "経験、タイムゾーン、活動可能時間など…"
+    },
+    "units": {
+      "infantry": "歩兵",
+      "archer": "弓兵",
+      "cavalry": "騎兵"
+    },
+    "roleTypes": {
+      "rally": "ラリーリーダー",
+      "garrison": "ギャリソンリーダー"
+    },
+    "upload": {
+      "tap": "タップしてスクリーンショットをアップロード"
+    },
+    "errors": {
+      "required": "必須",
+      "govIdNumeric": "総督IDは数字である必要があります",
+      "uploadRequired": "スクリーンショットが必要です",
+      "imageTooLarge": "画像は5MB未満である必要があります",
+      "atLeastOneRole": "少なくとも1つの役割を追加してください"
+    },
+    "success": {
+      "title": "応募が送信されました",
+      "message": "ご応募ありがとうございます！王国の役員がスクリーンショットを確認し、近日中にご連絡します。"
     }
   }
 }

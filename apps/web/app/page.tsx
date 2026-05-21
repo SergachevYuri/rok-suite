@@ -14,6 +14,7 @@ import {
   ScrollText,
   Trophy,
   ClipboardList,
+  UserPlus,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -110,6 +111,16 @@ export default function Home() {
       hoverShadow: 'hover:shadow-orange-500/10',
       iconHoverBg: 'group-hover:bg-orange-500/15',
       iconHoverColor: 'group-hover:text-orange-500',
+    },
+    {
+      href: '/apply',
+      titleKey: 'tools.applyLeader.title',
+      descriptionKey: 'tools.applyLeader.description',
+      icon: UserPlus,
+      hoverBorder: 'hover:border-violet-500/40',
+      hoverShadow: 'hover:shadow-violet-500/10',
+      iconHoverBg: 'group-hover:bg-violet-500/15',
+      iconHoverColor: 'group-hover:text-violet-500',
     },
   ] as const;
 
