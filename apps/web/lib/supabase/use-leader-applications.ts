@@ -1,7 +1,32 @@
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../supabase';
 
 export type UnitType = 'infantry' | 'archer' | 'cavalry';
 export type RoleType = 'rally' | 'garrison';
+export type ApplicationStatus = 'pending' | 'reviewed' | 'approved' | 'rejected';
+
+export interface LeaderApplicationRoleRow {
+  id: string;
+  application_id: string;
+  position: number;
+  unit_type: UnitType;
+  role_type: RoleType;
+  primary_screenshot_url: string | null;
+  secondary_screenshot_url: string | null;
+}
+
+export interface LeaderApplicationRow {
+  id: string;
+  created_at: string;
+  kingdom: string;
+  name: string;
+  gov_id: string;
+  discord: string | null;
+  notes: string | null;
+  locale: string | null;
+  status: ApplicationStatus;
+  leader_application_roles: LeaderApplicationRoleRow[];
+}
 
 export interface LeaderRoleInput {
   unitType: UnitType;
@@ -95,4 +120,61 @@ export async function submitLeaderApplication(
   }
 
   return { id: app.id };
+}
+
+export async function updateApplicationStatus(
+  id: string,
+  status: ApplicationStatus,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('leader_applications')
+    .update({ status })
+    .eq('id', id);
+  if (error) {
+    console.error('Failed to update application status:', error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteApplication(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('leader_applications')
+    .delete()
+    .eq('id', id);
+  if (error) {
+    console.error('Failed to delete application:', error.message);
+    return false;
+  }
+  return true;
+}
+
+export function useLeaderApplications() {
+  const [apps, setApps] = useState<LeaderApplicationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('leader_applications')
+      .select('*, leader_application_roles(*)')
+      .order('created_at', { ascending: false });
+    if (error) {
+      setError(error.message);
+      setApps([]);
+    } else {
+      setError(null);
+      const rows = (data || []) as LeaderApplicationRow[];
+      rows.forEach((r) => r.leader_application_roles?.sort((a, b) => a.position - b.position));
+      setApps(rows);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return { apps, loading, error, reload };
 }
