@@ -1255,13 +1255,29 @@
       "review": "確認"
     },
     "commander": {
-      "placeholder": "司令官を選択…"
+      "placeholder": "司令官を選択…",
+      "searchPlaceholder": "司令官を検索…",
+      "noResults": "フィルターに一致する司令官がいません。",
+      "clear": "クリア",
+      "close": "閉じる",
+      "dialogLabel": "司令官を選択",
+      "filtered": "{unit} 用の司令官 {count} 名を表示"
     },
     "autofill": {
       "kingdomNotFound": "その王国のスキャンデータはありません — 手動で入力してください。",
       "pickKingdomFirst": "王国を選択するとプレイヤーの候補が表示されます。",
       "noPlayers": "最新のスキャンに一致するプレイヤーがありません — 名前を手動で入力してください。",
-      "scanLabel": "{date} のスキャンからの候補"
+      "scanLabel": "{date} のスキャンからの候補",
+      "loading": "候補を読み込み中…"
+    },
+    "intro": {
+      "title": "始める前に",
+      "step1": "王国番号とゲーム内ネーム",
+      "step2": "総督ID — ゲーム内でアバターをタップ、プロフィール上部に表示されます",
+      "step3": "各ラリーまたはギャリソンで使う2人の司令官"
+    },
+    "hints": {
+      "govIdLocation": "ゲーム内でアバターをタップ — 名前の下にある9〜10桁の数字です。"
     }
   }
 }

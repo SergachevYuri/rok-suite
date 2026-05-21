@@ -23,6 +23,9 @@ interface ComboboxProps {
   inputMode?: 'text' | 'numeric';
   maxResults?: number;
   emptyHint?: string;
+  /** Show a loading state instead of suggestions/empty hint */
+  loading?: boolean;
+  loadingHint?: string;
 }
 
 function normalize(text: string): string {
@@ -44,6 +47,8 @@ export function Combobox({
   inputMode = 'text',
   maxResults = 20,
   emptyHint,
+  loading = false,
+  loadingHint,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [highlightIdx, setHighlightIdx] = useState(0);
@@ -114,7 +119,7 @@ export function Combobox({
           onChange(e.target.value);
           setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
         onKeyDown={handleKey}
         placeholder={placeholder}
         className={`${inputBase} ${borderClass}`}
@@ -132,15 +137,19 @@ export function Combobox({
           setOpen((v) => !v);
           inputRef.current?.focus();
         }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--foreground)]"
+        className="absolute right-0 top-0 bottom-0 px-3 flex items-center text-[var(--text-muted)] hover:text-[var(--foreground)]"
         aria-label="Open suggestions"
       >
         <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (hasContent || emptyHint) && (
+      {open && (loading || hasContent || emptyHint) && (
         <div className="absolute z-50 mt-1 left-0 right-0 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
-          {hasContent ? (
+          {loading ? (
+            <div className="px-3 py-4 text-center text-xs text-[var(--text-muted)]">
+              {loadingHint ?? '…'}
+            </div>
+          ) : hasContent ? (
             filtered.map((s, idx) => (
               <button
                 type="button"
@@ -150,7 +159,7 @@ export function Combobox({
                   handlePick(s);
                 }}
                 onMouseEnter={() => setHighlightIdx(idx)}
-                className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-left transition-colors ${
+                className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors ${
                   idx === highlightIdx
                     ? 'bg-[var(--background-secondary)]'
                     : 'hover:bg-[var(--background-secondary)]'

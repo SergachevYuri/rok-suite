@@ -1267,13 +1267,29 @@
       "review": "Review"
     },
     "commander": {
-      "placeholder": "Pick a commander…"
+      "placeholder": "Pick a commander…",
+      "searchPlaceholder": "Search commanders…",
+      "noResults": "No commanders match your filter.",
+      "clear": "Clear",
+      "close": "Close",
+      "dialogLabel": "Pick a commander",
+      "filtered": "Showing {count} commanders for {unit}"
     },
     "autofill": {
       "kingdomNotFound": "We don't have scan data for that kingdom — type it manually.",
       "pickKingdomFirst": "Pick a kingdom to see player suggestions.",
       "noPlayers": "No players from the latest scan match — type your name manually.",
-      "scanLabel": "Suggestions from scan {date}"
+      "scanLabel": "Suggestions from scan {date}",
+      "loading": "Loading suggestions…"
+    },
+    "intro": {
+      "title": "Before you start",
+      "step1": "Your kingdom number and in-game name",
+      "step2": "Your Governor ID — tap your avatar in-game, it's shown at the top of your profile",
+      "step3": "The two commanders you'd use for each rally or garrison role"
+    },
+    "hints": {
+      "govIdLocation": "Tap your avatar in-game — the 9–10 digit number under your name."
     }
   }
 }

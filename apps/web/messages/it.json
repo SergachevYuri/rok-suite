@@ -1255,13 +1255,29 @@
       "review": "Revisione"
     },
     "commander": {
-      "placeholder": "Scegli un comandante…"
+      "placeholder": "Scegli un comandante…",
+      "searchPlaceholder": "Cerca comandanti…",
+      "noResults": "Nessun comandante corrisponde al filtro.",
+      "clear": "Cancella",
+      "close": "Chiudi",
+      "dialogLabel": "Scegli un comandante",
+      "filtered": "Mostra {count} comandanti per {unit}"
     },
     "autofill": {
       "kingdomNotFound": "Non abbiamo dati di scansione per quel regno — digitalo manualmente.",
       "pickKingdomFirst": "Scegli un regno per vedere i suggerimenti dei giocatori.",
       "noPlayers": "Nessun giocatore dell'ultima scansione corrisponde — digita il nome manualmente.",
-      "scanLabel": "Suggerimenti dalla scansione {date}"
+      "scanLabel": "Suggerimenti dalla scansione {date}",
+      "loading": "Caricamento suggerimenti…"
+    },
+    "intro": {
+      "title": "Prima di iniziare",
+      "step1": "Il numero del tuo regno e il nome in gioco",
+      "step2": "Il tuo ID Governatore — tocca il tuo avatar in gioco, è mostrato in alto nel profilo",
+      "step3": "I due comandanti che useresti per ogni rally o guarnigione"
+    },
+    "hints": {
+      "govIdLocation": "Tocca il tuo avatar in gioco — il numero a 9-10 cifre sotto il tuo nome."
     }
   }
 }

@@ -1255,13 +1255,29 @@
       "review": "审核"
     },
     "commander": {
-      "placeholder": "选择将军…"
+      "placeholder": "选择将军…",
+      "searchPlaceholder": "搜索将军…",
+      "noResults": "没有将军符合筛选条件。",
+      "clear": "清除",
+      "close": "关闭",
+      "dialogLabel": "选择将军",
+      "filtered": "为 {unit} 显示 {count} 位将军"
     },
     "autofill": {
       "kingdomNotFound": "我们没有该王国的扫描数据 — 请手动输入。",
       "pickKingdomFirst": "选择一个王国以查看玩家建议。",
       "noPlayers": "最近一次扫描没有匹配的玩家 — 请手动输入名字。",
-      "scanLabel": "来自 {date} 扫描的建议"
+      "scanLabel": "来自 {date} 扫描的建议",
+      "loading": "正在加载建议…"
+    },
+    "intro": {
+      "title": "开始之前",
+      "step1": "你的王国编号和游戏内名称",
+      "step2": "你的总督ID — 在游戏内点击你的头像，会显示在个人资料顶部",
+      "step3": "你在每次集结或驻军中会使用的两位将军"
+    },
+    "hints": {
+      "govIdLocation": "在游戏内点击头像 — 名字下方的9-10位数字。"
     }
   }
 }

@@ -1255,13 +1255,29 @@
       "review": "Revoir"
     },
     "commander": {
-      "placeholder": "Choisis un commandant…"
+      "placeholder": "Choisis un commandant…",
+      "searchPlaceholder": "Rechercher des commandants…",
+      "noResults": "Aucun commandant ne correspond au filtre.",
+      "clear": "Effacer",
+      "close": "Fermer",
+      "dialogLabel": "Choisir un commandant",
+      "filtered": "{count} commandants affichés pour {unit}"
     },
     "autofill": {
       "kingdomNotFound": "Pas de données de scan pour ce royaume — saisis-le manuellement.",
       "pickKingdomFirst": "Choisis un royaume pour voir les suggestions de joueurs.",
       "noPlayers": "Aucun joueur du dernier scan ne correspond — saisis ton nom manuellement.",
-      "scanLabel": "Suggestions du scan {date}"
+      "scanLabel": "Suggestions du scan {date}",
+      "loading": "Chargement des suggestions…"
+    },
+    "intro": {
+      "title": "Avant de commencer",
+      "step1": "Ton numéro de royaume et ton nom en jeu",
+      "step2": "Ton ID de Gouverneur — touche ton avatar en jeu, il s'affiche en haut de ton profil",
+      "step3": "Les deux commandants que tu utiliserais pour chaque rally ou garnison"
+    },
+    "hints": {
+      "govIdLocation": "Touche ton avatar en jeu — le nombre à 9-10 chiffres sous ton nom."
     }
   }
 }

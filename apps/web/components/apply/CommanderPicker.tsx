@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { commanderReferences, type CommanderReference } from '@/lib/sunset-canyon/commander-reference';
 
 interface CommanderPickerProps {
@@ -41,9 +42,10 @@ export function CommanderPicker({
   value,
   onChange,
   unitFilter,
-  placeholder = 'Pick a commander…',
+  placeholder,
   invalid = false,
 }: CommanderPickerProps) {
+  const t = useTranslations('apply.commander');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,6 +87,18 @@ export function CommanderPicker({
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [open]);
 
+  // Body scroll lock on mobile while picker is open (we render as a modal there).
+  useEffect(() => {
+    if (!open) return;
+    const isSmall = window.matchMedia('(max-width: 639px)').matches;
+    if (!isSmall) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [open]);
+
   useEffect(() => {
     if (open) {
       const id = setTimeout(() => inputRef.current?.focus(), 30);
@@ -103,16 +117,23 @@ export function CommanderPicker({
     onChange(null, null);
   };
 
+  const handleClose = () => {
+    setOpen(false);
+    setSearch('');
+  };
+
   const borderClass = invalid
     ? 'border-red-500/60'
     : 'border-[var(--border)] hover:border-[var(--foreground)]/20';
+
+  const triggerPlaceholder = placeholder ?? t('placeholder');
 
   return (
     <div className="relative" ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border bg-[var(--background-secondary)] text-left transition-colors ${borderClass}`}
+        className={`w-full min-h-[52px] flex items-center gap-2.5 px-2.5 py-2 rounded-lg border bg-[var(--background-secondary)] text-left transition-colors ${borderClass}`}
       >
         {selected ? (
           <>
@@ -139,75 +160,129 @@ export function CommanderPicker({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
-              aria-label="Clear"
+              className="p-2 -mr-1 rounded-md text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
+              aria-label={t('clear')}
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           </>
         ) : (
           <>
             <div className="w-9 h-9 rounded-md bg-[var(--background)] flex-shrink-0" />
-            <span className="flex-1 text-sm text-[var(--text-muted)]">{placeholder}</span>
-            <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+            <span className="flex-1 text-sm text-[var(--text-muted)]">{triggerPlaceholder}</span>
+            <ChevronDown className="w-4 h-4 text-[var(--text-muted)] mr-1.5" />
           </>
         )}
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 left-0 right-0 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-2xl overflow-hidden">
-          <div className="relative border-b border-[var(--border)]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search commanders…"
-              className="w-full pl-9 pr-3 py-2.5 bg-transparent border-0 text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none"
-            />
-          </div>
-          <div className="max-h-80 overflow-y-auto">
-            {visible.length === 0 ? (
-              <div className="px-3 py-6 text-center text-xs text-[var(--text-muted)]">
-                No commanders match.
+        <>
+          {/* Mobile backdrop */}
+          <div
+            className="sm:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            onClick={handleClose}
+            aria-hidden="true"
+          />
+
+          {/* Picker panel — bottom sheet on mobile, popover on desktop */}
+          <div
+            className="
+              fixed sm:absolute z-50
+              left-0 right-0 bottom-0 sm:bottom-auto sm:top-auto sm:mt-1
+              rounded-t-2xl sm:rounded-xl
+              bg-[var(--background-card)] border border-[var(--border)] shadow-2xl
+              max-h-[80vh] sm:max-h-96
+              flex flex-col
+            "
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('dialogLabel')}
+          >
+            {/* Mobile drag handle */}
+            <div className="sm:hidden flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 rounded-full bg-[var(--text-muted)]/40" />
+            </div>
+
+            {/* Header (mobile only): title + close */}
+            <div className="sm:hidden flex items-center justify-between px-4 py-2 border-b border-[var(--border)]">
+              <p className="text-sm font-semibold text-[var(--foreground)]">{t('dialogLabel')}</p>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="p-2 -mr-2 rounded-md text-[var(--text-muted)] hover:text-[var(--foreground)]"
+                aria-label={t('close')}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative border-b border-[var(--border)]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('searchPlaceholder')}
+                className="w-full pl-9 pr-3 py-3 sm:py-2.5 bg-transparent border-0 text-base sm:text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none"
+                autoComplete="off"
+              />
+            </div>
+
+            {/* Active filter indicator */}
+            {unitFilter && (
+              <div className="px-3 py-1.5 text-[11px] text-[var(--text-muted)] bg-[var(--background-secondary)]/60 border-b border-[var(--border)]">
+                {t('filtered', { unit: unitFilter, count: visible.length })}
               </div>
-            ) : (
-              visible.map((c) => {
-                const isSelected = c.id === value;
-                return (
-                  <button
-                    type="button"
-                    key={c.id}
-                    onClick={() => handlePick(c)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-[var(--background-secondary)] transition-colors ${
-                      isSelected ? 'bg-[#4318ff]/10' : ''
-                    }`}
-                  >
-                    {c.imageUrl ? (
-                      <img
-                        src={c.imageUrl}
-                        alt=""
-                        className="w-8 h-8 rounded-md object-cover bg-[var(--background-secondary)] flex-shrink-0"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-md bg-[var(--background-secondary)] flex-shrink-0" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-[var(--foreground)] truncate">{c.name}</p>
-                      <p className={`text-[10px] uppercase tracking-wider truncate ${RARITY_STYLES[c.rarity]}`}>
-                        {c.specialties.join(' · ')}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })
             )}
+
+            {/* List */}
+            <div className="overflow-y-auto flex-1 min-h-0">
+              {visible.length === 0 ? (
+                <div className="px-3 py-8 text-center text-sm text-[var(--text-muted)]">
+                  {t('noResults')}
+                </div>
+              ) : (
+                visible.map((c) => {
+                  const isSelected = c.id === value;
+                  return (
+                    <button
+                      type="button"
+                      key={c.id}
+                      onClick={() => handlePick(c)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-[var(--background-secondary)] transition-colors ${
+                        isSelected ? 'bg-[#4318ff]/10' : ''
+                      }`}
+                    >
+                      {c.imageUrl ? (
+                        <img
+                          src={c.imageUrl}
+                          alt=""
+                          className="w-8 h-8 rounded-md object-cover bg-[var(--background-secondary)] flex-shrink-0"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-md bg-[var(--background-secondary)] flex-shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-[var(--foreground)] truncate">{c.name}</p>
+                        <p className={`text-[10px] uppercase tracking-wider truncate ${RARITY_STYLES[c.rarity]}`}>
+                          {c.specialties.join(' · ')}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Safe-area padding for iOS home indicator */}
+            <div className="sm:hidden h-[env(safe-area-inset-bottom)]" />
           </div>
-        </div>
+        </>
       )}
     </div>
   );

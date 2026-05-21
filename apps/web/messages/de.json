@@ -1255,13 +1255,29 @@
       "review": "Prüfen"
     },
     "commander": {
-      "placeholder": "Kommandant wählen…"
+      "placeholder": "Kommandant wählen…",
+      "searchPlaceholder": "Kommandanten suchen…",
+      "noResults": "Keine Kommandanten passen zum Filter.",
+      "clear": "Leeren",
+      "close": "Schließen",
+      "dialogLabel": "Kommandant wählen",
+      "filtered": "{count} Kommandanten für {unit} angezeigt"
     },
     "autofill": {
       "kingdomNotFound": "Keine Scan-Daten für dieses Königreich — manuell eingeben.",
       "pickKingdomFirst": "Wähle ein Königreich, um Spielervorschläge zu sehen.",
       "noPlayers": "Keine passenden Spieler aus dem letzten Scan — Name manuell eingeben.",
-      "scanLabel": "Vorschläge aus Scan {date}"
+      "scanLabel": "Vorschläge aus Scan {date}",
+      "loading": "Vorschläge laden…"
+    },
+    "intro": {
+      "title": "Vor dem Start",
+      "step1": "Deine Königreichsnummer und dein Spielname",
+      "step2": "Deine Gouverneurs-ID — tippe im Spiel auf deinen Avatar, sie steht oben im Profil",
+      "step3": "Die zwei Kommandanten, die du für jeden Rally oder jede Garnison nutzen würdest"
+    },
+    "hints": {
+      "govIdLocation": "Tippe im Spiel auf deinen Avatar — die 9- bis 10-stellige Zahl unter deinem Namen."
     }
   }
 }

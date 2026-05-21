@@ -1255,13 +1255,29 @@
       "review": "Xem xét"
     },
     "commander": {
-      "placeholder": "Chọn tướng…"
+      "placeholder": "Chọn tướng…",
+      "searchPlaceholder": "Tìm tướng…",
+      "noResults": "Không có tướng nào phù hợp với bộ lọc.",
+      "clear": "Xoá",
+      "close": "Đóng",
+      "dialogLabel": "Chọn tướng",
+      "filtered": "Hiển thị {count} tướng cho {unit}"
     },
     "autofill": {
       "kingdomNotFound": "Không có dữ liệu quét cho vương quốc đó — nhập thủ công.",
       "pickKingdomFirst": "Chọn vương quốc để xem gợi ý người chơi.",
       "noPlayers": "Không có người chơi nào khớp từ lần quét mới nhất — nhập tên thủ công.",
-      "scanLabel": "Gợi ý từ lần quét {date}"
+      "scanLabel": "Gợi ý từ lần quét {date}",
+      "loading": "Đang tải gợi ý…"
+    },
+    "intro": {
+      "title": "Trước khi bắt đầu",
+      "step1": "Số vương quốc và tên trong game của bạn",
+      "step2": "ID Thống đốc — chạm avatar trong game, hiển thị ở đầu hồ sơ",
+      "step3": "Hai tướng bạn sẽ dùng cho mỗi rally hoặc garrison"
+    },
+    "hints": {
+      "govIdLocation": "Chạm avatar trong game — số 9-10 chữ số dưới tên bạn."
     }
   }
 }

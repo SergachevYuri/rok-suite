@@ -1,8 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Camera, X, Plus, Trash2, Send, CheckCircle2, AlertCircle, Swords, Shield } from 'lucide-react';
+import {
+  Camera, X, Plus, Trash2, Send, CheckCircle2, AlertCircle,
+  Swords, Shield, Info, HelpCircle,
+} from 'lucide-react';
 import {
   submitLeaderApplication,
   type LeaderRoleInput,
@@ -21,6 +24,18 @@ function formatPower(power: number): string {
   if (power >= 1_000_000) return `${(power / 1_000_000).toFixed(1)}M`;
   if (power >= 1_000) return `${(power / 1_000).toFixed(0)}K`;
   return power.toString();
+}
+
+function formatScanDate(iso: string, locale: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(locale, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
 }
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -60,12 +75,15 @@ export function LeaderApplicationForm() {
   const [roles, setRoles] = useState<RoleEntry[]>([newRole()]);
 
   // Autofill data sources
-  const { kingdoms: availableKingdoms } = useAvailableSeedKingdoms();
+  const { kingdoms: availableKingdoms, loading: kingdomsLoading } = useAvailableSeedKingdoms();
   const kingdomNum = /^\d+$/.test(kingdom.trim()) ? Number(kingdom.trim()) : null;
   const kingdomKnown = kingdomNum !== null && availableKingdoms.includes(kingdomNum);
   const { dates: scanDates } = useSeedDates(kingdomKnown ? kingdomNum : null);
   const latestScanDate = scanDates[0] ?? null;
-  const { players } = useSeedPlayers(kingdomKnown ? kingdomNum : null, latestScanDate);
+  const { players, loading: playersLoading } = useSeedPlayers(
+    kingdomKnown ? kingdomNum : null,
+    latestScanDate,
+  );
 
   const kingdomSuggestions = useMemo<ComboboxSuggestion[]>(
     () => availableKingdoms.map((k) => ({ key: String(k), label: String(k), secondary: `KD ${k}` })),
@@ -86,6 +104,17 @@ export function LeaderApplicationForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
+  const registerField = (key: string) => (el: HTMLElement | null) => {
+    fieldRefs.current[key] = el;
+  };
+  const scrollToFirstError = (errorMap: Record<string, string>) => {
+    const firstKey = Object.keys(errorMap)[0];
+    if (!firstKey) return;
+    const el = fieldRefs.current[firstKey];
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   const updateRole = (uid: string, patch: Partial<RoleEntry>) => {
     setRoles((prev) => prev.map((r) => (r.uid === uid ? { ...r, ...patch } : r)));
@@ -139,7 +168,7 @@ export function LeaderApplicationForm() {
     }
   };
 
-  const validate = (): boolean => {
+  const validate = (): Record<string, string> => {
     const next: Record<string, string> = {};
     if (!kingdom.trim()) next.kingdom = t('errors.required');
     if (!name.trim()) next.name = t('errors.required');
@@ -157,13 +186,17 @@ export function LeaderApplicationForm() {
     if (roles.length === 0) next.roles = t('errors.atLeastOneRole');
 
     setErrors(next);
-    return Object.keys(next).length === 0;
+    return next;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
-    if (!validate()) return;
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      scrollToFirstError(errs);
+      return;
+    }
 
     setSubmitting(true);
     const result = await submitLeaderApplication({
@@ -224,14 +257,33 @@ export function LeaderApplicationForm() {
   const errorBorder = 'border-red-500/60';
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-6 pb-32 sm:pb-6" noValidate>
+      {/* What you'll need — short orientation for first-time visitors */}
+      <section className="rounded-2xl bg-[#4318ff]/5 border border-[#4318ff]/20 p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="p-1.5 rounded-lg bg-[#4318ff]/10 text-[#a78bfa] flex-shrink-0">
+            <Info className="w-4 h-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold text-[var(--foreground)] mb-1.5">
+              {t('intro.title')}
+            </h2>
+            <ul className="space-y-1 text-xs text-[var(--text-secondary)] leading-relaxed">
+              <li>• {t('intro.step1')}</li>
+              <li>• {t('intro.step2')}</li>
+              <li>• {t('intro.step3')}</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* Identity card */}
       <section className="rounded-2xl bg-[var(--background-card)] border border-[var(--border)] p-5 sm:p-6 space-y-4">
         <h2 className="text-base font-semibold text-[var(--foreground)]">
           {t('sections.identity')}
         </h2>
 
-        <div>
+        <div ref={registerField('kingdom')}>
           <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
             {t('fields.kingdom')} <span className="text-red-400">*</span>
           </label>
@@ -243,11 +295,13 @@ export function LeaderApplicationForm() {
             invalid={!!errors.kingdom}
             inputMode="numeric"
             emptyHint={t('autofill.kingdomNotFound')}
+            loading={kingdomsLoading && availableKingdoms.length === 0}
+            loadingHint={t('autofill.loading')}
           />
           {errors.kingdom && <p className="text-xs text-red-400 mt-1">{errors.kingdom}</p>}
         </div>
 
-        <div>
+        <div ref={registerField('name')}>
           <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
             {t('fields.name')} <span className="text-red-400">*</span>
           </label>
@@ -261,6 +315,8 @@ export function LeaderApplicationForm() {
             suggestions={kingdomKnown ? playerSuggestions : []}
             placeholder={t('placeholders.name')}
             invalid={!!errors.name}
+            loading={kingdomKnown && playersLoading && players.length === 0}
+            loadingHint={t('autofill.loading')}
             emptyHint={
               kingdomKnown
                 ? t('autofill.noPlayers')
@@ -269,14 +325,14 @@ export function LeaderApplicationForm() {
           />
           {kingdomKnown && latestScanDate && (
             <p className="text-[11px] text-[var(--text-muted)] mt-1">
-              {t('autofill.scanLabel', { date: latestScanDate })}
+              {t('autofill.scanLabel', { date: formatScanDate(latestScanDate, locale) })}
             </p>
           )}
           {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
         </div>
 
-        <div>
-          <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
+        <div ref={registerField('govId')}>
+          <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
             {t('fields.govId')} <span className="text-red-400">*</span>
           </label>
           <input
@@ -289,6 +345,10 @@ export function LeaderApplicationForm() {
             style={inputStyle}
             autoComplete="off"
           />
+          <p className="flex items-start gap-1.5 text-[11px] text-[var(--text-muted)] mt-1.5 leading-snug">
+            <HelpCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+            <span>{t('hints.govIdLocation')}</span>
+          </p>
           {errors.govId && <p className="text-xs text-red-400 mt-1">{errors.govId}</p>}
         </div>
       </section>
@@ -311,7 +371,18 @@ export function LeaderApplicationForm() {
               index={idx}
               role={role}
               canRemove={roles.length > 1}
-              onChangeUnit={(v) => updateRole(role.uid, { unitType: v })}
+              onChangeUnit={(v) =>
+                updateRole(role.uid, {
+                  unitType: v,
+                  // Clear commanders so a Cavalry commander isn't left selected when
+                  // the user switches the role to Infantry — that mismatch would
+                  // silently submit bad data.
+                  primaryCommanderId: null,
+                  primaryCommanderName: null,
+                  secondaryCommanderId: null,
+                  secondaryCommanderName: null,
+                })
+              }
               onChangeRoleType={(v) => updateRole(role.uid, { roleType: v })}
               onChangeCommander={(slot, id, name) =>
                 updateRole(
@@ -328,6 +399,9 @@ export function LeaderApplicationForm() {
               errorSecondaryCommander={errors[`${role.uid}_secondaryCommander`]}
               errorPrimary={errors[`${role.uid}_primary`]}
               errorSecondary={errors[`${role.uid}_secondary`]}
+              registerCommanderField={(slot, el) => {
+                fieldRefs.current[`${role.uid}_${slot}Commander`] = el;
+              }}
               t={t}
             />
           ))}
@@ -372,7 +446,7 @@ export function LeaderApplicationForm() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder={t('placeholders.notes')}
-            rows={3}
+            rows={4}
             className={inputBase}
             style={inputStyle}
           />
@@ -414,6 +488,7 @@ interface RoleCardProps {
   errorSecondaryCommander?: string;
   errorPrimary?: string;
   errorSecondary?: string;
+  registerCommanderField?: (slot: 'primary' | 'secondary', el: HTMLElement | null) => void;
   t: ReturnType<typeof useTranslations>;
 }
 
@@ -431,6 +506,7 @@ function RoleCard({
   errorSecondaryCommander,
   errorPrimary,
   errorSecondary,
+  registerCommanderField,
   t,
 }: RoleCardProps) {
   const selectBase =
@@ -498,7 +574,7 @@ function RoleCard({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
+        <div ref={(el) => registerCommanderField?.('primary', el)}>
           <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
             {t('fields.primaryCommander')} <span className="text-red-400">*</span>
           </label>
@@ -513,7 +589,7 @@ function RoleCard({
             <p className="text-xs text-red-400 mt-1">{errorPrimaryCommander}</p>
           )}
         </div>
-        <div>
+        <div ref={(el) => registerCommanderField?.('secondary', el)}>
           <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
             {t('fields.secondaryCommander')} <span className="text-red-400">*</span>
           </label>
@@ -577,6 +653,7 @@ function ScreenshotPicker({
   onChange,
   onRemove,
 }: ScreenshotPickerProps) {
+  const tCommon = useTranslations('common');
   return (
     <div>
       <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
@@ -592,8 +669,8 @@ function ScreenshotPicker({
           <button
             type="button"
             onClick={onRemove}
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
-            aria-label="Remove"
+            className="absolute top-2 right-2 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+            aria-label={tCommon('delete')}
           >
             <X className="w-3.5 h-3.5" />
           </button>
