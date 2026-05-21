@@ -116,14 +116,18 @@ export function CommanderPicker({
       >
         {selected ? (
           <>
-            <img
-              src={selected.imageUrl}
-              alt=""
-              className="w-9 h-9 rounded-md object-cover bg-[var(--background)] flex-shrink-0"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-              }}
-            />
+            {selected.imageUrl ? (
+              <img
+                src={selected.imageUrl}
+                alt=""
+                className="w-9 h-9 rounded-md object-cover bg-[var(--background)] flex-shrink-0"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
+                }}
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-md bg-[var(--background)] flex-shrink-0" />
+            )}
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-[var(--foreground)] truncate">
                 {selected.name}
@@ -180,14 +184,18 @@ export function CommanderPicker({
                       isSelected ? 'bg-[#4318ff]/10' : ''
                     }`}
                   >
-                    <img
-                      src={c.imageUrl}
-                      alt=""
-                      className="w-8 h-8 rounded-md object-cover bg-[var(--background-secondary)] flex-shrink-0"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-                      }}
-                    />
+                    {c.imageUrl ? (
+                      <img
+                        src={c.imageUrl}
+                        alt=""
+                        className="w-8 h-8 rounded-md object-cover bg-[var(--background-secondary)] flex-shrink-0"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-md bg-[var(--background-secondary)] flex-shrink-0" />
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-[var(--foreground)] truncate">{c.name}</p>
                       <p className={`text-[10px] uppercase tracking-wider truncate ${RARITY_STYLES[c.rarity]}`}>

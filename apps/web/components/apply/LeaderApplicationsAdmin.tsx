@@ -471,7 +471,7 @@ function CommanderSlot({
   const commander = commanderId
     ? commanderReferences.find((c) => c.id === commanderId)
     : null;
-  const portrait = commander?.imageUrl ?? null;
+  const portrait = commander?.imageUrl || null;
   const displayName = commander?.name ?? commanderName ?? null;
 
   return (
