@@ -16,8 +16,13 @@ create table if not exists public.leader_applications (
   notes text,
   locale text,
   status text not null default 'pending'
-    check (status in ('pending','reviewed','approved','rejected'))
+    check (status in ('pending','reviewed','approved','rejected')),
+  rating int check (rating is null or (rating >= 1 and rating <= 5))
 );
+
+-- Adds rating column to pre-existing installations. Safe to re-run.
+alter table public.leader_applications
+  add column if not exists rating int;
 
 create index if not exists leader_applications_created_at_idx
   on public.leader_applications (created_at desc);

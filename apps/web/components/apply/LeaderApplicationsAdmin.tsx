@@ -13,17 +13,19 @@ import {
   Shield,
   Swords,
   Inbox,
+  Star,
 } from 'lucide-react';
 import {
   useLeaderApplications,
   updateApplicationStatus,
+  updateApplicationRating,
   deleteApplication,
   type LeaderApplicationRow,
   type ApplicationStatus,
 } from '@/lib/supabase/use-leader-applications';
 import { commanderReferences } from '@/lib/sunset-canyon/commander-reference';
 
-type SortField = 'created_at' | 'kingdom' | 'name';
+type SortField = 'created_at' | 'kingdom' | 'name' | 'rating';
 type SortDir = 'asc' | 'desc';
 
 const STATUS_OPTIONS: { value: ApplicationStatus; label: string; classes: string }[] = [
@@ -76,7 +78,7 @@ export function LeaderApplicationsAdmin() {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
-      setSortDir(field === 'created_at' ? 'desc' : 'asc');
+      setSortDir(field === 'created_at' || field === 'rating' ? 'desc' : 'asc');
     }
   };
 
@@ -100,11 +102,15 @@ export function LeaderApplicationsAdmin() {
 
     const sign = sortDir === 'asc' ? 1 : -1;
     const sorted = [...rows].sort((a, b) => {
-      let av: string | number = a[sortField];
-      let bv: string | number = b[sortField];
+      let av: string | number = a[sortField] ?? '';
+      let bv: string | number = b[sortField] ?? '';
       if (sortField === 'created_at') {
         av = new Date(a.created_at).getTime();
         bv = new Date(b.created_at).getTime();
+      } else if (sortField === 'rating') {
+        // Unrated rows sort last regardless of asc/desc.
+        av = a.rating ?? -Infinity;
+        bv = b.rating ?? -Infinity;
       }
       if (av < bv) return -1 * sign;
       if (av > bv) return 1 * sign;
@@ -129,6 +135,11 @@ export function LeaderApplicationsAdmin() {
 
   const handleStatusChange = async (id: string, status: ApplicationStatus) => {
     const ok = await updateApplicationStatus(id, status);
+    if (ok) reload();
+  };
+
+  const handleRatingChange = async (id: string, rating: number | null) => {
+    const ok = await updateApplicationRating(id, rating);
     if (ok) reload();
   };
 
@@ -193,6 +204,12 @@ export function LeaderApplicationsAdmin() {
           dir={sortDir}
           onClick={() => toggleSort('name')}
         />
+        <SortButton
+          label="Rating"
+          active={sortField === 'rating'}
+          dir={sortDir}
+          onClick={() => toggleSort('rating')}
+        />
         <button
           type="button"
           onClick={reload}
@@ -229,6 +246,7 @@ export function LeaderApplicationsAdmin() {
               expanded={expanded.has(app.id)}
               onToggle={() => toggleExpanded(app.id)}
               onStatusChange={(s) => handleStatusChange(app.id, s)}
+              onRatingChange={(r) => handleRatingChange(app.id, r)}
               onDelete={() => handleDelete(app.id, app.name)}
               onOpenImage={(url) => setLightbox(url)}
             />
@@ -318,6 +336,7 @@ interface ApplicationCardProps {
   expanded: boolean;
   onToggle: () => void;
   onStatusChange: (status: ApplicationStatus) => void;
+  onRatingChange: (rating: number | null) => void;
   onDelete: () => void;
   onOpenImage: (url: string) => void;
 }
@@ -327,6 +346,7 @@ function ApplicationCard({
   expanded,
   onToggle,
   onStatusChange,
+  onRatingChange,
   onDelete,
   onOpenImage,
 }: ApplicationCardProps) {
@@ -380,23 +400,26 @@ function ApplicationCard({
         </div>
       </button>
 
-      {/* Actions row — below the header so it stays usable on mobile without crowding */}
-      <div className="flex items-center gap-2 px-3 sm:px-4 pb-3 sm:pb-4">
-        <label className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] font-medium">
-          Status
-        </label>
-        <select
-          value={app.status}
-          onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
-          className="flex-1 sm:flex-initial text-sm px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[#4318ff]/40"
-          aria-label="Update status"
-        >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+      {/* Actions row — rating + status + delete. Wraps on small screens. */}
+      <div className="flex items-center flex-wrap gap-x-3 gap-y-2 px-3 sm:px-4 pb-3 sm:pb-4">
+        <StarRating value={app.rating} onChange={onRatingChange} />
+        <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+          <label className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] font-medium">
+            Status
+          </label>
+          <select
+            value={app.status}
+            onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
+            className="flex-1 sm:flex-initial text-sm px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[#4318ff]/40"
+            aria-label="Update status"
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="button"
           onClick={onDelete}
@@ -462,6 +485,49 @@ function ApplicationCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+interface StarRatingProps {
+  value: number | null;
+  onChange: (rating: number | null) => void;
+}
+
+/** 1-5 clickable stars. Tap a filled star to clear back to unrated. */
+function StarRating({ value, onChange }: StarRatingProps) {
+  const [hover, setHover] = useState<number | null>(null);
+  const display = hover ?? value ?? 0;
+
+  return (
+    <div
+      className="flex items-center"
+      onMouseLeave={() => setHover(null)}
+      role="radiogroup"
+      aria-label="Rating"
+    >
+      {[1, 2, 3, 4, 5].map((n) => {
+        const active = n <= display;
+        return (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(value === n ? null : n)}
+            onMouseEnter={() => setHover(n)}
+            className="p-1 -mx-0.5 transition-transform active:scale-90"
+            aria-label={`${n} star${n === 1 ? '' : 's'}`}
+            aria-pressed={value === n}
+          >
+            <Star
+              className={`w-5 h-5 transition-colors ${
+                active
+                  ? 'text-amber-400 fill-amber-400'
+                  : 'text-[var(--text-muted)]/40 hover:text-[var(--text-muted)]'
+              }`}
+            />
+          </button>
+        );
+      })}
     </div>
   );
 }

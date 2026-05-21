@@ -31,6 +31,7 @@ export interface LeaderApplicationRow {
   notes: string | null;
   locale: string | null;
   status: ApplicationStatus;
+  rating: number | null;
   leader_application_roles: LeaderApplicationRoleRow[];
 }
 
@@ -166,6 +167,21 @@ export async function updateApplicationStatus(
     .eq('id', id);
   if (error) {
     console.error('Failed to update application status:', error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function updateApplicationRating(
+  id: string,
+  rating: number | null,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('leader_applications')
+    .update({ rating })
+    .eq('id', id);
+  if (error) {
+    console.error('Failed to update application rating:', error.message);
     return false;
   }
   return true;
