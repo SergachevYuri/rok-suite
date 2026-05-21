@@ -1245,9 +1245,13 @@
     "upload": {
       "tap": "Tap to upload screenshot",
       "sectionLabel": "Screenshots (optional)",
-      "hint": "Add screenshots if you want officers to see skills, gear and armaments.",
+      "hint": "Two screenshots per commander: one of their gear and one of their armaments.",
       "primary": "Primary screenshot",
-      "secondary": "Secondary screenshot"
+      "secondary": "Secondary screenshot",
+      "gear": "Gear",
+      "armaments": "Armaments",
+      "primaryCommander": "Primary commander",
+      "secondaryCommander": "Secondary commander"
     },
     "errors": {
       "required": "Required",

@@ -140,8 +140,8 @@ export function LeaderApplicationsAdmin() {
 
   return (
     <div className="space-y-4">
-      {/* Status filter chips */}
-      <div className="flex flex-wrap gap-2">
+      {/* Status filter chips — horizontal scroll on overflow so they never wrap awkwardly on mobile */}
+      <div className="-mx-1 px-1 flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <FilterChip
           label={`All (${counts.all})`}
           active={statusFilter === 'all'}
@@ -158,46 +158,49 @@ export function LeaderApplicationsAdmin() {
         ))}
       </div>
 
-      {/* Search + sort + reload */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, gov ID, kingdom, Discord…"
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#4318ff]/40"
-          />
-        </div>
-        <div className="flex gap-2">
-          <SortButton
-            label="Date"
-            active={sortField === 'created_at'}
-            dir={sortDir}
-            onClick={() => toggleSort('created_at')}
-          />
-          <SortButton
-            label="Kingdom"
-            active={sortField === 'kingdom'}
-            dir={sortDir}
-            onClick={() => toggleSort('kingdom')}
-          />
-          <SortButton
-            label="Name"
-            active={sortField === 'name'}
-            dir={sortDir}
-            onClick={() => toggleSort('name')}
-          />
-          <button
-            type="button"
-            onClick={reload}
-            className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] transition-colors"
-            aria-label="Refresh"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, gov ID, kingdom, Discord…"
+          className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-base sm:text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[#4318ff]/40"
+        />
+      </div>
+
+      {/* Sort + reload — horizontal scroll on mobile if needed */}
+      <div className="-mx-1 px-1 flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <span className="text-xs text-[var(--text-muted)] self-center pr-1 flex-shrink-0">
+          Sort:
+        </span>
+        <SortButton
+          label="Date"
+          active={sortField === 'created_at'}
+          dir={sortDir}
+          onClick={() => toggleSort('created_at')}
+        />
+        <SortButton
+          label="Kingdom"
+          active={sortField === 'kingdom'}
+          dir={sortDir}
+          onClick={() => toggleSort('kingdom')}
+        />
+        <SortButton
+          label="Name"
+          active={sortField === 'name'}
+          dir={sortDir}
+          onClick={() => toggleSort('name')}
+        />
+        <button
+          type="button"
+          onClick={reload}
+          className="ml-auto flex-shrink-0 p-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] transition-colors"
+          aria-label="Refresh"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Error */}
@@ -328,16 +331,17 @@ function ApplicationCard({
   onOpenImage,
 }: ApplicationCardProps) {
   const roles = app.leader_application_roles ?? [];
+  const statusLabel = STATUS_OPTIONS.find((s) => s.value === app.status)?.label ?? app.status;
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
-      {/* Row header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex-1 flex items-start sm:items-center gap-3 text-left"
-        >
+      {/* Whole header is tappable — turns into a single big touch target on mobile */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full text-left p-3 sm:p-4 hover:bg-[var(--background-hover)]/40 transition-colors"
+      >
+        <div className="flex items-start gap-3">
           <div className="p-2 rounded-lg bg-[var(--background-secondary)] flex-shrink-0">
             {expanded ? (
               <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" />
@@ -346,59 +350,66 @@ function ApplicationCard({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-              <span className="font-semibold text-[var(--foreground)] truncate">{app.name}</span>
-              <span className="text-xs text-[var(--text-muted)]">K{app.kingdom}</span>
-              <span className="text-xs text-[var(--text-muted)]">ID {app.gov_id}</span>
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-semibold text-[var(--foreground)] truncate">{app.name}</p>
+              <span
+                className={`text-[11px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${statusBadgeClasses(app.status)}`}
+              >
+                {statusLabel}
+              </span>
             </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[var(--text-muted)] mt-0.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)] mt-1">
+              <span>K{app.kingdom}</span>
+              <span>·</span>
+              <span>ID {app.gov_id}</span>
+              {app.discord && (
+                <>
+                  <span>·</span>
+                  <span className="truncate">@{app.discord}</span>
+                </>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--text-muted)] mt-0.5">
               <span>{formatDate(app.created_at)}</span>
               <span>·</span>
               <span>
                 {roles.length} role{roles.length === 1 ? '' : 's'}
               </span>
-              {app.discord && (
-                <>
-                  <span>·</span>
-                  <span>@{app.discord}</span>
-                </>
-              )}
             </div>
           </div>
-        </button>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span
-            className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusBadgeClasses(app.status)}`}
-          >
-            {STATUS_OPTIONS.find((s) => s.value === app.status)?.label ?? app.status}
-          </span>
-          <select
-            value={app.status}
-            onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
-            className="text-xs px-2 py-1 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[#4318ff]/40"
-            aria-label="Update status"
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            aria-label="Delete application"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
         </div>
+      </button>
+
+      {/* Actions row — below the header so it stays usable on mobile without crowding */}
+      <div className="flex items-center gap-2 px-3 sm:px-4 pb-3 sm:pb-4">
+        <label className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] font-medium">
+          Status
+        </label>
+        <select
+          value={app.status}
+          onChange={(e) => onStatusChange(e.target.value as ApplicationStatus)}
+          className="flex-1 sm:flex-initial text-sm px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--background-secondary)] text-[var(--foreground)] focus:outline-none focus:ring-1 focus:ring-[#4318ff]/40"
+          aria-label="Update status"
+        >
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="ml-auto p-2 rounded-md text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          aria-label="Delete application"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Expanded body */}
       {expanded && (
-        <div className="border-t border-[var(--border)] p-4 space-y-4 bg-[var(--background-secondary)]/30">
+        <div className="border-t border-[var(--border)] p-3 sm:p-4 space-y-4 bg-[var(--background-secondary)]/30">
           {app.notes && (
             <div>
               <p className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-1">Notes</p>
@@ -415,7 +426,7 @@ function ApplicationCard({
                   key={role.id}
                   className="rounded-lg border border-[var(--border)] bg-[var(--background-card)] p-3"
                 >
-                  <div className="flex items-center gap-2 mb-3 text-xs font-medium text-[var(--text-secondary)]">
+                  <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mb-3 text-xs font-medium text-[var(--text-secondary)]">
                     {role.role_type === 'rally' ? (
                       <Swords className="w-3.5 h-3.5" />
                     ) : (
@@ -427,19 +438,21 @@ function ApplicationCard({
                     <span className="text-[var(--text-muted)]">·</span>
                     <span className="capitalize">{role.role_type}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <CommanderSlot
                       label="Primary"
                       commanderId={role.primary_commander_id}
                       commanderName={role.primary_commander_name}
-                      screenshotUrl={role.primary_screenshot_url}
+                      gearUrl={role.primary_gear_url}
+                      armamentsUrl={role.primary_armaments_url}
                       onOpen={onOpenImage}
                     />
                     <CommanderSlot
                       label="Secondary"
                       commanderId={role.secondary_commander_id}
                       commanderName={role.secondary_commander_name}
-                      screenshotUrl={role.secondary_screenshot_url}
+                      gearUrl={role.secondary_gear_url}
+                      armamentsUrl={role.secondary_armaments_url}
                       onOpen={onOpenImage}
                     />
                   </div>
@@ -457,7 +470,8 @@ interface CommanderSlotProps {
   label: string;
   commanderId: string | null;
   commanderName: string | null;
-  screenshotUrl: string | null;
+  gearUrl: string | null;
+  armamentsUrl: string | null;
   onOpen: (url: string) => void;
 }
 
@@ -465,7 +479,8 @@ function CommanderSlot({
   label,
   commanderId,
   commanderName,
-  screenshotUrl,
+  gearUrl,
+  armamentsUrl,
   onOpen,
 }: CommanderSlotProps) {
   const commander = commanderId
@@ -488,24 +503,44 @@ function CommanderSlot({
           </p>
         )}
       </div>
-      {screenshotUrl ? (
+      <div className="grid grid-cols-2 gap-1.5">
+        <ScreenshotThumb label="Gear" url={gearUrl} onOpen={onOpen} />
+        <ScreenshotThumb label="Armaments" url={armamentsUrl} onOpen={onOpen} />
+      </div>
+    </div>
+  );
+}
+
+interface ScreenshotThumbProps {
+  label: string;
+  url: string | null;
+  onOpen: (url: string) => void;
+}
+
+function ScreenshotThumb({ label, url, onOpen }: ScreenshotThumbProps) {
+  return (
+    <div>
+      <p className="text-[9px] font-medium uppercase tracking-wider text-[var(--text-muted)] mb-1">
+        {label}
+      </p>
+      {url ? (
         <button
           type="button"
-          onClick={() => onOpen(screenshotUrl)}
+          onClick={() => onOpen(url)}
           className="group relative block w-full"
         >
           <img
-            src={screenshotUrl}
+            src={url}
             alt={label}
-            className="w-full h-24 object-cover rounded-md border border-[var(--border)]"
+            className="w-full aspect-square object-cover rounded-md border border-[var(--border)]"
           />
           <div className="absolute inset-0 rounded-md bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-            <ExternalLink className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+            <ExternalLink className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </button>
       ) : (
-        <div className="w-full h-24 rounded-md border border-dashed border-[var(--border)] flex items-center justify-center text-[11px] text-[var(--text-muted)]">
-          no screenshot
+        <div className="w-full aspect-square rounded-md border border-dashed border-[var(--border)] flex items-center justify-center text-[10px] text-[var(--text-muted)]">
+          —
         </div>
       )}
     </div>

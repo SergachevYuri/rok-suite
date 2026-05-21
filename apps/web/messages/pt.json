@@ -1233,9 +1233,13 @@
     "upload": {
       "tap": "Toque para enviar captura",
       "sectionLabel": "Capturas (opcional)",
-      "hint": "Adiciona capturas se quiseres que os oficiais vejam habilidades, equipamento e armamento.",
+      "hint": "Duas capturas por comandante: uma do equipamento, uma do armamento.",
       "primary": "Captura principal",
-      "secondary": "Captura secundária"
+      "secondary": "Captura secundária",
+      "gear": "Equipamento",
+      "armaments": "Armamento",
+      "primaryCommander": "Comandante principal",
+      "secondaryCommander": "Comandante secundário"
     },
     "errors": {
       "required": "Obrigatório",

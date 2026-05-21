@@ -1233,9 +1233,13 @@
     "upload": {
       "tap": "Tocca per caricare lo screenshot",
       "sectionLabel": "Screenshot (opzionali)",
-      "hint": "Aggiungi screenshot se vuoi che gli ufficiali vedano abilità, equipaggiamento e armamenti.",
+      "hint": "Due screenshot per comandante: uno dell'equipaggiamento, uno degli armamenti.",
       "primary": "Screenshot primario",
-      "secondary": "Screenshot secondario"
+      "secondary": "Screenshot secondario",
+      "gear": "Equipaggiamento",
+      "armaments": "Armamenti",
+      "primaryCommander": "Comandante primario",
+      "secondaryCommander": "Comandante secondario"
     },
     "errors": {
       "required": "Richiesto",

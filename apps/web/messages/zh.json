@@ -1233,9 +1233,13 @@
     "upload": {
       "tap": "点击上传截图",
       "sectionLabel": "截图（可选）",
-      "hint": "如果你希望官员看到技能、装备和武器，请添加截图。",
+      "hint": "每位将军两张截图：一张装备，一张武装。",
       "primary": "主将截图",
-      "secondary": "副将截图"
+      "secondary": "副将截图",
+      "gear": "装备",
+      "armaments": "武装",
+      "primaryCommander": "主将",
+      "secondaryCommander": "副将"
     },
     "errors": {
       "required": "必填",

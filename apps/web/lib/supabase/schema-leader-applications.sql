@@ -34,16 +34,29 @@ create table if not exists public.leader_application_roles (
   primary_commander_name text,
   secondary_commander_id text,
   secondary_commander_name text,
-  primary_screenshot_url text,
-  secondary_screenshot_url text
+  primary_gear_url text,
+  primary_armaments_url text,
+  secondary_gear_url text,
+  secondary_armaments_url text
 );
 
--- Adds commander columns to pre-existing installations. Safe to re-run.
+-- Adds commander + per-commander gear/armaments columns to pre-existing
+-- installations. Safe to re-run. The previous single-screenshot columns
+-- (primary_screenshot_url, secondary_screenshot_url) are dropped — each
+-- commander now has two screenshots: one for gear, one for armaments.
 alter table public.leader_application_roles
   add column if not exists primary_commander_id text,
   add column if not exists primary_commander_name text,
   add column if not exists secondary_commander_id text,
-  add column if not exists secondary_commander_name text;
+  add column if not exists secondary_commander_name text,
+  add column if not exists primary_gear_url text,
+  add column if not exists primary_armaments_url text,
+  add column if not exists secondary_gear_url text,
+  add column if not exists secondary_armaments_url text;
+
+alter table public.leader_application_roles
+  drop column if exists primary_screenshot_url,
+  drop column if exists secondary_screenshot_url;
 
 create index if not exists leader_application_roles_app_idx
   on public.leader_application_roles (application_id);

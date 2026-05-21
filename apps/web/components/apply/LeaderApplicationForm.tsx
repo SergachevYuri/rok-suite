@@ -40,10 +40,29 @@ function formatScanDate(iso: string, locale: string): string {
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+type ShotSlot =
+  | 'primaryGear'
+  | 'primaryArmaments'
+  | 'secondaryGear'
+  | 'secondaryArmaments';
+
+const SHOT_SLOTS: ShotSlot[] = [
+  'primaryGear',
+  'primaryArmaments',
+  'secondaryGear',
+  'secondaryArmaments',
+];
+
+const SLOT_TO_FILE_KEY: Record<ShotSlot, keyof LeaderRoleInput> = {
+  primaryGear: 'primaryGearFile',
+  primaryArmaments: 'primaryArmamentsFile',
+  secondaryGear: 'secondaryGearFile',
+  secondaryArmaments: 'secondaryArmamentsFile',
+};
+
 interface RoleEntry extends LeaderRoleInput {
   uid: string;
-  primaryPreview: string | null;
-  secondaryPreview: string | null;
+  previews: Record<ShotSlot, string | null>;
 }
 
 function newRole(): RoleEntry {
@@ -55,10 +74,16 @@ function newRole(): RoleEntry {
     primaryCommanderName: null,
     secondaryCommanderId: null,
     secondaryCommanderName: null,
-    primaryFile: null,
-    secondaryFile: null,
-    primaryPreview: null,
-    secondaryPreview: null,
+    primaryGearFile: null,
+    primaryArmamentsFile: null,
+    secondaryGearFile: null,
+    secondaryArmamentsFile: null,
+    previews: {
+      primaryGear: null,
+      primaryArmaments: null,
+      secondaryGear: null,
+      secondaryArmaments: null,
+    },
   };
 }
 
@@ -125,15 +150,19 @@ export function LeaderApplicationForm() {
   const removeRole = (uid: string) => {
     setRoles((prev) => {
       const target = prev.find((r) => r.uid === uid);
-      if (target?.primaryPreview) URL.revokeObjectURL(target.primaryPreview);
-      if (target?.secondaryPreview) URL.revokeObjectURL(target.secondaryPreview);
+      if (target) {
+        SHOT_SLOTS.forEach((slot) => {
+          const url = target.previews[slot];
+          if (url) URL.revokeObjectURL(url);
+        });
+      }
       return prev.filter((r) => r.uid !== uid);
     });
   };
 
   const handleFile = (
     uid: string,
-    slot: 'primary' | 'secondary',
+    slot: ShotSlot,
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = e.target.files?.[0];
@@ -144,11 +173,18 @@ export function LeaderApplicationForm() {
       return;
     }
     const url = URL.createObjectURL(file);
-    if (slot === 'primary') {
-      updateRole(uid, { primaryFile: file, primaryPreview: url });
-    } else {
-      updateRole(uid, { secondaryFile: file, secondaryPreview: url });
-    }
+    setRoles((prev) =>
+      prev.map((r) => {
+        if (r.uid !== uid) return r;
+        const old = r.previews[slot];
+        if (old) URL.revokeObjectURL(old);
+        return {
+          ...r,
+          [SLOT_TO_FILE_KEY[slot]]: file,
+          previews: { ...r.previews, [slot]: url },
+        };
+      }),
+    );
     setErrors((p) => {
       const copy = { ...p };
       delete copy[`${uid}_${slot}`];
@@ -156,16 +192,19 @@ export function LeaderApplicationForm() {
     });
   };
 
-  const removeFile = (uid: string, slot: 'primary' | 'secondary') => {
-    const role = roles.find((r) => r.uid === uid);
-    if (!role) return;
-    if (slot === 'primary') {
-      if (role.primaryPreview) URL.revokeObjectURL(role.primaryPreview);
-      updateRole(uid, { primaryFile: null, primaryPreview: null });
-    } else {
-      if (role.secondaryPreview) URL.revokeObjectURL(role.secondaryPreview);
-      updateRole(uid, { secondaryFile: null, secondaryPreview: null });
-    }
+  const removeFile = (uid: string, slot: ShotSlot) => {
+    setRoles((prev) =>
+      prev.map((r) => {
+        if (r.uid !== uid) return r;
+        const old = r.previews[slot];
+        if (old) URL.revokeObjectURL(old);
+        return {
+          ...r,
+          [SLOT_TO_FILE_KEY[slot]]: null,
+          previews: { ...r.previews, [slot]: null },
+        };
+      }),
+    );
   };
 
   const validate = (): Record<string, string> => {
@@ -213,8 +252,10 @@ export function LeaderApplicationForm() {
         primaryCommanderName: r.primaryCommanderName,
         secondaryCommanderId: r.secondaryCommanderId,
         secondaryCommanderName: r.secondaryCommanderName,
-        primaryFile: r.primaryFile,
-        secondaryFile: r.secondaryFile,
+        primaryGearFile: r.primaryGearFile,
+        primaryArmamentsFile: r.primaryArmamentsFile,
+        secondaryGearFile: r.secondaryGearFile,
+        secondaryArmamentsFile: r.secondaryArmamentsFile,
       })),
     });
     setSubmitting(false);
@@ -225,8 +266,10 @@ export function LeaderApplicationForm() {
     }
 
     roles.forEach((r) => {
-      if (r.primaryPreview) URL.revokeObjectURL(r.primaryPreview);
-      if (r.secondaryPreview) URL.revokeObjectURL(r.secondaryPreview);
+      SHOT_SLOTS.forEach((slot) => {
+        const url = r.previews[slot];
+        if (url) URL.revokeObjectURL(url);
+      });
     });
     setSubmitted(true);
   };
@@ -397,8 +440,12 @@ export function LeaderApplicationForm() {
               onRemove={() => removeRole(role.uid)}
               errorPrimaryCommander={errors[`${role.uid}_primaryCommander`]}
               errorSecondaryCommander={errors[`${role.uid}_secondaryCommander`]}
-              errorPrimary={errors[`${role.uid}_primary`]}
-              errorSecondary={errors[`${role.uid}_secondary`]}
+              fileErrors={{
+                primaryGear: errors[`${role.uid}_primaryGear`],
+                primaryArmaments: errors[`${role.uid}_primaryArmaments`],
+                secondaryGear: errors[`${role.uid}_secondaryGear`],
+                secondaryArmaments: errors[`${role.uid}_secondaryArmaments`],
+              }}
               registerCommanderField={(slot, el) => {
                 fieldRefs.current[`${role.uid}_${slot}Commander`] = el;
               }}
@@ -481,13 +528,12 @@ interface RoleCardProps {
   onChangeUnit: (v: UnitType) => void;
   onChangeRoleType: (v: RoleType) => void;
   onChangeCommander: (slot: 'primary' | 'secondary', id: string | null, name: string | null) => void;
-  onFile: (slot: 'primary' | 'secondary', e: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemoveFile: (slot: 'primary' | 'secondary') => void;
+  onFile: (slot: ShotSlot, e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveFile: (slot: ShotSlot) => void;
   onRemove: () => void;
   errorPrimaryCommander?: string;
   errorSecondaryCommander?: string;
-  errorPrimary?: string;
-  errorSecondary?: string;
+  fileErrors: Partial<Record<ShotSlot, string>>;
   registerCommanderField?: (slot: 'primary' | 'secondary', el: HTMLElement | null) => void;
   t: ReturnType<typeof useTranslations>;
 }
@@ -504,8 +550,7 @@ function RoleCard({
   onRemove,
   errorPrimaryCommander,
   errorSecondaryCommander,
-  errorPrimary,
-  errorSecondary,
+  fileErrors,
   registerCommanderField,
   t,
 }: RoleCardProps) {
@@ -610,25 +655,95 @@ function RoleCard({
         <p className="text-xs font-medium text-[var(--text-secondary)] mb-1.5">
           {t('upload.sectionLabel')}
         </p>
-        <p className="text-xs text-[var(--text-muted)] mb-2">{t('upload.hint')}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <ScreenshotPicker
-            label={t('upload.primary')}
-            preview={role.primaryPreview}
-            error={errorPrimary}
-            onChange={(e) => onFile('primary', e)}
-            onRemove={() => onRemoveFile('primary')}
-            uploadLabel={t('upload.tap')}
-          />
-          <ScreenshotPicker
-            label={t('upload.secondary')}
-            preview={role.secondaryPreview}
-            error={errorSecondary}
-            onChange={(e) => onFile('secondary', e)}
-            onRemove={() => onRemoveFile('secondary')}
-            uploadLabel={t('upload.tap')}
-          />
-        </div>
+        <p className="text-xs text-[var(--text-muted)] mb-3">{t('upload.hint')}</p>
+
+        <CommanderShots
+          heading={t('upload.primaryCommander')}
+          gearLabel={t('upload.gear')}
+          armamentsLabel={t('upload.armaments')}
+          gearPreview={role.previews.primaryGear}
+          armamentsPreview={role.previews.primaryArmaments}
+          gearError={fileErrors.primaryGear}
+          armamentsError={fileErrors.primaryArmaments}
+          onGearChange={(e) => onFile('primaryGear', e)}
+          onArmamentsChange={(e) => onFile('primaryArmaments', e)}
+          onGearRemove={() => onRemoveFile('primaryGear')}
+          onArmamentsRemove={() => onRemoveFile('primaryArmaments')}
+          tapLabel={t('upload.tap')}
+        />
+
+        <div className="h-3" />
+
+        <CommanderShots
+          heading={t('upload.secondaryCommander')}
+          gearLabel={t('upload.gear')}
+          armamentsLabel={t('upload.armaments')}
+          gearPreview={role.previews.secondaryGear}
+          armamentsPreview={role.previews.secondaryArmaments}
+          gearError={fileErrors.secondaryGear}
+          armamentsError={fileErrors.secondaryArmaments}
+          onGearChange={(e) => onFile('secondaryGear', e)}
+          onArmamentsChange={(e) => onFile('secondaryArmaments', e)}
+          onGearRemove={() => onRemoveFile('secondaryGear')}
+          onArmamentsRemove={() => onRemoveFile('secondaryArmaments')}
+          tapLabel={t('upload.tap')}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface CommanderShotsProps {
+  heading: string;
+  gearLabel: string;
+  armamentsLabel: string;
+  gearPreview: string | null;
+  armamentsPreview: string | null;
+  gearError?: string;
+  armamentsError?: string;
+  onGearChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onArmamentsChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onGearRemove: () => void;
+  onArmamentsRemove: () => void;
+  tapLabel: string;
+}
+
+function CommanderShots({
+  heading,
+  gearLabel,
+  armamentsLabel,
+  gearPreview,
+  armamentsPreview,
+  gearError,
+  armamentsError,
+  onGearChange,
+  onArmamentsChange,
+  onGearRemove,
+  onArmamentsRemove,
+  tapLabel,
+}: CommanderShotsProps) {
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--background-card)] p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+        {heading}
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <ScreenshotPicker
+          label={gearLabel}
+          preview={gearPreview}
+          error={gearError}
+          onChange={onGearChange}
+          onRemove={onGearRemove}
+          uploadLabel={tapLabel}
+        />
+        <ScreenshotPicker
+          label={armamentsLabel}
+          preview={armamentsPreview}
+          error={armamentsError}
+          onChange={onArmamentsChange}
+          onRemove={onArmamentsRemove}
+          uploadLabel={tapLabel}
+        />
       </div>
     </div>
   );

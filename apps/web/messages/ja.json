@@ -1233,9 +1233,13 @@
     "upload": {
       "tap": "タップしてスクリーンショットをアップロード",
       "sectionLabel": "スクリーンショット（任意）",
-      "hint": "スキル・装備・武装を役員に見せたい場合はスクリーンショットを追加してください。",
+      "hint": "司令官ごとに2枚: 装備1枚と武装1枚。",
       "primary": "主司令官のスクリーンショット",
-      "secondary": "副司令官のスクリーンショット"
+      "secondary": "副司令官のスクリーンショット",
+      "gear": "装備",
+      "armaments": "武装",
+      "primaryCommander": "主司令官",
+      "secondaryCommander": "副司令官"
     },
     "errors": {
       "required": "必須",

@@ -15,8 +15,10 @@ export interface LeaderApplicationRoleRow {
   primary_commander_name: string | null;
   secondary_commander_id: string | null;
   secondary_commander_name: string | null;
-  primary_screenshot_url: string | null;
-  secondary_screenshot_url: string | null;
+  primary_gear_url: string | null;
+  primary_armaments_url: string | null;
+  secondary_gear_url: string | null;
+  secondary_armaments_url: string | null;
 }
 
 export interface LeaderApplicationRow {
@@ -39,8 +41,10 @@ export interface LeaderRoleInput {
   primaryCommanderName: string | null;
   secondaryCommanderId: string | null;
   secondaryCommanderName: string | null;
-  primaryFile: File | null;
-  secondaryFile: File | null;
+  primaryGearFile: File | null;
+  primaryArmamentsFile: File | null;
+  secondaryGearFile: File | null;
+  secondaryArmamentsFile: File | null;
 }
 
 export interface LeaderApplicationInput {
@@ -104,12 +108,18 @@ export async function submitLeaderApplication(
   try {
     roleRows = await Promise.all(
       input.roles.map(async (role, idx) => {
-        const [primaryUrl, secondaryUrl] = await Promise.all([
-          role.primaryFile
-            ? uploadCommanderScreenshot(role.primaryFile, app.id, `role${idx}_primary`)
+        const [primaryGear, primaryArmaments, secondaryGear, secondaryArmaments] = await Promise.all([
+          role.primaryGearFile
+            ? uploadCommanderScreenshot(role.primaryGearFile, app.id, `role${idx}_primary_gear`)
             : Promise.resolve(null),
-          role.secondaryFile
-            ? uploadCommanderScreenshot(role.secondaryFile, app.id, `role${idx}_secondary`)
+          role.primaryArmamentsFile
+            ? uploadCommanderScreenshot(role.primaryArmamentsFile, app.id, `role${idx}_primary_armaments`)
+            : Promise.resolve(null),
+          role.secondaryGearFile
+            ? uploadCommanderScreenshot(role.secondaryGearFile, app.id, `role${idx}_secondary_gear`)
+            : Promise.resolve(null),
+          role.secondaryArmamentsFile
+            ? uploadCommanderScreenshot(role.secondaryArmamentsFile, app.id, `role${idx}_secondary_armaments`)
             : Promise.resolve(null),
         ]);
         return {
@@ -121,8 +131,10 @@ export async function submitLeaderApplication(
           primary_commander_name: role.primaryCommanderName,
           secondary_commander_id: role.secondaryCommanderId,
           secondary_commander_name: role.secondaryCommanderName,
-          primary_screenshot_url: primaryUrl,
-          secondary_screenshot_url: secondaryUrl,
+          primary_gear_url: primaryGear,
+          primary_armaments_url: primaryArmaments,
+          secondary_gear_url: secondaryGear,
+          secondary_armaments_url: secondaryArmaments,
         };
       }),
     );

@@ -1233,9 +1233,13 @@
     "upload": {
       "tap": "Nhấn để tải ảnh lên",
       "sectionLabel": "Ảnh chụp (tuỳ chọn)",
-      "hint": "Thêm ảnh chụp nếu bạn muốn sĩ quan xem kỹ năng, trang bị và vũ khí.",
+      "hint": "Hai ảnh mỗi tướng: một ảnh trang bị, một ảnh vũ khí.",
       "primary": "Ảnh tướng chính",
-      "secondary": "Ảnh tướng phụ"
+      "secondary": "Ảnh tướng phụ",
+      "gear": "Trang bị",
+      "armaments": "Vũ khí",
+      "primaryCommander": "Tướng chính",
+      "secondaryCommander": "Tướng phụ"
     },
     "errors": {
       "required": "Bắt buộc",

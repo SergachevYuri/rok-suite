@@ -1233,9 +1233,13 @@
     "upload": {
       "tap": "Ekran görüntüsü yüklemek için dokunun",
       "sectionLabel": "Ekran görüntüleri (isteğe bağlı)",
-      "hint": "Subayların yetenekleri, teçhizatı ve silahları görmesini istiyorsan ekran görüntüsü ekle.",
+      "hint": "Komutan başına iki ekran görüntüsü: biri teçhizat, biri silahlar.",
       "primary": "Birincil ekran görüntüsü",
-      "secondary": "İkincil ekran görüntüsü"
+      "secondary": "İkincil ekran görüntüsü",
+      "gear": "Teçhizat",
+      "armaments": "Silahlar",
+      "primaryCommander": "Birincil komutan",
+      "secondaryCommander": "İkincil komutan"
     },
     "errors": {
       "required": "Zorunlu",

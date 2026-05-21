@@ -1233,9 +1233,13 @@
     "upload": {
       "tap": "탭하여 스크린샷 업로드",
       "sectionLabel": "스크린샷 (선택)",
-      "hint": "임원이 스킬, 장비, 무장을 볼 수 있도록 스크린샷을 추가하세요.",
+      "hint": "사령관당 두 장의 스크린샷: 장비 한 장, 무장 한 장.",
       "primary": "주 사령관 스크린샷",
-      "secondary": "부 사령관 스크린샷"
+      "secondary": "부 사령관 스크린샷",
+      "gear": "장비",
+      "armaments": "무장",
+      "primaryCommander": "주 사령관",
+      "secondaryCommander": "부 사령관"
     },
     "errors": {
       "required": "필수 항목",

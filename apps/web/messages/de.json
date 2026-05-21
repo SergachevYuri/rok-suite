@@ -1233,9 +1233,13 @@
     "upload": {
       "tap": "Tippen zum Hochladen",
       "sectionLabel": "Screenshots (optional)",
-      "hint": "Lade Screenshots hoch, wenn Offiziere Fähigkeiten, Ausrüstung und Bewaffnung sehen sollen.",
+      "hint": "Zwei Screenshots pro Kommandant: einer von der Ausrüstung, einer von der Bewaffnung.",
       "primary": "Primärer Screenshot",
-      "secondary": "Sekundärer Screenshot"
+      "secondary": "Sekundärer Screenshot",
+      "gear": "Ausrüstung",
+      "armaments": "Bewaffnung",
+      "primaryCommander": "Primärer Kommandant",
+      "secondaryCommander": "Sekundärer Kommandant"
     },
     "errors": {
       "required": "Erforderlich",

@@ -1233,9 +1233,13 @@
     "upload": {
       "tap": "Toucher pour téléverser une capture",
       "sectionLabel": "Captures (facultatif)",
-      "hint": "Ajoute des captures si tu veux que les officiers voient compétences, équipement et armement.",
+      "hint": "Deux captures par commandant : une de l'équipement, une des armements.",
       "primary": "Capture du primaire",
-      "secondary": "Capture du secondaire"
+      "secondary": "Capture du secondaire",
+      "gear": "Équipement",
+      "armaments": "Armements",
+      "primaryCommander": "Commandant principal",
+      "secondaryCommander": "Commandant secondaire"
     },
     "errors": {
       "required": "Obligatoire",
