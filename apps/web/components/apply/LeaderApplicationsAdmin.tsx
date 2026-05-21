@@ -471,7 +471,6 @@ function CommanderSlot({
   const commander = commanderId
     ? commanderReferences.find((c) => c.id === commanderId)
     : null;
-  const portrait = commander?.imageUrl || null;
   const displayName = commander?.name ?? commanderName ?? null;
 
   return (
@@ -479,29 +478,15 @@ function CommanderSlot({
       <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
         {label}
       </p>
-      <div className="flex items-center gap-2 mb-2">
-        {portrait ? (
-          <img
-            src={portrait}
-            alt=""
-            className="w-10 h-10 rounded-md object-cover bg-[var(--background)] flex-shrink-0"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-            }}
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-md bg-[var(--background)] flex-shrink-0" />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-[var(--foreground)] truncate">
-            {displayName ?? '—'}
+      <div className="mb-2">
+        <p className="text-sm font-medium text-[var(--foreground)] truncate">
+          {displayName ?? '—'}
+        </p>
+        {commander && (
+          <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] truncate">
+            {commander.specialties.slice(0, 2).join(' · ')}
           </p>
-          {commander && (
-            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] truncate">
-              {commander.specialties.slice(0, 2).join(' · ')}
-            </p>
-          )}
-        </div>
+        )}
       </div>
       {screenshotUrl ? (
         <button

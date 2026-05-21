@@ -59,7 +59,7 @@ async function uploadCommanderScreenshot(
   file: File,
   applicationId: string,
   slot: string,
-): Promise<string | null> {
+): Promise<string> {
   const ext = file.name.split('.').pop() || 'png';
   const safeSlot = slot.replace(/[^a-zA-Z0-9_-]/g, '_');
   const path = `${applicationId}/${safeSlot}_${Date.now()}.${ext}`;
@@ -70,8 +70,10 @@ async function uploadCommanderScreenshot(
     .upload(path, file, { contentType: file.type, upsert: true });
 
   if (error) {
-    console.error('Failed to upload commander screenshot:', error.message);
-    return null;
+    throw new Error(
+      `Screenshot upload failed (${slot}): ${error.message}. ` +
+        `Check that the "${BUCKET}" Supabase storage bucket exists, is public, and has an INSERT policy for anon.`,
+    );
   }
 
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
@@ -98,36 +100,44 @@ export async function submitLeaderApplication(
     return { error: appErr?.message || 'Failed to create application' };
   }
 
-  const roleRows = await Promise.all(
-    input.roles.map(async (role, idx) => {
-      const [primaryUrl, secondaryUrl] = await Promise.all([
-        role.primaryFile
-          ? uploadCommanderScreenshot(role.primaryFile, app.id, `role${idx}_primary`)
-          : Promise.resolve(null),
-        role.secondaryFile
-          ? uploadCommanderScreenshot(role.secondaryFile, app.id, `role${idx}_secondary`)
-          : Promise.resolve(null),
-      ]);
-      return {
-        application_id: app.id,
-        position: idx,
-        unit_type: role.unitType,
-        role_type: role.roleType,
-        primary_commander_id: role.primaryCommanderId,
-        primary_commander_name: role.primaryCommanderName,
-        secondary_commander_id: role.secondaryCommanderId,
-        secondary_commander_name: role.secondaryCommanderName,
-        primary_screenshot_url: primaryUrl,
-        secondary_screenshot_url: secondaryUrl,
-      };
-    }),
-  );
+  let roleRows;
+  try {
+    roleRows = await Promise.all(
+      input.roles.map(async (role, idx) => {
+        const [primaryUrl, secondaryUrl] = await Promise.all([
+          role.primaryFile
+            ? uploadCommanderScreenshot(role.primaryFile, app.id, `role${idx}_primary`)
+            : Promise.resolve(null),
+          role.secondaryFile
+            ? uploadCommanderScreenshot(role.secondaryFile, app.id, `role${idx}_secondary`)
+            : Promise.resolve(null),
+        ]);
+        return {
+          application_id: app.id,
+          position: idx,
+          unit_type: role.unitType,
+          role_type: role.roleType,
+          primary_commander_id: role.primaryCommanderId,
+          primary_commander_name: role.primaryCommanderName,
+          secondary_commander_id: role.secondaryCommanderId,
+          secondary_commander_name: role.secondaryCommanderName,
+          primary_screenshot_url: primaryUrl,
+          secondary_screenshot_url: secondaryUrl,
+        };
+      }),
+    );
+  } catch (err) {
+    // Roll back the application row so the user can retry cleanly.
+    await supabase.from('leader_applications').delete().eq('id', app.id);
+    return { error: err instanceof Error ? err.message : 'Screenshot upload failed' };
+  }
 
   const { error: rolesErr } = await supabase
     .from('leader_application_roles')
     .insert(roleRows);
 
   if (rolesErr) {
+    await supabase.from('leader_applications').delete().eq('id', app.id);
     return { error: rolesErr.message };
   }
 
