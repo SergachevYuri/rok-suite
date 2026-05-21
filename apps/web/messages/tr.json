@@ -51,8 +51,7 @@
     "allianceCalculator": "İttifak Hesaplayıcı",
     "dkp": "DKP Puanı",
     "recognition": "Tanıma",
-    "applyLeader": "Lider olmak için başvur",
-    "leaderApps": "Lider başvuruları"
+    "applyLeader": "Lider bilgisi gönder"
   },
   "home": {
     "tagline": "Krallık 23 • Krallıkların Yükselişi",
@@ -127,8 +126,8 @@
         "description": "En Güçlü Vali Etkinliği sıralamalarını ve atamalarını planlayın ve takip edin"
       },
       "applyLeader": {
-        "title": "Lider Olarak Başvur",
-        "description": "Krallık yeni üyeleri için rally ve garnizon lider başvuruları"
+        "title": "Rally/Garnizon lider bilgisi gönder",
+        "description": "Aday rally ve garnizon liderleri için — komutanlarını paylaş, subaylar incelesin."
       }
     },
     "guide": {
@@ -1190,8 +1189,8 @@
     }
   },
   "apply": {
-    "title": "Rally ve Garnizon Lideri Başvurusu",
-    "subtitle": "Krallığımızda rally ve garnizon yönetmek için başvurun. Bilgilerinizi doldurun ve komutan ekran görüntülerinizi yükleyin.",
+    "title": "Rally / Garnizon lider bilgisi gönder",
+    "subtitle": "Komutan dizilimini paylaş; krallık subayları seni rally veya garnizon lideri görevleri için değerlendirsin.",
     "back": "Geri",
     "footer": "Başvurunuz krallık subayları tarafından incelenecek.",
     "submit": "Başvuruyu gönder",
@@ -1244,6 +1243,10 @@
     "success": {
       "title": "Başvuru gönderildi",
       "message": "Başvurduğunuz için teşekkürler! Bir krallık subayı görüntülerinizi inceleyecek ve kısa süre içinde size ulaşacak."
+    },
+    "tabs": {
+      "submit": "Gönder",
+      "review": "İncele"
     }
   }
 }

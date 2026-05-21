@@ -51,8 +51,7 @@
     "allianceCalculator": "Calculadora de Alianza",
     "dkp": "Puntuación DKP",
     "recognition": "Reconocimiento",
-    "applyLeader": "Postularse como líder",
-    "leaderApps": "Solicitudes de líder"
+    "applyLeader": "Enviar info de líder"
   },
   "home": {
     "tagline": "Reino 23 • El surgimiento de los reinos",
@@ -127,8 +126,8 @@
         "description": "Planifique y realice un seguimiento de las clasificaciones y asignaciones del evento Mightiest Governor"
       },
       "applyLeader": {
-        "title": "Postularse como Líder",
-        "description": "Solicitudes de líderes de rally y guarnición para reclutas del reino"
+        "title": "Enviar info de líder de rally/guarnición",
+        "description": "Para futuros líderes de rally y guarnición — comparte tus comandantes para que los oficiales los revisen."
       }
     },
     "guide": {
@@ -1190,8 +1189,8 @@
     }
   },
   "apply": {
-    "title": "Solicitud de Líder de Rally y Guarnición",
-    "subtitle": "Postúlate para liderar rallies y guarniciones en nuestro reino. Completa tus datos y sube las capturas de tus comandantes.",
+    "title": "Enviar info de líder de rally / guarnición",
+    "subtitle": "Comparte la configuración de tu comandante para que los oficiales del reino te consideren para roles de líder de rally o guarnición.",
     "back": "Volver",
     "footer": "Tu solicitud será revisada por los oficiales del reino.",
     "submit": "Enviar solicitud",
@@ -1244,6 +1243,10 @@
     "success": {
       "title": "Solicitud enviada",
       "message": "¡Gracias por postularte! Un oficial del reino revisará tus capturas y te contactará pronto."
+    },
+    "tabs": {
+      "submit": "Enviar",
+      "review": "Revisar"
     }
   }
 }

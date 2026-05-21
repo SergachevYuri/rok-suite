@@ -51,8 +51,7 @@
     "allianceCalculator": "Calculateur d'alliances",
     "dkp": "Score DKP",
     "recognition": "Reconnaissance",
-    "applyLeader": "Devenir chef",
-    "leaderApps": "Demandes de chef"
+    "applyLeader": "Envoyer infos chef"
   },
   "home": {
     "tagline": "Royaume 23 • L'avènement des royaumes",
@@ -127,8 +126,8 @@
         "description": "Planifiez et suivez les classements et les affectations de l'événement Mightiest Governor"
       },
       "applyLeader": {
-        "title": "Devenir Chef",
-        "description": "Candidatures de chefs de rally et garnison pour les recrues du royaume"
+        "title": "Envoyer infos chef de rally/garnison",
+        "description": "Pour les futurs chefs de rally et garnison — partagez vos commandants pour examen par les officiers."
       }
     },
     "guide": {
@@ -1190,8 +1189,8 @@
     }
   },
   "apply": {
-    "title": "Candidature Chef de Rally & Garnison",
-    "subtitle": "Postulez pour diriger les rallys et les garnisons de notre royaume. Remplissez vos informations et téléchargez les captures de vos commandants.",
+    "title": "Envoyer infos chef de rally / garnison",
+    "subtitle": "Partagez la configuration de vos commandants pour que les officiers du royaume vous considèrent comme chef de rally ou de garnison.",
     "back": "Retour",
     "footer": "Votre candidature sera examinée par les officiers du royaume.",
     "submit": "Envoyer la candidature",
@@ -1244,6 +1243,10 @@
     "success": {
       "title": "Candidature envoyée",
       "message": "Merci pour votre candidature ! Un officier du royaume examinera vos captures et vous contactera bientôt."
+    },
+    "tabs": {
+      "submit": "Envoyer",
+      "review": "Revoir"
     }
   }
 }

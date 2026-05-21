@@ -51,8 +51,7 @@
     "allianceCalculator": "Allianzrechner",
     "dkp": "DKP-Score",
     "recognition": "Erkennung",
-    "applyLeader": "Als Leiter bewerben",
-    "leaderApps": "Leiter-Bewerbungen"
+    "applyLeader": "Leader-Info senden"
   },
   "home": {
     "tagline": "Königreich 23 • Aufstieg der Königreiche",
@@ -127,8 +126,8 @@
         "description": "Planen und verfolgen Sie die Ranglisten und Aufgaben des Mightiest Governor-Events"
       },
       "applyLeader": {
-        "title": "Als Leiter bewerben",
-        "description": "Bewerbungen als Rally- und Garnisons-Leiter für Königreichs-Rekruten"
+        "title": "Rally/Garnisons-Leiter-Info senden",
+        "description": "Für angehende Rally- und Garnisons-Leiter — teile deine Kommandanten zur Prüfung durch Offiziere."
       }
     },
     "guide": {
@@ -1190,8 +1189,8 @@
     }
   },
   "apply": {
-    "title": "Rally- & Garnisons-Leiter Bewerbung",
-    "subtitle": "Bewirb dich, um Rallys und Garnisonen in unserem Königreich zu leiten. Fülle deine Daten aus und lade Screenshots deiner Kommandanten hoch.",
+    "title": "Rally / Garnisons-Leiter-Info senden",
+    "subtitle": "Teile dein Kommandanten-Setup, damit die Königreichs-Offiziere dich für Rally- oder Garnisons-Leiter-Aufgaben in Betracht ziehen.",
     "back": "Zurück",
     "footer": "Deine Bewerbung wird von Königreichsoffizieren geprüft.",
     "submit": "Bewerbung senden",
@@ -1244,6 +1243,10 @@
     "success": {
       "title": "Bewerbung gesendet",
       "message": "Danke für deine Bewerbung! Ein Königreichsoffizier wird deine Screenshots prüfen und sich bald melden."
+    },
+    "tabs": {
+      "submit": "Senden",
+      "review": "Prüfen"
     }
   }
 }

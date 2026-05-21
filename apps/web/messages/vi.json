@@ -51,8 +51,7 @@
     "allianceCalculator": "Máy tính liên minh",
     "dkp": "Điểm DKP",
     "recognition": "Sự công nhận",
-    "applyLeader": "Đăng ký làm trưởng",
-    "leaderApps": "Đơn trưởng"
+    "applyLeader": "Gửi thông tin trưởng"
   },
   "home": {
     "tagline": "Vương quốc 23 • Vương quốc trỗi dậy",
@@ -127,8 +126,8 @@
         "description": "Lập kế hoạch và theo dõi thứ hạng và nhiệm vụ của Sự kiện Thống đốc hùng mạnh nhất"
       },
       "applyLeader": {
-        "title": "Đăng ký làm trưởng",
-        "description": "Đăng ký trưởng rally và garrison cho tân binh của vương quốc"
+        "title": "Gửi thông tin trưởng rally/garrison",
+        "description": "Dành cho ứng viên trưởng rally và garrison — chia sẻ tướng của bạn để sĩ quan xem."
       }
     },
     "guide": {
@@ -1190,8 +1189,8 @@
     }
   },
   "apply": {
-    "title": "Đăng ký Trưởng Rally & Garrison",
-    "subtitle": "Đăng ký dẫn dắt rally và garrison trong vương quốc. Điền thông tin và tải lên ảnh chụp tướng của bạn.",
+    "title": "Gửi thông tin trưởng rally / garrison",
+    "subtitle": "Chia sẻ cấu hình tướng để sĩ quan vương quốc cân nhắc bạn cho vai trò trưởng rally hoặc garrison.",
     "back": "Quay lại",
     "footer": "Đơn đăng ký sẽ được sĩ quan vương quốc xem xét.",
     "submit": "Gửi đăng ký",
@@ -1244,6 +1243,10 @@
     "success": {
       "title": "Đã gửi đăng ký",
       "message": "Cảm ơn bạn đã đăng ký! Sĩ quan vương quốc sẽ xem xét ảnh và liên hệ sớm."
+    },
+    "tabs": {
+      "submit": "Gửi",
+      "review": "Xem xét"
     }
   }
 }

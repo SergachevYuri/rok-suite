@@ -51,8 +51,7 @@
     "allianceCalculator": "Calcolatore dell'Alleanza",
     "dkp": "Punteggio DKP",
     "recognition": "Riconoscimento",
-    "applyLeader": "Candidati come leader",
-    "leaderApps": "Candidature leader"
+    "applyLeader": "Invia info leader"
   },
   "home": {
     "tagline": "Regno 23 • L'ascesa dei regni",
@@ -127,8 +126,8 @@
         "description": "Pianifica e monitora le classifiche e gli incarichi dell'evento Governatore più potente"
       },
       "applyLeader": {
-        "title": "Candidati come Leader",
-        "description": "Candidature da leader di rally e guarnigione per le reclute del regno"
+        "title": "Invia info leader rally/guarnigione",
+        "description": "Per aspiranti leader di rally e guarnigione — condividi i tuoi comandanti per la revisione degli ufficiali."
       }
     },
     "guide": {
@@ -1190,8 +1189,8 @@
     }
   },
   "apply": {
-    "title": "Candidatura Leader Rally & Guarnigione",
-    "subtitle": "Candidati a guidare rally e guarnigioni nel nostro regno. Compila i tuoi dati e carica gli screenshot dei tuoi comandanti.",
+    "title": "Invia info leader rally / guarnigione",
+    "subtitle": "Condividi la tua configurazione di comandanti così gli ufficiali del regno potranno valutarti per ruoli di leader rally o guarnigione.",
     "back": "Indietro",
     "footer": "La tua candidatura sarà esaminata dagli ufficiali del regno.",
     "submit": "Invia candidatura",
@@ -1244,6 +1243,10 @@
     "success": {
       "title": "Candidatura inviata",
       "message": "Grazie per la candidatura! Un ufficiale del regno esaminerà i tuoi screenshot e ti contatterà presto."
+    },
+    "tabs": {
+      "submit": "Invia",
+      "review": "Revisione"
     }
   }
 }

@@ -51,8 +51,7 @@
     "allianceCalculator": "Calculadora de Aliança",
     "dkp": "Pontuação DKP",
     "recognition": "Reconhecimento",
-    "applyLeader": "Candidatar-se a líder",
-    "leaderApps": "Candidaturas de líder"
+    "applyLeader": "Enviar info de líder"
   },
   "home": {
     "tagline": "Reino 23 • Ascensão dos Reinos",
@@ -127,8 +126,8 @@
         "description": "Planeje e acompanhe as classificações e atribuições do Evento do Governador Mais Poderoso"
       },
       "applyLeader": {
-        "title": "Candidatar-se a Líder",
-        "description": "Candidaturas de líderes de rally e guarnição para recrutas do reino"
+        "title": "Enviar info de líder de rally/guarnição",
+        "description": "Para futuros líderes de rally e guarnição — partilhe os seus comandantes para análise dos oficiais."
       }
     },
     "guide": {
@@ -1190,8 +1189,8 @@
     }
   },
   "apply": {
-    "title": "Inscrição de Líder de Rally e Guarnição",
-    "subtitle": "Candidate-se para liderar rallies e guarnições no nosso reino. Preencha os seus dados e envie capturas dos seus comandantes.",
+    "title": "Enviar info de líder de rally / guarnição",
+    "subtitle": "Partilhe a configuração dos seus comandantes para que os oficiais do reino o considerem para funções de líder de rally ou guarnição.",
     "back": "Voltar",
     "footer": "A sua candidatura será analisada pelos oficiais do reino.",
     "submit": "Enviar candidatura",
@@ -1244,6 +1243,10 @@
     "success": {
       "title": "Candidatura enviada",
       "message": "Obrigado pela candidatura! Um oficial do reino irá analisar as suas capturas e entrar em contacto em breve."
+    },
+    "tabs": {
+      "submit": "Enviar",
+      "review": "Rever"
     }
   }
 }

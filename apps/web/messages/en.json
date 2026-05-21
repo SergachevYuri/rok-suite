@@ -52,8 +52,7 @@
     "allianceCalculator": "Alliance Calculator",
     "dkp": "DKP Score",
     "migration": "Emigration",
-    "applyLeader": "Apply to lead",
-    "leaderApps": "Leader apps"
+    "applyLeader": "Submit lead info"
   },
   "home": {
     "tagline": "Kingdom 23 • Rise of Kingdoms",
@@ -132,8 +131,8 @@
         "description": "Track players flagged on DKP through claim, contact, emigration, and zeroing outcomes"
       },
       "applyLeader": {
-        "title": "Apply as Leader",
-        "description": "Rally and garrison leader applications for kingdom recruits"
+        "title": "Submit rally/garrison lead info",
+        "description": "For prospective rally and garrison leads — share your commanders so officers can review."
       }
     },
     "guide": {
@@ -1202,8 +1201,8 @@
     }
   },
   "apply": {
-    "title": "Rally & Garrison Leader Application",
-    "subtitle": "Apply to lead rallies and garrisons in our kingdom. Fill in your details and upload your commander screenshots.",
+    "title": "Submit rally / garrison lead info",
+    "subtitle": "Share your commander loadout so kingdom officers can consider you for rally or garrison lead duties.",
     "back": "Back",
     "footer": "Your submission is reviewed by kingdom officers.",
     "submit": "Submit application",
@@ -1256,6 +1255,10 @@
     "success": {
       "title": "Application sent",
       "message": "Thanks for applying! A kingdom officer will review your screenshots and reach out soon."
+    },
+    "tabs": {
+      "submit": "Submit",
+      "review": "Review"
     }
   }
 }
