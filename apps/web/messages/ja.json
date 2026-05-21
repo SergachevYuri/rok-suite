@@ -1231,14 +1231,20 @@
       "garrison": "ギャリソンリーダー"
     },
     "upload": {
-      "tap": "タップしてスクリーンショットをアップロード"
+      "tap": "タップしてスクリーンショットをアップロード",
+      "sectionLabel": "スクリーンショット（任意）",
+      "hint": "スキル・装備・武装を役員に見せたい場合はスクリーンショットを追加してください。",
+      "primary": "主司令官のスクリーンショット",
+      "secondary": "副司令官のスクリーンショット"
     },
     "errors": {
       "required": "必須",
       "govIdNumeric": "総督IDは数字である必要があります",
       "uploadRequired": "スクリーンショットが必要です",
       "imageTooLarge": "画像は5MB未満である必要があります",
-      "atLeastOneRole": "少なくとも1つの役割を追加してください"
+      "atLeastOneRole": "少なくとも1つの役割を追加してください",
+      "commanderRequired": "司令官を選択してください",
+      "commanderDuplicate": "別の司令官を選択してください"
     },
     "success": {
       "title": "応募が送信されました",
@@ -1247,6 +1253,9 @@
     "tabs": {
       "submit": "送信",
       "review": "確認"
+    },
+    "commander": {
+      "placeholder": "司令官を選択…"
     }
   }
 }

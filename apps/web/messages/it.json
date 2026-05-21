@@ -1231,14 +1231,20 @@
       "garrison": "Leader Guarnigione"
     },
     "upload": {
-      "tap": "Tocca per caricare lo screenshot"
+      "tap": "Tocca per caricare lo screenshot",
+      "sectionLabel": "Screenshot (opzionali)",
+      "hint": "Aggiungi screenshot se vuoi che gli ufficiali vedano abilità, equipaggiamento e armamenti.",
+      "primary": "Screenshot primario",
+      "secondary": "Screenshot secondario"
     },
     "errors": {
       "required": "Richiesto",
       "govIdNumeric": "L'ID Governatore deve essere numerico",
       "uploadRequired": "Screenshot richiesto",
       "imageTooLarge": "L'immagine deve essere inferiore a 5MB",
-      "atLeastOneRole": "Aggiungi almeno un ruolo"
+      "atLeastOneRole": "Aggiungi almeno un ruolo",
+      "commanderRequired": "Scegli un comandante",
+      "commanderDuplicate": "Scegli un altro comandante"
     },
     "success": {
       "title": "Candidatura inviata",
@@ -1247,6 +1253,9 @@
     "tabs": {
       "submit": "Invia",
       "review": "Revisione"
+    },
+    "commander": {
+      "placeholder": "Scegli un comandante…"
     }
   }
 }

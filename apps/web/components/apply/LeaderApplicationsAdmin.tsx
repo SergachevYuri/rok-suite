@@ -21,6 +21,7 @@ import {
   type LeaderApplicationRow,
   type ApplicationStatus,
 } from '@/lib/supabase/use-leader-applications';
+import { commanderReferences } from '@/lib/sunset-canyon/commander-reference';
 
 type SortField = 'created_at' | 'kingdom' | 'name';
 type SortDir = 'asc' | 'desc';
@@ -426,15 +427,19 @@ function ApplicationCard({
                     <span className="text-[var(--text-muted)]">·</span>
                     <span className="capitalize">{role.role_type}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <ScreenshotThumb
+                  <div className="grid grid-cols-2 gap-3">
+                    <CommanderSlot
                       label="Primary"
-                      url={role.primary_screenshot_url}
+                      commanderId={role.primary_commander_id}
+                      commanderName={role.primary_commander_name}
+                      screenshotUrl={role.primary_screenshot_url}
                       onOpen={onOpenImage}
                     />
-                    <ScreenshotThumb
+                    <CommanderSlot
                       label="Secondary"
-                      url={role.secondary_screenshot_url}
+                      commanderId={role.secondary_commander_id}
+                      commanderName={role.secondary_commander_name}
+                      screenshotUrl={role.secondary_screenshot_url}
                       onOpen={onOpenImage}
                     />
                   </div>
@@ -448,34 +453,74 @@ function ApplicationCard({
   );
 }
 
-interface ScreenshotThumbProps {
+interface CommanderSlotProps {
   label: string;
-  url: string | null;
+  commanderId: string | null;
+  commanderName: string | null;
+  screenshotUrl: string | null;
   onOpen: (url: string) => void;
 }
 
-function ScreenshotThumb({ label, url, onOpen }: ScreenshotThumbProps) {
+function CommanderSlot({
+  label,
+  commanderId,
+  commanderName,
+  screenshotUrl,
+  onOpen,
+}: CommanderSlotProps) {
+  const commander = commanderId
+    ? commanderReferences.find((c) => c.id === commanderId)
+    : null;
+  const portrait = commander?.imageUrl ?? null;
+  const displayName = commander?.name ?? commanderName ?? null;
+
   return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)] mb-1">{label}</p>
-      {url ? (
+    <div className="rounded-md border border-[var(--border)] bg-[var(--background-secondary)]/50 p-2">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+        {label}
+      </p>
+      <div className="flex items-center gap-2 mb-2">
+        {portrait ? (
+          <img
+            src={portrait}
+            alt=""
+            className="w-10 h-10 rounded-md object-cover bg-[var(--background)] flex-shrink-0"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
+            }}
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-md bg-[var(--background)] flex-shrink-0" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-[var(--foreground)] truncate">
+            {displayName ?? '—'}
+          </p>
+          {commander && (
+            <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] truncate">
+              {commander.specialties.slice(0, 2).join(' · ')}
+            </p>
+          )}
+        </div>
+      </div>
+      {screenshotUrl ? (
         <button
           type="button"
-          onClick={() => onOpen(url)}
+          onClick={() => onOpen(screenshotUrl)}
           className="group relative block w-full"
         >
           <img
-            src={url}
+            src={screenshotUrl}
             alt={label}
-            className="w-full h-28 sm:h-32 object-cover rounded-md border border-[var(--border)]"
+            className="w-full h-24 object-cover rounded-md border border-[var(--border)]"
           />
           <div className="absolute inset-0 rounded-md bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-            <ExternalLink className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+            <ExternalLink className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </button>
       ) : (
-        <div className="w-full h-28 sm:h-32 rounded-md border border-dashed border-[var(--border)] flex items-center justify-center text-xs text-[var(--text-muted)]">
-          missing
+        <div className="w-full h-24 rounded-md border border-dashed border-[var(--border)] flex items-center justify-center text-[11px] text-[var(--text-muted)]">
+          no screenshot
         </div>
       )}
     </div>

@@ -1231,14 +1231,20 @@
       "garrison": "Garnisons-Leiter"
     },
     "upload": {
-      "tap": "Tippen zum Hochladen"
+      "tap": "Tippen zum Hochladen",
+      "sectionLabel": "Screenshots (optional)",
+      "hint": "Lade Screenshots hoch, wenn Offiziere Fähigkeiten, Ausrüstung und Bewaffnung sehen sollen.",
+      "primary": "Primärer Screenshot",
+      "secondary": "Sekundärer Screenshot"
     },
     "errors": {
       "required": "Erforderlich",
       "govIdNumeric": "Gouverneurs-ID muss numerisch sein",
       "uploadRequired": "Screenshot erforderlich",
       "imageTooLarge": "Bild muss kleiner als 5 MB sein",
-      "atLeastOneRole": "Mindestens eine Rolle hinzufügen"
+      "atLeastOneRole": "Mindestens eine Rolle hinzufügen",
+      "commanderRequired": "Wähle einen Kommandanten",
+      "commanderDuplicate": "Wähle einen anderen Kommandanten"
     },
     "success": {
       "title": "Bewerbung gesendet",
@@ -1247,6 +1253,9 @@
     "tabs": {
       "submit": "Senden",
       "review": "Prüfen"
+    },
+    "commander": {
+      "placeholder": "Kommandant wählen…"
     }
   }
 }

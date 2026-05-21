@@ -11,6 +11,10 @@ export interface LeaderApplicationRoleRow {
   position: number;
   unit_type: UnitType;
   role_type: RoleType;
+  primary_commander_id: string | null;
+  primary_commander_name: string | null;
+  secondary_commander_id: string | null;
+  secondary_commander_name: string | null;
   primary_screenshot_url: string | null;
   secondary_screenshot_url: string | null;
 }
@@ -31,6 +35,10 @@ export interface LeaderApplicationRow {
 export interface LeaderRoleInput {
   unitType: UnitType;
   roleType: RoleType;
+  primaryCommanderId: string | null;
+  primaryCommanderName: string | null;
+  secondaryCommanderId: string | null;
+  secondaryCommanderName: string | null;
   primaryFile: File | null;
   secondaryFile: File | null;
 }
@@ -105,6 +113,10 @@ export async function submitLeaderApplication(
         position: idx,
         unit_type: role.unitType,
         role_type: role.roleType,
+        primary_commander_id: role.primaryCommanderId,
+        primary_commander_name: role.primaryCommanderName,
+        secondary_commander_id: role.secondaryCommanderId,
+        secondary_commander_name: role.secondaryCommanderName,
         primary_screenshot_url: primaryUrl,
         secondary_screenshot_url: secondaryUrl,
       };

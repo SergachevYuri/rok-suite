@@ -30,9 +30,20 @@ create table if not exists public.leader_application_roles (
   position int not null default 0,
   unit_type text not null check (unit_type in ('infantry','archer','cavalry')),
   role_type text not null check (role_type in ('rally','garrison')),
+  primary_commander_id text,
+  primary_commander_name text,
+  secondary_commander_id text,
+  secondary_commander_name text,
   primary_screenshot_url text,
   secondary_screenshot_url text
 );
+
+-- Adds commander columns to pre-existing installations. Safe to re-run.
+alter table public.leader_application_roles
+  add column if not exists primary_commander_id text,
+  add column if not exists primary_commander_name text,
+  add column if not exists secondary_commander_id text,
+  add column if not exists secondary_commander_name text;
 
 create index if not exists leader_application_roles_app_idx
   on public.leader_application_roles (application_id);

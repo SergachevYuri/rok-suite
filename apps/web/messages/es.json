@@ -1231,14 +1231,20 @@
       "garrison": "Líder de Guarnición"
     },
     "upload": {
-      "tap": "Toca para subir captura"
+      "tap": "Toca para subir captura",
+      "sectionLabel": "Capturas (opcional)",
+      "hint": "Añade capturas para que los oficiales vean habilidades, equipo y armamento.",
+      "primary": "Captura principal",
+      "secondary": "Captura secundaria"
     },
     "errors": {
       "required": "Requerido",
       "govIdNumeric": "El ID de Gobernador debe ser numérico",
       "uploadRequired": "Captura requerida",
       "imageTooLarge": "La imagen debe pesar menos de 5MB",
-      "atLeastOneRole": "Añade al menos un rol"
+      "atLeastOneRole": "Añade al menos un rol",
+      "commanderRequired": "Elige un comandante",
+      "commanderDuplicate": "Elige otro comandante"
     },
     "success": {
       "title": "Solicitud enviada",
@@ -1247,6 +1253,9 @@
     "tabs": {
       "submit": "Enviar",
       "review": "Revisar"
+    },
+    "commander": {
+      "placeholder": "Elige un comandante…"
     }
   }
 }

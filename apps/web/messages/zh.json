@@ -1231,14 +1231,20 @@
       "garrison": "驻军指挥官"
     },
     "upload": {
-      "tap": "点击上传截图"
+      "tap": "点击上传截图",
+      "sectionLabel": "截图（可选）",
+      "hint": "如果你希望官员看到技能、装备和武器，请添加截图。",
+      "primary": "主将截图",
+      "secondary": "副将截图"
     },
     "errors": {
       "required": "必填",
       "govIdNumeric": "总督ID必须为数字",
       "uploadRequired": "需要截图",
       "imageTooLarge": "图片必须小于5MB",
-      "atLeastOneRole": "请添加至少一个角色"
+      "atLeastOneRole": "请添加至少一个角色",
+      "commanderRequired": "请选择将军",
+      "commanderDuplicate": "请选择另一位将军"
     },
     "success": {
       "title": "已提交申请",
@@ -1247,6 +1253,9 @@
     "tabs": {
       "submit": "提交",
       "review": "审核"
+    },
+    "commander": {
+      "placeholder": "选择将军…"
     }
   }
 }

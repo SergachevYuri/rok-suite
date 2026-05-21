@@ -9,6 +9,7 @@ import {
   type UnitType,
   type RoleType,
 } from '@/lib/supabase/use-leader-applications';
+import { CommanderPicker } from './CommanderPicker';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -23,6 +24,10 @@ function newRole(): RoleEntry {
     uid: crypto.randomUUID(),
     unitType: 'infantry',
     roleType: 'rally',
+    primaryCommanderId: null,
+    primaryCommanderName: null,
+    secondaryCommanderId: null,
+    secondaryCommanderName: null,
     primaryFile: null,
     secondaryFile: null,
     primaryPreview: null,
@@ -107,8 +112,11 @@ export function LeaderApplicationForm() {
     else if (!/^\d+$/.test(govId.trim())) next.govId = t('errors.govIdNumeric');
 
     roles.forEach((r) => {
-      if (!r.primaryFile) next[`${r.uid}_primary`] = t('errors.uploadRequired');
-      if (!r.secondaryFile) next[`${r.uid}_secondary`] = t('errors.uploadRequired');
+      if (!r.primaryCommanderId) next[`${r.uid}_primaryCommander`] = t('errors.commanderRequired');
+      if (!r.secondaryCommanderId) next[`${r.uid}_secondaryCommander`] = t('errors.commanderRequired');
+      if (r.primaryCommanderId && r.primaryCommanderId === r.secondaryCommanderId) {
+        next[`${r.uid}_secondaryCommander`] = t('errors.commanderDuplicate');
+      }
     });
 
     if (roles.length === 0) next.roles = t('errors.atLeastOneRole');
@@ -133,6 +141,10 @@ export function LeaderApplicationForm() {
       roles: roles.map((r) => ({
         unitType: r.unitType,
         roleType: r.roleType,
+        primaryCommanderId: r.primaryCommanderId,
+        primaryCommanderName: r.primaryCommanderName,
+        secondaryCommanderId: r.secondaryCommanderId,
+        secondaryCommanderName: r.secondaryCommanderName,
         primaryFile: r.primaryFile,
         secondaryFile: r.secondaryFile,
       })),
@@ -255,9 +267,19 @@ export function LeaderApplicationForm() {
               canRemove={roles.length > 1}
               onChangeUnit={(v) => updateRole(role.uid, { unitType: v })}
               onChangeRoleType={(v) => updateRole(role.uid, { roleType: v })}
+              onChangeCommander={(slot, id, name) =>
+                updateRole(
+                  role.uid,
+                  slot === 'primary'
+                    ? { primaryCommanderId: id, primaryCommanderName: name }
+                    : { secondaryCommanderId: id, secondaryCommanderName: name },
+                )
+              }
               onFile={(slot, e) => handleFile(role.uid, slot, e)}
               onRemoveFile={(slot) => removeFile(role.uid, slot)}
               onRemove={() => removeRole(role.uid)}
+              errorPrimaryCommander={errors[`${role.uid}_primaryCommander`]}
+              errorSecondaryCommander={errors[`${role.uid}_secondaryCommander`]}
               errorPrimary={errors[`${role.uid}_primary`]}
               errorSecondary={errors[`${role.uid}_secondary`]}
               t={t}
@@ -338,9 +360,12 @@ interface RoleCardProps {
   canRemove: boolean;
   onChangeUnit: (v: UnitType) => void;
   onChangeRoleType: (v: RoleType) => void;
+  onChangeCommander: (slot: 'primary' | 'secondary', id: string | null, name: string | null) => void;
   onFile: (slot: 'primary' | 'secondary', e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveFile: (slot: 'primary' | 'secondary') => void;
   onRemove: () => void;
+  errorPrimaryCommander?: string;
+  errorSecondaryCommander?: string;
   errorPrimary?: string;
   errorSecondary?: string;
   t: ReturnType<typeof useTranslations>;
@@ -352,9 +377,12 @@ function RoleCard({
   canRemove,
   onChangeUnit,
   onChangeRoleType,
+  onChangeCommander,
   onFile,
   onRemoveFile,
   onRemove,
+  errorPrimaryCommander,
+  errorSecondaryCommander,
   errorPrimary,
   errorSecondary,
   t,
@@ -424,24 +452,61 @@ function RoleCard({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <ScreenshotPicker
-          label={t('fields.primaryCommander')}
-          required
-          preview={role.primaryPreview}
-          error={errorPrimary}
-          onChange={(e) => onFile('primary', e)}
-          onRemove={() => onRemoveFile('primary')}
-          uploadLabel={t('upload.tap')}
-        />
-        <ScreenshotPicker
-          label={t('fields.secondaryCommander')}
-          required
-          preview={role.secondaryPreview}
-          error={errorSecondary}
-          onChange={(e) => onFile('secondary', e)}
-          onRemove={() => onRemoveFile('secondary')}
-          uploadLabel={t('upload.tap')}
-        />
+        <div>
+          <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
+            {t('fields.primaryCommander')} <span className="text-red-400">*</span>
+          </label>
+          <CommanderPicker
+            value={role.primaryCommanderId}
+            onChange={(id, name) => onChangeCommander('primary', id, name)}
+            unitFilter={role.unitType}
+            invalid={!!errorPrimaryCommander}
+            placeholder={t('commander.placeholder')}
+          />
+          {errorPrimaryCommander && (
+            <p className="text-xs text-red-400 mt-1">{errorPrimaryCommander}</p>
+          )}
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
+            {t('fields.secondaryCommander')} <span className="text-red-400">*</span>
+          </label>
+          <CommanderPicker
+            value={role.secondaryCommanderId}
+            onChange={(id, name) => onChangeCommander('secondary', id, name)}
+            unitFilter={role.unitType}
+            invalid={!!errorSecondaryCommander}
+            placeholder={t('commander.placeholder')}
+          />
+          {errorSecondaryCommander && (
+            <p className="text-xs text-red-400 mt-1">{errorSecondaryCommander}</p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+          {t('upload.sectionLabel')}
+        </p>
+        <p className="text-xs text-[var(--text-muted)] mb-2">{t('upload.hint')}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ScreenshotPicker
+            label={t('upload.primary')}
+            preview={role.primaryPreview}
+            error={errorPrimary}
+            onChange={(e) => onFile('primary', e)}
+            onRemove={() => onRemoveFile('primary')}
+            uploadLabel={t('upload.tap')}
+          />
+          <ScreenshotPicker
+            label={t('upload.secondary')}
+            preview={role.secondaryPreview}
+            error={errorSecondary}
+            onChange={(e) => onFile('secondary', e)}
+            onRemove={() => onRemoveFile('secondary')}
+            uploadLabel={t('upload.tap')}
+          />
+        </div>
       </div>
     </div>
   );

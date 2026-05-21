@@ -1243,14 +1243,20 @@
       "garrison": "Garrison leader"
     },
     "upload": {
-      "tap": "Tap to upload screenshot"
+      "tap": "Tap to upload screenshot",
+      "sectionLabel": "Screenshots (optional)",
+      "hint": "Add screenshots if you want officers to see skills, gear and armaments.",
+      "primary": "Primary screenshot",
+      "secondary": "Secondary screenshot"
     },
     "errors": {
       "required": "Required",
       "govIdNumeric": "Governor ID must be numeric",
       "uploadRequired": "Screenshot required",
       "imageTooLarge": "Image must be under 5MB",
-      "atLeastOneRole": "Add at least one role"
+      "atLeastOneRole": "Add at least one role",
+      "commanderRequired": "Pick a commander",
+      "commanderDuplicate": "Pick a different commander"
     },
     "success": {
       "title": "Application sent",
@@ -1259,6 +1265,9 @@
     "tabs": {
       "submit": "Submit",
       "review": "Review"
+    },
+    "commander": {
+      "placeholder": "Pick a commander…"
     }
   }
 }

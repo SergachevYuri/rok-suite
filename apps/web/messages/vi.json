@@ -1231,14 +1231,20 @@
       "garrison": "Trưởng Garrison"
     },
     "upload": {
-      "tap": "Nhấn để tải ảnh lên"
+      "tap": "Nhấn để tải ảnh lên",
+      "sectionLabel": "Ảnh chụp (tuỳ chọn)",
+      "hint": "Thêm ảnh chụp nếu bạn muốn sĩ quan xem kỹ năng, trang bị và vũ khí.",
+      "primary": "Ảnh tướng chính",
+      "secondary": "Ảnh tướng phụ"
     },
     "errors": {
       "required": "Bắt buộc",
       "govIdNumeric": "ID Thống đốc phải là số",
       "uploadRequired": "Cần ảnh chụp",
       "imageTooLarge": "Ảnh phải nhỏ hơn 5MB",
-      "atLeastOneRole": "Thêm ít nhất một vai trò"
+      "atLeastOneRole": "Thêm ít nhất một vai trò",
+      "commanderRequired": "Chọn một tướng",
+      "commanderDuplicate": "Chọn tướng khác"
     },
     "success": {
       "title": "Đã gửi đăng ký",
@@ -1247,6 +1253,9 @@
     "tabs": {
       "submit": "Gửi",
       "review": "Xem xét"
+    },
+    "commander": {
+      "placeholder": "Chọn tướng…"
     }
   }
 }

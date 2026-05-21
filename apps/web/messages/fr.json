@@ -1231,14 +1231,20 @@
       "garrison": "Chef de Garnison"
     },
     "upload": {
-      "tap": "Toucher pour téléverser une capture"
+      "tap": "Toucher pour téléverser une capture",
+      "sectionLabel": "Captures (facultatif)",
+      "hint": "Ajoute des captures si tu veux que les officiers voient compétences, équipement et armement.",
+      "primary": "Capture du primaire",
+      "secondary": "Capture du secondaire"
     },
     "errors": {
       "required": "Obligatoire",
       "govIdNumeric": "L'ID de Gouverneur doit être numérique",
       "uploadRequired": "Capture requise",
       "imageTooLarge": "L'image doit faire moins de 5 Mo",
-      "atLeastOneRole": "Ajoutez au moins un rôle"
+      "atLeastOneRole": "Ajoutez au moins un rôle",
+      "commanderRequired": "Choisis un commandant",
+      "commanderDuplicate": "Choisis un autre commandant"
     },
     "success": {
       "title": "Candidature envoyée",
@@ -1247,6 +1253,9 @@
     "tabs": {
       "submit": "Envoyer",
       "review": "Revoir"
+    },
+    "commander": {
+      "placeholder": "Choisis un commandant…"
     }
   }
 }

@@ -1231,14 +1231,20 @@
       "garrison": "Garnizon Lideri"
     },
     "upload": {
-      "tap": "Ekran görüntüsü yüklemek için dokunun"
+      "tap": "Ekran görüntüsü yüklemek için dokunun",
+      "sectionLabel": "Ekran görüntüleri (isteğe bağlı)",
+      "hint": "Subayların yetenekleri, teçhizatı ve silahları görmesini istiyorsan ekran görüntüsü ekle.",
+      "primary": "Birincil ekran görüntüsü",
+      "secondary": "İkincil ekran görüntüsü"
     },
     "errors": {
       "required": "Zorunlu",
       "govIdNumeric": "Vali ID sayısal olmalıdır",
       "uploadRequired": "Ekran görüntüsü gerekli",
       "imageTooLarge": "Görsel 5MB'den küçük olmalı",
-      "atLeastOneRole": "En az bir rol ekleyin"
+      "atLeastOneRole": "En az bir rol ekleyin",
+      "commanderRequired": "Bir komutan seç",
+      "commanderDuplicate": "Farklı bir komutan seç"
     },
     "success": {
       "title": "Başvuru gönderildi",
@@ -1247,6 +1253,9 @@
     "tabs": {
       "submit": "Gönder",
       "review": "İncele"
+    },
+    "commander": {
+      "placeholder": "Bir komutan seç…"
     }
   }
 }
