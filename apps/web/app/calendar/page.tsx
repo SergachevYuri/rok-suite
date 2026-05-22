@@ -718,7 +718,40 @@ function WeekView({ events, timezone, weekOffset, onChangeWeek }: {
 }
 
 // ——— Month View —————————————————————————————————————————————————————————
-const MAX_VISIBLE_EVENTS = 2; // show up to 2 event names per cell on desktop
+const MAX_VISIBLE_LANES = 4; // event bars per week-row before "+N more" overflow
+
+interface WeekEventSegment {
+    eventId: string;
+    title: string;
+    color: string;
+    /** 1..7 — first column the event covers this week. */
+    startCol: number;
+    /** 1..7 — last column (inclusive). */
+    endCol: number;
+    /** Event continues from the previous week (square left edge). */
+    continuesLeft: boolean;
+    /** Event continues into the next week (square right edge). */
+    continuesRight: boolean;
+    /** Lane index (0 = top). Assigned by the lane packer. */
+    lane: number;
+}
+
+/** Returns ISO date (YYYY-MM-DD) `n` days after `iso`. Pure UTC math. */
+function addDaysIso(iso: string, n: number): string {
+    const d = new Date(`${iso}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+}
+
+/** Convert a CSS hex color to `rgba(r, g, b, alpha)`. Accepts #abc or #aabbcc. */
+function hexToRgba(hex: string, alpha = 0.8): string {
+    let h = hex.replace('#', '').trim();
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    const r = parseInt(h.slice(0, 2), 16) || 0;
+    const g = parseInt(h.slice(2, 4), 16) || 0;
+    const b = parseInt(h.slice(4, 6), 16) || 0;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth }: {
     events: CalEvent[];
@@ -732,6 +765,19 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
     const daysInMonth = getDaysInMonth(currentYear, currentMonth);
     const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
     const monthName = new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    // Split the 42-cell grid into rows of 7 (one row per week).
+    const weeks = useMemo(() => {
+        const cells: (string | null)[] = [];
+        for (let i = 0; i < firstDay; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) {
+            cells.push(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+        }
+        while (cells.length % 7 !== 0) cells.push(null);
+        const rows: (string | null)[][] = [];
+        for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+        return rows;
+    }, [currentYear, currentMonth, daysInMonth, firstDay]);
 
     const eventsByDate = useMemo(() => {
         const map = new Map<string, CalEvent[]>();
@@ -756,11 +802,69 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
     }, [events, timezone]);
 
     const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: timezone });
-    const cells: (number | null)[] = [];
-    for (let i = 0; i < firstDay; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    // Pad to complete final row
-    while (cells.length % 7 !== 0) cells.push(null);
+
+    // ─── Compute event segments + lane assignment per week ──────────────
+    // Each multi-day event is split into one "segment" per week it touches.
+    // Segments get a lane number (0..N) so overlapping events stack vertically
+    // like Google Calendar / rokhub instead of fighting for the same row.
+    const weekSegments = useMemo(() => {
+        return weeks.map((weekDates) => {
+            // Earliest & latest dateKey present in this week — used to detect
+            // events that continue past the week's edges.
+            const present = weekDates.filter((d): d is string => d !== null);
+            if (present.length === 0) return { segments: [] as WeekEventSegment[], laneCount: 0 };
+            const weekStartKey = present[0];
+            const weekEndKey = present[present.length - 1];
+
+            // All-day events that overlap this week.
+            const segs: WeekEventSegment[] = [];
+            for (const ev of events) {
+                if (!ev.allDay) continue;
+                const evStart = ev.start.slice(0, 10);
+                const evEndExclusive = ev.end.slice(0, 10);
+                if (evEndExclusive <= weekStartKey || evStart > weekEndKey) continue;
+
+                // Columns 1..7 the event touches within THIS week (only over
+                // cells that actually belong to the current month-grid).
+                const cols: number[] = [];
+                weekDates.forEach((dk, i) => {
+                    if (!dk) return;
+                    if (dk >= evStart && dk < evEndExclusive) cols.push(i + 1);
+                });
+                if (cols.length === 0) continue;
+
+                segs.push({
+                    eventId: ev.id,
+                    title: ev.summary,
+                    color: ev.calendarColor,
+                    startCol: cols[0],
+                    endCol: cols[cols.length - 1],
+                    // Event continues out of the visible week range on either side?
+                    continuesLeft: evStart < weekStartKey,
+                    continuesRight: evEndExclusive > addDaysIso(weekEndKey, 1),
+                    lane: 0,
+                });
+            }
+
+            // Sort by start, then by length desc — produces stable lane order.
+            segs.sort((a, b) => (a.startCol - b.startCol) || ((b.endCol - b.startCol) - (a.endCol - a.startCol)));
+
+            // Greedy lane packing: place each segment in the lowest lane that
+            // doesn't overlap with anything already there.
+            const laneLastEnd: number[] = [];
+            for (const s of segs) {
+                let lane = laneLastEnd.findIndex((end) => end < s.startCol);
+                if (lane === -1) {
+                    lane = laneLastEnd.length;
+                    laneLastEnd.push(s.endCol);
+                } else {
+                    laneLastEnd[lane] = s.endCol;
+                }
+                s.lane = lane;
+            }
+            return { segments: segs, laneCount: laneLastEnd.length };
+        });
+    }, [weeks, events]);
 
     const selectedEvents = selectedDate ? (eventsByDate.get(selectedDate) || []) : [];
 
@@ -784,67 +888,121 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
                 ))}
             </div>
 
-            {/* Day grid — rokhub-style: rounded cells separated by gap, no grid lines */}
-            <div className="grid grid-cols-7 gap-1 px-1 pb-1">
-                {cells.map((day, i) => {
-                    if (day === null) return <div key={`empty-${i}`} className="aspect-square sm:aspect-auto sm:min-h-[100px] rounded-lg bg-[var(--background-secondary)]/30" />;
-                    const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const dayEvents = eventsByDate.get(dateKey) || [];
-                    const isSelected = selectedDate === dateKey;
-                    const isTodayCell = dateKey === todayKey;
-                    const visibleEvents = dayEvents.slice(0, MAX_VISIBLE_EVENTS);
-                    const overflow = dayEvents.length - MAX_VISIBLE_EVENTS;
-
+            {/* Weeks — each row has day cells + a stacked overlay of event bars.
+                Multi-day events render as a single bar spanning columns within
+                the week, with square edges on continuation sides. */}
+            <div className="space-y-1 px-1 pb-1">
+                {weeks.map((weekDates, wi) => {
+                    const { segments, laneCount } = weekSegments[wi] ?? { segments: [], laneCount: 0 };
+                    const visibleSegments = segments.filter(s => s.lane < MAX_VISIBLE_LANES);
+                    // Per-cell overflow chip: total events touching this day
+                    // minus the ones already shown as visible bars.
+                    const overflowPerCol = new Map<number, number>();
+                    for (const seg of segments) {
+                        if (seg.lane < MAX_VISIBLE_LANES) continue;
+                        for (let c = seg.startCol; c <= seg.endCol; c++) {
+                            overflowPerCol.set(c, (overflowPerCol.get(c) ?? 0) + 1);
+                        }
+                    }
                     return (
-                        <button
-                            key={dateKey}
-                            onClick={() => setSelectedDate(isSelected ? null : dateKey)}
-                            className={`relative text-left p-1.5 sm:p-2 rounded-lg aspect-square sm:aspect-auto sm:min-h-[100px] transition-all overflow-hidden ${
-                                isSelected
-                                    ? 'bg-rose-500/15 ring-1 ring-rose-500/40'
-                                    : isTodayCell
-                                        ? 'bg-rose-500/5 ring-1 ring-rose-500/30 hover:bg-rose-500/10'
-                                        : 'bg-[var(--background-secondary)]/60 hover:bg-[var(--background-secondary)]'
-                            }`}
-                        >
-                            {/* Day number */}
-                            <div className="flex items-center justify-between mb-1">
-                                <span className={`text-xs sm:text-sm font-semibold leading-none ${
-                                    isTodayCell
-                                        ? 'bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs'
-                                        : dayEvents.length > 0 ? 'text-[var(--foreground)] pl-0.5' : 'text-[var(--text-muted)] pl-0.5'
-                                }`}>
-                                    {day}
-                                </span>
-                                {/* Mobile dot summary: shown only on small screens when names don't fit */}
-                                {dayEvents.length > 0 && (
-                                    <span className="sm:hidden flex items-center gap-0.5">
-                                        {dayEvents.slice(0, 3).map((ev, ei) => (
-                                            <span key={ei} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ev.calendarColor }} />
-                                        ))}
-                                        {dayEvents.length > 3 && (
-                                            <span className="text-[8px] text-[var(--text-muted)] leading-none ml-0.5">+{dayEvents.length - 3}</span>
-                                        )}
-                                    </span>
-                                )}
+                        <div key={wi} className="relative">
+                            {/* Day cells with day numbers */}
+                            <div className="grid grid-cols-7 gap-1">
+                                {weekDates.map((dateKey, i) => {
+                                    if (!dateKey) return <div key={`empty-${wi}-${i}`} className="rounded-lg bg-[var(--background-secondary)]/30 aspect-square sm:aspect-auto sm:min-h-[110px]" />;
+                                    const day = Number(dateKey.slice(8, 10));
+                                    const isSelected = selectedDate === dateKey;
+                                    const isTodayCell = dateKey === todayKey;
+                                    const dayEventCount = eventsByDate.get(dateKey)?.length ?? 0;
+                                    return (
+                                        <button
+                                            key={dateKey}
+                                            onClick={() => setSelectedDate(isSelected ? null : dateKey)}
+                                            className={`relative text-left p-1.5 sm:p-2 rounded-lg aspect-square sm:aspect-auto sm:min-h-[110px] transition-all overflow-hidden ${
+                                                isSelected
+                                                    ? 'bg-rose-500/15 ring-1 ring-rose-500/40'
+                                                    : isTodayCell
+                                                        ? 'bg-rose-500/5 ring-1 ring-rose-500/30 hover:bg-rose-500/10'
+                                                        : 'bg-[var(--background-secondary)]/60 hover:bg-[var(--background-secondary)]'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className={`text-xs sm:text-sm font-semibold leading-none ${
+                                                    isTodayCell
+                                                        ? 'bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs'
+                                                        : dayEventCount > 0 ? 'text-[var(--foreground)] pl-0.5' : 'text-[var(--text-muted)] pl-0.5'
+                                                }`}>
+                                                    {day}
+                                                </span>
+                                                {dayEventCount > 0 && (
+                                                    <span className="sm:hidden flex items-center gap-0.5">
+                                                        {(eventsByDate.get(dateKey) ?? []).slice(0, 3).map((ev, ei) => (
+                                                            <span key={ei} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ev.calendarColor }} />
+                                                        ))}
+                                                        {dayEventCount > 3 && (
+                                                            <span className="text-[8px] text-[var(--text-muted)] leading-none ml-0.5">+{dayEventCount - 3}</span>
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {/* Spacer that reserves room under day number for the
+                                                event-bars overlay (~16px per lane). */}
+                                            <div className="hidden sm:block" style={{ minHeight: Math.min(laneCount, MAX_VISIBLE_LANES) * 18 + 4 }} aria-hidden="true" />
+                                            {/* "+N more" hint per cell when bars overflow MAX_VISIBLE_LANES */}
+                                            {(overflowPerCol.get(i + 1) ?? 0) > 0 && (
+                                                <div className="hidden sm:block text-[9px] text-[var(--text-muted)] italic mt-0.5">
+                                                    +{overflowPerCol.get(i + 1)} more
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
 
-                            {/* Event chips — desktop only, mobile uses dot summary above */}
-                            <div className="hidden sm:block space-y-0.5">
-                                {visibleEvents.map((ev, ei) => (
-                                    <div
-                                        key={ei}
-                                        className="rounded px-1.5 py-0.5 truncate text-[10px] leading-tight font-medium"
-                                        style={{ backgroundColor: ev.calendarColor + '25', color: ev.calendarColor, borderLeft: `2px solid ${ev.calendarColor}` }}
-                                    >
-                                        <span className="truncate">{ev.summary}</span>
-                                    </div>
-                                ))}
-                                {overflow > 0 && (
-                                    <div className="text-[10px] text-[var(--text-muted)] px-1.5 italic">+{overflow} more</div>
-                                )}
-                            </div>
-                        </button>
+                            {/* Event bars overlay — sm+ only. Direct copy of
+                                the rokhub.xyz HTML pattern: an absolute grid on
+                                top of the week, positioned via grid-area to
+                                span columns and stack into lanes. The wrapper
+                                divs are pointer-events-none so day cells stay
+                                clickable; only the inner buttons recapture
+                                pointer events. */}
+                            {visibleSegments.length > 0 && (
+                                <div
+                                    className="absolute inset-0 hidden sm:grid grid-cols-7 gap-x-1 gap-y-0 pt-7 pointer-events-none content-start"
+                                    style={{ gridAutoRows: 'min-content' }}
+                                >
+                                    {visibleSegments.map((seg) => (
+                                        <div
+                                            key={`${seg.eventId}-${seg.startCol}`}
+                                            className="pointer-events-none"
+                                            style={{
+                                                gridArea: `${seg.lane + 1} / ${seg.startCol} / auto / span ${seg.endCol - seg.startCol + 1}`,
+                                            }}
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    // Open the day-detail panel anchored at the
+                                                    // segment's start day. Lets users still drill
+                                                    // into a multi-day event from any segment.
+                                                    const startDateKey = weekDates[seg.startCol - 1] ?? null;
+                                                    if (startDateKey) {
+                                                        setSelectedDate(selectedDate === startDateKey ? null : startDateKey);
+                                                    }
+                                                }}
+                                                className="pointer-events-auto w-full rounded px-2 py-1.5 text-[11px] leading-none text-white shadow-sm truncate text-left"
+                                                style={{ backgroundColor: hexToRgba(seg.color, 0.8) }}
+                                                title={seg.title}
+                                            >
+                                                {seg.continuesLeft && '… '}
+                                                {seg.title}
+                                                {seg.continuesRight && ' …'}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     );
                 })}
             </div>
