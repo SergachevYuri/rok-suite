@@ -2,7 +2,8 @@
 
 import { useState, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Calendar, Trash2, Lock } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, Calendar, Trash2 } from 'lucide-react';
+import { LockedPlaceholder } from '@/components/LockedPlaceholder';
 import { createClient } from '@/lib/supabase/client';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
 import { cleanupDepartedKingdomPlayers } from '@/lib/kingdom/scan-cleanup';
@@ -66,23 +67,10 @@ export default function SeedsUpload({
   const [progress, setProgress] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Auth gate (admin only, but the role is shared across pages via
-  // sessionStorage so we don't keep re-prompting). ───
-  const { role, unlockWith } = useAuthRole();
+  // ─── Auth gate (admin only). Role lives in sessionStorage via useAuthRole
+  //     and is set from the single SignInButton in the header. ───
+  const { role } = useAuthRole();
   const isUnlocked = meetsRole(role, 'admin');
-  const [password, setPassword] = useState('');
-  const [pwError, setPwError] = useState('');
-
-  const handlePasswordSubmit = () => {
-    const r = unlockWith(password);
-    if (!r || !meetsRole(r, 'admin')) {
-      setPwError(r ? 'Admin password required' : 'Incorrect password');
-      setPassword('');
-      return;
-    }
-    setPassword('');
-    setPwError('');
-  };
 
   const reset = () => {
     setStatus('idle');
@@ -216,42 +204,10 @@ export default function SeedsUpload({
   );
 
   // ─── Auth gate UI ───
+  // Single sign-in surface: defer to the shared LockedPlaceholder so the
+  // header SignInButton is the only password entry point in the app.
   if (!isUnlocked) {
-    return (
-      <div className="max-w-md">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-amber-500/10">
-              <Lock className="w-5 h-5 text-amber-400" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--foreground)]">Restricted</h3>
-              <p className="text-xs text-[var(--text-muted)]">Admin password required to upload scans</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setPwError(''); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordSubmit(); }}
-              placeholder="Enter password"
-              className="w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--foreground)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]"
-              autoFocus
-            />
-            {pwError && <div className="text-xs text-red-400">{pwError}</div>}
-            <button
-              onClick={handlePasswordSubmit}
-              disabled={!password}
-              className="w-full px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-sm font-medium disabled:opacity-50"
-            >
-              Unlock
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <LockedPlaceholder description="Admin access required to upload scans." />;
   }
 
   return (
