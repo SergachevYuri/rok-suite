@@ -1164,6 +1164,8 @@
     "targetDateUtc": "วันที่เป้าหมาย (UTC)",
     "projectedResources": "ทรัพยากรที่คาดการณ์ไว้",
     "cappedTag": "(ต่อยอด)",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "ตอนนี้",
     "timeToCap": "ถึงเวลากัปตัน",
     "noCapSet": "ไม่มีชุดหมวก",

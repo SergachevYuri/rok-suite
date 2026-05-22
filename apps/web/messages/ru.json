@@ -1164,6 +1164,8 @@
     "targetDateUtc": "Целевая дата (UTC)",
     "projectedResources": "Прогнозируемые ресурсы",
     "cappedTag": "(ограничено)",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "сейчас",
     "timeToCap": "Время заканчивать",
     "noCapSet": "без набора крышек",

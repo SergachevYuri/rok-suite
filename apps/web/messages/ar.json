@@ -1164,6 +1164,8 @@
     "targetDateUtc": "التاريخ المستهدف (التوقيت العالمي المنسق)",
     "projectedResources": "الموارد المتوقعة",
     "cappedTag": "(متوج)",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "الآن",
     "timeToCap": "الوقت للحد الأقصى",
     "noCapSet": "لم يتم تعيين غطاء",

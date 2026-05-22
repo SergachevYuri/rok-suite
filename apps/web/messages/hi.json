@@ -1164,6 +1164,8 @@
     "targetDateUtc": "लक्ष्य दिनांक (UTC)",
     "projectedResources": "प्रक्षेपित संसाधन",
     "cappedTag": "(छाया हुआ)",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "अब",
     "timeToCap": "कैप करने का समय",
     "noCapSet": "कोई कैप सेट नहीं",

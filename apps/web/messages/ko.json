@@ -1164,6 +1164,8 @@
     "targetDateUtc": "목표 날짜(UTC)",
     "projectedResources": "예상 자원",
     "cappedTag": "(제한)",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "지금",
     "timeToCap": "최대 시간",
     "noCapSet": "캡 세트 없음",

@@ -1164,6 +1164,8 @@
     "targetDateUtc": "目標日 (UTC)",
     "projectedResources": "予測されるリソース",
     "cappedTag": "(キャップ付き)",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "今",
     "timeToCap": "キャップまでの時間",
     "noCapSet": "キャップが設定されていません",

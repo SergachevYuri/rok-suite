@@ -383,16 +383,22 @@ export default function FlagCalculatorPage() {
   const storehouseProjection = useMemo(() => {
     const projected: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
     const gained: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
+    // Production that the cap throws away — i.e. how much the resource would
+    // overflow if no cap existed. Useful to spot "should have spent already"
+    // moments at a glance.
+    const wasted: FlagCost = { food: 0, wood: 0, stone: 0, gold: 0, crystals: 0, credits: 0 };
     for (const k of RSS_KEYS) {
       const current = availableResources[k];
       const prod = productionPerHour[k];
       const cap = resourceCaps[k];
       const produced = prod * storehouseHoursUntil;
       const total = current + produced;
-      projected[k] = cap > 0 ? Math.min(total, cap) : total;
+      const capActive = cap > 0 && cap < 1e15;
+      projected[k] = capActive ? Math.min(total, cap) : total;
       gained[k] = projected[k] - current;
+      wasted[k] = capActive && total > cap ? total - cap : 0;
     }
-    return { projected, gained };
+    return { projected, gained, wasted };
   }, [availableResources, productionPerHour, resourceCaps, storehouseHoursUntil]);
 
   const storehouseTimeToFull = useMemo(() => {
@@ -868,6 +874,7 @@ export default function FlagCalculatorPage() {
                           const current = availableResources[rss.key];
                           const projected = storehouseProjection.projected[rss.key];
                           const gained = storehouseProjection.gained[rss.key];
+                          const wasted = storehouseProjection.wasted[rss.key];
                           const cap = resourceCaps[rss.key];
                           const atCap = cap < 1e15 && projected >= cap;
                           return (
@@ -886,9 +893,16 @@ export default function FlagCalculatorPage() {
                                 <span className="text-xs text-[var(--text-muted)] ml-5.5 pl-0.5">
                                   {formatNum(current)} {t('nowSuffix')}
                                 </span>
-                                {gained > 0 && (
-                                  <span className="text-xs text-green-400 font-mono">+{formatNum(Math.round(gained))}</span>
-                                )}
+                                <span className="flex items-center gap-2 font-mono text-xs">
+                                  {gained > 0 && (
+                                    <span className="text-green-400">+{formatNum(Math.round(gained))}</span>
+                                  )}
+                                  {wasted > 0 && (
+                                    <span className="text-rose-400" title={t('wastedTag')}>
+                                      −{formatNum(Math.round(wasted))}
+                                    </span>
+                                  )}
+                                </span>
                               </div>
                             </div>
                           );
@@ -941,6 +955,16 @@ export default function FlagCalculatorPage() {
                             {formatNum(RSS_KEYS.reduce((sum, k) => sum + availableResources[k], 0))}
                           </span>
                         </div>
+                        {(() => {
+                          const totalWasted = RSS_KEYS.reduce((sum, k) => sum + storehouseProjection.wasted[k], 0);
+                          if (totalWasted <= 0) return null;
+                          return (
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-xs text-[var(--text-muted)]">{t('totalWasted')}</span>
+                              <span className="font-mono text-sm text-rose-400">−{formatNum(Math.round(totalWasted))}</span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

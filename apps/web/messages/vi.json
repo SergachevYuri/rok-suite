@@ -1164,6 +1164,8 @@
     "targetDateUtc": "Ngày mục tiêu (UTC)",
     "projectedResources": "Nguồn lực dự kiến",
     "cappedTag": "(giới hạn)",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "Hiện nay",
     "timeToCap": "Thời gian để giới hạn",
     "noCapSet": "không đặt mũ",

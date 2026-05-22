@@ -1164,6 +1164,8 @@
     "targetDateUtc": "目标日期（UTC）",
     "projectedResources": "预计资源",
     "cappedTag": "（上限）",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "现在",
     "timeToCap": "达到上限的时间",
     "noCapSet": "没有设置上限",

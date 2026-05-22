@@ -1164,6 +1164,8 @@
     "targetDateUtc": "Data prevista (UTC)",
     "projectedResources": "Recursos projetados",
     "cappedTag": "(limitado)",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "agora",
     "timeToCap": "Hora de limitar",
     "noCapSet": "sem conjunto de limite",

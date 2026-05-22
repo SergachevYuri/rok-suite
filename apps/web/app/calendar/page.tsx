@@ -4,8 +4,14 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTheme } from '@/lib/theme-context';
 import { AppSidebar } from '@/components/AppSidebar';
 import { ADMIN_PASSWORD } from '@/lib/auth-passwords';
+import {
+    getRokOccurrences,
+    ROK_CALENDAR_LABEL,
+    ROK_CALENDAR_COLOR,
+} from '@/lib/calendar/rok-events';
 
 // ——— Calendar configuration ————————————————————————————————————————————
+// Google-calendar-backed feeds (curated upstream, pulled via the iCal proxy).
 const PUBLIC_CALENDARS = [
     {
         id: '2aed069b30c3f3501b64ef982441f597b833e3db8b855488f734efe1b9552040@group.calendar.google.com',
@@ -17,12 +23,13 @@ const PUBLIC_CALENDARS = [
         name: 'Kingdom 23',
         color: '#3b82f6',
     },
-    {
-        id: 'd005a7955410ff8b21164034320d73e20fad0124e59617077234e6b15aae0577@group.calendar.google.com',
-        name: 'ROK Events',
-        color: '#8b5cf6',
-    },
 ];
+
+/** Synthetic calendar id for the hardcoded ROK events list. Lets the rest
+ *  of the page (toggle chips, subscribe panel) treat it uniformly with the
+ *  Google calendars. The `/api/calendar?id=...` proxy does NOT need to
+ *  whitelist this — we never fetch it from the proxy. */
+const ROK_EVENTS_CALENDAR_ID = 'rok-events:internal';
 
 const ADMIN_CALENDAR = {
     id: 'ef47386caa3f7c72112843b965a4db91dc20c1b785836db69b064bf49a50aede@group.calendar.google.com',
@@ -894,23 +901,59 @@ export default function CalendarPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const CALENDARS = isAdmin ? [...PUBLIC_CALENDARS, ADMIN_CALENDAR] : PUBLIC_CALENDARS;
+    // The ROK Events feed lives alongside the Google calendars in the UI
+    // (same toggle chips, same subscribe card) but its events come from the
+    // hardcoded catalogue in lib/calendar/rok-events.ts.
+    const ROK_EVENTS_CALENDAR = useMemo(
+        () => ({ id: ROK_EVENTS_CALENDAR_ID, name: ROK_CALENDAR_LABEL, color: ROK_CALENDAR_COLOR }),
+        [],
+    );
+
+    const CALENDARS = useMemo(() => {
+        const base = [...PUBLIC_CALENDARS, ROK_EVENTS_CALENDAR];
+        return isAdmin ? [...base, ADMIN_CALENDAR] : base;
+    }, [isAdmin, ROK_EVENTS_CALENDAR]);
+
+    // ——— Generate ROK events locally (hardcoded catalogue) ——————————————
+    const generateRokEvents = useCallback((): CalEvent[] => {
+        // 6 months back, 18 months forward — matches the ICS feed window so
+        // the on-screen list and a subscribed device show the same items.
+        const now = new Date();
+        const from = new Date(now.getTime() - 180 * 86_400_000);
+        const to = new Date(now.getTime() + 540 * 86_400_000);
+        return getRokOccurrences(from, to).map((occ) => ({
+            id: occ.occurrenceId,
+            summary: occ.title,
+            description: occ.description,
+            // ICS DTSTART/DTEND for all-day events normally use YYYY-MM-DD; the
+            // existing parser code paths treat any "10-char prefix" string as
+            // an all-day key, so we keep that shape here.
+            start: occ.startIso.slice(0, 10),
+            end: occ.endIso.slice(0, 10),
+            allDay: true,
+            calendarName: ROK_EVENTS_CALENDAR.name,
+            calendarColor: occ.color,
+        }));
+    }, [ROK_EVENTS_CALENDAR.name]);
 
     // ——— Fetch iCal feeds (client-side, no cookies needed) ——————————————
     const fetchAll = useCallback(async () => {
         setLoading(true);
         setError(null);
-        const calsToFetch = isAdmin ? [...PUBLIC_CALENDARS, ADMIN_CALENDAR] : PUBLIC_CALENDARS;
+        const googleCals = isAdmin ? [...PUBLIC_CALENDARS, ADMIN_CALENDAR] : PUBLIC_CALENDARS;
         const newMap = new Map<string, CalEvent[]>();
 
+        // Hardcoded ROK feed first (synchronous, never fails).
+        newMap.set(ROK_EVENTS_CALENDAR.id, generateRokEvents());
+
         const results = await Promise.allSettled(
-            calsToFetch.map(async (cal) => {
+            googleCals.map(async (cal) => {
                 const icsText = await fetchCalendarICS(cal.id);
                 return { calId: cal.id, events: parseICS(icsText, cal.name, cal.color) };
             })
         );
 
-        let totalEvents = 0;
+        let totalEvents = newMap.get(ROK_EVENTS_CALENDAR.id)?.length ?? 0;
         for (const r of results) {
             if (r.status === 'fulfilled') {
                 newMap.set(r.value.calId, r.value.events);
@@ -924,7 +967,7 @@ export default function CalendarPage() {
 
         setAllEvents(newMap);
         setLoading(false);
-    }, [isAdmin]);
+    }, [isAdmin, generateRokEvents, ROK_EVENTS_CALENDAR.id]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -968,6 +1011,9 @@ export default function CalendarPage() {
         });
     }, [filteredEvents, currentMonthDate]);
 
+    // Admin appears last in CALENDARS — index = (public + ROK).
+    const adminCalendarIndex = PUBLIC_CALENDARS.length + 1;
+
     // ——— Handlers ———————————————————————————————————————————————————————
     const handleAdminLogin = () => {
         if (password === ADMIN_PASSWORD) {
@@ -975,7 +1021,7 @@ export default function CalendarPage() {
             setShowPasswordPrompt(false);
             setPassword('');
             setPasswordError(false);
-            setEnabledCalendars(prev => new Set([...prev, PUBLIC_CALENDARS.length]));
+            setEnabledCalendars(prev => new Set([...prev, adminCalendarIndex]));
         } else {
             setPasswordError(true);
         }
@@ -985,7 +1031,7 @@ export default function CalendarPage() {
         setIsAdmin(false);
         setEnabledCalendars(prev => {
             const next = new Set(prev);
-            next.delete(PUBLIC_CALENDARS.length);
+            next.delete(adminCalendarIndex);
             return next;
         });
     };
@@ -1144,17 +1190,33 @@ export default function CalendarPage() {
                         <p className={`text-xs ${theme.textMuted} text-center mb-4`}>Choose which calendars to add to your calendar app</p>
                         <div className="space-y-4">
                             {CALENDARS.map((cal, index) => {
-                                const icalUrl = `https://calendar.google.com/calendar/ical/${cal.id}/public/basic.ics`;
+                                // ROK Events is served by our own dynamic ICS endpoint;
+                                // the Google calendars resolve to the standard public iCal URL.
+                                const isRok = cal.id === ROK_EVENTS_CALENDAR_ID;
+                                const icalUrl = isRok
+                                    ? (typeof window !== 'undefined'
+                                        ? `${window.location.origin}/api/calendar/rok-events.ics`
+                                        : '/api/calendar/rok-events.ics')
+                                    : `https://calendar.google.com/calendar/ical/${cal.id}/public/basic.ics`;
+                                const addToGoogleHref = isRok
+                                    // Google Calendar's "add by URL" flow accepts an external ICS via cid parameter.
+                                    ? `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(icalUrl)}`
+                                    : `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(cal.id)}`;
                                 return (
                                     <div key={cal.id} className={`p-4 rounded-lg border ${theme.border}`}>
                                         <div className="flex items-center gap-2 mb-3">
                                             <span className="w-3 h-3 rounded-full" style={{ backgroundColor: cal.color }} />
                                             <h4 className="font-medium">{cal.name}</h4>
+                                            {isRok && (
+                                                <span className="ml-1 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-violet-500/30 bg-violet-500/10 text-violet-300">
+                                                    auto
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="grid gap-3 md:grid-cols-2">
                                             <div>
                                                 <p className={`text-xs ${theme.textMuted} mb-2`}>Google Calendar</p>
-                                                <a href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(cal.id)}`} target="_blank" rel="noopener noreferrer" className={`inline-block px-3 py-2 rounded-lg text-xs font-medium ${theme.button}`}>Add to Google Calendar</a>
+                                                <a href={addToGoogleHref} target="_blank" rel="noopener noreferrer" className={`inline-block px-3 py-2 rounded-lg text-xs font-medium ${theme.button}`}>Add to Google Calendar</a>
                                             </div>
                                             <div>
                                                 <p className={`text-xs ${theme.textMuted} mb-2`}>Apple / Outlook / Other</p>
@@ -1262,8 +1324,7 @@ export default function CalendarPage() {
                     <p className={`text-xs ${theme.textMuted}`}>Kingdom 23 • Rise of Kingdoms</p>
                     <p className={`text-[10px] ${theme.textMuted} opacity-50`}>Subscribe to get event reminders in your calendar app</p>
                     <p className={`text-[10px] ${theme.textMuted} opacity-50`}>
-                        ROK Events calendar sourced from{' '}
-                        <a href="https://rokcentral.com/calendar/" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--foreground)] transition-colors">rokcentral.com</a>
+                        ROK Events generated from a built-in recurring schedule — calibrate cycle anchors in <code className="font-mono">lib/calendar/rok-events.ts</code> to keep occurrences accurate.
                     </p>
                 </footer>
             </div>

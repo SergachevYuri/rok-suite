@@ -1164,6 +1164,8 @@
     "targetDateUtc": "Hedef Tarih (UTC)",
     "projectedResources": "Öngörülen Kaynaklar",
     "cappedTag": "(kapalı)",
+    "wastedTag": "lost to cap",
+    "totalWasted": "Lost to cap",
     "nowSuffix": "Şimdi",
     "timeToCap": "Kapanış Zamanı",
     "noCapSet": "kapak seti yok",
