@@ -217,6 +217,38 @@ type CalcMode = 'by-time' | 'target-flags';
 type StorehouseMode = 'by-time' | 'target-resources';
 type ActiveTab = 'flags' | 'storehouse';
 
+// ─── localStorage persistence ────────────────────────────────────────────
+// Inputs that change rarely (kingdom-specific) are saved so a page refresh
+// doesn't wipe the user's setup. Time-based fields and tab/mode toggles are
+// excluded — they should default fresh on each visit.
+const STORAGE_KEY = 'alliance-calculator-state-v1';
+
+interface PersistedState {
+  resourceInputs?: Record<string, string>;
+  capInputs?: Record<string, string>;
+  productionInputs?: Record<string, string>;
+  arch1Level?: number;
+  arch2Level?: number;
+  artisanLevel?: number;
+  currentFlagsInput?: string;
+  targetFlagsInput?: string;
+}
+
+const DEFAULT_RESOURCES = { food: '9.7', wood: '7.6', stone: '5.3', gold: '2.6', crystals: '0.72', credits: '128.2' };
+const DEFAULT_CAPS      = { food: '11', wood: '11', stone: '8.2', gold: '5.5', crystals: '5.5', credits: '' };
+const DEFAULT_PROD      = { food: '102000', wood: '102000', stone: '85500', gold: '70000', crystals: '13500', credits: '0' };
+
+function loadPersistedState(): PersistedState | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedState;
+  } catch {
+    return null;
+  }
+}
+
 export default function FlagCalculatorPage() {
   const t = useTranslations('allianceCalculator');
   const [activeTab, setActiveTab] = useState<ActiveTab>('flags');
@@ -225,18 +257,66 @@ export default function FlagCalculatorPage() {
   const currentFlags = parseInt(currentFlagsInput) || 0;
   const [targetFlagsInput, setTargetFlagsInput] = useState('10');
   const targetFlagCount = parseInt(targetFlagsInput) || 0;
-  const [resourceInputs, setResourceInputs] = useState({
-    food: '9.7', wood: '7.6', stone: '5.3', gold: '2.6', crystals: '0.72', credits: '128.2',
-  });
-  const [capInputs, setCapInputs] = useState({
-    food: '11', wood: '11', stone: '8.2', gold: '5.5', crystals: '5.5', credits: '',
-  });
-  const [productionInputs, setProductionInputs] = useState({
-    food: '102000', wood: '102000', stone: '85500', gold: '70000', crystals: '13500', credits: '0',
-  });
+  const [resourceInputs, setResourceInputs] = useState(DEFAULT_RESOURCES);
+  const [capInputs, setCapInputs] = useState(DEFAULT_CAPS);
+  const [productionInputs, setProductionInputs] = useState(DEFAULT_PROD);
   const [arch1Level, setArch1Level] = useState(5);
   const [arch2Level, setArch2Level] = useState(10);
   const [artisanLevel, setArtisanLevel] = useState(10);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'reset'>('idle');
+
+  // ─── Auto-load persisted state on mount ───
+  // Only run once on the client; SSR will render with the defaults.
+  useEffect(() => {
+    const s = loadPersistedState();
+    if (!s) return;
+    if (s.resourceInputs) setResourceInputs({ ...DEFAULT_RESOURCES, ...s.resourceInputs });
+    if (s.capInputs) setCapInputs({ ...DEFAULT_CAPS, ...s.capInputs });
+    if (s.productionInputs) setProductionInputs({ ...DEFAULT_PROD, ...s.productionInputs });
+    if (typeof s.arch1Level === 'number') setArch1Level(s.arch1Level);
+    if (typeof s.arch2Level === 'number') setArch2Level(s.arch2Level);
+    if (typeof s.artisanLevel === 'number') setArtisanLevel(s.artisanLevel);
+    if (typeof s.currentFlagsInput === 'string') setCurrentFlagsInput(s.currentFlagsInput);
+    if (typeof s.targetFlagsInput === 'string') setTargetFlagsInput(s.targetFlagsInput);
+  }, []);
+
+  const handleSavePrefs = () => {
+    if (typeof window === 'undefined') return;
+    const payload: PersistedState = {
+      resourceInputs,
+      capInputs,
+      productionInputs,
+      arch1Level,
+      arch2Level,
+      artisanLevel,
+      currentFlagsInput,
+      targetFlagsInput,
+    };
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      setSaveStatus('saved');
+      window.setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (e) {
+      console.warn('Failed to save calculator state', e);
+    }
+  };
+
+  const handleResetPrefs = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch { /* ignore */ }
+    setResourceInputs(DEFAULT_RESOURCES);
+    setCapInputs(DEFAULT_CAPS);
+    setProductionInputs(DEFAULT_PROD);
+    setArch1Level(5);
+    setArch2Level(10);
+    setArtisanLevel(10);
+    setCurrentFlagsInput('');
+    setTargetFlagsInput('10');
+    setSaveStatus('reset');
+    window.setTimeout(() => setSaveStatus('idle'), 2000);
+  };
   const [targetDateStr, setTargetDateStr] = useState('');
   const [now, setNow] = useState(() => new Date());
 
@@ -484,10 +564,31 @@ export default function FlagCalculatorPage() {
       <div className="min-h-screen">
         <div className="max-w-5xl mx-auto px-4 py-8">
           {/* Header */}
-          <div className="mb-6">
+          <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
             <h1 className="text-2xl font-bold flex items-center gap-2 text-[var(--foreground)]">
               {t('title')}
             </h1>
+            <div className="flex items-center gap-2">
+              {saveStatus !== 'idle' && (
+                <span className={`text-xs ${saveStatus === 'saved' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {saveStatus === 'saved' ? '✓ Saved' : '↺ Reset'}
+                </span>
+              )}
+              <button
+                onClick={handleSavePrefs}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 transition-colors"
+                title="Persist current resources / production / cap / arch & artisan levels to this browser. Survives page refresh."
+              >
+                Save inputs
+              </button>
+              <button
+                onClick={handleResetPrefs}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--text-muted)] text-sm hover:text-[var(--foreground)] transition-colors"
+                title="Clear saved values and restore defaults."
+              >
+                Reset
+              </button>
+            </div>
           </div>
 
           {/* Top-level tab navigation */}

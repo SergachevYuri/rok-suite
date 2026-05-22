@@ -139,7 +139,8 @@ export const ROK_RECURRING_EVENTS: RecurringEvent[] = [
     title: "Dhalruk's Puzzle Box",
     description: "Dhalruk's Puzzle Box event.",
     color: '#abab4d',
-    patterns: [{ startDate: '2025-02-17', frequency: 'eight-weeks', duration: 2 }],
+    // Calibrated to observed 2026-05-06; rokhub's bundle anchor was off by ~5 days.
+    patterns: [{ startDate: '2026-05-06', frequency: 'eight-weeks', duration: 2 }],
   },
   {
     uid: 'aoo',

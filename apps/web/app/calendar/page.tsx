@@ -718,7 +718,10 @@ function WeekView({ events, timezone, weekOffset, onChangeWeek }: {
 }
 
 // ——— Month View —————————————————————————————————————————————————————————
-const MAX_VISIBLE_LANES = 4; // event bars per week-row before "+N more" overflow
+// Each event lane occupies this many vertical pixels (button height + gap).
+const LANE_HEIGHT_PX = 26;
+// Height reserved at the top of every cell for the day-number + dot summary.
+const DAY_NUMBER_RESERVED_PX = 32;
 
 interface WeekEventSegment {
     eventId: string;
@@ -766,15 +769,39 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
     const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
     const monthName = new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-    // Split the 42-cell grid into rows of 7 (one row per week).
+    // Build the grid as 6 rows × 7 cells (always) using trailing days of the
+    // previous month + leading days of the next month to fill the gaps. Out-
+    // of-month cells get `inCurrentMonth: false` so they can be dimmed.
     const weeks = useMemo(() => {
-        const cells: (string | null)[] = [];
-        for (let i = 0; i < firstDay; i++) cells.push(null);
-        for (let d = 1; d <= daysInMonth; d++) {
-            cells.push(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+        const cells: { dateKey: string; inCurrentMonth: boolean }[] = [];
+
+        const fmt = (y: number, m: number, d: number) =>
+            `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+        // Trailing days of the previous month, shown dimmed.
+        const prevMonth = new Date(currentYear, currentMonth, 0); // 0 = last day of prev month
+        const prevMonthDays = prevMonth.getDate();
+        for (let i = firstDay - 1; i >= 0; i--) {
+            const day = prevMonthDays - i;
+            cells.push({ dateKey: fmt(prevMonth.getFullYear(), prevMonth.getMonth(), day), inCurrentMonth: false });
         }
-        while (cells.length % 7 !== 0) cells.push(null);
-        const rows: (string | null)[][] = [];
+
+        // Current month.
+        for (let d = 1; d <= daysInMonth; d++) {
+            cells.push({ dateKey: fmt(currentYear, currentMonth, d), inCurrentMonth: true });
+        }
+
+        // Leading days of the next month — pad to 6 rows (42 cells) so the
+        // grid height stays stable across months.
+        const target = 42;
+        let nextDay = 1;
+        const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
+        while (cells.length < target) {
+            cells.push({ dateKey: fmt(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), nextDay), inCurrentMonth: false });
+            nextDay++;
+        }
+
+        const rows: (typeof cells)[] = [];
         for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
         return rows;
     }, [currentYear, currentMonth, daysInMonth, firstDay]);
@@ -809,12 +836,11 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
     // like Google Calendar / rokhub instead of fighting for the same row.
     const weekSegments = useMemo(() => {
         return weeks.map((weekDates) => {
-            // Earliest & latest dateKey present in this week — used to detect
-            // events that continue past the week's edges.
-            const present = weekDates.filter((d): d is string => d !== null);
-            if (present.length === 0) return { segments: [] as WeekEventSegment[], laneCount: 0 };
-            const weekStartKey = present[0];
-            const weekEndKey = present[present.length - 1];
+            // All 7 cells are present now (we backfill prev/next month) so the
+            // bounds are simply col 1 and col 7.
+            if (weekDates.length === 0) return { segments: [] as WeekEventSegment[], laneCount: 0 };
+            const weekStartKey = weekDates[0].dateKey;
+            const weekEndKey = weekDates[6].dateKey;
 
             // All-day events that overlap this week.
             const segs: WeekEventSegment[] = [];
@@ -824,12 +850,9 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
                 const evEndExclusive = ev.end.slice(0, 10);
                 if (evEndExclusive <= weekStartKey || evStart > weekEndKey) continue;
 
-                // Columns 1..7 the event touches within THIS week (only over
-                // cells that actually belong to the current month-grid).
                 const cols: number[] = [];
-                weekDates.forEach((dk, i) => {
-                    if (!dk) return;
-                    if (dk >= evStart && dk < evEndExclusive) cols.push(i + 1);
+                weekDates.forEach((c, i) => {
+                    if (c.dateKey >= evStart && c.dateKey < evEndExclusive) cols.push(i + 1);
                 });
                 if (cols.length === 0) continue;
 
@@ -839,7 +862,6 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
                     color: ev.calendarColor,
                     startCol: cols[0],
                     endCol: cols[cols.length - 1],
-                    // Event continues out of the visible week range on either side?
                     continuesLeft: evStart < weekStartKey,
                     continuesRight: evEndExclusive > addDaysIso(weekEndKey, 1),
                     lane: 0,
@@ -888,28 +910,21 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
                 ))}
             </div>
 
-            {/* Weeks — each row has day cells + a stacked overlay of event bars.
-                Multi-day events render as a single bar spanning columns within
-                the week, with square edges on continuation sides. */}
+            {/* Weeks — each row has day cells + a stacked overlay of event
+                bars. Cells in the week share a min-height computed from the
+                lane count so every event fits without overlap. */}
             <div className="space-y-1 px-1 pb-1">
                 {weeks.map((weekDates, wi) => {
                     const { segments, laneCount } = weekSegments[wi] ?? { segments: [], laneCount: 0 };
-                    const visibleSegments = segments.filter(s => s.lane < MAX_VISIBLE_LANES);
-                    // Per-cell overflow chip: total events touching this day
-                    // minus the ones already shown as visible bars.
-                    const overflowPerCol = new Map<number, number>();
-                    for (const seg of segments) {
-                        if (seg.lane < MAX_VISIBLE_LANES) continue;
-                        for (let c = seg.startCol; c <= seg.endCol; c++) {
-                            overflowPerCol.set(c, (overflowPerCol.get(c) ?? 0) + 1);
-                        }
-                    }
+                    // Desktop cell height: enough for day number + every lane.
+                    // Mobile falls back to aspect-square via the className.
+                    const cellMinHeight = DAY_NUMBER_RESERVED_PX + Math.max(laneCount, 1) * LANE_HEIGHT_PX + 8;
                     return (
                         <div key={wi} className="relative">
                             {/* Day cells with day numbers */}
                             <div className="grid grid-cols-7 gap-1">
-                                {weekDates.map((dateKey, i) => {
-                                    if (!dateKey) return <div key={`empty-${wi}-${i}`} className="rounded-lg bg-[var(--background-secondary)]/30 aspect-square sm:aspect-auto sm:min-h-[110px]" />;
+                                {weekDates.map((cell) => {
+                                    const { dateKey, inCurrentMonth } = cell;
                                     const day = Number(dateKey.slice(8, 10));
                                     const isSelected = selectedDate === dateKey;
                                     const isTodayCell = dateKey === todayKey;
@@ -918,19 +933,24 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
                                         <button
                                             key={dateKey}
                                             onClick={() => setSelectedDate(isSelected ? null : dateKey)}
-                                            className={`relative text-left p-1.5 sm:p-2 rounded-lg aspect-square sm:aspect-auto sm:min-h-[110px] transition-all overflow-hidden ${
+                                            style={{ minHeight: `${cellMinHeight}px` }}
+                                            className={`relative text-left p-1.5 sm:p-2 rounded-lg aspect-square sm:aspect-auto transition-all overflow-hidden ${
                                                 isSelected
                                                     ? 'bg-rose-500/15 ring-1 ring-rose-500/40'
                                                     : isTodayCell
                                                         ? 'bg-rose-500/5 ring-1 ring-rose-500/30 hover:bg-rose-500/10'
-                                                        : 'bg-[var(--background-secondary)]/60 hover:bg-[var(--background-secondary)]'
+                                                        : inCurrentMonth
+                                                            ? 'bg-[var(--background-secondary)]/60 hover:bg-[var(--background-secondary)]'
+                                                            : 'bg-[var(--background-secondary)]/20 hover:bg-[var(--background-secondary)]/40 opacity-60'
                                             }`}
                                         >
                                             <div className="flex items-center justify-between mb-1">
                                                 <span className={`text-xs sm:text-sm font-semibold leading-none ${
                                                     isTodayCell
                                                         ? 'bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs'
-                                                        : dayEventCount > 0 ? 'text-[var(--foreground)] pl-0.5' : 'text-[var(--text-muted)] pl-0.5'
+                                                        : !inCurrentMonth
+                                                            ? 'text-[var(--text-muted)]/60 pl-0.5'
+                                                            : dayEventCount > 0 ? 'text-[var(--foreground)] pl-0.5' : 'text-[var(--text-muted)] pl-0.5'
                                                 }`}>
                                                     {day}
                                                 </span>
@@ -945,33 +965,19 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
                                                     </span>
                                                 )}
                                             </div>
-                                            {/* Spacer that reserves room under day number for the
-                                                event-bars overlay (~16px per lane). */}
-                                            <div className="hidden sm:block" style={{ minHeight: Math.min(laneCount, MAX_VISIBLE_LANES) * 18 + 4 }} aria-hidden="true" />
-                                            {/* "+N more" hint per cell when bars overflow MAX_VISIBLE_LANES */}
-                                            {(overflowPerCol.get(i + 1) ?? 0) > 0 && (
-                                                <div className="hidden sm:block text-[9px] text-[var(--text-muted)] italic mt-0.5">
-                                                    +{overflowPerCol.get(i + 1)} more
-                                                </div>
-                                            )}
                                         </button>
                                     );
                                 })}
                             </div>
 
-                            {/* Event bars overlay — sm+ only. Direct copy of
-                                the rokhub.xyz HTML pattern: an absolute grid on
-                                top of the week, positioned via grid-area to
-                                span columns and stack into lanes. The wrapper
-                                divs are pointer-events-none so day cells stay
-                                clickable; only the inner buttons recapture
-                                pointer events. */}
-                            {visibleSegments.length > 0 && (
+                            {/* Event bars overlay — sm+ only. Rokhub HTML pattern:
+                                absolute grid on top with grid-area positioning. */}
+                            {segments.length > 0 && (
                                 <div
-                                    className="absolute inset-0 hidden sm:grid grid-cols-7 gap-x-1 gap-y-0 pt-7 pointer-events-none content-start"
-                                    style={{ gridAutoRows: 'min-content' }}
+                                    className="absolute inset-0 hidden sm:grid grid-cols-7 gap-x-1 gap-y-0 pointer-events-none content-start"
+                                    style={{ gridAutoRows: 'min-content', paddingTop: `${DAY_NUMBER_RESERVED_PX}px` }}
                                 >
-                                    {visibleSegments.map((seg) => (
+                                    {segments.map((seg) => (
                                         <div
                                             key={`${seg.eventId}-${seg.startCol}`}
                                             className="pointer-events-none"
@@ -982,10 +988,7 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    // Open the day-detail panel anchored at the
-                                                    // segment's start day. Lets users still drill
-                                                    // into a multi-day event from any segment.
-                                                    const startDateKey = weekDates[seg.startCol - 1] ?? null;
+                                                    const startDateKey = weekDates[seg.startCol - 1]?.dateKey ?? null;
                                                     if (startDateKey) {
                                                         setSelectedDate(selectedDate === startDateKey ? null : startDateKey);
                                                     }
