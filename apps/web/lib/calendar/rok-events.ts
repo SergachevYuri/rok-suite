@@ -119,7 +119,7 @@ export const ROK_RECURRING_EVENTS: RecurringEvent[] = [
     title: 'More Than Gems (MTG)',
     description: 'Gem-spending event over two days. Roughly every 4–6 weeks.',
     color: '#f59e0b',
-    anchorDate: '2026-05-06',
+    anchorDate: '2026-05-23',
     durationDays: 2,
     recurrence: { type: 'days', interval: 35 },
   },

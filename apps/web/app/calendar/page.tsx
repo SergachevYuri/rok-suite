@@ -765,29 +765,29 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
     const selectedEvents = selectedDate ? (eventsByDate.get(selectedDate) || []) : [];
 
     return (
-        <div>
+        <div className="p-2 sm:p-3">
             {/* Month header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-                <button onClick={() => onChangeMonth(-1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
+            <div className="flex items-center justify-between px-2 sm:px-3 pb-3">
+                <button onClick={() => onChangeMonth(-1)} className="p-2 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
                     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                 </button>
-                <h3 className="text-base font-semibold text-[var(--foreground)]">{monthName}</h3>
-                <button onClick={() => onChangeMonth(1)} className="p-1.5 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
+                <h3 className="text-lg sm:text-xl font-semibold text-[var(--foreground)]">{monthName}</h3>
+                <button onClick={() => onChangeMonth(1)} className="p-2 rounded-lg hover:bg-[var(--background-hover)] text-[var(--text-secondary)] transition-colors">
                     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
                 </button>
             </div>
 
             {/* Day-of-week header */}
-            <div className="grid grid-cols-7 border-b border-[var(--border)]">
+            <div className="grid grid-cols-7 gap-1 mb-1 px-1">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                    <div key={d} className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider py-2 text-center">{d}</div>
+                    <div key={d} className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider py-1.5 text-center">{d}</div>
                 ))}
             </div>
 
-            {/* Day grid */}
-            <div className="grid grid-cols-7">
+            {/* Day grid — rokhub-style: rounded cells separated by gap, no grid lines */}
+            <div className="grid grid-cols-7 gap-1 px-1 pb-1">
                 {cells.map((day, i) => {
-                    if (day === null) return <div key={`empty-${i}`} className="border-b border-r border-[var(--border)] min-h-[60px] sm:min-h-[90px]" />;
+                    if (day === null) return <div key={`empty-${i}`} className="aspect-square sm:aspect-auto sm:min-h-[100px] rounded-lg bg-[var(--background-secondary)]/30" />;
                     const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const dayEvents = eventsByDate.get(dateKey) || [];
                     const isSelected = selectedDate === dateKey;
@@ -799,49 +799,49 @@ function MonthView({ events, timezone, currentMonth, currentYear, onChangeMonth 
                         <button
                             key={dateKey}
                             onClick={() => setSelectedDate(isSelected ? null : dateKey)}
-                            className={`relative text-left p-1 sm:p-1.5 border-b border-r border-[var(--border)] min-h-[60px] sm:min-h-[90px] transition-colors ${
+                            className={`relative text-left p-1.5 sm:p-2 rounded-lg aspect-square sm:aspect-auto sm:min-h-[100px] transition-all overflow-hidden ${
                                 isSelected
-                                    ? 'bg-rose-500/10'
-                                    : 'hover:bg-[var(--background-hover)]'
+                                    ? 'bg-rose-500/15 ring-1 ring-rose-500/40'
+                                    : isTodayCell
+                                        ? 'bg-rose-500/5 ring-1 ring-rose-500/30 hover:bg-rose-500/10'
+                                        : 'bg-[var(--background-secondary)]/60 hover:bg-[var(--background-secondary)]'
                             }`}
                         >
                             {/* Day number */}
-                            <div className="flex items-center justify-center sm:justify-start mb-0.5">
-                                <span className={`text-xs sm:text-sm font-medium leading-none ${
+                            <div className="flex items-center justify-between mb-1">
+                                <span className={`text-xs sm:text-sm font-semibold leading-none ${
                                     isTodayCell
-                                        ? 'bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center'
-                                        : dayEvents.length > 0 ? 'text-[var(--foreground)]' : 'text-[var(--text-muted)]'
+                                        ? 'bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs'
+                                        : dayEvents.length > 0 ? 'text-[var(--foreground)] pl-0.5' : 'text-[var(--text-muted)] pl-0.5'
                                 }`}>
                                     {day}
                                 </span>
+                                {/* Mobile dot summary: shown only on small screens when names don't fit */}
+                                {dayEvents.length > 0 && (
+                                    <span className="sm:hidden flex items-center gap-0.5">
+                                        {dayEvents.slice(0, 3).map((ev, ei) => (
+                                            <span key={ei} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ev.calendarColor }} />
+                                        ))}
+                                        {dayEvents.length > 3 && (
+                                            <span className="text-[8px] text-[var(--text-muted)] leading-none ml-0.5">+{dayEvents.length - 3}</span>
+                                        )}
+                                    </span>
+                                )}
                             </div>
 
-                            {/* Mobile: colored dots */}
-                            {dayEvents.length > 0 && (
-                                <div className="flex flex-wrap gap-0.5 justify-center sm:hidden mt-0.5">
-                                    {dayEvents.slice(0, 4).map((ev, ei) => (
-                                        <span key={ei} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ev.calendarColor }} />
-                                    ))}
-                                    {dayEvents.length > 4 && (
-                                        <span className="text-[8px] text-[var(--text-muted)] leading-none">+{dayEvents.length - 4}</span>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Desktop: event names */}
+                            {/* Event chips — desktop only, mobile uses dot summary above */}
                             <div className="hidden sm:block space-y-0.5">
                                 {visibleEvents.map((ev, ei) => (
                                     <div
                                         key={ei}
-                                        className="flex items-center gap-1 rounded px-1 py-0.5 truncate text-[10px] leading-tight"
-                                        style={{ backgroundColor: ev.calendarColor + '20', color: ev.calendarColor }}
+                                        className="rounded px-1.5 py-0.5 truncate text-[10px] leading-tight font-medium"
+                                        style={{ backgroundColor: ev.calendarColor + '25', color: ev.calendarColor, borderLeft: `2px solid ${ev.calendarColor}` }}
                                     >
-                                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: ev.calendarColor }} />
-                                        <span className="truncate font-medium">{ev.summary}</span>
+                                        <span className="truncate">{ev.summary}</span>
                                     </div>
                                 ))}
                                 {overflow > 0 && (
-                                    <div className="text-[10px] text-[var(--text-muted)] px-1">+{overflow} more</div>
+                                    <div className="text-[10px] text-[var(--text-muted)] px-1.5 italic">+{overflow} more</div>
                                 )}
                             </div>
                         </button>
@@ -892,7 +892,7 @@ export default function CalendarPage() {
     const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
     const [password, setPassword] = useState('');
     const [passwordError, setPasswordError] = useState(false);
-    const [viewMode, setViewMode] = useState<ViewMode>('agenda');
+    const [viewMode, setViewMode] = useState<ViewMode>('month');
     const [monthOffset, setMonthOffset] = useState(0);
     const [dayOffset, setDayOffset] = useState(0);
     const [weekOffset, setWeekOffset] = useState(0);
