@@ -3589,10 +3589,21 @@ export default function AooStrategyPage() {
                         // First pass: confirmations + collect pending additions.
                         // Bucket registrations per-team so role assignments below can split
                         // rally/garrison leaders across lanes 1 and 3 in sheet order.
+                        //
+                        // When a row matches the alliance roster by Gov ID we override the
+                        // name with the roster's version. Players often type a simplified
+                        // name in the sign-up sheet, but the roster has the in-game name
+                        // (which carries all the special characters like ✗, ơ, ⁿ, Đ, etc.).
+                        // Using the roster name means the generated mail matches what
+                        // people actually see in-game, so they can find themselves.
                         const teamRegs: Record<TeamNumber, typeof registrations> = { 1: [], 2: [], 3: [] };
                         for (const r of registrations) {
-                            const name = r.name;
                             const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
+                            const name = rosterMember?.name ?? r.name;
+                            // Carry the canonical name into the bucketed copy so the
+                            // second pass (rally/garrison lane locks) keys by the same
+                            // string the confirmations + zones use.
+                            const canonical = name === r.name ? r : { ...r, name };
 
                             if (r.league) {
                                 // League players land in the designated league slot. They're
@@ -3601,7 +3612,7 @@ export default function AooStrategyPage() {
                                 // weekend.
                                 if (detectedLeagueSlot && r.team1) {
                                     newConfirmations[detectedLeagueSlot][name] = 'confirmed';
-                                    teamRegs[detectedLeagueSlot].push(r);
+                                    teamRegs[detectedLeagueSlot].push(canonical);
                                     if (r.coordinator) newCoordinators[detectedLeagueSlot].add(name);
                                     if (r.sub) newSubs[detectedLeagueSlot].add(name);
                                 }
@@ -3615,7 +3626,7 @@ export default function AooStrategyPage() {
                                 if (r.team2) teamsForPlayer.push(2);
                                 if (teamsForPlayer.length === 0) teamsForPlayer.push(1);
                                 for (const teamNum of teamsForPlayer) {
-                                    teamRegs[teamNum].push(r);
+                                    teamRegs[teamNum].push(canonical);
                                     if (r.coordinator) newCoordinators[teamNum].add(name);
                                     if (r.sub) newSubs[teamNum].add(name);
                                 }
