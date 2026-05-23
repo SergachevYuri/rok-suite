@@ -1107,12 +1107,10 @@ function TeamBuilderTab({
             const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
             // Only auto-fill if no UI selection exists for this zone
             if (!leads[zoneNum]) leads[zoneNum] = sorted[0].name;
-            // League team: auto-pick a secondary rally lead (next-best score),
-            // skipping whoever already has the primary slot for this zone.
-            if (isLeague && !leads2[zoneNum]) {
-                const next = sorted.find(p => p.name !== leads[zoneNum]);
-                if (next) leads2[zoneNum] = next.name;
-            }
+            // Secondary rally lead is sheet-driven only — populated from
+            // selectedRallyLeadsSecondaryByTeam at import time when the sheet
+            // marks two rally leaders for the same lane. We deliberately don't
+            // auto-pick here: if the sheet only lists one, the mail shows one.
             if (!garrisonLeads[zoneNum]) {
                 const taken = new Set([leads[zoneNum], leads2[zoneNum]].filter(Boolean));
                 const next = sorted.find(p => !taken.has(p.name));
@@ -3579,6 +3577,10 @@ export default function AooStrategyPage() {
                         const newConfirmations: ConfirmationsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newLockedLanes: LockedLanesByTeam = { 1: {}, 2: {}, 3: {} };
                         const newRallyLeads: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
+                        // Secondary rally leads — only populated when the sheet marks
+                        // more than one rally leader for the same lane. Otherwise stays
+                        // empty so the mail shows a single rally lead per lane.
+                        const newRallyLeads2: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newGarrisonLeads: GarrisonLeadsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newArkCarriers: ArkCarriersByTeam = { 1: '', 2: '', 3: '' };
                         const newCoordinators: Record<TeamNumber, Set<string>> = { 1: new Set(), 2: new Set(), 3: new Set() };
@@ -3675,6 +3677,11 @@ export default function AooStrategyPage() {
                             // column, 2) the row's generic Lane column, 3) round-robin
                             // top/bottom in sheet order (legacy weekend sheets that have
                             // a boolean rally leader column with no lane info).
+                            //
+                            // When the sheet marks two rally leaders for the same lane,
+                            // the first becomes primary and the second becomes secondary.
+                            // Anything beyond two is locked to the lane but not assigned
+                            // a labelled slot — officers can promote them manually.
                             const rallyRegs = regs.filter(r => r.rallyLeader && !subSet.has(r.name) && !r.mid);
                             const rallyLanes: number[] = [1, 3];
                             let rallyIdx = 0;
@@ -3685,7 +3692,11 @@ export default function AooStrategyPage() {
                                 const lane = explicitLeaderLane
                                     ?? (r.lane === 1 || r.lane === 3 ? r.lane : rallyLanes[rallyIdx++ % 2]);
                                 newLockedLanes[team][r.name] = lane;
-                                if (!newRallyLeads[team][lane]) newRallyLeads[team][lane] = r.name;
+                                if (!newRallyLeads[team][lane]) {
+                                    newRallyLeads[team][lane] = r.name;
+                                } else if (!newRallyLeads2[team][lane]) {
+                                    newRallyLeads2[team][lane] = r.name;
+                                }
                             }
 
                             // Garrison leaders → same priority chain as rally.
@@ -3714,6 +3725,9 @@ export default function AooStrategyPage() {
                         setConfirmationsByTeam(newConfirmations);
                         setLockedLanesByTeam(newLockedLanes);
                         setSelectedRallyLeadsByTeam(newRallyLeads);
+                        // Reset secondary so a fresh import doesn't leave a stale auto-pick
+                        // from a previous distribute call. Only the sheet seeds this now.
+                        setSelectedRallyLeadsSecondaryByTeam(newRallyLeads2);
                         setSelectedGarrisonLeadsByTeam(newGarrisonLeads);
                         setSelectedArkCarriersByTeam(newArkCarriers);
                         setCoordinatorsByTeam(newCoordinators);
