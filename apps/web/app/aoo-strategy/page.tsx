@@ -475,7 +475,7 @@ function TeamBuilderTab({
         if (headerMarkup) lines.push(headerMarkup);
         lines.push(DIVIDER);
         lines.push('');
-        lines.push(`<b><color=#ff3333>AoO Team ${team}</color></b>`);
+        lines.push(`<b><color=#ff3333>${isLeague ? 'Osiris League' : `AoO Team ${team}`}</color></b>`);
         lines.push('');
         lines.push('Find your name, know your lane.');
         lines.push('');
