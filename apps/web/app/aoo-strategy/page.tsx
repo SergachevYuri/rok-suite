@@ -482,7 +482,7 @@ function TeamBuilderTab({
         if (isLeague) {
             lines.push('<b>Reminders</b>');
             lines.push('- Switch your gear and commanders to KvK2 setup.');
-            lines.push("- Wait for the call to teleport, please don't jump early.");
+            lines.push('- <b>Do NOT</b> teleport immediately unless you have been assigned.');
             lines.push('- Garrison the obelisk fully before anyone advances.');
             lines.push('- We push with rallies.');
             lines.push('- Stay in your assigned lane.');
