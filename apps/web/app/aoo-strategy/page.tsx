@@ -3644,26 +3644,34 @@ export default function AooStrategyPage() {
                                 newArkCarriers[team] = midRegs[0].name;
                             }
 
-                            // Rally leaders → split across top/bottom in sheet order
+                            // Rally leaders → respect the sheet's stated lane.
+                            // Priority: 1) rallyLeaderLane from the OL "Rally Leader: t/b"
+                            // column, 2) the row's generic Lane column, 3) round-robin
+                            // top/bottom in sheet order (legacy weekend sheets that have
+                            // a boolean rally leader column with no lane info).
                             const rallyRegs = regs.filter(r => r.rallyLeader && !subSet.has(r.name) && !r.mid);
                             const rallyLanes: number[] = [1, 3];
                             let rallyIdx = 0;
                             for (const r of rallyRegs) {
-                                const lane = r.lane === 1 || r.lane === 3
-                                    ? r.lane
-                                    : rallyLanes[rallyIdx++ % 2];
+                                const explicitLeaderLane =
+                                    r.rallyLeaderLane === 't' ? 1 :
+                                    r.rallyLeaderLane === 'b' ? 3 : null;
+                                const lane = explicitLeaderLane
+                                    ?? (r.lane === 1 || r.lane === 3 ? r.lane : rallyLanes[rallyIdx++ % 2]);
                                 newLockedLanes[team][r.name] = lane;
                                 if (!newRallyLeads[team][lane]) newRallyLeads[team][lane] = r.name;
                             }
 
-                            // Garrison leaders → split across top/bottom in sheet order
+                            // Garrison leaders → same priority chain as rally.
                             const garrisonRegs = regs.filter(r => r.garrisonLeader && !subSet.has(r.name) && !r.mid && !r.rallyLeader);
                             const garrisonLanes: number[] = [1, 3];
                             let garrisonIdx = 0;
                             for (const r of garrisonRegs) {
-                                const lane = r.lane === 1 || r.lane === 3
-                                    ? r.lane
-                                    : garrisonLanes[garrisonIdx++ % 2];
+                                const explicitLeaderLane =
+                                    r.garrisonLeaderLane === 't' ? 1 :
+                                    r.garrisonLeaderLane === 'b' ? 3 : null;
+                                const lane = explicitLeaderLane
+                                    ?? (r.lane === 1 || r.lane === 3 ? r.lane : garrisonLanes[garrisonIdx++ % 2]);
                                 newLockedLanes[team][r.name] = lane;
                                 if (!newGarrisonLeads[team][lane]) newGarrisonLeads[team][lane] = r.name;
                             }
