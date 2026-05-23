@@ -486,7 +486,6 @@ function TeamBuilderTab({
             lines.push('- Garrison the obelisk fully before advancing.');
             lines.push('- We push with rallies.');
             lines.push('- Stay in your assigned lane.');
-            lines.push("- Don't move down the field until your building is secured.");
         } else {
             lines.push('<b>!! NON-NEGOTIABLE RULES !!</b>');
             lines.push('- <b>Do NOT</b> teleport immediately unless you have been assigned.');
