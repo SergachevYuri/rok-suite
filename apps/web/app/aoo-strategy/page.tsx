@@ -460,6 +460,9 @@ function TeamBuilderTab({
         const headerMarkup = MAIL_HEADER_PRESETS[mailHeader]?.markup ?? '';
         const DIVIDER = '►═════════❂❂❂═════════◄';
         const SECTION = '━━━━━━━━━━━━━━━━━━━━';
+        // League team gets a softer "Reminders" section + no coordinators list
+        // + no leadership signoff. Weekend teams keep the strict rules variant.
+        const isLeague = team === leagueTeamNumber;
 
         const zones = suggestedZonesByTeam[team] || {};
         const rallyLeads = selectedRallyLeadsByTeam[team] || {};
@@ -476,13 +479,24 @@ function TeamBuilderTab({
         lines.push('');
         lines.push('Find your name, know your lane.');
         lines.push('');
-        lines.push('<b>!! NON-NEGOTIABLE RULES !!</b>');
-        lines.push('- <b>Do NOT</b> teleport immediately unless you have been assigned.');
-        lines.push('- The obelisk is <b>ALWAYS</b> fully garrisoned before you advance.');
-        lines.push('- We attack with rallies.');
-        lines.push('- Stay in your assigned lane.');
-        lines.push('- <b>Do NOT</b> move down the field until your building is secured.');
-        lines.push('- <b>Do NOT</b> lose an obelisk or building from poor garrisoning.');
+        if (isLeague) {
+            lines.push('<b>Reminders</b>');
+            lines.push('- Switch your gear and commanders to KvK2 setup.');
+            lines.push("- Wait for the call to teleport, please don't jump early.");
+            lines.push('- Garrison the obelisk fully before anyone advances.');
+            lines.push('- We push with rallies.');
+            lines.push('- Stay in your assigned lane.');
+            lines.push("- Don't move down the field until your building is secured.");
+            lines.push('- Keep obelisks and buildings safe, garrison carefully.');
+        } else {
+            lines.push('<b>!! NON-NEGOTIABLE RULES !!</b>');
+            lines.push('- <b>Do NOT</b> teleport immediately unless you have been assigned.');
+            lines.push('- The obelisk is <b>ALWAYS</b> fully garrisoned before you advance.');
+            lines.push('- We attack with rallies.');
+            lines.push('- Stay in your assigned lane.');
+            lines.push('- <b>Do NOT</b> move down the field until your building is secured.');
+            lines.push('- <b>Do NOT</b> lose an obelisk or building from poor garrisoning.');
+        }
 
         const zoneConfig = [
             { num: 1, label: 'TOP LANE', color: '#3399ff' },
@@ -538,15 +552,18 @@ function TeamBuilderTab({
             lines.push(`<b>Subs:</b> ${subs.map(p => p.name).join(', ')}`);
         }
 
-        // Coordinators
-        if (teamCoords.size > 0) {
-            lines.push('');
-            lines.push(`<b>Coordinators:</b> ${[...teamCoords].join(', ')}`);
-        }
+        // Coordinators + leadership signoff: weekend teams only. The league
+        // template drops both per its stripped-down format.
+        if (!isLeague) {
+            if (teamCoords.size > 0) {
+                lines.push('');
+                lines.push(`<b>Coordinators:</b> ${[...teamCoords].join(', ')}`);
+            }
 
-        lines.push('');
-        lines.push(DIVIDER);
-        lines.push(`<b><color=#800000>— Leadership</color></b>`);
+            lines.push('');
+            lines.push(DIVIDER);
+            lines.push(`<b><color=#800000>— Leadership</color></b>`);
+        }
 
         return lines.join('\n');
     };
