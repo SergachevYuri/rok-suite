@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/client';
 import { fetchKdSnapshotSummary, timeAgo, type KdSnapshotSummary } from '@/lib/kingdom/kd-snapshots';
 import { fetchHeroscrollKingdoms, saveHeroscrollSnapshot, fetchLatestHeroscrollSnapshotMeta, type HeroscrollKingdom } from '@/lib/kingdom/heroscroll';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
+import { OUR_SEED_KDS, OUR_SEED_SET } from '@/lib/kingdom/our-seed';
 import {
   KD_POOLS,
   poolFilter,
@@ -1536,10 +1537,9 @@ const COMBAT_TIERS = [
   { key: 't5',        label: 'T5',        subtitle: '≥43M power',              powerMin: 43_000_000, powerMax: Number.POSITIVE_INFINITY, kpMin: 0, color: '#f87171' },
 ] as const;
 
-// Combat checker: per-seed view of how many players each KD has above a
-// power-or-KP threshold. The seed band shown is the ORIGINAL power-based
-// seed (inherited from the comparison ranking) — the threshold filter only
-// re-sorts the table by combat count, it doesn't reshuffle seed bands.
+// Combat checker scoped to OUR_SEED (our seed of 8 KDs) — drops the seed-band
+// filter since the set is fixed. The threshold + metric still re-sort the
+// table by combat count so we can spot who has the most T5-capable players.
 function CombatCheckerPanel({
   players,
   loading,
@@ -1550,66 +1550,49 @@ function CombatCheckerPanel({
   players: { kingdom_id: number; power: number; kp: number }[] | null;
   loading: boolean;
   error: string | null;
+  /** Original power-based seed band map. Used as a visual badge alongside
+   *  the KD column so the user can still see which power-band each of our
+   *  seed KDs lands in. */
   seedByKd: Map<number, SeedAssignment>;
   toDate: string | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [selectedSeeds, setSelectedSeeds] = useState<Set<'A' | 'B' | 'C' | 'D'>>(
-    new Set(['A', 'B', 'C', 'D']),
-  );
   const [metric, setMetric] = useState<'power' | 'kp'>('power');
   const [thresholdM, setThresholdM] = useState<number>(45);
 
   const threshold = thresholdM * 1_000_000;
 
-  const toggleSeed = (s: 'A' | 'B' | 'C' | 'D') => {
-    setSelectedSeeds((prev) => {
-      const next = new Set(prev);
-      if (next.has(s)) next.delete(s); else next.add(s);
-      return next;
-    });
-  };
-
-  // Counts per KD with original seed preserved. Filter by selected seeds,
-  // then sort by count DESC so the most "combat-ready" KDs land on top
-  // regardless of their power_400 rank.
+  // Counts per KD across the OUR_SEED 8-KD set. Sort by count DESC so the
+  // most "combat-ready" of our seed lands on top.
   const rows = useMemo(() => {
     if (!players) return [];
     const counts = new Map<number, number>();
     for (const p of players) {
-      const seed = seedByKd.get(p.kingdom_id);
-      if (!seed || !selectedSeeds.has(seed)) continue;
+      if (!OUR_SEED_SET.has(p.kingdom_id)) continue;
       const value = metric === 'power' ? p.power : p.kp;
       if (value < threshold) continue;
       counts.set(p.kingdom_id, (counts.get(p.kingdom_id) ?? 0) + 1);
     }
     const out: { kingdom_id: number; seed: SeedAssignment; count: number }[] = [];
-    for (const [kd, seed] of seedByKd) {
-      if (!seed || !selectedSeeds.has(seed)) continue;
-      out.push({ kingdom_id: kd, seed, count: counts.get(kd) ?? 0 });
+    for (const kd of OUR_SEED_KDS) {
+      out.push({ kingdom_id: kd, seed: seedByKd.get(kd) ?? null, count: counts.get(kd) ?? 0 });
     }
-    // Count DESC; ties broken by KD asc for determinism.
     out.sort((a, b) => (b.count - a.count) || (a.kingdom_id - b.kingdom_id));
     return out;
-  }, [players, seedByKd, selectedSeeds, metric, threshold]);
+  }, [players, seedByKd, metric, threshold]);
 
   const totalPlayers = useMemo(() => rows.reduce((acc, r) => acc + r.count, 0), [rows]);
 
-  // One dataset per tier — same X-axis ordering across all 4 charts so the
-  // user can visually scan "this KD has lots of T4 strong but no T5" by
-  // looking at the same column position in each chart.
+  // One dataset per tier — X-axis is OUR_SEED_KDS in ascending order, same
+  // across all 4 charts so columns line up for cross-tier comparison.
   const tierData = useMemo(() => {
-    const sortedKds = [...seedByKd.entries()]
-      .filter(([, s]) => s && selectedSeeds.has(s))
-      .map(([kd]) => kd)
-      .sort((a, b) => a - b);
+    const sortedKds = [...OUR_SEED_KDS].sort((a, b) => a - b);
     return COMBAT_TIERS.map((tier) => {
       const counts = new Map<number, number>();
       for (const kd of sortedKds) counts.set(kd, 0);
       if (players) {
         for (const p of players) {
-          const seed = seedByKd.get(p.kingdom_id);
-          if (!seed || !selectedSeeds.has(seed)) continue;
+          if (!OUR_SEED_SET.has(p.kingdom_id)) continue;
           if (p.power < tier.powerMin || p.power >= tier.powerMax) continue;
           if (p.kp < tier.kpMin) continue;
           counts.set(p.kingdom_id, (counts.get(p.kingdom_id) ?? 0) + 1);
@@ -1619,7 +1602,7 @@ function CombatCheckerPanel({
       const total = data.reduce((acc, r) => acc + r.count, 0);
       return { ...tier, data, total };
     });
-  }, [players, seedByKd, selectedSeeds]);
+  }, [players]);
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--background-card)] overflow-hidden">
@@ -1637,7 +1620,8 @@ function CombatCheckerPanel({
             )}
           </div>
           <div className="text-xs text-[var(--text-muted)] mt-0.5">
-            How many players each KD has above a power/KP threshold, grouped by seed band.
+            How many players each KD has above a power/KP threshold. Locked
+            to our seed: KD {OUR_SEED_KDS.join(', ')}.
             {toDate && ` Snapshot: ${toDate}.`}
           </div>
         </div>
@@ -1647,25 +1631,9 @@ function CombatCheckerPanel({
       {open && (
         <div className="border-t border-[var(--border)]">
           <div className="px-4 py-3 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1">
-              <span className="text-xs uppercase tracking-wider text-[var(--text-muted)] mr-1">Seeds</span>
-              {(['A', 'B', 'C', 'D'] as const).map((s) => {
-                const checked = selectedSeeds.has(s);
-                return (
-                  <button
-                    key={s}
-                    onClick={() => toggleSeed(s)}
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-xs font-semibold transition-colors ${
-                      checked
-                        ? 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30'
-                        : 'bg-[var(--background-secondary)] text-[var(--text-muted)] border-[var(--border)]'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
+            <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+              Our seed · {OUR_SEED_KDS.length} KDs
+            </span>
 
             <div className="flex items-center gap-1">
               <span className="text-xs uppercase tracking-wider text-[var(--text-muted)] mr-1">Metric</span>
