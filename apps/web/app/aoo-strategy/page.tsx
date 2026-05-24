@@ -460,6 +460,9 @@ function TeamBuilderTab({
         const headerMarkup = MAIL_HEADER_PRESETS[mailHeader]?.markup ?? '';
         const DIVIDER = '►═════════❂❂❂═════════◄';
         const SECTION = '━━━━━━━━━━━━━━━━━━━━';
+        // League team gets a softer "Reminders" section + no coordinators list
+        // + no leadership signoff. Weekend teams keep the strict rules variant.
+        const isLeague = team === leagueTeamNumber;
 
         const zones = suggestedZonesByTeam[team] || {};
         const rallyLeads = selectedRallyLeadsByTeam[team] || {};
@@ -472,17 +475,26 @@ function TeamBuilderTab({
         if (headerMarkup) lines.push(headerMarkup);
         lines.push(DIVIDER);
         lines.push('');
-        lines.push(`<b><color=#ff3333>AoO Team ${team}</color></b>`);
+        lines.push(`<b><color=#ff3333>${isLeague ? 'Osiris League' : `AoO Team ${team}`}</color></b>`);
         lines.push('');
         lines.push('Find your name, know your lane.');
         lines.push('');
-        lines.push('<b>!! NON-NEGOTIABLE RULES !!</b>');
-        lines.push('- <b>Do NOT</b> teleport immediately unless you have been assigned.');
-        lines.push('- The obelisk is <b>ALWAYS</b> fully garrisoned before you advance.');
-        lines.push('- We attack with rallies.');
-        lines.push('- Stay in your assigned lane.');
-        lines.push('- <b>Do NOT</b> move down the field until your building is secured.');
-        lines.push('- <b>Do NOT</b> lose an obelisk or building from poor garrisoning.');
+        if (isLeague) {
+            lines.push('<b>Reminders</b>');
+            lines.push('- Switch your gear and commanders to KvK2 setup.');
+            lines.push('- <b>Do NOT</b> teleport immediately unless you have been assigned.');
+            lines.push('- Garrison the obelisk fully before advancing.');
+            lines.push('- We push with rallies.');
+            lines.push('- Stay in your assigned lane.');
+        } else {
+            lines.push('<b>!! NON-NEGOTIABLE RULES !!</b>');
+            lines.push('- <b>Do NOT</b> teleport immediately unless you have been assigned.');
+            lines.push('- The obelisk is <b>ALWAYS</b> fully garrisoned before you advance.');
+            lines.push('- We attack with rallies.');
+            lines.push('- Stay in your assigned lane.');
+            lines.push('- <b>Do NOT</b> move down the field until your building is secured.');
+            lines.push('- <b>Do NOT</b> lose an obelisk or building from poor garrisoning.');
+        }
 
         const zoneConfig = [
             { num: 1, label: 'TOP LANE', color: '#3399ff' },
@@ -538,15 +550,18 @@ function TeamBuilderTab({
             lines.push(`<b>Subs:</b> ${subs.map(p => p.name).join(', ')}`);
         }
 
-        // Coordinators
-        if (teamCoords.size > 0) {
-            lines.push('');
-            lines.push(`<b>Coordinators:</b> ${[...teamCoords].join(', ')}`);
-        }
+        // Coordinators + leadership signoff: weekend teams only. The league
+        // template drops both per its stripped-down format.
+        if (!isLeague) {
+            if (teamCoords.size > 0) {
+                lines.push('');
+                lines.push(`<b>Coordinators:</b> ${[...teamCoords].join(', ')}`);
+            }
 
-        lines.push('');
-        lines.push(DIVIDER);
-        lines.push(`<b><color=#800000>— Leadership</color></b>`);
+            lines.push('');
+            lines.push(DIVIDER);
+            lines.push(`<b><color=#800000>— Leadership</color></b>`);
+        }
 
         return lines.join('\n');
     };
@@ -1092,12 +1107,10 @@ function TeamBuilderTab({
             const sorted = [...players].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
             // Only auto-fill if no UI selection exists for this zone
             if (!leads[zoneNum]) leads[zoneNum] = sorted[0].name;
-            // League team: auto-pick a secondary rally lead (next-best score),
-            // skipping whoever already has the primary slot for this zone.
-            if (isLeague && !leads2[zoneNum]) {
-                const next = sorted.find(p => p.name !== leads[zoneNum]);
-                if (next) leads2[zoneNum] = next.name;
-            }
+            // Secondary rally lead is sheet-driven only — populated from
+            // selectedRallyLeadsSecondaryByTeam at import time when the sheet
+            // marks two rally leaders for the same lane. We deliberately don't
+            // auto-pick here: if the sheet only lists one, the mail shows one.
             if (!garrisonLeads[zoneNum]) {
                 const taken = new Set([leads[zoneNum], leads2[zoneNum]].filter(Boolean));
                 const next = sorted.find(p => !taken.has(p.name));
@@ -3564,6 +3577,10 @@ export default function AooStrategyPage() {
                         const newConfirmations: ConfirmationsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newLockedLanes: LockedLanesByTeam = { 1: {}, 2: {}, 3: {} };
                         const newRallyLeads: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
+                        // Secondary rally leads — only populated when the sheet marks
+                        // more than one rally leader for the same lane. Otherwise stays
+                        // empty so the mail shows a single rally lead per lane.
+                        const newRallyLeads2: RallyLeadsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newGarrisonLeads: GarrisonLeadsByTeam = { 1: {}, 2: {}, 3: {} };
                         const newArkCarriers: ArkCarriersByTeam = { 1: '', 2: '', 3: '' };
                         const newCoordinators: Record<TeamNumber, Set<string>> = { 1: new Set(), 2: new Set(), 3: new Set() };
@@ -3574,10 +3591,21 @@ export default function AooStrategyPage() {
                         // First pass: confirmations + collect pending additions.
                         // Bucket registrations per-team so role assignments below can split
                         // rally/garrison leaders across lanes 1 and 3 in sheet order.
+                        //
+                        // When a row matches the alliance roster by Gov ID we override the
+                        // name with the roster's version. Players often type a simplified
+                        // name in the sign-up sheet, but the roster has the in-game name
+                        // (which carries all the special characters like ✗, ơ, ⁿ, Đ, etc.).
+                        // Using the roster name means the generated mail matches what
+                        // people actually see in-game, so they can find themselves.
                         const teamRegs: Record<TeamNumber, typeof registrations> = { 1: [], 2: [], 3: [] };
                         for (const r of registrations) {
-                            const name = r.name;
                             const rosterMember = r.govId ? rosterByGovId.get(r.govId) : undefined;
+                            const name = rosterMember?.name ?? r.name;
+                            // Carry the canonical name into the bucketed copy so the
+                            // second pass (rally/garrison lane locks) keys by the same
+                            // string the confirmations + zones use.
+                            const canonical = name === r.name ? r : { ...r, name };
 
                             if (r.league) {
                                 // League players land in the designated league slot. They're
@@ -3586,7 +3614,7 @@ export default function AooStrategyPage() {
                                 // weekend.
                                 if (detectedLeagueSlot && r.team1) {
                                     newConfirmations[detectedLeagueSlot][name] = 'confirmed';
-                                    teamRegs[detectedLeagueSlot].push(r);
+                                    teamRegs[detectedLeagueSlot].push(canonical);
                                     if (r.coordinator) newCoordinators[detectedLeagueSlot].add(name);
                                     if (r.sub) newSubs[detectedLeagueSlot].add(name);
                                 }
@@ -3600,7 +3628,7 @@ export default function AooStrategyPage() {
                                 if (r.team2) teamsForPlayer.push(2);
                                 if (teamsForPlayer.length === 0) teamsForPlayer.push(1);
                                 for (const teamNum of teamsForPlayer) {
-                                    teamRegs[teamNum].push(r);
+                                    teamRegs[teamNum].push(canonical);
                                     if (r.coordinator) newCoordinators[teamNum].add(name);
                                     if (r.sub) newSubs[teamNum].add(name);
                                 }
@@ -3644,26 +3672,43 @@ export default function AooStrategyPage() {
                                 newArkCarriers[team] = midRegs[0].name;
                             }
 
-                            // Rally leaders → split across top/bottom in sheet order
+                            // Rally leaders → respect the sheet's stated lane.
+                            // Priority: 1) rallyLeaderLane from the OL "Rally Leader: t/b"
+                            // column, 2) the row's generic Lane column, 3) round-robin
+                            // top/bottom in sheet order (legacy weekend sheets that have
+                            // a boolean rally leader column with no lane info).
+                            //
+                            // When the sheet marks two rally leaders for the same lane,
+                            // the first becomes primary and the second becomes secondary.
+                            // Anything beyond two is locked to the lane but not assigned
+                            // a labelled slot — officers can promote them manually.
                             const rallyRegs = regs.filter(r => r.rallyLeader && !subSet.has(r.name) && !r.mid);
                             const rallyLanes: number[] = [1, 3];
                             let rallyIdx = 0;
                             for (const r of rallyRegs) {
-                                const lane = r.lane === 1 || r.lane === 3
-                                    ? r.lane
-                                    : rallyLanes[rallyIdx++ % 2];
+                                const explicitLeaderLane =
+                                    r.rallyLeaderLane === 't' ? 1 :
+                                    r.rallyLeaderLane === 'b' ? 3 : null;
+                                const lane = explicitLeaderLane
+                                    ?? (r.lane === 1 || r.lane === 3 ? r.lane : rallyLanes[rallyIdx++ % 2]);
                                 newLockedLanes[team][r.name] = lane;
-                                if (!newRallyLeads[team][lane]) newRallyLeads[team][lane] = r.name;
+                                if (!newRallyLeads[team][lane]) {
+                                    newRallyLeads[team][lane] = r.name;
+                                } else if (!newRallyLeads2[team][lane]) {
+                                    newRallyLeads2[team][lane] = r.name;
+                                }
                             }
 
-                            // Garrison leaders → split across top/bottom in sheet order
+                            // Garrison leaders → same priority chain as rally.
                             const garrisonRegs = regs.filter(r => r.garrisonLeader && !subSet.has(r.name) && !r.mid && !r.rallyLeader);
                             const garrisonLanes: number[] = [1, 3];
                             let garrisonIdx = 0;
                             for (const r of garrisonRegs) {
-                                const lane = r.lane === 1 || r.lane === 3
-                                    ? r.lane
-                                    : garrisonLanes[garrisonIdx++ % 2];
+                                const explicitLeaderLane =
+                                    r.garrisonLeaderLane === 't' ? 1 :
+                                    r.garrisonLeaderLane === 'b' ? 3 : null;
+                                const lane = explicitLeaderLane
+                                    ?? (r.lane === 1 || r.lane === 3 ? r.lane : garrisonLanes[garrisonIdx++ % 2]);
                                 newLockedLanes[team][r.name] = lane;
                                 if (!newGarrisonLeads[team][lane]) newGarrisonLeads[team][lane] = r.name;
                             }
@@ -3680,6 +3725,9 @@ export default function AooStrategyPage() {
                         setConfirmationsByTeam(newConfirmations);
                         setLockedLanesByTeam(newLockedLanes);
                         setSelectedRallyLeadsByTeam(newRallyLeads);
+                        // Reset secondary so a fresh import doesn't leave a stale auto-pick
+                        // from a previous distribute call. Only the sheet seeds this now.
+                        setSelectedRallyLeadsSecondaryByTeam(newRallyLeads2);
                         setSelectedGarrisonLeadsByTeam(newGarrisonLeads);
                         setSelectedArkCarriersByTeam(newArkCarriers);
                         setCoordinatorsByTeam(newCoordinators);

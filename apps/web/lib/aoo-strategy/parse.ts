@@ -151,6 +151,117 @@ export async function fetchAooRegistrationSheet(
 }
 
 /**
+ * Parse the OL (Osiris League) sheet schema. Columns:
+ *   Name, Gov ID, Power, Confirmed, Lane, Rally Leader, Garrison Leader,
+ *   Sub, Coordinator
+ *
+ * Schema rules (validated by the sanity panel, not enforced here):
+ *  - Lane: t / b / m for top/bottom/mid mains; blank means the row is a sub
+ *  - Sub: x marks a substitute (and Lane must be blank for them)
+ *  - Rally Leader: t or b — overlay on a main; exactly one of each expected
+ *  - Garrison Leader: t or b — overlay on a main; exactly one of each
+ *  - Coordinator: x — overlay on a main; exactly 5 expected
+ *
+ * Mapping into AooRegistration: every confirmed row becomes a league player
+ * (`league: true`, `team1: true`) so it flows through the existing
+ * mergeAooRegistrations + team-builder pipeline unchanged. `rallyLeader` /
+ * `garrisonLeader` boolean flags are derived from non-blank lane values, with
+ * the lane itself stored in `rallyLeaderLane` / `garrisonLeaderLane` for the
+ * sanity panel to inspect.
+ */
+export function parseAooLeagueRegistrationCSV(text: string): AooRegistration[] {
+  const { headers, rows } = parseCSV(text);
+
+  const idx = (...names: string[]) => {
+    const wants = names.map((n) => n.toLowerCase().trim());
+    return headers.findIndex((h) => wants.includes(h.toLowerCase().trim()));
+  };
+
+  const iName = idx('name');
+  const iGovId = idx('gov id', 'governor id', 'govid');
+  const iPower = idx('power');
+  const iConfirmed = idx('confirmed', 'confirm');
+  const iLane = idx('lane');
+  const iRallyLeader = idx('rally leader', 'rally');
+  const iGarrisonLeader = idx('garrison leader', 'garrison');
+  const iSub = idx('sub', 'substitute');
+  const iCoordinator = idx('coordinator', 'coord');
+
+  if (iName === -1) throw new Error('Missing required "Name" column in OL sheet');
+
+  const isChecked = (val: string | undefined) =>
+    (val || '').trim().toLowerCase() === 'x';
+
+  const parseMainLane = (val: string | undefined): 't' | 'b' | 'm' | null => {
+    const v = (val || '').trim().toLowerCase();
+    if (v === 't' || v === 'top' || v === 'top lane' || v === '1') return 't';
+    if (v === 'b' || v === 'bot' || v === 'bottom' || v === 'bottom lane' || v === '3') return 'b';
+    if (v === 'm' || v === 'mid' || v === 'middle' || v === 'mid lane' || v === '2') return 'm';
+    return null;
+  };
+
+  const parseLeaderLane = (val: string | undefined): 't' | 'b' | null => {
+    const v = (val || '').trim().toLowerCase();
+    if (v === 't' || v === 'top' || v === 'top lane') return 't';
+    if (v === 'b' || v === 'bot' || v === 'bottom' || v === 'bottom lane') return 'b';
+    return null;
+  };
+
+  const laneToNumber = (lane: 't' | 'b' | 'm' | null): number | null => {
+    if (lane === 't') return 1;
+    if (lane === 'm') return 2;
+    if (lane === 'b') return 3;
+    return null;
+  };
+
+  // Back-compat: if there's no Confirmed column, treat every row as confirmed
+  // so a fresh league sheet without that column still works.
+  const confirmedColumnPresent = iConfirmed !== -1;
+
+  return rows
+    .map((cols) => {
+      const lane = parseMainLane(cols[iLane]);
+      const rallyLane = parseLeaderLane(cols[iRallyLeader]);
+      const garrisonLane = parseLeaderLane(cols[iGarrisonLeader]);
+      const sub = isChecked(cols[iSub]);
+      const confirmed = confirmedColumnPresent ? isChecked(cols[iConfirmed]) : true;
+
+      return {
+        name: (cols[iName] || '').trim(),
+        govId: parseInt(cols[iGovId]) || 0,
+        power: parseInt(cols[iPower]) || 0,
+        confirmed,
+        // Confirmed league rows are in this week's pool. team1=true is the
+        // existing convention that mergeAooRegistrations + the team builder
+        // both already understand for league players.
+        team1: confirmed,
+        team2: false,
+        rallyLeader: rallyLane !== null,
+        garrisonLeader: garrisonLane !== null,
+        mid: lane === 'm',
+        sub,
+        coordinator: isChecked(cols[iCoordinator]),
+        lane: laneToNumber(lane),
+        league: true,
+        rallyLeaderLane: rallyLane,
+        garrisonLeaderLane: garrisonLane,
+      } satisfies AooRegistration;
+    })
+    .filter((r) => r.name);
+}
+
+/** Fetch the OL sheet's League tab and parse with the OL schema. */
+export async function fetchAooLeagueRegistrationSheet(
+  sheetUrl: string,
+): Promise<AooRegistration[]> {
+  const exportUrl = toExportUrl(sheetUrl);
+  const response = await fetch(exportUrl);
+  if (!response.ok) throw new Error(`Failed to fetch sheet: ${response.status}`);
+  const text = await response.text();
+  return parseAooLeagueRegistrationCSV(text);
+}
+
+/**
  * Combine the main weekend tab with the league tab into a single registration
  * list with mutual exclusion enforced: any player on the league tab is removed
  * from the normal Team 1 / Team 2 pools (team1/team2 forced to false). League

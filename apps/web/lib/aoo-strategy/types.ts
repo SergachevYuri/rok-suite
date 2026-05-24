@@ -95,4 +95,12 @@ export interface AooRegistration {
    *  are excluded from normal Team 1 / Team 2 rosters at merge time and form
    *  a separate fixed-roster team that runs alongside the weekend teams. */
   league: boolean;
+  /** Which lane this rally leader runs on the OL sheet ('t' = top, 'b' =
+   *  bottom). Only the league parser populates this; the normal weekend
+   *  parser leaves it undefined. Used by the league sanity panel to verify
+   *  exactly one rally lead per lane. */
+  rallyLeaderLane?: 't' | 'b' | null;
+  /** Which lane this garrison leader covers on the OL sheet. Same shape and
+   *  rules as rallyLeaderLane. */
+  garrisonLeaderLane?: 't' | 'b' | null;
 }

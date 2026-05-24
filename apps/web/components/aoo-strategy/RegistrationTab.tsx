@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { FileSpreadsheet, Loader2, ExternalLink, RefreshCw, Users, Swords, Crown, Target, AlertTriangle, Shield, ChevronDown, ChevronUp, Upload, ArrowRight, Trophy } from 'lucide-react';
-import { fetchAooRegistrationSheet, parseAooRegistrationCSV, mergeAooRegistrations } from '@/lib/aoo-strategy/parse';
+import { fetchAooRegistrationSheet, fetchAooLeagueRegistrationSheet, parseAooRegistrationCSV, mergeAooRegistrations } from '@/lib/aoo-strategy/parse';
+import { LeagueSheetPanel } from './LeagueSheetPanel';
 import { parseKingdomXLSX } from '@/lib/kingdom/parse';
 import type { AooRegistration } from '@/lib/aoo-strategy/types';
 import { formatPower } from '@/lib/supabase/use-alliance-roster';
@@ -138,7 +139,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
     setLeagueLoading(true);
     setLeagueError(null);
     try {
-      const data = await fetchAooRegistrationSheet(leagueSheetUrl.trim(), { league: true });
+      const data = await fetchAooLeagueRegistrationSheet(leagueSheetUrl.trim());
       setRawLeagueRegistrations(data);
       if (data.length > 0) setFetched(true);
       localStorage.setItem(LEAGUE_SHEET_URL_KEY, leagueSheetUrl.trim());
@@ -715,6 +716,11 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
           {t('skipToBuilder')}
         </button>
       </section>
+
+      {/* OL sheet sanity panel + grouped roster. While a tournament is locked
+          we show the snapshot (effective league rows); otherwise show the
+          live league fetch. Hidden when no league rows are loaded at all. */}
+      <LeagueSheetPanel rows={effectiveLeagueRegistrations} theme={theme} />
 
       {/* Column Format Instructions — collapsed by default on mobile */}
       <section className={`${theme.card} border rounded-xl mb-4 sm:mb-6 p-3 sm:p-5`}>
