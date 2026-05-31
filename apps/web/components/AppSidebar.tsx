@@ -166,7 +166,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
           {!isCollapsed && (
             <span className="text-xs text-[var(--text-muted)]">Account</span>
           )}
-          <SignInButton collapsed={isCollapsed} />
+          <SignInButton collapsed={isCollapsed} menuPlacement="up" />
         </div>
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed && (

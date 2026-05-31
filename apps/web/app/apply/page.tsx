@@ -15,7 +15,9 @@ type Tab = 'submit' | 'review';
 export default function ApplyPage() {
   const t = useTranslations('apply');
   const { role } = useAuthRole();
-  const isAdmin = meetsRole(role, 'admin');
+  // Review access is granted to both admin and officer. The submit form is
+  // open to everyone — applicants don't need to sign in.
+  const isAdmin = meetsRole(role, ['admin', 'officer']);
   const [tab, setTab] = useState<Tab>(isAdmin ? 'review' : 'submit');
 
   const showReview = isAdmin && tab === 'review';

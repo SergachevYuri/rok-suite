@@ -6,6 +6,11 @@ import { useAuthRole, meetsRole, type AuthRole } from '@/lib/auth-role';
 
 interface SignInButtonProps {
   collapsed?: boolean;
+  /** Where to anchor the role-chip dropdown menu. Defaults to `'down'` so it
+   *  doesn't get clipped when the button sits in a page header at the top of
+   *  the viewport. The sidebar footer passes `'up'` because its button is at
+   *  the bottom of the side panel. */
+  menuPlacement?: 'up' | 'down';
 }
 
 const ROLE_STYLE: Record<AuthRole, { label: string; classes: string }> = {
@@ -14,7 +19,7 @@ const ROLE_STYLE: Record<AuthRole, { label: string; classes: string }> = {
   power: { label: 'Power', classes: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
 };
 
-export function SignInButton({ collapsed = false }: SignInButtonProps) {
+export function SignInButton({ collapsed = false, menuPlacement = 'down' }: SignInButtonProps) {
   const { role, unlockWith, signOut } = useAuthRole();
   const [modalOpen, setModalOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -73,7 +78,11 @@ export function SignInButton({ collapsed = false }: SignInButtonProps) {
         {menuOpen && (
           <div
             className={`absolute ${
-              collapsed ? 'left-full ml-2 bottom-0' : 'right-0 bottom-full mb-2'
+              collapsed
+                ? 'left-full ml-2 bottom-0'
+                : menuPlacement === 'up'
+                  ? 'right-0 bottom-full mb-2'
+                  : 'right-0 top-full mt-2'
             } w-44 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-lg overflow-hidden z-[60]`}
           >
             <div className="px-3 py-2 border-b border-[var(--border)]">
