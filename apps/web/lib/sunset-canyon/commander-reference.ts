@@ -694,11 +694,11 @@ export const commanderReferences: CommanderReference[] = [
   {
     id: 'heraclius',
     name: 'Heraclius',
-    title: 'Restorer of the Empire',
+    title: 'The First Basileus',
     rarity: 'legendary',
-    specialties: ['Cavalry', 'Conquering', 'Attack'],
+    specialties: ['Leadership', 'Garrison', 'Defense'],
     imageUrl: 'https://static.wikia.nocookie.net/riseofkingdoms/images/h/h1/Heraclius.png',
-    altNames: [],
+    altNames: ['heraclius'],
   },
   {
     id: 'zenobia',
