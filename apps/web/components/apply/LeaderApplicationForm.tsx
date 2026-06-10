@@ -426,7 +426,18 @@ export function LeaderApplicationForm() {
                   secondaryCommanderName: null,
                 })
               }
-              onChangeRoleType={(v) => updateRole(role.uid, { roleType: v })}
+              onChangeRoleType={(v) =>
+                updateRole(role.uid, {
+                  roleType: v,
+                  // Garrison and rally draw from different commander pools, so
+                  // clear any selection to avoid silently submitting a commander
+                  // that isn't valid for the newly chosen role.
+                  primaryCommanderId: null,
+                  primaryCommanderName: null,
+                  secondaryCommanderId: null,
+                  secondaryCommanderName: null,
+                })
+              }
               onChangeCommander={(slot, id, name) =>
                 updateRole(
                   role.uid,
@@ -627,6 +638,7 @@ function RoleCard({
             value={role.primaryCommanderId}
             onChange={(id, name) => onChangeCommander('primary', id, name)}
             unitFilter={role.unitType}
+            garrisonOnly={role.roleType === 'garrison'}
             invalid={!!errorPrimaryCommander}
             placeholder={t('commander.placeholder')}
           />
@@ -642,6 +654,7 @@ function RoleCard({
             value={role.secondaryCommanderId}
             onChange={(id, name) => onChangeCommander('secondary', id, name)}
             unitFilter={role.unitType}
+            garrisonOnly={role.roleType === 'garrison'}
             invalid={!!errorSecondaryCommander}
             placeholder={t('commander.placeholder')}
           />

@@ -10,6 +10,13 @@ interface CommanderPickerProps {
   onChange: (id: string | null, name: string | null) => void;
   /** Optional unit-type filter — matches against the commander's specialties. */
   unitFilter?: 'infantry' | 'archer' | 'cavalry' | null;
+  /**
+   * Garrison mode: list only garrison commanders (those with the 'Garrison'
+   * specialty) and ignore unitFilter. RoK garrison commanders defend the city
+   * regardless of troop type — many are leadership-type with no troop tag — so
+   * the troop filter would wrongly hide them.
+   */
+  garrisonOnly?: boolean;
   placeholder?: string;
   invalid?: boolean;
 }
@@ -34,6 +41,10 @@ function matchesUnit(c: CommanderReference, unit: CommanderPickerProps['unitFilt
   return c.specialties.some((s) => s.toLowerCase() === target);
 }
 
+function isGarrisonCommander(c: CommanderReference): boolean {
+  return c.specialties.some((s) => s.toLowerCase() === 'garrison');
+}
+
 function normalize(text: string): string {
   return text.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
@@ -42,6 +53,7 @@ export function CommanderPicker({
   value,
   onChange,
   unitFilter,
+  garrisonOnly = false,
   placeholder,
   invalid = false,
 }: CommanderPickerProps) {
@@ -67,13 +79,17 @@ export function CommanderPicker({
   const visible = useMemo(() => {
     const q = normalize(search.trim());
     const filtered = sorted.filter((c) => {
-      if (!matchesUnit(c, unitFilter)) return false;
+      if (garrisonOnly) {
+        if (!isGarrisonCommander(c)) return false;
+      } else if (!matchesUnit(c, unitFilter)) {
+        return false;
+      }
       if (!q) return true;
       const haystacks = [c.name, c.title, ...(c.altNames || [])].map(normalize);
       return haystacks.some((h) => h.includes(q));
     });
     return filtered;
-  }, [sorted, search, unitFilter]);
+  }, [sorted, search, unitFilter, garrisonOnly]);
 
   useEffect(() => {
     if (!open) return;
@@ -218,9 +234,9 @@ export function CommanderPicker({
             </div>
 
             {/* Active filter indicator */}
-            {unitFilter && (
+            {(garrisonOnly || unitFilter) && (
               <div className="px-3 py-1.5 text-[11px] text-[var(--text-muted)] bg-[var(--background-secondary)]/60 border-b border-[var(--border)]">
-                {t('filtered', { unit: unitFilter, count: visible.length })}
+                {t('filtered', { unit: garrisonOnly ? 'garrison' : unitFilter ?? '', count: visible.length })}
               </div>
             )}
 
