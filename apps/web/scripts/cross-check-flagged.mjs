@@ -25,7 +25,21 @@ const supabase = createClient(url, key);
 
 const MIGRATION_ROW_ID = 'migration';
 
-const NAMES = `Zloy1
+const NAMES = `Halah Asu
+ᵖˢ xHokagee
+ᴬʷDrNefario
+What The heill
+Yterb
+jaclass
+BEYAZID 55
+ᵀᴼsiampa
+TVRI mongos
+jokowi dodoo
+UmutChan
+Legen21
+calypsux
+吉祥如意
+Zloy1
 Kafziel
 SaNtA CLaus
 ᵃⁿᵍCowl
@@ -56,7 +70,6 @@ Trini Vengeance
 Qwerx130
 執政官210368524
 mng patagoak
-Coffee01
 Tiger 7
 ᵃⁿᵍKomVD2
 KouSmiNaS
@@ -67,7 +80,6 @@ Wallerun I
 ᶲ Puteh
 Barba alba
 ᵃⁿᵍMONTAN
-sir Yuckfou
 xiaomei
 ᵐⁿᵍJMLP31
 ㅅㄱㅇ asdfghjkl
@@ -102,7 +114,6 @@ MCDragoon
 ᵏᵏ John117
 ᵃⁿᵍLele
 zyya
-lml Keter lml
 Samuel Phan
 Etrama D Raizel
 Luk3s
@@ -132,6 +143,7 @@ BlueLemon88
 ᴍɴɢズMouse
 ᵃⁿᵍRaijin
 ᵏⁿᵍZdrawe
+Darkwitch
 豆しば
 ᴼᵀᶠ Enma
 ᵃⁿᵍGouv
