@@ -51,23 +51,27 @@ const T5_POWER_FLOOR = 45_000_000;
 type TabType = 'table' | 'charts' | 'comparison' | 'migrations' | 'search' | 'upload';
 const VALID_TABS: TabType[] = ['table', 'charts', 'comparison', 'migrations', 'search', 'upload'];
 
-/** One row of the Migrations tab — a player who appears in the To scan with
- *  a different (or unknown) kingdom_id compared to the From scan.
- *  fromKd = null means the player wasn't in the From scan at all → "new joiner".
- *  In that case fromPower / fromKp are 0 and deltaPower equals toPower. */
+/** One row of the Migrations tab. Three flavours, all coexisting in the list:
+ *   - regular migration: fromKd ≠ toKd, both known
+ *   - new joiner:        fromKd = null, toKd known (wasn't in From scan)
+ *   - departed:          fromKd known, toKd = null (was in From, vanished
+ *                        from To scan — left the pool or dropped <floor)
+ *  Numeric fields for the "missing" side default to 0. */
 interface MigrationRow {
   player_id: number;
   name: string;
   fromKd: number | null;
-  toKd: number;
+  toKd: number | null;
   fromPower: number;
   toPower: number;
   fromKp: number;
   toKp: number;
   deltaPower: number;
   isNewJoiner: boolean;
-  /** First scan_date the player was seen in `toKd` (or first scan ever for
-   *  new joiners). Used to render a "moved on YYYY-MM-DD" badge. */
+  isDeparted: boolean;
+  /** Most informative scan_date for the row. For migrations: first scan in
+   *  the destination KD. For new joiners: first scan they appeared. For
+   *  departed: last scan they were seen in the From KD. */
   migratedAt: string | null;
 }
 
@@ -344,6 +348,7 @@ export default function KingdomStats({
         };
         const [fromRows, toRows] = await Promise.all([pull(migFromDate), pull(migToDate)]);
         const fromMap = new Map(fromRows.map((r) => [r.player_id, r] as const));
+        const toMap = new Map(toRows.map((r) => [r.player_id, r] as const));
 
         const out: MigrationRow[] = [];
         for (const t of toRows) {
@@ -362,6 +367,7 @@ export default function KingdomStats({
               toKp: t.kp,
               deltaPower: t.power - f.power,
               isNewJoiner: false,
+              isDeparted: false,
               migratedAt: null,
             });
           } else {
@@ -379,9 +385,31 @@ export default function KingdomStats({
               toKp: t.kp,
               deltaPower: t.power,
               isNewJoiner: true,
+              isDeparted: false,
               migratedAt: null,
             });
           }
+        }
+
+        // Second pass — departed players: present in From, absent in To. Some
+        // genuinely left the pool; some just dropped below the power floor.
+        // Either way the user wants to see them when filtering by their old KD.
+        for (const f of fromRows) {
+          if (toMap.has(f.player_id)) continue;
+          out.push({
+            player_id: f.player_id,
+            name: f.name,
+            fromKd: f.kingdom_id,
+            toKd: null,
+            fromPower: f.power,
+            toPower: 0,
+            fromKp: f.kp,
+            toKp: 0,
+            deltaPower: -f.power,
+            isNewJoiner: false,
+            isDeparted: true,
+            migratedAt: null,
+          });
         }
 
         // Pull the timeline (player_id, scan_date, kingdom_id) for everyone
@@ -416,9 +444,17 @@ export default function KingdomStats({
             arr.sort((a, b) => a.scan_date.localeCompare(b.scan_date));
             if (row.isNewJoiner) {
               row.migratedAt = arr[0].scan_date;
-            } else {
-              // First scan_date where they're already in `toKd`. Equivalent to
-              // "moved here at this scan, hadn't been here before that".
+            } else if (row.isDeparted && row.fromKd != null) {
+              // Last scan_date where the player was still seen in fromKd.
+              // Read right-to-left to grab the latest match cheaply.
+              for (let i = arr.length - 1; i >= 0; i--) {
+                if (arr[i].kingdom_id === row.fromKd) {
+                  row.migratedAt = arr[i].scan_date;
+                  break;
+                }
+              }
+            } else if (row.toKd != null) {
+              // Regular migration — first scan in destination KD.
               const firstInDest = arr.find((x) => x.kingdom_id === row.toKd);
               row.migratedAt = firstInDest?.scan_date ?? null;
             }
@@ -1329,7 +1365,7 @@ function MigrationsView({
     const set = new Set<number>();
     for (const m of migrations) {
       if (m.fromKd != null) set.add(m.fromKd);
-      set.add(m.toKd);
+      if (m.toKd != null) set.add(m.toKd);
     }
     return [...set].sort((a, b) => a - b);
   }, [migrations]);
@@ -1346,16 +1382,19 @@ function MigrationsView({
       );
     }
     // KD filter: include rows whose fromKd OR toKd is in the selected set.
-    // null = "all KDs" pass-through.
+    // null = "all KDs" pass-through. Departed rows match via fromKd; new
+    // joiners match via toKd.
     if (kdFilter) {
       data = data.filter((m) =>
-        (m.fromKd != null && kdFilter.has(m.fromKd)) || kdFilter.has(m.toKd),
+        (m.fromKd != null && kdFilter.has(m.fromKd)) ||
+        (m.toKd != null && kdFilter.has(m.toKd)),
       );
     }
     data.sort((a, b) => {
       let cmp = 0;
       if (sortField === 'name') cmp = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
       else if (sortField === 'fromKd') cmp = (a.fromKd ?? Number.POSITIVE_INFINITY) - (b.fromKd ?? Number.POSITIVE_INFINITY);
+      else if (sortField === 'toKd')   cmp = (a.toKd   ?? Number.POSITIVE_INFINITY) - (b.toKd   ?? Number.POSITIVE_INFINITY);
       else if (sortField === 'toPower') cmp = (a.toPower || 0) - (b.toPower || 0);
       else if (sortField === 'toKp')   cmp = (a.toKp   || 0) - (b.toKp   || 0);
       else if (sortField === 'migratedAt') {
@@ -1381,11 +1420,12 @@ function MigrationsView({
     }
   };
 
-  // Counts for K23-related migrations + new joiners (highlighting helps spot
-  // defections / arrivals at a glance).
+  // Counts for K23-related migrations + new joiners / departed (highlighting
+  // helps spot defections / arrivals at a glance).
   const intoK23 = useMemo(() => filteredAndSorted.filter((m) => m.toKd === DEFAULT_HIGHLIGHT_KD).length, [filteredAndSorted]);
   const outOfK23 = useMemo(() => filteredAndSorted.filter((m) => m.fromKd === DEFAULT_HIGHLIGHT_KD).length, [filteredAndSorted]);
   const newJoiners = useMemo(() => filteredAndSorted.filter((m) => m.isNewJoiner).length, [filteredAndSorted]);
+  const departed = useMemo(() => filteredAndSorted.filter((m) => m.isDeparted).length, [filteredAndSorted]);
 
   // ─── T5 (≥45M) net flow per KD across the seeded pool ───
   // For each KD in [recapMin, recapMax] count incoming T5 (arrivals including
@@ -1402,10 +1442,14 @@ function MigrationsView({
     for (const m of migrations) {
       // Player is T5 if their latest-scan power is ≥45M. The same player row
       // contributes one arrival to toKd and one departure from fromKd (if any).
-      if (m.toPower < T5_POWER_FLOOR) continue;
-      const inRow = rows.get(m.toKd);
-      if (inRow) inRow.inT5 += 1;
-      if (m.fromKd != null) {
+      // For arrival counting we need a known destination AND ≥T5 toPower.
+      // Departed rows have toKd=null + toPower=0 so they're caught by the
+      // departure half: fromPower≥T5 + fromKd known.
+      if (m.toKd != null && m.toPower >= T5_POWER_FLOOR) {
+        const inRow = rows.get(m.toKd);
+        if (inRow) inRow.inT5 += 1;
+      }
+      if (m.fromKd != null && (m.toPower >= T5_POWER_FLOOR || m.isDeparted) && m.fromPower >= (m.isDeparted ? T5_POWER_FLOOR : 0)) {
         const outRow = rows.get(m.fromKd);
         if (outRow) outRow.outT5 += 1;
       }
@@ -1486,6 +1530,7 @@ function MigrationsView({
         <span className="text-sm text-[var(--text-muted)]">
           {filteredAndSorted.length.toLocaleString()} entr{filteredAndSorted.length === 1 ? 'y' : 'ies'}
           {newJoiners > 0 && <> · <span className="text-cyan-300">{newJoiners} new joiner{newJoiners !== 1 ? 's' : ''}</span></>}
+          {departed > 0 && <> · <span className="text-rose-400">{departed} departed</span></>}
           {intoK23 > 0 && <> · <span className="text-emerald-400">+{intoK23} into KD {DEFAULT_HIGHLIGHT_KD}</span></>}
           {outOfK23 > 0 && <> · <span className="text-red-400">−{outOfK23} out of KD {DEFAULT_HIGHLIGHT_KD}</span></>}
         </span>
@@ -1581,11 +1626,17 @@ function MigrationsView({
                 {filteredAndSorted.map((m) => {
                   const intoMine = m.toKd === DEFAULT_HIGHLIGHT_KD;
                   const outOfMine = m.fromKd === DEFAULT_HIGHLIGHT_KD;
-                  const rowBg = intoMine
-                    ? 'bg-emerald-500/10 hover:bg-emerald-500/15'
-                    : outOfMine
-                      ? 'bg-red-500/10 hover:bg-red-500/15'
-                      : 'hover:bg-[var(--background-secondary)]';
+                  const rowBg = m.isDeparted
+                    ? 'bg-rose-500/5 hover:bg-rose-500/10'
+                    : intoMine
+                      ? 'bg-emerald-500/10 hover:bg-emerald-500/15'
+                      : outOfMine
+                        ? 'bg-red-500/10 hover:bg-red-500/15'
+                        : 'hover:bg-[var(--background-secondary)]';
+                  // For departed rows we show their LAST known stats (from-side)
+                  // since to-side values are 0 and would just be misleading.
+                  const displayPower = m.isDeparted ? m.fromPower : m.toPower;
+                  const displayKp = m.isDeparted ? m.fromKp : m.toKp;
                   return (
                     <tr key={m.player_id} className={`border-b border-[var(--border)] transition-colors ${rowBg}`}>
                       <td className="px-3 py-2.5 text-[var(--text-muted)] text-xs tabular-nums">{m.player_id}</td>
@@ -1597,19 +1648,30 @@ function MigrationsView({
                               NEW JOINER
                             </span>
                           )}
+                          {m.isDeparted && (
+                            <span className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-rose-500/15 text-rose-300 border-rose-500/30" title="Was in From scan, missing from To scan — left the tracked pool or dropped below the power floor">
+                              DEPARTED
+                            </span>
+                          )}
                         </span>
                       </td>
                       <td className="px-3 py-2.5 font-medium tabular-nums">
                         {m.fromKd != null ? `KD ${m.fromKd}` : <span className="text-[var(--text-muted)]">—</span>}
                       </td>
-                      <td className="px-3 py-2.5 font-medium tabular-nums">KD {m.toKd}</td>
-                      <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(m.toPower)}</td>
-                      <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(m.toKp)}</td>
+                      <td className="px-3 py-2.5 font-medium tabular-nums">
+                        {m.toKd != null ? `KD ${m.toKd}` : <span className="text-[var(--text-muted)]">—</span>}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-indigo-400 tabular-nums">{formatCompact(displayPower)}</td>
+                      <td className="px-3 py-2.5 text-right text-red-400 tabular-nums">{formatCompact(displayKp)}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums">
                         {m.migratedAt ? (
                           <span
                             className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold border bg-amber-500/15 text-amber-300 border-amber-500/30"
-                            title={m.isNewJoiner ? `First seen on ${m.migratedAt}` : `First scan in KD ${m.toKd}: ${m.migratedAt}`}
+                            title={
+                              m.isNewJoiner ? `First seen on ${m.migratedAt}`
+                              : m.isDeparted ? `Last seen in KD ${m.fromKd} on ${m.migratedAt}`
+                              : `First scan in KD ${m.toKd}: ${m.migratedAt}`
+                            }
                           >
                             {m.migratedAt}
                           </span>
