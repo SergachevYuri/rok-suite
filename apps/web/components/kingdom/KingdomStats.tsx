@@ -295,12 +295,13 @@ export default function KingdomStats({
     }
   }, [allDates, comparisonToDate, comparisonFromDate]);
 
-  // Migrations tab — From is fixed to MIG_FROM_DATE; To always tracks the
-  // most recent scan available so the user is comparing "since seed day to today".
+  // Migrations tab — seed defaults once: From = seed day, To = most recent
+  // scan. Past initial mount the user can change both dates freely.
   React.useEffect(() => {
-    if (migFromDate !== MIG_FROM_DATE) setMigFromDate(MIG_FROM_DATE);
-    if (allDates.length > 0 && migToDate !== allDates[0]) setMigToDate(allDates[0]);
-  }, [allDates, migFromDate, migToDate]);
+    if (!migFromDate) setMigFromDate(MIG_FROM_DATE);
+    if (!migToDate && allDates.length > 0) setMigToDate(allDates[0]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allDates]);
 
   // Fetch migrations: players that appear in both scans (>= power floor) but
   // with a different kingdom_id between them. Cross-KD scan means we have to
@@ -1278,8 +1279,11 @@ function DeltaCell({ from, to, hasFrom }: { from: number | undefined; to: number
 type MigSortField = 'name' | 'fromKd' | 'toKd' | 'toPower' | 'toKp' | 'migratedAt';
 
 function MigrationsView({
+  allDates,
   migFromDate,
+  setMigFromDate,
   migToDate,
+  setMigToDate,
   migPowerFloorM,
   setMigPowerFloorM,
   migrations,
@@ -1314,6 +1318,22 @@ function MigrationsView({
   recapMin: number;
   recapMax: number;
 }) {
+  // ─── KD multi-select state (filters rows where fromKd or toKd ∈ set) ───
+  // Local to MigrationsView. null = "all KDs pass through".
+  const [kdFilter, setKdFilter] = useState<Set<number> | null>(null);
+
+  // Every KD that participates in the current migrations result. Drives the
+  // KD-chip multi-select below and is also used to lazy-initialise the filter
+  // to "everyone selected" on first toggle.
+  const allKdsInMigrations = useMemo(() => {
+    const set = new Set<number>();
+    for (const m of migrations) {
+      if (m.fromKd != null) set.add(m.fromKd);
+      set.add(m.toKd);
+    }
+    return [...set].sort((a, b) => a - b);
+  }, [migrations]);
+
   const filteredAndSorted = useMemo(() => {
     let data = [...migrations];
     if (search.trim()) {
@@ -1323,6 +1343,13 @@ function MigrationsView({
         String(m.player_id).includes(q) ||
         String(m.fromKd).includes(q) ||
         String(m.toKd).includes(q),
+      );
+    }
+    // KD filter: include rows whose fromKd OR toKd is in the selected set.
+    // null = "all KDs" pass-through.
+    if (kdFilter) {
+      data = data.filter((m) =>
+        (m.fromKd != null && kdFilter.has(m.fromKd)) || kdFilter.has(m.toKd),
       );
     }
     data.sort((a, b) => {
@@ -1344,7 +1371,7 @@ function MigrationsView({
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return data;
-  }, [migrations, search, sortField, sortDir]);
+  }, [migrations, search, sortField, sortDir, kdFilter]);
 
   const handleSort = (f: MigSortField) => {
     if (sortField === f) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
@@ -1393,14 +1420,41 @@ function MigrationsView({
   // but a player who was ≥45M at From and <floor at To would be missing).
   const recapTruncated = migPowerFloorM > 45;
 
+  const toggleKdInFilter = (kd: number) => {
+    setKdFilter((prev) => {
+      // Lazy-init to the set of every KD in the current migrations result.
+      const base = prev ?? new Set<number>(allKdsInMigrations);
+      const next = new Set(base);
+      if (next.has(kd)) next.delete(kd); else next.add(kd);
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xs text-[var(--text-muted)]">
-          Comparing <span className="text-[var(--foreground)] font-mono">{migFromDate}</span>
-          {' → '}
-          <span className="text-[var(--foreground)] font-mono">{migToDate || '—'}</span>
-        </span>
+        <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+          <span className="uppercase tracking-wider">From</span>
+          <select
+            value={migFromDate}
+            onChange={(e) => setMigFromDate(e.target.value)}
+            className="px-2 py-1.5 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+          >
+            {allDates.length === 0 && <option value="">Loading…</option>}
+            {allDates.filter(d => !migToDate || d <= migToDate).map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+          <span className="uppercase tracking-wider">To</span>
+          <select
+            value={migToDate}
+            onChange={(e) => setMigToDate(e.target.value)}
+            className="px-2 py-1.5 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-[var(--foreground)] text-sm"
+          >
+            {allDates.length === 0 && <option value="">Loading…</option>}
+            {allDates.filter(d => !migFromDate || d >= migFromDate).map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </label>
 
         <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
           Power ≥
@@ -1436,6 +1490,60 @@ function MigrationsView({
           {outOfK23 > 0 && <> · <span className="text-red-400">−{outOfK23} out of KD {DEFAULT_HIGHLIGHT_KD}</span></>}
         </span>
       </div>
+
+      {/* KD chip multi-select. Click a chip to toggle. `null` filter = all
+          KDs shown (default). The presets give one-click jumps to "Our seed"
+          and "All". */}
+      {allKdsInMigrations.length > 0 && (
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--background-card)] px-3 py-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <span className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
+              Kingdoms {kdFilter ? `(${kdFilter.size} of ${allKdsInMigrations.length} selected)` : '(all)'}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setKdFilter(null)}
+                className="px-2 py-0.5 text-[10px] rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--text-secondary)] transition-colors"
+              >
+                All
+              </button>
+              <button
+                onClick={() => setKdFilter(new Set(OUR_SEED_KDS))}
+                className="px-2 py-0.5 text-[10px] rounded border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition-colors"
+              >
+                Our seed
+              </button>
+              <button
+                onClick={() => setKdFilter(new Set())}
+                className="px-2 py-0.5 text-[10px] rounded border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-[var(--text-secondary)] transition-colors"
+              >
+                None
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {allKdsInMigrations.map((kd) => {
+              const checked = kdFilter ? kdFilter.has(kd) : true;
+              const isMine = kd === DEFAULT_HIGHLIGHT_KD;
+              return (
+                <button
+                  key={kd}
+                  onClick={() => toggleKdInFilter(kd)}
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] font-medium tabular-nums transition-colors ${
+                    checked
+                      ? isMine
+                        ? 'bg-amber-500/15 text-amber-200 border-amber-500/40'
+                        : 'bg-[var(--background-secondary)] text-[var(--foreground)] border-[var(--border)]'
+                      : 'bg-[var(--background-card)] text-[var(--text-muted)] border-[var(--border)] opacity-60'
+                  }`}
+                >
+                  {kd}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{error}</div>
