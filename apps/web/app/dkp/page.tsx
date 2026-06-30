@@ -6,8 +6,6 @@ import {
   ArrowUpDown,
   Search,
   Upload,
-  Lock,
-  LogOut,
   X,
   Rocket,
   RotateCcw,
@@ -18,7 +16,8 @@ import {
   Trash2,
   Calendar,
 } from 'lucide-react';
-import { WarRoomAuthProvider, useWarRoomAuth } from '@/lib/kvk-map/war-room-auth';
+import { useAuthRole, meetsRole } from '@/lib/auth-role';
+import { SignInButton } from '@/components/SignInButton';
 import { OUR_SEED_KDS } from '@/lib/kingdom/our-seed';
 import {
   type DkpDataset,
@@ -112,16 +111,16 @@ type SortKey =
 export default function DkpPage() {
   return (
     <AppSidebar>
-      <WarRoomAuthProvider>
-        <DkpPageInner />
-      </WarRoomAuthProvider>
+      <DkpPageInner />
     </AppSidebar>
   );
 }
 
 function DkpPageInner() {
-  const { isAtLeast, officerName } = useWarRoomAuth();
-  const isOfficer = isAtLeast('officer');
+  const { role } = useAuthRole();
+  // Officer-or-higher gates writes (upload, deploy, manage KvKs).
+  const isOfficer = meetsRole(role, ['admin', 'officer']);
+  const uploaderTag = role ?? null;
 
   // ─── KvK + Kingdom scope ────────────────────────────────────────────────
   const [kvks, setKvks] = useState<KvK[]>([]);
@@ -380,7 +379,7 @@ function DkpPageInner() {
     if (!selectedKvkId) throw new Error('Pick a KvK first');
     const saved = await saveDataset({
       ...newDataset,
-      uploadedBy: officerName,
+      uploadedBy: uploaderTag,
       kvkId: selectedKvkId,
       kingdomId: targetKingdomId,
     });
@@ -429,7 +428,7 @@ function DkpPageInner() {
               {dataset?.statsFileName ? ` · ${dataset.statsFileName}` : ''}
             </p>
           </div>
-          <OfficerBadge />
+          <SignInButton />
         </header>
 
         {/* KvK + Kingdom selectors */}
@@ -739,97 +738,6 @@ function SummaryCard({ label, value, tone }: SummaryCardProps) {
       </p>
       <p className={`text-lg sm:text-xl font-semibold ${toneClass}`}>{value}</p>
     </div>
-  );
-}
-
-// ─── OfficerBadge ────────────────────────────────────────────────────────
-
-function OfficerBadge() {
-  const { isAtLeast, role, login, logout, officerName, setOfficerName } = useWarRoomAuth();
-  const [open, setOpen] = useState(false);
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState(officerName ?? '');
-  const [error, setError] = useState<string | null>(null);
-
-  if (isAtLeast('officer')) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-          <Lock size={12} /> {role.toUpperCase()}
-          {officerName && <> · {officerName}</>}
-        </span>
-        <button
-          onClick={logout}
-          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] transition-colors"
-          title="Sign out"
-        >
-          <LogOut size={14} />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--background-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
-      >
-        <Lock size={12} /> Sign in
-      </button>
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-[var(--foreground)]">Officer sign in</h3>
-              <button onClick={() => setOpen(false)} className="p-1 text-[var(--text-muted)] hover:text-[var(--foreground)]">
-                <X size={16} />
-              </button>
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!login(password)) {
-                  setError('Incorrect password');
-                  return;
-                }
-                if (name.trim()) setOfficerName(name.trim());
-                setPassword('');
-                setError(null);
-                setOpen(false);
-              }}
-              className="space-y-3"
-            >
-              <div>
-                <label className="text-xs text-[var(--text-muted)]">Your name (optional)</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-[var(--text-muted)]">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoFocus
-                  className="mt-1 w-full px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
-                />
-              </div>
-              {error && <p className="text-xs text-red-400">{error}</p>}
-              <button
-                type="submit"
-                className="w-full px-3 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] transition-colors"
-              >
-                Sign in
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-    </>
   );
 }
 
