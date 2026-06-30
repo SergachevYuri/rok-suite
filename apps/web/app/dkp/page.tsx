@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
   Calendar,
+  Flag,
 } from 'lucide-react';
 import { useAuthRole, meetsRole } from '@/lib/auth-role';
 import { SignInButton } from '@/components/SignInButton';
@@ -38,7 +39,9 @@ import {
   unarchiveKvK,
   deleteKvK,
   listKingdomsForKvK,
+  loadLatestDatasetPerKingdom,
   simpleConfigIdForKvK,
+  MIGRATION_ROW_ID,
 } from './data';
 import {
   type SimpleConfig,
@@ -220,6 +223,40 @@ function DkpPageInner() {
   const [statusFilter, setStatusFilter] = useState<SimpleStatus | 'ALL'>('ALL');
   const [tierFilter, setTierFilter] = useState<string | 'ALL'>('ALL');
   const [showGovId, setShowGovId] = useState(false);
+  const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
+
+  // ─── Migration flagging (shared via MIGRATION_ROW_ID config row) ────────
+  const [flaggedForMigration, setFlaggedForMigration] = useState<Set<number>>(new Set());
+  const flagDirtyRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ids = await loadConfigRow<number[]>(MIGRATION_ROW_ID);
+      if (cancelled) return;
+      if (Array.isArray(ids)) setFlaggedForMigration(new Set(ids));
+    })();
+    const unsub = subscribeToConfigRow<number[]>(MIGRATION_ROW_ID, (ids) => {
+      if (!flagDirtyRef.current && Array.isArray(ids)) {
+        setFlaggedForMigration(new Set(ids));
+      }
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
+
+  const persistFlagged = async (next: Set<number>) => {
+    flagDirtyRef.current = true;
+    try {
+      await saveConfigRow(MIGRATION_ROW_ID, [...next]);
+    } catch (e) {
+      console.error('Failed to persist migration flags', e);
+    } finally {
+      flagDirtyRef.current = false;
+    }
+  };
 
   const configRowId = selectedKvkId ? simpleConfigIdForKvK(selectedKvkId) : null;
 
@@ -336,6 +373,13 @@ function DkpPageInner() {
     return { counts, total: scored.length, totalDkp };
   }, [scored]);
 
+  const rejectedCount = summary.counts.REJECTED;
+  const flaggedInThisDataset = useMemo(() => {
+    let n = 0;
+    for (const p of scored) if (flaggedForMigration.has(p.characterId)) n++;
+    return n;
+  }, [scored, flaggedForMigration]);
+
   // ─── Handlers ───────────────────────────────────────────────────────────
 
   const handleSort = (key: SortKey) => {
@@ -405,6 +449,37 @@ function DkpPageInner() {
     }
   };
 
+  const handleToggleFlag = (characterId: number) => {
+    setFlaggedForMigration((prev) => {
+      const next = new Set(prev);
+      if (next.has(characterId)) next.delete(characterId);
+      else next.add(characterId);
+      persistFlagged(next);
+      return next;
+    });
+  };
+
+  const handleFlagAllRejected = () => {
+    setFlaggedForMigration((prev) => {
+      const next = new Set(prev);
+      for (const p of scored) {
+        if (p.status === 'REJECTED') next.add(p.characterId);
+      }
+      persistFlagged(next);
+      return next;
+    });
+  };
+
+  const handleClearFlagsInView = () => {
+    // Unflag only players currently visible in the selected KD's scored set.
+    setFlaggedForMigration((prev) => {
+      const next = new Set(prev);
+      for (const p of scored) next.delete(p.characterId);
+      persistFlagged(next);
+      return next;
+    });
+  };
+
   const hasKvk = selectedKvkId != null;
   const hasKd = selectedKingdomId != null;
 
@@ -464,24 +539,57 @@ function DkpPageInner() {
               )}
             </div>
           </div>
-          <div>
+          {viewMode === 'single' && (
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1">
+                Kingdom
+              </label>
+              <select
+                value={selectedKingdomId ?? ''}
+                onChange={(e) => setSelectedKingdomId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                disabled={!hasKvk}
+                className="min-w-[140px] px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-40"
+              >
+                <option value="">— pick one —</option>
+                {allKds.map((kd) => (
+                  <option key={kd} value={kd}>
+                    KD {kd}
+                    {extraKds.includes(kd) ? ' · has data' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="ml-auto">
             <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-              Kingdom
+              View
             </label>
-            <select
-              value={selectedKingdomId ?? ''}
-              onChange={(e) => setSelectedKingdomId(e.target.value ? parseInt(e.target.value, 10) : null)}
-              disabled={!hasKvk}
-              className="min-w-[140px] px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-40"
-            >
-              <option value="">— pick one —</option>
-              {allKds.map((kd) => (
-                <option key={kd} value={kd}>
-                  KD {kd}
-                  {extraKds.includes(kd) ? ' · has data' : ''}
-                </option>
-              ))}
-            </select>
+            <div className="inline-flex rounded-lg overflow-hidden border border-[var(--border)] text-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('single')}
+                disabled={!hasKvk}
+                className={`px-3 py-2 transition-colors ${
+                  viewMode === 'single'
+                    ? 'bg-[#4318ff] text-white'
+                    : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                } disabled:opacity-40`}
+              >
+                Single Kingdom
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('compare')}
+                disabled={!hasKvk}
+                className={`px-3 py-2 transition-colors ${
+                  viewMode === 'compare'
+                    ? 'bg-[#4318ff] text-white'
+                    : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                } disabled:opacity-40`}
+              >
+                Compare KDs
+              </button>
+            </div>
           </div>
         </section>
 
@@ -504,7 +612,11 @@ function DkpPageInner() {
           </section>
         )}
 
-        {hasKvk && hasKd && (
+        {hasKvk && viewMode === 'compare' && (
+          <ComparisonView kvkId={selectedKvkId!} config={config} />
+        )}
+
+        {hasKvk && viewMode === 'single' && hasKd && (
           <>
             {/* Officer-only upload panel */}
             {isOfficer && (
@@ -633,6 +745,39 @@ function DkpPageInner() {
               </label>
             </section>
 
+            {/* Migration flagging bar */}
+            {isOfficer && (
+              <section className="mb-3 flex flex-wrap items-center gap-3 p-3 rounded-lg bg-rose-500/5 border border-rose-500/20">
+                <span className="inline-flex items-center gap-1.5 text-xs text-rose-300">
+                  <Flag size={12} />
+                  <span className="font-medium">{flaggedInThisDataset} flagged</span>
+                  <span className="text-rose-300/60">in this KD · {flaggedForMigration.size} total</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleFlagAllRejected}
+                  disabled={rejectedCount === 0}
+                  className="px-3 py-1.5 rounded-md text-xs bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Flag all rejected ({rejectedCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearFlagsInView}
+                  disabled={flaggedInThisDataset === 0}
+                  className="px-3 py-1.5 rounded-md text-xs bg-[var(--background-secondary)] text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Unflag all in this KD
+                </button>
+                <a
+                  href="/migration"
+                  className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] underline decoration-dotted underline-offset-2"
+                >
+                  Open migration page →
+                </a>
+              </section>
+            )}
+
             {/* Players table */}
             <PlayersTable
               rows={filtered}
@@ -641,7 +786,10 @@ function DkpPageInner() {
               sortDir={sortDir}
               onSort={handleSort}
               cutoffs={config.cutoffs}
+              formula={config.formula}
               showGovId={showGovId}
+              flagged={flaggedForMigration}
+              onToggleFlag={isOfficer ? handleToggleFlag : null}
             />
           </>
         )}
@@ -1064,6 +1212,238 @@ function KvkManagerModal({
   );
 }
 
+// ─── ComparisonView ──────────────────────────────────────────────────────
+
+interface KdSummary {
+  kingdomId: number;
+  filename: string | null;
+  uploadedAt: string;
+  players: number;
+  totalDkp: number;
+  avgPower: number;
+  medianRatio: number;
+  counts: Record<SimpleStatus, number>;
+}
+
+type ComparisonSortKey = 'kingdomId' | 'players' | 'avgPower' | 'totalDkp' | 'medianRatio' | 'excellent' | 'approved' | 'good' | 'rejected';
+
+function ComparisonView({ kvkId, config }: { kvkId: string; config: SimpleConfig }) {
+  const [summaries, setSummaries] = useState<KdSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sortKey, setSortKey] = useState<ComparisonSortKey>('kingdomId');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const datasets = await loadLatestDatasetPerKingdom(kvkId);
+      if (cancelled) return;
+      const result: KdSummary[] = datasets.map((ds) => {
+        const scored = computeSimpleScores(ds.players, config);
+        const counts: Record<SimpleStatus, number> = {
+          EXCELLENT: 0,
+          APPROVED: 0,
+          GOOD: 0,
+          REJECTED: 0,
+          UNRANKED: 0,
+        };
+        let totalDkp = 0;
+        let totalPower = 0;
+        const ratios: number[] = [];
+        for (const p of scored) {
+          counts[p.status]++;
+          totalDkp += p.dkp;
+          totalPower += p.power;
+          if (p.tier) ratios.push(p.ratio);
+        }
+        ratios.sort((a, b) => a - b);
+        const medianRatio = ratios.length === 0 ? 0 : ratios[Math.floor(ratios.length / 2)];
+        return {
+          kingdomId: ds.kingdomId ?? 0,
+          filename: ds.statsFileName,
+          uploadedAt: ds.uploadedAt,
+          players: scored.length,
+          totalDkp,
+          avgPower: scored.length > 0 ? totalPower / scored.length : 0,
+          medianRatio,
+          counts,
+        };
+      });
+      setSummaries(result);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [kvkId, config]);
+
+  const sorted = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const arr = [...summaries];
+    arr.sort((a, b) => {
+      switch (sortKey) {
+        case 'kingdomId':
+          return (a.kingdomId - b.kingdomId) * dir;
+        case 'players':
+          return (a.players - b.players) * dir;
+        case 'avgPower':
+          return (a.avgPower - b.avgPower) * dir;
+        case 'totalDkp':
+          return (a.totalDkp - b.totalDkp) * dir;
+        case 'medianRatio':
+          return (a.medianRatio - b.medianRatio) * dir;
+        case 'excellent':
+          return (a.counts.EXCELLENT - b.counts.EXCELLENT) * dir;
+        case 'approved':
+          return (a.counts.APPROVED - b.counts.APPROVED) * dir;
+        case 'good':
+          return (a.counts.GOOD - b.counts.GOOD) * dir;
+        case 'rejected':
+          return (a.counts.REJECTED - b.counts.REJECTED) * dir;
+      }
+    });
+    return arr;
+  }, [summaries, sortKey, sortDir]);
+
+  const handleSort = (k: ComparisonSortKey) => {
+    if (sortKey === k) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    else {
+      setSortKey(k);
+      setSortDir(k === 'kingdomId' ? 'asc' : 'desc');
+    }
+  };
+
+  // Aggregate totals
+  const totals = useMemo(() => {
+    let players = 0;
+    let totalDkp = 0;
+    const counts: Record<SimpleStatus, number> = {
+      EXCELLENT: 0,
+      APPROVED: 0,
+      GOOD: 0,
+      REJECTED: 0,
+      UNRANKED: 0,
+    };
+    for (const s of summaries) {
+      players += s.players;
+      totalDkp += s.totalDkp;
+      counts.EXCELLENT += s.counts.EXCELLENT;
+      counts.APPROVED += s.counts.APPROVED;
+      counts.GOOD += s.counts.GOOD;
+      counts.REJECTED += s.counts.REJECTED;
+      counts.UNRANKED += s.counts.UNRANKED;
+    }
+    return { players, totalDkp, counts };
+  }, [summaries]);
+
+  if (loading) {
+    return (
+      <section className="mb-6 p-8 rounded-xl bg-[var(--background-card)] border border-[var(--border)] text-center">
+        <p className="text-sm text-[var(--text-muted)]">Loading per-kingdom snapshots…</p>
+      </section>
+    );
+  }
+
+  if (summaries.length === 0) {
+    return (
+      <section className="mb-6 p-8 rounded-xl bg-[var(--background-card)] border border-dashed border-[var(--border)] text-center">
+        <p className="text-sm text-[var(--text-secondary)]">
+          No kingdom scans uploaded for this KvK yet.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <>
+      {/* Aggregate cards across all KDs */}
+      <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
+        <SummaryCard label="Kingdoms" value={fmt(summaries.length)} />
+        <SummaryCard label="Players" value={fmt(totals.players)} />
+        <SummaryCard label="Total DKP" value={fmt(totals.totalDkp)} />
+        <SummaryCard label="Excellent" value={fmt(totals.counts.EXCELLENT)} tone="excellent" />
+        <SummaryCard label="Approved" value={fmt(totals.counts.APPROVED)} tone="approved" />
+        <SummaryCard label="Rejected" value={fmt(totals.counts.REJECTED)} tone="review" />
+      </section>
+
+      <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-[var(--text-muted)] bg-[var(--background-secondary)]/40">
+                <CompareTh k="kingdomId" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-left">Kingdom</CompareTh>
+                <CompareTh k="players" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Players</CompareTh>
+                <CompareTh k="avgPower" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Avg power</CompareTh>
+                <CompareTh k="totalDkp" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Total DKP</CompareTh>
+                <CompareTh k="medianRatio" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Median ratio</CompareTh>
+                <CompareTh k="excellent" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Exc</CompareTh>
+                <CompareTh k="approved" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">App</CompareTh>
+                <CompareTh k="good" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Good</CompareTh>
+                <CompareTh k="rejected" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Rej</CompareTh>
+                <th className="px-3 py-2 font-normal text-left">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((s) => (
+                <tr key={s.kingdomId} className="border-t border-[var(--border)]/50 hover:bg-[var(--background-hover)]/30 transition-colors">
+                  <td className="px-3 py-2 font-medium text-[var(--foreground)]">KD {s.kingdomId}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(s.players)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmtM(s.avgPower)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-[var(--foreground)]">{fmt(s.totalDkp)}</td>
+                  <td className={`px-3 py-2 text-right tabular-nums font-medium ${ratioColor(s.medianRatio, config.cutoffs)}`}>
+                    {fmtPct(s.medianRatio)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-emerald-400">{fmt(s.counts.EXCELLENT)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-cyan-400">{fmt(s.counts.APPROVED)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-amber-400">{fmt(s.counts.GOOD)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-rose-400">{fmt(s.counts.REJECTED)}</td>
+                  <td className="px-3 py-2 text-xs text-[var(--text-muted)] font-mono truncate max-w-[180px]" title={s.filename ?? ''}>
+                    {s.filename ?? '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function CompareTh({
+  k,
+  sortKey,
+  sortDir,
+  onSort,
+  align,
+  children,
+}: {
+  k: ComparisonSortKey;
+  sortKey: ComparisonSortKey;
+  sortDir: 'asc' | 'desc';
+  onSort: (k: ComparisonSortKey) => void;
+  align: 'text-left' | 'text-right' | 'text-center';
+  children: React.ReactNode;
+}) {
+  const active = sortKey === k;
+  return (
+    <th className={`px-3 py-2 font-normal ${align}`}>
+      <button
+        onClick={() => onSort(k)}
+        className={`inline-flex items-center gap-1 hover:text-[var(--foreground)] transition-colors ${active ? 'text-[var(--foreground)]' : ''}`}
+      >
+        {children}
+        {active ? (
+          <ArrowUpDown size={10} className={sortDir === 'asc' ? 'rotate-180' : ''} />
+        ) : (
+          <ArrowUpDown size={10} className="opacity-30" />
+        )}
+      </button>
+    </th>
+  );
+}
+
 // ─── ConfigPanel ─────────────────────────────────────────────────────────
 
 interface ConfigPanelProps {
@@ -1152,53 +1532,158 @@ function ConfigPanel({
           {/* Formula */}
           <div className="mt-4">
             <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">
-              Formula
+              DKP formula
             </h3>
-            <p className="text-xs text-[var(--text-secondary)] mb-3 font-mono">
-              DKP = T5d·<span className="text-emerald-400">X</span> + T4d·<span className="text-emerald-400">Y</span>
-              {' '}+ T5k·<span className="text-cyan-400">A</span> + T4k·<span className="text-cyan-400">B</span>
+            <div className="mb-3 p-3 rounded-lg bg-[var(--background-secondary)]/50 border border-[var(--border)] font-mono text-xs leading-relaxed">
+              <span className="text-[var(--text-muted)]">DKP = </span>
+              <span className="text-emerald-400">T5 deaths × {config.formula.t5Death}</span>
+              <span className="text-[var(--text-muted)]"> + </span>
+              <span className="text-emerald-400">T4 deaths × {config.formula.t4Death}</span>
+              <span className="text-[var(--text-muted)]"> + </span>
+              <span className="text-cyan-400">T5 kills × {config.formula.t5Kill}</span>
+              <span className="text-[var(--text-muted)]"> + </span>
+              <span className="text-cyan-400">T4 kills × {config.formula.t4Kill}</span>
+            </div>
+            <p className="text-[10px] text-[var(--text-muted)] mb-3 italic">
+              T1, T2 and T3 (both kills and deaths) are ignored — only T4 and T5 contribute to DKP.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <CoeffInput label="X · T5 deaths" value={config.formula.t5Death} onChange={(v) => setFormula('t5Death', v)} tone="death" />
-              <CoeffInput label="Y · T4 deaths" value={config.formula.t4Death} onChange={(v) => setFormula('t4Death', v)} tone="death" />
-              <CoeffInput label="A · T5 kills" value={config.formula.t5Kill} onChange={(v) => setFormula('t5Kill', v)} tone="kill" />
-              <CoeffInput label="B · T4 kills" value={config.formula.t4Kill} onChange={(v) => setFormula('t4Kill', v)} tone="kill" />
+              <CoeffInput label="T5 deaths ×" value={config.formula.t5Death} onChange={(v) => setFormula('t5Death', v)} tone="death" />
+              <CoeffInput label="T4 deaths ×" value={config.formula.t4Death} onChange={(v) => setFormula('t4Death', v)} tone="death" />
+              <CoeffInput label="T5 kills ×" value={config.formula.t5Kill} onChange={(v) => setFormula('t5Kill', v)} tone="kill" />
+              <CoeffInput label="T4 kills ×" value={config.formula.t4Kill} onChange={(v) => setFormula('t4Kill', v)} tone="kill" />
             </div>
           </div>
 
-          {/* Tiers */}
+          {/* Tier mode */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-                Power tiers
+                Targets
               </h3>
-              <button
-                onClick={addTier}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
-              >
-                <Plus size={12} /> Add tier
-              </button>
+              <div className="inline-flex rounded-lg overflow-hidden border border-[var(--border)] text-xs">
+                <button
+                  type="button"
+                  onClick={() => setConfig((c) => ({ ...c, tierMode: 'flat' }))}
+                  className={`px-3 py-1 transition-colors ${
+                    config.tierMode === 'flat'
+                      ? 'bg-[#4318ff] text-white'
+                      : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  Same for everyone
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfig((c) => ({ ...c, tierMode: 'tiered' }))}
+                  className={`px-3 py-1 transition-colors ${
+                    config.tierMode === 'tiered'
+                      ? 'bg-[#4318ff] text-white'
+                      : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  Per power tier
+                </button>
+              </div>
             </div>
+
+            {config.tierMode === 'flat' ? (
+              <>
+                <p className="text-xs text-[var(--text-muted)] mb-3">
+                  Single target applied to every player, regardless of power.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+                  <div>
+                    <label className="text-xs text-[var(--text-muted)] block mb-1">Target DKP</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={config.flatTarget.dkp / 1_000_000}
+                        onChange={(e) =>
+                          setConfig((c) => ({
+                            ...c,
+                            flatTarget: { ...c.flatTarget, dkp: (parseFloat(e.target.value) || 0) * 1_000_000 },
+                          }))
+                        }
+                        step="1"
+                        className="w-full px-2 py-1.5 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                      />
+                      <span className="text-xs text-[var(--text-muted)]">M</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[var(--text-muted)] block mb-1">Target deaths</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={config.flatTarget.deaths / 1_000_000}
+                        onChange={(e) =>
+                          setConfig((c) => ({
+                            ...c,
+                            flatTarget: { ...c.flatTarget, deaths: (parseFloat(e.target.value) || 0) * 1_000_000 },
+                          }))
+                        }
+                        step="0.5"
+                        className="w-full px-2 py-1.5 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                      />
+                      <span className="text-xs text-[var(--text-muted)]">M</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Each player falls into the highest tier whose <em>min power</em> ≤ their power.
+                  </p>
+                  <button
+                    onClick={addTier}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
+                  >
+                    <Plus size={12} /> Add tier
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs text-[var(--text-muted)] border-b border-[var(--border)]">
+                        <th className="text-left py-2 pr-2 font-normal">Label</th>
+                        <th className="text-right py-2 px-2 font-normal">Min power</th>
+                        <th className="text-right py-2 px-2 font-normal">Target DKP</th>
+                        <th className="text-right py-2 px-2 font-normal">Target deaths</th>
+                        <th className="w-8" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortTiersAsc(config.tiers).map((t) => (
+                        <TierRow key={t.id} tier={t} onChange={(p) => updateTier(t.id, p)} onRemove={() => removeTier(t.id)} canRemove={config.tiers.length > 1} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Scoring scope */}
+          <div>
+            <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">
+              Scoring scope
+            </h3>
             <p className="text-xs text-[var(--text-muted)] mb-3">
-              Each player falls into the highest tier whose <em>min power</em> ≤ their power. Power below the lowest tier = unranked.
+              Only the top N players by power get a target. The rest are marked Unranked. <span className="text-[var(--text-secondary)]">Set 0 to score everyone.</span>
             </p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-[var(--text-muted)] border-b border-[var(--border)]">
-                    <th className="text-left py-2 pr-2 font-normal">Label</th>
-                    <th className="text-right py-2 px-2 font-normal">Min power</th>
-                    <th className="text-right py-2 px-2 font-normal">Target DKP</th>
-                    <th className="text-right py-2 px-2 font-normal">Target deaths</th>
-                    <th className="w-8" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortTiersAsc(config.tiers).map((t) => (
-                    <TierRow key={t.id} tier={t} onChange={(p) => updateTier(t.id, p)} onRemove={() => removeTier(t.id)} canRemove={config.tiers.length > 1} />
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex items-center gap-2 max-w-xs">
+              <label className="text-xs text-[var(--text-muted)] whitespace-nowrap">Top N by power</label>
+              <input
+                type="number"
+                min="0"
+                value={config.topN}
+                onChange={(e) => setConfig((c) => ({ ...c, topN: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
+                className="w-24 px-2 py-1.5 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+              />
+              <span className="text-xs text-[var(--text-muted)]">{config.topN === 0 ? 'all players' : `${config.topN} players`}</span>
             </div>
           </div>
 
@@ -1388,16 +1873,36 @@ interface PlayersTableProps {
   sortDir: 'asc' | 'desc';
   onSort: (k: SortKey) => void;
   cutoffs: SimpleConfig['cutoffs'];
+  formula: SimpleConfig['formula'];
   showGovId: boolean;
+  /** IDs of players flagged for migration (shared across the app). */
+  flagged: Set<number>;
+  /** When provided, the checkbox column is shown (officer-only). null = read-only. */
+  onToggleFlag: ((characterId: number) => void) | null;
 }
 
-function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, showGovId }: PlayersTableProps) {
+function dkpBreakdown(p: SimpleScoredPlayer, f: SimpleConfig['formula']): string {
+  return `DKP breakdown:
+  T5 deaths ${fmt(p.t5Deaths)} × ${f.t5Death} = ${fmt(p.t5Deaths * f.t5Death)}
++ T4 deaths ${fmt(p.t4Deaths)} × ${f.t4Death} = ${fmt(p.t4Deaths * f.t4Death)}
++ T5 kills  ${fmt(p.t5Kills)} × ${f.t5Kill} = ${fmt(p.t5Kills * f.t5Kill)}
++ T4 kills  ${fmt(p.t4Kills)} × ${f.t4Kill} = ${fmt(p.t4Kills * f.t4Kill)}
+= ${fmt(p.dkp)}`;
+}
+
+function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, showGovId, flagged, onToggleFlag }: PlayersTableProps) {
+  const showFlagCol = onToggleFlag !== null;
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs text-[var(--text-muted)] bg-[var(--background-secondary)]/40">
+              {showFlagCol && (
+                <th className="px-2 py-2 w-8 text-center" title="Flag for migration">
+                  <Flag size={12} className="inline text-rose-400" />
+                </th>
+              )}
               <Th k="rank" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">#</Th>
               <Th k="username" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-left">Name</Th>
               <Th k="power" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">Power</Th>
@@ -1417,13 +1922,31 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, showG
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={14} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+                <td colSpan={showFlagCol ? 15 : 14} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
                   No players to show
                 </td>
               </tr>
             )}
-            {rows.map((p) => (
-              <tr key={p.characterId} className="border-t border-[var(--border)]/50 hover:bg-[var(--background-hover)]/30 transition-colors">
+            {rows.map((p) => {
+              const isFlagged = flagged.has(p.characterId);
+              return (
+              <tr
+                key={p.characterId}
+                className={`border-t border-[var(--border)]/50 hover:bg-[var(--background-hover)]/30 transition-colors ${
+                  isFlagged ? 'bg-rose-500/5' : ''
+                }`}
+              >
+                {showFlagCol && (
+                  <td className="px-2 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isFlagged}
+                      onChange={() => onToggleFlag?.(p.characterId)}
+                      className="accent-rose-500 cursor-pointer"
+                      title={isFlagged ? 'Unflag from migration list' : 'Flag for migration'}
+                    />
+                  </td>
+                )}
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">
                   {rankById.get(p.characterId) ?? ''}
                 </td>
@@ -1448,7 +1971,12 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, showG
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t4Kills)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t5Kills)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{fmt(p.totalKP)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-[var(--foreground)] font-medium">{fmt(p.dkp)}</td>
+                <td
+                  className="px-3 py-2 text-right tabular-nums text-[var(--foreground)] font-medium cursor-help"
+                  title={dkpBreakdown(p, formula)}
+                >
+                  {fmt(p.dkp)}
+                </td>
                 <td className={`px-3 py-2 text-right tabular-nums font-medium ${p.tier ? ratioColor(p.dkpRatio, cutoffs) : 'text-[var(--text-muted)]'}`}>
                   {p.tier ? fmtPct(p.dkpRatio) : '—'}
                 </td>
@@ -1462,7 +1990,8 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, showG
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

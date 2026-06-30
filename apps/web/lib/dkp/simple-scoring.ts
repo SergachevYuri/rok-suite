@@ -41,12 +41,24 @@ export interface SimpleCutoffs {
   good: number;
 }
 
+export interface FlatTarget {
+  dkp: number;
+  deaths: number;
+}
+
 export interface SimpleConfig {
   version: 1;
   formula: SimpleFormula;
-  /** Sorted ASC by minPower at save time. UI re-sorts on render too. */
+  /** "flat" applies the same target to everyone; "tiered" uses the tier list. */
+  tierMode: 'flat' | 'tiered';
+  /** Used when tierMode === 'flat'. */
+  flatTarget: FlatTarget;
+  /** Used when tierMode === 'tiered'. Sorted ASC by minPower at save time. */
   tiers: PowerTier[];
   cutoffs: SimpleCutoffs;
+  /** If > 0, only the top-N players by power get a tier/target. Rest = UNRANKED.
+   *  0 means "score everyone". */
+  topN: number;
 }
 
 export type SimpleStatus = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED' | 'UNRANKED';
@@ -93,11 +105,19 @@ export const DEFAULT_SIMPLE_TIERS: PowerTier[] = [
   { id: 'tier-d', label: 'D', minPower: 60_000_000, targetDkp: 400_000_000, targetDeaths: 35_000_000 },
 ];
 
+export const DEFAULT_FLAT_TARGET: FlatTarget = {
+  dkp: 150_000_000,
+  deaths: 12_000_000,
+};
+
 export const DEFAULT_SIMPLE_CONFIG: SimpleConfig = {
   version: 1,
   formula: { ...DEFAULT_SIMPLE_FORMULA },
+  tierMode: 'tiered',
+  flatTarget: { ...DEFAULT_FLAT_TARGET },
   tiers: DEFAULT_SIMPLE_TIERS.map((t) => ({ ...t })),
   cutoffs: { ...DEFAULT_SIMPLE_CUTOFFS },
+  topN: 0,
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -171,12 +191,39 @@ function toIso(yyyymmdd: string): string | null {
 
 // ─── Scoring ────────────────────────────────────────────────────────────────
 
+/** Resolve tiers for scoring based on the config's tierMode. */
+function resolveTiers(config: SimpleConfig): PowerTier[] {
+  if (config.tierMode === 'flat') {
+    return [
+      {
+        id: 'flat',
+        label: 'All',
+        minPower: 0,
+        targetDkp: config.flatTarget.dkp,
+        targetDeaths: config.flatTarget.deaths,
+      },
+    ];
+  }
+  return sortTiersAsc(config.tiers);
+}
+
 export function computeSimpleScores(
   players: Player[],
   config: SimpleConfig,
 ): SimpleScoredPlayer[] {
-  const tiers = sortTiersAsc(config.tiers);
+  const tiers = resolveTiers(config);
   const f = config.formula;
+
+  // When topN > 0, only the top-N players by power get a tier (rest = UNRANKED).
+  let eligibleIds: Set<number> | null = null;
+  if (config.topN > 0) {
+    eligibleIds = new Set(
+      [...players]
+        .sort((a, b) => b.power - a.power)
+        .slice(0, config.topN)
+        .map((p) => p.characterId),
+    );
+  }
 
   return players.map((p) => {
     const t5d = p.t5Deaths ?? 0;
@@ -185,7 +232,9 @@ export function computeSimpleScores(
     const t4k = p.t4Kills ?? 0;
     const dkp = t5d * f.t5Death + t4d * f.t4Death + t5k * f.t5Kill + t4k * f.t4Kill;
     const totalDeaths = t5d + t4d;
-    const tier = tierForPower(p.power, tiers);
+
+    const eligible = eligibleIds === null || eligibleIds.has(p.characterId);
+    const tier = eligible ? tierForPower(p.power, tiers) : null;
 
     let dkpRatio = 0;
     let deathsRatio = 0;
@@ -237,7 +286,10 @@ export function mergeSimpleConfig(
   return {
     version: 1,
     formula: { ...base.formula, ...(partial.formula ?? {}) },
+    tierMode: partial.tierMode === 'flat' || partial.tierMode === 'tiered' ? partial.tierMode : base.tierMode,
+    flatTarget: { ...base.flatTarget, ...(partial.flatTarget ?? {}) },
     tiers,
     cutoffs: { ...base.cutoffs, ...(partial.cutoffs ?? {}) },
+    topN: Number.isFinite(partial.topN) && partial.topN! >= 0 ? partial.topN! : base.topN,
   };
 }

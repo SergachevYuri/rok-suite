@@ -424,6 +424,31 @@ export async function deleteKvK(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** For each kingdom in the KvK, return its most-recent dataset. */
+export async function loadLatestDatasetPerKingdom(kvkId: string): Promise<DkpDataset[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('dkp_datasets')
+    .select(DATASET_COLS)
+    .eq('kvk_id', kvkId)
+    .not('kingdom_id', 'is', null)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('loadLatestDatasetPerKingdom failed', error);
+    return [];
+  }
+  // Dedupe client-side: keep first (newest) per kingdom_id.
+  const seen = new Set<number>();
+  const out: DkpDataset[] = [];
+  for (const row of (data ?? []) as DkpDatasetRow[]) {
+    const kd = row.kingdom_id;
+    if (kd == null || seen.has(kd)) continue;
+    seen.add(kd);
+    out.push(rowToDataset(row));
+  }
+  return out.sort((a, b) => (a.kingdomId ?? 0) - (b.kingdomId ?? 0));
+}
+
 /** List distinct kingdom IDs that have datasets uploaded for a given KvK. */
 export async function listKingdomsForKvK(kvkId: string): Promise<number[]> {
   const supabase = createClient();
