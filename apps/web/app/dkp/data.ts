@@ -29,6 +29,10 @@ export interface DkpDataset {
   uploadedBy: string | null;
   statsFileName: string | null;
   honorFileName: string | null;
+  /** Owning KvK. Optional for legacy rows uploaded before the per-KvK rework. */
+  kvkId?: string | null;
+  /** ROK kingdom id (e.g. 3923). Optional for the same reason. */
+  kingdomId?: number | null;
   players: Player[];
 }
 
@@ -133,7 +137,12 @@ interface DkpDatasetRow {
   honor_file_name: string | null;
   player_count: number;
   players: Player[];
+  kvk_id?: string | null;
+  kingdom_id?: number | null;
 }
+
+const DATASET_COLS =
+  'id, created_at, uploaded_by, stats_file_name, honor_file_name, player_count, players, kvk_id, kingdom_id';
 
 function rowToDataset(row: DkpDatasetRow): DkpDataset {
   return {
@@ -142,25 +151,46 @@ function rowToDataset(row: DkpDatasetRow): DkpDataset {
     uploadedBy: row.uploaded_by,
     statsFileName: row.stats_file_name,
     honorFileName: row.honor_file_name,
+    kvkId: row.kvk_id ?? null,
+    kingdomId: row.kingdom_id ?? null,
     players: row.players ?? [],
   };
 }
 
-/** Fetch the most recent dataset from Supabase, or null if none exists. */
-export async function loadLatestDataset(): Promise<DkpDataset | null> {
+export interface DatasetFilter {
+  kvkId?: string;
+  kingdomId?: number;
+}
+
+/** Fetch the most recent dataset from Supabase, or null if none exists.
+ *  Without a filter the most recent legacy row is returned (kept for the
+ *  migration page that still scores against any roster). */
+export async function loadLatestDataset(filter?: DatasetFilter): Promise<DkpDataset | null> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from('dkp_datasets')
-    .select('id, created_at, uploaded_by, stats_file_name, honor_file_name, player_count, players')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  let q = supabase.from('dkp_datasets').select(DATASET_COLS);
+  if (filter?.kvkId) q = q.eq('kvk_id', filter.kvkId);
+  if (filter?.kingdomId != null) q = q.eq('kingdom_id', filter.kingdomId);
+  const { data, error } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (error) {
     console.error('loadLatestDataset failed', error);
     return null;
   }
   if (!data) return null;
   return rowToDataset(data as DkpDatasetRow);
+}
+
+/** List datasets, newest first. Filter by KvK and optionally Kingdom. */
+export async function listDatasets(filter: DatasetFilter): Promise<DkpDataset[]> {
+  const supabase = createClient();
+  let q = supabase.from('dkp_datasets').select(DATASET_COLS);
+  if (filter.kvkId) q = q.eq('kvk_id', filter.kvkId);
+  if (filter.kingdomId != null) q = q.eq('kingdom_id', filter.kingdomId);
+  const { data, error } = await q.order('created_at', { ascending: false });
+  if (error) {
+    console.error('listDatasets failed', error);
+    return [];
+  }
+  return (data as DkpDatasetRow[]).map(rowToDataset);
 }
 
 /** Insert a new dataset row. Returns the inserted dataset (with id + uploadedAt from the server). */
@@ -174,8 +204,10 @@ export async function saveDataset(dataset: DkpDataset): Promise<DkpDataset> {
       honor_file_name: dataset.honorFileName,
       player_count: dataset.players.length,
       players: dataset.players,
+      kvk_id: dataset.kvkId ?? null,
+      kingdom_id: dataset.kingdomId ?? null,
     })
-    .select('id, created_at, uploaded_by, stats_file_name, honor_file_name, player_count, players')
+    .select(DATASET_COLS)
     .single();
   if (error) throw error;
   return rowToDataset(data as DkpDatasetRow);
@@ -242,6 +274,10 @@ export function subscribeToConfigRow<T>(
 
 export const MIGRATION_ROW_ID = MIGRATION_ID;
 
+/** Config row id for the reworked DKP page (simple formula + tiers + cutoffs).
+ *  Kept separate from the legacy `singleton` row that still feeds ScansTab. */
+export const SIMPLE_CONFIG_ROW_ID = 'simple';
+
 /** Load the shared score config (weights, cutoffs, split, meta). Returns null if not yet seeded. */
 export async function loadSharedConfig<T>(): Promise<T | null> {
   const supabase = createClient();
@@ -288,4 +324,121 @@ export function subscribeToSharedConfig<T>(
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// ─── KvK CRUD ───────────────────────────────────────────────────────────────
+
+export interface KvK {
+  id: string;
+  name: string;
+  notes: string | null;
+  createdAt: string;
+  archivedAt: string | null;
+}
+
+interface KvKRow {
+  id: string;
+  name: string;
+  notes: string | null;
+  created_at: string;
+  archived_at: string | null;
+}
+
+function rowToKvK(row: KvKRow): KvK {
+  return {
+    id: row.id,
+    name: row.name,
+    notes: row.notes,
+    createdAt: row.created_at,
+    archivedAt: row.archived_at,
+  };
+}
+
+/** Convention for the per-KvK config row id in dkp_config. */
+export function simpleConfigIdForKvK(kvkId: string): string {
+  return `simple:${kvkId}`;
+}
+
+/** List KvKs. Active first (created_at desc), archived at the end. */
+export async function listKvKs(includeArchived = true): Promise<KvK[]> {
+  const supabase = createClient();
+  let q = supabase
+    .from('dkp_kvks')
+    .select('id, name, notes, created_at, archived_at');
+  if (!includeArchived) q = q.is('archived_at', null);
+  const { data, error } = await q.order('created_at', { ascending: false });
+  if (error) {
+    console.error('listKvKs failed', error);
+    return [];
+  }
+  return (data as KvKRow[]).map(rowToKvK);
+}
+
+export async function createKvK(name: string, notes?: string): Promise<KvK> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('dkp_kvks')
+    .insert({ name: name.trim(), notes: notes?.trim() || null })
+    .select('id, name, notes, created_at, archived_at')
+    .single();
+  if (error) throw error;
+  return rowToKvK(data as KvKRow);
+}
+
+export async function renameKvK(id: string, name: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('dkp_kvks')
+    .update({ name: name.trim() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function archiveKvK(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('dkp_kvks')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function unarchiveKvK(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('dkp_kvks')
+    .update({ archived_at: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** Delete a KvK. Datasets cascade-delete via FK; the per-KvK config row is removed here. */
+export async function deleteKvK(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error: cfgErr } = await supabase
+    .from('dkp_config')
+    .delete()
+    .eq('id', simpleConfigIdForKvK(id));
+  if (cfgErr) console.error('deleteKvK: failed to drop config row', cfgErr);
+  const { error } = await supabase.from('dkp_kvks').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** List distinct kingdom IDs that have datasets uploaded for a given KvK. */
+export async function listKingdomsForKvK(kvkId: string): Promise<number[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('dkp_datasets')
+    .select('kingdom_id')
+    .eq('kvk_id', kvkId)
+    .not('kingdom_id', 'is', null);
+  if (error) {
+    console.error('listKingdomsForKvK failed', error);
+    return [];
+  }
+  const ids = new Set<number>();
+  for (const row of data as { kingdom_id: number | null }[]) {
+    if (row.kingdom_id != null) ids.add(row.kingdom_id);
+  }
+  return [...ids].sort((a, b) => a - b);
 }
