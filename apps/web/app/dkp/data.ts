@@ -129,6 +129,68 @@ export async function parseHonorFile(file: File): Promise<HonorRow[]> {
   return parseHonorXLSX(buf);
 }
 
+/** Roster XLSX row. We only need id/kd/cityhall for filtering — name/power/KP
+ *  are ignored (stats file is authoritative for numbers). */
+export interface RosterRow {
+  playerId: number;
+  kd: number;
+  cityhall: number;
+}
+
+/** Parse integers that may be formatted with EU thousands separators.
+ *  "3.897" → 3897, "204.050.350" → 204050350, "25" → 25. */
+function parseLooseInt(v: string | number | undefined | null): number {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return Math.trunc(v);
+  // Strip all dots, commas, spaces and non-breaking spaces used as separators.
+  const cleaned = String(v).replace(/[.,\s ]/g, '');
+  const n = parseInt(cleaned, 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Parse a roster XLSX. Expected columns: KD, player_id, cityhall (others optional).
+ *  Column names are matched case-insensitively; spaces/underscores ignored. */
+export async function parseRosterXLSX(arrayBuffer: ArrayBuffer): Promise<RosterRow[]> {
+  const XLSX = await import('xlsx');
+  const wb = XLSX.read(arrayBuffer, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const raw: Record<string, string | number>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  if (raw.length === 0) return [];
+
+  const findKey = (row: Record<string, string | number>, ...candidates: string[]): string | null => {
+    const keys = Object.keys(row);
+    const norm = (s: string) => s.toLowerCase().replace(/[\s_]/g, '');
+    for (const c of candidates) {
+      const target = norm(c);
+      const k = keys.find((kk) => norm(kk) === target);
+      if (k) return k;
+    }
+    return null;
+  };
+
+  const kdKey = findKey(raw[0], 'KD', 'kingdom', 'kingdom_id');
+  const idKey = findKey(raw[0], 'player_id', 'playerid', 'governor_id', 'governorid', 'character_id', 'characterid', 'gov_id');
+  const chKey = findKey(raw[0], 'cityhall', 'city_hall', 'ch');
+  if (!idKey || !kdKey || !chKey) {
+    throw new Error(
+      `Roster file missing expected columns (KD, player_id, cityhall). Found: ${Object.keys(raw[0]).join(', ')}`,
+    );
+  }
+
+  return raw
+    .map((row) => ({
+      playerId: parseLooseInt(row[idKey]),
+      kd: parseLooseInt(row[kdKey]),
+      cityhall: parseLooseInt(row[chKey]),
+    }))
+    .filter((r) => r.playerId > 0);
+}
+
+export async function parseRosterFile(file: File): Promise<RosterRow[]> {
+  const buf = await file.arrayBuffer();
+  return parseRosterXLSX(buf);
+}
+
 interface DkpDatasetRow {
   id: string;
   created_at: string;

@@ -24,6 +24,7 @@ import {
   type DkpDataset,
   type KvK,
   parseStatsFile,
+  parseRosterFile,
   mergeIntoPlayers,
   looseMatch,
   loadLatestDataset,
@@ -662,6 +663,18 @@ function DkpPageInner() {
                     </div>
                   </>
                 )}
+                {dataset.honorFileName && (
+                  <>
+                    <div className="h-8 w-px bg-[var(--border)]" />
+                    <div>
+                      <p className="text-xs text-[var(--text-muted)]">Roster filter</p>
+                      <p className="text-xs font-mono text-amber-400 truncate max-w-[220px]" title={dataset.honorFileName}>
+                        {dataset.honorFileName}
+                      </p>
+                      <p className="text-[10px] text-[var(--text-muted)]">CH25 only</p>
+                    </div>
+                  </>
+                )}
               </section>
             )}
 
@@ -905,7 +918,9 @@ function UploadPanel({
   allKds: number[];
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const rosterRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [rosterFile, setRosterFile] = useState<File | null>(null);
   const [kdOverride, setKdOverride] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -924,7 +939,7 @@ function UploadPanel({
     setError(null);
     setInfo(null);
     if (!file) {
-      setError('Pick an .xlsx file first');
+      setError('Pick an .xlsx stats file first');
       return;
     }
     if (!effectiveKd) {
@@ -934,21 +949,53 @@ function UploadPanel({
     setBusy(true);
     try {
       const stats = await parseStatsFile(file);
-      const players = mergeIntoPlayers(stats, []);
+      let players = mergeIntoPlayers(stats, []);
+      const beforeFilter = players.length;
+      let rosterMatched = 0;
+      let rosterFilename: string | null = null;
+
+      if (rosterFile) {
+        const roster = await parseRosterFile(rosterFile);
+        // Build whitelist: player_id where KD == target AND cityhall == 25.
+        const allowed = new Set<number>();
+        for (const r of roster) {
+          if (r.kd === effectiveKd && r.cityhall === 25) allowed.add(r.playerId);
+        }
+        rosterMatched = allowed.size;
+        if (allowed.size === 0) {
+          throw new Error(
+            `Roster has no players with KD ${effectiveKd} AND cityhall 25. Nothing to merge.`,
+          );
+        }
+        players = players.filter((p) => allowed.has(p.characterId));
+        rosterFilename = rosterFile.name;
+        if (players.length === 0) {
+          throw new Error(
+            `Roster whitelist (${allowed.size} players) matched 0 rows in the stats file. Check IDs.`,
+          );
+        }
+      }
+
       await onUploaded(
         {
           uploadedAt: new Date().toISOString(),
           uploadedBy: null,
           statsFileName: file.name,
-          honorFileName: null,
+          // Repurpose honorFileName to keep the roster filename in db without a migration.
+          honorFileName: rosterFilename,
           players,
         },
         effectiveKd,
       );
-      setInfo(`Loaded ${players.length} players → KD ${effectiveKd}`);
+      const infoMsg = rosterFile
+        ? `Saved ${players.length} players (roster kept ${rosterMatched} CH25 in KD ${effectiveKd}; stats had ${beforeFilter}, ${beforeFilter - players.length} filtered out)`
+        : `Saved ${players.length} players → KD ${effectiveKd}`;
+      setInfo(infoMsg);
       setFile(null);
+      setRosterFile(null);
       setKdOverride(null);
       if (fileRef.current) fileRef.current.value = '';
+      if (rosterRef.current) rosterRef.current.value = '';
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to parse the file');
     } finally {
@@ -973,19 +1020,21 @@ function UploadPanel({
       </div>
       <div className="mb-4 space-y-1 text-xs text-[var(--text-muted)]">
         <p>
-          File name format:{' '}
+          <span className="font-medium text-[var(--text-secondary)]">Stats file</span>
+          {' — required. Name format: '}
           <span className="font-mono text-[var(--text-secondary)]">KDID_YYYYMMDD_YYYYMMDD.xlsx</span>
-          {' (e.g. '}
-          <span className="font-mono">3923_20260625_20260625.xlsx</span>
-          {') — KDID is auto-detected. You can override below.'}
+          {'. Columns: Character ID, Username, Power, T5/T4 Deaths, Total Kill Points, T5/T4 Kills.'}
         </p>
         <p>
-          Required columns: Character ID, Username, Power, T5 Deaths, T4 Deaths, Total Kill Points, T5 Kills, T4 Kills.
+          <span className="font-medium text-[var(--text-secondary)]">Roster file</span>
+          {' — optional. Filters the stats: only keep players with matching KD and '}
+          <span className="text-amber-400 font-medium">cityhall = 25</span>
+          {'. Columns: KD, player_id, cityhall (name / Power / KP / Rank_in_KD ignored).'}
         </p>
       </div>
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="flex-1 min-w-[240px]">
-          <label className="text-xs text-[var(--text-muted)] block mb-1.5">File</label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="text-xs text-[var(--text-muted)] block mb-1.5">Stats file</label>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -1015,6 +1064,43 @@ function UploadPanel({
             </p>
           )}
         </div>
+        <div>
+          <label className="text-xs text-[var(--text-muted)] block mb-1.5">Roster file (optional — cityhall 25 filter)</label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => rosterRef.current?.click()}
+              className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
+            >
+              Choose roster
+            </button>
+            <span className="text-xs text-[var(--text-muted)] truncate">
+              {rosterFile ? rosterFile.name : 'no file selected'}
+            </span>
+            {rosterFile && (
+              <button
+                type="button"
+                onClick={() => {
+                  setRosterFile(null);
+                  if (rosterRef.current) rosterRef.current.value = '';
+                }}
+                className="p-1 rounded text-[var(--text-muted)] hover:text-rose-400 transition-colors"
+                title="Remove roster"
+              >
+                <X size={12} />
+              </button>
+            )}
+            <input
+              ref={rosterRef}
+              type="file"
+              accept=".xlsx"
+              onChange={(e) => setRosterFile(e.target.files?.[0] ?? null)}
+              className="hidden"
+            />
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-end gap-4">
         <div>
           <label className="text-xs text-[var(--text-muted)] block mb-1.5">Target Kingdom</label>
           <select
