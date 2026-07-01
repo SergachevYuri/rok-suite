@@ -1495,7 +1495,7 @@ function ConfigPanel({
           label: `T${c.tiers.length + 1}`,
           minPower: lastMin + 10_000_000,
           targetDkp: 0,
-          targetDeaths: 0,
+          targetDeathsPct: 20,
         },
       ],
     }));
@@ -1612,21 +1612,27 @@ function ConfigPanel({
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-[var(--text-muted)] block mb-1">Target deaths</label>
+                    <label className="text-xs text-[var(--text-muted)] block mb-1" title="Target deaths as % of the player's power">
+                      Target deaths (% of power)
+                    </label>
                     <div className="flex items-center gap-1">
                       <input
                         type="number"
-                        value={config.flatTarget.deaths / 1_000_000}
-                        onChange={(e) =>
+                        value={config.flatTarget.deathsPct}
+                        onChange={(e) => {
+                          const n = parseFloat(e.target.value);
+                          const clamped = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
                           setConfig((c) => ({
                             ...c,
-                            flatTarget: { ...c.flatTarget, deaths: (parseFloat(e.target.value) || 0) * 1_000_000 },
-                          }))
-                        }
-                        step="0.5"
+                            flatTarget: { ...c.flatTarget, deathsPct: clamped },
+                          }));
+                        }}
+                        step="1"
+                        min="0"
+                        max="100"
                         className="w-full px-2 py-1.5 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
                       />
-                      <span className="text-xs text-[var(--text-muted)]">M</span>
+                      <span className="text-xs text-[var(--text-muted)]">%</span>
                     </div>
                   </div>
                 </div>
@@ -1651,7 +1657,9 @@ function ConfigPanel({
                         <th className="text-left py-2 pr-2 font-normal">Label</th>
                         <th className="text-right py-2 px-2 font-normal">Min power</th>
                         <th className="text-right py-2 px-2 font-normal">Target DKP</th>
-                        <th className="text-right py-2 px-2 font-normal">Target deaths</th>
+                        <th className="text-right py-2 px-2 font-normal" title="Target deaths as % of the player's power">
+                          Target deaths (% of power)
+                        </th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -1766,7 +1774,7 @@ function TierRow({
         <MillionInput value={tier.targetDkp} onChange={(v) => onChange({ targetDkp: v })} />
       </td>
       <td className="py-1.5 px-2">
-        <MillionInput value={tier.targetDeaths} onChange={(v) => onChange({ targetDeaths: v })} />
+        <PercentInput value={tier.targetDeathsPct} onChange={(v) => onChange({ targetDeathsPct: v })} />
       </td>
       <td className="py-1.5">
         <button
@@ -1779,6 +1787,27 @@ function TierRow({
         </button>
       </td>
     </tr>
+  );
+}
+
+/** Percentage input (0–100). Displayed with a "%" suffix. */
+function PercentInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-1 justify-end">
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => {
+          const n = parseFloat(e.target.value);
+          onChange(Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0);
+        }}
+        step="1"
+        min="0"
+        max="100"
+        className="w-24 px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30"
+      />
+      <span className="text-xs text-[var(--text-muted)]">%</span>
+    </div>
   );
 }
 
@@ -1981,7 +2010,14 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                   {p.tier ? fmtPct(p.dkpRatio) : '—'}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.totalDeaths)}</td>
-                <td className={`px-3 py-2 text-right tabular-nums font-medium ${p.tier ? ratioColor(p.deathsRatio, cutoffs) : 'text-[var(--text-muted)]'}`}>
+                <td
+                  className={`px-3 py-2 text-right tabular-nums font-medium cursor-help ${p.tier ? ratioColor(p.deathsRatio, cutoffs) : 'text-[var(--text-muted)]'}`}
+                  title={
+                    p.tier
+                      ? `Target: ${p.tier.targetDeathsPct}% of ${fmtM(p.power)} power = ${fmt(p.deathsTarget)} troops\nActual: ${fmt(p.totalDeaths)} → ${fmtPct(p.deathsRatio)}`
+                      : 'No tier assigned'
+                  }
+                >
                   {p.tier ? fmtPct(p.deathsRatio) : '—'}
                 </td>
                 <td className="px-3 py-2 text-center">

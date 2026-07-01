@@ -28,8 +28,9 @@ export interface PowerTier {
   minPower: number;
   /** Target DKP for the whole measurement period (no per-day scaling). */
   targetDkp: number;
-  /** Target total deaths (T4+T5) for the whole period. */
-  targetDeaths: number;
+  /** Target deaths as a percentage of the player's power (0–100).
+   *  Effective target troops = player.power × (targetDeathsPct / 100). */
+  targetDeathsPct: number;
 }
 
 export interface SimpleCutoffs {
@@ -43,7 +44,8 @@ export interface SimpleCutoffs {
 
 export interface FlatTarget {
   dkp: number;
-  deaths: number;
+  /** Target deaths as % of the player's power (0–100). */
+  deathsPct: number;
 }
 
 export interface SimpleConfig {
@@ -75,6 +77,8 @@ export interface SimpleScoredPlayer {
   dkp: number;
   totalDeaths: number;
   tier: PowerTier | null;
+  /** Effective deaths target in troops (tier.targetDeathsPct × player.power / 100). */
+  deathsTarget: number;
   dkpRatio: number;
   deathsRatio: number;
   /** min(dkpRatio, deathsRatio). 0 if tier missing. */
@@ -98,16 +102,16 @@ export const DEFAULT_SIMPLE_CUTOFFS: SimpleCutoffs = {
 };
 
 export const DEFAULT_SIMPLE_TIERS: PowerTier[] = [
-  { id: 'tier-mu', label: 'μ', minPower: 0, targetDkp: 30_000_000, targetDeaths: 2_000_000 },
-  { id: 'tier-a', label: 'A', minPower: 20_000_000, targetDkp: 80_000_000, targetDeaths: 6_000_000 },
-  { id: 'tier-b', label: 'B', minPower: 30_000_000, targetDkp: 150_000_000, targetDeaths: 12_000_000 },
-  { id: 'tier-c', label: 'C', minPower: 40_000_000, targetDkp: 240_000_000, targetDeaths: 20_000_000 },
-  { id: 'tier-d', label: 'D', minPower: 60_000_000, targetDkp: 400_000_000, targetDeaths: 35_000_000 },
+  { id: 'tier-mu', label: 'μ', minPower: 0, targetDkp: 30_000_000, targetDeathsPct: 10 },
+  { id: 'tier-a', label: 'A', minPower: 20_000_000, targetDkp: 80_000_000, targetDeathsPct: 15 },
+  { id: 'tier-b', label: 'B', minPower: 30_000_000, targetDkp: 150_000_000, targetDeathsPct: 20 },
+  { id: 'tier-c', label: 'C', minPower: 40_000_000, targetDkp: 240_000_000, targetDeathsPct: 25 },
+  { id: 'tier-d', label: 'D', minPower: 60_000_000, targetDkp: 400_000_000, targetDeathsPct: 30 },
 ];
 
 export const DEFAULT_FLAT_TARGET: FlatTarget = {
   dkp: 150_000_000,
-  deaths: 12_000_000,
+  deathsPct: 20,
 };
 
 export const DEFAULT_SIMPLE_CONFIG: SimpleConfig = {
@@ -200,7 +204,7 @@ function resolveTiers(config: SimpleConfig): PowerTier[] {
         label: 'All',
         minPower: 0,
         targetDkp: config.flatTarget.dkp,
-        targetDeaths: config.flatTarget.deaths,
+        targetDeathsPct: config.flatTarget.deathsPct,
       },
     ];
   }
@@ -239,10 +243,12 @@ export function computeSimpleScores(
     let dkpRatio = 0;
     let deathsRatio = 0;
     let ratio = 0;
+    let deathsTarget = 0;
     let status: SimpleStatus = 'UNRANKED';
     if (tier) {
       dkpRatio = tier.targetDkp > 0 ? dkp / tier.targetDkp : 0;
-      deathsRatio = tier.targetDeaths > 0 ? totalDeaths / tier.targetDeaths : 0;
+      deathsTarget = (tier.targetDeathsPct / 100) * p.power;
+      deathsRatio = deathsTarget > 0 ? totalDeaths / deathsTarget : 0;
       ratio = Math.min(dkpRatio, deathsRatio);
       status = classifyRatio(ratio, config.cutoffs);
     }
@@ -259,6 +265,7 @@ export function computeSimpleScores(
       dkp,
       totalDeaths,
       tier,
+      deathsTarget,
       dkpRatio,
       deathsRatio,
       ratio,
@@ -275,19 +282,40 @@ export function mergeSimpleConfig(
 ): SimpleConfig {
   if (!partial) return base;
   const tiers = Array.isArray(partial.tiers) && partial.tiers.length > 0
-    ? partial.tiers.map((t, i) => ({
-        id: t.id || `tier-${i}`,
-        label: t.label || `Tier ${i + 1}`,
-        minPower: Number.isFinite(t.minPower) ? t.minPower : 0,
-        targetDkp: Number.isFinite(t.targetDkp) ? t.targetDkp : 0,
-        targetDeaths: Number.isFinite(t.targetDeaths) ? t.targetDeaths : 0,
-      }))
+    ? partial.tiers.map((t, i) => {
+        // Legacy configs stored targetDeaths as an absolute troop count. If we
+        // find that instead of the new %-based field, default to 20% so the
+        // config is at least usable rather than silently zeroing the death
+        // target. Officer can re-deploy to fix values.
+        const raw = t as PowerTier & { targetDeaths?: number };
+        const targetDeathsPct = Number.isFinite(raw.targetDeathsPct)
+          ? raw.targetDeathsPct
+          : Number.isFinite(raw.targetDeaths)
+            ? 20
+            : 0;
+        return {
+          id: raw.id || `tier-${i}`,
+          label: raw.label || `Tier ${i + 1}`,
+          minPower: Number.isFinite(raw.minPower) ? raw.minPower : 0,
+          targetDkp: Number.isFinite(raw.targetDkp) ? raw.targetDkp : 0,
+          targetDeathsPct,
+        };
+      })
     : base.tiers;
+  const rawFlat = (partial.flatTarget ?? {}) as FlatTarget & { deaths?: number };
+  const flatTarget: FlatTarget = {
+    dkp: Number.isFinite(rawFlat.dkp) ? rawFlat.dkp : base.flatTarget.dkp,
+    deathsPct: Number.isFinite(rawFlat.deathsPct)
+      ? rawFlat.deathsPct
+      : Number.isFinite(rawFlat.deaths)
+        ? 20
+        : base.flatTarget.deathsPct,
+  };
   return {
     version: 1,
     formula: { ...base.formula, ...(partial.formula ?? {}) },
     tierMode: partial.tierMode === 'flat' || partial.tierMode === 'tiered' ? partial.tierMode : base.tierMode,
-    flatTarget: { ...base.flatTarget, ...(partial.flatTarget ?? {}) },
+    flatTarget,
     tiers,
     cutoffs: { ...base.cutoffs, ...(partial.cutoffs ?? {}) },
     topN: Number.isFinite(partial.topN) && partial.topN! >= 0 ? partial.topN! : base.topN,
