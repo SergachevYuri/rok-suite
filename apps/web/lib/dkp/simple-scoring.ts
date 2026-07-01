@@ -51,6 +51,9 @@ export interface FlatTarget {
   deathsPct: number;
 }
 
+/** How the final ratio is derived from kpRatio and deathsRatio. */
+export type ScoringRule = 'both' | 'kp' | 'deaths';
+
 export interface SimpleConfig {
   version: 1;
   formula: SimpleFormula;
@@ -64,6 +67,11 @@ export interface SimpleConfig {
   /** If > 0, only the top-N players by power get a tier/target. Rest = UNRANKED.
    *  0 means "score everyone". */
   topN: number;
+  /** Which ratio(s) drive the final status.
+   *  - 'both'   → ratio = min(kpRatio, deathsRatio) (default, strict)
+   *  - 'kp'     → ratio = kpRatio
+   *  - 'deaths' → ratio = deathsRatio */
+  scoringRule: ScoringRule;
 }
 
 export type SimpleStatus = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED' | 'UNRANKED';
@@ -138,6 +146,7 @@ export const DEFAULT_SIMPLE_CONFIG: SimpleConfig = {
   tiers: DEFAULT_SIMPLE_TIERS.map((t) => ({ ...t })),
   cutoffs: { ...DEFAULT_SIMPLE_CUTOFFS },
   topN: 0,
+  scoringRule: 'both',
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -271,7 +280,17 @@ export function computeSimpleScores(
       kpRatio = kpTarget > 0 ? rawKP / kpTarget : 0;
       deathsTarget = (tier.deathsPct / 100) * p.power;
       deathsRatio = deathsTarget > 0 ? totalDeaths / deathsTarget : 0;
-      ratio = Math.min(kpRatio, deathsRatio);
+      switch (config.scoringRule) {
+        case 'kp':
+          ratio = kpRatio;
+          break;
+        case 'deaths':
+          ratio = deathsRatio;
+          break;
+        case 'both':
+        default:
+          ratio = Math.min(kpRatio, deathsRatio);
+      }
       status = classifyRatio(ratio, config.cutoffs);
     }
 
@@ -345,6 +364,10 @@ export function mergeSimpleConfig(
       ? rawFlat.deathsPct
       : base.flatTarget.deathsPct,
   };
+  const scoringRule: ScoringRule =
+    partial.scoringRule === 'kp' || partial.scoringRule === 'deaths' || partial.scoringRule === 'both'
+      ? partial.scoringRule
+      : base.scoringRule;
   return {
     version: 1,
     formula: { ...base.formula, ...(partial.formula ?? {}) },
@@ -353,5 +376,6 @@ export function mergeSimpleConfig(
     tiers,
     cutoffs: { ...base.cutoffs, ...(partial.cutoffs ?? {}) },
     topN: Number.isFinite(partial.topN) && partial.topN! >= 0 ? partial.topN! : base.topN,
+    scoringRule,
   };
 }

@@ -1787,13 +1787,69 @@ function ConfigPanel({
             </div>
           </div>
 
+          {/* Scoring rule */}
+          <div>
+            <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">
+              Scoring rule
+            </h3>
+            <p className="text-xs text-[var(--text-muted)] mb-3">
+              Which ratio drives the status: both requirements, only KP, or only Deaths.
+            </p>
+            <div className="inline-flex rounded-lg overflow-hidden border border-[var(--border)] text-xs">
+              <button
+                type="button"
+                onClick={() => setConfig((c) => ({ ...c, scoringRule: 'both' }))}
+                className={`px-3 py-1.5 transition-colors ${
+                  config.scoringRule === 'both'
+                    ? 'bg-[#4318ff] text-white'
+                    : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                }`}
+                title="Status = min(KP%, Deaths%). Player must hit both."
+              >
+                Both (strict)
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfig((c) => ({ ...c, scoringRule: 'kp' }))}
+                className={`px-3 py-1.5 transition-colors ${
+                  config.scoringRule === 'kp'
+                    ? 'bg-[#4318ff] text-white'
+                    : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                }`}
+                title="Status ignores deaths — only KP ratio counts."
+              >
+                KP only
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfig((c) => ({ ...c, scoringRule: 'deaths' }))}
+                className={`px-3 py-1.5 transition-colors ${
+                  config.scoringRule === 'deaths'
+                    ? 'bg-[#4318ff] text-white'
+                    : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                }`}
+                title="Status ignores KP — only deaths ratio counts."
+              >
+                Deaths only
+              </button>
+            </div>
+          </div>
+
           {/* Cutoffs */}
           <div>
             <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">
               Status cutoffs
             </h3>
             <p className="text-xs text-[var(--text-muted)] mb-3">
-              Status uses <span className="font-mono">min(DKP%, Deaths%)</span>. Player must hit both targets.
+              {config.scoringRule === 'both' && (
+                <>Status uses <span className="font-mono">min(KP%, Deaths%)</span>. Player must hit both targets.</>
+              )}
+              {config.scoringRule === 'kp' && (
+                <>Status uses <span className="font-mono">KP%</span> only. Deaths ignored.</>
+              )}
+              {config.scoringRule === 'deaths' && (
+                <>Status uses <span className="font-mono">Deaths%</span> only. KP ignored.</>
+              )}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <CutoffInput label="Excellent ≥" value={config.cutoffs.excellent} onChange={(v) => setCutoff('excellent', v)} tone="emerald" />
@@ -2043,14 +2099,20 @@ function dkpBreakdown(p: SimpleScoredPlayer, f: SimpleConfig['formula']): string
 
 function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, showGovId, flagged, onToggleFlag }: PlayersTableProps) {
   const showFlagCol = onToggleFlag !== null;
+  // Solid opaque bg on each <th> is what makes sticky work reliably across
+  // browsers even when the wrapper has overflow-x-auto (the parent creates a
+  // scroll context that clips /40 transparencies). We stick the whole <thead>
+  // to viewport top-0 while scrolling the page vertically.
+  const thBg = 'bg-[var(--background-card)]';
+  const thSticky = `sticky top-0 z-10 ${thBg} border-b border-[var(--border)]`;
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs text-[var(--text-muted)] bg-[var(--background-secondary)]/40">
+          <thead className={`sticky top-0 z-10 ${thBg}`}>
+            <tr className="text-xs text-[var(--text-muted)]">
               {showFlagCol && (
-                <th className="px-2 py-2 w-8 text-center" title="Flag for migration">
+                <th className={`${thSticky} px-2 py-2 w-8 text-center`} title="Flag for migration">
                   <Flag size={12} className="inline text-rose-400" />
                 </th>
               )}
@@ -2181,7 +2243,7 @@ function Th({
 }) {
   const active = sortKey === k;
   return (
-    <th className={`px-3 py-2 font-normal ${align}`}>
+    <th className={`sticky top-0 z-10 bg-[var(--background-card)] border-b border-[var(--border)] px-3 py-2 font-normal ${align}`}>
       <button
         onClick={() => onSort(k)}
         className={`inline-flex items-center gap-1 hover:text-[var(--foreground)] transition-colors ${active ? 'text-[var(--foreground)]' : ''}`}
