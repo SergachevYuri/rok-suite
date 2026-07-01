@@ -1493,9 +1493,9 @@ function ConfigPanel({
         {
           id,
           label: `T${c.tiers.length + 1}`,
-          minPower: lastMin + 10_000_000,
-          targetDkp: 0,
-          targetDeathsPct: 20,
+          minPower: lastMin + 20_000_000,
+          kpMultiplier: 1,
+          deathsPct: 1,
         },
       ],
     }));
@@ -1594,26 +1594,30 @@ function ConfigPanel({
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
                   <div>
-                    <label className="text-xs text-[var(--text-muted)] block mb-1">Target DKP</label>
+                    <label className="text-xs text-[var(--text-muted)] block mb-1" title="Req KP = player.power × multiplier">
+                      Req KP (× power)
+                    </label>
                     <div className="flex items-center gap-1">
                       <input
                         type="number"
-                        value={config.flatTarget.dkp / 1_000_000}
-                        onChange={(e) =>
+                        value={config.flatTarget.kpMultiplier}
+                        onChange={(e) => {
+                          const n = parseFloat(e.target.value);
                           setConfig((c) => ({
                             ...c,
-                            flatTarget: { ...c.flatTarget, dkp: (parseFloat(e.target.value) || 0) * 1_000_000 },
-                          }))
-                        }
-                        step="1"
+                            flatTarget: { ...c.flatTarget, kpMultiplier: Number.isFinite(n) && n >= 0 ? n : 0 },
+                          }));
+                        }}
+                        step="0.25"
+                        min="0"
                         className="w-full px-2 py-1.5 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
                       />
-                      <span className="text-xs text-[var(--text-muted)]">M</span>
+                      <span className="text-xs text-[var(--text-muted)]">× pwr</span>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-[var(--text-muted)] block mb-1" title="Target deaths as % of the player's power">
-                      Target deaths (% of power)
+                    <label className="text-xs text-[var(--text-muted)] block mb-1" title="Req Dead = player.power × %">
+                      Req Dead (% of power)
                     </label>
                     <div className="flex items-center gap-1">
                       <input
@@ -1627,7 +1631,7 @@ function ConfigPanel({
                             flatTarget: { ...c.flatTarget, deathsPct: clamped },
                           }));
                         }}
-                        step="1"
+                        step="0.25"
                         min="0"
                         max="100"
                         className="w-full px-2 py-1.5 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
@@ -1654,11 +1658,13 @@ function ConfigPanel({
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-xs text-[var(--text-muted)] border-b border-[var(--border)]">
-                        <th className="text-left py-2 pr-2 font-normal">Label</th>
+                        <th className="text-left py-2 pr-2 font-normal">Fascia</th>
                         <th className="text-right py-2 px-2 font-normal">Min power</th>
-                        <th className="text-right py-2 px-2 font-normal">Target DKP</th>
-                        <th className="text-right py-2 px-2 font-normal" title="Target deaths as % of the player's power">
-                          Target deaths (% of power)
+                        <th className="text-right py-2 px-2 font-normal" title="Req KP = player.power × multiplier">
+                          Req KP (× power)
+                        </th>
+                        <th className="text-right py-2 px-2 font-normal" title="Req Dead = player.power × %">
+                          Req Dead (% of power)
                         </th>
                         <th className="w-8" />
                       </tr>
@@ -1771,10 +1777,10 @@ function TierRow({
         <MillionInput value={tier.minPower} onChange={(v) => onChange({ minPower: v })} />
       </td>
       <td className="py-1.5 px-2">
-        <MillionInput value={tier.targetDkp} onChange={(v) => onChange({ targetDkp: v })} />
+        <MultiplierInput value={tier.kpMultiplier} onChange={(v) => onChange({ kpMultiplier: v })} />
       </td>
       <td className="py-1.5 px-2">
-        <PercentInput value={tier.targetDeathsPct} onChange={(v) => onChange({ targetDeathsPct: v })} />
+        <PercentInput value={tier.deathsPct} onChange={(v) => onChange({ deathsPct: v })} step={0.25} maxValue={100} />
       </td>
       <td className="py-1.5">
         <button
@@ -1790,8 +1796,18 @@ function TierRow({
   );
 }
 
-/** Percentage input (0–100). Displayed with a "%" suffix. */
-function PercentInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+/** Percentage input. Displayed with a "%" suffix. */
+function PercentInput({
+  value,
+  onChange,
+  step = 1,
+  maxValue = 100,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  step?: number;
+  maxValue?: number;
+}) {
   return (
     <div className="flex items-center gap-1 justify-end">
       <input
@@ -1799,14 +1815,34 @@ function PercentInput({ value, onChange }: { value: number; onChange: (v: number
         value={value}
         onChange={(e) => {
           const n = parseFloat(e.target.value);
-          onChange(Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0);
+          onChange(Number.isFinite(n) ? Math.max(0, Math.min(maxValue, n)) : 0);
         }}
-        step="1"
+        step={step}
         min="0"
-        max="100"
+        max={maxValue}
         className="w-24 px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30"
       />
       <span className="text-xs text-[var(--text-muted)]">%</span>
+    </div>
+  );
+}
+
+/** Multiplier of power input (e.g. 1.75× Power). */
+function MultiplierInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-1 justify-end">
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => {
+          const n = parseFloat(e.target.value);
+          onChange(Number.isFinite(n) && n >= 0 ? n : 0);
+        }}
+        step="0.25"
+        min="0"
+        className="w-24 px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30"
+      />
+      <span className="text-xs text-[var(--text-muted)]">× pwr</span>
     </div>
   );
 }
@@ -2006,7 +2042,14 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                 >
                   {fmt(p.dkp)}
                 </td>
-                <td className={`px-3 py-2 text-right tabular-nums font-medium ${p.tier ? ratioColor(p.dkpRatio, cutoffs) : 'text-[var(--text-muted)]'}`}>
+                <td
+                  className={`px-3 py-2 text-right tabular-nums font-medium cursor-help ${p.tier ? ratioColor(p.dkpRatio, cutoffs) : 'text-[var(--text-muted)]'}`}
+                  title={
+                    p.tier
+                      ? `Target: ${p.tier.kpMultiplier}× power → ${fmt(p.dkpTarget)}\nActual DKP: ${fmt(p.dkp)} → ${fmtPct(p.dkpRatio)}`
+                      : 'No tier assigned'
+                  }
+                >
                   {p.tier ? fmtPct(p.dkpRatio) : '—'}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.totalDeaths)}</td>
@@ -2014,7 +2057,7 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                   className={`px-3 py-2 text-right tabular-nums font-medium cursor-help ${p.tier ? ratioColor(p.deathsRatio, cutoffs) : 'text-[var(--text-muted)]'}`}
                   title={
                     p.tier
-                      ? `Target: ${p.tier.targetDeathsPct}% of ${fmtM(p.power)} power = ${fmt(p.deathsTarget)} troops\nActual: ${fmt(p.totalDeaths)} → ${fmtPct(p.deathsRatio)}`
+                      ? `Target: ${p.tier.deathsPct}% of ${fmtM(p.power)} power = ${fmt(p.deathsTarget)} troops\nActual: ${fmt(p.totalDeaths)} → ${fmtPct(p.deathsRatio)}`
                       : 'No tier assigned'
                   }
                 >
