@@ -149,13 +149,13 @@ function parseLooseInt(v: string | number | undefined | null): number {
 }
 
 /** Parse a roster XLSX. Expected columns: KD, player_id, cityhall (others optional).
- *  Column names are matched case-insensitively; spaces/underscores ignored. */
+ *  Scans ALL sheets and uses the first that has the three required columns —
+ *  handles files where the per-player roster is on a later tab (e.g. after a
+ *  seeding-aggregate sheet). Column names are matched case-insensitively with
+ *  spaces/underscores ignored. */
 export async function parseRosterXLSX(arrayBuffer: ArrayBuffer): Promise<RosterRow[]> {
   const XLSX = await import('xlsx');
   const wb = XLSX.read(arrayBuffer, { type: 'array' });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const raw: Record<string, string | number>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-  if (raw.length === 0) return [];
 
   const findKey = (row: Record<string, string | number>, ...candidates: string[]): string | null => {
     const keys = Object.keys(row);
@@ -168,22 +168,39 @@ export async function parseRosterXLSX(arrayBuffer: ArrayBuffer): Promise<RosterR
     return null;
   };
 
-  const kdKey = findKey(raw[0], 'KD', 'kingdom', 'kingdom_id');
-  const idKey = findKey(raw[0], 'player_id', 'playerid', 'governor_id', 'governorid', 'character_id', 'characterid', 'gov_id');
-  const chKey = findKey(raw[0], 'cityhall', 'city_hall', 'ch');
-  if (!idKey || !kdKey || !chKey) {
-    throw new Error(
-      `Roster file missing expected columns (KD, player_id, cityhall). Found: ${Object.keys(raw[0]).join(', ')}`,
-    );
+  // Track columns seen across sheets so the error message is actually useful.
+  const sheetsInspected: { name: string; columns: string[] }[] = [];
+
+  for (const sheetName of wb.SheetNames) {
+    const sheet = wb.Sheets[sheetName];
+    const raw: Record<string, string | number>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    if (raw.length === 0) {
+      sheetsInspected.push({ name: sheetName, columns: [] });
+      continue;
+    }
+    const cols = Object.keys(raw[0]);
+    sheetsInspected.push({ name: sheetName, columns: cols });
+
+    const kdKey = findKey(raw[0], 'KD', 'kingdom', 'kingdom_id');
+    const idKey = findKey(raw[0], 'player_id', 'playerid', 'governor_id', 'governorid', 'character_id', 'characterid', 'gov_id');
+    const chKey = findKey(raw[0], 'cityhall', 'city_hall', 'ch');
+    if (!kdKey || !idKey || !chKey) continue;
+
+    return raw
+      .map((row) => ({
+        playerId: parseLooseInt(row[idKey]),
+        kd: parseLooseInt(row[kdKey]),
+        cityhall: parseLooseInt(row[chKey]),
+      }))
+      .filter((r) => r.playerId > 0);
   }
 
-  return raw
-    .map((row) => ({
-      playerId: parseLooseInt(row[idKey]),
-      kd: parseLooseInt(row[kdKey]),
-      cityhall: parseLooseInt(row[chKey]),
-    }))
-    .filter((r) => r.playerId > 0);
+  const summary = sheetsInspected
+    .map((s) => `"${s.name}": ${s.columns.length > 0 ? s.columns.join(', ') : '(empty)'}`)
+    .join(' | ');
+  throw new Error(
+    `Roster file missing expected columns (KD, player_id, cityhall) in any sheet. Sheets scanned: ${summary}`,
+  );
 }
 
 export async function parseRosterFile(file: File): Promise<RosterRow[]> {
