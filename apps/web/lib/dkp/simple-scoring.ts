@@ -77,16 +77,19 @@ export interface SimpleScoredPlayer {
   t5Kills: number;
   t4Kills: number;
   totalKP: number;
+  /** Synthetic score computed from the configurable formula. Informational only —
+   *  the actual tier evaluation compares raw totalKP against kpTarget. */
   dkp: number;
   totalDeaths: number;
   tier: PowerTier | null;
-  /** Effective DKP target (tier.kpMultiplier × player.power). */
-  dkpTarget: number;
+  /** Effective KP target (tier.kpMultiplier × player.power). Compared against raw totalKP. */
+  kpTarget: number;
   /** Effective deaths target in troops (tier.deathsPct × player.power / 100). */
   deathsTarget: number;
-  dkpRatio: number;
+  /** Raw totalKP divided by kpTarget. */
+  kpRatio: number;
   deathsRatio: number;
-  /** min(dkpRatio, deathsRatio). 0 if tier missing. */
+  /** min(kpRatio, deathsRatio). 0 if tier missing. */
   ratio: number;
   status: SimpleStatus;
 }
@@ -253,18 +256,22 @@ export function computeSimpleScores(
     const eligible = eligibleIds === null || eligibleIds.has(p.characterId);
     const tier = eligible ? tierForPower(p.power, tiers) : null;
 
-    let dkpRatio = 0;
+    // Tier evaluation runs against RAW totalKP from the stats file, not the
+    // synthetic DKP score. The kpMultiplier expresses "how many times the
+    // player's power should be reached in raw KP" (e.g. 1.75 = 175% of power).
+    const rawKP = p.totalKP ?? 0;
+    let kpRatio = 0;
     let deathsRatio = 0;
     let ratio = 0;
-    let dkpTarget = 0;
+    let kpTarget = 0;
     let deathsTarget = 0;
     let status: SimpleStatus = 'UNRANKED';
     if (tier) {
-      dkpTarget = tier.kpMultiplier * p.power;
-      dkpRatio = dkpTarget > 0 ? dkp / dkpTarget : 0;
+      kpTarget = tier.kpMultiplier * p.power;
+      kpRatio = kpTarget > 0 ? rawKP / kpTarget : 0;
       deathsTarget = (tier.deathsPct / 100) * p.power;
       deathsRatio = deathsTarget > 0 ? totalDeaths / deathsTarget : 0;
-      ratio = Math.min(dkpRatio, deathsRatio);
+      ratio = Math.min(kpRatio, deathsRatio);
       status = classifyRatio(ratio, config.cutoffs);
     }
 
@@ -276,13 +283,13 @@ export function computeSimpleScores(
       t4Deaths: t4d,
       t5Kills: t5k,
       t4Kills: t4k,
-      totalKP: p.totalKP ?? 0,
+      totalKP: rawKP,
       dkp,
       totalDeaths,
       tier,
-      dkpTarget,
+      kpTarget,
       deathsTarget,
-      dkpRatio,
+      kpRatio,
       deathsRatio,
       ratio,
       status,

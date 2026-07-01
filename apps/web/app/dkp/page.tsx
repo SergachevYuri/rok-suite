@@ -104,7 +104,7 @@ type SortKey =
   | 't5Kills'
   | 'totalKP'
   | 'dkp'
-  | 'dkpRatio'
+  | 'kpRatio'
   | 'totalDeaths'
   | 'deathsRatio'
   | 'ratio'
@@ -858,8 +858,8 @@ function compareScored(a: SimpleScoredPlayer, b: SimpleScoredPlayer, key: SortKe
       return a.totalKP - b.totalKP;
     case 'dkp':
       return a.dkp - b.dkp;
-    case 'dkpRatio':
-      return a.dkpRatio - b.dkpRatio;
+    case 'kpRatio':
+      return a.kpRatio - b.kpRatio;
     case 'totalDeaths':
       return a.totalDeaths - b.totalDeaths;
     case 'deathsRatio':
@@ -2064,7 +2064,7 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
               <Th k="t5Kills" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">T5k</Th>
               <Th k="totalKP" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">KP</Th>
               <Th k="dkp" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">DKP</Th>
-              <Th k="dkpRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">DKP %</Th>
+              <Th k="kpRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">KP %</Th>
               <Th k="totalDeaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">Deaths</Th>
               <Th k="deathsRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">Deaths %</Th>
               <Th k="status" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center">Status</Th>
@@ -2129,14 +2129,14 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                   {fmt(p.dkp)}
                 </td>
                 <td
-                  className={`px-3 py-2 text-right tabular-nums font-medium cursor-help ${p.tier ? ratioColor(p.dkpRatio, cutoffs) : 'text-[var(--text-muted)]'}`}
+                  className={`px-3 py-2 text-right tabular-nums font-medium cursor-help ${p.tier ? ratioColor(p.kpRatio, cutoffs) : 'text-[var(--text-muted)]'}`}
                   title={
                     p.tier
-                      ? `Target: ${p.tier.kpMultiplier}× power → ${fmt(p.dkpTarget)}\nActual DKP: ${fmt(p.dkp)} → ${fmtPct(p.dkpRatio)}`
+                      ? `Target: ${p.tier.kpMultiplier}× power → ${fmt(p.kpTarget)}\nActual KP: ${fmt(p.totalKP)} → ${fmtPct(p.kpRatio)}`
                       : 'No tier assigned'
                   }
                 >
-                  {p.tier ? fmtPct(p.dkpRatio) : '—'}
+                  {p.tier ? fmtPct(p.kpRatio) : '—'}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.totalDeaths)}</td>
                 <td
