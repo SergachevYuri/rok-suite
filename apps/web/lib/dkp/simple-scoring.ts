@@ -259,7 +259,23 @@ export function computeSimpleScores(
     const t4d = p.t4Deaths ?? 0;
     const t5k = p.t5Kills ?? 0;
     const t4k = p.t4Kills ?? 0;
-    const dkp = t5d * f.t5Death + t4d * f.t4Death + t5k * f.t5Kill + t4k * f.t4Kill;
+    // The synthetic DKP score reflects the active scoring rule: if the officer
+    // is scoring "KP only" the deaths component is dropped from the display so
+    // the number lines up with what's actually being evaluated.
+    const killsScore = t5k * f.t5Kill + t4k * f.t4Kill;
+    const deathsScore = t5d * f.t5Death + t4d * f.t4Death;
+    let dkp: number;
+    switch (config.scoringRule) {
+      case 'kp':
+        dkp = killsScore;
+        break;
+      case 'deaths':
+        dkp = deathsScore;
+        break;
+      case 'both':
+      default:
+        dkp = killsScore + deathsScore;
+    }
     const totalDeaths = t5d + t4d;
 
     const eligible = eligibleIds === null || eligibleIds.has(p.characterId);

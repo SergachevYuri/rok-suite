@@ -800,6 +800,7 @@ function DkpPageInner() {
               onSort={handleSort}
               cutoffs={config.cutoffs}
               formula={config.formula}
+              scoringRule={config.scoringRule}
               showGovId={showGovId}
               flagged={flaggedForMigration}
               onToggleFlag={isOfficer ? handleToggleFlag : null}
@@ -2081,6 +2082,7 @@ interface PlayersTableProps {
   onSort: (k: SortKey) => void;
   cutoffs: SimpleConfig['cutoffs'];
   formula: SimpleConfig['formula'];
+  scoringRule: SimpleConfig['scoringRule'];
   showGovId: boolean;
   /** IDs of players flagged for migration (shared across the app). */
   flagged: Set<number>;
@@ -2088,28 +2090,45 @@ interface PlayersTableProps {
   onToggleFlag: ((characterId: number) => void) | null;
 }
 
-function dkpBreakdown(p: SimpleScoredPlayer, f: SimpleConfig['formula']): string {
-  return `DKP breakdown:
-  T5 deaths ${fmt(p.t5Deaths)} × ${f.t5Death} = ${fmt(p.t5Deaths * f.t5Death)}
-+ T4 deaths ${fmt(p.t4Deaths)} × ${f.t4Death} = ${fmt(p.t4Deaths * f.t4Death)}
-+ T5 kills  ${fmt(p.t5Kills)} × ${f.t5Kill} = ${fmt(p.t5Kills * f.t5Kill)}
-+ T4 kills  ${fmt(p.t4Kills)} × ${f.t4Kill} = ${fmt(p.t4Kills * f.t4Kill)}
-= ${fmt(p.dkp)}`;
+function dkpBreakdown(
+  p: SimpleScoredPlayer,
+  f: SimpleConfig['formula'],
+  rule: SimpleConfig['scoringRule'],
+): string {
+  const deathLines =
+    `  T5 deaths ${fmt(p.t5Deaths)} × ${f.t5Death} = ${fmt(p.t5Deaths * f.t5Death)}\n` +
+    `+ T4 deaths ${fmt(p.t4Deaths)} × ${f.t4Death} = ${fmt(p.t4Deaths * f.t4Death)}`;
+  const killLines =
+    `+ T5 kills  ${fmt(p.t5Kills)} × ${f.t5Kill} = ${fmt(p.t5Kills * f.t5Kill)}\n` +
+    `+ T4 kills  ${fmt(p.t4Kills)} × ${f.t4Kill} = ${fmt(p.t4Kills * f.t4Kill)}`;
+  let body: string;
+  switch (rule) {
+    case 'kp':
+      body = `${killLines}\n(deaths excluded — scoring rule "KP only")`;
+      break;
+    case 'deaths':
+      body = `${deathLines}\n(kills excluded — scoring rule "Deaths only")`;
+      break;
+    case 'both':
+    default:
+      body = `${deathLines}\n${killLines}`;
+  }
+  return `DKP breakdown:\n${body}\n= ${fmt(p.dkp)}`;
 }
 
-function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, showGovId, flagged, onToggleFlag }: PlayersTableProps) {
+function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, scoringRule, showGovId, flagged, onToggleFlag }: PlayersTableProps) {
   const showFlagCol = onToggleFlag !== null;
-  // Solid opaque bg on each <th> is what makes sticky work reliably across
-  // browsers even when the wrapper has overflow-x-auto (the parent creates a
-  // scroll context that clips /40 transparencies). We stick the whole <thead>
-  // to viewport top-0 while scrolling the page vertically.
+  // The scroll container has BOTH axis overflow set on the same element (`overflow-auto`)
+  // and a max-height so it acts as the sticky ancestor. Without a bounded scroll
+  // container, `sticky top-0` sticks to the top of the page — hidden as soon as
+  // the section title scrolls off. Trade-off: the table scrolls internally.
   const thBg = 'bg-[var(--background-card)]';
   const thSticky = `sticky top-0 z-10 ${thBg} border-b border-[var(--border)]`;
   return (
     <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[calc(100vh-10rem)]">
         <table className="w-full text-sm">
-          <thead className={`sticky top-0 z-10 ${thBg}`}>
+          <thead className={thBg}>
             <tr className="text-xs text-[var(--text-muted)]">
               {showFlagCol && (
                 <th className={`${thSticky} px-2 py-2 w-8 text-center`} title="Flag for migration">
@@ -2186,7 +2205,7 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{fmt(p.totalKP)}</td>
                 <td
                   className="px-3 py-2 text-right tabular-nums text-[var(--foreground)] font-medium cursor-help"
-                  title={dkpBreakdown(p, formula)}
+                  title={dkpBreakdown(p, formula, scoringRule)}
                 >
                   {fmt(p.dkp)}
                 </td>
