@@ -16,6 +16,7 @@ import {
   Trash2,
   Calendar,
   Flag,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuthRole, meetsRole } from '@/lib/auth-role';
 import { SignInButton } from '@/components/SignInButton';
@@ -104,25 +105,23 @@ function ratioBgColor(r: number, cutoffs: { excellent: number; approved: number;
 function RatioCell({
   ratio,
   cutoffs,
-  title,
 }: {
   ratio: number;
   cutoffs: { excellent: number; approved: number; good: number };
-  title: string;
 }) {
   const clamped = Math.max(0, Math.min(1, ratio));
   const textCls = ratioColor(ratio, cutoffs);
   const barCls = ratioBgColor(ratio, cutoffs);
   return (
-    <div className="flex flex-col items-end gap-0.5 min-w-[52px] cursor-help" title={title}>
+    <span className="flex flex-col items-end gap-0.5 min-w-[52px]">
       <span className={`text-xs font-medium tabular-nums ${textCls}`}>{fmtPct(ratio)}</span>
-      <div className="w-full h-1 bg-[var(--background-secondary)] rounded-full overflow-hidden">
-        <div
-          className={`h-full ${barCls} transition-[width] duration-200`}
+      <span className="block w-full h-1 bg-[var(--background-secondary)] rounded-full overflow-hidden">
+        <span
+          className={`block h-full ${barCls} transition-[width] duration-200`}
           style={{ width: `${clamped * 100}%` }}
         />
-      </div>
-    </div>
+      </span>
+    </span>
   );
 }
 
@@ -2151,6 +2150,58 @@ function dkpBreakdown(
   return `DKP breakdown:\n${body}\n= ${fmt(p.dkp)}`;
 }
 
+/** Shared footer line pointing officers at where the tier numbers are configured. */
+function TipSource({ children }: { children: React.ReactNode }) {
+  return <span className="mt-1.5 block border-t border-[var(--border)] pt-1.5 text-[10px] text-[var(--text-muted)]">{children}</span>;
+}
+
+/** Rich hover content for the KP % cell — names the tier, shows the math, cites the source. */
+function kpTipContent(p: SimpleScoredPlayer): React.ReactNode {
+  if (!p.tier) return null;
+  return (
+    <span className="block">
+      <span className="block font-semibold text-[var(--foreground)]">KP target · Tier {p.tier.label}</span>
+      <span className="block">{p.tier.kpMultiplier}× power = {p.tier.kpMultiplier} × {fmtM(p.power)} = {fmt(p.kpTarget)}</span>
+      <span className="block">Your KP: {fmt(p.totalKP)} → <span className="font-medium">{fmtPct(p.kpRatio)}</span> of target</span>
+      <TipSource>Multiplier set for Tier {p.tier.label} in the <span className="text-[var(--text-secondary)]">Scoring configuration</span> panel.</TipSource>
+    </span>
+  );
+}
+
+/** Rich hover content for the Deaths % cell. */
+function deathsTipContent(p: SimpleScoredPlayer): React.ReactNode {
+  if (!p.tier) return null;
+  return (
+    <span className="block">
+      <span className="block font-semibold text-[var(--foreground)]">Deaths target · Tier {p.tier.label}</span>
+      <span className="block">{p.tier.deathsPct}% of power = {p.tier.deathsPct}% × {fmtM(p.power)} = {fmt(p.deathsTarget)} troops</span>
+      <span className="block">Your deaths: {fmt(p.totalDeaths)} → <span className="font-medium">{fmtPct(p.deathsRatio)}</span> of target</span>
+      <TipSource>Percentage set for Tier {p.tier.label} in the <span className="text-[var(--text-secondary)]">Scoring configuration</span> panel.</TipSource>
+    </span>
+  );
+}
+
+/** Rich hover content for the Tier badge — the single place both targets are spelled out. */
+function tierTipContent(p: SimpleScoredPlayer): React.ReactNode {
+  if (!p.tier) {
+    return (
+      <span className="block">
+        <span className="block font-semibold text-[var(--foreground)]">No tier</span>
+        <span className="block">{fmtM(p.power)} power is below the lowest tier, or outside the top-N cutoff → UNRANKED.</span>
+        <TipSource>Tiers are defined in the <span className="text-[var(--text-secondary)]">Scoring configuration</span> panel.</TipSource>
+      </span>
+    );
+  }
+  return (
+    <span className="block">
+      <span className="block font-semibold text-[var(--foreground)]">Tier {p.tier.label} · power ≥ {fmtM(p.tier.minPower)}</span>
+      <span className="block">KP target: {p.tier.kpMultiplier}× power = {fmt(p.kpTarget)}</span>
+      <span className="block">Deaths target: {p.tier.deathsPct}% of power = {fmt(p.deathsTarget)} troops</span>
+      <TipSource>These come from the tier ladder in the <span className="text-[var(--text-secondary)]">Scoring configuration</span> panel.</TipSource>
+    </span>
+  );
+}
+
 function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, scoringRule, showGovId, flagged, onToggleFlag }: PlayersTableProps) {
   const showFlagCol = onToggleFlag !== null;
   // The scroll container has BOTH axis overflow set on the same element (`overflow-auto`)
@@ -2172,18 +2223,18 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
               )}
               <Th k="rank" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">#</Th>
               <Th k="username" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-left">Name</Th>
-              <Th k="power" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">Power</Th>
-              <Th k="tier" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center">Tier</Th>
-              <Th k="t4Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">T4d</Th>
-              <Th k="t5Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">T5d</Th>
-              <Th k="t4Kills" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">T4k</Th>
-              <Th k="t5Kills" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">T5k</Th>
-              <Th k="totalKP" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">KP</Th>
-              <Th k="dkp" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">DKP</Th>
-              <Th k="kpRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">KP %</Th>
-              <Th k="totalDeaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">Deaths</Th>
-              <Th k="deathsRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">Deaths %</Th>
-              <Th k="status" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center">Status</Th>
+              <Th k="power" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="Current power from the uploaded scan. Sets which tier the player falls into.">Power</Th>
+              <Th k="tier" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center" help="Power band the player lands in — the highest tier whose min-power ≤ their power. The tier sets the KP and Deaths targets. '—' means no tier (below the lowest tier, or outside the top-N cutoff) → UNRANKED.">Tier</Th>
+              <Th k="t4Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="Raw T4 troop deaths from the scan.">T4d</Th>
+              <Th k="t5Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="Raw T5 troop deaths from the scan.">T5d</Th>
+              <Th k="t4Kills" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="Raw T4 kills from the scan.">T4k</Th>
+              <Th k="t5Kills" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="Raw T5 kills from the scan.">T5k</Th>
+              <Th k="totalKP" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="Raw total kill points from the scan. This is the number the KP % column measures against target (not the DKP score).">KP</Th>
+              <Th k="dkp" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="Weighted combat score = T5d×w + T4d×w + T5k×w + T4k×w, using the weights in Scoring configuration. Informational only — it does NOT set the status. Hover a DKP cell for that player's breakdown.">DKP</Th>
+              <Th k="kpRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="Raw KP ÷ KP target, where KP target = tier's KP multiplier × power. 100% = exactly on target. Color follows the status cutoffs (green/amber/red). Hover a cell for that player's target and actual.">KP %</Th>
+              <Th k="totalDeaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="T4 + T5 troop deaths combined.">Deaths</Th>
+              <Th k="deathsRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help="Total deaths ÷ deaths target, where deaths target = tier's deaths-% of power. 100% = exactly on target. Color follows the status cutoffs.">Deaths %</Th>
+              <Th k="status" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center" help="Grade from the status cutoffs applied to the driving ratio. Scoring rule decides the driver: 'both' uses the lower of KP % and Deaths % (both must be met), or KP-only / Deaths-only. EXCELLENT ≥ approved ≥ good; below that → REVIEW.">Status</Th>
             </tr>
           </thead>
           <tbody>
@@ -2225,32 +2276,34 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmtM(p.power)}</td>
                 <td className="px-3 py-2 text-center">
-                  {p.tier ? (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
-                      {p.tier.label}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-[var(--text-muted)]">—</span>
-                  )}
+                  <Tip content={tierTipContent(p)} className="inline-flex justify-center">
+                    {p.tier ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
+                        {p.tier.label}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--text-muted)]">—</span>
+                    )}
+                  </Tip>
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t4Deaths)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t5Deaths)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t4Kills)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t5Kills)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{fmt(p.totalKP)}</td>
-                <td
-                  className="px-3 py-2 text-right tabular-nums text-[var(--foreground)] font-medium cursor-help"
-                  title={dkpBreakdown(p, formula, scoringRule)}
-                >
-                  {fmt(p.dkp)}
+                <td className="px-3 py-2 text-right tabular-nums text-[var(--foreground)] font-medium">
+                  <Tip
+                    content={<span className="block whitespace-pre-line font-mono text-[11px]">{dkpBreakdown(p, formula, scoringRule)}</span>}
+                    className="inline-flex justify-end"
+                  >
+                    {fmt(p.dkp)}
+                  </Tip>
                 </td>
                 <td className="px-3 py-2 min-w-[80px]">
                   {p.tier ? (
-                    <RatioCell
-                      ratio={p.kpRatio}
-                      cutoffs={cutoffs}
-                      title={`Target: ${p.tier.kpMultiplier}× power → ${fmt(p.kpTarget)}\nActual KP: ${fmt(p.totalKP)} → ${fmtPct(p.kpRatio)}`}
-                    />
+                    <Tip content={kpTipContent(p)} className="flex w-full justify-end">
+                      <RatioCell ratio={p.kpRatio} cutoffs={cutoffs} />
+                    </Tip>
                   ) : (
                     <span className="text-right block text-[var(--text-muted)]">—</span>
                   )}
@@ -2258,11 +2311,9 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.totalDeaths)}</td>
                 <td className="px-3 py-2 min-w-[80px]">
                   {p.tier ? (
-                    <RatioCell
-                      ratio={p.deathsRatio}
-                      cutoffs={cutoffs}
-                      title={`Target: ${p.tier.deathsPct}% of ${fmtM(p.power)} power = ${fmt(p.deathsTarget)} troops\nActual: ${fmt(p.totalDeaths)} → ${fmtPct(p.deathsRatio)}`}
-                    />
+                    <Tip content={deathsTipContent(p)} className="flex w-full justify-end">
+                      <RatioCell ratio={p.deathsRatio} cutoffs={cutoffs} />
+                    </Tip>
                   ) : (
                     <span className="text-right block text-[var(--text-muted)]">—</span>
                   )}
@@ -2288,6 +2339,7 @@ function Th({
   sortDir,
   onSort,
   align,
+  help,
   children,
 }: {
   k: SortKey;
@@ -2295,22 +2347,91 @@ function Th({
   sortDir: 'asc' | 'desc';
   onSort: (k: SortKey) => void;
   align: 'text-left' | 'text-right' | 'text-center';
+  /** Optional plain-text explanation shown on hover of a small "?" icon. */
+  help?: string;
   children: React.ReactNode;
 }) {
   const active = sortKey === k;
+  const justify =
+    align === 'text-right' ? 'justify-end' : align === 'text-center' ? 'justify-center' : 'justify-start';
   return (
     <th className={`sticky top-0 z-10 bg-[var(--background-card)] border-b border-[var(--border)] px-3 py-2 font-normal ${align}`}>
-      <button
-        onClick={() => onSort(k)}
-        className={`inline-flex items-center gap-1 hover:text-[var(--foreground)] transition-colors ${active ? 'text-[var(--foreground)]' : ''}`}
-      >
-        {children}
-        {active ? (
-          <ArrowUpDown size={10} className={sortDir === 'asc' ? 'rotate-180' : ''} />
-        ) : (
-          <ArrowUpDown size={10} className="opacity-30" />
-        )}
-      </button>
+      <span className={`inline-flex items-center gap-1 ${justify}`}>
+        <button
+          onClick={() => onSort(k)}
+          className={`inline-flex items-center gap-1 hover:text-[var(--foreground)] transition-colors ${active ? 'text-[var(--foreground)]' : ''}`}
+        >
+          {children}
+          {active ? (
+            <ArrowUpDown size={10} className={sortDir === 'asc' ? 'rotate-180' : ''} />
+          ) : (
+            <ArrowUpDown size={10} className="opacity-30" />
+          )}
+        </button>
+        {help && <HeaderHelp text={help} />}
+      </span>
     </th>
+  );
+}
+
+/** Wraps any trigger and shows a styled popover on hover or click.
+ *  Uses fixed positioning (computed from the trigger's rect) so the popover
+ *  is not clipped by the table's overflow/scroll container. Not interactive
+ *  (pointer-events-none) so moving onto it closes it, like a tooltip. */
+function Tip({
+  content,
+  children,
+  className,
+}: {
+  content: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  const show = () => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    // Clamp horizontally so edge columns don't overflow the viewport.
+    const left = Math.min(Math.max(r.left + r.width / 2, 150), window.innerWidth - 150);
+    setCoords({ top: r.bottom + 6, left });
+    setOpen(true);
+  };
+
+  return (
+    <span
+      ref={ref}
+      onMouseEnter={show}
+      onMouseLeave={() => setOpen(false)}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (open) setOpen(false);
+        else show();
+      }}
+      className={`cursor-help ${className ?? ''}`}
+    >
+      {children}
+      {open && coords && (
+        <span
+          role="tooltip"
+          style={{ position: 'fixed', top: coords.top, left: coords.left, transform: 'translateX(-50%)', zIndex: 60 }}
+          className="pointer-events-none block w-max max-w-[300px] rounded-lg border border-[var(--border)] bg-[var(--background-card)] px-3 py-2 text-left text-xs font-normal normal-case tracking-normal leading-snug text-[var(--text-secondary)] shadow-lg"
+        >
+          {content}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** A "?" icon that reveals a plain-text explanation on hover or click. */
+function HeaderHelp({ text }: { text: string }) {
+  return (
+    <Tip content={text} className="inline-flex items-center text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
+      <HelpCircle size={11} className="opacity-60" />
+    </Tip>
   );
 }
