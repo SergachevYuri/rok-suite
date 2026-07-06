@@ -91,6 +91,41 @@ function ratioColor(r: number, cutoffs: { excellent: number; approved: number; g
   return 'text-rose-400';
 }
 
+function ratioBgColor(r: number, cutoffs: { excellent: number; approved: number; good: number }): string {
+  if (r >= cutoffs.excellent) return 'bg-emerald-500';
+  if (r >= cutoffs.approved) return 'bg-cyan-500';
+  if (r >= cutoffs.good) return 'bg-amber-500';
+  return 'bg-rose-500';
+}
+
+/** Cell content: percentage label on top + a mini progress bar filled to
+ *  min(ratio, 100%). Ratios above 100% are clipped visually (the label still
+ *  shows the true value, e.g. "156%"). Color matches the status cutoffs. */
+function RatioCell({
+  ratio,
+  cutoffs,
+  title,
+}: {
+  ratio: number;
+  cutoffs: { excellent: number; approved: number; good: number };
+  title: string;
+}) {
+  const clamped = Math.max(0, Math.min(1, ratio));
+  const textCls = ratioColor(ratio, cutoffs);
+  const barCls = ratioBgColor(ratio, cutoffs);
+  return (
+    <div className="flex flex-col items-end gap-0.5 min-w-[52px] cursor-help" title={title}>
+      <span className={`text-xs font-medium tabular-nums ${textCls}`}>{fmtPct(ratio)}</span>
+      <div className="w-full h-1 bg-[var(--background-secondary)] rounded-full overflow-hidden">
+        <div
+          className={`h-full ${barCls} transition-[width] duration-200`}
+          style={{ width: `${clamped * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Sort keys ──────────────────────────────────────────────────────────────
 
 type SortKey =
@@ -2209,26 +2244,28 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                 >
                   {fmt(p.dkp)}
                 </td>
-                <td
-                  className={`px-3 py-2 text-right tabular-nums font-medium cursor-help ${p.tier ? ratioColor(p.kpRatio, cutoffs) : 'text-[var(--text-muted)]'}`}
-                  title={
-                    p.tier
-                      ? `Target: ${p.tier.kpMultiplier}× power → ${fmt(p.kpTarget)}\nActual KP: ${fmt(p.totalKP)} → ${fmtPct(p.kpRatio)}`
-                      : 'No tier assigned'
-                  }
-                >
-                  {p.tier ? fmtPct(p.kpRatio) : '—'}
+                <td className="px-3 py-2 min-w-[80px]">
+                  {p.tier ? (
+                    <RatioCell
+                      ratio={p.kpRatio}
+                      cutoffs={cutoffs}
+                      title={`Target: ${p.tier.kpMultiplier}× power → ${fmt(p.kpTarget)}\nActual KP: ${fmt(p.totalKP)} → ${fmtPct(p.kpRatio)}`}
+                    />
+                  ) : (
+                    <span className="text-right block text-[var(--text-muted)]">—</span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.totalDeaths)}</td>
-                <td
-                  className={`px-3 py-2 text-right tabular-nums font-medium cursor-help ${p.tier ? ratioColor(p.deathsRatio, cutoffs) : 'text-[var(--text-muted)]'}`}
-                  title={
-                    p.tier
-                      ? `Target: ${p.tier.deathsPct}% of ${fmtM(p.power)} power = ${fmt(p.deathsTarget)} troops\nActual: ${fmt(p.totalDeaths)} → ${fmtPct(p.deathsRatio)}`
-                      : 'No tier assigned'
-                  }
-                >
-                  {p.tier ? fmtPct(p.deathsRatio) : '—'}
+                <td className="px-3 py-2 min-w-[80px]">
+                  {p.tier ? (
+                    <RatioCell
+                      ratio={p.deathsRatio}
+                      cutoffs={cutoffs}
+                      title={`Target: ${p.tier.deathsPct}% of ${fmtM(p.power)} power = ${fmt(p.deathsTarget)} troops\nActual: ${fmt(p.totalDeaths)} → ${fmtPct(p.deathsRatio)}`}
+                    />
+                  ) : (
+                    <span className="text-right block text-[var(--text-muted)]">—</span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-center">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-medium ${STATUS_STYLES[p.status]}`}>

@@ -99,8 +99,12 @@ export function LeaderApplicationForm() {
   const [notes, setNotes] = useState('');
   const [roles, setRoles] = useState<RoleEntry[]>([newRole()]);
 
-  // Autofill data sources
-  const { kingdoms: availableKingdoms, loading: kingdomsLoading } = useAvailableSeedKingdoms();
+  // Autofill data sources. Applications are for our home KD (K23 → 3923) —
+  // filter the seed list so applicants can't pick a different kingdom by
+  // mistake even if the DB has scans for the whole seed pool.
+  const { kingdoms: availableKingdoms, loading: kingdomsLoading } = useAvailableSeedKingdoms(
+    (kd) => kd === 3923,
+  );
   const kingdomNum = /^\d+$/.test(kingdom.trim()) ? Number(kingdom.trim()) : null;
   const kingdomKnown = kingdomNum !== null && availableKingdoms.includes(kingdomNum);
   const { dates: scanDates } = useSeedDates(kingdomKnown ? kingdomNum : null);
