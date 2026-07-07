@@ -22,12 +22,24 @@ export interface SeedPlayer {
   rank_in_kd: number;
 }
 
+/** Apply a KvK filter to a Supabase query — undefined / null / '' means the
+ *  UI hasn't picked a KvK yet, so we do not filter; a real uuid narrows to
+ *  that KvK's scans; the sentinel 'legacy' narrows to untagged rows. */
+type KvkScope = string | null | undefined;
+function applyKvk<Q extends { eq: (col: string, val: unknown) => Q; is: (col: string, val: unknown) => Q }>(
+  q: Q,
+  kvkId: KvkScope,
+): Q {
+  if (kvkId === 'legacy') return q.is('kvk_id', null);
+  if (kvkId) return q.eq('kvk_id', kvkId);
+  return q;
+}
+
 /**
- * Pulls every distinct kingdom_id present in the seeds_kd_stats table.
- * Optional `filter` keeps only the KDs that match (e.g. a pool range — see
- * lib/kingdom/kd-pools.ts). Pass a stable function reference (or omit it).
+ * Pulls every distinct kingdom_id present in the seeds_kd_stats table for the
+ * given KvK scope. `filter` narrows the list further (e.g. a pool range).
  */
-export function useAvailableSeedKingdoms(filter?: (kd: number) => boolean) {
+export function useAvailableSeedKingdoms(filter?: (kd: number) => boolean, kvkId?: KvkScope) {
   const [kingdoms, setKingdoms] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,10 +49,8 @@ export function useAvailableSeedKingdoms(filter?: (kd: number) => boolean) {
       const ids = new Set<number>();
       let offset = 0;
       while (true) {
-        const { data, error } = await supabase
-          .from('seeds_kd_stats')
-          .select('kingdom_id')
-          .range(offset, offset + 999);
+        const base = supabase.from('seeds_kd_stats').select('kingdom_id');
+        const { data, error } = await applyKvk(base, kvkId).range(offset, offset + 999);
         if (error) { console.error('Error fetching seed kingdoms:', error); break; }
         if (!data || data.length === 0) break;
         for (const r of data) ids.add(r.kingdom_id);
@@ -53,12 +63,12 @@ export function useAvailableSeedKingdoms(filter?: (kd: number) => boolean) {
     })();
   // Filter is identity-stable when callers use the helpers in kd-pools.ts.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [kvkId]);
 
   return { kingdoms, loading };
 }
 
-export function useSeedDates(kingdomId: number | null = null) {
+export function useSeedDates(kingdomId: number | null = null, kvkId?: KvkScope) {
   const [dates, setDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,6 +78,7 @@ export function useSeedDates(kingdomId: number | null = null) {
       const supabase = createClient();
       let query = supabase.from('seeds_kd_stats').select('scan_date');
       if (kingdomId) query = query.eq('kingdom_id', kingdomId);
+      query = applyKvk(query, kvkId);
 
       const { data, error } = await query.order('scan_date', { ascending: false }).limit(5000);
       if (error) console.error('Error fetching seed dates:', error);
@@ -76,12 +87,12 @@ export function useSeedDates(kingdomId: number | null = null) {
       setDates(unique);
       setLoading(false);
     })();
-  }, [kingdomId]);
+  }, [kingdomId, kvkId]);
 
   return { dates, loading };
 }
 
-export function useSeedPlayers(kingdomId: number | null, date: string | null) {
+export function useSeedPlayers(kingdomId: number | null, date: string | null, kvkId?: KvkScope) {
   const [players, setPlayers] = useState<SeedPlayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshTick, setRefreshTick] = useState(0);
@@ -96,15 +107,14 @@ export function useSeedPlayers(kingdomId: number | null, date: string | null) {
       setLoading(true);
       try {
         const supabase = createClient();
-        const data = await fetchAllRows<SeedPlayer>((range) =>
-          supabase
+        const data = await fetchAllRows<SeedPlayer>((range) => {
+          const base = supabase
             .from('seeds_kd_players')
             .select('*')
             .eq('kingdom_id', kingdomId)
-            .eq('scan_date', date)
-            .order('rank_in_kd', { ascending: true })
-            .range(range.from, range.to)
-        );
+            .eq('scan_date', date);
+          return applyKvk(base, kvkId).order('rank_in_kd', { ascending: true }).range(range.from, range.to);
+        });
         if (!cancelled) setPlayers(data);
       } catch (err) {
         console.error('Error fetching seed players:', err);
@@ -114,7 +124,7 @@ export function useSeedPlayers(kingdomId: number | null, date: string | null) {
     })();
 
     return () => { cancelled = true; };
-  }, [kingdomId, date, refreshTick]);
+  }, [kingdomId, date, kvkId, refreshTick]);
 
   return { players, loading, refetch: () => setRefreshTick(t => t + 1) };
 }
@@ -127,11 +137,12 @@ export function useSeedKdStats(
   kingdomIds: number[],
   dateFrom: string | null = null,
   dateTo: string | null = null,
+  kvkId?: KvkScope,
 ) {
   const [stats, setStats] = useState<SeedKdStat[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const key = kingdomIds.join(',') + '|' + (dateFrom || '') + '|' + (dateTo || '');
+  const key = kingdomIds.join(',') + '|' + (dateFrom || '') + '|' + (dateTo || '') + '|' + (kvkId || '');
 
   useEffect(() => {
     if (kingdomIds.length === 0) { setStats([]); setLoading(false); return; }
@@ -147,6 +158,7 @@ export function useSeedKdStats(
 
         if (dateFrom) query = query.gte('scan_date', dateFrom);
         if (dateTo)   query = query.lte('scan_date', dateTo);
+        query = applyKvk(query, kvkId);
 
         const data = await fetchAllRows<SeedKdStat>((range) =>
           query.order('scan_date', { ascending: true }).range(range.from, range.to)

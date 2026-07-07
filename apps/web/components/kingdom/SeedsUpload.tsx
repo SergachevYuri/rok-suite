@@ -50,12 +50,17 @@ export default function SeedsUpload({
   onUploaded,
   target = DEFAULT_TARGET,
   title,
+  kvkId,
 }: {
   onUploaded?: () => void;
   /** Which Supabase tables to write to. Defaults to the regular seeds tables. */
   target?: UploadTargetTables;
   /** Optional override for the heading shown above the drop zone. */
   title?: string;
+  /** When set, tags every uploaded row with this KvK. Otherwise rows are left
+   *  untagged (legacy pool). Also feeds the delete/upsert scoping so the same
+   *  (date, kingdom) can exist under different KvKs. */
+  kvkId?: string | null;
 }) {
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string>('');
@@ -118,36 +123,42 @@ export default function SeedsUpload({
       if (replaceExisting) {
         const kdsInFile = Array.from(new Set([...kdRows.map(r => r.kingdom_id), ...playerRows.map(r => r.kingdom_id)]));
         setProgress(`Clearing existing rows for ${date}...`);
-        const { error: delPlayersErr } = await supabase
+        // Scope the delete to the selected KvK (or NULL for the legacy bucket)
+        // so upserts against a different KvK don't wipe each other.
+        let delPlayers = supabase
           .from(target.players)
           .delete()
           .eq('scan_date', date)
           .in('kingdom_id', kdsInFile);
+        delPlayers = kvkId ? delPlayers.eq('kvk_id', kvkId) : delPlayers.is('kvk_id', null);
+        const { error: delPlayersErr } = await delPlayers;
         if (delPlayersErr) throw new Error(`Delete players failed: ${delPlayersErr.message}`);
 
-        const { error: delStatsErr } = await supabase
+        let delStats = supabase
           .from(target.stats)
           .delete()
           .eq('scan_date', date)
           .in('kingdom_id', kdsInFile);
+        delStats = kvkId ? delStats.eq('kvk_id', kvkId) : delStats.is('kvk_id', null);
+        const { error: delStatsErr } = await delStats;
         if (delStatsErr) throw new Error(`Delete stats failed: ${delStatsErr.message}`);
       }
 
-      const statsBatch = kdRows.map(r => ({ scan_date: date, ...r }));
+      const statsBatch = kdRows.map(r => ({ scan_date: date, kvk_id: kvkId ?? null, ...r }));
       setProgress(`Uploading ${statsBatch.length} KD rows...`);
       const { error: statsErr } = await supabase
         .from(target.stats)
-        .upsert(statsBatch, { onConflict: 'scan_date,kingdom_id' });
+        .upsert(statsBatch, { onConflict: 'scan_date,kingdom_id,kvk_id' });
       if (statsErr) throw new Error(`KD stats upsert failed: ${statsErr.message}`);
 
       const total = playerRows.length;
       let done = 0;
       const BATCH = 500;
       for (let i = 0; i < playerRows.length; i += BATCH) {
-        const batch = playerRows.slice(i, i + BATCH).map(r => ({ scan_date: date, ...r }));
+        const batch = playerRows.slice(i, i + BATCH).map(r => ({ scan_date: date, kvk_id: kvkId ?? null, ...r }));
         const { error: err } = await supabase
           .from(target.players)
-          .upsert(batch, { onConflict: 'scan_date,kingdom_id,player_id' });
+          .upsert(batch, { onConflict: 'scan_date,kingdom_id,player_id,kvk_id' });
         if (err) throw new Error(`Players upsert failed at row ${i}: ${err.message}`);
         done += batch.length;
         setProgress(`Uploading players... ${done}/${total}`);
@@ -249,7 +260,7 @@ export default function SeedsUpload({
               {fileName || 'Drop your scan Excel here, or click to browse'}
             </div>
             <div className="text-xs text-[var(--text-muted)] mt-1">
-              File must contain a KD aggregate sheet and a Players sheet
+              File must contain a Players sheet (KD aggregate sheet optional — derived from players if missing)
             </div>
           </div>
         </div>
@@ -433,26 +444,67 @@ function identifyAndParse(wb: XLSX.WorkBook): { kd: ParsedKdRow[]; players: Pars
     else if (matchesColumns(cols, KD_COLS)) kdSheet = json;
   }
 
-  if (!kdSheet) throw new Error(`KD aggregate sheet not found. Expected columns: ${KD_COLS.join(', ')}`);
   if (!playerSheet) throw new Error(`Players sheet not found. Expected columns: ${PLAYER_COLS.join(', ')}`);
 
-  const kdRaw = kdSheet.map(parseKdRow).filter(Boolean) as ParsedKdRow[];
   const playersRaw = playerSheet.map(parsePlayerRow).filter(Boolean) as ParsedPlayerRow[];
-
-  // Dedupe by primary key (last occurrence wins). Postgres rejects upsert
-  // batches that target the same PK twice, so we collapse duplicates here.
-  const kdMap = new Map<number, ParsedKdRow>();
-  for (const r of kdRaw) kdMap.set(r.kingdom_id, r);
-  const kd = Array.from(kdMap.values());
 
   const playerMap = new Map<string, ParsedPlayerRow>();
   for (const r of playersRaw) playerMap.set(`${r.kingdom_id}:${r.player_id}`, r);
   const players = Array.from(playerMap.values());
-
-  if (kd.length === 0) throw new Error('KD sheet has no valid rows');
   if (players.length === 0) throw new Error('Players sheet has no valid rows');
 
+  // KD aggregate sheet is optional. If missing (or in a format we don't
+  // recognize) derive it from the players sheet: sum of top-400 power per KD
+  // and total KP per KD, then rank across KDs.
+  let kd: ParsedKdRow[];
+  if (kdSheet) {
+    const kdRaw = kdSheet.map(parseKdRow).filter(Boolean) as ParsedKdRow[];
+    const kdMap = new Map<number, ParsedKdRow>();
+    for (const r of kdRaw) kdMap.set(r.kingdom_id, r);
+    kd = Array.from(kdMap.values());
+  } else {
+    kd = deriveKdRowsFromPlayers(players);
+  }
+
+  if (kd.length === 0) throw new Error('No KD rows resolved (empty aggregate and no players)');
+
   return { kd, players };
+}
+
+/** Compute a KD aggregate row per kingdom by scanning the players list. */
+function deriveKdRowsFromPlayers(players: ParsedPlayerRow[]): ParsedKdRow[] {
+  const perKd = new Map<number, ParsedPlayerRow[]>();
+  for (const p of players) {
+    if (!p.kingdom_id) continue;
+    const bucket = perKd.get(p.kingdom_id) ?? [];
+    bucket.push(p);
+    perKd.set(p.kingdom_id, bucket);
+  }
+
+  const summary: { kingdom_id: number; power_400: number; total_kp: number }[] = [];
+  for (const [kingdom_id, rows] of perKd) {
+    const byPower = [...rows].sort((a, b) => b.power - a.power);
+    const top400 = byPower.slice(0, 400);
+    const power_400 = top400.reduce((s, r) => s + (r.power || 0), 0);
+    const total_kp = rows.reduce((s, r) => s + (r.kp || 0), 0);
+    summary.push({ kingdom_id, power_400, total_kp });
+  }
+
+  // Rank across KDs on both metrics (1 = best).
+  const byPowerDesc = [...summary].sort((a, b) => b.power_400 - a.power_400);
+  const byKpDesc = [...summary].sort((a, b) => b.total_kp - a.total_kp);
+  const powerRank = new Map<number, number>();
+  const kpRank = new Map<number, number>();
+  byPowerDesc.forEach((r, i) => powerRank.set(r.kingdom_id, i + 1));
+  byKpDesc.forEach((r, i) => kpRank.set(r.kingdom_id, i + 1));
+
+  return summary.map((r) => ({
+    kingdom_id: r.kingdom_id,
+    power_400: r.power_400,
+    total_kp: r.total_kp,
+    power_rank: powerRank.get(r.kingdom_id) ?? 0,
+    kp_rank: kpRank.get(r.kingdom_id) ?? 0,
+  }));
 }
 
 function matchesColumns(cols: string[], required: string[]): boolean {

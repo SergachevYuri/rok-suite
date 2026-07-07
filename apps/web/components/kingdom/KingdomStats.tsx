@@ -21,6 +21,13 @@ import { fetchKdSnapshotSummary, timeAgo, type KdSnapshotSummary } from '@/lib/k
 import { fetchHeroscrollKingdoms, saveHeroscrollSnapshot, fetchLatestHeroscrollSnapshotMeta, type HeroscrollKingdom } from '@/lib/kingdom/heroscroll';
 import { meetsRole, useAuthRole } from '@/lib/auth-role';
 import { OUR_SEED_KDS, OUR_SEED_SET } from '@/lib/kingdom/our-seed';
+import { listKvKs, type KvK } from '@/app/dkp/data';
+
+const KVK_STORAGE_KEY = 'kingdom-stats-kvk-v1';
+/** Sentinel for the "legacy pool" (untagged pre-KvK rows). Stored in
+ *  localStorage as the string 'legacy'; matches the sentinel accepted by the
+ *  seeds hooks. */
+const LEGACY_KVK = 'legacy';
 import {
   KD_POOLS,
   poolFilter,
@@ -111,6 +118,44 @@ export default function KingdomStats({
     const qs = params.toString();
     router.push(qs ? `?${qs}` : basePath, { scroll: false });
   }, [searchParams, router, basePath]);
+
+  // ─── KvK scope ─────────────────────────────────────────────────────────
+  // KvKs are managed on the DKP page (dkp_kvks table). Each scan upload here
+  // gets tagged with the currently-selected KvK so /kingdom-stats can present
+  // separate views per campaign. Rows uploaded before this rework have
+  // kvk_id = NULL and live in the "Legacy" bucket. Selection persists in
+  // localStorage so refreshing keeps you on the same KvK.
+  const [kvks, setKvks] = useState<KvK[]>([]);
+  const [selectedKvkId, setSelectedKvkIdState] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await listKvKs(true);
+      if (cancelled) return;
+      setKvks(list);
+      const stored = typeof window !== 'undefined' ? localStorage.getItem(KVK_STORAGE_KEY) : null;
+      const validStored =
+        stored === LEGACY_KVK || (stored && list.some((k) => k.id === stored)) ? stored : null;
+      if (validStored) {
+        setSelectedKvkIdState(validStored);
+      } else {
+        // Default: first active KvK if any; otherwise Legacy pool.
+        const firstActive = list.find((k) => !k.archivedAt) ?? list[0] ?? null;
+        setSelectedKvkIdState(firstActive?.id ?? LEGACY_KVK);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const setSelectedKvkId = useCallback((id: string | null) => {
+    setSelectedKvkIdState(id);
+    if (typeof window !== 'undefined') {
+      if (id) localStorage.setItem(KVK_STORAGE_KEY, id);
+      else localStorage.removeItem(KVK_STORAGE_KEY);
+    }
+  }, []);
+  const kvkForUpload = selectedKvkId && selectedKvkId !== LEGACY_KVK ? selectedKvkId : null;
 
   // Table state
   const [selectedKingdom, setSelectedKingdom] = useState<number | null>(null);
@@ -214,12 +259,14 @@ export default function KingdomStats({
         const all: { kingdom_id: number; power: number; kp: number }[] = [];
         let from = 0;
         while (true) {
-          const { data, error } = await sb
+          let q = sb
             .from('seeds_kd_players')
             .select('kingdom_id, power, kp')
             .eq('scan_date', comparisonToDate)
-            .in('kingdom_id', poolKds)
-            .range(from, from + 999);
+            .in('kingdom_id', poolKds);
+          if (selectedKvkId === LEGACY_KVK) q = q.is('kvk_id', null);
+          else if (selectedKvkId) q = q.eq('kvk_id', selectedKvkId);
+          const { data, error } = await q.range(from, from + 999);
           if (error) throw error;
           if (!data || data.length === 0) break;
           for (const r of data) all.push(r as typeof all[number]);
@@ -234,19 +281,20 @@ export default function KingdomStats({
       }
     })();
     return () => { cancelled = true; };
-  }, [activeTab, poolKey, comparisonToDate, poolKds]);
+  }, [activeTab, poolKey, comparisonToDate, poolKds, selectedKvkId]);
 
   // Data
-  const { kingdoms, loading: loadingKingdoms } = useAvailableSeedKingdoms(kdFilter);
-  const { dates, loading: loadingDates } = useSeedDates(selectedKingdom);
-  const { dates: allDates } = useSeedDates(null);
-  const { players, loading: loadingPlayers } = useSeedPlayers(selectedKingdom, selectedDate);
+  const { kingdoms, loading: loadingKingdoms } = useAvailableSeedKingdoms(kdFilter, selectedKvkId);
+  const { dates, loading: loadingDates } = useSeedDates(selectedKingdom, selectedKvkId);
+  const { dates: allDates } = useSeedDates(null, selectedKvkId);
+  const { players, loading: loadingPlayers } = useSeedPlayers(selectedKingdom, selectedDate, selectedKvkId);
 
   const chartKingdomIds = useMemo(() => Array.from(chartKingdoms), [chartKingdoms]);
   const { stats: chartStats, loading: loadingChart } = useSeedKdStats(
     chartKingdomIds,
     chartDateFrom || null,
     chartDateTo || null,
+    selectedKvkId,
   );
 
   // Range fetch covers both From and To (inclusive). We then filter client-side
@@ -266,6 +314,7 @@ export default function KingdomStats({
     kingdoms,
     compRangeFrom,
     compRangeTo,
+    selectedKvkId,
   );
 
   // Auto-select kingdom from URL (?kd=) on first load, or fall back to the first
@@ -331,13 +380,15 @@ export default function KingdomStats({
           const all: { player_id: number; kingdom_id: number; name: string; power: number; kp: number }[] = [];
           let from = 0;
           while (true) {
-            const { data, error } = await sb
+            let q = sb
               .from('seeds_kd_players')
               .select('player_id, kingdom_id, name, power, kp')
               .eq('scan_date', date)
               .gte('power', floor)
-              .in('kingdom_id', poolKds)
-              .range(from, from + 999);
+              .in('kingdom_id', poolKds);
+            if (selectedKvkId === LEGACY_KVK) q = q.is('kvk_id', null);
+            else if (selectedKvkId) q = q.eq('kvk_id', selectedKvkId);
+            const { data, error } = await q.range(from, from + 999);
             if (error) throw error;
             if (!data || data.length === 0) break;
             for (const r of data) all.push(r as typeof all[number]);
@@ -421,12 +472,15 @@ export default function KingdomStats({
           const timeline: { player_id: number; kingdom_id: number; scan_date: string }[] = [];
           for (let i = 0; i < playerIds.length; i += BATCH) {
             const slice = playerIds.slice(i, i + BATCH);
-            const { data: tl, error: tlErr } = await sb
+            let tlQ = sb
               .from('seeds_kd_players')
               .select('player_id, kingdom_id, scan_date')
               .in('player_id', slice)
               .gte('scan_date', migFromDate)
               .lte('scan_date', migToDate);
+            if (selectedKvkId === LEGACY_KVK) tlQ = tlQ.is('kvk_id', null);
+            else if (selectedKvkId) tlQ = tlQ.eq('kvk_id', selectedKvkId);
+            const { data: tl, error: tlErr } = await tlQ;
             if (tlErr) throw tlErr;
             for (const r of tl ?? []) timeline.push(r as typeof timeline[number]);
           }
@@ -657,6 +711,28 @@ export default function KingdomStats({
           <p className="text-sm text-[var(--text-muted)] mt-1">
             {pool.label} · KD {poolDisplay} · Seeds scan stats
           </p>
+          <div className="mt-3 flex items-center gap-2">
+            <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+              KvK
+            </label>
+            <select
+              value={selectedKvkId ?? ''}
+              onChange={(e) => setSelectedKvkId(e.target.value || null)}
+              className="min-w-[180px] px-3 py-1.5 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+              title="All scans on this page are scoped to the selected KvK. Uploads are tagged with this KvK. Manage KvKs from the DKP page."
+            >
+              <option value={LEGACY_KVK}>Legacy (untagged)</option>
+              {kvks.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.name}
+                  {k.archivedAt ? ' · archived' : ''}
+                </option>
+              ))}
+            </select>
+            <span className="text-[10px] text-[var(--text-muted)]">
+              Manage KvKs from <a href="/dkp" className="underline decoration-dotted underline-offset-2 hover:text-[var(--foreground)]">/dkp</a>
+            </span>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 flex-shrink-0">
           {poolKey === 'current' ? (
@@ -1160,11 +1236,11 @@ export default function KingdomStats({
       )}
 
       {/* ═══ SEARCH ALL KINGDOMS ═══ */}
-      {activeTab === 'search' && <SearchAllKingdomsView />}
+      {activeTab === 'search' && <SearchAllKingdomsView kvkId={selectedKvkId} />}
 
       {/* ═══ UPLOAD ═══ */}
       {activeTab === 'upload' && (
-        <SeedsUpload onUploaded={handleUploaded} />
+        <SeedsUpload onUploaded={handleUploaded} kvkId={kvkForUpload} />
       )}
     </div>
   );
@@ -2267,7 +2343,7 @@ interface SearchHit {
   rank_in_kd: number;
 }
 
-function SearchAllKingdomsView() {
+function SearchAllKingdomsView({ kvkId }: { kvkId: string | null }) {
   const [query, setQuery] = useState('');
   const [latestDate, setLatestDate] = useState<string | null>(null);
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -2282,9 +2358,10 @@ function SearchAllKingdomsView() {
     (async () => {
       try {
         const sb = createClient();
-        const { data, error: e } = await sb
-          .from('seeds_kd_stats')
-          .select('scan_date')
+        let dateQ = sb.from('seeds_kd_stats').select('scan_date');
+        if (kvkId === LEGACY_KVK) dateQ = dateQ.is('kvk_id', null);
+        else if (kvkId) dateQ = dateQ.eq('kvk_id', kvkId);
+        const { data, error: e } = await dateQ
           .order('scan_date', { ascending: false })
           .limit(1);
         if (e) throw e;
@@ -2294,7 +2371,7 @@ function SearchAllKingdomsView() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [kvkId]);
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
@@ -2320,6 +2397,8 @@ function SearchAllKingdomsView() {
         .in('scan_date', dates)
         .order('player_id', { ascending: true })
         .limit(2000);
+      if (kvkId === LEGACY_KVK) req = req.is('kvk_id', null);
+      else if (kvkId) req = req.eq('kvk_id', kvkId);
       if (isNumeric) {
         req = req.or(`player_id.eq.${q},name.ilike.%${q}%`);
       } else {
@@ -2334,7 +2413,7 @@ function SearchAllKingdomsView() {
     } finally {
       setLoading(false);
     }
-  }, [query, latestDate]);
+  }, [query, latestDate, kvkId]);
 
   // Group hits by player_id and pick the seed-day + latest snapshots.
   const grouped = useMemo(() => {
