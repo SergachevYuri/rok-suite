@@ -16,7 +16,9 @@ import {
   Trash2,
   Calendar,
   Flag,
+  HelpCircle,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useAuthRole, meetsRole } from '@/lib/auth-role';
 import { SignInButton } from '@/components/SignInButton';
 import { OUR_SEED_KDS } from '@/lib/kingdom/our-seed';
@@ -76,14 +78,6 @@ const STATUS_STYLES: Record<SimpleStatus, string> = {
   UNRANKED: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
 };
 
-const STATUS_LABEL: Record<SimpleStatus, string> = {
-  EXCELLENT: 'EXCELLENT',
-  APPROVED: 'APPROVED',
-  GOOD: 'GOOD',
-  REJECTED: 'REJECTED',
-  UNRANKED: 'UNRANKED',
-};
-
 function ratioColor(r: number, cutoffs: { excellent: number; approved: number; good: number }): string {
   if (r >= cutoffs.excellent) return 'text-emerald-400';
   if (r >= cutoffs.approved) return 'text-cyan-400';
@@ -104,25 +98,23 @@ function ratioBgColor(r: number, cutoffs: { excellent: number; approved: number;
 function RatioCell({
   ratio,
   cutoffs,
-  title,
 }: {
   ratio: number;
   cutoffs: { excellent: number; approved: number; good: number };
-  title: string;
 }) {
   const clamped = Math.max(0, Math.min(1, ratio));
   const textCls = ratioColor(ratio, cutoffs);
   const barCls = ratioBgColor(ratio, cutoffs);
   return (
-    <div className="flex flex-col items-end gap-0.5 min-w-[52px] cursor-help" title={title}>
+    <span className="flex flex-col items-end gap-0.5 min-w-[52px]">
       <span className={`text-xs font-medium tabular-nums ${textCls}`}>{fmtPct(ratio)}</span>
-      <div className="w-full h-1 bg-[var(--background-secondary)] rounded-full overflow-hidden">
-        <div
-          className={`h-full ${barCls} transition-[width] duration-200`}
+      <span className="block w-full h-1 bg-[var(--background-secondary)] rounded-full overflow-hidden">
+        <span
+          className={`block h-full ${barCls} transition-[width] duration-200`}
           style={{ width: `${clamped * 100}%` }}
         />
-      </div>
-    </div>
+      </span>
+    </span>
   );
 }
 
@@ -156,6 +148,7 @@ export default function DkpPage() {
 }
 
 function DkpPageInner() {
+  const t = useTranslations('dkp');
   const { role } = useAuthRole();
   // Officer-or-higher gates writes (upload, deploy, manage KvKs).
   const isOfficer = meetsRole(role, ['admin', 'officer']);
@@ -437,7 +430,7 @@ function DkpPageInner() {
       setConfig(tidied);
       setPublishedConfig(tidied);
     } catch (e) {
-      setDeployError(e instanceof Error ? e.message : 'Failed to deploy');
+      setDeployError(e instanceof Error ? e.message : t('config.errDeploy'));
     } finally {
       setDeploying(false);
     }
@@ -456,7 +449,7 @@ function DkpPageInner() {
     newDataset: DkpDataset,
     targetKingdomId: number,
   ) => {
-    if (!selectedKvkId) throw new Error('Pick a KvK first');
+    if (!selectedKvkId) throw new Error(t('upload.errPickKvkFirst'));
     const saved = await saveDataset({
       ...newDataset,
       uploadedBy: uploaderTag,
@@ -526,16 +519,16 @@ function DkpPageInner() {
         <header className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-[var(--text-muted)] mb-2 tracking-wide uppercase">
-              Performance
+              {t('header.eyebrow')}
             </p>
             <h1 className="text-3xl md:text-4xl font-semibold text-[var(--foreground)] mb-2 tracking-tight">
-              DKP Tracker
+              {t('header.title')}
             </h1>
             <p className="text-sm text-[var(--text-secondary)]">
               {selectedKvk
-                ? `${selectedKvk.name}${selectedKvk.archivedAt ? ' · archived' : ''}`
-                : 'Pick a KvK to get started'}
-              {hasKd ? ` · Kingdom ${selectedKingdomId}` : ''}
+                ? `${selectedKvk.name}${selectedKvk.archivedAt ? t('archivedSuffix') : ''}`
+                : t('header.pickKvk')}
+              {hasKd ? t('header.kingdomSuffix', { id: selectedKingdomId! }) : ''}
               {dataset?.statsFileName ? ` · ${dataset.statsFileName}` : ''}
             </p>
           </div>
@@ -546,7 +539,7 @@ function DkpPageInner() {
         <section className="mb-6 flex flex-wrap items-end gap-3">
           <div>
             <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-              KvK
+              {t('selectors.kvkLabel')}
             </label>
             <div className="flex items-center gap-2">
               <select
@@ -555,11 +548,11 @@ function DkpPageInner() {
                 disabled={loadingKvks || kvks.length === 0}
                 className="min-w-[180px] px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-40"
               >
-                {kvks.length === 0 && <option value="">— none —</option>}
+                {kvks.length === 0 && <option value="">{t('selectors.none')}</option>}
                 {kvks.map((k) => (
                   <option key={k.id} value={k.id}>
                     {k.name}
-                    {k.archivedAt ? ' · archived' : ''}
+                    {k.archivedAt ? t('archivedSuffix') : ''}
                   </option>
                 ))}
               </select>
@@ -568,7 +561,7 @@ function DkpPageInner() {
                   type="button"
                   onClick={() => setKvkManagerOpen(true)}
                   className="px-2.5 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
-                  title="Manage KvKs"
+                  title={t('kvk.manageTitle')}
                 >
                   <Settings2 size={14} />
                 </button>
@@ -578,7 +571,7 @@ function DkpPageInner() {
           {viewMode === 'single' && (
             <div>
               <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-                Kingdom
+                {t('selectors.kingdomLabel')}
               </label>
               <select
                 value={selectedKingdomId ?? ''}
@@ -586,11 +579,11 @@ function DkpPageInner() {
                 disabled={!hasKvk}
                 className="min-w-[140px] px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-40"
               >
-                <option value="">— pick one —</option>
+                <option value="">{t('selectors.pickOne')}</option>
                 {allKds.map((kd) => (
                   <option key={kd} value={kd}>
-                    KD {kd}
-                    {extraKds.includes(kd) ? ' · has data' : ''}
+                    {t('kd', { id: kd })}
+                    {extraKds.includes(kd) ? t('selectors.hasData') : ''}
                   </option>
                 ))}
               </select>
@@ -598,7 +591,7 @@ function DkpPageInner() {
           )}
           <div className="ml-auto">
             <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-              View
+              {t('selectors.viewLabel')}
             </label>
             <div className="inline-flex rounded-lg overflow-hidden border border-[var(--border)] text-xs">
               <button
@@ -611,7 +604,7 @@ function DkpPageInner() {
                     : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
                 } disabled:opacity-40`}
               >
-                Single Kingdom
+                {t('selectors.single')}
               </button>
               <button
                 type="button"
@@ -623,7 +616,7 @@ function DkpPageInner() {
                     : 'bg-[var(--background-card)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
                 } disabled:opacity-40`}
               >
-                Compare KDs
+                {t('selectors.compare')}
               </button>
             </div>
           </div>
@@ -633,16 +626,14 @@ function DkpPageInner() {
         {!loadingKvks && !hasKvk && (
           <section className="mb-6 p-8 rounded-xl bg-[var(--background-card)] border border-dashed border-[var(--border)] text-center">
             <p className="text-sm text-[var(--text-secondary)] mb-3">
-              {kvks.length === 0
-                ? 'No KvK created yet. Each KvK has its own scoring config and scans.'
-                : 'Pick a KvK above to view its data.'}
+              {kvks.length === 0 ? t('noKvk.empty') : t('noKvk.pick')}
             </p>
             {isOfficer && kvks.length === 0 && (
               <button
                 onClick={() => setKvkManagerOpen(true)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] transition-colors"
               >
-                <Plus size={14} /> Create your first KvK
+                <Plus size={14} /> {t('noKvk.createFirst')}
               </button>
             )}
           </section>
@@ -671,29 +662,29 @@ function DkpPageInner() {
                 <div className="flex items-center gap-3">
                   <Calendar size={16} className="text-[var(--text-muted)]" />
                   <div>
-                    <p className="text-xs text-[var(--text-muted)]">Period</p>
+                    <p className="text-xs text-[var(--text-muted)]">{t('dataset.period')}</p>
                     {dateRange ? (
                       <p className="text-sm font-medium text-[var(--foreground)]">
                         {dateRange.start} → {dateRange.end}
                         <span className="ml-2 text-xs text-[var(--text-muted)]">
-                          ({dateRange.days} day{dateRange.days === 1 ? '' : 's'})
+                          ({t('days', { count: dateRange.days })})
                         </span>
                       </p>
                     ) : (
-                      <p className="text-sm text-[var(--text-muted)]">unknown (filename has no YYYYMMDD_YYYYMMDD)</p>
+                      <p className="text-sm text-[var(--text-muted)]">{t('dataset.unknownPeriod')}</p>
                     )}
                   </div>
                 </div>
                 <div className="h-8 w-px bg-[var(--border)]" />
                 <div>
-                  <p className="text-xs text-[var(--text-muted)]">Players</p>
+                  <p className="text-xs text-[var(--text-muted)]">{t('dataset.playersLabel')}</p>
                   <p className="text-sm font-medium text-[var(--foreground)]">{fmt(players.length)}</p>
                 </div>
                 {dataset.uploadedAt && (
                   <>
                     <div className="h-8 w-px bg-[var(--border)]" />
                     <div>
-                      <p className="text-xs text-[var(--text-muted)]">Uploaded</p>
+                      <p className="text-xs text-[var(--text-muted)]">{t('dataset.uploaded')}</p>
                       <p className="text-sm text-[var(--foreground)]">{new Date(dataset.uploadedAt).toLocaleString()}</p>
                     </div>
                   </>
@@ -702,11 +693,11 @@ function DkpPageInner() {
                   <>
                     <div className="h-8 w-px bg-[var(--border)]" />
                     <div>
-                      <p className="text-xs text-[var(--text-muted)]">Roster filter</p>
+                      <p className="text-xs text-[var(--text-muted)]">{t('dataset.rosterFilter')}</p>
                       <p className="text-xs font-mono text-amber-400 truncate max-w-[220px]" title={dataset.honorFileName}>
                         {dataset.honorFileName}
                       </p>
-                      <p className="text-[10px] text-[var(--text-muted)]">CH25 only</p>
+                      <p className="text-[10px] text-[var(--text-muted)]">{t('dataset.ch25Only')}</p>
                     </div>
                   </>
                 )}
@@ -716,19 +707,19 @@ function DkpPageInner() {
             {!dataset && !loadingDataset && (
               <section className="mb-6 p-6 rounded-xl bg-[var(--background-card)] border border-dashed border-[var(--border)] text-center">
                 <p className="text-sm text-[var(--text-secondary)]">
-                  No scan uploaded yet for {selectedKvk?.name} · KD {selectedKingdomId}.
+                  {t('noScan', { kvk: selectedKvk?.name ?? '', kd: selectedKingdomId ?? '' })}
                 </p>
               </section>
             )}
 
             {/* Summary cards */}
             <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
-              <SummaryCard label="Players" value={fmt(summary.total)} />
-              <SummaryCard label="Total DKP" value={fmt(summary.totalDkp)} />
-              <SummaryCard label="Excellent" value={fmt(summary.counts.EXCELLENT)} tone="excellent" />
-              <SummaryCard label="Approved" value={fmt(summary.counts.APPROVED)} tone="approved" />
-              <SummaryCard label="Good" value={fmt(summary.counts.GOOD)} tone="good" />
-              <SummaryCard label="Rejected" value={fmt(summary.counts.REJECTED)} tone="review" />
+              <SummaryCard label={t('summary.players')} value={fmt(summary.total)} />
+              <SummaryCard label={t('summary.totalDkp')} value={fmt(summary.totalDkp)} />
+              <SummaryCard label={t('summary.excellent')} value={fmt(summary.counts.EXCELLENT)} tone="excellent" />
+              <SummaryCard label={t('summary.approved')} value={fmt(summary.counts.APPROVED)} tone="approved" />
+              <SummaryCard label={t('summary.good')} value={fmt(summary.counts.GOOD)} tone="good" />
+              <SummaryCard label={t('summary.rejected')} value={fmt(summary.counts.REJECTED)} tone="review" />
             </section>
 
             {/* Config panel */}
@@ -754,7 +745,7 @@ function DkpPageInner() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search name or ID…"
+                  placeholder={t('filters.searchPlaceholder')}
                   className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--foreground)]/30"
                 />
               </div>
@@ -763,22 +754,22 @@ function DkpPageInner() {
                 onChange={(e) => setStatusFilter(e.target.value as SimpleStatus | 'ALL')}
                 className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
               >
-                <option value="ALL">All statuses</option>
-                <option value="EXCELLENT">Excellent</option>
-                <option value="APPROVED">Approved</option>
-                <option value="GOOD">Good</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="UNRANKED">Unranked</option>
+                <option value="ALL">{t('filters.allStatuses')}</option>
+                <option value="EXCELLENT">{t('filters.excellent')}</option>
+                <option value="APPROVED">{t('filters.approved')}</option>
+                <option value="GOOD">{t('filters.good')}</option>
+                <option value="REJECTED">{t('filters.rejected')}</option>
+                <option value="UNRANKED">{t('filters.unranked')}</option>
               </select>
               <select
                 value={tierFilter}
                 onChange={(e) => setTierFilter(e.target.value)}
                 className="px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
               >
-                <option value="ALL">All tiers</option>
-                {sortTiersAsc(config.tiers).map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label} · ≥{fmtM(t.minPower)}
+                <option value="ALL">{t('filters.allTiers')}</option>
+                {sortTiersAsc(config.tiers).map((tier) => (
+                  <option key={tier.id} value={tier.id}>
+                    {tier.label} · ≥{fmtM(tier.minPower)}
                   </option>
                 ))}
               </select>
@@ -789,7 +780,7 @@ function DkpPageInner() {
                   onChange={(e) => setShowGovId(e.target.checked)}
                   className="accent-[#4318ff]"
                 />
-                Show IDs
+                {t('filters.showIds')}
               </label>
             </section>
 
@@ -798,8 +789,8 @@ function DkpPageInner() {
               <section className="mb-3 flex flex-wrap items-center gap-3 p-3 rounded-lg bg-rose-500/5 border border-rose-500/20">
                 <span className="inline-flex items-center gap-1.5 text-xs text-rose-300">
                   <Flag size={12} />
-                  <span className="font-medium">{flaggedInThisDataset} flagged</span>
-                  <span className="text-rose-300/60">in this KD · {flaggedForMigration.size} total</span>
+                  <span className="font-medium">{t('migration.flagged', { count: flaggedInThisDataset })}</span>
+                  <span className="text-rose-300/60">{t('migration.inThisKd', { total: flaggedForMigration.size })}</span>
                 </span>
                 <button
                   type="button"
@@ -807,7 +798,7 @@ function DkpPageInner() {
                   disabled={rejectedCount === 0}
                   className="px-3 py-1.5 rounded-md text-xs bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  Flag all rejected ({rejectedCount})
+                  {t('migration.flagAllRejected', { count: rejectedCount })}
                 </button>
                 <button
                   type="button"
@@ -815,13 +806,13 @@ function DkpPageInner() {
                   disabled={flaggedInThisDataset === 0}
                   className="px-3 py-1.5 rounded-md text-xs bg-[var(--background-secondary)] text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  Unflag all in this KD
+                  {t('migration.unflagAll')}
                 </button>
                 <a
                   href="/migration"
                   className="ml-auto text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] underline decoration-dotted underline-offset-2"
                 >
-                  Open migration page →
+                  {t('migration.openPage')}
                 </a>
               </section>
             )}
@@ -953,6 +944,7 @@ function UploadPanel({
   defaultKingdomId: number;
   allKds: number[];
 }) {
+  const t = useTranslations('dkp');
   const fileRef = useRef<HTMLInputElement>(null);
   const rosterRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -975,11 +967,11 @@ function UploadPanel({
     setError(null);
     setInfo(null);
     if (!file) {
-      setError('Pick an .xlsx stats file first');
+      setError(t('upload.errPickStats'));
       return;
     }
     if (!effectiveKd) {
-      setError('Pick a target Kingdom');
+      setError(t('upload.errPickKingdom'));
       return;
     }
     setBusy(true);
@@ -999,16 +991,12 @@ function UploadPanel({
         }
         rosterMatched = allowed.size;
         if (allowed.size === 0) {
-          throw new Error(
-            `Roster has no players with KD ${effectiveKd} AND cityhall 25. Nothing to merge.`,
-          );
+          throw new Error(t('upload.errRosterNoMatch', { kd: effectiveKd }));
         }
         players = players.filter((p) => allowed.has(p.characterId));
         rosterFilename = rosterFile.name;
         if (players.length === 0) {
-          throw new Error(
-            `Roster whitelist (${allowed.size} players) matched 0 rows in the stats file. Check IDs.`,
-          );
+          throw new Error(t('upload.errRosterZeroRows', { count: allowed.size }));
         }
       }
 
@@ -1024,8 +1012,14 @@ function UploadPanel({
         effectiveKd,
       );
       const infoMsg = rosterFile
-        ? `Saved ${players.length} players (roster kept ${rosterMatched} CH25 in KD ${effectiveKd}; stats had ${beforeFilter}, ${beforeFilter - players.length} filtered out)`
-        : `Saved ${players.length} players → KD ${effectiveKd}`;
+        ? t('upload.savedWithRoster', {
+            saved: players.length,
+            matched: rosterMatched,
+            kd: effectiveKd,
+            before: beforeFilter,
+            filtered: beforeFilter - players.length,
+          })
+        : t('upload.saved', { saved: players.length, kd: effectiveKd });
       setInfo(infoMsg);
       setFile(null);
       setRosterFile(null);
@@ -1033,7 +1027,7 @@ function UploadPanel({
       if (fileRef.current) fileRef.current.value = '';
       if (rosterRef.current) rosterRef.current.value = '';
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to parse the file');
+      setError(e instanceof Error ? e.message : t('upload.errParse'));
     } finally {
       setBusy(false);
     }
@@ -1043,44 +1037,44 @@ function UploadPanel({
     <section className="mb-6 p-5 rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)]">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-[var(--foreground)] flex items-center gap-2">
-          <Upload size={14} /> Upload XLSX scan
+          <Upload size={14} /> {t('upload.heading')}
         </h2>
         {currentDataset?.uploadedAt && (
           <button
             onClick={onReset}
             className="text-xs text-[var(--text-muted)] hover:text-rose-400 transition-colors inline-flex items-center gap-1"
           >
-            <Trash2 size={12} /> Delete current dataset
+            <Trash2 size={12} /> {t('upload.deleteCurrent')}
           </button>
         )}
       </div>
       <div className="mb-4 space-y-1 text-xs text-[var(--text-muted)]">
         <p>
-          <span className="font-medium text-[var(--text-secondary)]">Stats file</span>
-          {' — required. Name format: '}
+          <span className="font-medium text-[var(--text-secondary)]">{t('upload.statsFileLabel')}</span>
+          {t('upload.statsFileReq')}
           <span className="font-mono text-[var(--text-secondary)]">KDID_YYYYMMDD_YYYYMMDD.xlsx</span>
-          {'. Columns: Character ID, Username, Power, T5/T4 Deaths, Total Kill Points, T5/T4 Kills.'}
+          {t('upload.statsFileColumns')}
         </p>
         <p>
-          <span className="font-medium text-[var(--text-secondary)]">Roster file</span>
-          {' — optional. Filters the stats: only keep players with matching KD and '}
+          <span className="font-medium text-[var(--text-secondary)]">{t('upload.rosterFileLabel')}</span>
+          {t('upload.rosterFileOpt')}
           <span className="text-amber-400 font-medium">cityhall = 25</span>
-          {'. Columns: KD, player_id, cityhall (name / Power / KP / Rank_in_KD ignored).'}
+          {t('upload.rosterColumns')}
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1.5">Stats file</label>
+          <label className="text-xs text-[var(--text-muted)] block mb-1.5">{t('upload.statsFileLabel')}</label>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
             >
-              Choose file
+              {t('upload.chooseFile')}
             </button>
             <span className="text-xs text-[var(--text-muted)] truncate">
-              {file ? file.name : 'no file selected'}
+              {file ? file.name : t('upload.noFile')}
             </span>
             <input
               ref={fileRef}
@@ -1095,23 +1089,24 @@ function UploadPanel({
           </div>
           {filenameMeta && (
             <p className="mt-1.5 text-xs text-cyan-400">
-              Detected: {filenameMeta.kingdomId ? `KD ${filenameMeta.kingdomId} · ` : 'no KD in filename · '}
-              {filenameMeta.start} → {filenameMeta.end} ({filenameMeta.days} day{filenameMeta.days === 1 ? '' : 's'})
+              {t('upload.detectedPrefix')}
+              {filenameMeta.kingdomId ? t('upload.detectedKd', { kd: filenameMeta.kingdomId }) : t('upload.detectedNoKd')}
+              {filenameMeta.start} → {filenameMeta.end} ({t('days', { count: filenameMeta.days })})
             </p>
           )}
         </div>
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1.5">Roster file (optional — cityhall 25 filter)</label>
+          <label className="text-xs text-[var(--text-muted)] block mb-1.5">{t('upload.rosterFieldLabel')}</label>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => rosterRef.current?.click()}
               className="px-3 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]/30 transition-colors"
             >
-              Choose roster
+              {t('upload.chooseRoster')}
             </button>
             <span className="text-xs text-[var(--text-muted)] truncate">
-              {rosterFile ? rosterFile.name : 'no file selected'}
+              {rosterFile ? rosterFile.name : t('upload.noFile')}
             </span>
             {rosterFile && (
               <button
@@ -1121,7 +1116,7 @@ function UploadPanel({
                   if (rosterRef.current) rosterRef.current.value = '';
                 }}
                 className="p-1 rounded text-[var(--text-muted)] hover:text-rose-400 transition-colors"
-                title="Remove roster"
+                title={t('upload.removeRoster')}
               >
                 <X size={12} />
               </button>
@@ -1138,7 +1133,7 @@ function UploadPanel({
       </div>
       <div className="flex flex-wrap items-end gap-4">
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1.5">Target Kingdom</label>
+          <label className="text-xs text-[var(--text-muted)] block mb-1.5">{t('upload.targetKingdom')}</label>
           <select
             value={effectiveKd ?? ''}
             onChange={(e) => setKdOverride(e.target.value ? parseInt(e.target.value, 10) : null)}
@@ -1146,7 +1141,7 @@ function UploadPanel({
           >
             {kdOptions.map((kd) => (
               <option key={kd} value={kd}>
-                KD {kd}
+                {t('kd', { id: kd })}
               </option>
             ))}
           </select>
@@ -1156,7 +1151,7 @@ function UploadPanel({
           disabled={!file || busy}
           className="px-4 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
-          {busy ? 'Processing…' : 'Process & save'}
+          {busy ? t('upload.processing') : t('upload.process')}
         </button>
         {info && <span className="text-xs text-emerald-400">{info}</span>}
         {error && <span className="text-xs text-red-400">{error}</span>}
@@ -1176,6 +1171,7 @@ function KvkManagerModal({
   onClose: () => void;
   onChanged: () => void | Promise<void>;
 }) {
+  const t = useTranslations('dkp');
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1189,7 +1185,7 @@ function KvkManagerModal({
       await fn();
       await onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Operation failed');
+      setError(e instanceof Error ? e.message : t('kvk.errOp'));
     } finally {
       setBusy(false);
     }
@@ -1222,7 +1218,7 @@ function KvkManagerModal({
   };
 
   const handleDelete = async (k: KvK) => {
-    if (!confirm(`Delete KvK "${k.name}"? This wipes its config AND all uploaded scans for this KvK.`)) return;
+    if (!confirm(t('kvk.confirmDelete', { name: k.name }))) return;
     await runOp(async () => {
       await deleteKvK(k.id);
     });
@@ -1232,7 +1228,7 @@ function KvkManagerModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="w-full max-w-lg rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] p-5 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-[var(--foreground)]">Manage KvKs</h3>
+          <h3 className="text-sm font-semibold text-[var(--foreground)]">{t('kvk.manageTitle')}</h3>
           <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--foreground)]">
             <X size={16} />
           </button>
@@ -1240,11 +1236,11 @@ function KvkManagerModal({
 
         <div className="mb-4 flex items-end gap-2">
           <div className="flex-1">
-            <label className="text-xs text-[var(--text-muted)] block mb-1">New KvK name</label>
+            <label className="text-xs text-[var(--text-muted)] block mb-1">{t('kvk.newName')}</label>
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="KvK 13"
+              placeholder={t('kvk.newNamePlaceholder')}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleCreate();
               }}
@@ -1256,7 +1252,7 @@ function KvkManagerModal({
             disabled={!newName.trim() || busy}
             className="px-3 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            <Plus size={14} className="inline" /> Create
+            <Plus size={14} className="inline" /> {t('kvk.create')}
           </button>
         </div>
 
@@ -1264,7 +1260,7 @@ function KvkManagerModal({
 
         <div className="space-y-1">
           {kvks.length === 0 && (
-            <p className="text-xs text-[var(--text-muted)] text-center py-4">No KvKs yet.</p>
+            <p className="text-xs text-[var(--text-muted)] text-center py-4">{t('kvk.empty')}</p>
           )}
           {kvks.map((k) => (
             <div
@@ -1293,10 +1289,10 @@ function KvkManagerModal({
                     setEditDraft(k.name);
                   }}
                   className="flex-1 text-left text-sm text-[var(--foreground)] hover:underline"
-                  title="Click to rename"
+                  title={t('kvk.clickToRename')}
                 >
                   {k.name}
-                  {k.archivedAt && <span className="ml-2 text-xs text-[var(--text-muted)]">· archived</span>}
+                  {k.archivedAt && <span className="ml-2 text-xs text-[var(--text-muted)]">{t('archivedSuffix')}</span>}
                 </button>
               )}
               {editingId === k.id ? (
@@ -1305,7 +1301,7 @@ function KvkManagerModal({
                   disabled={busy}
                   className="px-2 py-1 rounded text-xs bg-[#4318ff] text-white hover:bg-[#3a14e0] disabled:opacity-40"
                 >
-                  Save
+                  {t('kvk.save')}
                 </button>
               ) : (
                 <>
@@ -1314,13 +1310,13 @@ function KvkManagerModal({
                     disabled={busy}
                     className="text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] px-2 py-1 transition-colors"
                   >
-                    {k.archivedAt ? 'Unarchive' : 'Archive'}
+                    {k.archivedAt ? t('kvk.unarchive') : t('kvk.archive')}
                   </button>
                   <button
                     onClick={() => handleDelete(k)}
                     disabled={busy}
                     className="p-1 rounded text-[var(--text-muted)] hover:text-rose-400 transition-colors"
-                    title="Delete"
+                    title={t('kvk.delete')}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -1350,6 +1346,7 @@ interface KdSummary {
 type ComparisonSortKey = 'kingdomId' | 'players' | 'avgPower' | 'totalDkp' | 'medianRatio' | 'excellent' | 'approved' | 'good' | 'rejected';
 
 function ComparisonView({ kvkId, config }: { kvkId: string; config: SimpleConfig }) {
+  const t = useTranslations('dkp');
   const [summaries, setSummaries] = useState<KdSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<ComparisonSortKey>('kingdomId');
@@ -1462,7 +1459,7 @@ function ComparisonView({ kvkId, config }: { kvkId: string; config: SimpleConfig
   if (loading) {
     return (
       <section className="mb-6 p-8 rounded-xl bg-[var(--background-card)] border border-[var(--border)] text-center">
-        <p className="text-sm text-[var(--text-muted)]">Loading per-kingdom snapshots…</p>
+        <p className="text-sm text-[var(--text-muted)]">{t('compare.loading')}</p>
       </section>
     );
   }
@@ -1471,7 +1468,7 @@ function ComparisonView({ kvkId, config }: { kvkId: string; config: SimpleConfig
     return (
       <section className="mb-6 p-8 rounded-xl bg-[var(--background-card)] border border-dashed border-[var(--border)] text-center">
         <p className="text-sm text-[var(--text-secondary)]">
-          No kingdom scans uploaded for this KvK yet.
+          {t('compare.empty')}
         </p>
       </section>
     );
@@ -1481,12 +1478,12 @@ function ComparisonView({ kvkId, config }: { kvkId: string; config: SimpleConfig
     <>
       {/* Aggregate cards across all KDs */}
       <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-3 mb-6">
-        <SummaryCard label="Kingdoms" value={fmt(summaries.length)} />
-        <SummaryCard label="Players" value={fmt(totals.players)} />
-        <SummaryCard label="Total DKP" value={fmt(totals.totalDkp)} />
-        <SummaryCard label="Excellent" value={fmt(totals.counts.EXCELLENT)} tone="excellent" />
-        <SummaryCard label="Approved" value={fmt(totals.counts.APPROVED)} tone="approved" />
-        <SummaryCard label="Rejected" value={fmt(totals.counts.REJECTED)} tone="review" />
+        <SummaryCard label={t('compare.kingdoms')} value={fmt(summaries.length)} />
+        <SummaryCard label={t('summary.players')} value={fmt(totals.players)} />
+        <SummaryCard label={t('summary.totalDkp')} value={fmt(totals.totalDkp)} />
+        <SummaryCard label={t('summary.excellent')} value={fmt(totals.counts.EXCELLENT)} tone="excellent" />
+        <SummaryCard label={t('summary.approved')} value={fmt(totals.counts.APPROVED)} tone="approved" />
+        <SummaryCard label={t('summary.rejected')} value={fmt(totals.counts.REJECTED)} tone="review" />
       </section>
 
       <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)] shadow-[var(--card-shadow)] overflow-hidden">
@@ -1494,22 +1491,22 @@ function ComparisonView({ kvkId, config }: { kvkId: string; config: SimpleConfig
           <table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-[var(--text-muted)] bg-[var(--background-secondary)]/40">
-                <CompareTh k="kingdomId" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-left">Kingdom</CompareTh>
-                <CompareTh k="players" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Players</CompareTh>
-                <CompareTh k="avgPower" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Avg power</CompareTh>
-                <CompareTh k="totalDkp" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Total DKP</CompareTh>
-                <CompareTh k="medianRatio" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Median ratio</CompareTh>
-                <CompareTh k="excellent" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Exc</CompareTh>
-                <CompareTh k="approved" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">App</CompareTh>
-                <CompareTh k="good" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Good</CompareTh>
-                <CompareTh k="rejected" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">Rej</CompareTh>
-                <th className="px-3 py-2 font-normal text-left">Source</th>
+                <CompareTh k="kingdomId" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-left">{t('compare.colKingdom')}</CompareTh>
+                <CompareTh k="players" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">{t('compare.colPlayers')}</CompareTh>
+                <CompareTh k="avgPower" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">{t('compare.colAvgPower')}</CompareTh>
+                <CompareTh k="totalDkp" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">{t('compare.colTotalDkp')}</CompareTh>
+                <CompareTh k="medianRatio" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">{t('compare.colMedianRatio')}</CompareTh>
+                <CompareTh k="excellent" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">{t('compare.colExc')}</CompareTh>
+                <CompareTh k="approved" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">{t('compare.colApp')}</CompareTh>
+                <CompareTh k="good" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">{t('compare.colGood')}</CompareTh>
+                <CompareTh k="rejected" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} align="text-right">{t('compare.colRej')}</CompareTh>
+                <th className="px-3 py-2 font-normal text-left">{t('compare.colSource')}</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((s) => (
                 <tr key={s.kingdomId} className="border-t border-[var(--border)]/50 hover:bg-[var(--background-hover)]/30 transition-colors">
-                  <td className="px-3 py-2 font-medium text-[var(--foreground)]">KD {s.kingdomId}</td>
+                  <td className="px-3 py-2 font-medium text-[var(--foreground)]">{t('kd', { id: s.kingdomId })}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(s.players)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmtM(s.avgPower)}</td>
                   <td className="px-3 py-2 text-right tabular-nums text-[var(--foreground)]">{fmt(s.totalDkp)}</td>
@@ -1595,6 +1592,7 @@ function ConfigPanel({
   onDiscard,
   onResetDefaults,
 }: ConfigPanelProps) {
+  const t = useTranslations('dkp');
   const setFormula = (key: keyof SimpleConfig['formula'], value: number) => {
     setConfig((c) => ({ ...c, formula: { ...c.formula, [key]: value } }));
   };
@@ -1633,12 +1631,12 @@ function ConfigPanel({
         className="w-full flex items-center justify-between px-5 py-4 hover:bg-[var(--background-hover)] transition-colors"
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]">
-          <Settings2 size={14} /> Scoring configuration
+          <Settings2 size={14} /> {t('config.title')}
           {isDirty && isOfficer && (
-            <span className="text-xs font-normal text-amber-400">· unsaved changes</span>
+            <span className="text-xs font-normal text-amber-400">{t('config.unsaved')}</span>
           )}
           {isDirty && !isOfficer && (
-            <span className="text-xs font-normal text-[var(--text-muted)]">· local preview</span>
+            <span className="text-xs font-normal text-[var(--text-muted)]">{t('config.localPreview')}</span>
           )}
         </span>
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -1647,33 +1645,33 @@ function ConfigPanel({
         <div className="px-5 pb-5 border-t border-[var(--border)] space-y-6">
           {!isOfficer && (
             <p className="mt-4 text-xs text-[var(--text-muted)]">
-              Read-only — your edits stay local. Officers can deploy a shared config.
+              {t('config.readOnlyNote')}
             </p>
           )}
 
           {/* Formula */}
           <div className="mt-4">
             <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">
-              DKP formula
+              {t('config.formulaTitle')}
             </h3>
             <div className="mb-3 p-3 rounded-lg bg-[var(--background-secondary)]/50 border border-[var(--border)] font-mono text-xs leading-relaxed">
-              <span className="text-[var(--text-muted)]">DKP = </span>
-              <span className="text-emerald-400">T5 deaths × {config.formula.t5Death}</span>
+              <span className="text-[var(--text-muted)]">{t('config.formulaPrefix')}</span>
+              <span className="text-emerald-400">{t('config.formulaT5Deaths', { n: config.formula.t5Death })}</span>
               <span className="text-[var(--text-muted)]"> + </span>
-              <span className="text-emerald-400">T4 deaths × {config.formula.t4Death}</span>
+              <span className="text-emerald-400">{t('config.formulaT4Deaths', { n: config.formula.t4Death })}</span>
               <span className="text-[var(--text-muted)]"> + </span>
-              <span className="text-cyan-400">T5 kills × {config.formula.t5Kill}</span>
+              <span className="text-cyan-400">{t('config.formulaT5Kills', { n: config.formula.t5Kill })}</span>
               <span className="text-[var(--text-muted)]"> + </span>
-              <span className="text-cyan-400">T4 kills × {config.formula.t4Kill}</span>
+              <span className="text-cyan-400">{t('config.formulaT4Kills', { n: config.formula.t4Kill })}</span>
             </div>
             <p className="text-[10px] text-[var(--text-muted)] mb-3 italic">
-              T1, T2 and T3 (both kills and deaths) are ignored — only T4 and T5 contribute to DKP.
+              {t('config.formulaNote')}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <CoeffInput label="T5 deaths ×" value={config.formula.t5Death} onChange={(v) => setFormula('t5Death', v)} tone="death" />
-              <CoeffInput label="T4 deaths ×" value={config.formula.t4Death} onChange={(v) => setFormula('t4Death', v)} tone="death" />
-              <CoeffInput label="T5 kills ×" value={config.formula.t5Kill} onChange={(v) => setFormula('t5Kill', v)} tone="kill" />
-              <CoeffInput label="T4 kills ×" value={config.formula.t4Kill} onChange={(v) => setFormula('t4Kill', v)} tone="kill" />
+              <CoeffInput label={t('config.coeffT5Death')} value={config.formula.t5Death} onChange={(v) => setFormula('t5Death', v)} tone="death" />
+              <CoeffInput label={t('config.coeffT4Death')} value={config.formula.t4Death} onChange={(v) => setFormula('t4Death', v)} tone="death" />
+              <CoeffInput label={t('config.coeffT5Kill')} value={config.formula.t5Kill} onChange={(v) => setFormula('t5Kill', v)} tone="kill" />
+              <CoeffInput label={t('config.coeffT4Kill')} value={config.formula.t4Kill} onChange={(v) => setFormula('t4Kill', v)} tone="kill" />
             </div>
           </div>
 
@@ -1681,7 +1679,7 @@ function ConfigPanel({
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)]">
-                Targets
+                {t('config.targetsTitle')}
               </h3>
               <div className="inline-flex rounded-lg overflow-hidden border border-[var(--border)] text-xs">
                 <button
@@ -1693,7 +1691,7 @@ function ConfigPanel({
                       : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
                   }`}
                 >
-                  Same for everyone
+                  {t('config.flatMode')}
                 </button>
                 <button
                   type="button"
@@ -1704,7 +1702,7 @@ function ConfigPanel({
                       : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
                   }`}
                 >
-                  Per power tier
+                  {t('config.tieredMode')}
                 </button>
               </div>
             </div>
@@ -1712,12 +1710,12 @@ function ConfigPanel({
             {config.tierMode === 'flat' ? (
               <>
                 <p className="text-xs text-[var(--text-muted)] mb-3">
-                  Single target applied to every player, regardless of power.
+                  {t('config.flatDesc')}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
                   <div>
-                    <label className="text-xs text-[var(--text-muted)] block mb-1" title="Req KP = player.power × multiplier">
-                      Req KP (× power)
+                    <label className="text-xs text-[var(--text-muted)] block mb-1" title={t('config.reqKpTitle')}>
+                      {t('config.reqKpLabel')}
                     </label>
                     <div className="flex items-center gap-1">
                       <input
@@ -1734,12 +1732,12 @@ function ConfigPanel({
                         min="0"
                         className="w-full px-2 py-1.5 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
                       />
-                      <span className="text-xs text-[var(--text-muted)]">× pwr</span>
+                      <span className="text-xs text-[var(--text-muted)]">{t('config.perPower')}</span>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-[var(--text-muted)] block mb-1" title="Req Dead = player.power × %">
-                      Req Dead (% of power)
+                    <label className="text-xs text-[var(--text-muted)] block mb-1" title={t('config.reqDeadTitle')}>
+                      {t('config.reqDeadLabel')}
                     </label>
                     <div className="flex items-center gap-1">
                       <input
@@ -1767,26 +1765,26 @@ function ConfigPanel({
               <>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-[var(--text-muted)]">
-                    Each player falls into the highest tier whose <em>min power</em> ≤ their power.
+                    {t('config.tieredDescA')}<em>{t('config.tieredDescEm')}</em>{t('config.tieredDescB')}
                   </p>
                   <button
                     onClick={addTier}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
                   >
-                    <Plus size={12} /> Add tier
+                    <Plus size={12} /> {t('config.addTier')}
                   </button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-xs text-[var(--text-muted)] border-b border-[var(--border)]">
-                        <th className="text-left py-2 pr-2 font-normal">Fascia</th>
-                        <th className="text-right py-2 px-2 font-normal">Min power</th>
-                        <th className="text-right py-2 px-2 font-normal" title="Req KP = player.power × multiplier">
-                          Req KP (× power)
+                        <th className="text-left py-2 pr-2 font-normal">{t('config.tierColLabel')}</th>
+                        <th className="text-right py-2 px-2 font-normal">{t('config.tierColMinPower')}</th>
+                        <th className="text-right py-2 px-2 font-normal" title={t('config.reqKpTitle')}>
+                          {t('config.reqKpLabel')}
                         </th>
-                        <th className="text-right py-2 px-2 font-normal" title="Req Dead = player.power × %">
-                          Req Dead (% of power)
+                        <th className="text-right py-2 px-2 font-normal" title={t('config.reqDeadTitle')}>
+                          {t('config.reqDeadLabel')}
                         </th>
                         <th className="w-8" />
                       </tr>
@@ -1805,13 +1803,13 @@ function ConfigPanel({
           {/* Scoring scope */}
           <div>
             <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">
-              Scoring scope
+              {t('config.scopeTitle')}
             </h3>
             <p className="text-xs text-[var(--text-muted)] mb-3">
-              Only the top N players by power get a target. The rest are marked Unranked. <span className="text-[var(--text-secondary)]">Set 0 to score everyone.</span>
+              {t('config.scopeDesc')}<span className="text-[var(--text-secondary)]">{t('config.scopeDescBold')}</span>
             </p>
             <div className="flex items-center gap-2 max-w-xs">
-              <label className="text-xs text-[var(--text-muted)] whitespace-nowrap">Top N by power</label>
+              <label className="text-xs text-[var(--text-muted)] whitespace-nowrap">{t('config.topNLabel')}</label>
               <input
                 type="number"
                 min="0"
@@ -1819,17 +1817,17 @@ function ConfigPanel({
                 onChange={(e) => setConfig((c) => ({ ...c, topN: Math.max(0, parseInt(e.target.value, 10) || 0) }))}
                 className="w-24 px-2 py-1.5 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
               />
-              <span className="text-xs text-[var(--text-muted)]">{config.topN === 0 ? 'all players' : `${config.topN} players`}</span>
+              <span className="text-xs text-[var(--text-muted)]">{config.topN === 0 ? t('config.allPlayers') : t('config.nPlayers', { n: config.topN })}</span>
             </div>
           </div>
 
           {/* Scoring rule */}
           <div>
             <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">
-              Scoring rule
+              {t('config.ruleTitle')}
             </h3>
             <p className="text-xs text-[var(--text-muted)] mb-3">
-              Which ratio drives the status: both requirements, only KP, or only Deaths.
+              {t('config.ruleDesc')}
             </p>
             <div className="inline-flex rounded-lg overflow-hidden border border-[var(--border)] text-xs">
               <button
@@ -1840,9 +1838,9 @@ function ConfigPanel({
                     ? 'bg-[#4318ff] text-white'
                     : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
                 }`}
-                title="Status = min(KP%, Deaths%). Player must hit both."
+                title={t('config.ruleBothTitle')}
               >
-                Both (strict)
+                {t('config.ruleBoth')}
               </button>
               <button
                 type="button"
@@ -1852,9 +1850,9 @@ function ConfigPanel({
                     ? 'bg-[#4318ff] text-white'
                     : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
                 }`}
-                title="Status ignores deaths — only KP ratio counts."
+                title={t('config.ruleKpTitle')}
               >
-                KP only
+                {t('config.ruleKp')}
               </button>
               <button
                 type="button"
@@ -1864,9 +1862,9 @@ function ConfigPanel({
                     ? 'bg-[#4318ff] text-white'
                     : 'bg-[var(--background-secondary)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
                 }`}
-                title="Status ignores KP — only deaths ratio counts."
+                title={t('config.ruleDeathsTitle')}
               >
-                Deaths only
+                {t('config.ruleDeaths')}
               </button>
             </div>
           </div>
@@ -1874,23 +1872,23 @@ function ConfigPanel({
           {/* Cutoffs */}
           <div>
             <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)] mb-2">
-              Status cutoffs
+              {t('config.cutoffsTitle')}
             </h3>
             <p className="text-xs text-[var(--text-muted)] mb-3">
               {config.scoringRule === 'both' && (
-                <>Status uses <span className="font-mono">min(KP%, Deaths%)</span>. Player must hit both targets.</>
+                <>{t('config.cutoffUses')}<span className="font-mono">min(KP%, Deaths%)</span>{t('config.cutoffBothSuffix')}</>
               )}
               {config.scoringRule === 'kp' && (
-                <>Status uses <span className="font-mono">KP%</span> only. Deaths ignored.</>
+                <>{t('config.cutoffUses')}<span className="font-mono">KP%</span>{t('config.cutoffKpSuffix')}</>
               )}
               {config.scoringRule === 'deaths' && (
-                <>Status uses <span className="font-mono">Deaths%</span> only. KP ignored.</>
+                <>{t('config.cutoffUses')}<span className="font-mono">Deaths%</span>{t('config.cutoffDeathsSuffix')}</>
               )}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <CutoffInput label="Excellent ≥" value={config.cutoffs.excellent} onChange={(v) => setCutoff('excellent', v)} tone="emerald" />
-              <CutoffInput label="Approved ≥" value={config.cutoffs.approved} onChange={(v) => setCutoff('approved', v)} tone="cyan" />
-              <CutoffInput label="Good ≥" value={config.cutoffs.good} onChange={(v) => setCutoff('good', v)} tone="amber" />
+              <CutoffInput label={t('config.cutoffExcellent')} value={config.cutoffs.excellent} onChange={(v) => setCutoff('excellent', v)} tone="emerald" />
+              <CutoffInput label={t('config.cutoffApproved')} value={config.cutoffs.approved} onChange={(v) => setCutoff('approved', v)} tone="cyan" />
+              <CutoffInput label={t('config.cutoffGood')} value={config.cutoffs.good} onChange={(v) => setCutoff('good', v)} tone="amber" />
             </div>
           </div>
 
@@ -1900,7 +1898,7 @@ function ConfigPanel({
               onClick={onResetDefaults}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-hover)] transition-colors"
             >
-              <RotateCcw size={12} /> Reset to defaults
+              <RotateCcw size={12} /> {t('config.resetDefaults')}
             </button>
             <div className="flex items-center gap-2">
               {deployError && <span className="text-xs text-red-400">{deployError}</span>}
@@ -1909,7 +1907,7 @@ function ConfigPanel({
                   onClick={onDiscard}
                   className="px-3 py-1.5 rounded-lg text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
                 >
-                  Discard
+                  {t('config.discard')}
                 </button>
               )}
               {isOfficer && (
@@ -1918,7 +1916,7 @@ function ConfigPanel({
                   disabled={!isDirty || deploying}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#4318ff] text-white hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  <Rocket size={12} /> {deploying ? 'Deploying…' : 'Deploy to everyone'}
+                  <Rocket size={12} /> {deploying ? t('config.deploying') : t('config.deploy')}
                 </button>
               )}
             </div>
@@ -1942,6 +1940,7 @@ function TierRow({
   onRemove: () => void;
   canRemove: boolean;
 }) {
+  const t = useTranslations('dkp');
   return (
     <tr className="border-b border-[var(--border)]/50 last:border-b-0">
       <td className="py-1.5 pr-2">
@@ -1965,7 +1964,7 @@ function TierRow({
           onClick={onRemove}
           disabled={!canRemove}
           className="p-1 rounded-md text-[var(--text-muted)] hover:text-rose-400 hover:bg-rose-500/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          title="Remove tier"
+          title={t('config.removeTier')}
         >
           <Trash2 size={14} />
         </button>
@@ -2007,6 +2006,7 @@ function PercentInput({
 
 /** Multiplier of power input (e.g. 1.75× Power). */
 function MultiplierInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const t = useTranslations('dkp');
   return (
     <div className="flex items-center gap-1 justify-end">
       <input
@@ -2020,7 +2020,7 @@ function MultiplierInput({ value, onChange }: { value: number; onChange: (v: num
         min="0"
         className="w-24 px-2 py-1 rounded-md bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] text-right focus:outline-none focus:border-[var(--foreground)]/30"
       />
-      <span className="text-xs text-[var(--text-muted)]">× pwr</span>
+      <span className="text-xs text-[var(--text-muted)]">{t('config.perPower')}</span>
     </div>
   );
 }
@@ -2125,33 +2125,89 @@ interface PlayersTableProps {
   onToggleFlag: ((characterId: number) => void) | null;
 }
 
+type TFn = ReturnType<typeof useTranslations>;
+
 function dkpBreakdown(
   p: SimpleScoredPlayer,
   f: SimpleConfig['formula'],
   rule: SimpleConfig['scoringRule'],
+  t: TFn,
 ): string {
   const deathLines =
-    `  T5 deaths ${fmt(p.t5Deaths)} × ${f.t5Death} = ${fmt(p.t5Deaths * f.t5Death)}\n` +
-    `+ T4 deaths ${fmt(p.t4Deaths)} × ${f.t4Death} = ${fmt(p.t4Deaths * f.t4Death)}`;
+    `  ${t('tips.t5Deaths')} ${fmt(p.t5Deaths)} × ${f.t5Death} = ${fmt(p.t5Deaths * f.t5Death)}\n` +
+    `+ ${t('tips.t4Deaths')} ${fmt(p.t4Deaths)} × ${f.t4Death} = ${fmt(p.t4Deaths * f.t4Death)}`;
   const killLines =
-    `+ T5 kills  ${fmt(p.t5Kills)} × ${f.t5Kill} = ${fmt(p.t5Kills * f.t5Kill)}\n` +
-    `+ T4 kills  ${fmt(p.t4Kills)} × ${f.t4Kill} = ${fmt(p.t4Kills * f.t4Kill)}`;
+    `+ ${t('tips.t5Kills')} ${fmt(p.t5Kills)} × ${f.t5Kill} = ${fmt(p.t5Kills * f.t5Kill)}\n` +
+    `+ ${t('tips.t4Kills')} ${fmt(p.t4Kills)} × ${f.t4Kill} = ${fmt(p.t4Kills * f.t4Kill)}`;
   let body: string;
   switch (rule) {
     case 'kp':
-      body = `${killLines}\n(deaths excluded — scoring rule "KP only")`;
+      body = `${killLines}\n${t('tips.deathsExcluded')}`;
       break;
     case 'deaths':
-      body = `${deathLines}\n(kills excluded — scoring rule "Deaths only")`;
+      body = `${deathLines}\n${t('tips.killsExcluded')}`;
       break;
     case 'both':
     default:
       body = `${deathLines}\n${killLines}`;
   }
-  return `DKP breakdown:\n${body}\n= ${fmt(p.dkp)}`;
+  return `${t('tips.breakdownTitle')}\n${body}\n= ${fmt(p.dkp)}`;
+}
+
+/** Shared footer line pointing officers at where the tier numbers are configured. */
+function TipSource({ children }: { children: React.ReactNode }) {
+  return <span className="mt-1.5 block border-t border-[var(--border)] pt-1.5 text-[10px] text-[var(--text-muted)]">{children}</span>;
+}
+
+/** Rich hover content for the KP % cell — names the tier, shows the math, cites the source. */
+function kpTipContent(p: SimpleScoredPlayer, t: TFn): React.ReactNode {
+  if (!p.tier) return null;
+  return (
+    <span className="block">
+      <span className="block font-semibold text-[var(--foreground)]">{t('tips.kpTitle', { tier: p.tier.label })}</span>
+      <span className="block">{t('tips.kpMath', { mult: p.tier.kpMultiplier, power: fmtM(p.power), target: fmt(p.kpTarget) })}</span>
+      <span className="block">{t('tips.kpActualPrefix', { kp: fmt(p.totalKP) })}<span className="font-medium">{fmtPct(p.kpRatio)}</span>{t('tips.ofTarget')}</span>
+      <TipSource>{t('tips.kpSourceA', { tier: p.tier.label })}<span className="text-[var(--text-secondary)]">{t('tips.configPanel')}</span>{t('tips.sourcePanelSuffix')}</TipSource>
+    </span>
+  );
+}
+
+/** Rich hover content for the Deaths % cell. */
+function deathsTipContent(p: SimpleScoredPlayer, t: TFn): React.ReactNode {
+  if (!p.tier) return null;
+  return (
+    <span className="block">
+      <span className="block font-semibold text-[var(--foreground)]">{t('tips.deathsTitle', { tier: p.tier.label })}</span>
+      <span className="block">{t('tips.deathsMath', { pct: p.tier.deathsPct, power: fmtM(p.power), target: fmt(p.deathsTarget) })}</span>
+      <span className="block">{t('tips.deathsActualPrefix', { deaths: fmt(p.totalDeaths) })}<span className="font-medium">{fmtPct(p.deathsRatio)}</span>{t('tips.ofTarget')}</span>
+      <TipSource>{t('tips.deathsSourceA', { tier: p.tier.label })}<span className="text-[var(--text-secondary)]">{t('tips.configPanel')}</span>{t('tips.sourcePanelSuffix')}</TipSource>
+    </span>
+  );
+}
+
+/** Rich hover content for the Tier badge — the single place both targets are spelled out. */
+function tierTipContent(p: SimpleScoredPlayer, t: TFn): React.ReactNode {
+  if (!p.tier) {
+    return (
+      <span className="block">
+        <span className="block font-semibold text-[var(--foreground)]">{t('tips.noTierTitle')}</span>
+        <span className="block">{t('tips.noTierBody', { power: fmtM(p.power) })}</span>
+        <TipSource>{t('tips.noTierSourceA')}<span className="text-[var(--text-secondary)]">{t('tips.configPanel')}</span>{t('tips.sourcePanelSuffix')}</TipSource>
+      </span>
+    );
+  }
+  return (
+    <span className="block">
+      <span className="block font-semibold text-[var(--foreground)]">{t('tips.tierTitle', { tier: p.tier.label, power: fmtM(p.tier.minPower) })}</span>
+      <span className="block">{t('tips.tierKpTarget', { mult: p.tier.kpMultiplier, target: fmt(p.kpTarget) })}</span>
+      <span className="block">{t('tips.tierDeathsTarget', { pct: p.tier.deathsPct, target: fmt(p.deathsTarget) })}</span>
+      <TipSource>{t('tips.tierSourceA')}<span className="text-[var(--text-secondary)]">{t('tips.configPanel')}</span>{t('tips.sourcePanelSuffix')}</TipSource>
+    </span>
+  );
 }
 
 function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, scoringRule, showGovId, flagged, onToggleFlag }: PlayersTableProps) {
+  const t = useTranslations('dkp');
   const showFlagCol = onToggleFlag !== null;
   // The scroll container has BOTH axis overflow set on the same element (`overflow-auto`)
   // and a max-height so it acts as the sticky ancestor. Without a bounded scroll
@@ -2166,31 +2222,31 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
           <thead className={thBg}>
             <tr className="text-xs text-[var(--text-muted)]">
               {showFlagCol && (
-                <th className={`${thSticky} px-2 py-2 w-8 text-center`} title="Flag for migration">
+                <th className={`${thSticky} px-2 py-2 w-8 text-center`} title={t('table.flagForMigration')}>
                   <Flag size={12} className="inline text-rose-400" />
                 </th>
               )}
-              <Th k="rank" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">#</Th>
-              <Th k="username" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-left">Name</Th>
-              <Th k="power" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">Power</Th>
-              <Th k="tier" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center">Tier</Th>
-              <Th k="t4Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">T4d</Th>
-              <Th k="t5Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">T5d</Th>
-              <Th k="t4Kills" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">T4k</Th>
-              <Th k="t5Kills" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">T5k</Th>
-              <Th k="totalKP" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">KP</Th>
-              <Th k="dkp" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">DKP</Th>
-              <Th k="kpRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">KP %</Th>
-              <Th k="totalDeaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">Deaths</Th>
-              <Th k="deathsRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">Deaths %</Th>
-              <Th k="status" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center">Status</Th>
+              <Th k="rank" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">{t('columns.rank')}</Th>
+              <Th k="username" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-left">{t('columns.name')}</Th>
+              <Th k="power" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.power')}>{t('columns.power')}</Th>
+              <Th k="tier" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center" help={t('columnHelp.tier')}>{t('columns.tier')}</Th>
+              <Th k="t4Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.t4Deaths')}>{t('columns.t4Deaths')}</Th>
+              <Th k="t5Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.t5Deaths')}>{t('columns.t5Deaths')}</Th>
+              <Th k="t4Kills" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.t4Kills')}>{t('columns.t4Kills')}</Th>
+              <Th k="t5Kills" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.t5Kills')}>{t('columns.t5Kills')}</Th>
+              <Th k="totalKP" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.kp')}>{t('columns.kp')}</Th>
+              <Th k="dkp" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.dkp')}>{t('columns.dkp')}</Th>
+              <Th k="kpRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.kpPct')}>{t('columns.kpPct')}</Th>
+              <Th k="totalDeaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.deaths')}>{t('columns.deaths')}</Th>
+              <Th k="deathsRatio" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.deathsPct')}>{t('columns.deathsPct')}</Th>
+              <Th k="status" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center" help={t('columnHelp.status')}>{t('columns.status')}</Th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
                 <td colSpan={showFlagCol ? 15 : 14} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
-                  No players to show
+                  {t('table.empty')}
                 </td>
               </tr>
             )}
@@ -2210,7 +2266,7 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                       checked={isFlagged}
                       onChange={() => onToggleFlag?.(p.characterId)}
                       className="accent-rose-500 cursor-pointer"
-                      title={isFlagged ? 'Unflag from migration list' : 'Flag for migration'}
+                      title={isFlagged ? t('table.unflag') : t('table.flagForMigration')}
                     />
                   </td>
                 )}
@@ -2225,32 +2281,34 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmtM(p.power)}</td>
                 <td className="px-3 py-2 text-center">
-                  {p.tier ? (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
-                      {p.tier.label}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-[var(--text-muted)]">—</span>
-                  )}
+                  <Tip content={tierTipContent(p, t)} className="inline-flex justify-center">
+                    {p.tier ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-[var(--background-secondary)] border border-[var(--border)] text-[var(--text-secondary)]">
+                        {p.tier.label}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--text-muted)]">—</span>
+                    )}
+                  </Tip>
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t4Deaths)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t5Deaths)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t4Kills)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t5Kills)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{fmt(p.totalKP)}</td>
-                <td
-                  className="px-3 py-2 text-right tabular-nums text-[var(--foreground)] font-medium cursor-help"
-                  title={dkpBreakdown(p, formula, scoringRule)}
-                >
-                  {fmt(p.dkp)}
+                <td className="px-3 py-2 text-right tabular-nums text-[var(--foreground)] font-medium">
+                  <Tip
+                    content={<span className="block whitespace-pre-line font-mono text-[11px]">{dkpBreakdown(p, formula, scoringRule, t)}</span>}
+                    className="inline-flex justify-end"
+                  >
+                    {fmt(p.dkp)}
+                  </Tip>
                 </td>
                 <td className="px-3 py-2 min-w-[80px]">
                   {p.tier ? (
-                    <RatioCell
-                      ratio={p.kpRatio}
-                      cutoffs={cutoffs}
-                      title={`Target: ${p.tier.kpMultiplier}× power → ${fmt(p.kpTarget)}\nActual KP: ${fmt(p.totalKP)} → ${fmtPct(p.kpRatio)}`}
-                    />
+                    <Tip content={kpTipContent(p, t)} className="flex w-full justify-end">
+                      <RatioCell ratio={p.kpRatio} cutoffs={cutoffs} />
+                    </Tip>
                   ) : (
                     <span className="text-right block text-[var(--text-muted)]">—</span>
                   )}
@@ -2258,18 +2316,16 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.totalDeaths)}</td>
                 <td className="px-3 py-2 min-w-[80px]">
                   {p.tier ? (
-                    <RatioCell
-                      ratio={p.deathsRatio}
-                      cutoffs={cutoffs}
-                      title={`Target: ${p.tier.deathsPct}% of ${fmtM(p.power)} power = ${fmt(p.deathsTarget)} troops\nActual: ${fmt(p.totalDeaths)} → ${fmtPct(p.deathsRatio)}`}
-                    />
+                    <Tip content={deathsTipContent(p, t)} className="flex w-full justify-end">
+                      <RatioCell ratio={p.deathsRatio} cutoffs={cutoffs} />
+                    </Tip>
                   ) : (
                     <span className="text-right block text-[var(--text-muted)]">—</span>
                   )}
                 </td>
                 <td className="px-3 py-2 text-center">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-medium ${STATUS_STYLES[p.status]}`}>
-                    {STATUS_LABEL[p.status]}
+                    {t(`status.${p.status}`)}
                   </span>
                 </td>
               </tr>
@@ -2288,6 +2344,7 @@ function Th({
   sortDir,
   onSort,
   align,
+  help,
   children,
 }: {
   k: SortKey;
@@ -2295,22 +2352,91 @@ function Th({
   sortDir: 'asc' | 'desc';
   onSort: (k: SortKey) => void;
   align: 'text-left' | 'text-right' | 'text-center';
+  /** Optional plain-text explanation shown on hover of a small "?" icon. */
+  help?: string;
   children: React.ReactNode;
 }) {
   const active = sortKey === k;
+  const justify =
+    align === 'text-right' ? 'justify-end' : align === 'text-center' ? 'justify-center' : 'justify-start';
   return (
     <th className={`sticky top-0 z-10 bg-[var(--background-card)] border-b border-[var(--border)] px-3 py-2 font-normal ${align}`}>
-      <button
-        onClick={() => onSort(k)}
-        className={`inline-flex items-center gap-1 hover:text-[var(--foreground)] transition-colors ${active ? 'text-[var(--foreground)]' : ''}`}
-      >
-        {children}
-        {active ? (
-          <ArrowUpDown size={10} className={sortDir === 'asc' ? 'rotate-180' : ''} />
-        ) : (
-          <ArrowUpDown size={10} className="opacity-30" />
-        )}
-      </button>
+      <span className={`inline-flex items-center gap-1 ${justify}`}>
+        <button
+          onClick={() => onSort(k)}
+          className={`inline-flex items-center gap-1 hover:text-[var(--foreground)] transition-colors ${active ? 'text-[var(--foreground)]' : ''}`}
+        >
+          {children}
+          {active ? (
+            <ArrowUpDown size={10} className={sortDir === 'asc' ? 'rotate-180' : ''} />
+          ) : (
+            <ArrowUpDown size={10} className="opacity-30" />
+          )}
+        </button>
+        {help && <HeaderHelp text={help} />}
+      </span>
     </th>
+  );
+}
+
+/** Wraps any trigger and shows a styled popover on hover or click.
+ *  Uses fixed positioning (computed from the trigger's rect) so the popover
+ *  is not clipped by the table's overflow/scroll container. Not interactive
+ *  (pointer-events-none) so moving onto it closes it, like a tooltip. */
+function Tip({
+  content,
+  children,
+  className,
+}: {
+  content: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  const show = () => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    // Clamp horizontally so edge columns don't overflow the viewport.
+    const left = Math.min(Math.max(r.left + r.width / 2, 150), window.innerWidth - 150);
+    setCoords({ top: r.bottom + 6, left });
+    setOpen(true);
+  };
+
+  return (
+    <span
+      ref={ref}
+      onMouseEnter={show}
+      onMouseLeave={() => setOpen(false)}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (open) setOpen(false);
+        else show();
+      }}
+      className={`cursor-help ${className ?? ''}`}
+    >
+      {children}
+      {open && coords && (
+        <span
+          role="tooltip"
+          style={{ position: 'fixed', top: coords.top, left: coords.left, transform: 'translateX(-50%)', zIndex: 60 }}
+          className="pointer-events-none block w-max max-w-[300px] rounded-lg border border-[var(--border)] bg-[var(--background-card)] px-3 py-2 text-left text-xs font-normal normal-case tracking-normal leading-snug text-[var(--text-secondary)] shadow-lg"
+        >
+          {content}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** A "?" icon that reveals a plain-text explanation on hover or click. */
+function HeaderHelp({ text }: { text: string }) {
+  return (
+    <Tip content={text} className="inline-flex items-center text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
+      <HelpCircle size={11} className="opacity-60" />
+    </Tip>
   );
 }
