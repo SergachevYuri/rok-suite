@@ -831,7 +831,9 @@
       "inThisKd": "dans ce KD · {total} au total",
       "flagAllRejected": "Signaler tous les rejetés ({count})",
       "unflagAll": "Retirer tous les signalements de ce KD",
-      "openPage": "Ouvrir la page de migration →"
+      "openPage": "Ouvrir la page de migration →",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "Importer un scan XLSX",

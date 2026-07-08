@@ -831,7 +831,9 @@
       "inThisKd": "इस KD में · कुल {total}",
       "flagAllRejected": "सभी अस्वीकृत फ़्लैग करें ({count})",
       "unflagAll": "इस KD में सभी अनफ़्लैग करें",
-      "openPage": "माइग्रेशन पेज खोलें →"
+      "openPage": "माइग्रेशन पेज खोलें →",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "XLSX स्कैन अपलोड करें",

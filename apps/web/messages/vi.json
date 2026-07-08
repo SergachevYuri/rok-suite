@@ -831,7 +831,9 @@
       "inThisKd": "trong KD này · tổng cộng {total}",
       "flagAllRejected": "Gắn cờ tất cả bị từ chối ({count})",
       "unflagAll": "Bỏ gắn cờ tất cả trong KD này",
-      "openPage": "Mở trang di cư →"
+      "openPage": "Mở trang di cư →",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "Tải lên bản quét XLSX",

@@ -831,7 +831,9 @@
       "inThisKd": "ใน KD นี้ · ทั้งหมด {total} รายการ",
       "flagAllRejected": "ทำเครื่องหมายที่ปฏิเสธทั้งหมด ({count})",
       "unflagAll": "ยกเลิกเครื่องหมายทั้งหมดใน KD นี้",
-      "openPage": "เปิดหน้าการย้าย →"
+      "openPage": "เปิดหน้าการย้าย →",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "อัปโหลดการสแกน XLSX",

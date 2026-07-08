@@ -831,7 +831,9 @@
       "inThisKd": "이 KD에서 · 총 {total}개",
       "flagAllRejected": "거부된 항목 모두 표시 ({count})",
       "unflagAll": "이 KD의 모든 표시 해제",
-      "openPage": "이전 페이지 열기 →"
+      "openPage": "이전 페이지 열기 →",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "XLSX 스캔 업로드",

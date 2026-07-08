@@ -831,7 +831,9 @@
       "inThisKd": "このKD内 · 合計 {total} 件",
       "flagAllRejected": "却下をすべてフラグ付け（{count}）",
       "unflagAll": "このKDのフラグをすべて解除",
-      "openPage": "移行ページを開く →"
+      "openPage": "移行ページを開く →",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "XLSXスキャンをアップロード",

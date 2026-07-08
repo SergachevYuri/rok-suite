@@ -831,7 +831,9 @@
       "inThisKd": "в этом КД · всего {total}",
       "flagAllRejected": "Отметить всех отклонённых ({count})",
       "unflagAll": "Снять все отметки в этом КД",
-      "openPage": "Открыть страницу миграции →"
+      "openPage": "Открыть страницу миграции →",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "Загрузить XLSX-скан",

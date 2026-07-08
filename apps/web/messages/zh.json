@@ -831,7 +831,9 @@
       "inThisKd": "在此 KD · 共 {total} 个",
       "flagAllRejected": "标记所有被拒绝的（{count}）",
       "unflagAll": "取消标记此 KD 中的所有",
-      "openPage": "打开迁移页面 →"
+      "openPage": "打开迁移页面 →",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "上传 XLSX 扫描",

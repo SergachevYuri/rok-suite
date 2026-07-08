@@ -509,6 +509,29 @@ function DkpPageInner() {
     });
   };
 
+  /** Wipe the entire emigration list — nukes every flag, including players
+   *  from other KDs or previous sessions. Used before starting a fresh sweep. */
+  const handleClearAllFlags = () => {
+    if (flaggedForMigration.size === 0) return;
+    if (!confirm(`Clear all ${flaggedForMigration.size} players from the emigration list?\nThis affects every KD and cannot be undone.`)) return;
+    setFlaggedForMigration(new Set());
+    persistFlagged(new Set());
+  };
+
+  /** Convenience: wipe the current emigration list AND flag every REJECTED
+   *  player in the current scored set as the new list. */
+  const handleReplaceWithRejected = () => {
+    const rejectedIds = scored.filter((p) => p.status === 'REJECTED').map((p) => p.characterId);
+    if (rejectedIds.length === 0) {
+      alert('No REJECTED players in the current view — nothing to send.');
+      return;
+    }
+    if (!confirm(`Replace the emigration list with ${rejectedIds.length} REJECTED players from ${selectedKvk?.name ?? 'this KvK'} · KD ${selectedKingdomId}?\nThis wipes any previously-flagged players (including from other KDs).`)) return;
+    const next = new Set(rejectedIds);
+    setFlaggedForMigration(next);
+    persistFlagged(next);
+  };
+
   const hasKvk = selectedKvkId != null;
   const hasKd = selectedKingdomId != null;
 
@@ -802,11 +825,29 @@ function DkpPageInner() {
                 </button>
                 <button
                   type="button"
+                  onClick={handleReplaceWithRejected}
+                  disabled={rejectedCount === 0}
+                  className="px-3 py-1.5 rounded-md text-xs bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Wipe the whole emigration list, then flag every REJECTED player from this view."
+                >
+                  {t('migration.replaceWithRejected', { count: rejectedCount })}
+                </button>
+                <button
+                  type="button"
                   onClick={handleClearFlagsInView}
                   disabled={flaggedInThisDataset === 0}
                   className="px-3 py-1.5 rounded-md text-xs bg-[var(--background-secondary)] text-[var(--text-muted)] border border-[var(--border)] hover:text-[var(--foreground)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {t('migration.unflagAll')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearAllFlags}
+                  disabled={flaggedForMigration.size === 0}
+                  className="px-3 py-1.5 rounded-md text-xs bg-rose-500/10 text-rose-400 border border-rose-500/40 hover:bg-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Nuke every flag across every KD. Use before starting a fresh emigration sweep."
+                >
+                  {t('migration.clearAllFlags')}
                 </button>
                 <a
                   href="/migration"

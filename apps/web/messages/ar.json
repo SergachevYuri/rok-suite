@@ -831,7 +831,9 @@
       "inThisKd": "في هذه الـ KD · {total} إجمالاً",
       "flagAllRejected": "تعليم كل المرفوضين ({count})",
       "unflagAll": "إلغاء التعليم للجميع في هذه الـ KD",
-      "openPage": "فتح صفحة الترحيل ←"
+      "openPage": "فتح صفحة الترحيل ←",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "رفع مسح XLSX",

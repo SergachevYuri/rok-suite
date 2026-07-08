@@ -831,7 +831,9 @@
       "inThisKd": "bu KD'de · toplam {total}",
       "flagAllRejected": "Reddedilenlerin tümünü işaretle ({count})",
       "unflagAll": "Bu KD'deki tüm işaretleri kaldır",
-      "openPage": "Geçiş sayfasını aç →"
+      "openPage": "Geçiş sayfasını aç →",
+      "replaceWithRejected": "Replace list with rejected ({count})",
+      "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
       "heading": "XLSX tarama yükle",
