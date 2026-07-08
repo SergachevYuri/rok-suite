@@ -682,6 +682,28 @@ export async function removeFromZeroList(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Delete every native zero_list case in one shot. Cases carried in from the
+ *  cycle (source_kind='cycle') are untouched — the caller flips their state on
+ *  the cycle side if they want them off the Zero List view. Returns how many
+ *  rows were removed. */
+export async function clearZeroList(): Promise<{ removed: number }> {
+  const sb = createClient();
+  // Count first so the UI can show a truthful confirmation and result toast.
+  const { count, error: countErr } = await sb
+    .from('migration_cases')
+    .select('id', { count: 'exact', head: true })
+    .eq('source_kind', 'zero_list');
+  if (countErr) throw countErr;
+  const total = count ?? 0;
+  if (total === 0) return { removed: 0 };
+  const { error: delErr } = await sb
+    .from('migration_cases')
+    .delete()
+    .eq('source_kind', 'zero_list');
+  if (delErr) throw delErr;
+  return { removed: total };
+}
+
 /** Refresh coords + last-seen power/alliance/name for a set of zero-list cases from a fresh scan.
  *  Match is by character_id; cases not present in the scan are left alone.
  *  Username is rewritten when the scan reports a different name for the same gov_id —

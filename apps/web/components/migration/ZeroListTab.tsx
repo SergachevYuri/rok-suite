@@ -10,6 +10,7 @@ import {
   TERMINAL_STATES,
   listZeroListCases,
   removeFromZeroList,
+  clearZeroList,
   markToZero,
   markAfk,
   markException,
@@ -176,6 +177,30 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
   const searchParams = useSearchParams();
 
   const [cases, setCases] = useState<MigrationCase[]>([]);
+  const [clearingList, setClearingList] = useState(false);
+
+  const handleClearZeroList = useCallback(async () => {
+    const nativeCount = cases.filter((c) => c.source_kind === 'zero_list').length;
+    if (nativeCount === 0) {
+      window.alert('Zero List is already empty (or only contains cases carried over from cycles — those you flip on the cycle side).');
+      return;
+    }
+    const cycleCount = cases.filter((c) => c.source_kind === 'cycle').length;
+    const cycleNote = cycleCount > 0
+      ? `\n\n${cycleCount} case(s) came in from cycles and will stay — clear them by ending the cycle.`
+      : '';
+    if (!window.confirm(`Delete every native Zero List entry (${nativeCount})?${cycleNote}\n\nThis is a hard delete and cannot be undone.`)) return;
+    setClearingList(true);
+    try {
+      const { removed } = await clearZeroList();
+      window.alert(`Removed ${removed} Zero List entr${removed === 1 ? 'y' : 'ies'}.`);
+    } catch (e) {
+      console.error('Failed to clear Zero List', e);
+      window.alert(`Failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setClearingList(false);
+    }
+  }, [cases]);
   const [loading, setLoading] = useState(true);
 
   // Initialize filter + search from the URL so direct links (e.g. shared by
@@ -564,6 +589,17 @@ export function ZeroListTab({ isOfficer, isAdmin, actorName }: Props) {
         >
           <RotateCcw size={14} />
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => void handleClearZeroList()}
+            disabled={clearingList || cases.filter((c) => c.source_kind === 'zero_list').length === 0}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="Hard-delete every native Zero List entry. Cases carried over from cycles are not touched."
+          >
+            <Trash2 size={12} />
+            {clearingList ? 'Clearing…' : `Clear all (${cases.filter((c) => c.source_kind === 'zero_list').length})`}
+          </button>
+        )}
         <span className="text-xs text-[var(--text-muted)] ml-auto">
           {filtered.length} shown
           {delayedCount > 0 && (
