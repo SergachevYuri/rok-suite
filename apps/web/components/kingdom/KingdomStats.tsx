@@ -1253,20 +1253,28 @@ type TooltipProps = { active?: boolean; payload?: TooltipPayloadItem[]; label?: 
 function TwoColTooltip(props: TooltipProps) {
   const { active, payload, label } = props;
   if (!active || !payload || payload.length === 0) return null;
-  const items = [...payload].sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
-  const half = Math.ceil(items.length / 2);
-  const left = items.slice(0, half);
-  const right = items.slice(half);
-  const renderRow = (it: TooltipPayloadItem, i: number) => (
-    <div key={i} className="flex items-center justify-between gap-4 leading-tight">
-      <span className="truncate" style={{ color: it.color }}>{String(it.name ?? '')}</span>
+  // Sort desc by value AND remember the sorted position so both columns
+  // (left / right) show a stable rank that reflects the current hover point.
+  // Ties keep their payload order — rank is 1-indexed by descending value.
+  const ranked = [...payload]
+    .sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0))
+    .map((it, i) => ({ it, rank: i + 1 }));
+  const half = Math.ceil(ranked.length / 2);
+  const left = ranked.slice(0, half);
+  const right = ranked.slice(half);
+  const renderRow = ({ it, rank }: { it: TooltipPayloadItem; rank: number }, i: number) => (
+    <div key={i} className="flex items-center justify-between gap-3 leading-tight">
+      <span className="flex items-center gap-1.5 min-w-0">
+        <span className="tabular-nums text-[var(--text-muted)] w-5 text-right">#{rank}</span>
+        <span className="truncate" style={{ color: it.color }}>{String(it.name ?? '')}</span>
+      </span>
       <span className="tabular-nums text-[var(--foreground)]">{formatCompact(Number(it.value) || 0)}</span>
     </div>
   );
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--background-card)]/95 backdrop-blur p-2.5 text-xs shadow-lg">
       <div className="text-[var(--text-muted)] mb-1.5">Date: {String(label ?? '')}</div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 min-w-[280px]">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 min-w-[300px]">
         <div className="space-y-0.5">{left.map(renderRow)}</div>
         <div className="space-y-0.5">{right.map(renderRow)}</div>
       </div>
