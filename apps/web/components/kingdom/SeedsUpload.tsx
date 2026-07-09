@@ -18,6 +18,11 @@ interface ParsedKdRow {
   total_kp: number;
   power_rank: number;
   kp_rank: number;
+  /** Sum of the top-300 players' power for this KD. Derived from the players
+   *  sheet at upload; NULL on rows uploaded before this feature landed. */
+  power_300: number;
+  /** Sum of the top-300 players' KP for this KD (players sorted by KP). */
+  kp_300: number;
 }
 
 interface ParsedPlayerRow {
@@ -453,17 +458,29 @@ function identifyAndParse(wb: XLSX.WorkBook): { kd: ParsedKdRow[]; players: Pars
   const players = Array.from(playerMap.values());
   if (players.length === 0) throw new Error('Players sheet has no valid rows');
 
-  // KD aggregate sheet is optional. If missing (or in a format we don't
-  // recognize) derive it from the players sheet: sum of top-400 power per KD
-  // and total KP per KD, then rank across KDs.
+  // Always compute the top-300 slices from the players sheet — the KD summary
+  // format in existing files doesn't carry those metrics, so we derive them
+  // regardless of whether the KD summary sheet is present. When the KD summary
+  // sheet exists, its power_400/total_kp/ranks win; only the top-300 metrics
+  // come from the derived side.
+  const derived = deriveKdRowsFromPlayers(players);
+  const derivedByKd = new Map(derived.map((r) => [r.kingdom_id, r] as const));
+
   let kd: ParsedKdRow[];
   if (kdSheet) {
     const kdRaw = kdSheet.map(parseKdRow).filter(Boolean) as ParsedKdRow[];
     const kdMap = new Map<number, ParsedKdRow>();
-    for (const r of kdRaw) kdMap.set(r.kingdom_id, r);
+    for (const r of kdRaw) {
+      const d = derivedByKd.get(r.kingdom_id);
+      kdMap.set(r.kingdom_id, {
+        ...r,
+        power_300: d?.power_300 ?? 0,
+        kp_300: d?.kp_300 ?? 0,
+      });
+    }
     kd = Array.from(kdMap.values());
   } else {
-    kd = deriveKdRowsFromPlayers(players);
+    kd = derived;
   }
 
   if (kd.length === 0) throw new Error('No KD rows resolved (empty aggregate and no players)');
@@ -471,7 +488,9 @@ function identifyAndParse(wb: XLSX.WorkBook): { kd: ParsedKdRow[]; players: Pars
   return { kd, players };
 }
 
-/** Compute a KD aggregate row per kingdom by scanning the players list. */
+/** Compute a KD aggregate row per kingdom by scanning the players list.
+ *  Emits five metrics: power_400 (existing), total_kp (existing),
+ *  power_300 + kp_300 (new — top-300 slices, ranked independently on each axis). */
 function deriveKdRowsFromPlayers(players: ParsedPlayerRow[]): ParsedKdRow[] {
   const perKd = new Map<number, ParsedPlayerRow[]>();
   for (const p of players) {
@@ -481,16 +500,27 @@ function deriveKdRowsFromPlayers(players: ParsedPlayerRow[]): ParsedKdRow[] {
     perKd.set(p.kingdom_id, bucket);
   }
 
-  const summary: { kingdom_id: number; power_400: number; total_kp: number }[] = [];
+  const summary: {
+    kingdom_id: number;
+    power_400: number;
+    power_300: number;
+    total_kp: number;
+    kp_300: number;
+  }[] = [];
   for (const [kingdom_id, rows] of perKd) {
     const byPower = [...rows].sort((a, b) => b.power - a.power);
     const top400 = byPower.slice(0, 400);
     const power_400 = top400.reduce((s, r) => s + (r.power || 0), 0);
+    const power_300 = byPower.slice(0, 300).reduce((s, r) => s + (r.power || 0), 0);
     const total_kp = rows.reduce((s, r) => s + (r.kp || 0), 0);
-    summary.push({ kingdom_id, power_400, total_kp });
+    const byKp = [...rows].sort((a, b) => b.kp - a.kp);
+    const kp_300 = byKp.slice(0, 300).reduce((s, r) => s + (r.kp || 0), 0);
+    summary.push({ kingdom_id, power_400, power_300, total_kp, kp_300 });
   }
 
-  // Rank across KDs on both metrics (1 = best).
+  // Ranks are computed on the LEGACY metrics (power_400, total_kp) so the
+  // rank columns keep the same meaning as before. Top-300 metrics are shown in
+  // Charts but don't drive the *_rank columns.
   const byPowerDesc = [...summary].sort((a, b) => b.power_400 - a.power_400);
   const byKpDesc = [...summary].sort((a, b) => b.total_kp - a.total_kp);
   const powerRank = new Map<number, number>();
@@ -501,7 +531,9 @@ function deriveKdRowsFromPlayers(players: ParsedPlayerRow[]): ParsedKdRow[] {
   return summary.map((r) => ({
     kingdom_id: r.kingdom_id,
     power_400: r.power_400,
+    power_300: r.power_300,
     total_kp: r.total_kp,
+    kp_300: r.kp_300,
     power_rank: powerRank.get(r.kingdom_id) ?? 0,
     kp_rank: kpRank.get(r.kingdom_id) ?? 0,
   }));
@@ -542,6 +574,11 @@ function parseKdRow(r: Row): ParsedKdRow | null {
     total_kp:   toInt(getCol(r, 'total_KP')),
     power_rank: toInt(getCol(r, 'Power Rank')),
     kp_rank:    toInt(getCol(r, 'KP Rank')),
+    // Top-300 metrics aren't in the KD summary sheet — always derived from the
+    // players sheet later. Zero here is a placeholder; identifyAndParse merges
+    // the real values in from the derived aggregate before upserting.
+    power_300:  0,
+    kp_300:     0,
   };
 }
 

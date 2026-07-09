@@ -44,7 +44,9 @@ type SortDir = 'asc' | 'desc';
 
 const METRICS = [
   { key: 'power_400', label: 'Top 400 Power', color: '#818cf8' },
+  { key: 'power_300', label: 'Top 300 Power', color: '#a78bfa' },
   { key: 'total_kp',  label: 'Total KP',      color: '#f87171' },
+  { key: 'kp_300',    label: 'Top 300 KP',    color: '#fb923c' },
 ] as const;
 
 const KD_COLORS = ['#818cf8', '#f87171', '#34d399', '#fbbf24', '#fb923c', '#a78bfa', '#22d3ee', '#f472b6', '#a3e635', '#fb7185'];
@@ -166,7 +168,7 @@ export default function KingdomStats({
 
   // Chart state
   const [chartKingdoms, setChartKingdoms] = useState<Set<number>>(new Set());
-  const [chartMetric, setChartMetric] = useState<'power_400' | 'total_kp'>('power_400');
+  const [chartMetric, setChartMetric] = useState<(typeof METRICS)[number]['key']>('power_400');
   const [chartDateFrom, setChartDateFrom] = useState<string>('');
   const [chartDateTo, setChartDateTo] = useState<string>('');
   const [hoveredKd, setHoveredKd] = useState<number | null>(null);

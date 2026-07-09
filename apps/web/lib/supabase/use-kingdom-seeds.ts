@@ -8,6 +8,9 @@ export interface SeedKdStat {
   total_kp: number;
   power_rank: number;
   kp_rank: number;
+  /** Top-300 slice metrics. NULL on rows uploaded before the top-300 rework. */
+  power_300?: number | null;
+  kp_300?: number | null;
   uploaded_at?: string;
 }
 
