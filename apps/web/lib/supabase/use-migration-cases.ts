@@ -168,22 +168,42 @@ export async function listZeroListCases(): Promise<MigrationCase[]> {
   return merged;
 }
 
-/** Bulk-create cases from a snapshot of players (e.g. the currently flagged list on the DKP page). */
+/** Bulk-create cases from a snapshot of players (e.g. the currently flagged list on the DKP page).
+ *  We can't use .upsert(onConflict: 'cycle_id,character_id') because the DB-side
+ *  UNIQUE is a PARTIAL index (WHERE source_kind='cycle') and PostgREST rejects
+ *  partial indexes as ON CONFLICT targets. Insert-or-skip manually instead. */
 export async function bulkCreateCases(
   cycleId: string,
   entries: { characterId: number; username: string; power: number }[],
 ): Promise<void> {
   if (entries.length === 0) return;
-  const rows = entries.map((e) => ({
+  const sb = createClient();
+
+  // Skip players that already have a cycle case in this cycle so re-running
+  // against an existing cycle is idempotent (same guarantee the old upsert
+  // gave). We only look at source_kind='cycle' — zero_list rows can coexist.
+  const { data: existing, error: eSel } = await sb
+    .from('migration_cases')
+    .select('character_id')
+    .eq('cycle_id', cycleId)
+    .eq('source_kind', 'cycle');
+  if (eSel) throw eSel;
+  const existingIds = new Set(
+    ((existing ?? []) as { character_id: number }[]).map((r) => r.character_id),
+  );
+
+  const fresh = entries.filter((e) => !existingIds.has(e.characterId));
+  if (fresh.length === 0) return;
+
+  const rows = fresh.map((e) => ({
     cycle_id: cycleId,
+    source_kind: 'cycle' as const,
     character_id: e.characterId,
     username: e.username,
     power_at_open: e.power,
   }));
-  // upsert on (cycle_id, character_id) so re-running against an existing cycle is safe.
-  const { error } = await createClient()
-    .from('migration_cases')
-    .upsert(rows, { onConflict: 'cycle_id,character_id', ignoreDuplicates: true });
+
+  const { error } = await sb.from('migration_cases').insert(rows);
   if (error) throw error;
 }
 
