@@ -212,21 +212,40 @@ export async function bulkCreateCases(
   const fresh = entries.filter((e) => !existingIds.has(e.characterId));
   if (fresh.length === 0) return;
 
-  const rows = fresh.map((e) => ({
+  const baseRow = (e: CycleCaseEntry) => ({
     cycle_id: cycleId,
     source_kind: 'cycle' as const,
     character_id: e.characterId,
     username: e.username,
     power_at_open: e.power,
+  });
+  const withKpRow = (e: CycleCaseEntry) => ({
+    ...baseRow(e),
     kp_at_open: e.kp ?? null,
     // Clamp to numeric(6,4) range to avoid postgres overflow when a player
     // is wildly over target (e.g. 500%+ still fits at 5.0000; anything
     // beyond 99.9999 is compressed to the max).
     kp_ratio_at_open: e.kpRatio == null ? null : Math.min(99.9999, Math.max(-99.9999, e.kpRatio)),
-  }));
+  });
 
+  const rows = fresh.map(withKpRow);
   const { error } = await sb.from('migration_cases').insert(rows);
-  if (error) throw error;
+  if (!error) return;
+
+  // Fallback: if the KP snapshot columns don't exist yet (migration
+  // add-kp-snapshot-to-cases.sql wasn't executed), retry without them so the
+  // cycle case is still created. The KP columns will just stay NULL for these
+  // rows until the migration is applied.
+  const msg = (error.message ?? '').toLowerCase();
+  const kpColMissing = msg.includes('kp_at_open') || msg.includes('kp_ratio_at_open') || msg.includes('kp_ratio');
+  if (kpColMissing) {
+    console.warn('[bulkCreateCases] KP snapshot columns missing on migration_cases — retrying without them. Run add-kp-snapshot-to-cases.sql on Supabase to enable KP display.');
+    const legacyRows = fresh.map(baseRow);
+    const { error: e2 } = await sb.from('migration_cases').insert(legacyRows);
+    if (e2) throw e2;
+    return;
+  }
+  throw error;
 }
 
 export async function addCase(cycleId: string, entry: { characterId: number; username: string; power: number }) {
