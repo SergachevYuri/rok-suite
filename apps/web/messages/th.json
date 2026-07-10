@@ -824,7 +824,8 @@
       "rejected": "ปฏิเสธ",
       "unranked": "ไม่มีอันดับ",
       "allTiers": "ทุกระดับ",
-      "showIds": "แสดง ID"
+      "showIds": "แสดง ID",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "ทำเครื่องหมายไว้ {count} รายการ",

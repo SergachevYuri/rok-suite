@@ -824,7 +824,8 @@
       "rejected": "Rifiutato",
       "unranked": "Non classificato",
       "allTiers": "Tutte le fasce",
-      "showIds": "Mostra ID"
+      "showIds": "Mostra ID",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "{count} segnalati",

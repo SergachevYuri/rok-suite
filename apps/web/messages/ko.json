@@ -824,7 +824,8 @@
       "rejected": "거부",
       "unranked": "미분류",
       "allTiers": "모든 티어",
-      "showIds": "ID 표시"
+      "showIds": "ID 표시",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "{count}개 표시됨",

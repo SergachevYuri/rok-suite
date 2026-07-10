@@ -251,6 +251,9 @@ function DkpPageInner() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<SimpleStatus | 'ALL'>('ALL');
   const [tierFilter, setTierFilter] = useState<string | 'ALL'>('ALL');
+  /** Raw text draft for the "min power (M)" input — parsed to a numeric floor
+   *  in useMemo below. Empty means no floor. */
+  const [minPowerMDraft, setMinPowerMDraft] = useState('');
   const [showGovId, setShowGovId] = useState(false);
   const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
 
@@ -370,10 +373,17 @@ function DkpPageInner() {
     return m;
   }, [ranked]);
 
+  /** Parsed minPower floor in raw power units. Empty/invalid input → 0 (no filter). */
+  const minPowerFloor = useMemo(() => {
+    const n = parseFloat(minPowerMDraft.trim());
+    return Number.isFinite(n) && n > 0 ? n * 1_000_000 : 0;
+  }, [minPowerMDraft]);
+
   const filtered = useMemo(() => {
     let list = ranked;
     if (statusFilter !== 'ALL') list = list.filter((p) => p.status === statusFilter);
     if (tierFilter !== 'ALL') list = list.filter((p) => p.tier?.id === tierFilter);
+    if (minPowerFloor > 0) list = list.filter((p) => p.power >= minPowerFloor);
     if (search.trim()) {
       const q = search.trim();
       const qDigits = q.replace(/\D/g, '');
@@ -384,7 +394,7 @@ function DkpPageInner() {
       );
     }
     return list;
-  }, [ranked, search, statusFilter, tierFilter]);
+  }, [ranked, search, statusFilter, tierFilter, minPowerFloor]);
 
   const summary = useMemo(() => {
     const counts: Record<SimpleStatus, number> = {
@@ -796,6 +806,18 @@ function DkpPageInner() {
                   </option>
                 ))}
               </select>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={minPowerMDraft}
+                  onChange={(e) => setMinPowerMDraft(e.target.value)}
+                  placeholder={t('filters.minPowerPlaceholder')}
+                  step="1"
+                  min="0"
+                  className="w-32 px-3 py-2 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--foreground)]/30"
+                />
+                <span className="text-xs text-[var(--text-muted)]">M</span>
+              </div>
               <label className="inline-flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
                 <input
                   type="checkbox"

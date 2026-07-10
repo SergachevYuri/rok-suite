@@ -824,7 +824,8 @@
       "rejected": "अस्वीकृत",
       "unranked": "अश्रेणीबद्ध",
       "allTiers": "सभी टियर",
-      "showIds": "ID दिखाएं"
+      "showIds": "ID दिखाएं",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "{count} फ़्लैग किए गए",

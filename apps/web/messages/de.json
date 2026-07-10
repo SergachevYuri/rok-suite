@@ -824,7 +824,8 @@
       "rejected": "Abgelehnt",
       "unranked": "Ohne Rang",
       "allTiers": "Alle Stufen",
-      "showIds": "IDs anzeigen"
+      "showIds": "IDs anzeigen",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "{count} markiert",

@@ -824,7 +824,8 @@
       "rejected": "مرفوض",
       "unranked": "غير مصنف",
       "allTiers": "جميع المستويات",
-      "showIds": "إظهار المعرفات"
+      "showIds": "إظهار المعرفات",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "{count} معلَّم",

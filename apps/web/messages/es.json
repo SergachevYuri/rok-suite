@@ -824,7 +824,8 @@
       "rejected": "Rechazado",
       "unranked": "Sin clasificar",
       "allTiers": "Todos los niveles",
-      "showIds": "Mostrar IDs"
+      "showIds": "Mostrar IDs",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "{count} marcados",

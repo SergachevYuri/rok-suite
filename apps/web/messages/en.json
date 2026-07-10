@@ -829,7 +829,8 @@
       "rejected": "Rejected",
       "unranked": "Unranked",
       "allTiers": "All tiers",
-      "showIds": "Show IDs"
+      "showIds": "Show IDs",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "{count} flagged",

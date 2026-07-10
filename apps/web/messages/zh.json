@@ -824,7 +824,8 @@
       "rejected": "拒绝",
       "unranked": "未评级",
       "allTiers": "所有等级",
-      "showIds": "显示 ID"
+      "showIds": "显示 ID",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "已标记 {count} 个",

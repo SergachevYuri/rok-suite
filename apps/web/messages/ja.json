@@ -824,7 +824,8 @@
       "rejected": "却下",
       "unranked": "ランク外",
       "allTiers": "すべてのティア",
-      "showIds": "IDを表示"
+      "showIds": "IDを表示",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "{count} 件フラグ付き",

@@ -824,7 +824,8 @@
       "rejected": "Отклонено",
       "unranked": "Без ранга",
       "allTiers": "Все уровни",
-      "showIds": "Показать ID"
+      "showIds": "Показать ID",
+      "minPowerPlaceholder": "Min power (M)"
     },
     "migration": {
       "flagged": "{count} отмечено",
