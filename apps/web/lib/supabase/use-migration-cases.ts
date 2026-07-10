@@ -34,6 +34,13 @@ export interface MigrationCase {
   character_id: number;
   username: string;
   power_at_open: number;
+  /** Raw Total Kill Points snapshot at the moment the case was opened. Nullable
+   *  because legacy rows + zero-list rows may not carry it. */
+  kp_at_open: number | null;
+  /** Ratio of raw KP against the DKP tier target at case-open time (e.g. 0.74
+   *  means the player was at 74% of their KP target). Null when DKP config
+   *  couldn't be resolved. */
+  kp_ratio_at_open: number | null;
   state: MigrationState;
   claimed_by: string | null;
   claimed_at: string | null;
@@ -172,9 +179,19 @@ export async function listZeroListCases(): Promise<MigrationCase[]> {
  *  We can't use .upsert(onConflict: 'cycle_id,character_id') because the DB-side
  *  UNIQUE is a PARTIAL index (WHERE source_kind='cycle') and PostgREST rejects
  *  partial indexes as ON CONFLICT targets. Insert-or-skip manually instead. */
+export interface CycleCaseEntry {
+  characterId: number;
+  username: string;
+  power: number;
+  /** Optional raw KP snapshot. Null if unknown at snapshot time. */
+  kp?: number | null;
+  /** Optional DKP kpRatio snapshot (0..1+). Null if config couldn't be resolved. */
+  kpRatio?: number | null;
+}
+
 export async function bulkCreateCases(
   cycleId: string,
-  entries: { characterId: number; username: string; power: number }[],
+  entries: CycleCaseEntry[],
 ): Promise<void> {
   if (entries.length === 0) return;
   const sb = createClient();
@@ -201,6 +218,11 @@ export async function bulkCreateCases(
     character_id: e.characterId,
     username: e.username,
     power_at_open: e.power,
+    kp_at_open: e.kp ?? null,
+    // Clamp to numeric(6,4) range to avoid postgres overflow when a player
+    // is wildly over target (e.g. 500%+ still fits at 5.0000; anything
+    // beyond 99.9999 is compressed to the max).
+    kp_ratio_at_open: e.kpRatio == null ? null : Math.min(99.9999, Math.max(-99.9999, e.kpRatio)),
   }));
 
   const { error } = await sb.from('migration_cases').insert(rows);

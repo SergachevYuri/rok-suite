@@ -23,7 +23,64 @@ import { ZeroListTab } from '@/components/migration/ZeroListTab';
 import { ScansTab } from '@/components/migration/ScansTab';
 import { CopyablePlayerCell } from '@/components/migration/CopyablePlayerCell';
 import { SortableTh, type SortDir } from '@/components/migration/SortableTh';
-import { loadLatestDataset, loadConfigRow, MIGRATION_ROW_ID, parseStatsFile, type Player } from '../dkp/data';
+import {
+  loadLatestDataset,
+  loadConfigRow,
+  MIGRATION_ROW_ID,
+  parseStatsFile,
+  loadLatestDatasetPerKingdom,
+  simpleConfigIdForKvK,
+  type Player,
+} from '../dkp/data';
+import {
+  DEFAULT_SIMPLE_CONFIG,
+  mergeSimpleConfig,
+  computeSimpleScores,
+  type SimpleConfig,
+  type SimpleScoredPlayer,
+} from '@/lib/dkp/simple-scoring';
+
+const DKP_SELECTED_KVK_KEY = 'dkp-selected-kvk-v1';
+
+/** Fetch the active KvK's config + latest dataset(s) and score every player,
+ *  then return a lookup by characterId. Used when adding cycle cases so the
+ *  cycle table can show the KP / kpRatio the player had at flag time. */
+async function loadDkpScoredMap(): Promise<Map<number, SimpleScoredPlayer>> {
+  const empty = new Map<number, SimpleScoredPlayer>();
+  const kvkId = typeof window !== 'undefined' ? localStorage.getItem(DKP_SELECTED_KVK_KEY) : null;
+  if (!kvkId || kvkId === 'legacy') return empty;
+  try {
+    const [remoteConfig, datasets] = await Promise.all([
+      loadConfigRow<Partial<SimpleConfig>>(simpleConfigIdForKvK(kvkId)),
+      loadLatestDatasetPerKingdom(kvkId),
+    ]);
+    const config = mergeSimpleConfig(DEFAULT_SIMPLE_CONFIG, remoteConfig);
+    const allPlayers = datasets.flatMap((d) => d.players);
+    const scored = computeSimpleScores(allPlayers, config);
+    return new Map(scored.map((p) => [p.characterId, p] as const));
+  } catch (e) {
+    console.warn('Failed to load DKP scored map for cycle case enrichment', e);
+    return empty;
+  }
+}
+
+/** Merge base player entries with DKP score data. Players without a score in
+ *  the map get null KP fields — the cycle row is still created. */
+function enrichWithDkpScore(
+  players: Player[],
+  scoredById: Map<number, SimpleScoredPlayer>,
+): { characterId: number; username: string; power: number; kp: number | null; kpRatio: number | null }[] {
+  return players.map((p) => {
+    const s = scoredById.get(p.characterId);
+    return {
+      characterId: p.characterId,
+      username: p.username,
+      power: p.power,
+      kp: s?.totalKP ?? p.totalKP ?? null,
+      kpRatio: s?.tier ? s.kpRatio : null,
+    };
+  });
+}
 import {
   type MigrationCase,
   type MigrationCycle,
@@ -85,11 +142,13 @@ const STATE_ORDER: MigrationState[] = ['pending', 'excepted', 'migrated', 'afk',
 
 const ZERO_POWER_DROP = 0.15;
 
-type SortField = 'username' | 'power_at_open' | 'state' | 'updated_at';
+type SortField = 'username' | 'power_at_open' | 'kp_at_open' | 'kp_ratio_at_open' | 'state' | 'updated_at';
 
 const DEFAULT_SORT_DIR: Record<SortField, SortDir> = {
   username: 'asc',
   power_at_open: 'desc',
+  kp_at_open: 'desc',
+  kp_ratio_at_open: 'asc',
   state: 'asc',
   updated_at: 'desc',
 };
@@ -105,6 +164,12 @@ function fmt(n: number) {
 }
 function fmtM(n: number) {
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : fmt(n);
+}
+function fmtCompact(n: number) {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
+  if (n >= 1_000_000)     return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)         return `${(n / 1_000).toFixed(1)}K`;
+  return fmt(n);
 }
 function formatDateTime(iso: string | null) {
   if (!iso) return '';
@@ -357,6 +422,10 @@ function MigrationPageInner() {
         cmp = a.username.localeCompare(b.username, undefined, { sensitivity: 'base' });
       } else if (sortField === 'power_at_open') {
         cmp = a.power_at_open - b.power_at_open;
+      } else if (sortField === 'kp_at_open') {
+        cmp = (a.kp_at_open ?? -1) - (b.kp_at_open ?? -1);
+      } else if (sortField === 'kp_ratio_at_open') {
+        cmp = (a.kp_ratio_at_open ?? -1) - (b.kp_ratio_at_open ?? -1);
       } else if (sortField === 'state') {
         cmp = stateRank(a.state) - stateRank(b.state);
       } else if (sortField === 'updated_at') {
@@ -402,10 +471,12 @@ function MigrationPageInner() {
     const cycle = await createCycle({ name, deadline: deadlineISO, createdBy: officerName });
     if (snapshot) {
       const flaggedSet = new Set(flaggedIds);
-      const entries = players
-        .filter((p) => flaggedSet.has(p.characterId))
-        .map((p) => ({ characterId: p.characterId, username: p.username, power: p.power }));
-      if (entries.length > 0) await bulkCreateCases(cycle.id, entries);
+      const flaggedPlayers = players.filter((p) => flaggedSet.has(p.characterId));
+      if (flaggedPlayers.length > 0) {
+        const scoredById = await loadDkpScoredMap();
+        const entries = enrichWithDkpScore(flaggedPlayers, scoredById);
+        await bulkCreateCases(cycle.id, entries);
+      }
     }
     const fresh = await listCycles();
     setCycles(fresh);
@@ -430,13 +501,15 @@ function MigrationPageInner() {
     if (!selectedCycle) return;
     const existing = new Set(cases.map((c) => c.character_id));
     const flaggedSet = new Set(flaggedIds);
-    const additions = players
-      .filter((p) => flaggedSet.has(p.characterId) && !existing.has(p.characterId))
-      .map((p) => ({ characterId: p.characterId, username: p.username, power: p.power }));
-    if (additions.length === 0) {
+    const additionsBase = players.filter(
+      (p) => flaggedSet.has(p.characterId) && !existing.has(p.characterId),
+    );
+    if (additionsBase.length === 0) {
       alert('No new flagged players to add — all current flags are already cases in this cycle.');
       return;
     }
+    const scoredById = await loadDkpScoredMap();
+    const additions = enrichWithDkpScore(additionsBase, scoredById);
     await bulkCreateCases(selectedCycle.id, additions);
   };
 
@@ -913,6 +986,8 @@ function MigrationPageInner() {
                     <tr>
                       <SortableTh label="Player" field="username" active={sortField} dir={sortDir} onSort={toggleSort} />
                       <SortableTh label="Power" field="power_at_open" align="right" active={sortField} dir={sortDir} onSort={toggleSort} />
+                      <SortableTh label="KP" field="kp_at_open" align="right" active={sortField} dir={sortDir} onSort={toggleSort} />
+                      <SortableTh label="KP %" field="kp_ratio_at_open" align="right" active={sortField} dir={sortDir} onSort={toggleSort} />
                       <SortableTh label="State" field="state" active={sortField} dir={sortDir} onSort={toggleSort} />
                       <SortableTh label="Last action" field="updated_at" active={sortField} dir={sortDir} onSort={toggleSort} />
                       <th className="px-3 py-2 text-left">Actions</th>
@@ -932,7 +1007,7 @@ function MigrationPageInner() {
                     ))}
                     {filteredCases.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
+                        <td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
                           No cases match your filters.
                         </td>
                       </tr>
@@ -1345,6 +1420,25 @@ function CaseRow({
         <CopyablePlayerCell name={c.username} govId={c.character_id} />
       </td>
       <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]">{fmtM(c.power_at_open)}</td>
+      <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--text-secondary)]" title="Raw Total Kill Points at case-open">
+        {c.kp_at_open == null ? <span className="text-[var(--text-muted)]">—</span> : fmtCompact(c.kp_at_open)}
+      </td>
+      <td
+        className={`px-3 py-2 text-right font-mono tabular-nums ${
+          c.kp_ratio_at_open == null
+            ? 'text-[var(--text-muted)]'
+            : c.kp_ratio_at_open >= 1
+              ? 'text-emerald-400'
+              : c.kp_ratio_at_open >= 0.8
+                ? 'text-cyan-400'
+                : c.kp_ratio_at_open >= 0.5
+                  ? 'text-amber-400'
+                  : 'text-rose-400'
+        }`}
+        title="DKP KP ratio at case-open: totalKP / (tier.kpMultiplier × power)"
+      >
+        {c.kp_ratio_at_open == null ? '—' : `${Math.round(c.kp_ratio_at_open * 100)}%`}
+      </td>
       <td className="px-3 py-2">
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATE_STYLES[c.state]}`}>
           {STATE_LABELS[c.state]}
