@@ -208,8 +208,9 @@ function MigrationPageInner() {
   const [cases, setCases] = useState<MigrationCase[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [flaggedIds, setFlaggedIds] = useState<number[]>([]);
-  // Latest uploaded-scan totals — required for the Power Impact card. Persisted in
-  // localStorage so a refresh doesn't lose the reading.
+  // Latest uploaded-scan metadata — required for the ScanDelta panel's
+  // has-scan / no-scan visual state. Persisted in localStorage so a refresh
+  // doesn't lose the reading.
   const [latestScanTotalPower, setLatestScanTotalPower] = useState<number | null>(null);
   const [latestScanLabel, setLatestScanLabel] = useState<string | null>(null);
   const [latestScanUploadedAt, setLatestScanUploadedAt] = useState<string | null>(null);
@@ -443,18 +444,20 @@ function MigrationPageInner() {
   // admin-uploaded scan; AFK cases are subtracted to get the active-kingdom
   // power that we can actually count on. The card shows a prompt until a scan
   // is uploaded.
-  const powerImpact = useMemo(() => {
-    const rawKingdom = latestScanTotalPower ?? 0;
-    const afkPower = cases
-      .filter((c) => c.state === 'afk')
-      .reduce((s, c) => s + c.power_at_open, 0);
-    const totalKingdom = Math.max(0, rawKingdom - afkPower);
-    const activePower = activeCases.reduce((s, c) => s + c.power_at_open, 0);
-    const afterMigrate = totalKingdom - activePower;
-    const zeroLoss = activePower * ZERO_POWER_DROP;
-    const afterZero = totalKingdom - zeroLoss;
-    return { totalKingdom, rawKingdom, afkPower, activePower, afterMigrate, zeroLoss, afterZero };
-  }, [cases, activeCases, latestScanTotalPower]);
+  // Sum of power + KP across every active (non-terminal, non-AFK) case. Excepted
+  // players don't get to Zero List so we drop them; AFK players stay in the
+  // kingdom (their power is still there) so we also drop them from this
+  // "what will leave" total. Legacy cases without kp_at_open contribute 0.
+  const impactTotals = useMemo(() => {
+    const target = activeCases.filter((c) => c.state !== 'afk');
+    let power = 0;
+    let kp = 0;
+    for (const c of target) {
+      power += c.power_at_open;
+      kp += c.kp_at_open ?? 0;
+    }
+    return { count: target.length, power, kp };
+  }, [activeCases]);
 
   const refreshFlagged = useCallback(async () => {
     const flagged = await loadConfigRow<number[]>(MIGRATION_ROW_ID);
@@ -878,51 +881,22 @@ function MigrationPageInner() {
               />
             )}
 
-            {/* Power impact */}
+            {/* Cycle totals — sum of power + KP across all active cases
+                (excepted / migrated / zeroed / AFK are excluded). */}
             <section className="mb-6 rounded-xl bg-[var(--background-card)] border border-[var(--border)] p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                <h2 className="text-sm font-semibold text-[var(--foreground)]">Power Impact (active cases)</h2>
-                <span className="text-xs text-[var(--text-muted)] tabular-nums">
-                  {activeCases.length} active · {fmtM(powerImpact.activePower)} power
-                  {powerImpact.totalKingdom > 0 && (
-                    <> ({((powerImpact.activePower / powerImpact.totalKingdom) * 100).toFixed(1)}% of kingdom)</>
-                  )}
-                </span>
+              <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-3">
+                Cycle totals · {impactTotals.count} active case{impactTotals.count === 1 ? '' : 's'}
               </div>
-              {latestScanTotalPower === null ? (
-                <div className="rounded-lg bg-[var(--background-secondary)] border border-dashed border-[var(--border)] p-4 text-center text-sm text-[var(--text-muted)]">
-                  Upload today&apos;s kingdom export above to calculate kingdom power and check for emigrants.
+              <div className="grid grid-cols-2 gap-4 sm:gap-8">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Total Power</div>
+                  <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{fmtM(impactTotals.power)}</div>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] p-3">
-                    <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-1">Kingdom Power</div>
-                    <div className="text-xl font-bold tabular-nums text-[var(--foreground)]">{fmtM(powerImpact.totalKingdom)}</div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate" title={latestScanLabel ?? ''}>From {latestScanLabel}</div>
-                    {powerImpact.afkPower > 0 && (
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        −{fmtM(powerImpact.afkPower)} AFK ({counts.afk})
-                      </div>
-                    )}
-                  </div>
-                  <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 p-3">
-                    <div className="text-xs text-rose-400 uppercase tracking-wider mb-1">If Active Cases Emigrate</div>
-                    <div className="text-xl font-bold tabular-nums text-rose-400">{fmtM(powerImpact.afterMigrate)}</div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      −{fmtM(powerImpact.activePower)}
-                      {powerImpact.totalKingdom > 0 && <> ({((powerImpact.activePower / powerImpact.totalKingdom) * 100).toFixed(1)}% loss)</>}
-                    </div>
-                  </div>
-                  <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-3">
-                    <div className="text-xs text-amber-400 uppercase tracking-wider mb-1">If Zeroed ({Math.round(ZERO_POWER_DROP * 100)}%)</div>
-                    <div className="text-xl font-bold tabular-nums text-amber-400">{fmtM(powerImpact.afterZero)}</div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      −{fmtM(powerImpact.zeroLoss)}
-                      {powerImpact.totalKingdom > 0 && <> ({((powerImpact.zeroLoss / powerImpact.totalKingdom) * 100).toFixed(2)}% loss)</>}
-                    </div>
-                  </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Total KP</div>
+                  <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{fmtCompact(impactTotals.kp)}</div>
                 </div>
-              )}
+              </div>
             </section>
 
             {/* At-risk banner */}
