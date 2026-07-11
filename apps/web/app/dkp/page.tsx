@@ -27,6 +27,7 @@ import {
   type KvK,
   parseStatsFile,
   parseRosterFile,
+  pushRosterToKingdomStats,
   mergeIntoPlayers,
   looseMatch,
   loadLatestDataset,
@@ -686,6 +687,7 @@ function DkpPageInner() {
                 currentDataset={dataset}
                 defaultKingdomId={selectedKingdomId}
                 allKds={allKds}
+                kvkId={selectedKvkId}
               />
             )}
 
@@ -945,7 +947,7 @@ function compareScored(a: SimpleScoredPlayer, b: SimpleScoredPlayer, key: SortKe
     case 't5Kills':
       return a.t5Kills - b.t5Kills;
     case 'totalKP':
-      return a.totalKP - b.totalKP;
+      return a.effectiveKp - b.effectiveKp;
     case 'dkp':
       return a.dkp - b.dkp;
     case 'kpRatio':
@@ -1000,12 +1002,16 @@ function UploadPanel({
   currentDataset,
   defaultKingdomId,
   allKds,
+  kvkId,
 }: {
   onUploaded: (d: DkpDataset, kingdomId: number) => Promise<void>;
   onReset: () => void | Promise<void>;
   currentDataset: DkpDataset | null;
   defaultKingdomId: number;
   allKds: number[];
+  /** Currently-selected KvK on the DKP page. Used to also mirror the roster
+   *  into Kingdom Stats scan tables scoped to the same KvK. Skipped when null. */
+  kvkId: string | null;
 }) {
   const t = useTranslations('dkp');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1045,11 +1051,12 @@ function UploadPanel({
       let rosterMatched = 0;
       let rosterFilename: string | null = null;
 
+      let rosterFull: import('./data').RosterRow[] | null = null;
       if (rosterFile) {
-        const roster = await parseRosterFile(rosterFile);
+        rosterFull = await parseRosterFile(rosterFile);
         // Build whitelist: player_id where KD == target AND cityhall == 25.
         const allowed = new Set<number>();
-        for (const r of roster) {
+        for (const r of rosterFull) {
           if (r.kd === effectiveKd && r.cityhall === 25) allowed.add(r.playerId);
         }
         rosterMatched = allowed.size;
@@ -1074,7 +1081,26 @@ function UploadPanel({
         },
         effectiveKd,
       );
-      const infoMsg = rosterFile
+
+      // If we have a roster with the full player detail AND a KvK selected,
+      // also push the roster into the Kingdom Stats scan tables so a single
+      // upload double-duties. Scan date comes from the stats filename's end
+      // date, falling back to today when the filename isn't the standard
+      // YYYYMMDD_YYYYMMDD shape.
+      let kingdomStatsPushed: { kingdoms: number; players: number } | null = null;
+      let kingdomStatsError: string | null = null;
+      const rosterHasDetail = !!rosterFull && rosterFull.some((r) => r.power != null || r.kp != null);
+      if (rosterFull && rosterHasDetail && kvkId && kvkId !== 'legacy') {
+        const scanDate = filenameMeta?.end ?? new Date().toISOString().slice(0, 10);
+        try {
+          kingdomStatsPushed = await pushRosterToKingdomStats(rosterFull, kvkId, scanDate);
+        } catch (e) {
+          console.error('Kingdom Stats mirror failed', e);
+          kingdomStatsError = e instanceof Error ? e.message : String(e);
+        }
+      }
+
+      const baseMsg = rosterFile
         ? t('upload.savedWithRoster', {
             saved: players.length,
             matched: rosterMatched,
@@ -1083,7 +1109,12 @@ function UploadPanel({
             filtered: beforeFilter - players.length,
           })
         : t('upload.saved', { saved: players.length, kd: effectiveKd });
-      setInfo(infoMsg);
+      const suffix = kingdomStatsPushed
+        ? ` · Kingdom Stats: ${kingdomStatsPushed.kingdoms} KDs / ${kingdomStatsPushed.players} players`
+        : kingdomStatsError
+          ? ` · Kingdom Stats push failed: ${kingdomStatsError}`
+          : '';
+      setInfo(baseMsg + suffix);
       setFile(null);
       setRosterFile(null);
       setKdOverride(null);
@@ -2229,7 +2260,8 @@ function kpTipContent(p: SimpleScoredPlayer, t: TFn): React.ReactNode {
     <span className="block">
       <span className="block font-semibold text-[var(--foreground)]">{t('tips.kpTitle', { tier: p.tier.label })}</span>
       <span className="block">{t('tips.kpMath', { mult: p.tier.kpMultiplier, power: fmtM(p.power), target: fmt(p.kpTarget) })}</span>
-      <span className="block">{t('tips.kpActualPrefix', { kp: fmt(p.totalKP) })}<span className="font-medium">{fmtPct(p.kpRatio)}</span>{t('tips.ofTarget')}</span>
+      <span className="block">{t('tips.kpActualPrefix', { kp: fmt(p.effectiveKp) })}<span className="font-medium">{fmtPct(p.kpRatio)}</span>{t('tips.ofTarget')}</span>
+      <span className="block text-[var(--text-muted)]">T4 {fmt(p.t4Kills)} × 10 + T5 {fmt(p.t5Kills)} × 20 = {fmt(p.effectiveKp)} · raw game KP {fmt(p.totalKP)}</span>
       <TipSource>{t('tips.kpSourceA', { tier: p.tier.label })}<span className="text-[var(--text-secondary)]">{t('tips.configPanel')}</span>{t('tips.sourcePanelSuffix')}</TipSource>
     </span>
   );
@@ -2358,7 +2390,12 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t5Deaths)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t4Kills)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmt(p.t5Kills)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{fmt(p.totalKP)}</td>
+                <td
+                  className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)] cursor-help"
+                  title={`Effective KP = T4 ${fmt(p.t4Kills)} × 10 + T5 ${fmt(p.t5Kills)} × 20 = ${fmt(p.effectiveKp)}\nRaw game KP (T1-T5 combined) = ${fmt(p.totalKP)}`}
+                >
+                  {fmt(p.effectiveKp)}
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--foreground)] font-medium">
                   <Tip
                     content={<span className="block whitespace-pre-line font-mono text-[11px]">{dkpBreakdown(p, formula, scoringRule, t)}</span>}

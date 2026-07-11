@@ -129,12 +129,17 @@ export async function parseHonorFile(file: File): Promise<HonorRow[]> {
   return parseHonorXLSX(buf);
 }
 
-/** Roster XLSX row. We only need id/kd/cityhall for filtering — name/power/KP
- *  are ignored (stats file is authoritative for numbers). */
+/** Roster XLSX row. `id/kd/cityhall` are required (drive the DKP CH25 filter);
+ *  `name/power/kp/rankInKd` are optional and populated when the roster carries
+ *  them so we can also mirror the file into the Kingdom Stats scan tables. */
 export interface RosterRow {
   playerId: number;
   kd: number;
   cityhall: number;
+  name?: string;
+  power?: number;
+  kp?: number;
+  rankInKd?: number;
 }
 
 /** Parse integers that may be formatted with EU thousands separators.
@@ -186,12 +191,30 @@ export async function parseRosterXLSX(arrayBuffer: ArrayBuffer): Promise<RosterR
     const chKey = findKey(raw[0], 'cityhall', 'city_hall', 'ch');
     if (!kdKey || !idKey || !chKey) continue;
 
+    // Optional columns — populated only when present. These let the caller
+    // mirror the roster into the Kingdom Stats tables without a second upload.
+    const nameKey = findKey(raw[0], 'name', 'username', 'player_name');
+    const powerKey = findKey(raw[0], 'power');
+    const kpKey = findKey(raw[0], 'KP', 'kill_points', 'total_kp');
+    const rankKey = findKey(raw[0], 'Rank_in_KD', 'rank_in_kd', 'rank');
+
     return raw
-      .map((row) => ({
-        playerId: parseLooseInt(row[idKey]),
-        kd: parseLooseInt(row[kdKey]),
-        cityhall: parseLooseInt(row[chKey]),
-      }))
+      .map((row) => {
+        const base: RosterRow = {
+          playerId: parseLooseInt(row[idKey]),
+          kd: parseLooseInt(row[kdKey]),
+          cityhall: parseLooseInt(row[chKey]),
+        };
+        if (nameKey) {
+          const raw = row[nameKey];
+          const n = typeof raw === 'string' ? raw.trim() : raw != null ? String(raw).trim() : '';
+          if (n) base.name = n;
+        }
+        if (powerKey) base.power = parseLooseInt(row[powerKey]);
+        if (kpKey) base.kp = parseLooseInt(row[kpKey]);
+        if (rankKey) base.rankInKd = parseLooseInt(row[rankKey]);
+        return base;
+      })
       .filter((r) => r.playerId > 0);
   }
 
@@ -206,6 +229,122 @@ export async function parseRosterXLSX(arrayBuffer: ArrayBuffer): Promise<RosterR
 export async function parseRosterFile(file: File): Promise<RosterRow[]> {
   const buf = await file.arrayBuffer();
   return parseRosterXLSX(buf);
+}
+
+/** Mirror a parsed roster into the Kingdom Stats scan tables so the DKP upload
+ *  can double-duty as a Kingdom Stats upload. Requires the roster to carry
+ *  the optional name/power/kp/rankInKd columns — falls back gracefully when
+ *  they're missing (0s). Idempotent: replaces any rows already sitting on
+ *  (scan_date, kingdom_id, kvk_id) so re-runs don't duplicate. */
+export async function pushRosterToKingdomStats(
+  roster: RosterRow[],
+  kvkId: string,
+  scanDate: string,
+): Promise<{ kingdoms: number; players: number }> {
+  if (roster.length === 0 || !kvkId) return { kingdoms: 0, players: 0 };
+  const sb = createClient();
+
+  // Group by KD and skip rows without an id — same defensive behavior as SeedsUpload.
+  const byKd = new Map<number, RosterRow[]>();
+  for (const r of roster) {
+    if (!r.kd || !r.playerId) continue;
+    const bucket = byKd.get(r.kd) ?? [];
+    bucket.push(r);
+    byKd.set(r.kd, bucket);
+  }
+  if (byKd.size === 0) return { kingdoms: 0, players: 0 };
+
+  // ─── Per-KD aggregate (top-400 power, total KP, top-300 slices, ranks) ─
+  const summary: {
+    kingdom_id: number;
+    power_400: number;
+    power_300: number;
+    total_kp: number;
+    kp_300: number;
+  }[] = [];
+  for (const [kingdom_id, rows] of byKd) {
+    const byPower = [...rows].sort((a, b) => (b.power ?? 0) - (a.power ?? 0));
+    const power_400 = byPower.slice(0, 400).reduce((s, r) => s + (r.power ?? 0), 0);
+    const power_300 = byPower.slice(0, 300).reduce((s, r) => s + (r.power ?? 0), 0);
+    const total_kp = rows.reduce((s, r) => s + (r.kp ?? 0), 0);
+    const byKp = [...rows].sort((a, b) => (b.kp ?? 0) - (a.kp ?? 0));
+    const kp_300 = byKp.slice(0, 300).reduce((s, r) => s + (r.kp ?? 0), 0);
+    summary.push({ kingdom_id, power_400, power_300, total_kp, kp_300 });
+  }
+  const byPowerDesc = [...summary].sort((a, b) => b.power_400 - a.power_400);
+  const byKpDesc = [...summary].sort((a, b) => b.total_kp - a.total_kp);
+  const powerRank = new Map<number, number>();
+  const kpRank = new Map<number, number>();
+  byPowerDesc.forEach((r, i) => powerRank.set(r.kingdom_id, i + 1));
+  byKpDesc.forEach((r, i) => kpRank.set(r.kingdom_id, i + 1));
+
+  const kdsInFile = [...byKd.keys()];
+
+  // ─── Replace existing rows for these KDs on this scan_date + KvK ──────
+  const { error: delPlayersErr } = await sb
+    .from('seeds_kd_players')
+    .delete()
+    .eq('scan_date', scanDate)
+    .in('kingdom_id', kdsInFile)
+    .eq('kvk_id', kvkId);
+  if (delPlayersErr) throw new Error(`Delete seeds players failed: ${delPlayersErr.message}`);
+
+  const { error: delStatsErr } = await sb
+    .from('seeds_kd_stats')
+    .delete()
+    .eq('scan_date', scanDate)
+    .in('kingdom_id', kdsInFile)
+    .eq('kvk_id', kvkId);
+  if (delStatsErr) throw new Error(`Delete seeds stats failed: ${delStatsErr.message}`);
+
+  // ─── Upsert stats + players ───────────────────────────────────────────
+  const statsBatch = summary.map((r) => ({
+    scan_date: scanDate,
+    kvk_id: kvkId,
+    kingdom_id: r.kingdom_id,
+    power_400: r.power_400,
+    power_300: r.power_300,
+    total_kp: r.total_kp,
+    kp_300: r.kp_300,
+    power_rank: powerRank.get(r.kingdom_id) ?? 0,
+    kp_rank: kpRank.get(r.kingdom_id) ?? 0,
+  }));
+  const { error: statsErr } = await sb
+    .from('seeds_kd_stats')
+    .upsert(statsBatch, { onConflict: 'scan_date,kingdom_id,kvk_id' });
+  if (statsErr) throw new Error(`Seeds stats upsert failed: ${statsErr.message}`);
+
+  let playersInserted = 0;
+  const BATCH = 500;
+  const playerRows = roster
+    .filter((r) => r.kd && r.playerId)
+    .map((r) => ({
+      scan_date: scanDate,
+      kvk_id: kvkId,
+      kingdom_id: r.kd,
+      player_id: r.playerId,
+      name: r.name ?? '',
+      power: r.power ?? 0,
+      kp: r.kp ?? 0,
+      cityhall: r.cityhall,
+      rank_in_kd: r.rankInKd ?? 0,
+    }));
+  // Client-side dedupe (last row wins) — Postgres refuses upserts with
+  // duplicate PK in a single batch.
+  const playerByKey = new Map<string, (typeof playerRows)[number]>();
+  for (const r of playerRows) playerByKey.set(`${r.kingdom_id}:${r.player_id}`, r);
+  const uniquePlayerRows = [...playerByKey.values()];
+
+  for (let i = 0; i < uniquePlayerRows.length; i += BATCH) {
+    const batch = uniquePlayerRows.slice(i, i + BATCH);
+    const { error: err } = await sb
+      .from('seeds_kd_players')
+      .upsert(batch, { onConflict: 'scan_date,kingdom_id,player_id,kvk_id' });
+    if (err) throw new Error(`Seeds players upsert failed at row ${i}: ${err.message}`);
+    playersInserted += batch.length;
+  }
+
+  return { kingdoms: summary.length, players: playersInserted };
 }
 
 interface DkpDatasetRow {

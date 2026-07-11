@@ -76,6 +76,13 @@ export interface SimpleConfig {
 
 export type SimpleStatus = 'EXCELLENT' | 'APPROVED' | 'GOOD' | 'REJECTED' | 'UNRANKED';
 
+/** ROK in-game kill-point values per tier. T4 and T5 only feed the DKP KP
+ *  metric; T1-T3 are excluded because a player can inflate raw KP by farming
+ *  low tiers without contributing to the KvK. Kept as constants because they
+ *  come from game data, not officer-tunable policy. */
+export const KP_PER_T4_KILL = 10;
+export const KP_PER_T5_KILL = 20;
+
 export interface SimpleScoredPlayer {
   characterId: number;
   username: string;
@@ -84,17 +91,21 @@ export interface SimpleScoredPlayer {
   t4Deaths: number;
   t5Kills: number;
   t4Kills: number;
+  /** Raw Total Kill Points read from the scan (includes T1-T5 contributions). */
   totalKP: number;
+  /** Effective KP for tier evaluation: t4Kills × 10 + t5Kills × 20. T1-T3
+   *  kills are excluded so padding low tiers doesn't inflate the score. */
+  effectiveKp: number;
   /** Synthetic score computed from the configurable formula. Informational only —
-   *  the actual tier evaluation compares raw totalKP against kpTarget. */
+   *  the actual tier evaluation compares effectiveKp against kpTarget. */
   dkp: number;
   totalDeaths: number;
   tier: PowerTier | null;
-  /** Effective KP target (tier.kpMultiplier × player.power). Compared against raw totalKP. */
+  /** Effective KP target (tier.kpMultiplier × player.power). Compared against effectiveKp. */
   kpTarget: number;
   /** Effective deaths target in troops (tier.deathsPct × player.power / 100). */
   deathsTarget: number;
-  /** Raw totalKP divided by kpTarget. */
+  /** effectiveKp divided by kpTarget. */
   kpRatio: number;
   deathsRatio: number;
   /** min(kpRatio, deathsRatio). 0 if tier missing. */
@@ -281,10 +292,12 @@ export function computeSimpleScores(
     const eligible = eligibleIds === null || eligibleIds.has(p.characterId);
     const tier = eligible ? tierForPower(p.power, tiers) : null;
 
-    // Tier evaluation runs against RAW totalKP from the stats file, not the
-    // synthetic DKP score. The kpMultiplier expresses "how many times the
-    // player's power should be reached in raw KP" (e.g. 1.75 = 175% of power).
+    // Tier evaluation runs against EFFECTIVE KP (T4×10 + T5×20) — not raw
+    // Total KP — so farming T1-T3 units doesn't inflate the score. The
+    // kpMultiplier expresses "how many times the player's power should be
+    // reached in T4/T5 KP" (e.g. 1.75 = 175% of power).
     const rawKP = p.totalKP ?? 0;
+    const effectiveKp = t4k * KP_PER_T4_KILL + t5k * KP_PER_T5_KILL;
     let kpRatio = 0;
     let deathsRatio = 0;
     let ratio = 0;
@@ -293,7 +306,7 @@ export function computeSimpleScores(
     let status: SimpleStatus = 'UNRANKED';
     if (tier) {
       kpTarget = tier.kpMultiplier * p.power;
-      kpRatio = kpTarget > 0 ? rawKP / kpTarget : 0;
+      kpRatio = kpTarget > 0 ? effectiveKp / kpTarget : 0;
       deathsTarget = (tier.deathsPct / 100) * p.power;
       deathsRatio = deathsTarget > 0 ? totalDeaths / deathsTarget : 0;
       switch (config.scoringRule) {
@@ -319,6 +332,7 @@ export function computeSimpleScores(
       t5Kills: t5k,
       t4Kills: t4k,
       totalKP: rawKP,
+      effectiveKp,
       dkp,
       totalDeaths,
       tier,
