@@ -304,6 +304,25 @@ export async function markToZero(id: string, officerName: string) {
   });
 }
 
+/** Bulk-flip a set of cases to `marked_to_zero`. Single UPDATE on the whole
+ *  batch so it's atomic and fast even for large cycles. Returns how many rows
+ *  the DB reports as updated. */
+export async function bulkMarkToZero(caseIds: string[], officerName: string): Promise<number> {
+  if (caseIds.length === 0) return 0;
+  const now = new Date().toISOString();
+  const { data, error } = await createClient()
+    .from('migration_cases')
+    .update({
+      state: 'marked_to_zero',
+      marked_to_zero_at: now,
+      marked_to_zero_by: officerName,
+    })
+    .in('id', caseIds)
+    .select('id');
+  if (error) throw error;
+  return (data ?? []).length;
+}
+
 export async function suggestMigrated(id: string) {
   return patchCase(id, {
     migration_suggested_at: new Date().toISOString(),

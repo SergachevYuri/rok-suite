@@ -99,6 +99,7 @@ import {
   unclaimCase,
   markContacted,
   markToZero,
+  bulkMarkToZero,
   markAfk,
   requestException,
   denyExceptionRequest,
@@ -518,6 +519,32 @@ function MigrationPageInner() {
 
   const handleRefreshFlagged = useCallback(() => { void refreshFlagged(); }, [refreshFlagged]);
 
+  /** Bulk shortcut: flip every non-terminal, non-marked-to-zero case in this
+   *  cycle to `marked_to_zero`. Admin-only. Excepted / AFK / already-terminal
+   *  cases are left alone — they've been explicitly decided. */
+  const handleMarkAllActiveToZero = async () => {
+    if (!selectedCycle) return;
+    if (!officerName) {
+      alert('Please set your officer name first via the Sign In dialog.');
+      return;
+    }
+    const eligible = cases.filter(
+      (c) => !TERMINAL_STATES.includes(c.state) && c.state !== 'marked_to_zero' && c.state !== 'afk',
+    );
+    if (eligible.length === 0) {
+      alert('No eligible cases to flip — every active case is already marked to zero or in a terminal state.');
+      return;
+    }
+    if (!confirm(`Flip ${eligible.length} active case${eligible.length === 1 ? '' : 's'} to "Marked to Zero"?\n\nExcepted, AFK, migrated and zeroed cases are left alone.\nThey'll all appear immediately on the Zero List.`)) return;
+    try {
+      const updated = await bulkMarkToZero(eligible.map((c) => c.id), officerName);
+      alert(`Marked ${updated} case${updated === 1 ? '' : 's'} to zero. They're now on the Zero List with a "from cycle" badge.`);
+    } catch (e) {
+      console.error('Bulk mark to zero failed', e);
+      alert(`Failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-[var(--text-muted)]">Loading…</div>
@@ -743,6 +770,15 @@ function MigrationPageInner() {
                     title="Edit cycle name or deadline"
                   >
                     Edit
+                  </button>
+                )}
+                {selectedCycle && !selectedCycle.closed_at && (
+                  <button
+                    onClick={handleMarkAllActiveToZero}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/15 border border-orange-500/40 text-xs font-medium text-orange-300 hover:bg-orange-500/25 transition-colors"
+                    title="Bulk: flip every active case (not excepted / AFK / migrated / already-marked) to Marked to Zero"
+                  >
+                    Mark all active → Zero
                   </button>
                 )}
                 {selectedCycle && !selectedCycle.closed_at && (
