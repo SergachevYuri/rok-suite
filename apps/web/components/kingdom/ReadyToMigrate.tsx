@@ -14,6 +14,12 @@ import { fetchMigratedPlayerIds } from '@/lib/kingdom/migrations';
 import { OUTREACH_SAMPLE_MESSAGE } from '@/lib/kingdom/outreach-template';
 import { SEASONS, useSeason, type Season } from '@/lib/kingdom/season-config';
 import { addExclusion, addExclusionsBulk, listExclusions, listExclusionIds, removeExclusion, type CandidateExclusion } from '@/lib/supabase/use-candidate-exclusions';
+import { listKvKs, type KvK } from '@/app/dkp/data';
+
+const KVK_STORAGE_KEY = 'ready-to-migrate-kvk-v1';
+/** Sentinel for the untagged legacy pool. Same convention used by the other
+ *  KvK-scoped pages so the applyKvk helpers can share behavior. */
+const LEGACY_KVK = 'legacy';
 
 /** Cutoff for "young account" — gov_ids ≥ this are considered candidates
  *  for migration outreach. Tune via UI control if you ever need to. */
@@ -81,8 +87,53 @@ function ReadyToMigrateInner() {
   const { role } = useAuthRole();
   const canEdit = meetsRole(role, ['admin', 'officer']);
 
+  // ─── KvK scope ───
+  // Load KvKs once + restore the last-selected id from localStorage. Every
+  // Supabase query below then filters by kvk_id so switching to a fresh KvK
+  // effectively "removes old candidates" — they live under the previous KvK
+  // (or in the Legacy bucket for pre-rework data).
+  const [kvks, setKvks] = useState<KvK[]>([]);
+  const [selectedKvkId, setSelectedKvkIdState] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const list = await listKvKs(true);
+      if (cancelled) return;
+      setKvks(list);
+      const stored = typeof window !== 'undefined' ? window.localStorage.getItem(KVK_STORAGE_KEY) : null;
+      const valid = stored === LEGACY_KVK || (stored && list.some((k) => k.id === stored)) ? stored : null;
+      if (valid) {
+        setSelectedKvkIdState(valid);
+      } else {
+        const firstActive = list.find((k) => !k.archivedAt) ?? list[0] ?? null;
+        setSelectedKvkIdState(firstActive?.id ?? LEGACY_KVK);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const setSelectedKvkId = useCallback((id: string | null) => {
+    setSelectedKvkIdState(id);
+    if (typeof window !== 'undefined') {
+      if (id) window.localStorage.setItem(KVK_STORAGE_KEY, id);
+      else window.localStorage.removeItem(KVK_STORAGE_KEY);
+    }
+  }, []);
+
   // ─── Season switch ───
   const { season, config, setSeason } = useSeason();
+
+  // When a real KvK (any UUID other than the Legacy sentinel) is selected the
+  // same-season / cross-season split doesn't exist for new KvKs — new data
+  // lives entirely in the seeds_kd_* tables scoped by kvk_id. Force season back
+  // to 'kvk' so the SeasonPicker doesn't leave the page pointing at empty
+  // cross_season_kd_* tables. Only the Legacy bucket keeps the picker visible
+  // for accessing pre-rework cross-season data.
+  const showSeasonPicker = selectedKvkId === LEGACY_KVK;
+  useEffect(() => {
+    if (selectedKvkId && selectedKvkId !== LEGACY_KVK && season !== 'kvk') {
+      setSeason('kvk');
+    }
+  }, [selectedKvkId, season, setSeason]);
   // The cross-season "from" baseline is unknown until the data loads (it's
   // the earliest cross-season scan_date). For KvK it's the static MIG_FROM_DATE.
   const [crossSeasonFromDate, setCrossSeasonFromDate] = useState<string | null>(null);
@@ -147,17 +198,29 @@ function ReadyToMigrateInner() {
   const kpFloor = kpFloorM * 1_000_000;
 
   useEffect(() => {
+    // Wait for the KvK selector to hydrate before firing queries — running
+    // unscoped would show old KvKs' data for a beat and cause a flash.
+    if (selectedKvkId == null) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
         const sb = createClient();
+        // Shared narrower — typed loosely to avoid the TS2589 blow-up when the
+        // Supabase query builder's generics are combined with Q's inference.
+        const applyKvk = <T,>(q: T): T => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (selectedKvkId === LEGACY_KVK) return (q as any).is('kvk_id', null);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (selectedKvkId) return (q as any).eq('kvk_id', selectedKvkId);
+          return q;
+        };
 
         // 1. Find the latest scan_date in the active season's stats table.
-        const { data: latestRow, error: e1 } = await sb
-          .from(config.tables.stats)
-          .select('scan_date')
+        const { data: latestRow, error: e1 } = await applyKvk(
+          sb.from(config.tables.stats).select('scan_date'),
+        )
           .order('scan_date', { ascending: false })
           .limit(1);
         if (e1) throw e1;
@@ -181,9 +244,9 @@ function ReadyToMigrateInner() {
         //     KvK uses the static MIG_FROM_DATE since the seed-day baseline
         //     is the relevant comparison there.
         if (season === 'cross') {
-          const { data: penultRow } = await sb
-            .from(config.tables.stats)
-            .select('scan_date')
+          const { data: penultRow } = await applyKvk(
+            sb.from(config.tables.stats).select('scan_date'),
+          )
             .order('scan_date', { ascending: false })
             .range(1, 1);
           const penult = penultRow?.[0]?.scan_date as string | undefined;
@@ -192,11 +255,11 @@ function ReadyToMigrateInner() {
 
         // 2. Pull all KD stats for that date so we can derive seeds A/B/C/D
         //    and feed the summary table.
-        const { data: stats, error: e2 } = await sb
-          .from(config.tables.stats)
-          .select('kingdom_id, power_400, total_kp')
-          .eq('scan_date', date)
-          .order('power_400', { ascending: false });
+        const { data: stats, error: e2 } = await applyKvk(
+          sb.from(config.tables.stats)
+            .select('kingdom_id, power_400, total_kp')
+            .eq('scan_date', date),
+        ).order('power_400', { ascending: false });
         if (e2) throw e2;
         const kdStats = (stats ?? []) as KdStat[];
         const seedMap = new Map<number, SeedAssignment>();
@@ -212,11 +275,12 @@ function ReadyToMigrateInner() {
         //    Used both for the candidates count per KD (summary) and as the
         //    main list when "All KDs" is selected.
         const rows = await fetchAllRows<PlayerRow>((range) =>
-          sb
-            .from(config.tables.players)
-            .select('*')
-            .eq('scan_date', date)
-            .gte('player_id', govIdFloor)
+          applyKvk(
+            sb.from(config.tables.players)
+              .select('*')
+              .eq('scan_date', date)
+              .gte('player_id', govIdFloor),
+          )
             .order('power', { ascending: false })
             .range(range.from, range.to)
         );
@@ -238,16 +302,16 @@ function ReadyToMigrateInner() {
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [govIdFloor, season]);
+  }, [govIdFloor, season, selectedKvkId]);
 
-  // Reset the KD multi-select when the user switches season — KvK and cross-
-  // season have different KD pools, so an old selection would silently filter
-  // the new list. Setting to null lets the main fetch effect default it to
-  // "all visible" once the new KD list lands.
+  // Reset the KD multi-select when the user switches season OR KvK — the KD
+  // pool likely differs, so an old selection would silently filter the new
+  // list. Setting to null lets the main fetch effect default it to "all
+  // visible" once the new KD list lands.
   useEffect(() => {
     setSelectedKds(null);
     setCrossSeasonFromDate(null);
-  }, [season]);
+  }, [season, selectedKvkId]);
 
   // Load the set of player_ids already in the outreach table so the Fill
   // button can render as "Added" instead of "Fill" without a duplicate insert.
@@ -284,6 +348,7 @@ function ReadyToMigrateInner() {
         const ids = await fetchMigratedPlayerIds(latestDate, floor, {
           tablePlayers: config.tables.players,
           fromDate,
+          kvkId: selectedKvkId,
         });
         if (cancelled) return;
         setMigratedIds(ids);
@@ -314,7 +379,7 @@ function ReadyToMigrateInner() {
       }
     })();
     return () => { cancelled = true; };
-  }, [latestDate, fromDate, config.tables.players, config.tables.outreach, season]);
+  }, [latestDate, fromDate, config.tables.players, config.tables.outreach, season, selectedKvkId]);
 
   // Stable identity so memoized PlayerRow doesn't see a new function each render.
   const handleFill = useCallback(async (p: PlayerRow) => {
@@ -578,7 +643,29 @@ function ReadyToMigrateInner() {
               Latest scan: {latestDate ?? '—'} · baseline: {fromDate ?? '—'}. Highlighted rows = candidates with gov_id ≥ {govIdFloor.toLocaleString()}.
             </p>
           </div>
-          <SeasonPicker season={season} onChange={setSeason} />
+          <div className="flex flex-wrap items-center gap-3">
+            {/* KvK selector — every query below is scoped to this KvK, so
+             *  switching pool effectively hides the previous KvK's candidates
+             *  without deleting anything. Legacy = pre-rework untagged data. */}
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">KvK</label>
+              <select
+                value={selectedKvkId ?? ''}
+                onChange={(e) => setSelectedKvkId(e.target.value || null)}
+                className="min-w-[160px] px-3 py-1.5 rounded-lg bg-[var(--background-card)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+                title="Every query on this page is scoped to the selected KvK. Manage KvKs from /dkp."
+              >
+                <option value={LEGACY_KVK}>Legacy (untagged)</option>
+                {kvks.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.name}
+                    {k.archivedAt ? ' · archived' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {showSeasonPicker && <SeasonPicker season={season} onChange={setSeason} />}
+          </div>
         </div>
       </div>
 

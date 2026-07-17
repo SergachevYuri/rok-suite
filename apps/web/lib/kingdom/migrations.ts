@@ -37,12 +37,31 @@ export const MIG_FROM_DATE = '2026-04-29';
 export async function fetchMigratedPlayerIds(
   toDate: string | null,
   floorMillions: number = MIG_POWER_FLOOR_M_DEFAULT,
-  opts: { tablePlayers?: string; fromDate?: string | null } = {},
+  opts: {
+    tablePlayers?: string;
+    fromDate?: string | null;
+    /** When set, restricts every query below to rows tagged with this KvK.
+     *  Pass `'legacy'` (or leave undefined) to include only NULL-kvk rows /
+     *  everything respectively — same semantics as elsewhere in the app. */
+    kvkId?: string | null;
+  } = {},
 ): Promise<Set<number>> {
   const tablePlayers = opts.tablePlayers ?? 'seeds_kd_players';
+  const kvkId = opts.kvkId ?? null;
   if (!toDate) return new Set();
   const sb = createClient();
   const floor = floorMillions * 1_000_000;
+
+  // Narrow a Supabase query to the requested KvK scope. Typed loosely to
+  // avoid the "type instantiation is excessively deep" issue when combined
+  // with Supabase's inferred query builder generics.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const applyKvk = <T>(q: T): T => {
+    if (kvkId === 'legacy') return (q as any).is('kvk_id', null);
+    if (kvkId) return (q as any).eq('kvk_id', kvkId);
+    return q;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  };
 
   // 1. Pull every player in the latest scan at-or-above the power floor.
   const pull = async (date: string, applyFloor: boolean) => {
@@ -54,6 +73,7 @@ export async function fetchMigratedPlayerIds(
         .select('player_id, kingdom_id')
         .eq('scan_date', date);
       if (applyFloor) q = q.gte('power', floor);
+      q = applyKvk(q);
       const { data, error } = await q.range(from, from + 999);
       if (error) throw error;
       if (!data || data.length === 0) break;
@@ -79,12 +99,13 @@ export async function fetchMigratedPlayerIds(
   if (tableStats) {
     let from = 0;
     while (true) {
-      const { data, error } = await sb
-        .from(tableStats)
-        .select('kingdom_id, scan_date')
-        .in('kingdom_id', toKds)
-        .order('scan_date', { ascending: true })
-        .range(from, from + 999);
+      const q = applyKvk(
+        sb.from(tableStats)
+          .select('kingdom_id, scan_date')
+          .in('kingdom_id', toKds)
+          .order('scan_date', { ascending: true }),
+      );
+      const { data, error } = await q.range(from, from + 999);
       if (error) throw error;
       if (!data || data.length === 0) break;
       for (const r of data) {
@@ -97,12 +118,12 @@ export async function fetchMigratedPlayerIds(
   } else {
     // Fallback: probe the players table per KD (slower but always works).
     await Promise.all(toKds.map(async (kd) => {
-      const { data } = await sb
-        .from(tablePlayers)
-        .select('scan_date')
-        .eq('kingdom_id', kd)
-        .order('scan_date', { ascending: true })
-        .limit(1);
+      const { data } = await applyKvk(
+        sb.from(tablePlayers)
+          .select('scan_date')
+          .eq('kingdom_id', kd)
+          .order('scan_date', { ascending: true }),
+      ).limit(1);
       if (data?.[0]) firstSeen.set(kd, data[0].scan_date as string);
     }));
   }
@@ -115,12 +136,13 @@ export async function fetchMigratedPlayerIds(
     const residents = new Set<number>();
     let from = 0;
     while (true) {
-      const { data, error } = await sb
-        .from(tablePlayers)
-        .select('player_id')
-        .eq('kingdom_id', kd)
-        .eq('scan_date', date)
-        .range(from, from + 999);
+      const q = applyKvk(
+        sb.from(tablePlayers)
+          .select('player_id')
+          .eq('kingdom_id', kd)
+          .eq('scan_date', date),
+      );
+      const { data, error } = await q.range(from, from + 999);
       if (error) throw error;
       if (!data || data.length === 0) break;
       for (const r of data) residents.add(r.player_id as number);
