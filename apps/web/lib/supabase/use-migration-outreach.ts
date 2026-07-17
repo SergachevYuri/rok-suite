@@ -118,6 +118,25 @@ export async function removeOutreach(playerId: number, table: string = DEFAULT_T
   if (error) throw error;
 }
 
+/** Nuke every entry in the given outreach table — used to reset the working
+ *  list at the start of a new season/KvK so the "Added" badges disappear and
+ *  officers can rebuild the outreach from scratch. Returns the number of rows
+ *  removed. Idempotent: if the table is already empty, returns 0. */
+export async function clearAllOutreach(table: string = DEFAULT_TABLE): Promise<{ removed: number }> {
+  const sb = createClient();
+  const { count, error: countErr } = await sb
+    .from(table)
+    .select('player_id', { count: 'exact', head: true });
+  if (countErr) throw countErr;
+  const total = count ?? 0;
+  if (total === 0) return { removed: 0 };
+  // Postgres/PostgREST requires a WHERE clause on DELETE — `gt('player_id', 0)`
+  // matches every plausible row (all valid gov_ids are positive integers).
+  const { error: delErr } = await sb.from(table).delete().gt('player_id', 0);
+  if (delErr) throw delErr;
+  return { removed: total };
+}
+
 /** All outreach tables in the app — used by the auto-cleanup when a player is
  *  detected as migrated. Order doesn't matter; both are cleared. */
 const ALL_OUTREACH_TABLES = ['migration_outreach', 'cross_season_outreach'] as const;

@@ -9,7 +9,7 @@ import { meetsRole, useAuthRole } from '@/lib/auth-role';
 import { seedAssignment, type SeedAssignment } from '@/lib/kingdom/seed';
 import { SeedBadge } from './SeedBadge';
 import { formatCompact } from '@/lib/supabase/use-kingdom-seeds';
-import { addOutreachEntry, listOutreachIds, removeFromAllOutreach } from '@/lib/supabase/use-migration-outreach';
+import { addOutreachEntry, listOutreachIds, removeFromAllOutreach, clearAllOutreach } from '@/lib/supabase/use-migration-outreach';
 import { fetchMigratedPlayerIds } from '@/lib/kingdom/migrations';
 import { OUTREACH_SAMPLE_MESSAGE } from '@/lib/kingdom/outreach-template';
 import { SEASONS, useSeason, type Season } from '@/lib/kingdom/season-config';
@@ -485,6 +485,30 @@ function ReadyToMigrateInner() {
 
   const clearBulkSelection = useCallback(() => setBulkSelection(new Set()), []);
 
+  /** Nuke the current season's outreach list — used to reset "Added" badges
+   *  at the start of a new KvK cycle so officers can rebuild the outreach
+   *  from scratch without the previous season's leftovers. Admin+officer. */
+  const [clearingOutreach, setClearingOutreach] = useState(false);
+  const handleClearOutreach = useCallback(async () => {
+    if (!canEdit) return;
+    if (outreachIds.size === 0) {
+      window.alert('Outreach list is already empty.');
+      return;
+    }
+    if (!window.confirm(`Delete all ${outreachIds.size} entries from the ${SEASONS[season].label} outreach list?\n\nThis is a hard delete and cannot be undone.`)) return;
+    setClearingOutreach(true);
+    try {
+      const { removed } = await clearAllOutreach(config.tables.outreach);
+      setOutreachIds(new Set());
+      window.alert(`Removed ${removed} outreach entr${removed === 1 ? 'y' : 'ies'}.`);
+    } catch (e) {
+      console.error('Failed to clear outreach', e);
+      window.alert(`Failed: ${explainError(e)}`);
+    } finally {
+      setClearingOutreach(false);
+    }
+  }, [canEdit, outreachIds, season, config.tables.outreach]);
+
   // Bulk exclude flow — one confirm + one round-trip to Supabase via the
   // upsert helper. Skipping the per-row confirm dialog is the whole point.
   const handleBulkExclude = useCallback(async () => {
@@ -825,9 +849,20 @@ function ReadyToMigrateInner() {
             </button>
           )}
 
+          {canEdit && outreachIds.size > 0 && (
+            <button
+              onClick={() => void handleClearOutreach()}
+              disabled={clearingOutreach}
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium flex-shrink-0"
+              title="Hard-delete every entry from the current season's outreach list. Use at the start of a new KvK cycle."
+            >
+              <X size={14} />
+              {clearingOutreach ? 'Clearing…' : `Clear outreach (${outreachIds.size})`}
+            </button>
+          )}
           <Link
             href="/kingdom/migration-outreach"
-            className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 transition-colors flex-shrink-0"
+            className={`${canEdit && outreachIds.size > 0 ? '' : 'ml-auto '}inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm font-medium hover:bg-emerald-500/25 transition-colors flex-shrink-0`}
             title="Track contact attempts and responses for filled players"
           >
             Outreach list ({outreachIds.size}) →
