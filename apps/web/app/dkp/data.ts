@@ -231,6 +231,51 @@ export async function parseRosterFile(file: File): Promise<RosterRow[]> {
   return parseRosterXLSX(buf);
 }
 
+/** For a set of player_ids, return their **career** Kill Points as reported by
+ *  the most recent seeds_kd_players scan for the given KvK. Career KP is the
+ *  raw all-time counter shown in-game — different from the "KP for this KvK"
+ *  we snapshot into migration_cases.kp_at_open. Missing players (never
+ *  scanned, or in a different KvK) are absent from the returned map. */
+export async function fetchCareerKpByPlayer(
+  playerIds: number[],
+  kvkId: string,
+): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  if (playerIds.length === 0 || !kvkId) return out;
+  const sb = createClient();
+
+  // Resolve the latest scan_date for this KvK — mirror the same pattern the
+  // Ready-to-Migrate + Kingdom Stats pages use so the KP number tracks the
+  // freshest scan the officer uploaded.
+  const { data: latestRow, error: dateErr } = await sb
+    .from('seeds_kd_stats')
+    .select('scan_date')
+    .eq('kvk_id', kvkId)
+    .order('scan_date', { ascending: false })
+    .limit(1);
+  if (dateErr) throw dateErr;
+  const latestDate = latestRow?.[0]?.scan_date as string | undefined;
+  if (!latestDate) return out;
+
+  // Chunk the id list — Postgres has a param cap and .in() explodes on very
+  // large lists. 500 is comfortably under any real limit.
+  const CHUNK = 500;
+  for (let i = 0; i < playerIds.length; i += CHUNK) {
+    const slice = playerIds.slice(i, i + CHUNK);
+    const { data, error } = await sb
+      .from('seeds_kd_players')
+      .select('player_id, kp')
+      .eq('kvk_id', kvkId)
+      .eq('scan_date', latestDate)
+      .in('player_id', slice);
+    if (error) throw error;
+    for (const r of (data ?? []) as { player_id: number; kp: number }[]) {
+      out.set(r.player_id, r.kp ?? 0);
+    }
+  }
+  return out;
+}
+
 /** Mirror a parsed roster into the Kingdom Stats scan tables so the DKP upload
  *  can double-duty as a Kingdom Stats upload. Requires the roster to carry
  *  the optional name/power/kp/rankInKd columns — falls back gracefully when

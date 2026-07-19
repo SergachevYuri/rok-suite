@@ -29,6 +29,7 @@ import {
   MIGRATION_ROW_ID,
   parseStatsFile,
   loadLatestDatasetPerKingdom,
+  fetchCareerKpByPlayer,
   simpleConfigIdForKvK,
   type Player,
 } from '../dkp/data';
@@ -207,6 +208,10 @@ function MigrationPageInner() {
   const [cycles, setCycles] = useState<MigrationCycle[]>([]);
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
   const [cases, setCases] = useState<MigrationCase[]>([]);
+  /** player_id → career KP from the latest seeds_kd_players scan for the
+   *  DKP-selected KvK. Populated in a background effect when cases change so
+   *  the cycle table can show total-KP alongside the KvK-only kp_at_open. */
+  const [careerKpByPlayer, setCareerKpByPlayer] = useState<Map<number, number>>(new Map());
   const [players, setPlayers] = useState<Player[]>([]);
   const [flaggedIds, setFlaggedIds] = useState<number[]>([]);
   // Latest uploaded-scan metadata — required for the ScanDelta panel's
@@ -376,6 +381,34 @@ function MigrationPageInner() {
     setCases(fresh);
   }, [selectedCycleId]);
 
+  // Career-KP loader — mirrors the case list into a lookup Map so the cycle
+  // table can show TOTAL kill points (all-time, from the CH25 scan) next to
+  // kp_at_open (KvK-only, snapshotted from DKP scoring). Uses the DKP-selected
+  // KvK from localStorage since that's the pool the cycle cases belong to.
+  useEffect(() => {
+    if (cases.length === 0) {
+      setCareerKpByPlayer(new Map());
+      return;
+    }
+    const kvkId = typeof window !== 'undefined' ? localStorage.getItem(DKP_SELECTED_KVK_KEY) : null;
+    if (!kvkId || kvkId === 'legacy') {
+      setCareerKpByPlayer(new Map());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const ids = cases.map((c) => c.character_id);
+        const map = await fetchCareerKpByPlayer(ids, kvkId);
+        if (!cancelled) setCareerKpByPlayer(map);
+      } catch (e) {
+        console.warn('Career KP lookup failed', e);
+        if (!cancelled) setCareerKpByPlayer(new Map());
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [cases]);
+
   const selectedCycle = useMemo(() => cycles.find((c) => c.id === selectedCycleId) ?? null, [cycles, selectedCycleId]);
 
   const deadlineMs = selectedCycle ? new Date(selectedCycle.deadline).getTime() : 0;
@@ -453,12 +486,17 @@ function MigrationPageInner() {
     const target = activeCases.filter((c) => c.state !== 'afk');
     let power = 0;
     let kp = 0;
+    let careerKp = 0;
+    let careerKpMissing = 0;
     for (const c of target) {
       power += c.power_at_open;
       kp += c.kp_at_open ?? 0;
+      const career = careerKpByPlayer.get(c.character_id);
+      if (career != null) careerKp += career;
+      else careerKpMissing += 1;
     }
-    return { count: target.length, power, kp };
-  }, [activeCases]);
+    return { count: target.length, power, kp, careerKp, careerKpMissing };
+  }, [activeCases, careerKpByPlayer]);
 
   const refreshFlagged = useCallback(async () => {
     const flagged = await loadConfigRow<number[]>(MIGRATION_ROW_ID);
@@ -923,14 +961,25 @@ function MigrationPageInner() {
               <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-3">
                 Cycle totals · {impactTotals.count} active case{impactTotals.count === 1 ? '' : 's'}
               </div>
-              <div className="grid grid-cols-2 gap-4 sm:gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Total Power</div>
                   <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{fmtM(impactTotals.power)}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Total KP</div>
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-0.5">KvK KP</div>
                   <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{fmtCompact(impactTotals.kp)}</div>
+                  <div className="text-[10px] text-[var(--text-muted)] mt-0.5">From kp_at_open snapshot</div>
+                </div>
+                <div title="Sum of career (all-time) Kill Points pulled from the latest CH25 scan for the DKP-selected KvK">
+                  <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Total career KP</div>
+                  <div className="text-2xl font-bold tabular-nums text-[var(--foreground)]">{fmtCompact(impactTotals.careerKp)}</div>
+                  <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                    From latest CH25 scan
+                    {impactTotals.careerKpMissing > 0 && (
+                      <span className="text-amber-400"> · {impactTotals.careerKpMissing} missing</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </section>
