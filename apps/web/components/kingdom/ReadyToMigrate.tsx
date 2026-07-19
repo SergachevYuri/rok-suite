@@ -23,7 +23,7 @@ const LEGACY_KVK = 'legacy';
 
 /** Cutoff for "young account" — gov_ids ≥ this are considered candidates
  *  for migration outreach. Tune via UI control if you ever need to. */
-const DEFAULT_GOV_ID_FLOOR = 205_000_000;
+const DEFAULT_GOV_ID_FLOOR = 201_000_000;
 
 /** Best-effort human-readable string for whatever Supabase / fetch threw.
  *  PostgrestError comes back as a plain object so `String(e)` would print
