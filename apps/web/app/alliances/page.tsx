@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppSidebar } from '@/components/AppSidebar';
-import { Upload, X, Save, Plus, Users, Crown, Star, ShieldCheck } from 'lucide-react';
+import { Upload, X, Save, Search, Users, Crown, Star, ShieldCheck } from 'lucide-react';
 import { useAuthRole, meetsRole } from '@/lib/auth-role';
 import { SignInButton } from '@/components/SignInButton';
+import { looseMatch } from '@/app/dkp/data';
 import {
   type AllianceStanding,
   type AllianceRoles,
@@ -95,8 +96,8 @@ function AlliancesPageInner() {
             <p className="text-sm font-medium text-[var(--text-muted)] mb-2 tracking-wide uppercase">
               Kingdom
             </p>
-            <h1 className="text-3xl md:text-4xl font-semibold text-[var(--foreground)] mb-2 tracking-tight flex items-center gap-2">
-              <Users className="w-7 h-7 text-sky-400" /> Alliances
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-[var(--foreground)] mb-2 tracking-tight flex items-center gap-2">
+              <Users className="w-6 h-6 sm:w-7 sm:h-7 text-sky-400" /> Alliances
             </h1>
             <p className="text-sm text-[var(--text-secondary)]">
               {standings?.asOf || standings?.source ? (
@@ -231,7 +232,7 @@ function RoleColumn({ icon, label, names }: { icon: React.ReactNode; label: stri
       ) : (
         <ul className="space-y-0.5">
           {names.map((n, i) => (
-            <li key={`${n}-${i}`} className="text-sm text-[var(--foreground)] truncate" title={n}>
+            <li key={`${n}-${i}`} className="text-sm text-[var(--foreground)] break-words">
               {n}
             </li>
           ))}
@@ -331,8 +332,8 @@ function UploadPanel({ role, onPublished }: { role: string | null; onPublished: 
       </h2>
       <p className="text-xs text-[var(--text-muted)] mb-4">
         Upload the scan CSV and/or the alliance-activity XLSX. Either alone works; when both are
-        given, the XLSX drives the alliance list, power and member counts. Publishing replaces the
-        standings but never touches assigned roles.
+        given, the scan drives the full alliance list and the activity file fills in anything
+        scan-only. Publishing replaces the standings but never touches assigned roles.
       </p>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -343,7 +344,7 @@ function UploadPanel({ role, onPublished }: { role: string | null; onPublished: 
         >
           Choose files
         </button>
-        <span className="text-xs text-[var(--text-muted)] truncate max-w-[320px]">
+        <span className="text-xs text-[var(--text-muted)] truncate min-w-0 flex-1 basis-full sm:basis-auto order-last sm:order-none">
           {files.length > 0 ? files.map((f) => f.name).join(', ') : 'No file selected'}
         </span>
         <input
@@ -377,11 +378,12 @@ function UploadPanel({ role, onPublished }: { role: string | null; onPublished: 
             {parsed.alliances.map((a) => (
               <div
                 key={a.tag}
-                className="flex items-center justify-between text-xs text-[var(--text-secondary)] px-2 py-1 rounded bg-[var(--background-card)]"
+                className="flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)] px-2 py-1.5 rounded bg-[var(--background-card)]"
               >
-                <span className="font-medium text-[var(--foreground)]">{a.displayTag}</span>
-                <span className="tabular-nums">
-                  {fmtPower(a.power)} · {fmt(a.members)} members · {fmt(a.roster.length)} in roster
+                <span className="font-medium text-[var(--foreground)] truncate min-w-0">{a.displayTag}</span>
+                <span className="tabular-nums shrink-0 text-[11px] sm:text-xs">
+                  {fmtPower(a.power)} · {fmt(a.members)}m
+                  {a.roster.length !== a.members ? ` · ${fmt(a.roster.length)} in roster` : ''}
                 </span>
               </div>
             ))}
@@ -473,7 +475,7 @@ function RoleEditor({
 
   return (
     <div className="p-4 rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3">
         <h3 className="text-sm font-semibold text-[var(--foreground)]">{alliance.displayTag}</h3>
         <span className="text-xs text-[var(--text-muted)] tabular-nums">
           {fmtPower(alliance.power)} · {fmt(alliance.members)} members
@@ -482,7 +484,7 @@ function RoleEditor({
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 transition-colors"
+          className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#4318ff] text-white text-xs font-medium hover:bg-[#3a14e0] disabled:opacity-40 transition-colors"
         >
           <Save size={12} /> {saving ? 'Saving…' : saved ? 'Saved' : 'Save'}
         </button>
@@ -497,7 +499,7 @@ function RoleEditor({
           <select
             value={r5Id ?? ''}
             onChange={(e) => setR5Id(e.target.value ? parseInt(e.target.value, 10) : null)}
-            className="w-full px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+            className="w-full px-2 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-base sm:text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
           >
             <option value="">— none —</option>
             {roster.map((m) => (
@@ -528,7 +530,7 @@ function RoleEditor({
             value={counselorId ?? ''}
             onChange={(e) => setCounselorId(e.target.value ? parseInt(e.target.value, 10) : null)}
             disabled={officerIds.length === 0}
-            className="w-full px-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-50"
+            className="w-full px-2 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-base sm:text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-50"
           >
             <option value="">— none —</option>
             {officerIds.map((id) => (
@@ -564,52 +566,84 @@ function MultiRoleField({
   nameOf: (id: number) => string;
   max?: number;
 }) {
+  const [query, setQuery] = useState('');
   const atMax = max != null && selectedIds.length >= max;
   const add = (id: number) => {
     if (!selectedIds.includes(id) && !atMax) setSelectedIds([...selectedIds, id]);
+    setQuery('');
   };
   const remove = (id: number) => setSelectedIds(selectedIds.filter((x) => x !== id));
 
   const available = roster.filter((m) => !selectedIds.includes(m.id));
+  // Loose, diacritic-insensitive, token-based match (same helper the DKP search uses).
+  const matches = query.trim()
+    ? available.filter((m) => looseMatch(m.name || String(m.id), query)).slice(0, 8)
+    : [];
 
   return (
     <div>
       <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold flex items-center gap-1 mb-1.5">
         {icon} {label} <span className="text-[var(--text-muted)]">({selectedIds.length}{max != null ? `/${max}` : ''})</span>
       </label>
-      <div className="relative mb-2">
-        <Plus className="w-3 h-3 text-[var(--text-muted)] absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-        <select
-          value=""
-          disabled={atMax}
-          onChange={(e) => {
-            if (e.target.value) add(parseInt(e.target.value, 10));
-          }}
-          className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30 disabled:opacity-50"
-        >
-          <option value="">{atMax ? `Max ${max} reached` : 'Add member…'}</option>
-          {available.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name || m.id} ({fmtPower(m.power)})
-            </option>
-          ))}
-        </select>
-      </div>
+      {atMax ? (
+        <p className="mb-2 text-xs text-[var(--text-muted)]">Max {max} reached — remove one to add another.</p>
+      ) : (
+        <div className="relative mb-2">
+          <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            inputMode="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && matches[0]) {
+                e.preventDefault();
+                add(matches[0].id);
+              }
+            }}
+            placeholder="Search members…"
+            className="w-full pl-8 pr-2 py-2 rounded-lg bg-[var(--background-secondary)] border border-[var(--border)] text-base sm:text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--foreground)]/30"
+          />
+          {query.trim() && (
+            <ul className="absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-lg bg-[var(--background-card)] border border-[var(--border)] shadow-lg">
+              {matches.length === 0 ? (
+                <li className="px-3 py-2 text-xs text-[var(--text-muted)]">No matching member</li>
+              ) : (
+                matches.map((m) => (
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      // onMouseDown so the click registers before the input blurs.
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => add(m.id)}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-sm text-[var(--foreground)] hover:bg-[var(--background-hover)] transition-colors"
+                    >
+                      <span className="truncate">{m.name || m.id}</span>
+                      <span className="shrink-0 text-xs text-[var(--text-muted)] tabular-nums">{fmtPower(m.power)}</span>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap gap-1.5">
         {selectedIds.map((id) => (
           <span
             key={id}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)]"
+            className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full bg-[var(--background-secondary)] border border-[var(--border)] text-xs text-[var(--foreground)]"
           >
-            <span className="truncate max-w-[120px]" title={nameOf(id)}>
+            <span className="truncate max-w-[140px]" title={nameOf(id)}>
               {nameOf(id)}
             </span>
             <button
               type="button"
               onClick={() => remove(id)}
-              className="text-[var(--text-muted)] hover:text-rose-400 transition-colors"
+              aria-label={`Remove ${nameOf(id)}`}
+              className="p-1 -m-0.5 rounded-full text-[var(--text-muted)] hover:text-rose-400 transition-colors"
             >
-              <X size={11} />
+              <X size={12} />
             </button>
           </span>
         ))}
