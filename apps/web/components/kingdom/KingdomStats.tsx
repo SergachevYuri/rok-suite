@@ -24,6 +24,27 @@ import { OUR_SEED_KDS, OUR_SEED_SET } from '@/lib/kingdom/our-seed';
 import { listKvKs, type KvK } from '@/app/dkp/data';
 
 const KVK_STORAGE_KEY = 'kingdom-stats-kvk-v1';
+
+/** Compact "last upload" label — short absolute date + relative age tag so
+ *  the header stays scannable. Full ISO on hover via the parent's title attr. */
+function formatLastUpload(iso: string): string {
+  const d = new Date(iso);
+  const abs = d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const ageMs = Date.now() - d.getTime();
+  const mins = Math.floor(ageMs / 60_000);
+  let rel: string;
+  if (mins < 1) rel = 'just now';
+  else if (mins < 60) rel = `${mins}m ago`;
+  else if (mins < 60 * 24) rel = `${Math.floor(mins / 60)}h ago`;
+  else rel = `${Math.floor(mins / (60 * 24))}d ago`;
+  return `${abs} (${rel})`;
+}
 /** Sentinel for the "legacy pool" (untagged pre-KvK rows). Stored in
  *  localStorage as the string 'legacy'; matches the sentinel accepted by the
  *  seeds hooks. */
@@ -193,6 +214,33 @@ export default function KingdomStats({
 
   // Refresh trigger to re-fetch after an upload
   const [refreshKey, setRefreshKey] = useState(0);
+
+  /** ISO timestamp of the most recent seeds_kd_stats upload for the selected
+   *  KvK — shown in the header so officers can tell at a glance how stale the
+   *  view is. Refreshed on KvK switch and after any new upload. */
+  const [lastUploadedAt, setLastUploadedAt] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const sb = createClient();
+      let q = sb
+        .from('seeds_kd_stats')
+        .select('uploaded_at')
+        .order('uploaded_at', { ascending: false })
+        .limit(1);
+      if (selectedKvkId === LEGACY_KVK) q = q.is('kvk_id', null);
+      else if (selectedKvkId) q = q.eq('kvk_id', selectedKvkId);
+      const { data, error } = await q;
+      if (cancelled) return;
+      if (error) {
+        console.warn('lastUploadedAt query failed', error);
+        setLastUploadedAt(null);
+        return;
+      }
+      setLastUploadedAt((data?.[0]?.uploaded_at as string | undefined) ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedKvkId, refreshKey]);
 
   // First/previous/latest snapshot per KD. Drives the "since last upload"
   // chip under each row and the season-summary chip at the top. Refetched on
@@ -712,6 +760,17 @@ export default function KingdomStats({
           </h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
             {pool.label} · KD {poolDisplay} · Seeds scan stats
+            {lastUploadedAt && (
+              <>
+                {' · '}
+                <span
+                  className="text-[var(--text-secondary)]"
+                  title={new Date(lastUploadedAt).toLocaleString()}
+                >
+                  Last upload: {formatLastUpload(lastUploadedAt)}
+                </span>
+              </>
+            )}
           </p>
           <div className="mt-3 flex items-center gap-2">
             <label className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
