@@ -19,6 +19,7 @@ import {
   Trophy,
   ClipboardList,
   UserPlus,
+  Users,
 } from 'lucide-react';
 import { KvkCountdownBanner } from './KvkCountdownBanner';
 import { ThemeToggle } from './ThemeToggle';
@@ -64,6 +65,7 @@ export function AppSidebar({ children }: AppSidebarProps) {
         { labelKey: 'allianceCalculator', href: '/alliance-calculator', icon: <Calculator size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-amber-500 to-orange-500' },
         { labelKey: 'rokMail', href: '/rok-mail', icon: <ScrollText size={20} />, hoverColor: 'group-hover:text-pink-500', hoverBg: 'hover:bg-pink-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-pink-500 to-fuchsia-500' },
         { labelKey: 'dkp', href: '/dkp', icon: <Trophy size={20} />, hoverColor: 'group-hover:text-yellow-500', hoverBg: 'hover:bg-yellow-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-yellow-500 to-amber-500' },
+        { labelKey: 'alliances', href: '/alliances', icon: <Users size={20} />, hoverColor: 'group-hover:text-sky-400', hoverBg: 'hover:bg-sky-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-sky-500 to-blue-500' },
         { labelKey: 'migration', href: '/migration', icon: <ClipboardList size={20} />, hoverColor: 'group-hover:text-orange-500', hoverBg: 'hover:bg-orange-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-orange-500 to-rose-500' },
         { labelKey: 'aooPlanner', href: '/aoo-strategy', icon: <Swords size={20} />, hoverColor: 'group-hover:text-emerald-500', hoverBg: 'hover:bg-emerald-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-emerald-500 to-teal-500' },
         { labelKey: 'mge', href: '/mge', icon: <Shield size={20} />, hoverColor: 'group-hover:text-amber-500', hoverBg: 'hover:bg-amber-500/10', activeColor: 'text-white', activeBg: 'bg-gradient-to-r from-amber-500 to-yellow-500' },

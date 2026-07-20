@@ -50,6 +50,7 @@
     "kingdomStats": "王国の統計",
     "allianceCalculator": "同盟計算機",
     "dkp": "DKPスコア",
+    "alliances": "Alliances",
     "recognition": "認識",
     "applyLeader": "リーダー情報を送信"
   },
@@ -111,6 +112,10 @@
       "dkp": {
         "title": "DKPスコア",
         "description": "王国貢献スコアリング: 正規化されたDKP、死亡数、RSS、支援、名誉"
+      },
+      "alliances": {
+        "title": "Alliances",
+        "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
       },
       "recognition": {
         "title": "認識",

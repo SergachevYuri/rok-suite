@@ -50,6 +50,7 @@
     "kingdomStats": "Thống kê Vương quốc",
     "allianceCalculator": "Máy tính liên minh",
     "dkp": "Điểm DKP",
+    "alliances": "Alliances",
     "recognition": "Sự công nhận",
     "applyLeader": "Gửi thông tin trưởng"
   },
@@ -111,6 +112,10 @@
       "dkp": {
         "title": "Điểm DKP",
         "description": "Tính điểm đóng góp của vương quốc: DKP bình thường, tử vong, RSS, trợ giúp, danh dự"
+      },
+      "alliances": {
+        "title": "Alliances",
+        "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
       },
       "recognition": {
         "title": "Sự công nhận",

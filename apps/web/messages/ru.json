@@ -50,6 +50,7 @@
     "kingdomStats": "Статистика королевства",
     "allianceCalculator": "Калькулятор Альянса",
     "dkp": "Оценка ДКП",
+    "alliances": "Alliances",
     "recognition": "Признание",
     "applyLeader": "Отправить инфо лидера"
   },
@@ -111,6 +112,10 @@
       "dkp": {
         "title": "Оценка ДКП",
         "description": "Подсчет вклада Королевства: нормализованный DKP, смерти, RSS, помощь, честь"
+      },
+      "alliances": {
+        "title": "Alliances",
+        "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
       },
       "recognition": {
         "title": "Признание",
