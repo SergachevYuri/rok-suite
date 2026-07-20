@@ -50,6 +50,7 @@
     "kingdomStats": "किंगडम आँकड़े",
     "allianceCalculator": "एलायंस कैलकुलेटर",
     "dkp": "डीकेपी स्कोर",
+    "alliances": "Alliances",
     "recognition": "मान्यता",
     "applyLeader": "लीडर जानकारी भेजें"
   },
@@ -111,6 +112,10 @@
       "dkp": {
         "title": "डीकेपी स्कोर",
         "description": "राज्य योगदान स्कोरिंग: सामान्यीकृत डीकेपी, मृत्यु, आरएसएस, मदद, सम्मान"
+      },
+      "alliances": {
+        "title": "Alliances",
+        "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
       },
       "recognition": {
         "title": "मान्यता",

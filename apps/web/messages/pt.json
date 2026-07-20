@@ -50,6 +50,7 @@
     "kingdomStats": "Estatísticas do Reino",
     "allianceCalculator": "Calculadora de Aliança",
     "dkp": "Pontuação DKP",
+    "alliances": "Alliances",
     "recognition": "Reconhecimento",
     "applyLeader": "Enviar info de líder"
   },
@@ -111,6 +112,10 @@
       "dkp": {
         "title": "Pontuação DKP",
         "description": "Pontuação de contribuição do Reino: DKP normalizado, mortes, RSS, ajuda, honra"
+      },
+      "alliances": {
+        "title": "Alliances",
+        "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
       },
       "recognition": {
         "title": "Reconhecimento",

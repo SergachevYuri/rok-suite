@@ -50,6 +50,7 @@
     "kingdomStats": "Krallık İstatistikleri",
     "allianceCalculator": "İttifak Hesaplayıcı",
     "dkp": "DKP Puanı",
+    "alliances": "Alliances",
     "recognition": "Tanıma",
     "applyLeader": "Lider bilgisi gönder"
   },
@@ -111,6 +112,10 @@
       "dkp": {
         "title": "DKP Puanı",
         "description": "Krallık katkısı puanlaması: normalleştirilmiş DKP, ölümler, RSS, yardımlar, onur"
+      },
+      "alliances": {
+        "title": "Alliances",
+        "description": "Kingdom alliances ranked by power, with their R5, officers, and counselors."
       },
       "recognition": {
         "title": "Tanıma",

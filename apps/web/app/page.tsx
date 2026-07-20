@@ -15,6 +15,7 @@ import {
   Trophy,
   ClipboardList,
   UserPlus,
+  Users,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -61,6 +62,16 @@ export default function Home() {
       hoverShadow: 'hover:shadow-yellow-500/10',
       iconHoverBg: 'group-hover:bg-yellow-500/15',
       iconHoverColor: 'group-hover:text-yellow-500',
+    },
+    {
+      href: '/alliances',
+      titleKey: 'tools.alliances.title',
+      descriptionKey: 'tools.alliances.description',
+      icon: Users,
+      hoverBorder: 'hover:border-sky-500/40',
+      hoverShadow: 'hover:shadow-sky-500/10',
+      iconHoverBg: 'group-hover:bg-sky-500/15',
+      iconHoverColor: 'group-hover:text-sky-400',
     },
     {
       href: '/migration',
