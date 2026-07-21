@@ -1150,7 +1150,6 @@
       "name": "इन-गेम नाम",
       "govId": "गवर्नर आईडी",
       "unit": "यूनिट प्रकार",
-
       "unitSecondary": "द्वितीयक यूनिट प्रकार",
       "role": "रैली या गैरीसन",
       "primaryCommander": "प्राथमिक कमांडर",
@@ -1184,7 +1183,8 @@
       "gear": "गियर",
       "armaments": "हथियार",
       "primaryCommander": "प्राथमिक कमांडर",
-      "secondaryCommander": "द्वितीयक कमांडर"
+      "secondaryCommander": "द्वितीयक कमांडर",
+      "skills": "कौशल"
     },
     "errors": {
       "required": "आवश्यक",

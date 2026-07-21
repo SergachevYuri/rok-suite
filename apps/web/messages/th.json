@@ -1150,7 +1150,6 @@
       "name": "ชื่อในเกม",
       "govId": "ID ผู้ว่าราชการ",
       "unit": "ประเภทกำลังพล",
-
       "unitSecondary": "ประเภทกำลังพลรอง",
       "role": "รวมพลหรือกองรักษาการณ์",
       "primaryCommander": "ผู้บัญชาการหลัก",
@@ -1184,7 +1183,8 @@
       "gear": "อุปกรณ์",
       "armaments": "อาวุธ",
       "primaryCommander": "ผู้บัญชาการหลัก",
-      "secondaryCommander": "ผู้บัญชาการรอง"
+      "secondaryCommander": "ผู้บัญชาการรอง",
+      "skills": "สกิล"
     },
     "errors": {
       "required": "จำเป็น",

@@ -1150,7 +1150,6 @@
       "name": "Spielname",
       "govId": "Gouverneurs-ID",
       "unit": "Einheitentyp",
-
       "unitSecondary": "Sekundärer Einheitentyp",
       "role": "Rally oder Garnison",
       "primaryCommander": "Primärer Kommandant",
@@ -1184,7 +1183,8 @@
       "gear": "Ausrüstung",
       "armaments": "Bewaffnung",
       "primaryCommander": "Primärer Kommandant",
-      "secondaryCommander": "Sekundärer Kommandant"
+      "secondaryCommander": "Sekundärer Kommandant",
+      "skills": "Fähigkeiten"
     },
     "errors": {
       "required": "Erforderlich",

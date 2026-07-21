@@ -1150,7 +1150,6 @@
       "name": "Имя в игре",
       "govId": "ID губернатора",
       "unit": "Тип войск",
-
       "unitSecondary": "Тип вспомогательных войск",
       "role": "Ралли или гарнизон",
       "primaryCommander": "Основной командир",
@@ -1184,7 +1183,8 @@
       "gear": "Снаряжение",
       "armaments": "Вооружение",
       "primaryCommander": "Основной командир",
-      "secondaryCommander": "Дополнительный командир"
+      "secondaryCommander": "Дополнительный командир",
+      "skills": "Навыки"
     },
     "errors": {
       "required": "Обязательно",

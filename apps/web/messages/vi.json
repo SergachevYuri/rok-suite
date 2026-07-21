@@ -1150,7 +1150,6 @@
       "name": "Tên trong game",
       "govId": "ID Thống đốc",
       "unit": "Loại lính",
-
       "unitSecondary": "Loại lính phụ",
       "role": "Rally hoặc garrison",
       "primaryCommander": "Tướng chính",
@@ -1184,7 +1183,8 @@
       "gear": "Trang bị",
       "armaments": "Vũ khí",
       "primaryCommander": "Tướng chính",
-      "secondaryCommander": "Tướng phụ"
+      "secondaryCommander": "Tướng phụ",
+      "skills": "Kỹ năng"
     },
     "errors": {
       "required": "Bắt buộc",
