@@ -1150,6 +1150,8 @@
       "name": "Tên trong game",
       "govId": "ID Thống đốc",
       "unit": "Loại lính",
+
+      "unitSecondary": "Loại lính phụ",
       "role": "Rally hoặc garrison",
       "primaryCommander": "Tướng chính",
       "secondaryCommander": "Tướng phụ",

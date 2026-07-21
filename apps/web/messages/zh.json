@@ -1150,6 +1150,8 @@
       "name": "游戏内名称",
       "govId": "总督ID",
       "unit": "兵种",
+
+      "unitSecondary": "副兵种",
       "role": "集结或驻军",
       "primaryCommander": "主将",
       "secondaryCommander": "副将",

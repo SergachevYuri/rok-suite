@@ -1150,6 +1150,8 @@
       "name": "Spielname",
       "govId": "Gouverneurs-ID",
       "unit": "Einheitentyp",
+
+      "unitSecondary": "Sekundärer Einheitentyp",
       "role": "Rally oder Garnison",
       "primaryCommander": "Primärer Kommandant",
       "secondaryCommander": "Sekundärer Kommandant",

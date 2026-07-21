@@ -1150,6 +1150,8 @@
       "name": "Nombre en el juego",
       "govId": "ID de Gobernador",
       "unit": "Tipo de unidad",
+
+      "unitSecondary": "Tipo de unidad secundaria",
       "role": "Rally o guarnición",
       "primaryCommander": "Comandante principal",
       "secondaryCommander": "Comandante secundario",

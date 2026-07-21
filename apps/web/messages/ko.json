@@ -1150,6 +1150,8 @@
       "name": "게임 닉네임",
       "govId": "총독 ID",
       "unit": "병종",
+
+      "unitSecondary": "보조 병종",
       "role": "랠리 또는 가리슨",
       "primaryCommander": "주 사령관",
       "secondaryCommander": "부 사령관",

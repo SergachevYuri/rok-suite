@@ -63,12 +63,17 @@ const SLOT_TO_FILE_KEY: Record<ShotSlot, keyof LeaderRoleInput> = {
 interface RoleEntry extends LeaderRoleInput {
   uid: string;
   previews: Record<ShotSlot, string | null>;
+  /** UI-only filter for the secondary picker so applicants can pair, e.g.,
+   *  an Archer main with a Leadership support. Not persisted — the secondary
+   *  commander's own specialties in apply_commanders are enough for review. */
+  secondaryUnitType: UnitType;
 }
 
 function newRole(): RoleEntry {
   return {
     uid: crypto.randomUUID(),
     unitType: 'infantry',
+    secondaryUnitType: 'infantry',
     roleType: 'rally',
     primaryCommanderId: null,
     primaryCommanderName: null,
@@ -421,11 +426,24 @@ export function LeaderApplicationForm() {
               onChangeUnit={(v) =>
                 updateRole(role.uid, {
                   unitType: v,
-                  // Clear commanders so a Cavalry commander isn't left selected when
-                  // the user switches the role to Infantry — that mismatch would
-                  // silently submit bad data.
+                  // Reset the secondary filter to match — most applicants pair
+                  // same-troop-type. If they want a cross-type second (e.g.,
+                  // Leadership support for an Archer main) they change it after.
+                  secondaryUnitType: v,
+                  // Clear the primary commander — a Cavalry pick left over
+                  // when the role flips to Infantry would silently submit bad
+                  // data. Also clear the secondary since its filter just moved.
                   primaryCommanderId: null,
                   primaryCommanderName: null,
+                  secondaryCommanderId: null,
+                  secondaryCommanderName: null,
+                })
+              }
+              onChangeSecondaryUnit={(v) =>
+                updateRole(role.uid, {
+                  secondaryUnitType: v,
+                  // Clear only the secondary — the primary is unaffected by
+                  // this filter and should stay put.
                   secondaryCommanderId: null,
                   secondaryCommanderName: null,
                 })
@@ -541,6 +559,7 @@ interface RoleCardProps {
   role: RoleEntry;
   canRemove: boolean;
   onChangeUnit: (v: UnitType) => void;
+  onChangeSecondaryUnit: (v: UnitType) => void;
   onChangeRoleType: (v: RoleType) => void;
   onChangeCommander: (slot: 'primary' | 'secondary', id: string | null, name: string | null) => void;
   onFile: (slot: ShotSlot, e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -558,6 +577,7 @@ function RoleCard({
   role,
   canRemove,
   onChangeUnit,
+  onChangeSecondaryUnit,
   onChangeRoleType,
   onChangeCommander,
   onFile,
@@ -600,7 +620,7 @@ function RoleCard({
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
             {t('fields.unit')} <span className="text-red-400">*</span>
@@ -608,6 +628,28 @@ function RoleCard({
           <select
             value={role.unitType}
             onChange={(e) => onChangeUnit(e.target.value as UnitType)}
+            className={selectBase}
+            style={selectStyle}
+          >
+            <option value="infantry">{t('units.infantry')}</option>
+            <option value="archer">{t('units.archer')}</option>
+            <option value="cavalry">{t('units.cavalry')}</option>
+            <option value="leadership">{t('units.leadership')}</option>
+          </select>
+        </div>
+
+        {/* Secondary unit filter — narrows the secondary commander picker
+         *  independently, so applicants can pair, e.g., an Archer main with a
+         *  Leadership support. When role type is Garrison this filter is
+         *  ignored (the picker forces garrison-only) but we still show it so
+         *  the UI is consistent. */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5 text-[var(--text-secondary)]">
+            {t('fields.unitSecondary')} <span className="text-red-400">*</span>
+          </label>
+          <select
+            value={role.secondaryUnitType}
+            onChange={(e) => onChangeSecondaryUnit(e.target.value as UnitType)}
             className={selectBase}
             style={selectStyle}
           >
@@ -658,7 +700,7 @@ function RoleCard({
           <CommanderPicker
             value={role.secondaryCommanderId}
             onChange={(id, name) => onChangeCommander('secondary', id, name)}
-            unitFilter={role.unitType}
+            unitFilter={role.secondaryUnitType}
             garrisonOnly={role.roleType === 'garrison'}
             invalid={!!errorSecondaryCommander}
             placeholder={t('commander.placeholder')}

@@ -1150,6 +1150,8 @@
       "name": "Oyun içi adı",
       "govId": "Vali ID",
       "unit": "Birlik türü",
+
+      "unitSecondary": "İkincil birlik türü",
       "role": "Rally veya garnizon",
       "primaryCommander": "Birincil komutan",
       "secondaryCommander": "İkincil komutan",
