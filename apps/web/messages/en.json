@@ -1155,7 +1155,6 @@
       "name": "In-game name",
       "govId": "Governor ID",
       "unit": "Unit type",
-
       "unitSecondary": "Secondary unit type",
       "role": "Rally or garrison",
       "primaryCommander": "Primary commander",
@@ -1189,7 +1188,8 @@
       "gear": "Gear",
       "armaments": "Armaments",
       "primaryCommander": "Primary commander",
-      "secondaryCommander": "Secondary commander"
+      "secondaryCommander": "Secondary commander",
+      "skills": "Skills"
     },
     "errors": {
       "required": "Required",

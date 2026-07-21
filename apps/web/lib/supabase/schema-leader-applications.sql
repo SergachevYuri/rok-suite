@@ -41,8 +41,10 @@ create table if not exists public.leader_application_roles (
   secondary_commander_name text,
   primary_gear_url text,
   primary_armaments_url text,
+  primary_skills_url text,
   secondary_gear_url text,
-  secondary_armaments_url text
+  secondary_armaments_url text,
+  secondary_skills_url text
 );
 
 -- Adds commander + per-commander gear/armaments columns to pre-existing
@@ -56,8 +58,10 @@ alter table public.leader_application_roles
   add column if not exists secondary_commander_name text,
   add column if not exists primary_gear_url text,
   add column if not exists primary_armaments_url text,
+  add column if not exists primary_skills_url text,
   add column if not exists secondary_gear_url text,
-  add column if not exists secondary_armaments_url text;
+  add column if not exists secondary_armaments_url text,
+  add column if not exists secondary_skills_url text;
 
 alter table public.leader_application_roles
   drop column if exists primary_screenshot_url,

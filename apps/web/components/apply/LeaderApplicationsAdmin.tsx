@@ -468,6 +468,7 @@ function ApplicationCard({
                       commanderName={role.primary_commander_name}
                       gearUrl={role.primary_gear_url}
                       armamentsUrl={role.primary_armaments_url}
+                      skillsUrl={role.primary_skills_url}
                       onOpen={onOpenImage}
                     />
                     <CommanderSlot
@@ -476,6 +477,7 @@ function ApplicationCard({
                       commanderName={role.secondary_commander_name}
                       gearUrl={role.secondary_gear_url}
                       armamentsUrl={role.secondary_armaments_url}
+                      skillsUrl={role.secondary_skills_url}
                       onOpen={onOpenImage}
                     />
                   </div>
@@ -538,6 +540,7 @@ interface CommanderSlotProps {
   commanderName: string | null;
   gearUrl: string | null;
   armamentsUrl: string | null;
+  skillsUrl: string | null;
   onOpen: (url: string) => void;
 }
 
@@ -547,6 +550,7 @@ function CommanderSlot({
   commanderName,
   gearUrl,
   armamentsUrl,
+  skillsUrl,
   onOpen,
 }: CommanderSlotProps) {
   const commander = commanderId
@@ -569,9 +573,10 @@ function CommanderSlot({
           </p>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5">
         <ScreenshotThumb label="Gear" url={gearUrl} onOpen={onOpen} />
         <ScreenshotThumb label="Armaments" url={armamentsUrl} onOpen={onOpen} />
+        <ScreenshotThumb label="Skills" url={skillsUrl} onOpen={onOpen} />
       </div>
     </div>
   );

@@ -43,21 +43,27 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 type ShotSlot =
   | 'primaryGear'
   | 'primaryArmaments'
+  | 'primarySkills'
   | 'secondaryGear'
-  | 'secondaryArmaments';
+  | 'secondaryArmaments'
+  | 'secondarySkills';
 
 const SHOT_SLOTS: ShotSlot[] = [
   'primaryGear',
   'primaryArmaments',
+  'primarySkills',
   'secondaryGear',
   'secondaryArmaments',
+  'secondarySkills',
 ];
 
 const SLOT_TO_FILE_KEY: Record<ShotSlot, keyof LeaderRoleInput> = {
   primaryGear: 'primaryGearFile',
   primaryArmaments: 'primaryArmamentsFile',
+  primarySkills: 'primarySkillsFile',
   secondaryGear: 'secondaryGearFile',
   secondaryArmaments: 'secondaryArmamentsFile',
+  secondarySkills: 'secondarySkillsFile',
 };
 
 interface RoleEntry extends LeaderRoleInput {
@@ -81,13 +87,17 @@ function newRole(): RoleEntry {
     secondaryCommanderName: null,
     primaryGearFile: null,
     primaryArmamentsFile: null,
+    primarySkillsFile: null,
     secondaryGearFile: null,
     secondaryArmamentsFile: null,
+    secondarySkillsFile: null,
     previews: {
       primaryGear: null,
       primaryArmaments: null,
+      primarySkills: null,
       secondaryGear: null,
       secondaryArmaments: null,
+      secondarySkills: null,
     },
   };
 }
@@ -229,6 +239,10 @@ export function LeaderApplicationForm() {
       if (r.primaryCommanderId && r.primaryCommanderId === r.secondaryCommanderId) {
         next[`${r.uid}_secondaryCommander`] = t('errors.commanderDuplicate');
       }
+      // All three screenshots (gear, armaments, skills) are required for each commander.
+      SHOT_SLOTS.forEach((slot) => {
+        if (!r[SLOT_TO_FILE_KEY[slot]]) next[`${r.uid}_${slot}`] = t('errors.required');
+      });
     });
 
     if (roles.length === 0) next.roles = t('errors.atLeastOneRole');
@@ -263,8 +277,10 @@ export function LeaderApplicationForm() {
         secondaryCommanderName: r.secondaryCommanderName,
         primaryGearFile: r.primaryGearFile,
         primaryArmamentsFile: r.primaryArmamentsFile,
+        primarySkillsFile: r.primarySkillsFile,
         secondaryGearFile: r.secondaryGearFile,
         secondaryArmamentsFile: r.secondaryArmamentsFile,
+        secondarySkillsFile: r.secondarySkillsFile,
       })),
     });
     setSubmitting(false);
@@ -476,8 +492,10 @@ export function LeaderApplicationForm() {
               fileErrors={{
                 primaryGear: errors[`${role.uid}_primaryGear`],
                 primaryArmaments: errors[`${role.uid}_primaryArmaments`],
+                primarySkills: errors[`${role.uid}_primarySkills`],
                 secondaryGear: errors[`${role.uid}_secondaryGear`],
                 secondaryArmaments: errors[`${role.uid}_secondaryArmaments`],
+                secondarySkills: errors[`${role.uid}_secondarySkills`],
               }}
               registerCommanderField={(slot, el) => {
                 fieldRefs.current[`${role.uid}_${slot}Commander`] = el;
@@ -721,14 +739,19 @@ function RoleCard({
           heading={t('upload.primaryCommander')}
           gearLabel={t('upload.gear')}
           armamentsLabel={t('upload.armaments')}
+          skillsLabel={t('upload.skills')}
           gearPreview={role.previews.primaryGear}
           armamentsPreview={role.previews.primaryArmaments}
+          skillsPreview={role.previews.primarySkills}
           gearError={fileErrors.primaryGear}
           armamentsError={fileErrors.primaryArmaments}
+          skillsError={fileErrors.primarySkills}
           onGearChange={(e) => onFile('primaryGear', e)}
           onArmamentsChange={(e) => onFile('primaryArmaments', e)}
+          onSkillsChange={(e) => onFile('primarySkills', e)}
           onGearRemove={() => onRemoveFile('primaryGear')}
           onArmamentsRemove={() => onRemoveFile('primaryArmaments')}
+          onSkillsRemove={() => onRemoveFile('primarySkills')}
           tapLabel={t('upload.tap')}
         />
 
@@ -738,14 +761,19 @@ function RoleCard({
           heading={t('upload.secondaryCommander')}
           gearLabel={t('upload.gear')}
           armamentsLabel={t('upload.armaments')}
+          skillsLabel={t('upload.skills')}
           gearPreview={role.previews.secondaryGear}
           armamentsPreview={role.previews.secondaryArmaments}
+          skillsPreview={role.previews.secondarySkills}
           gearError={fileErrors.secondaryGear}
           armamentsError={fileErrors.secondaryArmaments}
+          skillsError={fileErrors.secondarySkills}
           onGearChange={(e) => onFile('secondaryGear', e)}
           onArmamentsChange={(e) => onFile('secondaryArmaments', e)}
+          onSkillsChange={(e) => onFile('secondarySkills', e)}
           onGearRemove={() => onRemoveFile('secondaryGear')}
           onArmamentsRemove={() => onRemoveFile('secondaryArmaments')}
+          onSkillsRemove={() => onRemoveFile('secondarySkills')}
           tapLabel={t('upload.tap')}
         />
       </div>
@@ -757,14 +785,19 @@ interface CommanderShotsProps {
   heading: string;
   gearLabel: string;
   armamentsLabel: string;
+  skillsLabel: string;
   gearPreview: string | null;
   armamentsPreview: string | null;
+  skillsPreview: string | null;
   gearError?: string;
   armamentsError?: string;
+  skillsError?: string;
   onGearChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onArmamentsChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSkillsChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onGearRemove: () => void;
   onArmamentsRemove: () => void;
+  onSkillsRemove: () => void;
   tapLabel: string;
 }
 
@@ -772,14 +805,19 @@ function CommanderShots({
   heading,
   gearLabel,
   armamentsLabel,
+  skillsLabel,
   gearPreview,
   armamentsPreview,
+  skillsPreview,
   gearError,
   armamentsError,
+  skillsError,
   onGearChange,
   onArmamentsChange,
+  onSkillsChange,
   onGearRemove,
   onArmamentsRemove,
+  onSkillsRemove,
   tapLabel,
 }: CommanderShotsProps) {
   return (
@@ -787,9 +825,10 @@ function CommanderShots({
       <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
         {heading}
       </p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         <ScreenshotPicker
           label={gearLabel}
+          required
           preview={gearPreview}
           error={gearError}
           onChange={onGearChange}
@@ -798,10 +837,20 @@ function CommanderShots({
         />
         <ScreenshotPicker
           label={armamentsLabel}
+          required
           preview={armamentsPreview}
           error={armamentsError}
           onChange={onArmamentsChange}
           onRemove={onArmamentsRemove}
+          uploadLabel={tapLabel}
+        />
+        <ScreenshotPicker
+          label={skillsLabel}
+          required
+          preview={skillsPreview}
+          error={skillsError}
+          onChange={onSkillsChange}
+          onRemove={onSkillsRemove}
           uploadLabel={tapLabel}
         />
       </div>
@@ -839,7 +888,7 @@ function ScreenshotPicker({
           <img
             src={preview}
             alt={label}
-            className="w-full h-40 sm:h-32 object-cover rounded-lg border border-[var(--border)]"
+            className="w-full h-24 sm:h-32 object-cover rounded-lg border border-[var(--border)]"
           />
           <button
             type="button"
@@ -852,7 +901,7 @@ function ScreenshotPicker({
         </div>
       ) : (
         <label
-          className={`flex flex-col items-center justify-center gap-1.5 w-full h-40 sm:h-32 rounded-lg border border-dashed cursor-pointer hover:bg-[var(--background-secondary)] transition-colors ${
+          className={`flex flex-col items-center justify-center gap-1 w-full h-24 sm:h-32 px-1 rounded-lg border border-dashed cursor-pointer hover:bg-[var(--background-secondary)] transition-colors ${
             error ? 'border-red-500/60' : 'border-[var(--border)]'
           }`}
         >

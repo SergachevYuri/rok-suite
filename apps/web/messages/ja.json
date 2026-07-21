@@ -1150,7 +1150,6 @@
       "name": "ゲーム内ネーム",
       "govId": "総督ID",
       "unit": "兵種",
-
       "unitSecondary": "副兵種",
       "role": "ラリーまたはギャリソン",
       "primaryCommander": "主司令官",
@@ -1184,7 +1183,8 @@
       "gear": "装備",
       "armaments": "武装",
       "primaryCommander": "主司令官",
-      "secondaryCommander": "副司令官"
+      "secondaryCommander": "副司令官",
+      "skills": "スキル"
     },
     "errors": {
       "required": "必須",

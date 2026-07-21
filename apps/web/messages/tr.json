@@ -1150,7 +1150,6 @@
       "name": "Oyun içi adı",
       "govId": "Vali ID",
       "unit": "Birlik türü",
-
       "unitSecondary": "İkincil birlik türü",
       "role": "Rally veya garnizon",
       "primaryCommander": "Birincil komutan",
@@ -1184,7 +1183,8 @@
       "gear": "Teçhizat",
       "armaments": "Silahlar",
       "primaryCommander": "Birincil komutan",
-      "secondaryCommander": "İkincil komutan"
+      "secondaryCommander": "İkincil komutan",
+      "skills": "Yetenekler"
     },
     "errors": {
       "required": "Zorunlu",

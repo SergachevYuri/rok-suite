@@ -1150,7 +1150,6 @@
       "name": "游戏内名称",
       "govId": "总督ID",
       "unit": "兵种",
-
       "unitSecondary": "副兵种",
       "role": "集结或驻军",
       "primaryCommander": "主将",
@@ -1184,7 +1183,8 @@
       "gear": "装备",
       "armaments": "武装",
       "primaryCommander": "主将",
-      "secondaryCommander": "副将"
+      "secondaryCommander": "副将",
+      "skills": "技能"
     },
     "errors": {
       "required": "必填",

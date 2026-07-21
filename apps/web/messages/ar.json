@@ -1150,7 +1150,6 @@
       "name": "الاسم داخل اللعبة",
       "govId": "معرّف الحاكم",
       "unit": "نوع الوحدة",
-
       "unitSecondary": "نوع الوحدة الثانوية",
       "role": "رالي أو حامية",
       "primaryCommander": "القائد الأساسي",
@@ -1184,7 +1183,8 @@
       "gear": "العتاد",
       "armaments": "التسلح",
       "primaryCommander": "القائد الأساسي",
-      "secondaryCommander": "القائد الثانوي"
+      "secondaryCommander": "القائد الثانوي",
+      "skills": "المهارات"
     },
     "errors": {
       "required": "مطلوب",

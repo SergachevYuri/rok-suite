@@ -1150,7 +1150,6 @@
       "name": "Nome in gioco",
       "govId": "ID Governatore",
       "unit": "Tipo di unità",
-
       "unitSecondary": "Tipo di unità secondario",
       "role": "Rally o guarnigione",
       "primaryCommander": "Comandante primario",
@@ -1184,7 +1183,8 @@
       "gear": "Equipaggiamento",
       "armaments": "Armamenti",
       "primaryCommander": "Comandante primario",
-      "secondaryCommander": "Comandante secondario"
+      "secondaryCommander": "Comandante secondario",
+      "skills": "Abilità"
     },
     "errors": {
       "required": "Richiesto",
