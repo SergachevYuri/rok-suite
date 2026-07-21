@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { commanderReferences, type CommanderReference } from '@/lib/sunset-canyon/commander-reference';
+import { type CommanderReference } from '@/lib/sunset-canyon/commander-reference';
+import { useApplyCommanders } from '@/lib/supabase/use-apply-commanders';
 
 interface CommanderPickerProps {
   value: string | null;
@@ -63,18 +64,23 @@ export function CommanderPicker({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Source of truth: `apply_commanders` on Supabase, with the TS archive as
+  // fallback (see lib/supabase/use-apply-commanders). The picker code below
+  // is agnostic to origin — it just consumes `CommanderReference[]`.
+  const { commanders } = useApplyCommanders();
+
   const selected = useMemo(
-    () => commanderReferences.find((c) => c.id === value) || null,
-    [value],
+    () => commanders.find((c) => c.id === value) || null,
+    [value, commanders],
   );
 
   const sorted = useMemo(() => {
-    return [...commanderReferences].sort((a, b) => {
+    return [...commanders].sort((a, b) => {
       const rankDiff = RARITY_RANK[a.rarity] - RARITY_RANK[b.rarity];
       if (rankDiff !== 0) return rankDiff;
       return a.name.localeCompare(b.name);
     });
-  }, []);
+  }, [commanders]);
 
   const visible = useMemo(() => {
     const q = normalize(search.trim());
