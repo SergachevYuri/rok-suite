@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "ทหารราบ",
       "archer": "นักธนู",
-      "cavalry": "ทหารม้า"
+      "cavalry": "ทหารม้า",
+      "leadership": "ผู้นำ"
     },
     "roleTypes": {
       "rally": "หัวหน้ารวมพล",

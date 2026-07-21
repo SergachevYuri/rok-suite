@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "Пехота",
       "archer": "Лучники",
-      "cavalry": "Кавалерия"
+      "cavalry": "Кавалерия",
+      "leadership": "Лидерство"
     },
     "roleTypes": {
       "rally": "Лидер ралли",

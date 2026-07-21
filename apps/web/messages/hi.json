@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "पैदल सेना",
       "archer": "धनुर्धर",
-      "cavalry": "घुड़सवार"
+      "cavalry": "घुड़सवार",
+      "leadership": "नेतृत्व"
     },
     "roleTypes": {
       "rally": "रैली लीडर",

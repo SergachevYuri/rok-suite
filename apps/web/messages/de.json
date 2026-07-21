@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "Infanterie",
       "archer": "Bogenschütze",
-      "cavalry": "Kavallerie"
+      "cavalry": "Kavallerie",
+      "leadership": "Anführung"
     },
     "roleTypes": {
       "rally": "Rally-Leiter",

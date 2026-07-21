@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "Fanteria",
       "archer": "Arciere",
-      "cavalry": "Cavalleria"
+      "cavalry": "Cavalleria",
+      "leadership": "Comando"
     },
     "roleTypes": {
       "rally": "Leader Rally",

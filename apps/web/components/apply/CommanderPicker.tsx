@@ -9,7 +9,7 @@ interface CommanderPickerProps {
   value: string | null;
   onChange: (id: string | null, name: string | null) => void;
   /** Optional unit-type filter — matches against the commander's specialties. */
-  unitFilter?: 'infantry' | 'archer' | 'cavalry' | null;
+  unitFilter?: 'infantry' | 'archer' | 'cavalry' | 'leadership' | null;
   /**
    * Garrison mode: list only garrison commanders (those with the 'Garrison'
    * specialty) and ignore unitFilter. RoK garrison commanders defend the city
