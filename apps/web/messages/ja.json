@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "歩兵",
       "archer": "弓兵",
-      "cavalry": "騎兵"
+      "cavalry": "騎兵",
+      "leadership": "リーダーシップ"
     },
     "roleTypes": {
       "rally": "ラリーリーダー",

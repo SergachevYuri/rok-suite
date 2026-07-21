@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "Piyade",
       "archer": "Okçu",
-      "cavalry": "Süvari"
+      "cavalry": "Süvari",
+      "leadership": "Liderlik"
     },
     "roleTypes": {
       "rally": "Rally Lideri",

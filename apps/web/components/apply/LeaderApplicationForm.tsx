@@ -614,6 +614,7 @@ function RoleCard({
             <option value="infantry">{t('units.infantry')}</option>
             <option value="archer">{t('units.archer')}</option>
             <option value="cavalry">{t('units.cavalry')}</option>
+            <option value="leadership">{t('units.leadership')}</option>
           </select>
         </div>
 

@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "مشاة",
       "archer": "رماة",
-      "cavalry": "فرسان"
+      "cavalry": "فرسان",
+      "leadership": "القيادة"
     },
     "roleTypes": {
       "rally": "قائد رالي",

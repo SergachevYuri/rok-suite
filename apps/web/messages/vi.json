@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "Bộ binh",
       "archer": "Cung thủ",
-      "cavalry": "Kỵ binh"
+      "cavalry": "Kỵ binh",
+      "leadership": "Chỉ huy"
     },
     "roleTypes": {
       "rally": "Trưởng Rally",

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../supabase';
 
-export type UnitType = 'infantry' | 'archer' | 'cavalry';
+export type UnitType = 'infantry' | 'archer' | 'cavalry' | 'leadership';
 export type RoleType = 'rally' | 'garrison';
 export type ApplicationStatus = 'pending' | 'reviewed' | 'approved' | 'rejected';
 

@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "Infantaria",
       "archer": "Arqueiro",
-      "cavalry": "Cavalaria"
+      "cavalry": "Cavalaria",
+      "leadership": "Liderança"
     },
     "roleTypes": {
       "rally": "Líder de Rally",

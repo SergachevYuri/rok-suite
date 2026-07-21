@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "步兵",
       "archer": "弓兵",
-      "cavalry": "骑兵"
+      "cavalry": "骑兵",
+      "leadership": "领导"
     },
     "roleTypes": {
       "rally": "集结指挥官",

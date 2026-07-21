@@ -1166,7 +1166,8 @@
     "units": {
       "infantry": "보병",
       "archer": "궁수",
-      "cavalry": "기병"
+      "cavalry": "기병",
+      "leadership": "리더십"
     },
     "roleTypes": {
       "rally": "랠리 리더",

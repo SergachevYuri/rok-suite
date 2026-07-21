@@ -1171,7 +1171,8 @@
     "units": {
       "infantry": "Infantry",
       "archer": "Archer",
-      "cavalry": "Cavalry"
+      "cavalry": "Cavalry",
+      "leadership": "Leadership"
     },
     "roleTypes": {
       "rally": "Rally leader",

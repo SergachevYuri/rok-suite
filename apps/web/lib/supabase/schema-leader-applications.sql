@@ -33,7 +33,7 @@ create table if not exists public.leader_application_roles (
   id uuid primary key default gen_random_uuid(),
   application_id uuid not null references public.leader_applications(id) on delete cascade,
   position int not null default 0,
-  unit_type text not null check (unit_type in ('infantry','archer','cavalry')),
+  unit_type text not null check (unit_type in ('infantry','archer','cavalry','leadership')),
   role_type text not null check (role_type in ('rally','garrison')),
   primary_commander_id text,
   primary_commander_name text,
