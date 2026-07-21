@@ -20,33 +20,34 @@ const OUT_SQL    = join(root, 'lib', 'supabase', 'migrations', 'seed-apply-comma
 
 // ─── Parse the officer txt ─────────────────────────────────────────────────
 // Lines look like:
-//   Achilles â Cavalry | Versatility | Combo
-// The `â` byte is UTF-8 for an em-dash mangled through Windows-1252 — treat
-// the ` â ` sequence as the split token. Specialties are pipe-separated.
+//   Alexander the Great | Infantry | Versatility | Attack | Legendary
+// Five pipe-separated fields: name, specialties[0..2], rarity. `#` starts a
+// comment line, blank lines are ignored.
+const RARITY_SET = new Set(['legendary', 'epic', 'elite', 'advanced']);
 const raw = readFileSync(TXT_PATH, 'utf8');
-/** @type {{ name: string; specialties: string[] }[]} */
+/** @type {{ name: string; specialties: string[]; rarity: string | null }[]} */
 const parsed = [];
 for (const line of raw.split(/\r?\n/)) {
   const trimmed = line.trim();
-  if (!trimmed) continue;
-  // Split on ` â ` (BOM-tolerant) — em-dash appears as this two-byte string in
-  // the copy-pasted source.
-  const parts = trimmed.split(/\s+â\s+/);
-  if (parts.length !== 2) {
-    console.warn(`[skip] unexpected format: ${trimmed}`);
+  if (!trimmed || trimmed.startsWith('#')) continue;
+  const parts = trimmed.split('|').map((s) => s.trim());
+  if (parts.length !== 5) {
+    console.warn(`[skip] expected 5 pipe-separated fields, got ${parts.length}: ${trimmed}`);
     continue;
   }
-  const name = parts[0].trim();
-  const specialtiesRaw = parts[1].split('|').map((s) => s.trim()).filter(Boolean);
-  const specialties = specialtiesRaw.map((s) => {
-    // Light normalization for obvious typos in the source list. Only fix
-    // things that are clearly the same tag under a different spelling; leave
-    // niche values (Combo, Smite, Mobility, Conquering) alone.
+  const [name, s1, s2, s3, rarityRaw] = parts;
+  const specialties = [s1, s2, s3].filter(Boolean).map((s) => {
+    // Normalize obvious spelling variants — the source html has some typos
+    // (Skills, Versatile). Leave niche tags (Combo, Smite, Mobility,
+    // Conquering, Siege) untouched so the picker's unit filters still see
+    // the same strings the game uses.
     if (s.toLowerCase() === 'skills') return 'Skill';
     if (s.toLowerCase() === 'versatile') return 'Versatility';
     return s;
   });
-  parsed.push({ name, specialties });
+  const rarity = RARITY_SET.has(rarityRaw.toLowerCase()) ? rarityRaw.toLowerCase() : null;
+  if (!rarity) console.warn(`[warn] unknown rarity "${rarityRaw}" on ${name} — will store as null`);
+  parsed.push({ name, specialties, rarity });
 }
 console.log(`[parse] ${parsed.length} commanders from txt`);
 
@@ -97,6 +98,10 @@ function toId(name) {
 }
 
 // ─── Build rows ────────────────────────────────────────────────────────────
+// The txt is the source of truth for name / specialties / rarity. The archive
+// contributes two things only: (1) a stable `id` when the name matches, so old
+// leader_applications rows still resolve; (2) an `image_url` fallback when the
+// txt-side rarity data doesn't include imagery (which it never does).
 let matched = 0, generated = 0;
 const rows = parsed.map((p, i) => {
   const legacy = findArchive(p.name);
@@ -107,7 +112,7 @@ const rows = parsed.map((p, i) => {
     id,
     name: p.name,
     specialties: p.specialties,
-    rarity: legacy?.rarity ?? null,
+    rarity: p.rarity ?? legacy?.rarity ?? null,
     image_url: legacy?.imageUrl ?? null,
     sort_order: i,
   };

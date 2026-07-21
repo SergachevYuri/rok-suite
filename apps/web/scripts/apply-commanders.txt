@@ -1,117 +1,136 @@
-Achilles â Cavalry | Versatility | Combo
-Aethelflaed â Leadership | Peacekeeping | Support
-Afonso â Engineering | Versatility | Support
-Alexander Nevs â Cavalry | Versatility | Skill
-Alexander the Great â Infantry | Versatility | Attack
-Alp Arslan â Archer | Versatility | Skill
-Archimedes â Engineering | Versatility | Defense
-Artemisia â Archer | Garrison | Defense
-Ashurbanipa â Archer | Conquering | Skills
-Attila â Cavalry | Conquering | Attack
-Babur â Engineering | Versatility | Attack
-Baibars â Cavalry | Conquering | Skill
-Bai Qi â Infantry | Versatility | Smite
-Belisarius â Cavalry | Peacekeeping | Mobility
-Belisarius Prime â Cavalry | Versatility | Mobility
-Bertrand â Cavalry | Conquering | Defense
-Bjorn Ironside â Infantry | Conquering | Skill
-Boudica Prime â Archer | Versatility | Skill
-Cao Cao â Cavalry | Peacekeeping | Mobility
-Casimir â Integration | Gathering | Defense
-Catherine de’ Medici â Engineering | Versatility | Skill
-Centurion â Integration | Gathering | Attack
-Chandragupta â Cavalry | Conquering | Skill
-Charlemagne â Leadership | Conquering | Skill
-Charles Martel â Infantry | Garrison | Defense
-Cheok Jun-Gyeong â Infantry | Versatile | Attack
-Choe Yeong â Archer | Garrison | Defense
-City Keeper â Infantry | Versatility | Attack
-Cleopatra â Integration | Gathering | Support
-Constance â Integration | Gathering | Skill
-Constantine â Infantry | Garrison | Support
-Cyrus the Great â Archer | Versatility | Attack
-Diaochan â Integration | Peacekeeping | Support
-Dido â Archer | Versatility | Skill
-Dragon Lancer â Cavalry | Peacekeeping | Skill
-Edward of Woodstock â Archer | Conquering | Skill
-Edward Teach â Leadership | Versatility | Attack
-El Cid â Archer | Garrison | Skill
-Emperor Leonidas â Infantry | Garrison | Defense
-Erik the Red â Infantry | Conquering | Skill
-Eskandar â Cavalry | Smite | Attack
-Eulji Mundeok â Infantry | Garrison | Defense
-Frederick I â Leadership | Integration | Skill
-Frederick II â Engineering | Versatility | Skill
-Gaius Marius â Integration | Gathering | Leadership
-Genghis Khan â Cavalry | Skill | Attack
-Genghis Khan Prime â Cavalry | Versatility | Skill
-Gilgamesh â Archer | Skill | Conquering
-Gorgo â Infantry | Versatility | Defense
-Guan Yu â Infantry | Skill | Versatility
-Guan Yu Prime â Infantry | Versatility | Smite
-Hannibal Barca â Leadership | Conquering | Attack
-Harald Sigurdsson â Infantry | Conquering | Skill
-Hermann â Archer | Garrison | Skill
-Hermann Prime â Archer | Versatility | Skill
-Honda Tadakatsu â Cavalry | Mobility | Skill
-Huo Qubing â Cavalry | Mobility | Skill
-Imhotep â Archer | Integration | Skill
-Ishida Mitsunari â Integration | Gathering | Skill
-Jadwiga â Leadership | Garrison | Support
-Jan Zizka â Leadership | Garrison | Defense
-Julius Caesar â Leadership | Gathering | Attack
-Joan of Arc â Integration | Gathering | Support
-Joan of Arc Prime â Leadership | Support | Skill
-John Hunyadi â Cavalry | Versatility | Attack
-Julius Caesar Prime â Leadership | Versatility | Support
-Kusunoki Masashige â Archer | Garrison | Skill
-Lancelot â Cavalry | Mobility | Skill
-Liu Che â Archer | Skill | Versatility
-Lohar â Integration | Peacekeeping | Attack
-Lu Bu â Cavalry | Skill | Attack
-Lu Xun â Archer | Versatility | Skill
-Mahatma Gandhi â Integration | Gathering | Support
-Mehmed II â Leadership | Conquering | Skill
-Merlin â Leadership | Support | Skill
-Minamoto no Yoshitsune â Cavalry | Peacekeeping | Skill
-Miyamoto Musashi â Infantry | Skill | Attack
-Mulan â Leadership | Support | Skill
-Nevsky Prime â Cavalry | Smite | Skill
-Nobunaga Oda â Archer | Skill | Attack
-Osman I â Leadership | Skill | Attack
-Pakal II â Infantry | Versatility | Defense
-Pelagius â Cavalry | Skill | Defense
-Pericles â Infantry | Garrison | Support
-Philip II â Leadership | Garrison | Defense
-Pyrrhus â Infantry | Skill | Defense
-Ramesses II â Archer | Versatility | Defense
-Ragnar Lodbrok â Leadership | Conquering | Attack
-Richard I â Infantry | Garrison | Defense
-Rokhlin â Infantry | Skill | Attack
-Saladin â Cavalry | Integration | Skill
-Scipio Africanus â Leadership | Conquering | Attack
-Scipio Africanus Prime â Leadership | Versatility | Skill
-Seondeok â Integration | Gathering | Support
-Shao Kahn â Leadership | Attack | Skill
-Shajar al-Durr â Integration | Gathering | Support
-Siegfried â Infantry | Smite | Defense
-Sokrates â Leadership | Support | Skill
-Suleiman I â Leadership | Conquering | Skill
-Sun Tzu â Infantry | Garrison | Skill
-Takeda Shingen â Cavalry | Skill | Mobility
-Tariq ibn Ziyad â Infantry | Versatility | Skill
-Theodora â Leadership | Garrison | Support
-Theodora Prime â Leadership | Garrison | Skill
-Thutmose III â Archer | Skill | Attack
-Tomoe Gozen â Archer | Integration | Skill
-Trajan â Leadership | Support | Integration
-Trajan Prime â Leadership | Versatility | Support
-Tutus â Engineering | Defense | Versatility
-William I â Archer | Versatility | Attack
-William Wallace â Infantry | Versatility | Attack
-Wu Zetian â Leadership | Garrison | Support
-Xiang Yu â Cavalry | Conquering | Skill
-Yi Seong Gye â Archer | Garrison | Garrison
-Yi Sun-Sin â Leadership | Garrison | Defense
-Zenobia â Infantry | Garrison | Support
-Zhuge Liang â Archer | Skill | Versatility
+# Canonical commander list for the /apply picker.
+# Format: Name | Spec1 | Spec2 | Spec3 | Rarity
+# Rarity ∈ {Legendary, Epic, Elite, Advanced}. Empty lines and lines starting
+# with '#' are ignored.
+Alexander the Great | Infantry | Versatility | Attack | Legendary
+Cao Cao | Cavalry | Peacekeeping | Mobility | Legendary
+Charlemagne | Leadership | Conquering | Skill | Legendary
+Cleopatra | Integration | Gathering | Support | Legendary
+Edward of Woodstock | Archer | Versatility | Skill | Legendary
+El Cid | Archer | Versatility | Skill | Legendary
+Artemisia | Archer | Garrison | Defense | Legendary
+Frederick I | Leadership | Conquering | Skill | Legendary
+Richard I | Infantry | Garrison | Defense | Legendary
+Aethelflaed | Leadership | Peacekeeping | Support | Legendary
+Mulan | Integration | Peacekeeping | Support | Legendary
+Emperor Leonidas | Infantry | Versatility | Defense | Legendary
+Charles Martel | Infantry | Garrison | Defense | Legendary
+Guan Yu | Infantry | Conquering | Skill | Legendary
+Attila | Cavalry | Conquering | Attack | Legendary
+Chandragupta | Cavalry | Conquering | Skill | Legendary
+Hannibal Barca | Leadership | Conquering | Defense | Legendary
+Constantine | Infantry | Garrison | Support | Legendary
+William I | Cavalry | Versatility | Attack | Legendary
+Takeda Shingen | Cavalry | Versatility | Mobility | Legendary
+Harald Sigurdsson | Infantry | Conquering | Skill | Legendary
+Lu Bu | Leadership | Conquering | Skill | Legendary
+Theodora | Leadership | Garrison | Defense | Legendary
+Genghis Khan | Cavalry | Versatility | Skill | Legendary
+Ishida Mitsunari | Integration | Gathering | Support | Legendary
+Minamoto no Yoshitsune | Cavalry | Peacekeeping | Skill | Legendary
+Julius Caesar | Leadership | Siege | Attack | Legendary
+Mehmed II | Leadership | Conquering | Skill | Legendary
+Ramesses II | Archer | Versatility | Attack | Legendary
+Saladin | Cavalry | Conquering | Support | Legendary
+Seondeok | Integration | Gathering | Attack | Legendary
+Tomyris | Archer | Conquering | Attack | Legendary
+Wu Zetian | Leadership | Garrison | Support | Legendary
+Yi Seong Gye | Archer | Garrison | Garrison | Legendary
+Yi Sun-Sin | Leadership | Garrison | Defense | Legendary
+Zenobia | Infantry | Garrison | Support | Legendary
+Lapu Lapu | Leadership | Garrison | Skill | Legendary
+Gonzalo de Cordoba | Engineering | Versatility | Attack | Legendary
+Gajah Mada | Engineering | Versatility | Defense | Legendary
+Ashurbanipal | Archer | Conquering | Skill | Legendary
+Hermann Prime | Archer | Versatility | Support | Legendary
+Justinian I | Cavalry | Conquering | Support | Legendary
+Gorgo | Infantry | Garrison | Defense | Legendary
+Pericles | Infantry | Garrison | Support | Epic
+Dido | Archer | Versatility | Skill | Legendary
+Huo Qubing | Cavalry | Versatility | Skill | Legendary
+Pyrrhus | Infantry | Versatility | Defense | Legendary
+Margaret I | Engineering | Versatility | Support | Legendary
+Heraclius | Leadership | Garrison | Defense | Legendary
+Zhuge Liang | Archer | Skill | Versatility | Legendary
+Babur | Engineering | Versatility | Attack | Legendary
+Joan of Arc Prime | Cavalry | Versatility | Support | Legendary
+Jan Zizka | Cavalry | Garrison | Skill | Legendary
+Sargon the Great | Infantry | Skill | Versatility | Legendary
+Tariq ibn Ziyad | Infantry | Conquering | Defense | Legendary
+Boudica Prime | Archer | Versatility | Skill | Legendary
+Henry V | Archer | Conquering | Support | Legendary
+Thutmose III | Archer | Versatility | Support | Legendary
+Flavius Aetius | Infantry | Garrison | Skill | Legendary
+Baibars | Cavalry | Conquering | Skill | Epic
+Belisarius | Cavalry | Peacekeeping | Mobility | Epic
+Boudica | Integration | Peacekeeping | Skill | Epic
+Diaochan | Integration | Peacekeeping | Support | Epic
+Hermann | Archer | Garrison | Skill | Epic
+Joan of Arc | Integration | Gathering | Support | Epic
+Keira | Archer | Peacekeeping | Skill | Epic
+Kusunoki Masashige | Archer | Garrison | Skill | Epic
+Lohar | Integration | Peacekeeping | Support | Epic
+Matilda of Flanders | Integration | Gathering | Defense | Epic
+Osman I | Leadership | Conquering | Skill | Epic
+Pelagius | Cavalry | Garrison | Skill | Epic
+Scipio Africanus | Leadership | Conquering | Attack | Epic
+Sun Tzu | Infantry | Garrison | Skill | Epic
+Imhotep | Archer | Garrison | Support | Epic
+Bjorn Ironside | Infantry | Conquering | Skill | Epic
+Eulji Mundeok | Infantry | Garrison | Attack | Epic
+Šárka | Integration | Gathering | Skill | Elite
+Lancelot | Cavalry | Versatility | Mobility | Elite
+Tomoe Gozen | Archer | Versatility | Attack | Elite
+Gaius Marius | Leadership | Gathering | Skill | Elite
+Constance | Integration | Gathering | Skill | Elite
+Markswoman | Archer | Peacekeeping | Skill | Elite
+Dragon Lancer | Cavalry | Peacekeeping | Skill | Elite
+City Keeper | Infantry | Versatility | Attack | Elite
+Centurion | Integration | Gathering | Attack | Elite
+Xiang Yu | Cavalry | Conquering | Skill | Legendary
+Nebuchadnezzar II | Archer | Conquering | Skill | Legendary
+Gilgamesh | Archer | Conquering | Skill | Legendary
+Pakal II | Infantry | Conquering | Defense | Legendary
+Cyrus the Great | Archer | Versatility | Attack | Legendary
+Trajan | Infantry | Gathering | Attack | Legendary
+Cheok Jun-Gyeong | Infantry | Versatility | Attack | Legendary
+Honda Tadakatsu | Leadership | Versatility | Skill | Legendary
+Bertrand du Guesclin | Cavalry | Conquering | Defense | Legendary
+Alexander Nevsky | Cavalry | Versatility | Skill | Legendary
+Suleiman I | Leadership | Conquering | Attack | Legendary
+Ragnar Lodbrok | Leadership | Conquering | Attack | Legendary
+Jadwiga | Cavalry | Garrison | Mobility | Legendary
+Choe Yeong | Archer | Garrison | Defense | Legendary
+Shajar al-Durr | Archer | Versatility | Skill | Legendary
+Belisarius Prime | Cavalry | Versatility | Mobility | Legendary
+Eleanor of Aquitaine | Cavalry | Garrison | Defense | Legendary
+William Wallace | Infantry | Versatility | Smite | Legendary
+Scipio Aemilianus | Infantry | Conquering | Smite | Legendary
+Catherine de' Medici | Engineering | Versatility | Skill | Epic
+Narses | Engineering | Versatility | Defense | Epic
+John Hunyadi | Engineering | Versatility | Support | Legendary
+Stephen III | Engineering | Versatility | Skill | Legendary
+Ragnar Lodbrok Prime | Leadership | Versatility | Support | Legendary
+Philip II | Leadership | Versatility | Support | Legendary
+Wak Chanil Ajaw | Integration | Gathering | Defense | Epic
+Siyaj K'ak' | Archer | Conquering | Skill | Legendary
+Subutai | Cavalry | Conquering | Combo | Legendary
+Shapur | Archer | Conquering | Skill | Legendary
+Qin Shi Huang | Archer | Versatility | Skill | Legendary
+Tokugawa Ieyasu | Infantry | Garrison | Smite | Legendary
+Bai Qi | Infantry | Versatility | Smite | Legendary
+Afonso | Engineering | Versatility | Support | Legendary
+Matthias | Leadership | Garrison | Attack | Legendary
+Mary | Engineering | Versatility | Skill | Legendary
+Archimedes | Engineering | Versatility | Defense | Legendary
+Casimir | Integration | Gathering | Defense | Legendary
+Pepin | Integration | Gathering | Support | Legendary
+Sun Tzu Prime | Infantry | Versatility | Smite | Legendary
+Ivar the Boneless | Infantry | Conquering | Defense | Legendary
+Gang Gamchan | Cavalry | Versatility | Combo | Legendary
+Hector | Leadership | Versatility | Support | Legendary
+Achilles | Cavalry | Versatility | Combo | Legendary
+Elizabeth I | Engineering | Versatility | Skill | Legendary
+Vercingetorix | Leadership | Versatility | Support | Legendary
+Hayam Wuruk | Archer | Garrison | Skill | Legendary
+Alp Arslan | Archer | Versatility | Skill | Legendary
