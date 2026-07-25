@@ -950,10 +950,10 @@ function TeamBuilderTab({
 
         for (const team of teams) {
 
-        // The bench (zone 0) holds 10 subs for normal weekend teams and 15
-        // for the league team. lockedSubs (players with an explicit sheet
-        // sub flag) always stay in zone 0; this cap controls how many extra
-        // overflow players auto-spill into zone 0 before going to zone -1.
+        // subCap only governs the LEAGUE team, which caps auto-overflow subs at
+        // 15 and benches the rest (zone -1). Weekend teams take their subs solely
+        // from the sheet's Sub column and never bench (see the overflow branches
+        // below), so this cap doesn't apply to them.
         const subCap = team === leagueTeamNumber ? 15 : 10;
 
         const teamConf = confirmationsByTeam[team] || {};
@@ -1059,11 +1059,19 @@ function TeamBuilderTab({
                     2: [...lockedZones[2], ...filled[2]],
                     3: [...lockedZones[3], ...filled[3]],
                 };
-                // Locked subs always stay in zone 0; auto-overflow fills the
-                // rest up to subCap (10 normal teams / 15 league team).
-                const subRoom = Math.max(0, subCap - lockedSubs.length);
-                zones[0] = [...lockedSubs, ...remainder.slice(0, subRoom)];
-                zones[-1] = remainder.slice(subRoom);
+                if (team === leagueTeamNumber) {
+                    // League (OL): locked subs stay in zone 0, auto-overflow fills the
+                    // rest up to subCap, and anything beyond that is benched (zone -1).
+                    const subRoom = Math.max(0, subCap - lockedSubs.length);
+                    zones[0] = [...lockedSubs, ...remainder.slice(0, subRoom)];
+                    zones[-1] = remainder.slice(subRoom);
+                } else {
+                    // Weekend teams: subs come only from the sheet's Sub column and
+                    // there is no bench. Any rare overflow stays as subs so no one is
+                    // dropped.
+                    zones[0] = [...lockedSubs, ...remainder];
+                    zones[-1] = [];
+                }
             }
         } else {
             // Auto-balance by power (equal distribution across 3 lanes, max 30 in lanes)
@@ -1077,9 +1085,15 @@ function TeamBuilderTab({
                 2: [...lockedZones[2], ...balancedFlex[2]],
                 3: [...lockedZones[3], ...balancedFlex[3]],
             };
-            const subRoom = Math.max(0, subCap - lockedSubs.length);
-            zones[0] = [...lockedSubs, ...remainder.slice(0, subRoom)];
-            zones[-1] = remainder.slice(subRoom);
+            if (team === leagueTeamNumber) {
+                const subRoom = Math.max(0, subCap - lockedSubs.length);
+                zones[0] = [...lockedSubs, ...remainder.slice(0, subRoom)];
+                zones[-1] = remainder.slice(subRoom);
+            } else {
+                // Weekend teams: subs come only from the sheet's Sub column, no bench.
+                zones[0] = [...lockedSubs, ...remainder];
+                zones[-1] = [];
+            }
         }
 
         // === Priority 2: respect existing UI-selected rally/garrison leads ===
@@ -1127,10 +1141,12 @@ function TeamBuilderTab({
             arkCarrier = sorted[0].name;
         }
 
-        // Pre-select 8 teleport-first slots distributed evenly across lanes
-        // Priority: rally leads and garrison leads first, then by rally score
+        // Pre-select 16 teleport-first slots distributed across lanes (top/bottom
+        // heavier than mid, mirroring the 3:2:3 → 6:4:6 split).
+        // Priority: rally leads and garrison leads first, then by rally score.
+        const TELEPORT_TOTAL = 16;
         const teleport = new Set<string>();
-        const slotsPerLane: Record<number, number> = { 1: 3, 2: 2, 3: 3 };
+        const slotsPerLane: Record<number, number> = { 1: 6, 2: 4, 3: 6 };
         for (const zoneNum of [1, 2, 3]) {
             const lanePlayers = zones[zoneNum] || [];
             if (lanePlayers.length === 0) continue;
@@ -1140,12 +1156,12 @@ function TeamBuilderTab({
             if (garrisonLeads[zoneNum]) priority.add(garrisonLeads[zoneNum]);
             if (zoneNum === 2 && arkCarrier) priority.add(arkCarrier);
             for (const name of priority) {
-                if (teleport.size < 8) teleport.add(name);
+                if (teleport.size < TELEPORT_TOTAL) teleport.add(name);
             }
             const sorted = [...lanePlayers].sort((a, b) => getRallyScore(b.name) - getRallyScore(a.name));
             let added = [...priority].filter(n => sorted.some(p => p.name === n)).length;
             for (const p of sorted) {
-                if (added >= slots || teleport.size >= 8) break;
+                if (added >= slots || teleport.size >= TELEPORT_TOTAL) break;
                 if (!teleport.has(p.name)) {
                     teleport.add(p.name);
                     added++;
