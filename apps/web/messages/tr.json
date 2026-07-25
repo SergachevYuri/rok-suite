@@ -371,7 +371,10 @@
         "subDescFull": "Yedek olarak konumlandırıldı — asıldan farklı bir oyun içi rol, 'belki'nin eş anlamlısı değil. Dağıtımda yedek kulübesine kilitlenir ve oyuna alınabilir.",
         "league": "Lig sekmesi",
         "leagueDesc": "ayrı bir tablo sekmesi",
-        "leagueDescFull": "Lig sekmesinde kayıtlı oyuncular. Takım 1 / Takım 2'den hariç tutulur; özel Lig takımında oynar."
+        "leagueDescFull": "Lig sekmesinde kayıtlı oyuncular. Takım 1 / Takım 2'den hariç tutulur; özel Lig takımında oynar.",
+        "team3": "Takım 3",
+        "team3Desc": "x = müsait",
+        "team3DescFull": "Takım 3 için müsait (yalnızca Onaylıysa)"
       },
       "league": {
         "label": "Lig kayıt sekmesi",
@@ -426,8 +429,10 @@
         "t2": "T2",
         "rally": "Ralli",
         "garrison": "Garn.",
-        "mid": "Mid"
-      }
+        "mid": "Mid",
+        "t3": "T3"
+      },
+      "team3": "Takım 3"
     },
     "builder": {
       "league": {

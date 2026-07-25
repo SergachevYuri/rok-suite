@@ -371,7 +371,10 @@
         "subDescFull": "Als Ersatzspieler eingeteilt — andere Rolle im Spiel als Stammspieler, kein Synonym für 'vielleicht'. Bei der Verteilung auf die Bank gesetzt und kann eingewechselt werden.",
         "league": "Liga-Tab",
         "leagueDesc": "separates Tabellenblatt",
-        "leagueDescFull": "Spieler, die im Liga-Tab eingetragen sind. Ausgeschlossen von Team 1 / Team 2; spielen im dedizierten Liga-Team."
+        "leagueDescFull": "Spieler, die im Liga-Tab eingetragen sind. Ausgeschlossen von Team 1 / Team 2; spielen im dedizierten Liga-Team.",
+        "team3": "Team 3",
+        "team3Desc": "x = verfügbar",
+        "team3DescFull": "Verfügbar für Team 3 (nur wenn Bestätigt)"
       },
       "league": {
         "label": "Liga-Anmelde-Tab",
@@ -426,8 +429,10 @@
         "t2": "T2",
         "rally": "Rallye",
         "garrison": "Garn.",
-        "mid": "Mid"
-      }
+        "mid": "Mid",
+        "t3": "T3"
+      },
+      "team3": "Team 3"
     },
     "builder": {
       "league": {

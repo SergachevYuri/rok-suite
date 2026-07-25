@@ -376,7 +376,10 @@
         "subDescFull": "Slotted as a sub — different in-game role from main, not a synonym for 'maybe'. Locked to the bench at distribution and can be swapped in.",
         "league": "League tab",
         "leagueDesc": "separate sheet tab",
-        "leagueDescFull": "Players signed up on the league tab. Excluded from Team 1 / Team 2; play on the dedicated league team."
+        "leagueDescFull": "Players signed up on the league tab. Excluded from Team 1 / Team 2; play on the dedicated league team.",
+        "team3": "Team 3",
+        "team3Desc": "x = available",
+        "team3DescFull": "Available for Team 3 (only if Confirmed)"
       },
       "league": {
         "label": "League sign-up tab",
@@ -431,8 +434,10 @@
         "t2": "T2",
         "rally": "Rally",
         "garrison": "Garr.",
-        "mid": "Mid"
-      }
+        "mid": "Mid",
+        "t3": "T3"
+      },
+      "team3": "Team 3"
     },
     "builder": {
       "league": {

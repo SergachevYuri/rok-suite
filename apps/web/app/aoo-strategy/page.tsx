@@ -3567,9 +3567,10 @@ export default function AooStrategyPage() {
                         // signed up alongside? League always lives in the LAST slot so the
                         // visible team count stays contiguous (no empty slots in between).
                         const hasLeague = registrations.some(r => r.league && r.team1);
+                        const hasNormalTeam3 = registrations.some(r => !r.league && r.team3);
                         const hasNormalTeam2 = registrations.some(r => !r.league && r.team2);
                         const hasNormalTeam1 = registrations.some(r => !r.league && r.team1);
-                        const normalTeamCount = hasNormalTeam2 ? 2 : hasNormalTeam1 ? 1 : 0;
+                        const normalTeamCount = hasNormalTeam3 ? 3 : hasNormalTeam2 ? 2 : hasNormalTeam1 ? 1 : 0;
                         const detectedLeagueSlot: TeamNumber | null = hasLeague
                             ? (Math.max(1, normalTeamCount + 1) as TeamNumber)
                             : null;
@@ -3621,11 +3622,13 @@ export default function AooStrategyPage() {
                             } else {
                                 if (r.team1) newConfirmations[1][name] = 'confirmed';
                                 if (r.team2) newConfirmations[2][name] = 'confirmed';
-                                if (!r.team1 && !r.team2) newConfirmations[1][name] = 'maybe';
+                                if (r.team3) newConfirmations[3][name] = 'confirmed';
+                                if (!r.team1 && !r.team2 && !r.team3) newConfirmations[1][name] = 'maybe';
 
                                 const teamsForPlayer: TeamNumber[] = [];
                                 if (r.team1) teamsForPlayer.push(1);
                                 if (r.team2) teamsForPlayer.push(2);
+                                if (r.team3) teamsForPlayer.push(3);
                                 if (teamsForPlayer.length === 0) teamsForPlayer.push(1);
                                 for (const teamNum of teamsForPlayer) {
                                     teamRegs[teamNum].push(canonical);

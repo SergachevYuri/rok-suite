@@ -84,6 +84,7 @@ export interface AooRegistration {
   confirmed: boolean;
   team1: boolean;
   team2: boolean;
+  team3: boolean;
   rallyLeader: boolean;
   garrisonLeader: boolean;
   mid: boolean;

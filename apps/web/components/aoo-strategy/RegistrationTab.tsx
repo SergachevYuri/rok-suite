@@ -391,14 +391,15 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
   const stats = useMemo(() => {
     const team1 = registrations.filter(r => r.team1);
     const team2 = registrations.filter(r => r.team2);
+    const team3 = registrations.filter(r => r.team3);
     const both = registrations.filter(r => r.team1 && r.team2);
-    const neither = registrations.filter(r => !r.team1 && !r.team2 && !r.league);
+    const neither = registrations.filter(r => !r.team1 && !r.team2 && !r.team3 && !r.league);
     const league = registrations.filter(r => r.league && r.team1);
     const rallyLeaders = registrations.filter(r => r.rallyLeader);
     const garrisonLeaders = registrations.filter(r => r.garrisonLeader);
     const midPlayers = registrations.filter(r => r.mid);
     const totalPower = registrations.reduce((s, r) => s + r.power, 0);
-    return { team1, team2, both, neither, league, rallyLeaders, garrisonLeaders, midPlayers, totalPower };
+    return { team1, team2, team3, both, neither, league, rallyLeaders, garrisonLeaders, midPlayers, totalPower };
   }, [registrations]);
 
   // Open the sheet in Google Sheets
@@ -749,6 +750,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                 { col: t('columns.confirmed'), desc: t('columns.confirmedDesc') },
                 { col: t('columns.team1'), desc: t('columns.team1Desc') },
                 { col: t('columns.team2'), desc: t('columns.team2Desc') },
+                { col: t('columns.team3'), desc: t('columns.team3Desc') },
                 { col: t('columns.rallyLeader'), desc: t('columns.rallyLeaderDesc') },
                 { col: t('columns.garrisonLeader'), desc: t('columns.garrisonLeaderDesc') },
                 { col: t('columns.mid'), desc: t('columns.midDesc') },
@@ -776,6 +778,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.confirmed')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.confirmedDescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.team1')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.team1DescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.team2')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.team2DescFull')}</td></tr>
+                <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.team3')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.team3DescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.rallyLeader')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.rallyLeaderDescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.garrisonLeader')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.garrisonLeaderDescFull')}</td></tr>
                 <tr><td className="py-1.5 pr-3 font-medium text-[var(--foreground)]">{t('columns.mid')}</td><td className="py-1.5 pr-3">x / blank</td><td className="py-1.5">{t('columns.midDescFull')}</td></tr>
@@ -894,6 +897,9 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
               <StatCard label={t('registered')} value={registrations.length} icon={<Users size={14} />} theme={theme} />
               <StatCard label={t('team1')} value={stats.team1.length} icon={<span className="text-blue-400 font-bold text-xs">T1</span>} theme={theme} />
               <StatCard label={t('team2')} value={stats.team2.length} icon={<span className="text-orange-400 font-bold text-xs">T2</span>} theme={theme} />
+              {stats.team3.length > 0 && (
+                <StatCard label={t('team3')} value={stats.team3.length} icon={<span className="text-purple-400 font-bold text-xs">T3</span>} theme={theme} />
+              )}
               <StatCard label={tl('statLabel')} value={stats.league.length} icon={<Trophy size={14} className="text-purple-400" />} theme={theme} />
               <StatCard label={t('rally')} value={stats.rallyLeaders.length} icon={<Crown size={14} className="text-yellow-400" />} theme={theme} />
               <StatCard label={t('garrisonLabel')} value={stats.garrisonLeaders.length} icon={<Shield size={14} className="text-cyan-400" />} theme={theme} />
@@ -916,6 +922,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                     <th className={`text-right px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.power')}</th>
                     <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.t1')}</th>
                     <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.t2')}</th>
+                    <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.t3')}</th>
                     <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.rally')}</th>
                     <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.garrison')}</th>
                     <th className={`text-center px-4 py-3 font-medium ${theme.textMuted}`}>{t('tableHeaders.mid')}</th>
@@ -943,6 +950,9 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {r.team2 && <span className="inline-block w-5 h-5 rounded bg-orange-500/20 text-orange-400 text-xs font-bold leading-5">x</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {r.team3 && <span className="inline-block w-5 h-5 rounded bg-purple-500/20 text-purple-400 text-xs font-bold leading-5">x</span>}
                       </td>
                       <td className="px-4 py-2.5 text-center">
                         {r.rallyLeader && <Crown size={14} className="inline text-yellow-400" />}
@@ -976,7 +986,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                       {(r as { fromScan?: boolean }).fromScan && <span className="ml-1 text-[10px] opacity-70">·scan</span>}
                     </span>
                   </div>
-                  {(r.team1 || r.team2 || r.league || r.rallyLeader || r.garrisonLeader || r.mid) && (
+                  {(r.team1 || r.team2 || r.team3 || r.league || r.rallyLeader || r.garrisonLeader || r.mid) && (
                     <div className="flex items-center flex-wrap gap-1.5 mt-1.5 ml-7">
                       {r.league && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
@@ -985,6 +995,7 @@ export default function RegistrationTab({ theme, onApplyToBuilder, onSkipToBuild
                       )}
                       {r.team1 && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-500/20 text-blue-400">T1</span>}
                       {r.team2 && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-orange-500/20 text-orange-400">T2</span>}
+                      {r.team3 && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-purple-500/20 text-purple-400">T3</span>}
                       {r.rallyLeader && <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-yellow-500/20 text-yellow-400">Rally</span>}
                       {r.garrisonLeader && <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-cyan-500/20 text-cyan-400">Garr</span>}
                       {r.mid && <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-purple-500/20 text-purple-400">Mid</span>}

@@ -371,7 +371,10 @@
         "subDescFull": "Escalado como reserva — papel diferente no jogo do titular, não é sinônimo de 'talvez'. Bloqueado no banco na distribuição e pode entrar como substituto.",
         "league": "Aba Liga",
         "leagueDesc": "aba separada da planilha",
-        "leagueDescFull": "Jogadores inscritos na aba Liga. Excluídos da Equipe 1 / Equipe 2; jogam na equipe Liga dedicada."
+        "leagueDescFull": "Jogadores inscritos na aba Liga. Excluídos da Equipe 1 / Equipe 2; jogam na equipe Liga dedicada.",
+        "team3": "Equipe 3",
+        "team3Desc": "x = disponível",
+        "team3DescFull": "Disponível para Equipe 3 (apenas se Confirmado)"
       },
       "league": {
         "label": "Aba de inscrição da Liga",
@@ -426,8 +429,10 @@
         "t2": "T2",
         "rally": "Rali",
         "garrison": "Guarn.",
-        "mid": "Mid"
-      }
+        "mid": "Mid",
+        "t3": "T3"
+      },
+      "team3": "Equipe 3"
     },
     "builder": {
       "league": {

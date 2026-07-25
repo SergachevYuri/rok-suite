@@ -371,7 +371,10 @@
         "subDescFull": "Xếp làm dự bị — vai trò trong game khác với chính thức, không phải nghĩa 'có thể'. Bị khóa ở ghế dự bị khi phân bổ và có thể vào sân thay người.",
         "league": "Tab Liên đoàn",
         "leagueDesc": "tab bảng tính riêng",
-        "leagueDescFull": "Người chơi đăng ký trong tab Liên đoàn. Bị loại khỏi Đội 1 / Đội 2; thi đấu trong đội Liên đoàn riêng."
+        "leagueDescFull": "Người chơi đăng ký trong tab Liên đoàn. Bị loại khỏi Đội 1 / Đội 2; thi đấu trong đội Liên đoàn riêng.",
+        "team3": "Đội 3",
+        "team3Desc": "x = có thể tham gia",
+        "team3DescFull": "Có thể tham gia Đội 3 (chỉ khi đã Xác nhận)"
       },
       "league": {
         "label": "Tab đăng ký Liên đoàn",
@@ -426,8 +429,10 @@
         "t2": "T2",
         "rally": "Rally",
         "garrison": "Đồn",
-        "mid": "Mid"
-      }
+        "mid": "Mid",
+        "t3": "T3"
+      },
+      "team3": "Đội 3"
     },
     "builder": {
       "league": {
