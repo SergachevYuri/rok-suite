@@ -92,15 +92,16 @@ export function parseAooRegistrationCSV(
   const isChecked = (val: string | undefined) =>
     (val || '').trim().toLowerCase() === 'x';
 
-  // Parse the Lane cell: "1", "2", "3", "top", "mid", "bottom".
+  // Parse the Lane cell: "1"/"t"/"top", "2"/"m"/"mid", "3"/"b"/"bottom"
+  // (single-letter t/b/m match the OL/league sheet convention).
   // Also accept role-like values ("rally"/"garrison"/"ark") so admins can use one
   // column to express both lane number and role; those flags are merged below.
   const parseLane = (val: string | undefined): { lane: number | null; rally: boolean; garrison: boolean; mid: boolean } => {
     const v = (val || '').trim().toLowerCase();
     if (!v) return { lane: null, rally: false, garrison: false, mid: false };
-    if (v === '1' || v === 'top' || v === 'top lane') return { lane: 1, rally: false, garrison: false, mid: false };
-    if (v === '2' || v === 'mid' || v === 'middle' || v === 'mid lane' || v === 'ark') return { lane: 2, rally: false, garrison: false, mid: v === 'ark' };
-    if (v === '3' || v === 'bot' || v === 'bottom' || v === 'bottom lane') return { lane: 3, rally: false, garrison: false, mid: false };
+    if (v === '1' || v === 't' || v === 'top' || v === 'top lane') return { lane: 1, rally: false, garrison: false, mid: false };
+    if (v === '2' || v === 'm' || v === 'mid' || v === 'middle' || v === 'mid lane' || v === 'ark') return { lane: 2, rally: false, garrison: false, mid: v === 'ark' };
+    if (v === '3' || v === 'b' || v === 'bot' || v === 'bottom' || v === 'bottom lane') return { lane: 3, rally: false, garrison: false, mid: false };
     if (v === 'rally') return { lane: null, rally: true, garrison: false, mid: false };
     if (v === 'garrison') return { lane: null, rally: false, garrison: true, mid: false };
     return { lane: null, rally: false, garrison: false, mid: false };
