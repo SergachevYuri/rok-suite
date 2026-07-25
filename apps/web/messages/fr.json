@@ -371,7 +371,10 @@
         "subDescFull": "Affecté comme remplaçant — rôle en jeu différent du titulaire, pas un synonyme de 'peut-être'. Verrouillé sur le banc lors de la distribution et peut entrer en jeu.",
         "league": "Onglet Ligue",
         "leagueDesc": "feuille séparée",
-        "leagueDescFull": "Joueurs inscrits dans l'onglet Ligue. Exclus de l'Équipe 1 / Équipe 2 ; jouent dans l'équipe Ligue dédiée."
+        "leagueDescFull": "Joueurs inscrits dans l'onglet Ligue. Exclus de l'Équipe 1 / Équipe 2 ; jouent dans l'équipe Ligue dédiée.",
+        "team3": "Équipe 3",
+        "team3Desc": "x = disponible",
+        "team3DescFull": "Disponible pour l'équipe 3 (uniquement si Confirmé)"
       },
       "league": {
         "label": "Onglet d'inscription Ligue",
@@ -426,8 +429,10 @@
         "t2": "T2",
         "rally": "Rallye",
         "garrison": "Garn.",
-        "mid": "Mid"
-      }
+        "mid": "Mid",
+        "t3": "T3"
+      },
+      "team3": "Équipe 3"
     },
     "builder": {
       "league": {

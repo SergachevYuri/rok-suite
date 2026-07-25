@@ -371,7 +371,10 @@
         "subDescFull": "Inserito come riserva — ruolo in gioco diverso da titolare, non sinonimo di 'forse'. Bloccato in panchina alla distribuzione e può essere fatto entrare.",
         "league": "Scheda Lega",
         "leagueDesc": "foglio separato",
-        "leagueDescFull": "Giocatori iscritti nella scheda Lega. Esclusi da Squadra 1 / Squadra 2; giocano nella squadra Lega dedicata."
+        "leagueDescFull": "Giocatori iscritti nella scheda Lega. Esclusi da Squadra 1 / Squadra 2; giocano nella squadra Lega dedicata.",
+        "team3": "Squadra 3",
+        "team3Desc": "x = disponibile",
+        "team3DescFull": "Disponibile per Squadra 3 (solo se Confermato)"
       },
       "league": {
         "label": "Scheda iscrizione Lega",
@@ -426,8 +429,10 @@
         "t2": "T2",
         "rally": "Rally",
         "garrison": "Guar.",
-        "mid": "Mid"
-      }
+        "mid": "Mid",
+        "t3": "T3"
+      },
+      "team3": "Squadra 3"
     },
     "builder": {
       "league": {

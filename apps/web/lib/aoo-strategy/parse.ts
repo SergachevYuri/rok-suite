@@ -79,6 +79,7 @@ export function parseAooRegistrationCSV(
   const iConfirmed = idx('confirmed', 'confirm');
   const iTeam1 = idx('team 1', 'team1', 't1');
   const iTeam2 = idx('team 2', 'team2', 't2');
+  const iTeam3 = idx('team 3', 'team3', 't3');
   const iRallyLeader = idx('rally leader', 'rally');
   const iGarrisonLeader = idx('garrison leader', 'garrison');
   const iMid = idx('mid', 'ark');
@@ -122,6 +123,7 @@ export function parseAooRegistrationCSV(
         // Team 1 / Team 2 but isn't confirmed yet, treat as not signed up.
         team1: confirmed && isChecked(cols[iTeam1]),
         team2: confirmed && isChecked(cols[iTeam2]),
+        team3: confirmed && isChecked(cols[iTeam3]),
         rallyLeader: isChecked(cols[iRallyLeader]) || laneCell.rally,
         garrisonLeader: isChecked(cols[iGarrisonLeader]) || laneCell.garrison,
         mid: isChecked(cols[iMid]) || laneCell.mid,
@@ -246,6 +248,7 @@ export function parseAooLeagueRegistrationCSV(text: string): AooRegistration[] {
         // both already understand for league players.
         team1: confirmed,
         team2: false,
+        team3: false,
         rallyLeader: rallyLane !== null,
         garrisonLeader: garrisonLane !== null,
         mid: lane === 'm',
