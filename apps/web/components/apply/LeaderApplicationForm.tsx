@@ -703,7 +703,6 @@ function RoleCard({
             value={role.primaryCommanderId}
             onChange={(id, name) => onChangeCommander('primary', id, name)}
             unitFilter={role.unitType}
-            garrisonOnly={role.roleType === 'garrison'}
             invalid={!!errorPrimaryCommander}
             placeholder={t('commander.placeholder')}
           />
@@ -719,7 +718,6 @@ function RoleCard({
             value={role.secondaryCommanderId}
             onChange={(id, name) => onChangeCommander('secondary', id, name)}
             unitFilter={role.secondaryUnitType}
-            garrisonOnly={role.roleType === 'garrison'}
             invalid={!!errorSecondaryCommander}
             placeholder={t('commander.placeholder')}
           />

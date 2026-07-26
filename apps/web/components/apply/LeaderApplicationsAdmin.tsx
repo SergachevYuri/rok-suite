@@ -59,6 +59,11 @@ export function LeaderApplicationsAdmin() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
+  /** Match applications where ANY declared role is of the chosen type. An
+   *  applicant with both a rally and a garrison role is included by both
+   *  filters — reviewers usually want "does this person do X at all?" not
+   *  "does this person do X exclusively". */
+  const [roleTypeFilter, setRoleTypeFilter] = useState<'all' | 'rally' | 'garrison'>('all');
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -90,6 +95,12 @@ export function LeaderApplicationsAdmin() {
       rows = rows.filter((a) => a.status === statusFilter);
     }
 
+    if (roleTypeFilter !== 'all') {
+      rows = rows.filter((a) =>
+        a.leader_application_roles.some((r) => r.role_type === roleTypeFilter),
+      );
+    }
+
     if (q) {
       rows = rows.filter(
         (a) =>
@@ -117,7 +128,7 @@ export function LeaderApplicationsAdmin() {
       return 0;
     });
     return sorted;
-  }, [apps, search, statusFilter, sortField, sortDir]);
+  }, [apps, search, statusFilter, roleTypeFilter, sortField, sortDir]);
 
   const counts = useMemo(() => {
     const result: Record<ApplicationStatus | 'all', number> = {
@@ -131,6 +142,19 @@ export function LeaderApplicationsAdmin() {
       result[a.status] = (result[a.status] ?? 0) + 1;
     });
     return result;
+  }, [apps]);
+
+  /** Role-type counts follow the same "any role matches" semantics as the
+   *  filter — an applicant declaring both rally and garrison is counted in
+   *  both, so the totals can exceed apps.length. */
+  const roleTypeCounts = useMemo(() => {
+    let rally = 0;
+    let garrison = 0;
+    for (const a of apps) {
+      if (a.leader_application_roles.some((r) => r.role_type === 'rally')) rally += 1;
+      if (a.leader_application_roles.some((r) => r.role_type === 'garrison')) garrison += 1;
+    }
+    return { rally, garrison };
   }, [apps]);
 
   const handleStatusChange = async (id: string, status: ApplicationStatus) => {
@@ -167,6 +191,28 @@ export function LeaderApplicationsAdmin() {
             onClick={() => setStatusFilter(opt.value)}
           />
         ))}
+      </div>
+
+      {/* Role-type filter — orthogonal to status. Applicants with both a
+       *  rally and a garrison role appear in both filters (see roleTypeCounts). */}
+      <div className="-mx-1 px-1 flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <FilterChip
+          label={`Any role (${apps.length})`}
+          active={roleTypeFilter === 'all'}
+          onClick={() => setRoleTypeFilter('all')}
+        />
+        <FilterChip
+          label={`Rally (${roleTypeCounts.rally})`}
+          active={roleTypeFilter === 'rally'}
+          classes="border-orange-500/40 bg-orange-500/10 text-orange-300"
+          onClick={() => setRoleTypeFilter('rally')}
+        />
+        <FilterChip
+          label={`Garrison (${roleTypeCounts.garrison})`}
+          active={roleTypeFilter === 'garrison'}
+          classes="border-sky-500/40 bg-sky-500/10 text-sky-300"
+          onClick={() => setRoleTypeFilter('garrison')}
+        />
       </div>
 
       {/* Search */}
