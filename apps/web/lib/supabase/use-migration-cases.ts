@@ -831,3 +831,55 @@ export async function refreshZeroListFromScan(
   }
   return { updated, renamed };
 }
+
+/** Auto-transition active migration_cases to `migrated` based on presence
+ *  in a fresh location scan. Rule: a case that was previously seen (has a
+ *  `last_seen_scan_id`) but whose `character_id` is NOT in the new scan is
+ *  presumed to have left the map. Cases with no prior scan sighting are
+ *  skipped — no baseline to compare against, no confident call.
+ *
+ *  Scope (matches the "aggressive" policy the user chose):
+ *    - Includes: pending, claimed, contacted, marked_to_zero, excepted.
+ *      Excepted is deliberately overridden — the objective fact "no longer
+ *      here" wins over the officer's earlier grace.
+ *    - Skips: migrated (already there), zeroed (game over), afk (different
+ *      reason, don't overwrite).
+ *
+ *  Cross-cycle / cross-scope by character_id — migration_cases carry no
+ *  kvk_id column; if the same character appears across cycles/KvKs every
+ *  non-terminal instance flips together. */
+export async function autoMarkEmigratedFromScan(
+  scanGovIds: Set<number>,
+  actorName?: string | null,
+): Promise<{ updated: number; checked: number }> {
+  const sb = createClient();
+  const eligibleStates: MigrationState[] = ['pending', 'claimed', 'contacted', 'marked_to_zero', 'excepted'];
+
+  // Pull the tracked candidates first. `not('last_seen_scan_id', 'is', null)`
+  // is the "we've seen this player before" guard — without it we'd auto-mark
+  // brand-new cases from the very first upload where nothing has been sighted
+  // yet, which is a false positive by construction.
+  const { data: tracked, error: selErr } = await sb
+    .from('migration_cases')
+    .select('id, character_id')
+    .in('state', eligibleStates)
+    .not('last_seen_scan_id', 'is', null);
+  if (selErr) throw selErr;
+
+  const missing = (tracked ?? []).filter((r) => !scanGovIds.has(r.character_id as number));
+  const ids = missing.map((r) => r.id as string);
+  if (ids.length === 0) return { updated: 0, checked: tracked?.length ?? 0 };
+
+  const nowIso = new Date().toISOString();
+  const { error: updErr } = await sb
+    .from('migration_cases')
+    .update({
+      state: 'migrated',
+      migrated_confirmed_at: nowIso,
+      migrated_confirmed_by: actorName ?? 'auto-scan',
+      updated_at: nowIso,
+    })
+    .in('id', ids);
+  if (updErr) throw updErr;
+  return { updated: ids.length, checked: tracked?.length ?? 0 };
+}
