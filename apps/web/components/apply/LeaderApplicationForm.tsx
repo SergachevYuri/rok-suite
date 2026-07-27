@@ -57,6 +57,17 @@ const SHOT_SLOTS: ShotSlot[] = [
   'secondarySkills',
 ];
 
+/** Slots the submitter MUST provide. The secondary commander only needs its
+ *  Skills screenshot — gear / armaments for the secondary are informative but
+ *  optional. Reviewers still see the empty tiles in admin so applicants can't
+ *  hide gaps. */
+const REQUIRED_SHOT_SLOTS: ShotSlot[] = [
+  'primaryGear',
+  'primaryArmaments',
+  'primarySkills',
+  'secondarySkills',
+];
+
 const SLOT_TO_FILE_KEY: Record<ShotSlot, keyof LeaderRoleInput> = {
   primaryGear: 'primaryGearFile',
   primaryArmaments: 'primaryArmamentsFile',
@@ -179,18 +190,40 @@ export function LeaderApplicationForm() {
     });
   };
 
-  const handleFile = (
+  const handleFile = async (
     uid: string,
     slot: ShotSlot,
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = e.target.files?.[0];
+    const picked = e.target.files?.[0];
     e.target.value = '';
-    if (!file) return;
-    if (file.size > MAX_IMAGE_BYTES) {
+    if (!picked) return;
+    if (picked.size > MAX_IMAGE_BYTES) {
       setErrors((p) => ({ ...p, [`${uid}_${slot}`]: t('errors.imageTooLarge') }));
       return;
     }
+
+    // Snapshot the bytes NOW instead of keeping the File reference. The picked
+    // File is a thin handle to a location on disk — if the applicant then
+    // overwrites the source (e.g. takes a new screenshot into the same path),
+    // Chrome invalidates the handle and the upload later fails with
+    // net::ERR_UPLOAD_FILE_CHANGED. Wrapping an in-memory ArrayBuffer in a
+    // fresh File detaches from disk and immunizes against that.
+    let file: File;
+    try {
+      const buf = await picked.arrayBuffer();
+      file = new File([buf], picked.name, {
+        type: picked.type,
+        lastModified: picked.lastModified,
+      });
+    } catch (err) {
+      setErrors((p) => ({
+        ...p,
+        [`${uid}_${slot}`]: err instanceof Error ? err.message : 'Failed to read file',
+      }));
+      return;
+    }
+
     const url = URL.createObjectURL(file);
     setRoles((prev) =>
       prev.map((r) => {
@@ -239,8 +272,9 @@ export function LeaderApplicationForm() {
       if (r.primaryCommanderId && r.primaryCommanderId === r.secondaryCommanderId) {
         next[`${r.uid}_secondaryCommander`] = t('errors.commanderDuplicate');
       }
-      // All three screenshots (gear, armaments, skills) are required for each commander.
-      SHOT_SLOTS.forEach((slot) => {
+      // Primary needs all three screenshots (gear, armaments, skills). Secondary
+      // only needs Skills — see REQUIRED_SHOT_SLOTS for the exact set.
+      REQUIRED_SHOT_SLOTS.forEach((slot) => {
         if (!r[SLOT_TO_FILE_KEY[slot]]) next[`${r.uid}_${slot}`] = t('errors.required');
       });
     });
@@ -773,6 +807,7 @@ function RoleCard({
           onArmamentsRemove={() => onRemoveFile('secondaryArmaments')}
           onSkillsRemove={() => onRemoveFile('secondarySkills')}
           tapLabel={t('upload.tap')}
+          optionalGearArmaments
         />
       </div>
     </div>
@@ -797,6 +832,9 @@ interface CommanderShotsProps {
   onArmamentsRemove: () => void;
   onSkillsRemove: () => void;
   tapLabel: string;
+  /** For the secondary commander: gear + armaments are informational only, and
+   *  the ScreenshotPicker drops its "required" asterisk on those two tiles. */
+  optionalGearArmaments?: boolean;
 }
 
 function CommanderShots({
@@ -817,6 +855,7 @@ function CommanderShots({
   onArmamentsRemove,
   onSkillsRemove,
   tapLabel,
+  optionalGearArmaments = false,
 }: CommanderShotsProps) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--background-card)] p-3">
@@ -826,7 +865,7 @@ function CommanderShots({
       <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         <ScreenshotPicker
           label={gearLabel}
-          required
+          required={!optionalGearArmaments}
           preview={gearPreview}
           error={gearError}
           onChange={onGearChange}
@@ -835,7 +874,7 @@ function CommanderShots({
         />
         <ScreenshotPicker
           label={armamentsLabel}
-          required
+          required={!optionalGearArmaments}
           preview={armamentsPreview}
           error={armamentsError}
           onChange={onArmamentsChange}

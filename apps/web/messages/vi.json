@@ -844,6 +844,10 @@
       "unflagAll": "Bỏ gắn cờ tất cả trong KD này",
       "openPage": "Mở trang di cư →",
       "replaceWithRejected": "Replace list with rejected ({count})",
+
+      "flagAllFailing": "Gắn cờ tất cả không đạt ({count})",
+
+      "replaceWithFailing": "Thay danh sách bằng không đạt ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
@@ -865,6 +869,16 @@
       "removeRoster": "Xóa danh sách",
       "targetKingdom": "Vương quốc mục tiêu",
       "process": "Xử lý & lưu",
+
+      "reapplyCh25": "Áp dụng lại bộ lọc CH25",
+
+      "reapplyHint": "Cắt dataset hiện tại theo danh sách CH25 trong roster mà không cần tải lại stats.",
+
+      "reapplied": "Giữ {kept} trên {before} · loại bỏ {removed} · {matched} trong roster · KD {kd}",
+
+      "errPickRoster": "Chọn file roster trước.",
+
+      "errNoDataset": "Không có dataset đã lưu để lọc lại. Tải stats lên trước.",
       "processing": "Đang xử lý…",
       "errPickStats": "Hãy chọn tệp thống kê .xlsx trước",
       "errPickKingdom": "Hãy chọn một vương quốc mục tiêu",

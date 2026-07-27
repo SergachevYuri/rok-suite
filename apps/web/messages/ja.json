@@ -844,6 +844,10 @@
       "unflagAll": "このKDのフラグをすべて解除",
       "openPage": "移行ページを開く →",
       "replaceWithRejected": "Replace list with rejected ({count})",
+
+      "flagAllFailing": "不合格をすべてフラグ付け（{count}）",
+
+      "replaceWithFailing": "リストを不合格に置き換え（{count}）",
       "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
@@ -865,6 +869,16 @@
       "removeRoster": "名簿を削除",
       "targetKingdom": "対象の王国",
       "process": "処理して保存",
+
+      "reapplyCh25": "CH25フィルタを再適用",
+
+      "reapplyHint": "Statsを再アップロードせずに、ロースターのCH25リストに現在のデータセットを絞り込みます。",
+
+      "reapplied": "{before}件中{kept}件保持 · {removed}件削除 · ロースター内CH25: {matched} · KD {kd}",
+
+      "errPickRoster": "まずロースターファイルを選択してください。",
+
+      "errNoDataset": "再フィルタする保存済みデータセットがありません。まずStatsをアップロードしてください。",
       "processing": "処理中…",
       "errPickStats": "先に.xlsx統計ファイルを選択してください",
       "errPickKingdom": "対象の王国を選択してください",

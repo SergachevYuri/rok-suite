@@ -844,6 +844,10 @@
       "unflagAll": "Desmarcar todos en este KD",
       "openPage": "Abrir página de migración →",
       "replaceWithRejected": "Replace list with rejected ({count})",
+
+      "flagAllFailing": "Marcar todos los reprobados ({count})",
+
+      "replaceWithFailing": "Reemplazar lista con reprobados ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
@@ -865,6 +869,16 @@
       "removeRoster": "Quitar lista",
       "targetKingdom": "Reino destino",
       "process": "Procesar y guardar",
+
+      "reapplyCh25": "Reaplicar filtro CH25",
+
+      "reapplyHint": "Recorta el dataset actual a la lista CH25 del roster sin volver a subir las stats.",
+
+      "reapplied": "Se mantuvieron {kept} de {before} · {removed} eliminados · {matched} en roster · KD {kd}",
+
+      "errPickRoster": "Elige primero un archivo de roster.",
+
+      "errNoDataset": "No hay dataset guardado para re-filtrar. Sube primero las stats.",
       "processing": "Procesando…",
       "errPickStats": "Elige primero un archivo de estadísticas .xlsx",
       "errPickKingdom": "Elige un Reino destino",

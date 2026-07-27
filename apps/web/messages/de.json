@@ -844,6 +844,10 @@
       "unflagAll": "Alle Markierungen in diesem KD aufheben",
       "openPage": "Migrationsseite öffnen →",
       "replaceWithRejected": "Replace list with rejected ({count})",
+
+      "flagAllFailing": "Alle unzureichenden markieren ({count})",
+
+      "replaceWithFailing": "Liste durch unzureichende ersetzen ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
@@ -865,6 +869,16 @@
       "removeRoster": "Kader entfernen",
       "targetKingdom": "Ziel-Königreich",
       "process": "Verarbeiten & speichern",
+
+      "reapplyCh25": "CH25-Filter erneut anwenden",
+
+      "reapplyHint": "Aktuellen Datensatz auf die CH25-Liste aus dem Roster kürzen, ohne die Statistik neu hochzuladen.",
+
+      "reapplied": "{kept} von {before} behalten · {removed} entfernt · {matched} im Roster · KD {kd}",
+
+      "errPickRoster": "Wähle zuerst eine Roster-Datei.",
+
+      "errNoDataset": "Kein gespeicherter Datensatz zum Neu-Filtern. Lade zuerst eine Statistik hoch.",
       "processing": "Verarbeitung…",
       "errPickStats": "Wählen Sie zuerst eine .xlsx-Statistikdatei",
       "errPickKingdom": "Wählen Sie ein Ziel-Königreich",

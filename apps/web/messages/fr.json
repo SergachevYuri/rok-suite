@@ -844,6 +844,10 @@
       "unflagAll": "Retirer tous les signalements de ce KD",
       "openPage": "Ouvrir la page de migration →",
       "replaceWithRejected": "Replace list with rejected ({count})",
+
+      "flagAllFailing": "Signaler tous les insuffisants ({count})",
+
+      "replaceWithFailing": "Remplacer la liste par les insuffisants ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
@@ -865,6 +869,16 @@
       "removeRoster": "Retirer la liste",
       "targetKingdom": "Royaume cible",
       "process": "Traiter et enregistrer",
+
+      "reapplyCh25": "Réappliquer le filtre CH25",
+
+      "reapplyHint": "Réduire le jeu de données actuel à la liste CH25 du roster sans recharger les stats.",
+
+      "reapplied": "Conservés {kept} sur {before} · {removed} retirés · {matched} dans le roster · KD {kd}",
+
+      "errPickRoster": "Choisis d'abord un fichier roster.",
+
+      "errNoDataset": "Aucun jeu de données enregistré à re-filtrer. Charge d'abord les stats.",
       "processing": "Traitement…",
       "errPickStats": "Choisissez d'abord un fichier de stats .xlsx",
       "errPickKingdom": "Choisissez un royaume cible",

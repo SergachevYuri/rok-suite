@@ -414,6 +414,11 @@ function DkpPageInner() {
   }, [scored]);
 
   const rejectedCount = summary.counts.REJECTED;
+  /** REJECTED + UNRANKED — the "failing" bucket the emigration flow targets.
+   *  Both count as underperformers because the dataset is already filtered to
+   *  CH25 via the roster upload — UNRANKED here means "CH25 with too little
+   *  power to fit any tier" (or excluded by top-N), not "not-yet-max-hall". */
+  const failingCount = summary.counts.REJECTED + summary.counts.UNRANKED;
   const flaggedInThisDataset = useMemo(() => {
     let n = 0;
     for (const p of scored) if (flaggedForMigration.has(p.characterId)) n++;
@@ -499,11 +504,12 @@ function DkpPageInner() {
     });
   };
 
-  const handleFlagAllRejected = () => {
+  const handleFlagAllFailing = () => {
     setFlaggedForMigration((prev) => {
       const next = new Set(prev);
       for (const p of scored) {
-        if (p.status === 'REJECTED') next.add(p.characterId);
+        // REJECTED + UNRANKED — see failingCount comment above for why both.
+        if (p.status === 'REJECTED' || p.status === 'UNRANKED') next.add(p.characterId);
       }
       persistFlagged(next);
       return next;
@@ -529,16 +535,18 @@ function DkpPageInner() {
     persistFlagged(new Set());
   };
 
-  /** Convenience: wipe the current emigration list AND flag every REJECTED
-   *  player in the current scored set as the new list. */
-  const handleReplaceWithRejected = () => {
-    const rejectedIds = scored.filter((p) => p.status === 'REJECTED').map((p) => p.characterId);
-    if (rejectedIds.length === 0) {
-      alert('No REJECTED players in the current view — nothing to send.');
+  /** Convenience: wipe the current emigration list AND flag every failing
+   *  (REJECTED + UNRANKED) player in the current scored set as the new list. */
+  const handleReplaceWithFailing = () => {
+    const failingIds = scored
+      .filter((p) => p.status === 'REJECTED' || p.status === 'UNRANKED')
+      .map((p) => p.characterId);
+    if (failingIds.length === 0) {
+      alert('No REJECTED or UNRANKED players in the current view — nothing to send.');
       return;
     }
-    if (!confirm(`Replace the emigration list with ${rejectedIds.length} REJECTED players from ${selectedKvk?.name ?? 'this KvK'} · KD ${selectedKingdomId}?\nThis wipes any previously-flagged players (including from other KDs).`)) return;
-    const next = new Set(rejectedIds);
+    if (!confirm(`Replace the emigration list with ${failingIds.length} failing players (REJECTED + UNRANKED) from ${selectedKvk?.name ?? 'this KvK'} · KD ${selectedKingdomId}?\nThis wipes any previously-flagged players (including from other KDs).`)) return;
+    const next = new Set(failingIds);
     setFlaggedForMigration(next);
     persistFlagged(next);
   };
@@ -841,20 +849,21 @@ function DkpPageInner() {
                 </span>
                 <button
                   type="button"
-                  onClick={handleFlagAllRejected}
-                  disabled={rejectedCount === 0}
+                  onClick={handleFlagAllFailing}
+                  disabled={failingCount === 0}
                   className="px-3 py-1.5 rounded-md text-xs bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Add every REJECTED and UNRANKED player from this view to the emigration list."
                 >
-                  {t('migration.flagAllRejected', { count: rejectedCount })}
+                  {t('migration.flagAllFailing', { count: failingCount })}
                 </button>
                 <button
                   type="button"
-                  onClick={handleReplaceWithRejected}
-                  disabled={rejectedCount === 0}
+                  onClick={handleReplaceWithFailing}
+                  disabled={failingCount === 0}
                   className="px-3 py-1.5 rounded-md text-xs bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  title="Wipe the whole emigration list, then flag every REJECTED player from this view."
+                  title="Wipe the whole emigration list, then flag every REJECTED and UNRANKED player from this view."
                 >
-                  {t('migration.replaceWithRejected', { count: rejectedCount })}
+                  {t('migration.replaceWithFailing', { count: failingCount })}
                 </button>
                 <button
                   type="button"
@@ -1031,6 +1040,75 @@ function UploadPanel({
     if (effectiveKd) set.add(effectiveKd);
     return [...set].sort((a, b) => a - b);
   }, [allKds, effectiveKd]);
+
+  /** Re-apply the CH25 filter to the dataset already stored in Supabase for
+   *  the current KvK+KD, without needing a fresh stats upload. Officers use
+   *  this when the roster changes (a player promoted CH24→CH25, someone left
+   *  the alliance, …) but the underlying KP/deaths snapshot is still current.
+   *
+   *  Flow: parse roster → build CH25 whitelist for effectiveKd → keep only
+   *  those player_ids from the currentDataset → save the trimmed dataset via
+   *  onUploaded, preserving the original stats/roster filenames. */
+  const handleReapplyCh25 = async () => {
+    setError(null);
+    setInfo(null);
+    if (!rosterFile) {
+      setError(t('upload.errPickRoster'));
+      return;
+    }
+    if (!currentDataset || currentDataset.players.length === 0) {
+      setError(t('upload.errNoDataset'));
+      return;
+    }
+    if (!effectiveKd) {
+      setError(t('upload.errPickKingdom'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const rosterFull = await parseRosterFile(rosterFile);
+      const allowed = new Set<number>();
+      for (const r of rosterFull) {
+        if (r.kd === effectiveKd && r.cityhall === 25) allowed.add(r.playerId);
+      }
+      if (allowed.size === 0) {
+        throw new Error(t('upload.errRosterNoMatch', { kd: effectiveKd }));
+      }
+      const before = currentDataset.players.length;
+      const kept = currentDataset.players.filter((p) => allowed.has(p.characterId));
+      if (kept.length === 0) {
+        throw new Error(t('upload.errRosterZeroRows', { count: allowed.size }));
+      }
+      await onUploaded(
+        {
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: currentDataset.uploadedBy ?? null,
+          // Preserve the original stats filename so the dataset provenance
+          // stays truthful — the underlying stats didn't change, only the
+          // CH25 whitelist did.
+          statsFileName: currentDataset.statsFileName ?? null,
+          honorFileName: rosterFile.name,
+          players: kept,
+        },
+        effectiveKd,
+      );
+      setInfo(
+        t('upload.reapplied', {
+          kept: kept.length,
+          matched: allowed.size,
+          before,
+          removed: before - kept.length,
+          kd: effectiveKd,
+        }),
+      );
+      setRosterFile(null);
+      if (rosterRef.current) rosterRef.current.value = '';
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('upload.errParse'));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleProcess = async () => {
     setError(null);
@@ -1246,6 +1324,16 @@ function UploadPanel({
           className="px-4 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {busy ? t('upload.processing') : t('upload.process')}
+        </button>
+        {/* Roster-only re-apply — no stats file needed. Trims the current
+         *  dataset in-place to the fresh CH25 whitelist. */}
+        <button
+          onClick={handleReapplyCh25}
+          disabled={!rosterFile || busy || !currentDataset || currentDataset.players.length === 0}
+          className="px-4 py-2 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-sm font-medium hover:bg-amber-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          title={t('upload.reapplyHint')}
+        >
+          {busy ? t('upload.processing') : t('upload.reapplyCh25')}
         </button>
         {info && <span className="text-xs text-emerald-400">{info}</span>}
         {error && <span className="text-xs text-red-400">{error}</span>}
