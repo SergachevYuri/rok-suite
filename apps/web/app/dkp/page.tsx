@@ -260,6 +260,30 @@ function DkpPageInner() {
 
   // ─── Migration flagging (shared via MIGRATION_ROW_ID config row) ────────
   const [flaggedForMigration, setFlaggedForMigration] = useState<Set<number>>(new Set());
+
+  /** Player coords from the most recent location scan — displayed as a column
+   *  in the DKP table so officers can see who's where without jumping to
+   *  another page. Best-effort: empty when no location scan has been
+   *  uploaded, and stale if the scan is old (surfaced via `coordsScanLabel`). */
+  const [coordsByPlayer, setCoordsByPlayer] = useState<Map<number, { x: number | null; y: number | null }>>(new Map());
+  const [coordsScanLabel, setCoordsScanLabel] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { loadLatestLocationPoints } = await import('@/lib/zero-list/scan-data');
+        const { scan, points } = await loadLatestLocationPoints();
+        if (cancelled) return;
+        const map = new Map<number, { x: number | null; y: number | null }>();
+        for (const p of points) map.set(p.governorId, { x: p.x, y: p.y });
+        setCoordsByPlayer(map);
+        setCoordsScanLabel(scan?.label ?? null);
+      } catch (e) {
+        console.warn('DKP coords fetch failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const flagDirtyRef = useRef(false);
 
   useEffect(() => {
@@ -904,6 +928,8 @@ function DkpPageInner() {
               showGovId={showGovId}
               flagged={flaggedForMigration}
               onToggleFlag={isOfficer ? handleToggleFlag : null}
+              coordsByPlayer={coordsByPlayer}
+              coordsScanLabel={coordsScanLabel}
             />
           </>
         )}
@@ -2381,6 +2407,12 @@ interface PlayersTableProps {
   flagged: Set<number>;
   /** When provided, the checkbox column is shown (officer-only). null = read-only. */
   onToggleFlag: ((characterId: number) => void) | null;
+  /** Map from character_id to x/y coords from the latest location scan.
+   *  Empty when no location scan has been uploaded yet. */
+  coordsByPlayer: Map<number, { x: number | null; y: number | null }>;
+  /** Label of the source scan for the coords column (e.g. "Jul 15, 2026 · scan_3923.csv").
+   *  Shown as a subtle helper next to the column header so it's clear how fresh the data is. */
+  coordsScanLabel: string | null;
 }
 
 type TFn = ReturnType<typeof useTranslations>;
@@ -2465,7 +2497,7 @@ function tierTipContent(p: SimpleScoredPlayer, t: TFn): React.ReactNode {
   );
 }
 
-function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, scoringRule, showGovId, flagged, onToggleFlag }: PlayersTableProps) {
+function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, scoringRule, showGovId, flagged, onToggleFlag, coordsByPlayer, coordsScanLabel }: PlayersTableProps) {
   const t = useTranslations('dkp');
   const showFlagCol = onToggleFlag !== null;
   // The scroll container has BOTH axis overflow set on the same element (`overflow-auto`)
@@ -2487,6 +2519,12 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
               )}
               <Th k="rank" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">{t('columns.rank')}</Th>
               <Th k="username" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-left">{t('columns.name')}</Th>
+              <th
+                className={`${thSticky} px-3 py-2 text-left font-normal`}
+                title={coordsScanLabel ? `Coords from: ${coordsScanLabel}` : 'No location scan uploaded yet — upload via Migration Tracker > Scans > Location Upload.'}
+              >
+                Coords
+              </th>
               <Th k="power" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.power')}>{t('columns.power')}</Th>
               <Th k="tier" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center" help={t('columnHelp.tier')}>{t('columns.tier')}</Th>
               <Th k="t4Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.t4Deaths')}>{t('columns.t4Deaths')}</Th>
@@ -2504,7 +2542,7 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={showFlagCol ? 15 : 14} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+                <td colSpan={showFlagCol ? 16 : 15} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
                   {t('table.empty')}
                 </td>
               </tr>
@@ -2537,6 +2575,13 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                   {showGovId && (
                     <span className="ml-2 text-xs text-[var(--text-muted)] font-mono">#{p.characterId}</span>
                   )}
+                </td>
+                <td className="px-3 py-2 text-left tabular-nums text-[var(--text-muted)] whitespace-nowrap">
+                  {(() => {
+                    const c = coordsByPlayer.get(p.characterId);
+                    if (!c || c.x == null || c.y == null) return <span className="text-[var(--text-muted)]/40">—</span>;
+                    return `${c.x}, ${c.y}`;
+                  })()}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmtM(p.power)}</td>
                 <td className="px-3 py-2 text-center">
