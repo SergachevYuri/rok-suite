@@ -1068,8 +1068,12 @@ function UploadPanel({
     try {
       const rosterFull = await parseRosterFile(rosterFile);
       const allowed = new Set<number>();
+      const rosterByPlayerId = new Map<number, import('./data').RosterRow>();
       for (const r of rosterFull) {
-        if (r.kd === effectiveKd && r.cityhall === 25) allowed.add(r.playerId);
+        if (r.kd === effectiveKd && r.cityhall === 25) {
+          allowed.add(r.playerId);
+          rosterByPlayerId.set(r.playerId, r);
+        }
       }
       if (allowed.size === 0) {
         throw new Error(t('upload.errRosterNoMatch', { kd: effectiveKd }));
@@ -1079,6 +1083,34 @@ function UploadPanel({
       if (kept.length === 0) {
         throw new Error(t('upload.errRosterZeroRows', { count: allowed.size }));
       }
+
+      // Same ghost-row treatment as handleProcess: any CH25 in the fresh
+      // roster who wasn't in the saved dataset gets synthesized with zero
+      // stats so they show up in the DKP view (typically as UNRANKED / low
+      // ratio, both eligible for the emigration flag).
+      const seenIds = new Set(kept.map((p) => p.characterId));
+      let ghostsAdded = 0;
+      for (const [pid, r] of rosterByPlayerId) {
+        if (seenIds.has(pid)) continue;
+        const power = r.power ?? 0;
+        kept.push({
+          characterId: pid,
+          username: r.name ?? `Player ${pid}`,
+          power,
+          highestPower: power,
+          t5Deaths: 0,
+          t4Deaths: 0,
+          totalKP: r.kp ?? 0,
+          t5Kills: 0,
+          t4Kills: 0,
+          rssGathered: 0,
+          allianceHelps: 0,
+          dkp: 0,
+          honorPoints: 0,
+        });
+        ghostsAdded += 1;
+      }
+
       await onUploaded(
         {
           uploadedAt: new Date().toISOString(),
@@ -1092,15 +1124,17 @@ function UploadPanel({
         },
         effectiveKd,
       );
-      setInfo(
-        t('upload.reapplied', {
-          kept: kept.length,
-          matched: allowed.size,
-          before,
-          removed: before - kept.length,
-          kd: effectiveKd,
-        }),
-      );
+      const baseMsg = t('upload.reapplied', {
+        kept: kept.length - ghostsAdded,
+        matched: allowed.size,
+        before,
+        removed: before - (kept.length - ghostsAdded),
+        kd: effectiveKd,
+      });
+      const ghostSuffix = ghostsAdded > 0
+        ? ` · ${ghostsAdded} CH25 with no fight activity added as zero-stat ghosts`
+        : '';
+      setInfo(baseMsg + ghostSuffix);
       setRosterFile(null);
       if (rosterRef.current) rosterRef.current.value = '';
     } catch (e) {
@@ -1130,18 +1164,52 @@ function UploadPanel({
       let rosterFilename: string | null = null;
 
       let rosterFull: import('./data').RosterRow[] | null = null;
+      let ghostsAdded = 0;
       if (rosterFile) {
         rosterFull = await parseRosterFile(rosterFile);
         // Build whitelist: player_id where KD == target AND cityhall == 25.
         const allowed = new Set<number>();
+        const rosterByPlayerId = new Map<number, import('./data').RosterRow>();
         for (const r of rosterFull) {
-          if (r.kd === effectiveKd && r.cityhall === 25) allowed.add(r.playerId);
+          if (r.kd === effectiveKd && r.cityhall === 25) {
+            allowed.add(r.playerId);
+            rosterByPlayerId.set(r.playerId, r);
+          }
         }
         rosterMatched = allowed.size;
         if (allowed.size === 0) {
           throw new Error(t('upload.errRosterNoMatch', { kd: effectiveKd }));
         }
         players = players.filter((p) => allowed.has(p.characterId));
+
+        // Ghost rows for CH25 players who never appeared in the MGE stats —
+        // they didn't fight at all this cycle, so the export skipped them.
+        // Adding them as zero-stat entries surfaces them in the DKP view as
+        // REJECTED (if roster power ≥ 30M) or UNRANKED (no power / <30M),
+        // both of which are eligible for the emigration flag. Without this
+        // they'd be invisible and impossible to zero-list from the DKP page.
+        const seenInStats = new Set(players.map((p) => p.characterId));
+        for (const [pid, r] of rosterByPlayerId) {
+          if (seenInStats.has(pid)) continue;
+          const power = r.power ?? 0;
+          players.push({
+            characterId: pid,
+            username: r.name ?? `Player ${pid}`,
+            power,
+            highestPower: power,
+            t5Deaths: 0,
+            t4Deaths: 0,
+            totalKP: r.kp ?? 0,
+            t5Kills: 0,
+            t4Kills: 0,
+            rssGathered: 0,
+            allianceHelps: 0,
+            dkp: 0,
+            honorPoints: 0,
+          });
+          ghostsAdded += 1;
+        }
+
         rosterFilename = rosterFile.name;
         if (players.length === 0) {
           throw new Error(t('upload.errRosterZeroRows', { count: allowed.size }));
@@ -1178,21 +1246,29 @@ function UploadPanel({
         }
       }
 
+      // Ghost rows shift the arithmetic: `filtered` here still means "how many
+      // stats-side rows we DROPPED" (weren't in roster), not "how many total
+      // rows disappeared from `players`". Compute against the pre-ghost count
+      // so the number stays honest.
+      const statsSurvivors = players.length - ghostsAdded;
       const baseMsg = rosterFile
         ? t('upload.savedWithRoster', {
             saved: players.length,
             matched: rosterMatched,
             kd: effectiveKd,
             before: beforeFilter,
-            filtered: beforeFilter - players.length,
+            filtered: beforeFilter - statsSurvivors,
           })
         : t('upload.saved', { saved: players.length, kd: effectiveKd });
+      const ghostSuffix = ghostsAdded > 0
+        ? ` · ${ghostsAdded} CH25 with no fight activity added as zero-stat ghosts`
+        : '';
       const suffix = kingdomStatsPushed
         ? ` · Kingdom Stats: ${kingdomStatsPushed.kingdoms} KDs / ${kingdomStatsPushed.players} players`
         : kingdomStatsError
           ? ` · Kingdom Stats push failed: ${kingdomStatsError}`
           : '';
-      setInfo(baseMsg + suffix);
+      setInfo(baseMsg + ghostSuffix + suffix);
       setFile(null);
       setRosterFile(null);
       setKdOverride(null);
