@@ -20,7 +20,7 @@ import {
 } from '@/lib/zero-list/scan-data';
 import { computeScores, DEFAULT_CONFIG, type Config, type ScoredPlayer } from '@/lib/dkp/scoring';
 import { loadSharedConfig } from '@/app/dkp/data';
-import { autoMarkEmigratedFromScan, bulkAddToZeroList, refreshZeroListFromScan } from '@/lib/supabase/use-migration-cases';
+import { autoDetectPowerChangesFromScan, autoMarkEmigratedFromScan, bulkAddToZeroList, refreshZeroListFromScan } from '@/lib/supabase/use-migration-cases';
 
 interface Props {
   isOfficer: boolean;
@@ -1040,6 +1040,23 @@ function LocationPanel({ scans, actorName }: { scans: ScanRef[]; actorName: stri
         savedMsg = ` (Couldn't save the location scan: ${e instanceof Error ? e.message : String(e)} — coord refresh on Zero List still ran.)`;
       }
 
+      // ORDER MATTERS: power-change detection has to run BEFORE
+      // refreshZeroListFromScan, because that refresh overwrites the case's
+      // `last_seen_power` with the new value — running detection after
+      // would compare the new number against itself and find zero delta.
+      let powerMsg = '';
+      try {
+        const powerByGovId = new Map<number, number>();
+        for (const p of parsed) powerByGovId.set(p.playerId, p.playerPower);
+        const { zeroed, rebuilt, checked } = await autoDetectPowerChangesFromScan(powerByGovId, actorName);
+        const parts: string[] = [];
+        if (zeroed > 0) parts.push(`${zeroed} auto-zeroed (power dropped ≥ 1M)`);
+        if (rebuilt > 0) parts.push(`${rebuilt} auto-rebuilt (power grew after zero)`);
+        if (parts.length > 0) powerMsg = ` ${parts.join(', ')} · checked ${checked}.`;
+      } catch (e) {
+        powerMsg = ` (Power-change detect failed: ${e instanceof Error ? e.message : String(e)})`;
+      }
+
       const { updated, renamed } = await refreshZeroListFromScan(null, rows);
       const renameNote = renamed > 0 ? ` ${renamed} ${renamed === 1 ? 'name was' : 'names were'} updated.` : '';
 
@@ -1061,7 +1078,7 @@ function LocationPanel({ scans, actorName }: { scans: ScanRef[]; actorName: stri
       }
 
       setResult(
-        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} Zero List ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.${renameNote}${savedMsg}${autoMsg}`,
+        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} Zero List ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.${renameNote}${savedMsg}${powerMsg}${autoMsg}`,
       );
     } catch (e) {
       setResult(`Failed: ${e instanceof Error ? e.message : String(e)}`);
