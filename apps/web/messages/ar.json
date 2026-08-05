@@ -844,6 +844,10 @@
       "unflagAll": "إلغاء التعليم للجميع في هذه الـ KD",
       "openPage": "فتح صفحة الترحيل ←",
       "replaceWithRejected": "Replace list with rejected ({count})",
+
+      "flagAllFailing": "تعليم كل الفاشلين ({count})",
+
+      "replaceWithFailing": "استبدال القائمة بالفاشلين ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
@@ -865,6 +869,16 @@
       "removeRoster": "إزالة القائمة",
       "targetKingdom": "المملكة المستهدفة",
       "process": "معالجة وحفظ",
+
+      "reapplyCh25": "إعادة تطبيق فلتر CH25",
+
+      "reapplyHint": "قص مجموعة البيانات الحالية إلى قائمة CH25 من الروستر بدون تحميل الإحصائيات مرة أخرى.",
+
+      "reapplied": "أُبقي {kept} من {before} · تم إزالة {removed} · {matched} في الروستر · KD {kd}",
+
+      "errPickRoster": "اختر ملف الروستر أولاً.",
+
+      "errNoDataset": "لا توجد بيانات محفوظة لإعادة التصفية. حمّل الإحصائيات أولاً.",
       "processing": "جارٍ المعالجة…",
       "errPickStats": "اختر ملف إحصائيات ‎.xlsx أولاً",
       "errPickKingdom": "اختر مملكة مستهدفة",

@@ -20,7 +20,7 @@ import {
 } from '@/lib/zero-list/scan-data';
 import { computeScores, DEFAULT_CONFIG, type Config, type ScoredPlayer } from '@/lib/dkp/scoring';
 import { loadSharedConfig } from '@/app/dkp/data';
-import { bulkAddToZeroList, refreshZeroListFromScan } from '@/lib/supabase/use-migration-cases';
+import { autoDetectPowerChangesFromScan, autoMarkEmigratedFromScan, bulkAddToZeroList, refreshZeroListFromScan } from '@/lib/supabase/use-migration-cases';
 
 interface Props {
   isOfficer: boolean;
@@ -206,7 +206,7 @@ export function ScansTab({ isOfficer, isAdmin, actorName }: Props) {
           {subTab === 'browse' && <BrowsePanel scans={scans} config={config} isAdmin={isAdmin} actorName={actorName} />}
           {subTab === 'compare' && <ComparePanel scans={scans} isAdmin={isAdmin} actorName={actorName} />}
           {subTab === 'migrants' && isAdmin && <MigrantsPanel scans={scans} actorName={actorName} />}
-          {subTab === 'location' && isAdmin && <LocationPanel scans={scans} />}
+          {subTab === 'location' && isAdmin && <LocationPanel scans={scans} actorName={actorName} />}
         </>
       )}
     </div>
@@ -965,7 +965,7 @@ function DecisionBadge({ d, raw }: { d: 'yes' | 'no' | 'maybe' | 'unknown'; raw?
 
 // ─── Location upload: refresh coords on existing zero-list entries ───────────
 
-function LocationPanel({ scans }: { scans: ScanRef[] }) {
+function LocationPanel({ scans, actorName }: { scans: ScanRef[]; actorName: string | null }) {
   // Only Davide-source scans have coords. Auto-scrape (seeds) doesn't, so filter.
   const davideScans = useMemo(() => scans.filter((s) => s.kind === 'davide'), [scans]);
   const [scanKey, setScanKey] = useState<string>(davideScans[0] ? scanRefKey(davideScans[0]) : '');
@@ -1040,10 +1040,45 @@ function LocationPanel({ scans }: { scans: ScanRef[] }) {
         savedMsg = ` (Couldn't save the location scan: ${e instanceof Error ? e.message : String(e)} — coord refresh on Zero List still ran.)`;
       }
 
+      // ORDER MATTERS: power-change detection has to run BEFORE
+      // refreshZeroListFromScan, because that refresh overwrites the case's
+      // `last_seen_power` with the new value — running detection after
+      // would compare the new number against itself and find zero delta.
+      let powerMsg = '';
+      try {
+        const powerByGovId = new Map<number, number>();
+        for (const p of parsed) powerByGovId.set(p.playerId, p.playerPower);
+        const { zeroed, rebuilt, checked } = await autoDetectPowerChangesFromScan(powerByGovId, actorName);
+        const parts: string[] = [];
+        if (zeroed > 0) parts.push(`${zeroed} auto-zeroed (power dropped ≥ 1M)`);
+        if (rebuilt > 0) parts.push(`${rebuilt} auto-rebuilt (power grew after zero)`);
+        if (parts.length > 0) powerMsg = ` ${parts.join(', ')} · checked ${checked}.`;
+      } catch (e) {
+        powerMsg = ` (Power-change detect failed: ${e instanceof Error ? e.message : String(e)})`;
+      }
+
       const { updated, renamed } = await refreshZeroListFromScan(null, rows);
       const renameNote = renamed > 0 ? ` ${renamed} ${renamed === 1 ? 'name was' : 'names were'} updated.` : '';
+
+      // Auto-mark emigrated: any previously-tracked active case (pending,
+      // claimed, contacted, marked_to_zero, excepted) whose gov_id isn't in
+      // this scan gets flipped to `migrated`. See autoMarkEmigratedFromScan
+      // for the exact rule and scope choices.
+      let autoMsg = '';
+      try {
+        const scanGovIds = new Set(parsed.map((p) => p.playerId));
+        const { updated: autoUpdated, checked } = await autoMarkEmigratedFromScan(scanGovIds, actorName);
+        if (autoUpdated > 0) {
+          autoMsg = ` Auto-marked ${autoUpdated} of ${checked} tracked ${checked === 1 ? 'case' : 'cases'} as emigrated (no longer in scan).`;
+        } else if (checked > 0) {
+          autoMsg = ` All ${checked} tracked ${checked === 1 ? 'case is' : 'cases are'} still present in the scan — no auto-emigrations.`;
+        }
+      } catch (e) {
+        autoMsg = ` (Auto-emigrate step failed: ${e instanceof Error ? e.message : String(e)})`;
+      }
+
       setResult(
-        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} Zero List ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.${renameNote}${savedMsg}`,
+        `Parsed ${parsed.length} rows from ${file.name}. Updated ${updated} Zero List ${updated === 1 ? 'entry' : 'entries'} with fresh coordinates, power, and alliance.${renameNote}${savedMsg}${powerMsg}${autoMsg}`,
       );
     } catch (e) {
       setResult(`Failed: ${e instanceof Error ? e.message : String(e)}`);

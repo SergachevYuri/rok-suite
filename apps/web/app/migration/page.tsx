@@ -101,6 +101,8 @@ import {
   markContacted,
   markToZero,
   bulkMarkToZero,
+  bulkSetState,
+  syncZeroListNamesFromLatestScans,
   markAfk,
   requestException,
   denyExceptionRequest,
@@ -208,6 +210,11 @@ function MigrationPageInner() {
   const [cycles, setCycles] = useState<MigrationCycle[]>([]);
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
   const [cases, setCases] = useState<MigrationCase[]>([]);
+  /** Officer multi-select on the cycle table — enables bulk state transitions
+   *  (Mark to Zero, Emigrated, AFK, …) without clicking through each row. Kept
+   *  local to this cycle view; cleared on cycle switch. */
+  const [selectedCaseIds, setSelectedCaseIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
   /** player_id → career KP from the latest seeds_kd_players scan for the
    *  DKP-selected KvK. Populated in a background effect when cases change so
    *  the cycle table can show total-KP alongside the KvK-only kp_at_open. */
@@ -342,6 +349,17 @@ function MigrationPageInner() {
         if (!cancelled) setLoading(false);
       }
     })();
+
+    // Background pass: propagate in-game rename events to the case rows so
+    // stale usernames don't linger for weeks until someone opens the Zero
+    // List tab. Failures are swallowed — the sync is nice-to-have.
+    (async () => {
+      try {
+        await syncZeroListNamesFromLatestScans();
+      } catch (e) {
+        console.warn('Migration cycle: name sync failed', e);
+      }
+    })();
     const unsub = subscribeToCycles(async () => {
       const fresh = await listCycles();
       setCycles(fresh);
@@ -356,8 +374,12 @@ function MigrationPageInner() {
   useEffect(() => {
     if (!selectedCycleId) {
       setCases([]);
+      setSelectedCaseIds(new Set());
       return;
     }
+    // Cycle switch invalidates the current bulk selection — stale IDs would
+    // silently misfire against the newly-loaded cases.
+    setSelectedCaseIds(new Set());
     let cancelled = false;
     (async () => {
       const data = await listCases(selectedCycleId);
@@ -582,6 +604,67 @@ function MigrationPageInner() {
       alert(`Failed: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
+
+  // ─── Bulk actions on multi-selected cases ────────────────────────────────
+
+  const toggleCaseSelected = useCallback((id: string) => {
+    setSelectedCaseIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  /** Select-all toggle scoped to what's currently VISIBLE (post-filter/search),
+   *  not the full case list. That matches the mental model — the checkbox in
+   *  the header acts on what the officer can see. */
+  const toggleSelectAllVisible = useCallback((visibleIds: string[]) => {
+    setSelectedCaseIds((prev) => {
+      const allSelected = visibleIds.length > 0 && visibleIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        for (const id of visibleIds) next.delete(id);
+      } else {
+        for (const id of visibleIds) next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedCaseIds(new Set()), []);
+
+  const runBulk = useCallback(async (
+    label: string,
+    state: 'migrated' | 'zeroed' | 'excepted' | 'afk' | 'marked_to_zero',
+    opts?: { exceptionReason?: string | null; adminOnly?: boolean },
+  ) => {
+    if (opts?.adminOnly && !isAdmin) {
+      alert('This bulk action is admin-only.');
+      return;
+    }
+    if (!officerName) {
+      alert('Please set your officer name first via the Sign In dialog.');
+      return;
+    }
+    const ids = [...selectedCaseIds];
+    if (ids.length === 0) return;
+    if (!confirm(`${label} ${ids.length} case${ids.length === 1 ? '' : 's'}?`)) return;
+    setBulkBusy(true);
+    try {
+      const updated = await bulkSetState(ids, state, officerName, {
+        exceptionReason: opts?.exceptionReason ?? null,
+      });
+      setSelectedCaseIds(new Set());
+      await refetchCases();
+      alert(`Updated ${updated} case${updated === 1 ? '' : 's'} → ${state}.`);
+    } catch (e) {
+      console.error('Bulk state change failed', e);
+      alert(`Failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selectedCaseIds, officerName, isAdmin, refetchCases]);
 
   if (loading) {
     return (
@@ -1037,12 +1120,92 @@ function MigrationPageInner() {
               <span className="text-xs text-[var(--text-muted)] ml-auto">{filteredCases.length} shown · {cases.length} total</span>
             </section>
 
+            {/* Bulk action bar — shows when 1+ cases are selected via the
+             *  row checkboxes. Officer-gated because state transitions are
+             *  officer/admin territory. */}
+            {isOfficer && selectedCaseIds.size > 0 && (
+              <section className="mb-2 rounded-xl bg-amber-500/5 border border-amber-500/30 px-3 py-2 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-amber-300">
+                  {selectedCaseIds.size} selected
+                </span>
+                <div className="h-4 w-px bg-amber-500/30 mx-1" />
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => runBulk('Mark to Zero', 'marked_to_zero')}
+                  className="px-2.5 py-1 rounded-md text-xs bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Mark to Zero
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => runBulk('Confirm Zeroed', 'zeroed')}
+                  className="px-2.5 py-1 rounded-md text-xs bg-red-600/15 text-red-300 border border-red-600/30 hover:bg-red-600/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Confirm Zeroed
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => runBulk('Mark Emigrated', 'migrated')}
+                  className="px-2.5 py-1 rounded-md text-xs bg-green-500/15 text-green-300 border border-green-500/30 hover:bg-green-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Emigrated
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => runBulk('Mark AFK', 'afk', { adminOnly: true })}
+                  className="px-2.5 py-1 rounded-md text-xs bg-slate-500/15 text-slate-300 border border-slate-500/30 hover:bg-slate-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title={isAdmin ? undefined : 'Admin only'}
+                >
+                  AFK
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={() => runBulk('Except', 'excepted', { adminOnly: true, exceptionReason: 'Bulk exception' })}
+                  className="px-2.5 py-1 rounded-md text-xs bg-blue-500/15 text-blue-300 border border-blue-500/30 hover:bg-blue-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title={isAdmin ? undefined : 'Admin only'}
+                >
+                  Except
+                </button>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="ml-auto px-2.5 py-1 rounded-md text-xs text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  Clear
+                </button>
+              </section>
+            )}
+
             {/* Cases table */}
             <section className="rounded-xl bg-[var(--background-card)] border border-[var(--border)]">
               <div className="overflow-auto max-h-[calc(100vh-240px)] rounded-xl">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-20 bg-[var(--background-secondary)] text-[var(--text-muted)] text-xs uppercase tracking-wider shadow-[0_1px_0_var(--border)]">
                     <tr>
+                      {isOfficer && (
+                        <th className="px-3 py-2 w-8 text-center">
+                          {(() => {
+                            const visibleIds = filteredCases.map((c) => c.id);
+                            const allChecked = visibleIds.length > 0 && visibleIds.every((id) => selectedCaseIds.has(id));
+                            const someChecked = !allChecked && visibleIds.some((id) => selectedCaseIds.has(id));
+                            return (
+                              <input
+                                type="checkbox"
+                                checked={allChecked}
+                                ref={(el) => { if (el) el.indeterminate = someChecked; }}
+                                onChange={() => toggleSelectAllVisible(visibleIds)}
+                                className="accent-amber-500 cursor-pointer"
+                                title={allChecked ? 'Deselect all visible' : 'Select all visible'}
+                              />
+                            );
+                          })()}
+                        </th>
+                      )}
                       <SortableTh label="Player" field="username" active={sortField} dir={sortDir} onSort={toggleSort} />
                       <SortableTh label="Power" field="power_at_open" align="right" active={sortField} dir={sortDir} onSort={toggleSort} />
                       <SortableTh label="KP" field="kp_at_open" align="right" active={sortField} dir={sortDir} onSort={toggleSort} />
@@ -1062,11 +1225,13 @@ function MigrationPageInner() {
                         isAdmin={isAdmin}
                         pastDeadline={pastDeadline}
                         onRefresh={refetchCases}
+                        selected={selectedCaseIds.has(c.id)}
+                        onToggleSelected={isOfficer ? toggleCaseSelected : null}
                       />
                     ))}
                     {filteredCases.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
+                        <td colSpan={isOfficer ? 8 : 7} className="px-3 py-10 text-center text-sm text-[var(--text-muted)]">
                           No cases match your filters.
                         </td>
                       </tr>
@@ -1422,6 +1587,8 @@ function CaseRow({
   isAdmin,
   pastDeadline,
   onRefresh,
+  selected,
+  onToggleSelected,
 }: {
   caseRow: MigrationCase;
   officerName: string | null;
@@ -1429,6 +1596,11 @@ function CaseRow({
   isAdmin: boolean;
   onRefresh: () => Promise<void>;
   pastDeadline: boolean;
+  /** True when this row is part of the bulk multi-selection. */
+  selected: boolean;
+  /** Toggle callback for the bulk-select checkbox. Null when the viewer
+   *  lacks officer rights — the checkbox column is then not rendered. */
+  onToggleSelected: ((id: string) => void) | null;
 }) {
   const [showException, setShowException] = useState(false);
   const [showEditException, setShowEditException] = useState(false);
@@ -1474,7 +1646,17 @@ function CaseRow({
   const actorName = officerName?.trim() || 'officer';
 
   return (
-    <tr className={`border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${pastDeadline && isActive ? 'bg-rose-500/5' : ''}`}>
+    <tr className={`border-t border-[var(--border)] hover:bg-[var(--background-hover)] transition-colors ${pastDeadline && isActive ? 'bg-rose-500/5' : selected ? 'bg-amber-500/5' : ''}`}>
+      {onToggleSelected && (
+        <td className="px-3 py-2 text-center">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelected(c.id)}
+            className="accent-amber-500 cursor-pointer"
+          />
+        </td>
+      )}
       <td className="px-3 py-2">
         <CopyablePlayerCell name={c.username} govId={c.character_id} />
       </td>

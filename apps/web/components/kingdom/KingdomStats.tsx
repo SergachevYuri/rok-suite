@@ -623,6 +623,26 @@ export default function KingdomStats({
     return Array.from(byDate.values()).sort((a, b) => (a.scan_date as string).localeCompare(b.scan_date as string));
   }, [chartStats, chartMetric]);
 
+  /** For each date in `chartData`, a lookup of the previous date's value per
+   *  KD series key ("KD 3923", …). The tooltip uses it to render up/down/=
+   *  trend arrows. First date has no prev → an empty map, which the tooltip
+   *  treats as "no comparison available" and shows a neutral marker. */
+  const prevValueByDate = useMemo(() => {
+    const out = new Map<string, Map<string, number>>();
+    for (let i = 1; i < chartData.length; i++) {
+      const prev = chartData[i - 1];
+      const cur = chartData[i];
+      const map = new Map<string, number>();
+      for (const key of Object.keys(cur)) {
+        if (key === 'scan_date') continue;
+        const v = prev[key];
+        if (typeof v === 'number') map.set(key, v);
+      }
+      out.set(String(cur.scan_date), map);
+    }
+    return out;
+  }, [chartData]);
+
   // Sort lines by latest metric value desc (legend ordering)
   const sortedChartKingdomIds = useMemo(() => {
     if (chartStats.length === 0) return chartKingdomIds;
@@ -1227,7 +1247,7 @@ export default function KingdomStats({
                       tick={{ fill: 'var(--text-muted)', fontSize: 12 }}
                       tickFormatter={formatCompact}
                     />
-                    <Tooltip content={<TwoColTooltip />} />
+                    <Tooltip content={(props) => <TwoColTooltip {...(props as unknown as TooltipProps)} prevValueByDate={prevValueByDate} />} />
                     <Legend />
                     {sortedChartKingdomIds.map((k) => {
                       const isHovered = hoveredKd === k;
@@ -1299,11 +1319,20 @@ export default function KingdomStats({
 
 // Custom 2-column chart tooltip, items sorted by value desc.
 type TooltipPayloadItem = { name?: string | number; value?: number | string; color?: string };
-type TooltipProps = { active?: boolean; payload?: TooltipPayloadItem[]; label?: string | number };
+type TooltipProps = {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string | number;
+  /** date → (seriesKey → previous-day value). Passed via a `content` factory
+   *  from the parent so the tooltip can render trend arrows without holding
+   *  the full chart data itself. */
+  prevValueByDate?: Map<string, Map<string, number>>;
+};
 
 function TwoColTooltip(props: TooltipProps) {
-  const { active, payload, label } = props;
+  const { active, payload, label, prevValueByDate } = props;
   if (!active || !payload || payload.length === 0) return null;
+  const prevMap = prevValueByDate?.get(String(label ?? '')) ?? null;
   // Sort desc by value AND remember the sorted position so both columns
   // (left / right) show a stable rank that reflects the current hover point.
   // Ties keep their payload order — rank is 1-indexed by descending value.
@@ -1313,15 +1342,48 @@ function TwoColTooltip(props: TooltipProps) {
   const half = Math.ceil(ranked.length / 2);
   const left = ranked.slice(0, half);
   const right = ranked.slice(half);
-  const renderRow = ({ it, rank }: { it: TooltipPayloadItem; rank: number }, i: number) => (
-    <div key={i} className="flex items-center justify-between gap-3 leading-tight">
-      <span className="flex items-center gap-1.5 min-w-0">
-        <span className="tabular-nums text-[var(--text-muted)] w-5 text-right">#{rank}</span>
-        <span className="truncate" style={{ color: it.color }}>{String(it.name ?? '')}</span>
-      </span>
-      <span className="tabular-nums text-[var(--foreground)]">{formatCompact(Number(it.value) || 0)}</span>
-    </div>
-  );
+  const renderRow = ({ it, rank }: { it: TooltipPayloadItem; rank: number }, i: number) => {
+    // Trend vs the previous day for this KD series. Absent when either the
+    // hovered point is the first date in the range or the previous day had
+    // no value for this KD (gap in scan coverage).
+    const name = String(it.name ?? '');
+    const cur = Number(it.value) || 0;
+    const prev = prevMap?.get(name);
+    let trend: { arrow: string; color: string; deltaLabel: string; title: string } | null = null;
+    if (prev != null) {
+      const delta = cur - prev;
+      // Small threshold so 1-2 unit jitter doesn't flip the arrow visually.
+      // Meaningful for both KP and power — the metrics we currently chart.
+      const EQ_EPSILON = 1000;
+      if (delta > EQ_EPSILON) {
+        trend = { arrow: '↑', color: 'text-emerald-400', deltaLabel: `+${formatCompact(delta)}`, title: `+${formatCompact(delta)} vs previous day` };
+      } else if (delta < -EQ_EPSILON) {
+        trend = { arrow: '↓', color: 'text-rose-400', deltaLabel: `-${formatCompact(Math.abs(delta))}`, title: `-${formatCompact(Math.abs(delta))} vs previous day` };
+      } else {
+        trend = { arrow: '=', color: 'text-amber-400', deltaLabel: '', title: 'No change vs previous day' };
+      }
+    }
+    return (
+      <div key={i} className="flex items-center justify-between gap-3 leading-tight">
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span className="tabular-nums text-[var(--text-muted)] w-5 text-right">#{rank}</span>
+          <span className="truncate" style={{ color: it.color }}>{name}</span>
+        </span>
+        <span className="flex items-center gap-1.5 tabular-nums text-[var(--foreground)]">
+          <span>{formatCompact(cur)}</span>
+          {trend && (
+            <span
+              className={`text-[10px] font-semibold ${trend.color}`}
+              title={trend.title}
+            >
+              {trend.arrow}
+              {trend.deltaLabel && <span className="ml-0.5 font-normal">({trend.deltaLabel})</span>}
+            </span>
+          )}
+        </span>
+      </div>
+    );
+  };
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--background-card)]/95 backdrop-blur p-2.5 text-xs shadow-lg">
       <div className="text-[var(--text-muted)] mb-1.5">Date: {String(label ?? '')}</div>

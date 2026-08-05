@@ -134,3 +134,10 @@ Elizabeth I | Engineering | Versatility | Skill | Legendary
 Vercingetorix | Leadership | Versatility | Support | Legendary
 Hayam Wuruk | Archer | Garrison | Skill | Legendary
 Alp Arslan | Archer | Versatility | Skill | Legendary
+David IV | Cavalry | Garrison | Defense | Legendary
+Arthur Pendragon | Cavalry | Versatility | Skill | Legendary
+Liu Che | Infantry | Conquering | Attack | Legendary
+Scipio Africanus Prime | Leadership | Conquering | Attack | Legendary
+Amanitore | Archer | Conquering | Skill | Legendary
+Sargon of Akkad | Infantry | Conquering | Attack | Legendary
+Moctezuma I | Integration | Peacekeeping | Skill | Legendary

@@ -59,6 +59,11 @@ export interface MigrationCase {
   marked_to_zero_by: string | null;
   zeroed_at: string | null;
   zeroed_by: string | null;
+  /** Auto-set (with attribution) when a later scan shows a zeroed player's
+   *  power grew back by ≥ REBUILD_THRESHOLD. State stays 'zeroed'; this is
+   *  informational metadata so officers can filter "zeroed and came back". */
+  rebuilt_at: string | null;
+  rebuilt_by: string | null;
   afk_at: string | null;
   afk_by: string | null;
   notes: string | null;
@@ -317,6 +322,51 @@ export async function bulkMarkToZero(caseIds: string[], officerName: string): Pr
       marked_to_zero_at: now,
       marked_to_zero_by: officerName,
     })
+    .in('id', caseIds)
+    .select('id');
+  if (error) throw error;
+  return (data ?? []).length;
+}
+
+/** Bulk state flipper for user-driven multi-select actions on the migration
+ *  cycle table. Maps each target state to its canonical attribution columns
+ *  so the audit trail (who/when) mirrors the single-row flow. Returns the
+ *  count of rows actually updated. */
+export async function bulkSetState(
+  caseIds: string[],
+  state: 'migrated' | 'zeroed' | 'excepted' | 'afk' | 'marked_to_zero',
+  actorName: string,
+  opts?: { exceptionReason?: string | null },
+): Promise<number> {
+  if (caseIds.length === 0) return 0;
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = { state, updated_at: now };
+  switch (state) {
+    case 'migrated':
+      patch.migrated_confirmed_at = now;
+      patch.migrated_confirmed_by = actorName;
+      break;
+    case 'zeroed':
+      patch.zeroed_at = now;
+      patch.zeroed_by = actorName;
+      break;
+    case 'excepted':
+      patch.excepted_at = now;
+      patch.excepted_by = actorName;
+      if (opts?.exceptionReason !== undefined) patch.exception_reason = opts.exceptionReason;
+      break;
+    case 'afk':
+      patch.afk_at = now;
+      patch.afk_by = actorName;
+      break;
+    case 'marked_to_zero':
+      patch.marked_to_zero_at = now;
+      patch.marked_to_zero_by = actorName;
+      break;
+  }
+  const { data, error } = await createClient()
+    .from('migration_cases')
+    .update(patch)
     .in('id', caseIds)
     .select('id');
   if (error) throw error;
@@ -795,11 +845,13 @@ export async function refreshZeroListFromScan(
 ): Promise<{ updated: number; renamed: number }> {
   if (scanRows.length === 0) return { updated: 0, renamed: 0 };
   const sb = createClient();
-  // Pull current zero-list rows — we only update existing rows, never insert.
+  // Pull ALL migration_cases (both zero_list and cycle) — cycle-flagged
+  // cases live in the same table and their coords/name are just as stale
+  // after a rename. Filtering by source_kind was leaving cycle cases behind
+  // even when they were the ones being actively worked on.
   const { data: zlist, error: e1 } = await sb
     .from('migration_cases')
-    .select('id, character_id, username')
-    .eq('source_kind', 'zero_list');
+    .select('id, character_id, username');
   if (e1) throw e1;
   const rowByChar = new Map<number, { id: string; username: string }>();
   for (const r of zlist ?? []) rowByChar.set(r.character_id as number, { id: r.id as string, username: (r.username as string) ?? '' });
@@ -830,4 +882,143 @@ export async function refreshZeroListFromScan(
     if (willRename) renamed += 1;
   }
   return { updated, renamed };
+}
+
+/** Auto-transition active migration_cases to `migrated` based on presence
+ *  in a fresh location scan. Rule: a case that was previously seen (has a
+ *  `last_seen_scan_id`) but whose `character_id` is NOT in the new scan is
+ *  presumed to have left the map. Cases with no prior scan sighting are
+ *  skipped — no baseline to compare against, no confident call.
+ *
+ *  Scope (matches the "aggressive" policy the user chose):
+ *    - Includes: pending, claimed, contacted, marked_to_zero, excepted.
+ *      Excepted is deliberately overridden — the objective fact "no longer
+ *      here" wins over the officer's earlier grace.
+ *    - Skips: migrated (already there), zeroed (game over), afk (different
+ *      reason, don't overwrite).
+ *
+ *  Cross-cycle / cross-scope by character_id — migration_cases carry no
+ *  kvk_id column; if the same character appears across cycles/KvKs every
+ *  non-terminal instance flips together. */
+export async function autoMarkEmigratedFromScan(
+  scanGovIds: Set<number>,
+  actorName?: string | null,
+): Promise<{ updated: number; checked: number }> {
+  const sb = createClient();
+  const eligibleStates: MigrationState[] = ['pending', 'claimed', 'contacted', 'marked_to_zero', 'excepted'];
+
+  // Pull the tracked candidates first. `not('last_seen_scan_id', 'is', null)`
+  // is the "we've seen this player before" guard — without it we'd auto-mark
+  // brand-new cases from the very first upload where nothing has been sighted
+  // yet, which is a false positive by construction.
+  const { data: tracked, error: selErr } = await sb
+    .from('migration_cases')
+    .select('id, character_id')
+    .in('state', eligibleStates)
+    .not('last_seen_scan_id', 'is', null);
+  if (selErr) throw selErr;
+
+  const missing = (tracked ?? []).filter((r) => !scanGovIds.has(r.character_id as number));
+  const ids = missing.map((r) => r.id as string);
+  if (ids.length === 0) return { updated: 0, checked: tracked?.length ?? 0 };
+
+  const nowIso = new Date().toISOString();
+  const { error: updErr } = await sb
+    .from('migration_cases')
+    .update({
+      state: 'migrated',
+      migrated_confirmed_at: nowIso,
+      migrated_confirmed_by: actorName ?? 'auto-scan',
+      updated_at: nowIso,
+    })
+    .in('id', ids);
+  if (updErr) throw updErr;
+  return { updated: ids.length, checked: tracked?.length ?? 0 };
+}
+
+/** Detect zeroed and rebuilt-after-zero cases from a fresh location scan by
+ *  comparing each player's new power against the case's stored
+ *  `last_seen_power` (i.e. the previous scan's snapshot). Must be called
+ *  BEFORE any function that overwrites `last_seen_power` — running it after
+ *  `refreshZeroListFromScan` would compare the new value against itself and
+ *  never fire.
+ *
+ *  Rules:
+ *    - Power dropped by ≥ ZERO_THRESHOLD (default 1M) AND state was active
+ *      (pending / claimed / contacted / marked_to_zero / excepted) →
+ *      state → 'zeroed'. Excepted overridden on purpose, matching the
+ *      migrated auto-detect policy.
+ *    - Power grew by ≥ REBUILD_THRESHOLD AND state was already 'zeroed'
+ *      AND rebuilt_at is currently null → set rebuilt_at + rebuilt_by.
+ *      State stays 'zeroed' — the audit is that this player was zeroed
+ *      once and came back; officers may then decide what to do.
+ *    - Cases without a prior `last_seen_power` are skipped (no baseline). */
+export async function autoDetectPowerChangesFromScan(
+  scanPowerByGovId: Map<number, number>,
+  actorName?: string | null,
+  opts?: { zeroThreshold?: number; rebuildThreshold?: number },
+): Promise<{ zeroed: number; rebuilt: number; checked: number }> {
+  const ZERO_THRESHOLD = opts?.zeroThreshold ?? 1_000_000;
+  const REBUILD_THRESHOLD = opts?.rebuildThreshold ?? 1_000_000;
+  if (scanPowerByGovId.size === 0) return { zeroed: 0, rebuilt: 0, checked: 0 };
+  const sb = createClient();
+  const activeStates: MigrationState[] = ['pending', 'claimed', 'contacted', 'marked_to_zero', 'excepted'];
+
+  // Pull every case that either (a) is active and could get zeroed, or
+  // (b) is already zeroed without a rebuilt flag yet — the two disjoint
+  // populations the two rules act on.
+  const govIds = [...scanPowerByGovId.keys()];
+  const { data: rows, error } = await sb
+    .from('migration_cases')
+    .select('id, character_id, state, last_seen_power, rebuilt_at')
+    .in('character_id', govIds)
+    .not('last_seen_power', 'is', null);
+  if (error) throw error;
+
+  const toZero: string[] = [];
+  const toRebuilt: string[] = [];
+  for (const r of rows ?? []) {
+    const prev = r.last_seen_power as number | null;
+    const next = scanPowerByGovId.get(r.character_id as number);
+    if (prev == null || next == null) continue;
+    const delta = next - prev;
+    const state = r.state as MigrationState;
+    if (delta <= -ZERO_THRESHOLD && activeStates.includes(state)) {
+      toZero.push(r.id as string);
+    } else if (delta >= REBUILD_THRESHOLD && state === 'zeroed' && r.rebuilt_at == null) {
+      toRebuilt.push(r.id as string);
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+  let zeroed = 0;
+  let rebuilt = 0;
+  if (toZero.length > 0) {
+    const { error: zErr, data: zData } = await sb
+      .from('migration_cases')
+      .update({
+        state: 'zeroed',
+        zeroed_at: nowIso,
+        zeroed_by: actorName ?? 'auto-scan',
+        updated_at: nowIso,
+      })
+      .in('id', toZero)
+      .select('id');
+    if (zErr) throw zErr;
+    zeroed = (zData ?? []).length;
+  }
+  if (toRebuilt.length > 0) {
+    const { error: rErr, data: rData } = await sb
+      .from('migration_cases')
+      .update({
+        rebuilt_at: nowIso,
+        rebuilt_by: actorName ?? 'auto-scan',
+        updated_at: nowIso,
+      })
+      .in('id', toRebuilt)
+      .select('id');
+    if (rErr) throw rErr;
+    rebuilt = (rData ?? []).length;
+  }
+  return { zeroed, rebuilt, checked: rows?.length ?? 0 };
 }

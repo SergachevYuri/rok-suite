@@ -260,6 +260,30 @@ function DkpPageInner() {
 
   // ─── Migration flagging (shared via MIGRATION_ROW_ID config row) ────────
   const [flaggedForMigration, setFlaggedForMigration] = useState<Set<number>>(new Set());
+
+  /** Player coords from the most recent location scan — displayed as a column
+   *  in the DKP table so officers can see who's where without jumping to
+   *  another page. Best-effort: empty when no location scan has been
+   *  uploaded, and stale if the scan is old (surfaced via `coordsScanLabel`). */
+  const [coordsByPlayer, setCoordsByPlayer] = useState<Map<number, { x: number | null; y: number | null }>>(new Map());
+  const [coordsScanLabel, setCoordsScanLabel] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { loadLatestLocationPoints } = await import('@/lib/zero-list/scan-data');
+        const { scan, points } = await loadLatestLocationPoints();
+        if (cancelled) return;
+        const map = new Map<number, { x: number | null; y: number | null }>();
+        for (const p of points) map.set(p.governorId, { x: p.x, y: p.y });
+        setCoordsByPlayer(map);
+        setCoordsScanLabel(scan?.label ?? null);
+      } catch (e) {
+        console.warn('DKP coords fetch failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const flagDirtyRef = useRef(false);
 
   useEffect(() => {
@@ -414,6 +438,11 @@ function DkpPageInner() {
   }, [scored]);
 
   const rejectedCount = summary.counts.REJECTED;
+  /** REJECTED + UNRANKED — the "failing" bucket the emigration flow targets.
+   *  Both count as underperformers because the dataset is already filtered to
+   *  CH25 via the roster upload — UNRANKED here means "CH25 with too little
+   *  power to fit any tier" (or excluded by top-N), not "not-yet-max-hall". */
+  const failingCount = summary.counts.REJECTED + summary.counts.UNRANKED;
   const flaggedInThisDataset = useMemo(() => {
     let n = 0;
     for (const p of scored) if (flaggedForMigration.has(p.characterId)) n++;
@@ -499,11 +528,12 @@ function DkpPageInner() {
     });
   };
 
-  const handleFlagAllRejected = () => {
+  const handleFlagAllFailing = () => {
     setFlaggedForMigration((prev) => {
       const next = new Set(prev);
       for (const p of scored) {
-        if (p.status === 'REJECTED') next.add(p.characterId);
+        // REJECTED + UNRANKED — see failingCount comment above for why both.
+        if (p.status === 'REJECTED' || p.status === 'UNRANKED') next.add(p.characterId);
       }
       persistFlagged(next);
       return next;
@@ -529,16 +559,18 @@ function DkpPageInner() {
     persistFlagged(new Set());
   };
 
-  /** Convenience: wipe the current emigration list AND flag every REJECTED
-   *  player in the current scored set as the new list. */
-  const handleReplaceWithRejected = () => {
-    const rejectedIds = scored.filter((p) => p.status === 'REJECTED').map((p) => p.characterId);
-    if (rejectedIds.length === 0) {
-      alert('No REJECTED players in the current view — nothing to send.');
+  /** Convenience: wipe the current emigration list AND flag every failing
+   *  (REJECTED + UNRANKED) player in the current scored set as the new list. */
+  const handleReplaceWithFailing = () => {
+    const failingIds = scored
+      .filter((p) => p.status === 'REJECTED' || p.status === 'UNRANKED')
+      .map((p) => p.characterId);
+    if (failingIds.length === 0) {
+      alert('No REJECTED or UNRANKED players in the current view — nothing to send.');
       return;
     }
-    if (!confirm(`Replace the emigration list with ${rejectedIds.length} REJECTED players from ${selectedKvk?.name ?? 'this KvK'} · KD ${selectedKingdomId}?\nThis wipes any previously-flagged players (including from other KDs).`)) return;
-    const next = new Set(rejectedIds);
+    if (!confirm(`Replace the emigration list with ${failingIds.length} failing players (REJECTED + UNRANKED) from ${selectedKvk?.name ?? 'this KvK'} · KD ${selectedKingdomId}?\nThis wipes any previously-flagged players (including from other KDs).`)) return;
+    const next = new Set(failingIds);
     setFlaggedForMigration(next);
     persistFlagged(next);
   };
@@ -841,20 +873,21 @@ function DkpPageInner() {
                 </span>
                 <button
                   type="button"
-                  onClick={handleFlagAllRejected}
-                  disabled={rejectedCount === 0}
+                  onClick={handleFlagAllFailing}
+                  disabled={failingCount === 0}
                   className="px-3 py-1.5 rounded-md text-xs bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Add every REJECTED and UNRANKED player from this view to the emigration list."
                 >
-                  {t('migration.flagAllRejected', { count: rejectedCount })}
+                  {t('migration.flagAllFailing', { count: failingCount })}
                 </button>
                 <button
                   type="button"
-                  onClick={handleReplaceWithRejected}
-                  disabled={rejectedCount === 0}
+                  onClick={handleReplaceWithFailing}
+                  disabled={failingCount === 0}
                   className="px-3 py-1.5 rounded-md text-xs bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  title="Wipe the whole emigration list, then flag every REJECTED player from this view."
+                  title="Wipe the whole emigration list, then flag every REJECTED and UNRANKED player from this view."
                 >
-                  {t('migration.replaceWithRejected', { count: rejectedCount })}
+                  {t('migration.replaceWithFailing', { count: failingCount })}
                 </button>
                 <button
                   type="button"
@@ -895,6 +928,8 @@ function DkpPageInner() {
               showGovId={showGovId}
               flagged={flaggedForMigration}
               onToggleFlag={isOfficer ? handleToggleFlag : null}
+              coordsByPlayer={coordsByPlayer}
+              coordsScanLabel={coordsScanLabel}
             />
           </>
         )}
@@ -1032,6 +1067,109 @@ function UploadPanel({
     return [...set].sort((a, b) => a - b);
   }, [allKds, effectiveKd]);
 
+  /** Re-apply the CH25 filter to the dataset already stored in Supabase for
+   *  the current KvK+KD, without needing a fresh stats upload. Officers use
+   *  this when the roster changes (a player promoted CH24→CH25, someone left
+   *  the alliance, …) but the underlying KP/deaths snapshot is still current.
+   *
+   *  Flow: parse roster → build CH25 whitelist for effectiveKd → keep only
+   *  those player_ids from the currentDataset → save the trimmed dataset via
+   *  onUploaded, preserving the original stats/roster filenames. */
+  const handleReapplyCh25 = async () => {
+    setError(null);
+    setInfo(null);
+    if (!rosterFile) {
+      setError(t('upload.errPickRoster'));
+      return;
+    }
+    if (!currentDataset || currentDataset.players.length === 0) {
+      setError(t('upload.errNoDataset'));
+      return;
+    }
+    if (!effectiveKd) {
+      setError(t('upload.errPickKingdom'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const rosterFull = await parseRosterFile(rosterFile);
+      const allowed = new Set<number>();
+      const rosterByPlayerId = new Map<number, import('./data').RosterRow>();
+      for (const r of rosterFull) {
+        if (r.kd === effectiveKd && r.cityhall === 25) {
+          allowed.add(r.playerId);
+          rosterByPlayerId.set(r.playerId, r);
+        }
+      }
+      if (allowed.size === 0) {
+        throw new Error(t('upload.errRosterNoMatch', { kd: effectiveKd }));
+      }
+      const before = currentDataset.players.length;
+      const kept = currentDataset.players.filter((p) => allowed.has(p.characterId));
+      if (kept.length === 0) {
+        throw new Error(t('upload.errRosterZeroRows', { count: allowed.size }));
+      }
+
+      // Same ghost-row treatment as handleProcess: any CH25 in the fresh
+      // roster who wasn't in the saved dataset gets synthesized with zero
+      // stats so they show up in the DKP view (typically as UNRANKED / low
+      // ratio, both eligible for the emigration flag).
+      const seenIds = new Set(kept.map((p) => p.characterId));
+      let ghostsAdded = 0;
+      for (const [pid, r] of rosterByPlayerId) {
+        if (seenIds.has(pid)) continue;
+        const power = r.power ?? 0;
+        kept.push({
+          characterId: pid,
+          username: r.name ?? `Player ${pid}`,
+          power,
+          highestPower: power,
+          t5Deaths: 0,
+          t4Deaths: 0,
+          totalKP: r.kp ?? 0,
+          t5Kills: 0,
+          t4Kills: 0,
+          rssGathered: 0,
+          allianceHelps: 0,
+          dkp: 0,
+          honorPoints: 0,
+        });
+        ghostsAdded += 1;
+      }
+
+      await onUploaded(
+        {
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: currentDataset.uploadedBy ?? null,
+          // Preserve the original stats filename so the dataset provenance
+          // stays truthful — the underlying stats didn't change, only the
+          // CH25 whitelist did.
+          statsFileName: currentDataset.statsFileName ?? null,
+          honorFileName: rosterFile.name,
+          players: kept,
+        },
+        effectiveKd,
+      );
+      const baseMsg = t('upload.reapplied', {
+        kept: kept.length - ghostsAdded,
+        matched: allowed.size,
+        before,
+        removed: before - (kept.length - ghostsAdded),
+        kd: effectiveKd,
+      });
+      const ghostSuffix = ghostsAdded > 0
+        ? ` · ${ghostsAdded} CH25 with no fight activity added as zero-stat ghosts`
+        : '';
+      setInfo(baseMsg + ghostSuffix);
+      setRosterFile(null);
+      if (rosterRef.current) rosterRef.current.value = '';
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('upload.errParse'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleProcess = async () => {
     setError(null);
     setInfo(null);
@@ -1052,18 +1190,52 @@ function UploadPanel({
       let rosterFilename: string | null = null;
 
       let rosterFull: import('./data').RosterRow[] | null = null;
+      let ghostsAdded = 0;
       if (rosterFile) {
         rosterFull = await parseRosterFile(rosterFile);
         // Build whitelist: player_id where KD == target AND cityhall == 25.
         const allowed = new Set<number>();
+        const rosterByPlayerId = new Map<number, import('./data').RosterRow>();
         for (const r of rosterFull) {
-          if (r.kd === effectiveKd && r.cityhall === 25) allowed.add(r.playerId);
+          if (r.kd === effectiveKd && r.cityhall === 25) {
+            allowed.add(r.playerId);
+            rosterByPlayerId.set(r.playerId, r);
+          }
         }
         rosterMatched = allowed.size;
         if (allowed.size === 0) {
           throw new Error(t('upload.errRosterNoMatch', { kd: effectiveKd }));
         }
         players = players.filter((p) => allowed.has(p.characterId));
+
+        // Ghost rows for CH25 players who never appeared in the MGE stats —
+        // they didn't fight at all this cycle, so the export skipped them.
+        // Adding them as zero-stat entries surfaces them in the DKP view as
+        // REJECTED (if roster power ≥ 30M) or UNRANKED (no power / <30M),
+        // both of which are eligible for the emigration flag. Without this
+        // they'd be invisible and impossible to zero-list from the DKP page.
+        const seenInStats = new Set(players.map((p) => p.characterId));
+        for (const [pid, r] of rosterByPlayerId) {
+          if (seenInStats.has(pid)) continue;
+          const power = r.power ?? 0;
+          players.push({
+            characterId: pid,
+            username: r.name ?? `Player ${pid}`,
+            power,
+            highestPower: power,
+            t5Deaths: 0,
+            t4Deaths: 0,
+            totalKP: r.kp ?? 0,
+            t5Kills: 0,
+            t4Kills: 0,
+            rssGathered: 0,
+            allianceHelps: 0,
+            dkp: 0,
+            honorPoints: 0,
+          });
+          ghostsAdded += 1;
+        }
+
         rosterFilename = rosterFile.name;
         if (players.length === 0) {
           throw new Error(t('upload.errRosterZeroRows', { count: allowed.size }));
@@ -1100,21 +1272,29 @@ function UploadPanel({
         }
       }
 
+      // Ghost rows shift the arithmetic: `filtered` here still means "how many
+      // stats-side rows we DROPPED" (weren't in roster), not "how many total
+      // rows disappeared from `players`". Compute against the pre-ghost count
+      // so the number stays honest.
+      const statsSurvivors = players.length - ghostsAdded;
       const baseMsg = rosterFile
         ? t('upload.savedWithRoster', {
             saved: players.length,
             matched: rosterMatched,
             kd: effectiveKd,
             before: beforeFilter,
-            filtered: beforeFilter - players.length,
+            filtered: beforeFilter - statsSurvivors,
           })
         : t('upload.saved', { saved: players.length, kd: effectiveKd });
+      const ghostSuffix = ghostsAdded > 0
+        ? ` · ${ghostsAdded} CH25 with no fight activity added as zero-stat ghosts`
+        : '';
       const suffix = kingdomStatsPushed
         ? ` · Kingdom Stats: ${kingdomStatsPushed.kingdoms} KDs / ${kingdomStatsPushed.players} players`
         : kingdomStatsError
           ? ` · Kingdom Stats push failed: ${kingdomStatsError}`
           : '';
-      setInfo(baseMsg + suffix);
+      setInfo(baseMsg + ghostSuffix + suffix);
       setFile(null);
       setRosterFile(null);
       setKdOverride(null);
@@ -1246,6 +1426,16 @@ function UploadPanel({
           className="px-4 py-2 rounded-lg bg-[#4318ff] text-white text-sm font-medium hover:bg-[#3a14e0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {busy ? t('upload.processing') : t('upload.process')}
+        </button>
+        {/* Roster-only re-apply — no stats file needed. Trims the current
+         *  dataset in-place to the fresh CH25 whitelist. */}
+        <button
+          onClick={handleReapplyCh25}
+          disabled={!rosterFile || busy || !currentDataset || currentDataset.players.length === 0}
+          className="px-4 py-2 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-sm font-medium hover:bg-amber-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          title={t('upload.reapplyHint')}
+        >
+          {busy ? t('upload.processing') : t('upload.reapplyCh25')}
         </button>
         {info && <span className="text-xs text-emerald-400">{info}</span>}
         {error && <span className="text-xs text-red-400">{error}</span>}
@@ -2217,6 +2407,12 @@ interface PlayersTableProps {
   flagged: Set<number>;
   /** When provided, the checkbox column is shown (officer-only). null = read-only. */
   onToggleFlag: ((characterId: number) => void) | null;
+  /** Map from character_id to x/y coords from the latest location scan.
+   *  Empty when no location scan has been uploaded yet. */
+  coordsByPlayer: Map<number, { x: number | null; y: number | null }>;
+  /** Label of the source scan for the coords column (e.g. "Jul 15, 2026 · scan_3923.csv").
+   *  Shown as a subtle helper next to the column header so it's clear how fresh the data is. */
+  coordsScanLabel: string | null;
 }
 
 type TFn = ReturnType<typeof useTranslations>;
@@ -2301,7 +2497,7 @@ function tierTipContent(p: SimpleScoredPlayer, t: TFn): React.ReactNode {
   );
 }
 
-function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, scoringRule, showGovId, flagged, onToggleFlag }: PlayersTableProps) {
+function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formula, scoringRule, showGovId, flagged, onToggleFlag, coordsByPlayer, coordsScanLabel }: PlayersTableProps) {
   const t = useTranslations('dkp');
   const showFlagCol = onToggleFlag !== null;
   // The scroll container has BOTH axis overflow set on the same element (`overflow-auto`)
@@ -2323,6 +2519,12 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
               )}
               <Th k="rank" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right">{t('columns.rank')}</Th>
               <Th k="username" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-left">{t('columns.name')}</Th>
+              <th
+                className={`${thSticky} px-3 py-2 text-left font-normal`}
+                title={coordsScanLabel ? `Coords from: ${coordsScanLabel}` : 'No location scan uploaded yet — upload via Migration Tracker > Scans > Location Upload.'}
+              >
+                Coords
+              </th>
               <Th k="power" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.power')}>{t('columns.power')}</Th>
               <Th k="tier" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-center" help={t('columnHelp.tier')}>{t('columns.tier')}</Th>
               <Th k="t4Deaths" sortKey={sortKey} sortDir={sortDir} onSort={onSort} align="text-right" help={t('columnHelp.t4Deaths')}>{t('columns.t4Deaths')}</Th>
@@ -2340,7 +2542,7 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={showFlagCol ? 15 : 14} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
+                <td colSpan={showFlagCol ? 16 : 15} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
                   {t('table.empty')}
                 </td>
               </tr>
@@ -2373,6 +2575,13 @@ function PlayersTable({ rows, rankById, sortKey, sortDir, onSort, cutoffs, formu
                   {showGovId && (
                     <span className="ml-2 text-xs text-[var(--text-muted)] font-mono">#{p.characterId}</span>
                   )}
+                </td>
+                <td className="px-3 py-2 text-left tabular-nums text-[var(--text-muted)] whitespace-nowrap">
+                  {(() => {
+                    const c = coordsByPlayer.get(p.characterId);
+                    if (!c || c.x == null || c.y == null) return <span className="text-[var(--text-muted)]/40">—</span>;
+                    return `${c.x}, ${c.y}`;
+                  })()}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{fmtM(p.power)}</td>
                 <td className="px-3 py-2 text-center">

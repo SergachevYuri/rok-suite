@@ -844,6 +844,10 @@
       "unflagAll": "इस KD में सभी अनफ़्लैग करें",
       "openPage": "माइग्रेशन पेज खोलें →",
       "replaceWithRejected": "Replace list with rejected ({count})",
+
+      "flagAllFailing": "सभी असफल फ़्लैग करें ({count})",
+
+      "replaceWithFailing": "सूची को असफल से बदलें ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
@@ -865,6 +869,16 @@
       "removeRoster": "रोस्टर हटाएं",
       "targetKingdom": "लक्ष्य किंगडम",
       "process": "प्रोसेस करें और सहेजें",
+
+      "reapplyCh25": "CH25 फ़िल्टर पुनः लागू करें",
+
+      "reapplyHint": "स्टैट्स पुनः अपलोड किए बिना वर्तमान डेटासेट को रोस्टर की CH25 सूची तक कम करें।",
+
+      "reapplied": "{before} में से {kept} रखे गए · {removed} हटाए गए · रोस्टर में {matched} · KD {kd}",
+
+      "errPickRoster": "पहले एक रोस्टर फ़ाइल चुनें।",
+
+      "errNoDataset": "पुनः फ़िल्टर करने के लिए कोई सहेजा गया डेटासेट नहीं। पहले स्टैट्स अपलोड करें।",
       "processing": "प्रोसेस हो रहा है…",
       "errPickStats": "पहले एक .xlsx स्टैट्स फ़ाइल चुनें",
       "errPickKingdom": "एक लक्ष्य किंगडम चुनें",

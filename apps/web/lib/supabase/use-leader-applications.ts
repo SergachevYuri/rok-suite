@@ -69,6 +69,19 @@ export interface LeaderApplicationInput {
 }
 
 const BUCKET = 'leader-applications';
+const UPLOAD_MAX_ATTEMPTS = 3;
+const UPLOAD_BACKOFF_MS = 800;
+
+/** Distinguish a network-layer failure (TypeError: Failed to fetch — client
+ *  couldn't even reach the endpoint) from a Supabase-side rejection (auth,
+ *  RLS, quota). The wording of the surfaced error changes accordingly, so
+ *  applicants troubleshoot the actual problem instead of chasing the bucket
+ *  when their real issue is an ad-blocker or a captive-portal WiFi. */
+function isFetchFailure(err: unknown): boolean {
+  if (!err) return false;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /failed to fetch|network|networkerror|load failed/i.test(msg);
+}
 
 async function uploadCommanderScreenshot(
   file: File,
@@ -79,20 +92,47 @@ async function uploadCommanderScreenshot(
   const safeSlot = slot.replace(/[^a-zA-Z0-9_-]/g, '_');
   const path = `${applicationId}/${safeSlot}_${Date.now()}.${ext}`;
 
-  const { error } = await supabase
-    .storage
-    .from(BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: true });
-
-  if (error) {
-    throw new Error(
-      `Screenshot upload failed (${slot}): ${error.message}. ` +
-        `Check that the "${BUCKET}" Supabase storage bucket exists, is public, and has an INSERT policy for anon.`,
-    );
+  // Retry loop — 3 attempts with linear backoff. Transient network hiccups
+  // (spotty WiFi, brief captive-portal blip) usually recover by attempt 2.
+  // Permission errors won't be helped by retrying but the extra ~2s cost is
+  // negligible on the sad path.
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= UPLOAD_MAX_ATTEMPTS; attempt++) {
+    try {
+      const { error } = await supabase
+        .storage
+        .from(BUCKET)
+        .upload(path, file, { contentType: file.type, upsert: true });
+      if (!error) {
+        const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+        return data.publicUrl;
+      }
+      lastError = error;
+      // Non-network errors (RLS, quota, auth) won't be fixed by retrying.
+      if (!isFetchFailure(error)) break;
+    } catch (thrown) {
+      lastError = thrown;
+      if (!isFetchFailure(thrown)) break;
+    }
+    if (attempt < UPLOAD_MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, UPLOAD_BACKOFF_MS * attempt));
+    }
   }
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  const errMsg = lastError instanceof Error ? lastError.message : String(lastError);
+  if (isFetchFailure(lastError)) {
+    throw new Error(
+      `Screenshot upload failed (${slot}): ${errMsg}. ` +
+        `Your browser could not reach Supabase Storage after ${UPLOAD_MAX_ATTEMPTS} attempts. ` +
+        `Common causes: ad-blocker / privacy extension blocking supabase.co, ` +
+        `restrictive WiFi (corporate, hotel, school), or a VPN. ` +
+        `Try disabling extensions, switching to mobile data, or another browser.`,
+    );
+  }
+  throw new Error(
+    `Screenshot upload failed (${slot}): ${errMsg}. ` +
+      `Check that the "${BUCKET}" Supabase storage bucket exists, is public, and has an INSERT policy for anon.`,
+  );
 }
 
 export async function submitLeaderApplication(
@@ -115,48 +155,40 @@ export async function submitLeaderApplication(
     return { error: appErr?.message || 'Failed to create application' };
   }
 
-  let roleRows;
+  // Sequential uploads (one file at a time) — 6-way parallelism was saturating
+  // mobile/slow uplinks and causing every leg to time out at once. Slower to
+  // finish on a good line, but way more reliable on the marginal ones we can't
+  // control (school WiFi, spotty mobile data). Roles are still processed in
+  // order, and within a role the six shots go one after the other.
+  const roleRows: Array<Record<string, unknown>> = [];
   try {
-    roleRows = await Promise.all(
-      input.roles.map(async (role, idx) => {
-        const [primaryGear, primaryArmaments, primarySkills, secondaryGear, secondaryArmaments, secondarySkills] = await Promise.all([
-          role.primaryGearFile
-            ? uploadCommanderScreenshot(role.primaryGearFile, app.id, `role${idx}_primary_gear`)
-            : Promise.resolve(null),
-          role.primaryArmamentsFile
-            ? uploadCommanderScreenshot(role.primaryArmamentsFile, app.id, `role${idx}_primary_armaments`)
-            : Promise.resolve(null),
-          role.primarySkillsFile
-            ? uploadCommanderScreenshot(role.primarySkillsFile, app.id, `role${idx}_primary_skills`)
-            : Promise.resolve(null),
-          role.secondaryGearFile
-            ? uploadCommanderScreenshot(role.secondaryGearFile, app.id, `role${idx}_secondary_gear`)
-            : Promise.resolve(null),
-          role.secondaryArmamentsFile
-            ? uploadCommanderScreenshot(role.secondaryArmamentsFile, app.id, `role${idx}_secondary_armaments`)
-            : Promise.resolve(null),
-          role.secondarySkillsFile
-            ? uploadCommanderScreenshot(role.secondarySkillsFile, app.id, `role${idx}_secondary_skills`)
-            : Promise.resolve(null),
-        ]);
-        return {
-          application_id: app.id,
-          position: idx,
-          unit_type: role.unitType,
-          role_type: role.roleType,
-          primary_commander_id: role.primaryCommanderId,
-          primary_commander_name: role.primaryCommanderName,
-          secondary_commander_id: role.secondaryCommanderId,
-          secondary_commander_name: role.secondaryCommanderName,
-          primary_gear_url: primaryGear,
-          primary_armaments_url: primaryArmaments,
-          primary_skills_url: primarySkills,
-          secondary_gear_url: secondaryGear,
-          secondary_armaments_url: secondaryArmaments,
-          secondary_skills_url: secondarySkills,
-        };
-      }),
-    );
+    for (let idx = 0; idx < input.roles.length; idx++) {
+      const role = input.roles[idx];
+      const uploadIfPresent = (file: File | null, slot: string): Promise<string | null> =>
+        file ? uploadCommanderScreenshot(file, app.id, slot) : Promise.resolve(null);
+      const primaryGear = await uploadIfPresent(role.primaryGearFile, `role${idx}_primary_gear`);
+      const primaryArmaments = await uploadIfPresent(role.primaryArmamentsFile, `role${idx}_primary_armaments`);
+      const primarySkills = await uploadIfPresent(role.primarySkillsFile, `role${idx}_primary_skills`);
+      const secondaryGear = await uploadIfPresent(role.secondaryGearFile, `role${idx}_secondary_gear`);
+      const secondaryArmaments = await uploadIfPresent(role.secondaryArmamentsFile, `role${idx}_secondary_armaments`);
+      const secondarySkills = await uploadIfPresent(role.secondarySkillsFile, `role${idx}_secondary_skills`);
+      roleRows.push({
+        application_id: app.id,
+        position: idx,
+        unit_type: role.unitType,
+        role_type: role.roleType,
+        primary_commander_id: role.primaryCommanderId,
+        primary_commander_name: role.primaryCommanderName,
+        secondary_commander_id: role.secondaryCommanderId,
+        secondary_commander_name: role.secondaryCommanderName,
+        primary_gear_url: primaryGear,
+        primary_armaments_url: primaryArmaments,
+        primary_skills_url: primarySkills,
+        secondary_gear_url: secondaryGear,
+        secondary_armaments_url: secondaryArmaments,
+        secondary_skills_url: secondarySkills,
+      });
+    }
   } catch (err) {
     // Roll back the application row so the user can retry cleanly.
     await supabase.from('leader_applications').delete().eq('id', app.id);

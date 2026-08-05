@@ -137,7 +137,14 @@ insert into public.apply_commanders (id, name, specialties, rarity, image_url, s
   ('elizabeth-i', 'Elizabeth I', ARRAY['Engineering','Versatility','Skill']::text[], 'legendary', null, 128),
   ('vercingetorix', 'Vercingetorix', ARRAY['Leadership','Versatility','Support']::text[], 'legendary', null, 129),
   ('hayam-wuruk', 'Hayam Wuruk', ARRAY['Archer','Garrison','Skill']::text[], 'legendary', null, 130),
-  ('alp-arslan', 'Alp Arslan', ARRAY['Archer','Versatility','Skill']::text[], 'legendary', null, 131)
+  ('alp-arslan', 'Alp Arslan', ARRAY['Archer','Versatility','Skill']::text[], 'legendary', null, 131),
+  ('david-iv', 'David IV', ARRAY['Cavalry','Garrison','Defense']::text[], 'legendary', null, 132),
+  ('arthur-pendragon', 'Arthur Pendragon', ARRAY['Cavalry','Versatility','Skill']::text[], 'legendary', null, 133),
+  ('liu-che', 'Liu Che', ARRAY['Infantry','Conquering','Attack']::text[], 'legendary', null, 134),
+  ('scipio-prime', 'Scipio Africanus Prime', ARRAY['Leadership','Conquering','Attack']::text[], 'legendary', null, 135),
+  ('amanitore', 'Amanitore', ARRAY['Archer','Conquering','Skill']::text[], 'legendary', null, 136),
+  ('sargon-of-akkad', 'Sargon of Akkad', ARRAY['Infantry','Conquering','Attack']::text[], 'legendary', null, 137),
+  ('moctezuma-i', 'Moctezuma I', ARRAY['Integration','Peacekeeping','Skill']::text[], 'legendary', null, 138)
 on conflict (id) do update set
   name = excluded.name,
   specialties = excluded.specialties,

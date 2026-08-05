@@ -844,6 +844,10 @@
       "unflagAll": "Снять все отметки в этом КД",
       "openPage": "Открыть страницу миграции →",
       "replaceWithRejected": "Replace list with rejected ({count})",
+
+      "flagAllFailing": "Отметить всех неуспешных ({count})",
+
+      "replaceWithFailing": "Заменить список неуспешными ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
@@ -865,6 +869,16 @@
       "removeRoster": "Удалить состав",
       "targetKingdom": "Целевое королевство",
       "process": "Обработать и сохранить",
+
+      "reapplyCh25": "Заново применить фильтр CH25",
+
+      "reapplyHint": "Обрежьте текущий датасет до списка CH25 из ростера без повторной загрузки статистики.",
+
+      "reapplied": "Сохранено {kept} из {before} · {removed} удалено · {matched} в ростере · KD {kd}",
+
+      "errPickRoster": "Сначала выберите файл ростера.",
+
+      "errNoDataset": "Нет сохранённого датасета для перефильтрации. Сначала загрузите статистику.",
       "processing": "Обработка…",
       "errPickStats": "Сначала выберите .xlsx-файл статистики",
       "errPickKingdom": "Выберите целевое королевство",

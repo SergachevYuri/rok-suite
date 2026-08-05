@@ -849,6 +849,10 @@
       "unflagAll": "Unflag all in this KD",
       "openPage": "Open migration page →",
       "replaceWithRejected": "Replace list with rejected ({count})",
+
+      "flagAllFailing": "Flag all failing ({count})",
+
+      "replaceWithFailing": "Replace list with failing ({count})",
       "clearAllFlags": "Clear entire emigration list"
     },
     "upload": {
@@ -870,6 +874,16 @@
       "removeRoster": "Remove roster",
       "targetKingdom": "Target Kingdom",
       "process": "Process & save",
+
+      "reapplyCh25": "Re-apply CH25 filter",
+
+      "reapplyHint": "Trim the current dataset down to the roster's CH25 list without re-uploading the stats.",
+
+      "reapplied": "Kept {kept} of {before} · removed {removed} · {matched} CH25 in roster · KD {kd}",
+
+      "errPickRoster": "Pick a roster file first.",
+
+      "errNoDataset": "No saved dataset to re-filter. Upload stats first.",
       "processing": "Processing…",
       "errPickStats": "Pick an .xlsx stats file first",
       "errPickKingdom": "Pick a target Kingdom",
