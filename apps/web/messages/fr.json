@@ -1220,7 +1220,8 @@
     },
     "tabs": {
       "submit": "Envoyer",
-      "review": "Revoir"
+      "review": "Revoir",
+      "board": "Tableau des leaders"
     },
     "commander": {
       "placeholder": "Choisis un commandant…",

@@ -1220,7 +1220,8 @@
     },
     "tabs": {
       "submit": "送信",
-      "review": "確認"
+      "review": "確認",
+      "board": "リードボード"
     },
     "commander": {
       "placeholder": "司令官を選択…",

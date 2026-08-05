@@ -1220,7 +1220,8 @@
     },
     "tabs": {
       "submit": "إرسال",
-      "review": "مراجعة"
+      "review": "مراجعة",
+      "board": "لوحة القادة"
     },
     "commander": {
       "placeholder": "اختر قائدًا…",

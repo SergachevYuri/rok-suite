@@ -1220,7 +1220,8 @@
     },
     "tabs": {
       "submit": "Invia",
-      "review": "Revisione"
+      "review": "Revisione",
+      "board": "Tabellone leader"
     },
     "commander": {
       "placeholder": "Scegli un comandante…",

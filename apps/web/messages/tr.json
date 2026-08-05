@@ -1220,7 +1220,8 @@
     },
     "tabs": {
       "submit": "Gönder",
-      "review": "İncele"
+      "review": "İncele",
+      "board": "Lider Panosu"
     },
     "commander": {
       "placeholder": "Bir komutan seç…",

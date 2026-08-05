@@ -19,6 +19,8 @@ import {
   useLeaderApplications,
   updateApplicationStatus,
   updateApplicationRating,
+  updateApplicationReadiness,
+  type ReadinessLevel,
   deleteApplication,
   type LeaderApplicationRow,
   type ApplicationStatus,
@@ -38,6 +40,12 @@ const STATUS_OPTIONS: { value: ApplicationStatus; label: string; classes: string
 function statusBadgeClasses(status: ApplicationStatus): string {
   return STATUS_OPTIONS.find((s) => s.value === status)?.classes ?? 'bg-zinc-500/15 text-zinc-400';
 }
+
+const READINESS_OPTIONS: { value: ReadinessLevel; short: string; label: string; active: string }[] = [
+  { value: 'ready', short: 'Ready', label: 'Lead is complete / ready', active: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' },
+  { value: 'near', short: 'Near', label: 'Almost ready', active: 'bg-amber-500/20 text-amber-400 border-amber-500/40' },
+  { value: 'not_ready', short: 'Not', label: 'Not ready', active: 'bg-rose-500/20 text-rose-400 border-rose-500/40' },
+];
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -167,6 +175,11 @@ export function LeaderApplicationsAdmin() {
     if (ok) reload();
   };
 
+  const handleReadinessChange = async (id: string, readiness: ReadinessLevel | null) => {
+    const ok = await updateApplicationReadiness(id, readiness);
+    if (ok) reload();
+  };
+
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete application from ${name}? This cannot be undone.`)) return;
     const ok = await deleteApplication(id);
@@ -293,6 +306,7 @@ export function LeaderApplicationsAdmin() {
               onToggle={() => toggleExpanded(app.id)}
               onStatusChange={(s) => handleStatusChange(app.id, s)}
               onRatingChange={(r) => handleRatingChange(app.id, r)}
+              onReadinessChange={(rd) => handleReadinessChange(app.id, rd)}
               onDelete={() => handleDelete(app.id, app.name)}
               onOpenImage={(url) => setLightbox(url)}
             />
@@ -382,6 +396,7 @@ interface ApplicationCardProps {
   expanded: boolean;
   onToggle: () => void;
   onStatusChange: (status: ApplicationStatus) => void;
+  onReadinessChange: (readiness: ReadinessLevel | null) => void;
   onRatingChange: (rating: number | null) => void;
   onDelete: () => void;
   onOpenImage: (url: string) => void;
@@ -393,6 +408,7 @@ function ApplicationCard({
   onToggle,
   onStatusChange,
   onRatingChange,
+  onReadinessChange,
   onDelete,
   onOpenImage,
 }: ApplicationCardProps) {
@@ -465,6 +481,31 @@ function ApplicationCard({
               </option>
             ))}
           </select>
+        </div>
+        {/* Lead readiness — one tap to set; tap the active one to clear. */}
+        <div className="flex items-center gap-1.5">
+          <label className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] font-medium">Lead</label>
+          {READINESS_OPTIONS.map((o) => {
+            const active = app.readiness === o.value;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => onReadinessChange(active ? null : o.value)}
+                title={active ? `${o.label} — tap to clear` : o.label}
+                className={`px-2 py-1 rounded-md text-[11px] font-semibold border transition-colors ${
+                  active ? o.active : 'text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--foreground)]'
+                }`}
+              >
+                {o.short}
+              </button>
+            );
+          })}
+          {app.readiness_note && (
+            <span className="text-[10px] text-[var(--text-muted)] truncate max-w-[140px]" title={app.readiness_note}>
+              {app.readiness_note}
+            </span>
+          )}
         </div>
         <button
           type="button"

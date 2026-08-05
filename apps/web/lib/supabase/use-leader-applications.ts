@@ -34,8 +34,14 @@ export interface LeaderApplicationRow {
   locale: string | null;
   status: ApplicationStatus;
   rating: number | null;
+  /** Officer/in-game readiness of this lead's build. Separate from status. */
+  readiness: ReadinessLevel | null;
+  /** Optional short detail on the readiness (e.g. "missing ~50 mats for ring"). */
+  readiness_note: string | null;
   leader_application_roles: LeaderApplicationRoleRow[];
 }
+
+export type ReadinessLevel = 'ready' | 'near' | 'not_ready';
 
 export interface LeaderRoleInput {
   unitType: UnitType;
@@ -226,6 +232,21 @@ export async function updateApplicationRating(
     .eq('id', id);
   if (error) {
     console.error('Failed to update application rating:', error.message);
+    return false;
+  }
+  return true;
+}
+
+export async function updateApplicationReadiness(
+  id: string,
+  readiness: ReadinessLevel | null,
+  note?: string | null,
+): Promise<boolean> {
+  const patch: { readiness: ReadinessLevel | null; readiness_note?: string | null } = { readiness };
+  if (note !== undefined) patch.readiness_note = note;
+  const { error } = await supabase.from('leader_applications').update(patch).eq('id', id);
+  if (error) {
+    console.error('Failed to update application readiness:', error.message);
     return false;
   }
   return true;
