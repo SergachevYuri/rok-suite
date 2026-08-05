@@ -1206,7 +1206,8 @@
     },
     "tabs": {
       "submit": "提交",
-      "review": "审核"
+      "review": "审核",
+      "board": "队长看板"
     },
     "commander": {
       "placeholder": "选择将军…",

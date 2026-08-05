@@ -1206,7 +1206,8 @@
     },
     "tabs": {
       "submit": "Enviar",
-      "review": "Rever"
+      "review": "Rever",
+      "board": "Painel de líderes"
     },
     "commander": {
       "placeholder": "Escolhe um comandante…",

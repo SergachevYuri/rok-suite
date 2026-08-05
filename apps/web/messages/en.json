@@ -1211,7 +1211,8 @@
     },
     "tabs": {
       "submit": "Submit",
-      "review": "Review"
+      "review": "Review",
+      "board": "Lead Board"
     },
     "commander": {
       "placeholder": "Pick a commander…",

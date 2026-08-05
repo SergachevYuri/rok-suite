@@ -1206,7 +1206,8 @@
     },
     "tabs": {
       "submit": "ส่ง",
-      "review": "ตรวจสอบ"
+      "review": "ตรวจสอบ",
+      "board": "บอร์ดผู้นำ"
     },
     "commander": {
       "placeholder": "เลือกผู้บัญชาการ…",
