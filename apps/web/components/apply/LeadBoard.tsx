@@ -45,7 +45,7 @@ function firstMatch(notes: string | null, re: RegExp): string | null {
 }
 const READINESS_RE = /\[Lead readiness[^:]*:\s*([^\n]*)/i;
 const SKILLS_RE = /\[Skills verified[^:]*:\s*([^\n]*)/i;
-const READINESS_LABEL: Record<string, string> = { ready: 'READY', near: 'NEAR', not_ready: 'NOT READY' };
+const READINESS_LABEL: Record<string, string> = { ready: 'READY', near: 'NEAR', not_ready: 'NOT READY', review: 'REVIEW' };
 
 interface Candidate {
   govId: string;
@@ -69,6 +69,7 @@ function readinessRank(r: string | null): number {
   const u = r.toUpperCase();
   if (u.startsWith('READY')) return 4;
   if (u.startsWith('NEAR')) return 3;
+  if (u.startsWith('REVIEW')) return 1;
   if (u.startsWith('NOT')) return 0;
   return 1;
 }
@@ -77,6 +78,7 @@ function readinessTone(r: string | null): string {
   const u = r.toUpperCase();
   if (u.startsWith('READY')) return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
   if (u.startsWith('NEAR')) return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+  if (u.startsWith('REVIEW')) return 'bg-violet-500/15 text-violet-400 border-violet-500/30';
   if (u.startsWith('NOT')) return 'bg-rose-500/15 text-rose-400 border-rose-500/30';
   return 'bg-sky-500/15 text-sky-400 border-sky-500/30';
 }

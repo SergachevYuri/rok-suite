@@ -41,7 +41,7 @@ export interface LeaderApplicationRow {
   leader_application_roles: LeaderApplicationRoleRow[];
 }
 
-export type ReadinessLevel = 'ready' | 'near' | 'not_ready';
+export type ReadinessLevel = 'ready' | 'near' | 'not_ready' | 'review';
 
 export interface LeaderRoleInput {
   unitType: UnitType;

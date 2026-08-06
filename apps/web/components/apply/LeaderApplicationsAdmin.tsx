@@ -45,6 +45,7 @@ const READINESS_OPTIONS: { value: ReadinessLevel; short: string; label: string; 
   { value: 'ready', short: 'Ready', label: 'Lead is complete / ready', active: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' },
   { value: 'near', short: 'Near', label: 'Almost ready', active: 'bg-amber-500/20 text-amber-400 border-amber-500/40' },
   { value: 'not_ready', short: 'Not', label: 'Not ready', active: 'bg-rose-500/20 text-rose-400 border-rose-500/40' },
+  { value: 'review', short: 'Review', label: 'Flagged — needs review (conflicting signals)', active: 'bg-violet-500/20 text-violet-400 border-violet-500/40' },
 ];
 
 function formatDate(iso: string): string {
