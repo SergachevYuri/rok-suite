@@ -1222,7 +1222,8 @@
     },
     "tabs": {
       "submit": "Gửi",
-      "review": "Xem xét"
+      "review": "Xem xét",
+      "board": "Bảng chỉ huy"
     },
     "commander": {
       "placeholder": "Chọn tướng…",

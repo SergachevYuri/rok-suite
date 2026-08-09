@@ -1222,7 +1222,8 @@
     },
     "tabs": {
       "submit": "भेजें",
-      "review": "समीक्षा"
+      "review": "समीक्षा",
+      "board": "लीड बोर्ड"
     },
     "commander": {
       "placeholder": "कमांडर चुनें…",

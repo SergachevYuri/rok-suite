@@ -1222,7 +1222,8 @@
     },
     "tabs": {
       "submit": "Senden",
-      "review": "Prüfen"
+      "review": "Prüfen",
+      "board": "Anführer-Board"
     },
     "commander": {
       "placeholder": "Kommandant wählen…",

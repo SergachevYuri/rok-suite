@@ -17,12 +17,22 @@ create table if not exists public.leader_applications (
   locale text,
   status text not null default 'pending'
     check (status in ('pending','reviewed','approved','rejected')),
-  rating int check (rating is null or (rating >= 1 and rating <= 5))
+  rating int check (rating is null or (rating >= 1 and rating <= 5)),
+  -- Officer/in-game readiness of the lead's build (separate from review status).
+  -- Set with one tap in the review UI; drives the Lead Board.
+  readiness text check (readiness in ('ready','near','not_ready','review')),
+  readiness_note text
 );
 
 -- Adds rating column to pre-existing installations. Safe to re-run.
 alter table public.leader_applications
   add column if not exists rating int;
+
+-- Adds readiness columns to pre-existing installations. Safe to re-run.
+alter table public.leader_applications
+  add column if not exists readiness text
+    check (readiness in ('ready','near','not_ready','review')),
+  add column if not exists readiness_note text;
 
 create index if not exists leader_applications_created_at_idx
   on public.leader_applications (created_at desc);

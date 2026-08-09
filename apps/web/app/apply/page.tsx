@@ -2,15 +2,16 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Shield, ArrowLeft, Inbox, Send } from 'lucide-react';
+import { Shield, ArrowLeft, Inbox, Send, Trophy } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { LeaderApplicationForm } from '@/components/apply/LeaderApplicationForm';
 import { LeaderApplicationsAdmin } from '@/components/apply/LeaderApplicationsAdmin';
+import { LeadBoard } from '@/components/apply/LeadBoard';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { SignInButton } from '@/components/SignInButton';
 import { useAuthRole, meetsRole } from '@/lib/auth-role';
 
-type Tab = 'submit' | 'review';
+type Tab = 'submit' | 'review' | 'board';
 
 export default function ApplyPage() {
   const t = useTranslations('apply');
@@ -21,7 +22,8 @@ export default function ApplyPage() {
   const [tab, setTab] = useState<Tab>(isAdmin ? 'review' : 'submit');
 
   const showReview = isAdmin && tab === 'review';
-  const containerMax = showReview ? 'max-w-5xl' : 'max-w-2xl';
+  const showBoard = isAdmin && tab === 'board';
+  const containerMax = showReview || showBoard ? 'max-w-5xl' : 'max-w-2xl';
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -72,6 +74,12 @@ export default function ApplyPage() {
                 label={t('tabs.review')}
               />
               <TabButton
+                active={tab === 'board'}
+                onClick={() => setTab('board')}
+                icon={<Trophy className="w-4 h-4" />}
+                label={t('tabs.board')}
+              />
+              <TabButton
                 active={tab === 'submit'}
                 onClick={() => setTab('submit')}
                 icon={<Send className="w-4 h-4" />}
@@ -81,7 +89,7 @@ export default function ApplyPage() {
           </div>
         )}
 
-        {showReview ? <LeaderApplicationsAdmin /> : <LeaderApplicationForm />}
+        {showBoard ? <LeadBoard /> : showReview ? <LeaderApplicationsAdmin /> : <LeaderApplicationForm />}
 
         {!showReview && (
           <footer className="mt-10 pt-6 border-t border-[var(--border)] text-center">

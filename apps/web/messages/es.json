@@ -1222,7 +1222,8 @@
     },
     "tabs": {
       "submit": "Enviar",
-      "review": "Revisar"
+      "review": "Revisar",
+      "board": "Tablero de líderes"
     },
     "commander": {
       "placeholder": "Elige un comandante…",

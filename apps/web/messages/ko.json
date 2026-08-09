@@ -1222,7 +1222,8 @@
     },
     "tabs": {
       "submit": "제출",
-      "review": "검토"
+      "review": "검토",
+      "board": "리드 보드"
     },
     "commander": {
       "placeholder": "사령관을 선택하세요…",
